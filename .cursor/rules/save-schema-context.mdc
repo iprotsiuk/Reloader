@@ -1,0 +1,19 @@
+---
+description: Context for agents changing persisted runtime-state schemas or save DTO contracts
+globs: Reloader/Assets/_Project/Core/Scripts/Save/SaveEnvelope.cs,Reloader/Assets/_Project/Core/Scripts/Save/ModuleSaveBlock.cs,Reloader/Assets/_Project/Core/Scripts/Save/SaveFeatureFlags.cs,Reloader/Assets/_Project/Core/Scripts/Save/Migrations/**/*.cs,Reloader/Assets/_Project/Core/Tests/EditMode/**/*Save*.cs
+alwaysApply: false
+---
+
+# Save Schema Context
+
+You are touching persisted runtime-state schemas or save DTO contracts. Read these docs before adding/removing persisted fields:
+
+1. `docs/design/core-architecture.md` — shared contracts and terminology
+2. `docs/design/save-contract-quick-reference.md` — ownership rules + size budget policy
+3. `docs/design/save-and-progression.md` — canonical payload expectations and exact-restore guarantees
+
+Load only the domain docs that correspond to the modules you are editing.
+
+Avoid loading generic `*State*` / `*Instance*` files unless they are directly involved in persisted save contracts for the task.
+
+When adding/changing persisted fields, update payload contract + save/load module + migration path together.

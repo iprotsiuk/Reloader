@@ -1,0 +1,21 @@
+---
+description: Context for agents changing cross-domain event contracts in the Core event hub
+globs: Reloader/Assets/_Project/Core/Scripts/Events/**/*.cs
+alwaysApply: false
+---
+
+# Core Events Context
+
+You are changing cross-domain EventBus contracts (`GameEvents` in v0.x).
+
+Read these docs:
+
+1. `docs/design/core-architecture.md` — EventBus pattern + current/planned `GameEvents` surface
+2. `docs/design/README.md` — domain routing index to load only affected system docs
+
+If an event shape change affects a domain payload/restore boundary, also load:
+
+3. `docs/design/save-contract-quick-reference.md`
+4. `docs/design/save-and-progression.md`
+
+When adding new event groups or moving event files, keep this router globs aligned in the same change.

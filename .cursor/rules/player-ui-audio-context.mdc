@@ -1,0 +1,16 @@
+---
+description: Context for agents working on player controls/input/camera, shared UI, or audio systems
+globs: Reloader/Assets/_Project/Player/**,Reloader/Assets/_Project/UI/**,Reloader/Assets/_Project/Audio/**
+alwaysApply: false
+---
+
+# Player, UI & Audio Context
+
+You are working on player, shared UI, or audio systems. Read these docs:
+
+1. `docs/design/core-architecture.md` — shared patterns, project structure, event bus contracts
+2. `docs/design/prototype-scope.md` — phase priorities and what belongs in v0.1 vs later
+3. Domain doc(s) affected by your change (for example reloading, world, inventory/economy)
+4. `.agent/skills/unity-project-conventions/SKILL.md` — project conventions for scripts/assets
+
+Do NOT load unrelated deep domain docs unless the change explicitly crosses that boundary.

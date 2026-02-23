@@ -1,0 +1,19 @@
+---
+description: Context for agents working on reloading system or weapons/ballistics code
+globs: Reloader/Assets/_Project/Reloading/**,Reloader/Assets/_Project/Weapons/**
+alwaysApply: false
+---
+
+# Reloading & Weapons Context
+
+You are working on the core reloading or weapons system. Read these docs:
+
+1. `docs/design/core-architecture.md` — shared patterns
+2. `docs/design/reloading-system.md` — reloading data models, process steps, equipment
+3. `docs/design/weapons-and-ballistics.md` — weapon parts, ballistics model, shooting
+4. `.agent/skills/reloading-domain-knowledge/SKILL.md` — accuracy calculation, real-world reference (only if implementing accuracy/ballistics)
+5. `.agent/skills/adding-game-content/SKILL.md` — only when creating/editing ScriptableObject data assets under `Reloader/Assets/_Project/Reloading/Data/**` or `Reloader/Assets/_Project/Weapons/Data/**`
+
+For logic/bugfix/refactor tasks in scripts, skip `adding-game-content`.
+
+Do NOT load docs for unrelated systems (hunting, quests, law enforcement, driving, etc.).

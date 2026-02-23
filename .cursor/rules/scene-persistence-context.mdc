@@ -1,0 +1,23 @@
+---
+description: Context for agents changing scene-level persistence and world item placement restoration
+globs: Reloader/Assets/Scenes/**/*Persistence*.unity,Reloader/Assets/_Project/World/Scenes/**/*Persistence*.unity,Reloader/Assets/_Project/Core/Scripts/Persistence/**/*.cs
+alwaysApply: false
+---
+
+# Scene Persistence Context
+
+You are touching scene-level persistence (world item transforms, scene placement restore, scene transition persistence).
+For general world layout edits in `MainWorld` and non-persistence scene files, use the world/vehicles router instead.
+
+Convention:
+- Place scene/world-item save-restore orchestration scripts under `Reloader/Assets/_Project/Core/Scripts/Persistence/**`.
+- Keep persistence-oriented class names discoverable with `*Persistence*` naming where practical.
+
+Read these docs:
+
+1. `docs/design/core-architecture.md` — shared patterns and scene/runtime boundaries
+2. `docs/design/save-contract-quick-reference.md` — ID ownership and location mapping rules
+3. `docs/design/save-and-progression.md` — exact-restore contract
+4. `docs/design/world-and-vehicles.md` — scene/layout expectations when world or travel flows are involved
+
+Do not load unrelated deep domain docs unless the task crosses that system boundary.

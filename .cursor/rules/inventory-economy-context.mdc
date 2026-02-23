@@ -1,0 +1,19 @@
+---
+description: Context for agents working on inventory, storage, item ownership, economy, or shops
+globs: Reloader/Assets/_Project/Inventory/**,Reloader/Assets/_Project/Economy/**
+alwaysApply: false
+---
+
+# Inventory & Economy Context
+
+You are working on inventory/economy systems. Read these docs:
+
+1. `docs/design/core-architecture.md` — shared patterns and event contracts
+2. `docs/design/inventory-and-economy.md` — inventory ownership, storage, economy, shops
+
+If your change touches persisted runtime ownership/location state, also load:
+
+3. `docs/design/save-contract-quick-reference.md`
+4. `docs/design/save-and-progression.md`
+
+Do NOT load unrelated deep domain docs unless the task explicitly crosses boundaries.

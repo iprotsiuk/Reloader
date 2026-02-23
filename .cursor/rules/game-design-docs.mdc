@@ -1,0 +1,14 @@
+---
+description: Routes agents to the correct modular design docs
+alwaysApply: true
+---
+
+# Design Doc Routing
+
+Design docs are modular, split by domain under `docs/design/`. See `docs/design/README.md` for the full routing table.
+
+**Always read first:** `docs/design/core-architecture.md` (~300 lines) — shared patterns, SO system, event bus.
+
+**Then read your domain doc.** Use only the modular docs under `docs/design/` for active work.
+
+**Coding standards:** `.agent/skills/unity-project-conventions/SKILL.md`

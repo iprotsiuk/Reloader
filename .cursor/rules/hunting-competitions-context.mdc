@@ -1,0 +1,18 @@
+---
+description: Context for agents working on hunting loops, animal systems, competitions, or scoring
+globs: Reloader/Assets/_Project/Hunting/**,Reloader/Assets/_Project/Competitions/**
+alwaysApply: false
+---
+
+# Hunting & Competitions Context
+
+You are working on hunting or competition systems. Read these docs:
+
+1. `docs/design/core-architecture.md` — shared patterns and cross-system communication
+2. `docs/design/hunting-and-competitions.md` — hunting and competition progression/data
+
+If your task changes scoring/shot mechanics, also load:
+
+3. `docs/design/weapons-and-ballistics.md`
+
+Do NOT load unrelated deep domain docs unless the task explicitly crosses boundaries.

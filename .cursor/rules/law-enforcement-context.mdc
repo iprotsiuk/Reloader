@@ -1,0 +1,19 @@
+---
+description: Context for agents working on legal rules, policing, offenses, or black market systems
+globs: Reloader/Assets/_Project/LawEnforcement/**
+alwaysApply: false
+---
+
+# Law Enforcement Context
+
+You are working on law-enforcement/legal systems. Read these docs:
+
+1. `docs/design/core-architecture.md` — shared cross-system contracts
+2. `docs/design/law-enforcement.md` — legal model, offense taxonomy, consequences
+
+If your task touches hunting checks or vehicle-stop flows, also load:
+
+3. `docs/design/hunting-and-competitions.md`
+4. `docs/design/world-and-vehicles.md`
+
+Do NOT load unrelated deep domain docs unless the task explicitly crosses boundaries.

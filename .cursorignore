@@ -1,0 +1,15 @@
+# Unity-generated and high-churn directories
+Reloader/Library/**
+Reloader/Temp/**
+Reloader/Logs/**
+Reloader/UserSettings/**
+Reloader/obj/**
+Reloader/Assets/ThirdParty/**
+
+# Local VCS workspace internals
+Reloader/.plastic/**
+
+# Local IDE/editor caches
+**/.vs/**
+**/.idea/**
+**/.vscode/**
