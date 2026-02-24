@@ -43,6 +43,14 @@ Hundreds of items (brass casings, etc.) on the floor:
 - **Containers:** Shelves, cabinets, ammo boxes, vehicle trunk — each has capacity.
 - **Workshop storage:** Organized by type (powder shelf, bullet drawer, brass bins).
 
+### Belt Quick Slots [v0.1]
+
+- Belt has 5 slot indices mapped to keys `1..5`.
+- Selection is slot-based, not equip/unequip based.
+- Pressing `1..5` always selects that slot, including empty slots.
+- Pressing the currently selected slot key again is a no-op.
+- Pickup (`E`) inserts into first empty belt slot, then backpack if unlocked.
+
 ---
 
 ## Currency [v0.1]

@@ -14,7 +14,7 @@
 Current repository runtime requires these registered module blocks:
 
 - `CoreWorld` (`dayCount`, `timeOfDay`)
-- `Inventory` (`carriedItemIds`)
+- `Inventory` (`carriedItemIds`, `beltSlotItemIds`, `backpackItemIds`, `backpackCapacity`, `selectedBeltIndex`)
 
 The broader `SaveData` tree in `save-and-progression.md` is the target schema contract. Blocks become required only after module registration + migration support land in runtime.
 

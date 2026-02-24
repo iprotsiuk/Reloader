@@ -159,6 +159,11 @@ public static class GameEvents
     public static event Action OnSaveCompleted;
     public static event Action OnLoadStarted;
     public static event Action OnLoadCompleted;
+    public static event Action<string> OnItemPickupRequested;
+    public static event Action<string, InventoryArea, int> OnItemStored;
+    public static event Action<string, PickupRejectReason> OnItemPickupRejected;
+    public static event Action<int> OnBeltSelectionChanged;
+    public static event Action OnInventoryChanged;
 }
 ```
 

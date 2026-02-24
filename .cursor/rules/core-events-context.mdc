@@ -12,10 +12,11 @@ Read these docs:
 
 1. `docs/design/core-architecture.md` — EventBus pattern + current/planned `GameEvents` surface
 2. `docs/design/README.md` — domain routing index to load only affected system docs
+3. `docs/design/inventory-and-economy.md` when adding/changing inventory event contracts (`OnItemPickupRequested`, `OnItemStored`, `OnItemPickupRejected`, `OnBeltSelectionChanged`, `OnInventoryChanged`)
 
 If an event shape change affects a domain payload/restore boundary, also load:
 
-3. `docs/design/save-contract-quick-reference.md`
-4. `docs/design/save-and-progression.md`
+4. `docs/design/save-contract-quick-reference.md`
+5. `docs/design/save-and-progression.md`
 
 When adding new event groups or moving event files, keep this router globs aligned in the same change.

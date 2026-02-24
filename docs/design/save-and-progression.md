@@ -73,7 +73,7 @@ This ordering prevents partial loads and keeps cross-system dependencies predict
 Current repository implementation only requires these registered module payloads:
 
 - `CoreWorld` module payload: `dayCount`, `timeOfDay`
-- `Inventory` module payload: `carriedItemIds`
+- `Inventory` module payload: `carriedItemIds`, `beltSlotItemIds`, `backpackItemIds`, `backpackCapacity`, `selectedBeltIndex`
 
 The broader schema below is the v0.1 design target and forward schema contract. Treat it as planned module scope until those modules are registered and migration-backed in runtime.
 
