@@ -108,6 +108,15 @@ Niche accuracy factors that casual players can ignore but dedicated benchrest co
 
 Each round in the magazine is a specific `AmmoInstance`. Match-grade loads carry their exact stats into the field. Sloppy speed-reloads carry theirs too.
 
+### Runtime Weapon Events [v0.1]
+
+`GameEvents` publishes baseline weapon loop events for decoupled UI/audio/VFX listeners:
+
+- `OnWeaponEquipped(string itemId)`
+- `OnWeaponFired(string itemId, Vector3 origin, Vector3 direction)`
+- `OnWeaponReloaded(string itemId, int magCount, int reserveCount)`
+- `OnProjectileHit(string itemId, Vector3 point, float damage)`
+
 ---
 
 ## Competition Spectrum [v0.2]
