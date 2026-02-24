@@ -1,1 +1,4 @@
 Reloader/
+.DS_Store
+unity-*.log
+unity-*.xml
