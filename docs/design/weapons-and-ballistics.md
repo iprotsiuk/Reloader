@@ -108,6 +108,14 @@ Niche accuracy factors that casual players can ignore but dedicated benchrest co
 
 Each round in the magazine is a specific `AmmoInstance`. Match-grade loads carry their exact stats into the field. Sloppy speed-reloads carry theirs too.
 
+### External Ballistics v0.1 Contract [v0.1]
+
+- Shooting consumes a normalized `CartridgeBallisticSpec` resolved from ammo runtime snapshot data.
+- Canonical velocity unit for ammo/runtime contracts is `muzzleVelocityFps` (feet per second).
+- Fire path is source-agnostic: factory and handload rounds use the same firing/projectile pipeline.
+- v0.1 projectile sim includes gravity + BC-informed drag + velocity spread.
+- v0.1 non-goals: wind drift, Coriolis, spin drift, temperature/humidity effects, reloading-bench interactions.
+
 ### Runtime Weapon Events [v0.1]
 
 `GameEvents` publishes baseline weapon loop events for decoupled UI/audio/VFX listeners:

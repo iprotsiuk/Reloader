@@ -15,6 +15,10 @@ Current repository runtime requires these registered module blocks:
 
 - `CoreWorld` (`dayCount`, `timeOfDay`)
 - `Inventory` (`carriedItemIds`, `beltSlotItemIds`, `backpackItemIds`, `backpackCapacity`, `selectedBeltIndex`)
+- `Weapons` (`itemId`, `chamberLoaded`, `magCount`, `reserveCount`, `chamberRound`, `magazineRounds[]`)
+
+Weapons ammo snapshot fields are: `ammoSource`, `muzzleVelocityFps`, `velocityStdDevFps`, `projectileMassGrains`, `ballisticCoefficientG1`, `dispersionMoa`.
+In-flight projectiles are intentionally excluded from v0.1 save scope.
 
 The broader `SaveData` tree in `save-and-progression.md` is the target schema contract. Blocks become required only after module registration + migration support land in runtime.
 

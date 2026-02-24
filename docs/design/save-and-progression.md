@@ -74,6 +74,11 @@ Current repository implementation only requires these registered module payloads
 
 - `CoreWorld` module payload: `dayCount`, `timeOfDay`
 - `Inventory` module payload: `carriedItemIds`, `beltSlotItemIds`, `backpackItemIds`, `backpackCapacity`, `selectedBeltIndex`
+- `Weapons` module payload: `itemId`, `chamberLoaded`, `magCount`, `reserveCount`, `chamberRound`, `magazineRounds[]`
+
+`chamberRound` and `magazineRounds[]` serialize ammo ballistic snapshots for the active weapon state (`ammoSource`, `muzzleVelocityFps`, `velocityStdDevFps`, `projectileMassGrains`, `ballisticCoefficientG1`, `dispersionMoa`).
+
+In-flight projectile state is intentionally out-of-scope for v0.1 saves.
 
 The broader schema below is the v0.1 design target and forward schema contract. Treat it as planned module scope until those modules are registered and migration-backed in runtime.
 
