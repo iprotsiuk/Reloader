@@ -51,6 +51,13 @@ Hundreds of items (brass casings, etc.) on the floor:
 - Pressing the currently selected slot key again is a no-op.
 - Pickup (`E`) inserts into first empty belt slot, then backpack if unlocked.
 
+### Belt HUD Test Surface [v0.1]
+
+- A reusable belt HUD surface should show only the 5 belt slots for this phase.
+- Selected slot visuals use brighter tint + slight scale increase.
+- Occupied slots can use a placeholder icon until item-specific icons are implemented.
+- HUD wiring should stay decoupled from the future TAB shell (inventory/quests/manuals tabs).
+
 ---
 
 ## Currency [v0.1]
