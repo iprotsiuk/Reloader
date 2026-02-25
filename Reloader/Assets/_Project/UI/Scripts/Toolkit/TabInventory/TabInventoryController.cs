@@ -18,7 +18,6 @@ namespace Reloader.UI.Toolkit.TabInventory
         private IPlayerInputSource _inputSource;
         private bool _isOpen;
         private string _activeSection = "inventory";
-        private bool _attemptedInputResolution;
 
         private void OnEnable()
         {
@@ -56,18 +55,7 @@ namespace Reloader.UI.Toolkit.TabInventory
 
         public void Tick()
         {
-            DependencyResolutionGuard.ResolveOnce(
-                ref _inputSource,
-                ref _attemptedInputResolution,
-                () =>
-                {
-                    if (_inputSourceBehaviour is IPlayerInputSource direct)
-                    {
-                        return direct;
-                    }
-
-                    return DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
-                });
+            ResolveInputSource();
 
             if (_inputSource == null)
             {
@@ -188,6 +176,28 @@ namespace Reloader.UI.Toolkit.TabInventory
                 "calendar" => "calendar",
                 _ => "inventory"
             };
+        }
+
+        private void ResolveInputSource()
+        {
+            if (_inputSource != null)
+            {
+                return;
+            }
+
+            if (_inputSourceBehaviour is IPlayerInputSource directFromField)
+            {
+                _inputSource = directFromField;
+                return;
+            }
+
+            _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(GetComponents<MonoBehaviour>());
+            if (_inputSource != null)
+            {
+                return;
+            }
+
+            _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
         }
     }
 }

@@ -11,6 +11,7 @@
         <ui:VisualElement name="reloading__operation-2" class="reloading__operation ui-kit__tab">
             <ui:Label text="Seat (mock)" class="reloading__op-label" />
         </ui:VisualElement>
+        <ui:Button name="reloading__execute" text="Execute" class="reloading__execute ui-kit__tab" />
         <ui:Label name="reloading__result-label" text="" class="reloading__result" />
     </ui:VisualElement>
 </ui:UXML>

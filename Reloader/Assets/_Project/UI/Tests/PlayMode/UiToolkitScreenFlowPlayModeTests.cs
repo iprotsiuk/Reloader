@@ -140,6 +140,37 @@ namespace Reloader.UI.Tests.PlayMode
             Object.DestroyImmediate(go);
         }
 
+        [Test]
+        public void TabInventoryController_Tick_ResolvesInputSource_WhenSpawnedLater()
+        {
+            var go = new GameObject("TabInventoryController");
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(2);
+            inventoryController.Configure(null, null, runtime);
+
+            var root = BuildTabRoot();
+            var viewBinder = new TabInventoryViewBinder();
+            viewBinder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+
+            var controller = go.AddComponent<TabInventoryController>();
+            controller.SetInventoryController(inventoryController);
+            controller.Configure(viewBinder, new TabInventoryDragController());
+
+            var panel = root.Q<VisualElement>("inventory__panel");
+            Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.None));
+
+            controller.Tick();
+            Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.None));
+
+            var lateInput = go.AddComponent<TestInputSource>();
+            lateInput.MenuTogglePressedThisFrame = true;
+            controller.Tick();
+
+            Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Object.DestroyImmediate(go);
+        }
+
         private static VisualElement BuildTabRoot()
         {
             var root = new VisualElement { name = "inventory__root" };

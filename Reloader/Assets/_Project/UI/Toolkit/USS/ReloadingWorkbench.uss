@@ -24,3 +24,7 @@
     color: rgba(236, 239, 244, 0.96);
     -unity-font-style: bold;
 }
+
+.reloading__execute {
+    min-height: 30px;
+}

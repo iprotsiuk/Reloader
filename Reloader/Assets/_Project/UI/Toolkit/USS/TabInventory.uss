@@ -13,10 +13,10 @@
 
 .inventory__panel {
     flex-direction: column;
-    width: 980px;
-    max-width: 98%;
+    width: 92%;
+    max-width: 980px;
+    min-width: 320px;
     max-height: 92%;
-    gap: 10px;
     flex-shrink: 1;
 }
 
@@ -27,49 +27,57 @@
 }
 
 .inventory__header-hint {
-    font-size: 11px;
+    font-size: 10px;
 }
 
 .inventory__tabbar {
     flex-direction: row;
-    gap: 6px;
+    flex-wrap: nowrap;
     align-items: center;
     justify-content: flex-start;
+    margin-top: 6px;
+    overflow: hidden;
 }
 
 .inventory__tab {
-    min-height: 28px;
-    height: 28px;
-    min-width: 110px;
-    padding-left: 10px;
-    padding-right: 10px;
-    font-size: 12px;
+    min-height: 24px;
+    height: 24px;
+    min-width: 80px;
+    padding-left: 8px;
+    padding-right: 8px;
+    font-size: 10px;
     -unity-font-style: normal;
+    flex-shrink: 1;
+    margin-right: 6px;
+    margin-bottom: 6px;
 }
 
 .inventory__section {
     flex-direction: column;
-    gap: 8px;
     min-height: 0;
     flex-grow: 1;
 }
 
+.inventory__section--hidden {
+    display: none;
+}
+
 .inventory__content {
     flex-direction: row;
-    gap: 12px;
+    flex-wrap: wrap;
     min-height: 0;
 }
 
 .inventory__grid-area {
     flex-direction: column;
-    gap: 8px;
     flex-grow: 1;
+    min-width: 0;
 }
 
 .inventory__details {
-    width: 280px;
-    max-width: 34%;
-    min-width: 220px;
+    width: 240px;
+    max-width: 100%;
+    min-width: 180px;
     padding-top: 10px;
     padding-right: 10px;
     padding-bottom: 10px;
@@ -88,28 +96,38 @@
     border-bottom-right-radius: 8px;
     border-bottom-left-radius: 8px;
     flex-direction: column;
-    gap: 8px;
+    margin-left: 12px;
+    margin-top: 2px;
+    flex-grow: 1;
+    flex-shrink: 1;
 }
 
 .inventory__details-title {
     color: rgba(238, 242, 248, 0.95);
-    font-size: 13px;
+    font-size: 12px;
     -unity-font-style: bold;
 }
 
 .inventory__section-title {
     margin-top: 4px;
+    margin-bottom: 6px;
+    font-size: 11px;
 }
 
 .inventory__section-title-row {
     flex-direction: row;
     align-items: center;
-    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.inventory__section-title-row .inventory__section-title {
+    margin-left: 6px;
 }
 
 .inventory__grid-row {
     flex-direction: row;
-    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
 }
 
 .inventory__grid-row--belt {
@@ -122,11 +140,14 @@
 }
 
 .inventory__slot {
+    width: 46px;
+    height: 46px;
     background-color: rgba(255, 255, 255, 0.05);
 }
 
 .inventory__slot--belt {
-    height: 48px;
+    width: 44px;
+    height: 40px;
 }
 
 .inventory__slot.is-occupied {
@@ -151,6 +172,7 @@
 
 .inventory__mock-line {
     color: rgba(228, 233, 239, 0.86);
-    font-size: 13px;
+    font-size: 11px;
     white-space: normal;
+    margin-bottom: 6px;
 }

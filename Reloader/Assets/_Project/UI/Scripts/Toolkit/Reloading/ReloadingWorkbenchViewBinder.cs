@@ -8,6 +8,7 @@ namespace Reloader.UI.Toolkit.Reloading
     {
         private VisualElement _root;
         private VisualElement[] _operationElements = Array.Empty<VisualElement>();
+        private Button _executeButton;
         private Label _resultLabel;
 
         public event Action<UiIntent> IntentRaised;
@@ -18,7 +19,19 @@ namespace Reloader.UI.Toolkit.Reloading
             _operationElements = new VisualElement[Math.Max(0, operationCount)];
             for (var i = 0; i < _operationElements.Length; i++)
             {
-                _operationElements[i] = root?.Q<VisualElement>($"reloading__operation-{i}");
+                var operationElement = root?.Q<VisualElement>($"reloading__operation-{i}");
+                _operationElements[i] = operationElement;
+                if (operationElement != null)
+                {
+                    var captured = i;
+                    operationElement.RegisterCallback<ClickEvent>(_ => IntentRaised?.Invoke(new UiIntent("reloading.operation.select", captured)));
+                }
+            }
+
+            _executeButton = root?.Q<Button>("reloading__execute");
+            if (_executeButton != null)
+            {
+                _executeButton.clicked += () => IntentRaised?.Invoke(new UiIntent("reloading.operation.execute"));
             }
 
             _resultLabel = root?.Q<Label>("reloading__result-label");
