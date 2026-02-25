@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using Reloader.Core.Events;
 using Reloader.Inventory;
+using Reloader.Player;
 using Reloader.UI.Toolkit.Contracts;
 using Reloader.UI.Toolkit.TabInventory;
 using Reloader.UI.Toolkit.Trade;
@@ -17,10 +18,17 @@ namespace Reloader.UI.Tests.PlayMode
             var go = new GameObject("TabInventoryController");
             var inventoryController = go.AddComponent<PlayerInventoryController>();
             var runtime = new PlayerInventoryRuntime();
-            runtime.SetBackpackCapacity(2);
-            runtime.BeltSlotItemIds[0] = "item-belt";
-            runtime.BackpackItemIds[0] = "item-pack";
             inventoryController.Configure(null, null, runtime);
+            runtime.SetBackpackCapacity(2);
+
+            // Seed belt/backpack through runtime API semantics so swap flow reflects gameplay state.
+            runtime.BeltSlotItemIds[0] = "item-belt";
+            runtime.BeltSlotItemIds[1] = "slot-1";
+            runtime.BeltSlotItemIds[2] = "slot-2";
+            runtime.BeltSlotItemIds[3] = "slot-3";
+            runtime.BeltSlotItemIds[4] = "slot-4";
+            Assert.That(runtime.TryStoreItem("item-pack", out _, out var storedIndex, out _), Is.True);
+            Assert.That(storedIndex, Is.EqualTo(0));
 
             var root = BuildTabRoot();
             var viewBinder = new TabInventoryViewBinder();
@@ -61,6 +69,27 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void TabInventoryViewBinder_Render_SwitchesToJournalSection()
+        {
+            var root = BuildTabRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+
+            binder.Render(TabInventoryUiState.Create(
+                isOpen: true,
+                beltSlots: new TabInventoryUiState.SlotState[5],
+                backpackSlots: new TabInventoryUiState.SlotState[2],
+                tooltipTitle: string.Empty,
+                tooltipVisible: false,
+                activeSection: "journal"));
+
+            var inventoryPanel = root.Q<VisualElement>("inventory__section-inventory");
+            var journalPanel = root.Q<VisualElement>("inventory__section-journal");
+            Assert.That(inventoryPanel.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(journalPanel.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+        }
+
+        [Test]
         public void TradeController_ShopEvents_ToggleTradeVisibility()
         {
             var go = new GameObject("TradeController");
@@ -82,6 +111,35 @@ namespace Reloader.UI.Tests.PlayMode
             Object.DestroyImmediate(go);
         }
 
+        [Test]
+        public void TabInventoryController_Tick_MenuToggleInput_TogglesPanelVisibility()
+        {
+            var go = new GameObject("TabInventoryController");
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(2);
+            inventoryController.Configure(null, null, runtime);
+
+            var root = BuildTabRoot();
+            var viewBinder = new TabInventoryViewBinder();
+            viewBinder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+
+            var input = go.AddComponent<TestInputSource>();
+            var controller = go.AddComponent<TabInventoryController>();
+            controller.SetInventoryController(inventoryController);
+            controller.SetInputSource(input);
+            controller.Configure(viewBinder, new TabInventoryDragController());
+
+            var panel = root.Q<VisualElement>("inventory__panel");
+            Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.None));
+
+            input.MenuTogglePressedThisFrame = true;
+            controller.Tick();
+
+            Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Object.DestroyImmediate(go);
+        }
+
         private static VisualElement BuildTabRoot()
         {
             var root = new VisualElement { name = "inventory__root" };
@@ -91,8 +149,8 @@ namespace Reloader.UI.Tests.PlayMode
             var tabBar = new VisualElement { name = "inventory__tabbar" };
             tabBar.Add(new Button { name = "inventory__tab-inventory", text = "Inventory" });
             tabBar.Add(new Button { name = "inventory__tab-quests", text = "Quests" });
+            tabBar.Add(new Button { name = "inventory__tab-journal", text = "Journal" });
             tabBar.Add(new Button { name = "inventory__tab-calendar", text = "Calendar" });
-            tabBar.Add(new Button { name = "inventory__tab-events", text = "Events" });
             panel.Add(tabBar);
 
             var inventorySection = new VisualElement { name = "inventory__section-inventory" };
@@ -108,8 +166,8 @@ namespace Reloader.UI.Tests.PlayMode
             }
 
             panel.Add(new VisualElement { name = "inventory__section-quests" });
+            panel.Add(new VisualElement { name = "inventory__section-journal" });
             panel.Add(new VisualElement { name = "inventory__section-calendar" });
-            panel.Add(new VisualElement { name = "inventory__section-events" });
 
             var tooltip = new VisualElement { name = "inventory__tooltip" };
             tooltip.Add(new Label { name = "inventory__tooltip-title" });
@@ -126,6 +184,32 @@ namespace Reloader.UI.Tests.PlayMode
             root.Add(new VisualElement { name = "trade__order-panel" });
             root.Add(new Label { name = "trade__cart-total" });
             return root;
+        }
+
+        private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
+        {
+            public bool MenuTogglePressedThisFrame;
+
+            public Vector2 MoveInput => Vector2.zero;
+            public Vector2 LookInput => Vector2.zero;
+            public bool SprintHeld => false;
+            public bool AimHeld => false;
+            public bool ConsumeJumpPressed() => false;
+            public bool ConsumeFirePressed() => false;
+            public bool ConsumeReloadPressed() => false;
+            public bool ConsumePickupPressed() => false;
+            public int ConsumeBeltSelectPressed() => -1;
+
+            public bool ConsumeMenuTogglePressed()
+            {
+                if (!MenuTogglePressedThisFrame)
+                {
+                    return false;
+                }
+
+                MenuTogglePressedThisFrame = false;
+                return true;
+            }
         }
     }
 }

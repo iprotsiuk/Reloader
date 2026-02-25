@@ -230,6 +230,7 @@ namespace Reloader.Economy.Tests.PlayMode
             public bool ConsumeJumpPressed() => false;
             public bool ConsumePickupPressed() => false;
             public int ConsumeBeltSelectPressed() => -1;
+            public bool ConsumeMenuTogglePressed() => false;
             public bool ConsumeFirePressed() => false;
             public bool ConsumeReloadPressed() => false;
         }

@@ -1,20 +1,24 @@
 using System.Collections.Generic;
+using Reloader.Core;
 using Reloader.Core.Events;
 using Reloader.Inventory;
+using Reloader.Player;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Reloader.UI.Toolkit.TabInventory
 {
     public sealed class TabInventoryController : MonoBehaviour, IUiController
     {
         [SerializeField] private PlayerInventoryController _inventoryController;
+        [SerializeField] private MonoBehaviour _inputSourceBehaviour;
 
         private TabInventoryViewBinder _viewBinder;
         private TabInventoryDragController _dragController;
+        private IPlayerInputSource _inputSource;
         private bool _isOpen;
         private string _activeSection = "inventory";
+        private bool _attemptedInputResolution;
 
         private void OnEnable()
         {
@@ -24,11 +28,7 @@ namespace Reloader.UI.Toolkit.TabInventory
 
         private void Update()
         {
-            if (Keyboard.current != null && Keyboard.current.tabKey.wasPressedThisFrame)
-            {
-                _isOpen = !_isOpen;
-                Refresh();
-            }
+            Tick();
         }
 
         public void Configure(TabInventoryViewBinder viewBinder, TabInventoryDragController dragController)
@@ -43,10 +43,47 @@ namespace Reloader.UI.Toolkit.TabInventory
             Refresh();
         }
 
+        public void SetInputSource(IPlayerInputSource inputSource)
+        {
+            _inputSource = inputSource;
+        }
+
         public void SetInventoryController(PlayerInventoryController inventoryController)
         {
             _inventoryController = inventoryController;
             Refresh();
+        }
+
+        public void Tick()
+        {
+            DependencyResolutionGuard.ResolveOnce(
+                ref _inputSource,
+                ref _attemptedInputResolution,
+                () =>
+                {
+                    if (_inputSourceBehaviour is IPlayerInputSource direct)
+                    {
+                        return direct;
+                    }
+
+                    return DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+                });
+
+            if (_inputSource == null)
+            {
+                return;
+            }
+
+            if (_inputSource.ConsumeMenuTogglePressed())
+            {
+                _isOpen = !_isOpen;
+                if (_isOpen)
+                {
+                    _activeSection = "inventory";
+                }
+
+                Refresh();
+            }
         }
 
         public void HandleIntent(UiIntent intent)
@@ -147,8 +184,8 @@ namespace Reloader.UI.Toolkit.TabInventory
             return sectionId switch
             {
                 "quests" => "quests",
+                "journal" => "journal",
                 "calendar" => "calendar",
-                "events" => "events",
                 _ => "inventory"
             };
         }

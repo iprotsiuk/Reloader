@@ -1,5 +1,7 @@
 using System;
+using Reloader.Core;
 using Reloader.Inventory;
+using Reloader.Player;
 using Reloader.UI.Toolkit.AmmoHud;
 using Reloader.UI.Toolkit.BeltHud;
 using Reloader.UI.Toolkit.Contracts;
@@ -58,10 +60,11 @@ namespace Reloader.UI.Toolkit.Runtime
 
             var inventoryController = FindFirstObjectByType<PlayerInventoryController>(FindObjectsInactive.Include);
             var weaponController = FindFirstObjectByType<PlayerWeaponController>(FindObjectsInactive.Include);
+            var inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
 
             BindBeltHud(inventoryController);
             BindAmmoHud(weaponController);
-            BindTabMenu(inventoryController);
+            BindTabMenu(inventoryController, inputSource);
             BindTradeMenu();
             BindReloadingWorkbench();
         }
@@ -98,7 +101,7 @@ namespace Reloader.UI.Toolkit.Runtime
             _ammoSubscription = UiContractGuard.Bind(controller, viewBinder);
         }
 
-        private void BindTabMenu(PlayerInventoryController inventoryController)
+        private void BindTabMenu(PlayerInventoryController inventoryController, IPlayerInputSource inputSource)
         {
             if (!TryGetDocumentRoot("tab-inventory", out var root))
             {
@@ -109,6 +112,7 @@ namespace Reloader.UI.Toolkit.Runtime
             viewBinder.Initialize(root, PlayerInventoryRuntime.BeltSlotCount, backpackSlotCount: 2);
             var controller = GetOrAddController<TabInventoryController>("tab-menu-controller");
             controller.SetInventoryController(inventoryController);
+            controller.SetInputSource(inputSource);
             controller.Configure(viewBinder, null);
             _tabSubscription = UiContractGuard.Bind(controller, viewBinder);
         }

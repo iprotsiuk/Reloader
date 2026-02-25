@@ -4,6 +4,7 @@
   "references": [
     "Reloader.Core",
     "Reloader.Inventory",
+    "Reloader.Player",
     "Reloader.Weapons",
     "Unity.TextMeshPro",
     "Unity.ugui",
