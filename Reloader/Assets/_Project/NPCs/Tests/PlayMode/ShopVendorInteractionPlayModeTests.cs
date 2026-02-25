@@ -4,6 +4,7 @@ using Reloader.Inventory;
 using Reloader.NPCs.World;
 using Reloader.Player;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Reloader.NPCs.Tests.PlayMode
 {
@@ -102,6 +103,30 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
 
             Assert.That(closeCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Tick_MissingDependencies_LogsErrorOnce_AndDoesNotOpenTrade()
+        {
+            var root = new GameObject("PlayerRoot");
+            var controller = root.AddComponent<PlayerShopVendorController>();
+
+            var openRequestedCount = 0;
+            void Handler(string _) => openRequestedCount++;
+            GameEvents.OnShopTradeOpenRequested += Handler;
+            try
+            {
+                LogAssert.Expect(LogType.Error, "PlayerShopVendorController requires both input source and vendor resolver references.");
+                controller.Tick();
+                controller.Tick();
+            }
+            finally
+            {
+                GameEvents.OnShopTradeOpenRequested -= Handler;
+                Object.DestroyImmediate(root);
+            }
+
+            Assert.That(openRequestedCount, Is.EqualTo(0));
         }
 
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource

@@ -4,6 +4,7 @@ using Reloader.Core.Items;
 using Reloader.Inventory;
 using Reloader.Player;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Reloader.Player.Tests.PlayMode
 {
@@ -138,6 +139,21 @@ namespace Reloader.Player.Tests.PlayMode
             input.AimHeldValue = true;
 
             Assert.That(source.AimHeld, Is.True);
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void Tick_MissingInputSource_LogsErrorOnce_AndReturns()
+        {
+            var root = new GameObject("InventoryControllerRoot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            controller.Configure(null, resolver, new PlayerInventoryRuntime());
+
+            LogAssert.Expect(LogType.Error, "PlayerInventoryController requires an IPlayerInputSource reference.");
+            controller.Tick();
+            controller.Tick();
 
             Object.DestroyImmediate(root);
         }
