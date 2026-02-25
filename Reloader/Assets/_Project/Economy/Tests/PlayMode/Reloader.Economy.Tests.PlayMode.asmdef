@@ -1,0 +1,23 @@
+{
+  "name": "Reloader.Economy.Tests.PlayMode",
+  "rootNamespace": "Reloader.Economy.Tests.PlayMode",
+  "references": [
+    "Reloader.Economy",
+    "Reloader.Core",
+    "Reloader.Inventory",
+    "Reloader.Player",
+    "Unity.ugui"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

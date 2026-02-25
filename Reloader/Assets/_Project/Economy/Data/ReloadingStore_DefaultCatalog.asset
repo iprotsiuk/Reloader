@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd9105a25ba5644ecb04b9ff0e72b6a1, type: 3}
+  m_Name: ReloadingStore_DefaultCatalog
+  m_EditorClassIdentifier: Reloader.Economy::Reloader.Economy.ShopCatalogDefinition
+  _items:
+  - _itemId: press-basic
+    _displayName: Starter Press
+    _category: press
+    _unitPrice: 250
+    _startingStock: 10000
+    _iconSourcePrefab: {fileID: 0}
+  - _itemId: powder-pmc-bronze-308
+    _displayName: PMC Bronze .308 Powder Can
+    _category: powder
+    _unitPrice: 38
+    _startingStock: 10000
+    _iconSourcePrefab: {fileID: 0}
+  - _itemId: bullet-308-147-fmj-pmc-bronze
+    _displayName: PMC Bronze .308 147gr FMJ Bullet
+    _category: bullet
+    _unitPrice: 1
+    _startingStock: 10000
+    _iconSourcePrefab: {fileID: 0}
+  - _itemId: casing-308-pmc-bronze
+    _displayName: PMC Bronze .308 Casing
+    _category: casing
+    _unitPrice: 1
+    _startingStock: 10000
+    _iconSourcePrefab: {fileID: 0}
+  - _itemId: primer-lr-pmc-bronze
+    _displayName: PMC Bronze Large Rifle Primer
+    _category: primer
+    _unitPrice: 1
+    _startingStock: 10000
+    _iconSourcePrefab: {fileID: 0}
+  - _itemId: ammo-factory-308-147-fmj
+    _displayName: PMC Bronze .308 147gr FMJ Cartridge
+    _category: ammo
+    _unitPrice: 2
+    _startingStock: 10000
+    _iconSourcePrefab: {fileID: 0}
+  - _itemId: weapon-rifle-01
+    _displayName: Starter .308 Rifle
+    _category: weapon
+    _unitPrice: 900
+    _startingStock: 10000
+    _iconSourcePrefab: {fileID: 0}
+  - _itemId: dies-308-set
+    _displayName: .308 Die Set
+    _category: dies
+    _unitPrice: 120
+    _startingStock: 10000
+    _iconSourcePrefab: {fileID: 0}
+  - _itemId: scale-basic
+    _displayName: Starter Scale
+    _category: tool
+    _unitPrice: 80
+    _startingStock: 10000
+    _iconSourcePrefab: {fileID: 0}

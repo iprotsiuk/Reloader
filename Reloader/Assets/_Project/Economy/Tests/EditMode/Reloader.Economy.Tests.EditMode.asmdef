@@ -1,0 +1,22 @@
+{
+  "name": "Reloader.Economy.Tests.EditMode",
+  "rootNamespace": "Reloader.Economy.Tests",
+  "references": [
+    "Reloader.Economy",
+    "Reloader.Inventory"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

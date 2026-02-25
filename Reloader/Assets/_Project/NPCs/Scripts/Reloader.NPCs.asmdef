@@ -1,0 +1,17 @@
+{
+  "name": "Reloader.NPCs",
+  "rootNamespace": "Reloader.NPCs",
+  "references": [
+    "Reloader.Core",
+    "Reloader.Player"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

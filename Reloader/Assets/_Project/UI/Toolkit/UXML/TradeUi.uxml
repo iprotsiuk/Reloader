@@ -1,0 +1,8 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="trade__root" class="trade">
+        <ui:VisualElement name="trade__buy-panel" class="trade__panel" />
+        <ui:VisualElement name="trade__sell-panel" class="trade__panel" />
+        <ui:VisualElement name="trade__order-panel" class="trade__panel" />
+        <ui:Label name="trade__cart-total" text="$0" />
+    </ui:VisualElement>
+</ui:UXML>

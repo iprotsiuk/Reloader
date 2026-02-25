@@ -1,0 +1,22 @@
+{
+  "name": "Reloader.NPCs.Tests.PlayMode",
+  "rootNamespace": "Reloader.NPCs.Tests",
+  "references": [
+    "Reloader.NPCs",
+    "Reloader.Core",
+    "Reloader.Player",
+    "Reloader.Inventory"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

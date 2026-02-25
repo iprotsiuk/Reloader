@@ -1986,7 +1986,6 @@ GameObject:
   - component: {fileID: 2910427431546142214}
   - component: {fileID: 4144101064814679488}
   - component: {fileID: 9087885735215929894}
-  - component: {fileID: 117110568553938000}
   m_Layer: 0
   m_Name: VendorCardTemplate
   m_TagString: Untagged
@@ -2056,23 +2055,6 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &117110568553938000
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4884545122685287907}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e34a64581fcf4bdc9016cda8b25e2b45, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Reloader.Economy::Reloader.Economy.TradeVendorItemCardView
-  _iconImage: {fileID: 3582674084561183061}
-  _nameLabel: {fileID: 2029336131662122181}
-  _priceLabel: {fileID: 6732588993170105119}
-  _quantityDropdown: {fileID: 8763716246105540458}
-  _addToCartButton: {fileID: 3027825489929250645}
 --- !u!1 &4932771733563446318
 GameObject:
   m_ObjectHideFlags: 0

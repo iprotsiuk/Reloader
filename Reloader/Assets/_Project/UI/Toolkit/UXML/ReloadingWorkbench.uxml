@@ -1,0 +1,8 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="reloading__root" class="reloading">
+        <ui:VisualElement name="reloading__operation-0" class="reloading__operation" />
+        <ui:VisualElement name="reloading__operation-1" class="reloading__operation" />
+        <ui:VisualElement name="reloading__operation-2" class="reloading__operation" />
+        <ui:Label name="reloading__result-label" text="" class="reloading__result" />
+    </ui:VisualElement>
+</ui:UXML>

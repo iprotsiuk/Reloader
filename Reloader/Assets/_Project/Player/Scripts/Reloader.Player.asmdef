@@ -1,0 +1,19 @@
+{
+  "name": "Reloader.Player",
+  "rootNamespace": "Reloader.Player",
+  "references": [
+    "Reloader.Core",
+    "Unity.InputSystem",
+    "Unity.Cinemachine",
+    "Unity.RenderPipelines.Universal.Runtime"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

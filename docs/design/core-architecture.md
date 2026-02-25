@@ -164,6 +164,15 @@ public static class GameEvents
     public static event Action<string, PickupRejectReason> OnItemPickupRejected;
     public static event Action<int> OnBeltSelectionChanged;
     public static event Action OnInventoryChanged;
+    public static event Action<string> OnWeaponEquipStarted;
+    public static event Action<string> OnWeaponEquipped;
+    public static event Action<string> OnWeaponUnequipStarted;
+    public static event Action<string, Vector3, Vector3> OnWeaponFired;
+    public static event Action<string> OnWeaponReloadStarted;
+    public static event Action<string, WeaponReloadCancelReason> OnWeaponReloadCancelled;
+    public static event Action<string, int, int> OnWeaponReloaded;
+    public static event Action<string, bool> OnWeaponAimChanged;
+    public static event Action<string, Vector3, float> OnProjectileHit;
 }
 ```
 

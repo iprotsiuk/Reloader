@@ -1,0 +1,5 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="ammo__root" class="ammo-hud">
+        <ui:Label name="ammo__count-label" text="-- 0/0" class="ammo-hud__label" />
+    </ui:VisualElement>
+</ui:UXML>

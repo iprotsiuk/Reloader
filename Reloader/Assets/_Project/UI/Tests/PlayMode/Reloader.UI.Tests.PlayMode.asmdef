@@ -1,0 +1,25 @@
+{
+  "name": "Reloader.UI.Tests.PlayMode",
+  "rootNamespace": "Reloader.UI.Tests.PlayMode",
+  "references": [
+    "Reloader.UI",
+    "Reloader.Inventory",
+    "Reloader.Core",
+    "Reloader.Player",
+    "Reloader.Weapons",
+    "Unity.TextMeshPro",
+    "Unity.ugui"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

@@ -1,0 +1,13 @@
+.reloading {
+    flex-direction: column;
+    gap: 6px;
+}
+
+.reloading__operation {
+    min-height: 34px;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.reloading__operation.is-selected {
+    background-color: rgba(255, 255, 255, 0.2);
+}

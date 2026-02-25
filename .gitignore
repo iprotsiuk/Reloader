@@ -1,4 +1,66 @@
-Reloader/
 .DS_Store
+
+# Local scratch/output
+tmp/
+.tmp/
+.disabled/
 unity-*.log
 unity-*.xml
+
+# Only version Unity source folders from Reloader/
+Reloader/*
+!Reloader/Assets/
+!Reloader/Packages/
+!Reloader/ProjectSettings/
+!Reloader/Assets/**
+!Reloader/Packages/**
+!Reloader/ProjectSettings/**
+
+# Unity generated directories (project lives under Reloader/)
+Reloader/[Ll]ibrary/
+Reloader/[Tt]emp/
+Reloader/[Oo]bj/
+Reloader/[Bb]uild/
+Reloader/[Bb]uilds/
+Reloader/[Ll]ogs/
+Reloader/[Uu]ser[Ss]ettings/
+Reloader/[Mm]emoryCaptures/
+Reloader/[Rr]ecordings/
+Reloader/mono_crash.*
+
+# Unity/IDE generated project files
+.vs/
+.idea/
+.vscode/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+sysinfo.txt
+
+# Unity test and addressables generated artifacts
+Reloader/Assets/[Ii]nit[Tt]est[Ss]cene*.unity*
+Reloader/ServerData/
+Reloader/[Aa]ssets/StreamingAssets/aa*
+Reloader/[Aa]ssets/AddressableAssetsData/link.xml*
+Reloader/[Aa]ssets/Addressables_Temp*
+Reloader/[Aa]ssets/AddressableAssetsData/*/*.bin*
+Reloader/Assets/**/LightingData.asset
+*.unitypackage
+*.unitypackage.meta
+
+# Keep OS junk ignored after whitelist re-includes
+**/.DS_Store
