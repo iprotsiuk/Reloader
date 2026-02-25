@@ -30,6 +30,7 @@ namespace Reloader.UI.Toolkit.Runtime
 
         public void ExecuteCutover()
         {
+            ResolveDefaultReferencesIfNeeded();
             _runtimeRoot = EnsureRuntimeRoot();
             EnsureScreenDocument("belt-hud", _beltHudTree);
             EnsureScreenDocument("ammo-hud", _ammoHudTree);
@@ -77,6 +78,24 @@ namespace Reloader.UI.Toolkit.Runtime
             return rootGo.AddComponent<UiToolkitRuntimeRoot>();
         }
 
+        private void ResolveDefaultReferencesIfNeeded()
+        {
+#if UNITY_EDITOR
+            _beltHudTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/BeltHud.uxml");
+            _ammoHudTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/AmmoHud.uxml");
+            _tabInventoryTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/TabInventory.uxml");
+            _tradeTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/TradeUi.uxml");
+            _reloadingTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/ReloadingWorkbench.uxml");
+#endif
+        }
+
+#if UNITY_EDITOR
+        private static VisualTreeAsset LoadVisualTreeAssetAtPath(string path)
+        {
+            return UnityEditor.AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(path);
+        }
+#endif
+
         private void EnsureScreenDocument(string screenId, VisualTreeAsset treeAsset)
         {
             var rootTransform = _runtimeRoot.transform;
@@ -97,7 +116,11 @@ namespace Reloader.UI.Toolkit.Runtime
                 }
             }
 
-            document.panelSettings = _panelSettings;
+            if (_panelSettings != null)
+            {
+                document.panelSettings = _panelSettings;
+            }
+
             if (treeAsset != null)
             {
                 document.visualTreeAsset = treeAsset;

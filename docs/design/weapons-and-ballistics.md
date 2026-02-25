@@ -120,10 +120,19 @@ Each round in the magazine is a specific `AmmoInstance`. Match-grade loads carry
 
 `GameEvents` publishes baseline weapon loop events for decoupled UI/audio/VFX listeners:
 
+- `OnWeaponEquipStarted(string itemId)`
 - `OnWeaponEquipped(string itemId)`
+- `OnWeaponUnequipStarted(string itemId)`
 - `OnWeaponFired(string itemId, Vector3 origin, Vector3 direction)`
+- `OnWeaponReloadStarted(string itemId)`
+- `OnWeaponReloadCancelled(string itemId, WeaponReloadCancelReason reason)`
 - `OnWeaponReloaded(string itemId, int magCount, int reserveCount)`
+- `OnWeaponAimChanged(string itemId, bool isAiming)`
 - `OnProjectileHit(string itemId, Vector3 point, float damage)`
+
+### ADS Movement Rule [v0.1]
+
+- ADS is gameplay-authoritative in v0.1: movement speed is multiplied by weapon/profile ADS multiplier (default `0.7`) while aiming.
 
 ---
 
