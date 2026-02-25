@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="5" result="Passed" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-02-25 04:42:52Z" end-time="2026-02-25 04:42:52Z" duration="0.0214438">
+  <test-suite type="TestSuite" id="1000" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="70" result="Passed" start-time="2026-02-25 04:42:52Z" end-time="2026-02-25 04:42:52Z" duration="0.021444" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1095" name="Reloader.Economy.Tests.EditMode.dll" fullname="/Users/ivanprotsiuk/Documents/unity/Reloader/Reloader/Library/ScriptAssemblies/Reloader.Economy.Tests.EditMode.dll" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-02-25 04:42:52Z" end-time="2026-02-25 04:42:52Z" duration="0.017043" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="8437" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1096" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-02-25 04:42:52Z" end-time="2026-02-25 04:42:52Z" duration="0.016597" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1097" name="Economy" fullname="Reloader.Economy" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-02-25 04:42:52Z" end-time="2026-02-25 04:42:52Z" duration="0.016363" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1098" name="Tests" fullname="Reloader.Economy.Tests" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-02-25 04:42:52Z" end-time="2026-02-25 04:42:52Z" duration="0.015955" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestSuite" id="1099" name="EditMode" fullname="Reloader.Economy.Tests.EditMode" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-02-25 04:42:52Z" end-time="2026-02-25 04:42:52Z" duration="0.015599" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-suite type="TestFixture" id="1089" name="EconomyRuntimeTests" fullname="Reloader.Economy.Tests.EditMode.EconomyRuntimeTests" classname="Reloader.Economy.Tests.EditMode.EconomyRuntimeTests" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-02-25 04:42:52Z" end-time="2026-02-25 04:42:52Z" duration="0.015031" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1091" name="BuyAndSell_MutatesMoneyAndStock" fullname="Reloader.Economy.Tests.EditMode.EconomyRuntimeTests.BuyAndSell_MutatesMoneyAndStock" methodname="BuyAndSell_MutatesMoneyAndStock" classname="Reloader.Economy.Tests.EditMode.EconomyRuntimeTests" runstate="Runnable" seed="1639006930" result="Passed" start-time="2026-02-25 04:42:52Z" end-time="2026-02-25 04:42:52Z" duration="0.007289" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1090" name="StartsWithDefaultMoney_500" fullname="Reloader.Economy.Tests.EditMode.EconomyRuntimeTests.StartsWithDefaultMoney_500" methodname="StartsWithDefaultMoney_500" classname="Reloader.Economy.Tests.EditMode.EconomyRuntimeTests" runstate="Runnable" seed="1920937773" result="Passed" start-time="2026-02-25 04:42:52Z" end-time="2026-02-25 04:42:52Z" duration="0.000128" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1092" name="TryBuy_WhenInsufficientFunds_ReturnsFailureWithoutMutation" fullname="Reloader.Economy.Tests.EditMode.EconomyRuntimeTests.TryBuy_WhenInsufficientFunds_ReturnsFailureWithoutMutation" methodname="TryBuy_WhenInsufficientFunds_ReturnsFailureWithoutMutation" classname="Reloader.Economy.Tests.EditMode.EconomyRuntimeTests" runstate="Runnable" seed="1321180040" result="Passed" start-time="2026-02-25 04:42:52Z" end-time="2026-02-25 04:42:52Z" duration="0.000233" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1094" name="TryBuyBatch_WhenAnyLineFails_RollsBackAllMutations" fullname="Reloader.Economy.Tests.EditMode.EconomyRuntimeTests.TryBuyBatch_WhenAnyLineFails_RollsBackAllMutations" methodname="TryBuyBatch_WhenAnyLineFails_RollsBackAllMutations" classname="Reloader.Economy.Tests.EditMode.EconomyRuntimeTests" runstate="Runnable" seed="1692051767" result="Passed" start-time="2026-02-25 04:42:52Z" end-time="2026-02-25 04:42:52Z" duration="0.000854" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1093" name="TryBuyBatch_WithDeliveryFee_DeductsMoneyAndStock" fullname="Reloader.Economy.Tests.EditMode.EconomyRuntimeTests.TryBuyBatch_WithDeliveryFee_DeductsMoneyAndStock" methodname="TryBuyBatch_WithDeliveryFee_DeductsMoneyAndStock" classname="Reloader.Economy.Tests.EditMode.EconomyRuntimeTests" runstate="Runnable" seed="1918809658" result="Passed" start-time="2026-02-25 04:42:52Z" end-time="2026-02-25 04:42:52Z" duration="0.000227" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Saving results to: /Users/ivanprotsiuk/Library/Application Support/DefaultCompany/Reloader/TestResults.xml
+]]></output>
+                </test-case>
+              </test-suite>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

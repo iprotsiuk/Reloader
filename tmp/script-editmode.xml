@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="3" result="Passed" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-02-25 04:10:06Z" end-time="2026-02-25 04:10:06Z" duration="0.020243">
+  <test-suite type="TestSuite" id="1000" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="68" result="Passed" start-time="2026-02-25 04:10:06Z" end-time="2026-02-25 04:10:06Z" duration="0.020243" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1084" name="Reloader.Core.Tests.EditMode.dll" fullname="/Users/ivanprotsiuk/Documents/unity/Reloader/Reloader/Library/ScriptAssemblies/Reloader.Core.Tests.EditMode.dll" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:10:06Z" end-time="2026-02-25 04:10:06Z" duration="0.016312" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="65643" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1085" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:10:06Z" end-time="2026-02-25 04:10:06Z" duration="0.015711" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1086" name="Core" fullname="Reloader.Core" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:10:06Z" end-time="2026-02-25 04:10:06Z" duration="0.014921" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1087" name="Tests" fullname="Reloader.Core.Tests" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:10:06Z" end-time="2026-02-25 04:10:06Z" duration="0.014458" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestSuite" id="1088" name="EditMode" fullname="Reloader.Core.Tests.EditMode" runstate="Runnable" testcasecount="64" result="Passed" start-time="2026-02-25 04:10:06Z" end-time="2026-02-25 04:10:06Z" duration="0.013933" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-suite type="TestFixture" id="1032" name="ItemDefinitionStackRulesTests" fullname="Reloader.Core.Tests.EditMode.ItemDefinitionStackRulesTests" classname="Reloader.Core.Tests.EditMode.ItemDefinitionStackRulesTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-02-25 04:10:06Z" end-time="2026-02-25 04:10:06Z" duration="0.012452" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1034" name="MaxStack_AllowsPerItemValues" fullname="Reloader.Core.Tests.EditMode.ItemDefinitionStackRulesTests.MaxStack_AllowsPerItemValues" methodname="MaxStack_AllowsPerItemValues" classname="Reloader.Core.Tests.EditMode.ItemDefinitionStackRulesTests" runstate="Runnable" seed="956968220" result="Passed" start-time="2026-02-25 04:10:06Z" end-time="2026-02-25 04:10:06Z" duration="0.005742" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1033" name="MaxStack_ClampsToAtLeastOne" fullname="Reloader.Core.Tests.EditMode.ItemDefinitionStackRulesTests.MaxStack_ClampsToAtLeastOne" methodname="MaxStack_ClampsToAtLeastOne" classname="Reloader.Core.Tests.EditMode.ItemDefinitionStackRulesTests" runstate="Runnable" seed="511832035" result="Passed" start-time="2026-02-25 04:10:06Z" end-time="2026-02-25 04:10:06Z" duration="0.000180" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1035" name="SpawnQuantity_ClampsToDefinitionMaxStack" fullname="Reloader.Core.Tests.EditMode.ItemDefinitionStackRulesTests.SpawnQuantity_ClampsToDefinitionMaxStack" methodname="SpawnQuantity_ClampsToDefinitionMaxStack" classname="Reloader.Core.Tests.EditMode.ItemDefinitionStackRulesTests" runstate="Runnable" seed="1278207891" result="Passed" start-time="2026-02-25 04:10:06Z" end-time="2026-02-25 04:10:06Z" duration="0.000244" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Saving results to: /Users/ivanprotsiuk/Library/Application Support/DefaultCompany/Reloader/TestResults.xml
+]]></output>
+                </test-case>
+              </test-suite>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

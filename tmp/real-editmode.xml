@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="5" result="Passed" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-02-24 12:52:32Z" end-time="2026-02-24 12:52:32Z" duration="0.0160383">
+  <test-suite type="TestSuite" id="1000" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="36" result="Passed" start-time="2026-02-24 12:52:32Z" end-time="2026-02-24 12:52:32Z" duration="0.016038" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1047" name="Reloader.Core.Tests.EditMode.dll" fullname="/Users/ivanprotsiuk/Documents/unity/Reloader/Reloader/Library/ScriptAssemblies/Reloader.Core.Tests.EditMode.dll" runstate="Runnable" testcasecount="36" result="Passed" start-time="2026-02-24 12:52:32Z" end-time="2026-02-24 12:52:32Z" duration="0.013233" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="25449" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1048" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="36" result="Passed" start-time="2026-02-24 12:52:32Z" end-time="2026-02-24 12:52:32Z" duration="0.012963" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1049" name="Core" fullname="Reloader.Core" runstate="Runnable" testcasecount="36" result="Passed" start-time="2026-02-24 12:52:32Z" end-time="2026-02-24 12:52:32Z" duration="0.012755" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1050" name="Tests" fullname="Reloader.Core.Tests" runstate="Runnable" testcasecount="36" result="Passed" start-time="2026-02-24 12:52:32Z" end-time="2026-02-24 12:52:32Z" duration="0.012548" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestSuite" id="1051" name="EditMode" fullname="Reloader.Core.Tests.EditMode" runstate="Runnable" testcasecount="35" result="Passed" start-time="2026-02-24 12:52:32Z" end-time="2026-02-24 12:52:32Z" duration="0.012207" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-suite type="TestFixture" id="1008" name="InventoryEventContractsTests" fullname="Reloader.Core.Tests.EditMode.InventoryEventContractsTests" classname="Reloader.Core.Tests.EditMode.InventoryEventContractsTests" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-02-24 12:52:32Z" end-time="2026-02-24 12:52:32Z" duration="0.011277" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1009" name="RaiseItemStored_InvokesEventWithPayload" fullname="Reloader.Core.Tests.EditMode.InventoryEventContractsTests.RaiseItemStored_InvokesEventWithPayload" methodname="RaiseItemStored_InvokesEventWithPayload" classname="Reloader.Core.Tests.EditMode.InventoryEventContractsTests" runstate="Runnable" seed="745024669" result="Passed" start-time="2026-02-24 12:52:32Z" end-time="2026-02-24 12:52:32Z" duration="0.004888" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1013" name="RaiseProjectileHit_InvokesEventWithPayload" fullname="Reloader.Core.Tests.EditMode.InventoryEventContractsTests.RaiseProjectileHit_InvokesEventWithPayload" methodname="RaiseProjectileHit_InvokesEventWithPayload" classname="Reloader.Core.Tests.EditMode.InventoryEventContractsTests" runstate="Runnable" seed="693361368" result="Passed" start-time="2026-02-24 12:52:32Z" end-time="2026-02-24 12:52:32Z" duration="0.000717" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1010" name="RaiseWeaponEquipped_InvokesEventWithPayload" fullname="Reloader.Core.Tests.EditMode.InventoryEventContractsTests.RaiseWeaponEquipped_InvokesEventWithPayload" methodname="RaiseWeaponEquipped_InvokesEventWithPayload" classname="Reloader.Core.Tests.EditMode.InventoryEventContractsTests" runstate="Runnable" seed="1980306047" result="Passed" start-time="2026-02-24 12:52:32Z" end-time="2026-02-24 12:52:32Z" duration="0.000159" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1011" name="RaiseWeaponFired_InvokesEventWithPayload" fullname="Reloader.Core.Tests.EditMode.InventoryEventContractsTests.RaiseWeaponFired_InvokesEventWithPayload" methodname="RaiseWeaponFired_InvokesEventWithPayload" classname="Reloader.Core.Tests.EditMode.InventoryEventContractsTests" runstate="Runnable" seed="977675342" result="Passed" start-time="2026-02-24 12:52:32Z" end-time="2026-02-24 12:52:32Z" duration="0.000205" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1012" name="RaiseWeaponReloaded_InvokesEventWithPayload" fullname="Reloader.Core.Tests.EditMode.InventoryEventContractsTests.RaiseWeaponReloaded_InvokesEventWithPayload" methodname="RaiseWeaponReloaded_InvokesEventWithPayload" classname="Reloader.Core.Tests.EditMode.InventoryEventContractsTests" runstate="Runnable" seed="534957189" result="Passed" start-time="2026-02-24 12:52:32Z" end-time="2026-02-24 12:52:32Z" duration="0.000135" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Saving results to: /Users/ivanprotsiuk/Library/Application Support/DefaultCompany/Reloader/TestResults.xml
+]]></output>
+                </test-case>
+              </test-suite>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

@@ -1,0 +1,27 @@
+Unity Editor version:    6000.3.8f1 (1c7db571dde0)
+Branch:                  6000.3/staging
+Build type:              Release
+Batch mode:              YES
+macOS version:           Version 26.3 (Build 25D125)
+Darwin version:          25.3.0
+Architecture:            arm64
+Running under Rosetta:   NO
+Available memory:        24576 MB
+Date:                    2026-02-24T23:27:43Z
+[Licensing::Module] Trying to connect to existing licensing client channel...
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-ivanprotsiuk" at "2026-02-24T23:27:43.882117Z"
+Launching external process: /Applications/Unity/Hub/Editor/6000.3.8f1/Unity.app/Contents/Resources/PackageManager/Server/UnityPackageManager
+
+COMMAND LINE ARGUMENTS:
+/Applications/Unity/Hub/Editor/6000.3.8f1/Unity.app/Contents/MacOS/Unity
+-batchmode
+-projectPath
+/Users/ivanprotsiuk/Documents/unity/Reloader/Reloader
+-executeMethod
+Reloader.UI.Editor.ItemIconBaker.RegenerateItemIcons
+-quit
+-logFile
+/Users/ivanprotsiuk/Documents/unity/Reloader/tmp/item-icon-rebake.log
+Successfully changed project path to: /Users/ivanprotsiuk/Documents/unity/Reloader/Reloader
+/Users/ivanprotsiuk/Documents/unity/Reloader/Reloader
+[Package Manager] Server process was shutdown

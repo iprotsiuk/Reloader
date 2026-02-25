@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="5" result="Passed" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-02-25 04:29:39Z" end-time="2026-02-25 04:29:39Z" duration="0.0452347">
+  <test-suite type="TestSuite" id="1107" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="57" result="Passed" start-time="2026-02-25 04:29:39Z" end-time="2026-02-25 04:29:39Z" duration="0.045235" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="PlayMode" />
+    </properties>
+    <test-suite type="Assembly" id="1026" name="Reloader.Economy.Tests.PlayMode.dll" fullname="/Users/ivanprotsiuk/Documents/unity/Reloader/Reloader/Library/ScriptAssemblies/Reloader.Economy.Tests.PlayMode.dll" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-02-25 04:29:39Z" end-time="2026-02-25 04:29:39Z" duration="0.039561" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="89537" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="PlayMode" />
+        <property name="EditorOnly" value="False" />
+      </properties>
+      <test-suite type="TestSuite" id="1027" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-02-25 04:29:39Z" end-time="2026-02-25 04:29:39Z" duration="0.038798" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1028" name="Economy" fullname="Reloader.Economy" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-02-25 04:29:39Z" end-time="2026-02-25 04:29:39Z" duration="0.038439" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1029" name="Tests" fullname="Reloader.Economy.Tests" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-02-25 04:29:39Z" end-time="2026-02-25 04:29:39Z" duration="0.038039" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestSuite" id="1030" name="PlayMode" fullname="Reloader.Economy.Tests.PlayMode" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-02-25 04:29:39Z" end-time="2026-02-25 04:29:39Z" duration="0.031675" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-suite type="TestFixture" id="1020" name="TradeUiPresenterPlayModeTests" fullname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests" classname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-02-25 04:29:39Z" end-time="2026-02-25 04:29:39Z" duration="0.030760" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1022" name="ConfirmPurchase_RaisesBuyRequestedForEachCartLine" fullname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests.ConfirmPurchase_RaisesBuyRequestedForEachCartLine" methodname="ConfirmPurchase_RaisesBuyRequestedForEachCartLine" classname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests" runstate="Runnable" seed="1325149874" result="Passed" start-time="2026-02-25 04:29:39Z" end-time="2026-02-25 04:29:39Z" duration="0.016921" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1023" name="SetPreviewItem_KnownIcon_UsesResolvedSprite" fullname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests.SetPreviewItem_KnownIcon_UsesResolvedSprite" methodname="SetPreviewItem_KnownIcon_UsesResolvedSprite" classname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests" runstate="Runnable" seed="2040066278" result="Passed" start-time="2026-02-25 04:29:39Z" end-time="2026-02-25 04:29:39Z" duration="0.003254" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1024" name="SetPreviewItem_WithGlobalCatalogProvider_UsesResolvedSpriteWithoutManualPresenterWiring" fullname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests.SetPreviewItem_WithGlobalCatalogProvider_UsesResolvedSpriteWithoutManualPresenterWiring" methodname="SetPreviewItem_WithGlobalCatalogProvider_UsesResolvedSpriteWithoutManualPresenterWiring" classname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests" runstate="Runnable" seed="2108232966" result="Passed" start-time="2026-02-25 04:29:39Z" end-time="2026-02-25 04:29:39Z" duration="0.000955" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1021" name="TradeOpened_DisablesConfiguredLookBehaviour_AndRestoresOnClose" fullname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests.TradeOpened_DisablesConfiguredLookBehaviour_AndRestoresOnClose" methodname="TradeOpened_DisablesConfiguredLookBehaviour_AndRestoresOnClose" classname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests" runstate="Runnable" seed="1723851894" result="Passed" start-time="2026-02-25 04:29:39Z" end-time="2026-02-25 04:29:39Z" duration="0.001458" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1025" name="TryAddVendorItemToCart_UsesBoundCatalogUnitPrice" fullname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests.TryAddVendorItemToCart_UsesBoundCatalogUnitPrice" methodname="TryAddVendorItemToCart_UsesBoundCatalogUnitPrice" classname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests" runstate="Runnable" seed="792605745" result="Passed" start-time="2026-02-25 04:29:39Z" end-time="2026-02-25 04:29:39Z" duration="0.000809" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Saving results to: /Users/ivanprotsiuk/Library/Application Support/DefaultCompany/Reloader/TestResults.xml
+]]></output>
+                </test-case>
+              </test-suite>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

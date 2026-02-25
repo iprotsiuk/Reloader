@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="5" result="Passed" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-02-25 04:08:38Z" end-time="2026-02-25 04:08:38Z" duration="0.0215216">
+  <test-suite type="TestSuite" id="1000" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="68" result="Passed" start-time="2026-02-25 04:08:38Z" end-time="2026-02-25 04:08:38Z" duration="0.021522" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1084" name="Reloader.Core.Tests.EditMode.dll" fullname="/Users/ivanprotsiuk/Documents/unity/Reloader/Reloader/Library/ScriptAssemblies/Reloader.Core.Tests.EditMode.dll" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:08:38Z" end-time="2026-02-25 04:08:38Z" duration="0.017366" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="63443" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1085" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:08:38Z" end-time="2026-02-25 04:08:38Z" duration="0.016733" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1086" name="Core" fullname="Reloader.Core" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:08:38Z" end-time="2026-02-25 04:08:38Z" duration="0.016322" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1087" name="Tests" fullname="Reloader.Core.Tests" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:08:38Z" end-time="2026-02-25 04:08:38Z" duration="0.015900" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestSuite" id="1088" name="EditMode" fullname="Reloader.Core.Tests.EditMode" runstate="Runnable" testcasecount="64" result="Passed" start-time="2026-02-25 04:08:38Z" end-time="2026-02-25 04:08:38Z" duration="0.015481" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-suite type="TestFixture" id="1026" name="InventoryTransferEngineTests" fullname="Reloader.Core.Tests.EditMode.InventoryTransferEngineTests" classname="Reloader.Core.Tests.EditMode.InventoryTransferEngineTests" runstate="Runnable" testcasecount="5" result="Passed" start-time="2026-02-25 04:08:38Z" end-time="2026-02-25 04:08:38Z" duration="0.013839" total="5" passed="5" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1027" name="TryTransfer_EmptyTarget_MovesStack" fullname="Reloader.Core.Tests.EditMode.InventoryTransferEngineTests.TryTransfer_EmptyTarget_MovesStack" methodname="TryTransfer_EmptyTarget_MovesStack" classname="Reloader.Core.Tests.EditMode.InventoryTransferEngineTests" runstate="Runnable" seed="490058682" result="Passed" start-time="2026-02-25 04:08:38Z" end-time="2026-02-25 04:08:38Z" duration="0.006534" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1028" name="TryTransfer_OccupiedDifferentItem_SwapsStacks" fullname="Reloader.Core.Tests.EditMode.InventoryTransferEngineTests.TryTransfer_OccupiedDifferentItem_SwapsStacks" methodname="TryTransfer_OccupiedDifferentItem_SwapsStacks" classname="Reloader.Core.Tests.EditMode.InventoryTransferEngineTests" runstate="Runnable" seed="2078035004" result="Passed" start-time="2026-02-25 04:08:38Z" end-time="2026-02-25 04:08:38Z" duration="0.000263" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1029" name="TryTransfer_SameItemOverflowMerge_FillsTargetAndLeavesRemainderInSource" fullname="Reloader.Core.Tests.EditMode.InventoryTransferEngineTests.TryTransfer_SameItemOverflowMerge_FillsTargetAndLeavesRemainderInSource" methodname="TryTransfer_SameItemOverflowMerge_FillsTargetAndLeavesRemainderInSource" classname="Reloader.Core.Tests.EditMode.InventoryTransferEngineTests" runstate="Runnable" seed="1953491072" result="Passed" start-time="2026-02-25 04:08:38Z" end-time="2026-02-25 04:08:38Z" duration="0.000121" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1030" name="TryTransfer_SameItemWithinCapacity_FullyMergesAndClearsSource" fullname="Reloader.Core.Tests.EditMode.InventoryTransferEngineTests.TryTransfer_SameItemWithinCapacity_FullyMergesAndClearsSource" methodname="TryTransfer_SameItemWithinCapacity_FullyMergesAndClearsSource" classname="Reloader.Core.Tests.EditMode.InventoryTransferEngineTests" runstate="Runnable" seed="2127332235" result="Passed" start-time="2026-02-25 04:08:38Z" end-time="2026-02-25 04:08:38Z" duration="0.000098" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1031" name="TryTransfer_WhenTargetCannotAcceptDrop_ReturnsPermissionDeniedWithoutMutation" fullname="Reloader.Core.Tests.EditMode.InventoryTransferEngineTests.TryTransfer_WhenTargetCannotAcceptDrop_ReturnsPermissionDeniedWithoutMutation" methodname="TryTransfer_WhenTargetCannotAcceptDrop_ReturnsPermissionDeniedWithoutMutation" classname="Reloader.Core.Tests.EditMode.InventoryTransferEngineTests" runstate="Runnable" seed="176090729" result="Passed" start-time="2026-02-25 04:08:38Z" end-time="2026-02-25 04:08:38Z" duration="0.000112" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Saving results to: /Users/ivanprotsiuk/Library/Application Support/DefaultCompany/Reloader/TestResults.xml
+]]></output>
+                </test-case>
+              </test-suite>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

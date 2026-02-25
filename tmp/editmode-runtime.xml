@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="14" result="Passed" total="14" passed="14" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.0246137">
+  <test-suite type="TestSuite" id="1000" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="68" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.024614" total="14" passed="14" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1084" name="Reloader.Core.Tests.EditMode.dll" fullname="/Users/ivanprotsiuk/Documents/unity/Reloader/Reloader/Library/ScriptAssemblies/Reloader.Core.Tests.EditMode.dll" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.021244" total="14" passed="14" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="53374" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1085" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.020751" total="14" passed="14" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1086" name="Core" fullname="Reloader.Core" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.020127" total="14" passed="14" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1087" name="Tests" fullname="Reloader.Core.Tests" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.019641" total="14" passed="14" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestSuite" id="1088" name="EditMode" fullname="Reloader.Core.Tests.EditMode" runstate="Runnable" testcasecount="64" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.019200" total="14" passed="14" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-suite type="TestFixture" id="1047" name="PlayerInventoryRuntimeTests" fullname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" classname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" runstate="Runnable" testcasecount="14" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.017751" total="14" passed="14" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1050" name="SelectBeltSlot_AllowsSelectingEmptySlot" fullname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests.SelectBeltSlot_AllowsSelectingEmptySlot" methodname="SelectBeltSlot_AllowsSelectingEmptySlot" classname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" runstate="Runnable" seed="873952856" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.005155" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1051" name="SelectBeltSlot_SameIndex_IsNoOp" fullname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests.SelectBeltSlot_SameIndex_IsNoOp" methodname="SelectBeltSlot_SameIndex_IsNoOp" classname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" runstate="Runnable" seed="610721556" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.000083" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1056" name="TryAddStackItem_WhenItemAlreadyExists_IncreasesQuantityWithoutUsingNewSlot" fullname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests.TryAddStackItem_WhenItemAlreadyExists_IncreasesQuantityWithoutUsingNewSlot" methodname="TryAddStackItem_WhenItemAlreadyExists_IncreasesQuantityWithoutUsingNewSlot" classname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" runstate="Runnable" seed="1182033443" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.001219" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1060" name="TryAddStackItem_WhenQuantityExceedsMaxStack_SplitsAcrossSlots" fullname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests.TryAddStackItem_WhenQuantityExceedsMaxStack_SplitsAcrossSlots" methodname="TryAddStackItem_WhenQuantityExceedsMaxStack_SplitsAcrossSlots" classname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" runstate="Runnable" seed="1245478051" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.000194" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1055" name="TryMoveItem_BackpackToBeltSwaps_WhenBeltSlotOccupied" fullname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests.TryMoveItem_BackpackToBeltSwaps_WhenBeltSlotOccupied" methodname="TryMoveItem_BackpackToBeltSwaps_WhenBeltSlotOccupied" classname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" runstate="Runnable" seed="482487486" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.000285" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1054" name="TryMoveItem_BeltToBackpackAppends_WhenTargetIsNextFreeIndex" fullname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests.TryMoveItem_BeltToBackpackAppends_WhenTargetIsNextFreeIndex" methodname="TryMoveItem_BeltToBackpackAppends_WhenTargetIsNextFreeIndex" classname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" runstate="Runnable" seed="922507174" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.000383" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1053" name="TryMoveItem_BeltToBelt_SwapsItems" fullname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests.TryMoveItem_BeltToBelt_SwapsItems" methodname="TryMoveItem_BeltToBelt_SwapsItems" classname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" runstate="Runnable" seed="808430827" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.000092" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1061" name="TryMoveItem_MergeOverflow_KeepsRemainderInSourceSlot" fullname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests.TryMoveItem_MergeOverflow_KeepsRemainderInSourceSlot" methodname="TryMoveItem_MergeOverflow_KeepsRemainderInSourceSlot" classname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" runstate="Runnable" seed="1038373290" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.000083" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1057" name="TryRemoveStackItem_PartialRemoval_KeepsSlotAndReducesQuantity" fullname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests.TryRemoveStackItem_PartialRemoval_KeepsSlotAndReducesQuantity" methodname="TryRemoveStackItem_PartialRemoval_KeepsSlotAndReducesQuantity" classname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" runstate="Runnable" seed="1095315965" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.000143" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1058" name="TryRemoveStackItem_RemovingFullQuantity_ClearsSlot" fullname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests.TryRemoveStackItem_RemovingFullQuantity_ClearsSlot" methodname="TryRemoveStackItem_RemovingFullQuantity_ClearsSlot" classname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" runstate="Runnable" seed="782018688" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.000060" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1059" name="TryRemoveStackItem_WhenQuantityInsufficient_ReturnsFalseAndKeepsState" fullname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests.TryRemoveStackItem_WhenQuantityInsufficient_ReturnsFalseAndKeepsState" methodname="TryRemoveStackItem_WhenQuantityInsufficient_ReturnsFalseAndKeepsState" classname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" runstate="Runnable" seed="863757888" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.000090" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1052" name="TryStoreItem_FillingSelectedEmptySlot_MakesSelectedItemAvailable" fullname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests.TryStoreItem_FillingSelectedEmptySlot_MakesSelectedItemAvailable" methodname="TryStoreItem_FillingSelectedEmptySlot_MakesSelectedItemAvailable" classname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" runstate="Runnable" seed="1710734349" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.000103" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1048" name="TryStoreItem_FillsFirstEmptyBeltSlot" fullname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests.TryStoreItem_FillsFirstEmptyBeltSlot" methodname="TryStoreItem_FillsFirstEmptyBeltSlot" classname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" runstate="Runnable" seed="86106512" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.000108" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1049" name="TryStoreItem_WhenNoSpaceAndBackpackLocked_ReturnsNoSpace" fullname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests.TryStoreItem_WhenNoSpaceAndBackpackLocked_ReturnsNoSpace" methodname="TryStoreItem_WhenNoSpaceAndBackpackLocked_ReturnsNoSpace" classname="Reloader.Core.Tests.EditMode.PlayerInventoryRuntimeTests" runstate="Runnable" seed="1626944220" result="Passed" start-time="2026-02-25 04:02:47Z" end-time="2026-02-25 04:02:47Z" duration="0.000095" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Saving results to: /Users/ivanprotsiuk/Library/Application Support/DefaultCompany/Reloader/TestResults.xml
+]]></output>
+                </test-case>
+              </test-suite>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

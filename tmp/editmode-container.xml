@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="3" result="Passed" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-02-25 04:08:23Z" end-time="2026-02-25 04:08:23Z" duration="0.0181821">
+  <test-suite type="TestSuite" id="1000" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="68" result="Passed" start-time="2026-02-25 04:08:23Z" end-time="2026-02-25 04:08:23Z" duration="0.018182" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1084" name="Reloader.Core.Tests.EditMode.dll" fullname="/Users/ivanprotsiuk/Documents/unity/Reloader/Reloader/Library/ScriptAssemblies/Reloader.Core.Tests.EditMode.dll" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:08:23Z" end-time="2026-02-25 04:08:23Z" duration="0.014665" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="63369" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestSuite" id="1085" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:08:23Z" end-time="2026-02-25 04:08:23Z" duration="0.014119" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1086" name="Core" fullname="Reloader.Core" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:08:23Z" end-time="2026-02-25 04:08:23Z" duration="0.013786" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1087" name="Tests" fullname="Reloader.Core.Tests" runstate="Runnable" testcasecount="65" result="Passed" start-time="2026-02-25 04:08:23Z" end-time="2026-02-25 04:08:23Z" duration="0.013476" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestSuite" id="1088" name="EditMode" fullname="Reloader.Core.Tests.EditMode" runstate="Runnable" testcasecount="64" result="Passed" start-time="2026-02-25 04:08:23Z" end-time="2026-02-25 04:08:23Z" duration="0.013146" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-suite type="TestFixture" id="1009" name="InventoryContainerStateTests" fullname="Reloader.Core.Tests.EditMode.InventoryContainerStateTests" classname="Reloader.Core.Tests.EditMode.InventoryContainerStateTests" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-02-25 04:08:23Z" end-time="2026-02-25 04:08:23Z" duration="0.011676" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1010" name="Ctor_InitializesRequestedSlotCount" fullname="Reloader.Core.Tests.EditMode.InventoryContainerStateTests.Ctor_InitializesRequestedSlotCount" methodname="Ctor_InitializesRequestedSlotCount" classname="Reloader.Core.Tests.EditMode.InventoryContainerStateTests" runstate="Runnable" seed="700785351" result="Passed" start-time="2026-02-25 04:08:23Z" end-time="2026-02-25 04:08:23Z" duration="0.005642" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1012" name="TrySetSlot_StoresStackAndTryGetSlotResolvesIt" fullname="Reloader.Core.Tests.EditMode.InventoryContainerStateTests.TrySetSlot_StoresStackAndTryGetSlotResolvesIt" methodname="TrySetSlot_StoresStackAndTryGetSlotResolvesIt" classname="Reloader.Core.Tests.EditMode.InventoryContainerStateTests" runstate="Runnable" seed="680782371" result="Passed" start-time="2026-02-25 04:08:23Z" end-time="2026-02-25 04:08:23Z" duration="0.000391" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1011" name="TrySetSlot_WhenIndexInvalid_ReturnsFalse" fullname="Reloader.Core.Tests.EditMode.InventoryContainerStateTests.TrySetSlot_WhenIndexInvalid_ReturnsFalse" methodname="TrySetSlot_WhenIndexInvalid_ReturnsFalse" classname="Reloader.Core.Tests.EditMode.InventoryContainerStateTests" runstate="Runnable" seed="472871396" result="Passed" start-time="2026-02-25 04:08:23Z" end-time="2026-02-25 04:08:23Z" duration="0.000090" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Saving results to: /Users/ivanprotsiuk/Library/Application Support/DefaultCompany/Reloader/TestResults.xml
+]]></output>
+                </test-case>
+              </test-suite>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

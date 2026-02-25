@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="2" result="Passed" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-02-24 23:00:25Z" end-time="2026-02-24 23:00:25Z" duration="0.0238166">
+  <test-suite type="TestSuite" id="1098" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="49" result="Passed" start-time="2026-02-24 23:00:25Z" end-time="2026-02-24 23:00:25Z" duration="0.023817" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="PlayMode" />
+    </properties>
+    <test-suite type="Assembly" id="1023" name="Reloader.Economy.Tests.PlayMode.dll" fullname="/Users/ivanprotsiuk/Documents/unity/Reloader/Reloader/Library/ScriptAssemblies/Reloader.Economy.Tests.PlayMode.dll" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-02-24 23:00:25Z" end-time="2026-02-24 23:00:25Z" duration="0.020239" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="97003" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="PlayMode" />
+        <property name="EditorOnly" value="False" />
+      </properties>
+      <test-suite type="TestSuite" id="1024" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-02-24 23:00:25Z" end-time="2026-02-24 23:00:25Z" duration="0.019597" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1025" name="Economy" fullname="Reloader.Economy" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-02-24 23:00:25Z" end-time="2026-02-24 23:00:25Z" duration="0.019198" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1026" name="Tests" fullname="Reloader.Economy.Tests" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-02-24 23:00:25Z" end-time="2026-02-24 23:00:25Z" duration="0.018913" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestSuite" id="1027" name="PlayMode" fullname="Reloader.Economy.Tests.PlayMode" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-02-24 23:00:25Z" end-time="2026-02-24 23:00:25Z" duration="0.018598" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-suite type="TestFixture" id="1020" name="TradeUiPresenterPlayModeTests" fullname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests" classname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-02-24 23:00:25Z" end-time="2026-02-24 23:00:25Z" duration="0.018137" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1022" name="SetPreviewItem_KnownIcon_UsesResolvedSprite" fullname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests.SetPreviewItem_KnownIcon_UsesResolvedSprite" methodname="SetPreviewItem_KnownIcon_UsesResolvedSprite" classname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests" runstate="Runnable" seed="572149925" result="Passed" start-time="2026-02-24 23:00:25Z" end-time="2026-02-24 23:00:25Z" duration="0.011875" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1021" name="TradeOpened_DisablesConfiguredLookBehaviour_AndRestoresOnClose" fullname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests.TradeOpened_DisablesConfiguredLookBehaviour_AndRestoresOnClose" methodname="TradeOpened_DisablesConfiguredLookBehaviour_AndRestoresOnClose" classname="Reloader.Economy.Tests.PlayMode.TradeUiPresenterPlayModeTests" runstate="Runnable" seed="1614386423" result="Passed" start-time="2026-02-24 23:00:25Z" end-time="2026-02-24 23:00:25Z" duration="0.001041" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Saving results to: /Users/ivanprotsiuk/Library/Application Support/DefaultCompany/Reloader/TestResults.xml
+]]></output>
+                </test-case>
+              </test-suite>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

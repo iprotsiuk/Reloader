@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="2" result="Passed" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-02-24 12:54:52Z" end-time="2026-02-24 12:54:52Z" duration="0.0187082">
+  <test-suite type="TestSuite" id="1076" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="39" result="Passed" start-time="2026-02-24 12:54:52Z" end-time="2026-02-24 12:54:52Z" duration="0.018708" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="PlayMode" />
+    </properties>
+    <test-suite type="Assembly" id="1012" name="Assembly-CSharp.dll" fullname="/Users/ivanprotsiuk/Documents/unity/Reloader/Reloader/Library/ScriptAssemblies/Assembly-CSharp.dll" runstate="Runnable" testcasecount="8" result="Passed" start-time="2026-02-24 12:54:52Z" end-time="2026-02-24 12:54:52Z" duration="0.014504" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="26255" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="PlayMode" />
+        <property name="EditorOnly" value="False" />
+      </properties>
+      <test-suite type="TestSuite" id="1013" name="Reloader" fullname="Reloader" runstate="Runnable" testcasecount="8" result="Passed" start-time="2026-02-24 12:54:52Z" end-time="2026-02-24 12:54:52Z" duration="0.013921" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1014" name="Reloading" fullname="Reloader.Reloading" runstate="Runnable" testcasecount="8" result="Passed" start-time="2026-02-24 12:54:52Z" end-time="2026-02-24 12:54:52Z" duration="0.013512" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1015" name="Tests" fullname="Reloader.Reloading.Tests" runstate="Runnable" testcasecount="8" result="Passed" start-time="2026-02-24 12:54:52Z" end-time="2026-02-24 12:54:52Z" duration="0.013121" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestSuite" id="1016" name="PlayMode" fullname="Reloader.Reloading.Tests.PlayMode" runstate="Runnable" testcasecount="3" result="Passed" start-time="2026-02-24 12:54:52Z" end-time="2026-02-24 12:54:52Z" duration="0.012717" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-suite type="TestFixture" id="1003" name="ReloadingWorkbenchPresenterPlayModeTests" fullname="Reloader.Reloading.Tests.PlayMode.ReloadingWorkbenchPresenterPlayModeTests" classname="Reloader.Reloading.Tests.PlayMode.ReloadingWorkbenchPresenterPlayModeTests" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-02-24 12:54:52Z" end-time="2026-02-24 12:54:52Z" duration="0.012046" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1005" name="InvalidOperation_UpdatesLastResultWithMaterialWaste" fullname="Reloader.Reloading.Tests.PlayMode.ReloadingWorkbenchPresenterPlayModeTests.InvalidOperation_UpdatesLastResultWithMaterialWaste" methodname="InvalidOperation_UpdatesLastResultWithMaterialWaste" classname="Reloader.Reloading.Tests.PlayMode.ReloadingWorkbenchPresenterPlayModeTests" runstate="Runnable" seed="671047727" result="Passed" start-time="2026-02-24 12:54:52Z" end-time="2026-02-24 12:54:52Z" duration="0.006521" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1004" name="OpenWorkbench_SetsPanelActive_AndResetsSession" fullname="Reloader.Reloading.Tests.PlayMode.ReloadingWorkbenchPresenterPlayModeTests.OpenWorkbench_SetsPanelActive_AndResetsSession" methodname="OpenWorkbench_SetsPanelActive_AndResetsSession" classname="Reloader.Reloading.Tests.PlayMode.ReloadingWorkbenchPresenterPlayModeTests" runstate="Runnable" seed="162253500" result="Passed" start-time="2026-02-24 12:54:52Z" end-time="2026-02-24 12:54:52Z" duration="0.000396" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                  <output><![CDATA[Saving results to: /Users/ivanprotsiuk/Library/Application Support/DefaultCompany/Reloader/TestResults.xml
+]]></output>
+                </test-case>
+              </test-suite>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>
