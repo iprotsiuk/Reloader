@@ -106,5 +106,31 @@ namespace Reloader.Core.Tests.EditMode
 
             Assert.Throws<System.InvalidOperationException>(() => module.ValidateModuleState());
         }
+
+        [Test]
+        public void WeaponsModule_Validate_AllowsLargeCapacityAndReserveValues()
+        {
+            var module = new WeaponsModule();
+            module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
+            {
+                ItemId = "weapon-rifle-01",
+                MagCapacity = 500,
+                MagCount = 250,
+                ReserveCount = 125000,
+                ChamberLoaded = false,
+                MagazineRounds = new System.Collections.Generic.List<WeaponsModule.AmmoBallisticRecord>()
+            });
+
+            for (var i = 0; i < 250; i++)
+            {
+                module.WeaponStates[0].MagazineRounds.Add(new WeaponsModule.AmmoBallisticRecord
+                {
+                    AmmoSource = (int)AmmoSourceType.Factory,
+                    MuzzleVelocityFps = 2650f
+                });
+            }
+
+            Assert.DoesNotThrow(() => module.ValidateModuleState());
+        }
     }
 }

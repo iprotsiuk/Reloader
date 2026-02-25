@@ -6,9 +6,6 @@ namespace Reloader.Core.Save.Modules
 {
     public sealed class WeaponsModule : ISaveDomainModule
     {
-        private const int MaxMagazineCapacity = 128;
-        private const int MaxReserveCount = 50000;
-
         [Serializable]
         public sealed class AmmoBallisticRecord
         {
@@ -114,10 +111,10 @@ namespace Reloader.Core.Save.Modules
                     throw new InvalidOperationException($"Weapon '{state.ItemId}' has negative mag count.");
                 }
 
-                if (state.MagCapacity < 0 || state.MagCapacity > MaxMagazineCapacity)
+                if (state.MagCapacity < 0)
                 {
                     throw new InvalidOperationException(
-                        $"Weapon '{state.ItemId}' has invalid mag capacity '{state.MagCapacity}' (allowed range 0..{MaxMagazineCapacity}).");
+                        $"Weapon '{state.ItemId}' has invalid mag capacity '{state.MagCapacity}'.");
                 }
 
                 var effectiveMagCapacity = state.MagCapacity > 0
@@ -132,12 +129,6 @@ namespace Reloader.Core.Save.Modules
                 if (state.ReserveCount < 0)
                 {
                     throw new InvalidOperationException($"Weapon '{state.ItemId}' has negative reserve count.");
-                }
-
-                if (state.ReserveCount > MaxReserveCount)
-                {
-                    throw new InvalidOperationException(
-                        $"Weapon '{state.ItemId}' has reserve count '{state.ReserveCount}' above supported maximum '{MaxReserveCount}'.");
                 }
 
                 if (state.ChamberLoaded && state.ChamberRound == null)
