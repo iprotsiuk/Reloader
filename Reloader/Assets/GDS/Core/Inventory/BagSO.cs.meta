@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 994732c71748ea345bd7e259785bacf1
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 283656
+  packageName: Inventory Framework v2 (UI Toolkit)
+  packageVersion: 2.0
+  assetPath: Assets/GDS/Core/Inventory/BagSO.cs
+  uploadId: 864308

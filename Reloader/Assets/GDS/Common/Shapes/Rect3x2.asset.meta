@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: d3783605cfed7ad47a2d0f062e5c1bdf
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 283656
+  packageName: Inventory Framework v2 (UI Toolkit)
+  packageVersion: 2.0
+  assetPath: Assets/GDS/Common/Shapes/Rect3x2.asset
+  uploadId: 864308
