@@ -6,6 +6,7 @@ namespace Reloader.UI.Toolkit.Reloading
 {
     public sealed class ReloadingWorkbenchViewBinder : IUiViewBinder
     {
+        private VisualElement _root;
         private VisualElement[] _operationElements = Array.Empty<VisualElement>();
         private Label _resultLabel;
 
@@ -13,6 +14,7 @@ namespace Reloader.UI.Toolkit.Reloading
 
         public void Initialize(VisualElement root, int operationCount)
         {
+            _root = root;
             _operationElements = new VisualElement[Math.Max(0, operationCount)];
             for (var i = 0; i < _operationElements.Length; i++)
             {
@@ -62,6 +64,16 @@ namespace Reloader.UI.Toolkit.Reloading
         {
             IntentRaised?.Invoke(new UiIntent("reloading.operation.execute"));
             return true;
+        }
+
+        public void SetVisible(bool isVisible)
+        {
+            if (_root == null)
+            {
+                return;
+            }
+
+            _root.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
         }
     }
 }

@@ -1,4 +1,5 @@
 using Reloader.Player;
+using Reloader.Core.Events;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -41,6 +42,7 @@ namespace Reloader.Reloading.World
             if (_activeTarget != null && !ReferenceEquals(_activeTarget, target) && _activeTarget.IsWorkbenchOpen)
             {
                 _activeTarget.CloseWorkbench();
+                GameEvents.RaiseWorkbenchMenuVisibilityChanged(false);
             }
 
             _activeTarget = target;
@@ -51,6 +53,7 @@ namespace Reloader.Reloading.World
             }
 
             target.OpenWorkbench();
+            GameEvents.RaiseWorkbenchMenuVisibilityChanged(true);
         }
 
         private void CloseActiveWorkbenchIfAny()
@@ -58,6 +61,7 @@ namespace Reloader.Reloading.World
             if (_activeTarget != null && _activeTarget.IsWorkbenchOpen)
             {
                 _activeTarget.CloseWorkbench();
+                GameEvents.RaiseWorkbenchMenuVisibilityChanged(false);
             }
 
             _activeTarget = null;

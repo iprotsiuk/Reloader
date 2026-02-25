@@ -31,6 +31,7 @@ namespace Reloader.Core.Events
         public static event Action<ShopCheckoutRequest> OnShopBuyCheckoutRequested;
         public static event Action<ShopCheckoutRequest> OnShopSellCheckoutRequested;
         public static event Action<string, int, bool, bool, string> OnShopTradeResult;
+        public static event Action<bool> OnWorkbenchMenuVisibilityChanged;
         public static event Action<int> OnMoneyChanged;
 
         public static void RaiseSaveStarted() => OnSaveStarted?.Invoke();
@@ -60,6 +61,7 @@ namespace Reloader.Core.Events
         public static void RaiseShopSellCheckoutRequested(ShopCheckoutRequest request) => OnShopSellCheckoutRequested?.Invoke(request);
         public static void RaiseShopTradeResult(string itemId, int quantity, bool isBuy, bool success, string failureReason)
             => OnShopTradeResult?.Invoke(itemId, quantity, isBuy, success, failureReason);
+        public static void RaiseWorkbenchMenuVisibilityChanged(bool isVisible) => OnWorkbenchMenuVisibilityChanged?.Invoke(isVisible);
         public static void RaiseMoneyChanged(int amount) => OnMoneyChanged?.Invoke(amount);
     }
 }

@@ -33,6 +33,7 @@ namespace Reloader.UI.Tests.PlayMode
 
             var runtimeRoot = Object.FindFirstObjectByType<UiToolkitRuntimeRoot>(FindObjectsInactive.Include);
             Assert.That(runtimeRoot, Is.Not.Null);
+            Assert.That(runtimeRoot.GetComponent<UiToolkitScreenRuntimeBridge>(), Is.Not.Null);
 
             Assert.That(runtimeRoot.GetComponentsInChildren<UIDocument>(true).Length, Is.GreaterThanOrEqualTo(5));
 

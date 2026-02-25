@@ -1,15 +1,45 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <ui:VisualElement name="inventory__root" class="inventory">
-        <ui:VisualElement name="inventory__panel" class="inventory__panel">
-            <ui:VisualElement name="inventory__belt-slot-0" class="inventory__slot" />
-            <ui:VisualElement name="inventory__belt-slot-1" class="inventory__slot" />
-            <ui:VisualElement name="inventory__belt-slot-2" class="inventory__slot" />
-            <ui:VisualElement name="inventory__belt-slot-3" class="inventory__slot" />
-            <ui:VisualElement name="inventory__belt-slot-4" class="inventory__slot" />
-            <ui:VisualElement name="inventory__backpack-slot-0" class="inventory__slot" />
-            <ui:VisualElement name="inventory__backpack-slot-1" class="inventory__slot" />
-            <ui:VisualElement name="inventory__tooltip" class="inventory__tooltip">
-                <ui:Label name="inventory__tooltip-title" text="" />
+        <ui:VisualElement name="inventory__panel" class="inventory__panel ui-kit__panel">
+            <ui:Label text="Player Menu" class="ui-kit__title" />
+            <ui:VisualElement name="inventory__tabbar" class="inventory__tabbar">
+                <ui:Button name="inventory__tab-inventory" text="Inventory" class="inventory__tab ui-kit__tab is-active" />
+                <ui:Button name="inventory__tab-quests" text="Quests" class="inventory__tab ui-kit__tab" />
+                <ui:Button name="inventory__tab-calendar" text="Calendar" class="inventory__tab ui-kit__tab" />
+                <ui:Button name="inventory__tab-events" text="Events" class="inventory__tab ui-kit__tab" />
+            </ui:VisualElement>
+            <ui:VisualElement name="inventory__section-inventory" class="inventory__section">
+                <ui:Label text="Belt" class="inventory__section-title ui-kit__hint" />
+                <ui:VisualElement class="inventory__slots-row">
+                    <ui:VisualElement name="inventory__belt-slot-0" class="inventory__slot ui-kit__slot" />
+                    <ui:VisualElement name="inventory__belt-slot-1" class="inventory__slot ui-kit__slot" />
+                    <ui:VisualElement name="inventory__belt-slot-2" class="inventory__slot ui-kit__slot" />
+                    <ui:VisualElement name="inventory__belt-slot-3" class="inventory__slot ui-kit__slot" />
+                    <ui:VisualElement name="inventory__belt-slot-4" class="inventory__slot ui-kit__slot" />
+                </ui:VisualElement>
+                <ui:Label text="Backpack" class="inventory__section-title ui-kit__hint" />
+                <ui:VisualElement class="inventory__slots-row">
+                    <ui:VisualElement name="inventory__backpack-slot-0" class="inventory__slot ui-kit__slot" />
+                    <ui:VisualElement name="inventory__backpack-slot-1" class="inventory__slot ui-kit__slot" />
+                </ui:VisualElement>
+                <ui:VisualElement name="inventory__tooltip" class="inventory__tooltip">
+                    <ui:Label name="inventory__tooltip-title" text="" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="inventory__section-quests" class="inventory__section">
+                <ui:Label text="Quests (Mock)" class="inventory__section-title ui-kit__hint" />
+                <ui:Label text="- Main Goal: Build Match-Grade .308 batch" class="inventory__mock-line" />
+                <ui:Label text="- Side Task: Visit Town Gun Store" class="inventory__mock-line" />
+            </ui:VisualElement>
+            <ui:VisualElement name="inventory__section-calendar" class="inventory__section">
+                <ui:Label text="Calendar (Mock)" class="inventory__section-title ui-kit__hint" />
+                <ui:Label text="- Thu: Range practice 18:00" class="inventory__mock-line" />
+                <ui:Label text="- Sat: Local competition 11:00" class="inventory__mock-line" />
+            </ui:VisualElement>
+            <ui:VisualElement name="inventory__section-events" class="inventory__section">
+                <ui:Label text="Event Board (Mock)" class="inventory__section-title ui-kit__hint" />
+                <ui:Label text="- Dealer sale on match bullets" class="inventory__mock-line" />
+                <ui:Label text="- Reloading workshop opens tomorrow" class="inventory__mock-line" />
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
