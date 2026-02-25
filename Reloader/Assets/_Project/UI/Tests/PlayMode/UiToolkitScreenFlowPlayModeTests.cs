@@ -208,6 +208,41 @@ namespace Reloader.UI.Tests.PlayMode
             Object.DestroyImmediate(go);
         }
 
+        [Test]
+        public void TabInventoryController_Tick_RebindsInput_WhenPreviousInputComponentIsDestroyed()
+        {
+            var go = new GameObject("TabInventoryController");
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(2);
+            inventoryController.Configure(null, null, runtime);
+
+            var root = BuildTabRoot();
+            var viewBinder = new TabInventoryViewBinder();
+            viewBinder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+
+            var firstInput = go.AddComponent<TestInputSource>();
+            var controller = go.AddComponent<TabInventoryController>();
+            controller.SetInventoryController(inventoryController);
+            controller.SetInputSource(firstInput);
+            controller.Configure(viewBinder, new TabInventoryDragController());
+
+            var panel = root.Q<VisualElement>("inventory__panel");
+            Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.None));
+
+            firstInput.MenuTogglePressedThisFrame = true;
+            controller.Tick();
+            Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+
+            Object.DestroyImmediate(firstInput);
+            var replacementInput = go.AddComponent<TestInputSource>();
+            replacementInput.MenuTogglePressedThisFrame = true;
+            controller.Tick();
+
+            Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Object.DestroyImmediate(go);
+        }
+
         private static VisualElement BuildTabRoot()
         {
             var root = new VisualElement { name = "inventory__root" };

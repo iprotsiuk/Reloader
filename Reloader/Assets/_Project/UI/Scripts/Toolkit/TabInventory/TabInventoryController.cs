@@ -198,6 +198,11 @@ namespace Reloader.UI.Toolkit.TabInventory
 
         private void ResolveInputSource()
         {
+            if (!IsInputSourceAlive(_inputSource))
+            {
+                _inputSource = null;
+            }
+
             if (_inputSource != null)
             {
                 return;
@@ -216,6 +221,21 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+        }
+
+        private static bool IsInputSourceAlive(IPlayerInputSource inputSource)
+        {
+            if (inputSource == null)
+            {
+                return false;
+            }
+
+            if (inputSource is UnityEngine.Object unityObject && unityObject == null)
+            {
+                return false;
+            }
+
+            return true;
         }
     }
 }
