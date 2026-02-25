@@ -28,7 +28,7 @@ Add tests for:
 
 **Step 2: Run test to verify it fails**
 
-Run: `UNITY_EDITOR="/Applications/Unity/Hub/Editor/6000.3.0f1/Unity.app/Contents/MacOS/Unity" "$UNITY_EDITOR" -batchmode -projectPath "$(pwd)/Reloader" -runTests -testPlatform editmode -testResults "$(pwd)/.tmp/uitk-task1.xml" -testFilter "Reloader.UI.Toolkit.Tests.EditMode.UiToolkitRuntimeRootTests" -quit`
+Run: `bash scripts/run-unity-tests.sh editmode "Reloader.UI.Tests.EditMode.UiToolkitRuntimeRootTests" "$(pwd)/tmp/uitk-task1.xml" "$(pwd)/tmp/uitk-task1.log"`
 
 Expected: FAIL with missing runtime foundation types.
 
