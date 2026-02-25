@@ -22,26 +22,23 @@
                             <ui:Label text="Inventory Grid" class="inventory__section-title ui-kit__hint" />
                         </ui:VisualElement>
 
-                        <ui:VisualElement class="inventory__grid-row">
+                        <ui:VisualElement name="inventory__backpack-grid" class="inventory__grid-row inventory__backpack-grid">
                             <ui:VisualElement name="inventory__backpack-slot-0" class="inventory__slot ui-kit__slot" />
                             <ui:VisualElement name="inventory__backpack-slot-1" class="inventory__slot ui-kit__slot" />
-                            <ui:VisualElement class="inventory__slot ui-kit__slot" />
-                            <ui:VisualElement class="inventory__slot ui-kit__slot" />
-                            <ui:VisualElement class="inventory__slot ui-kit__slot" />
-                            <ui:VisualElement class="inventory__slot ui-kit__slot" />
-                            <ui:VisualElement class="inventory__slot ui-kit__slot" />
-                            <ui:VisualElement class="inventory__slot ui-kit__slot" />
-                        </ui:VisualElement>
-
-                        <ui:VisualElement class="inventory__grid-row">
-                            <ui:VisualElement class="inventory__slot ui-kit__slot" />
-                            <ui:VisualElement class="inventory__slot ui-kit__slot" />
-                            <ui:VisualElement class="inventory__slot ui-kit__slot" />
-                            <ui:VisualElement class="inventory__slot ui-kit__slot" />
-                            <ui:VisualElement class="inventory__slot ui-kit__slot" />
-                            <ui:VisualElement class="inventory__slot ui-kit__slot" />
-                            <ui:VisualElement class="inventory__slot ui-kit__slot" />
-                            <ui:VisualElement class="inventory__slot ui-kit__slot" />
+                            <ui:VisualElement name="inventory__backpack-slot-2" class="inventory__slot ui-kit__slot" />
+                            <ui:VisualElement name="inventory__backpack-slot-3" class="inventory__slot ui-kit__slot" />
+                            <ui:VisualElement name="inventory__backpack-slot-4" class="inventory__slot ui-kit__slot" />
+                            <ui:VisualElement name="inventory__backpack-slot-5" class="inventory__slot ui-kit__slot" />
+                            <ui:VisualElement name="inventory__backpack-slot-6" class="inventory__slot ui-kit__slot" />
+                            <ui:VisualElement name="inventory__backpack-slot-7" class="inventory__slot ui-kit__slot" />
+                            <ui:VisualElement name="inventory__backpack-slot-8" class="inventory__slot ui-kit__slot" />
+                            <ui:VisualElement name="inventory__backpack-slot-9" class="inventory__slot ui-kit__slot" />
+                            <ui:VisualElement name="inventory__backpack-slot-10" class="inventory__slot ui-kit__slot" />
+                            <ui:VisualElement name="inventory__backpack-slot-11" class="inventory__slot ui-kit__slot" />
+                            <ui:VisualElement name="inventory__backpack-slot-12" class="inventory__slot ui-kit__slot" />
+                            <ui:VisualElement name="inventory__backpack-slot-13" class="inventory__slot ui-kit__slot" />
+                            <ui:VisualElement name="inventory__backpack-slot-14" class="inventory__slot ui-kit__slot" />
+                            <ui:VisualElement name="inventory__backpack-slot-15" class="inventory__slot ui-kit__slot" />
                         </ui:VisualElement>
 
                         <ui:VisualElement class="inventory__belt-divider" />

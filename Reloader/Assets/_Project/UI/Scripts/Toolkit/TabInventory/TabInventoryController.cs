@@ -10,6 +10,8 @@ namespace Reloader.UI.Toolkit.TabInventory
 {
     public sealed class TabInventoryController : MonoBehaviour, IUiController
     {
+        private const int MinimumBackpackUiSlots = 16;
+
         [SerializeField] private PlayerInventoryController _inventoryController;
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
 
@@ -125,7 +127,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 _viewBinder.Render(TabInventoryUiState.Create(
                     _isOpen,
                     new TabInventoryUiState.SlotState[PlayerInventoryRuntime.BeltSlotCount],
-                    new TabInventoryUiState.SlotState[2],
+                    new TabInventoryUiState.SlotState[MinimumBackpackUiSlots],
                     string.Empty,
                     false,
                     _activeSection));
@@ -140,7 +142,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 belt.Add(new TabInventoryUiState.SlotState(i, itemId, !string.IsNullOrWhiteSpace(itemId)));
             }
 
-            const int backpackSlots = 2;
+            var backpackSlots = Mathf.Max(MinimumBackpackUiSlots, runtime.BackpackCapacity);
             var backpack = new List<TabInventoryUiState.SlotState>(backpackSlots);
             for (var i = 0; i < backpackSlots; i++)
             {

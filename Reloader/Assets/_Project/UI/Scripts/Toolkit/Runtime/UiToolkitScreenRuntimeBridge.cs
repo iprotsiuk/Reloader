@@ -108,8 +108,9 @@ namespace Reloader.UI.Toolkit.Runtime
                 return;
             }
 
+            var backpackSlotCount = Mathf.Max(16, inventoryController?.Runtime?.BackpackCapacity ?? 0);
             var viewBinder = new TabInventoryViewBinder();
-            viewBinder.Initialize(root, PlayerInventoryRuntime.BeltSlotCount, backpackSlotCount: 2);
+            viewBinder.Initialize(root, PlayerInventoryRuntime.BeltSlotCount, backpackSlotCount);
             var controller = GetOrAddController<TabInventoryController>("tab-menu-controller");
             controller.SetInventoryController(inventoryController);
             controller.SetInputSource(inputSource);
