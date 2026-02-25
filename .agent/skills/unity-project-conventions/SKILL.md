@@ -196,6 +196,12 @@ Never add persisted runtime fields without updating the save contract at the sam
 | Preventing player from making mistakes | Simulate the consequence instead |
 | Creating scenes without checking design doc | Main world is ONE scene; only specific areas are instanced |
 
+## Baked Lighting Safety
+
+- If a scene relies on baked lighting, version both `LightingData.asset` and `LightingData.asset.meta` for that scene.
+- Never delete or rename baked `LightingData` files outside Unity without moving their `.meta` pair.
+- After lighting-related merges, run a headless Unity open (`-batchmode -quit`) and check logs for missing `LightingData.asset` warnings before claiming success.
+
 ## Quick Reference
 
 | Aspect | Rule |
