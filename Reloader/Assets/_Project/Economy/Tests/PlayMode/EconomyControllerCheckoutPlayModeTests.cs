@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using Reloader.Core.Events;
 using Reloader.Inventory;
+using Reloader.Player;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -17,9 +18,10 @@ namespace Reloader.Economy.Tests.PlayMode
         {
             var inventoryGo = new GameObject("InventoryController");
             var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
+            var input = inventoryGo.AddComponent<TestInputSource>();
             var runtime = new PlayerInventoryRuntime();
             runtime.SetBackpackCapacity(4);
-            inventoryController.Configure(null, null, runtime);
+            inventoryController.Configure(input, null, runtime);
 
             var economyGo = new GameObject("EconomyController");
             var controller = economyGo.AddComponent<EconomyController>();
@@ -58,9 +60,10 @@ namespace Reloader.Economy.Tests.PlayMode
         {
             var inventoryGo = new GameObject("InventoryController");
             var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
+            var input = inventoryGo.AddComponent<TestInputSource>();
             var runtime = new PlayerInventoryRuntime();
             runtime.SetBackpackCapacity(0);
-            inventoryController.Configure(null, null, runtime);
+            inventoryController.Configure(input, null, runtime);
 
             var economyGo = new GameObject("EconomyController");
             var controller = economyGo.AddComponent<EconomyController>();
@@ -121,9 +124,10 @@ namespace Reloader.Economy.Tests.PlayMode
         {
             var inventoryGo = new GameObject("InventoryController");
             var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
+            var input = inventoryGo.AddComponent<TestInputSource>();
             var runtime = new PlayerInventoryRuntime();
             runtime.SetBackpackCapacity(2);
-            inventoryController.Configure(null, null, runtime);
+            inventoryController.Configure(input, null, runtime);
             Assert.That(runtime.TryAddStackItem("ammo-22lr", 3, out _, out _, out _), Is.True);
 
             var economyGo = new GameObject("EconomyController");
@@ -181,6 +185,19 @@ namespace Reloader.Economy.Tests.PlayMode
         {
             var field = target.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
             field.SetValue(target, value);
+        }
+
+        private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
+        {
+            public Vector2 MoveInput => Vector2.zero;
+            public Vector2 LookInput => Vector2.zero;
+            public bool SprintHeld => false;
+            public bool AimHeld => false;
+            public bool ConsumeJumpPressed() => false;
+            public bool ConsumePickupPressed() => false;
+            public int ConsumeBeltSelectPressed() => -1;
+            public bool ConsumeFirePressed() => false;
+            public bool ConsumeReloadPressed() => false;
         }
     }
 }

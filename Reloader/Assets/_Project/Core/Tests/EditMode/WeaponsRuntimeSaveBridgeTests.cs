@@ -148,6 +148,9 @@ namespace Reloader.Core.Tests.EditMode
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
+            var awakeMethod = typeof(PlayerWeaponController).GetMethod("Awake", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.That(awakeMethod, Is.Not.Null);
+            awakeMethod.Invoke(controller, null);
             var updateMethod = typeof(PlayerWeaponController).GetMethod("Update", BindingFlags.NonPublic | BindingFlags.Instance);
             Assert.That(updateMethod, Is.Not.Null);
             updateMethod.Invoke(controller, null);
