@@ -1,4 +1,5 @@
 using Reloader.Player;
+using Reloader.Core.Events;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -23,6 +24,11 @@ namespace Reloader.Reloading.World
             Tick();
         }
 
+        private void OnDisable()
+        {
+            CloseActiveWorkbenchIfAny();
+        }
+
         public void Configure(IPlayerInputSource inputSource, IPlayerReloadingBenchResolver resolver)
         {
             _inputSource = inputSource;
@@ -41,6 +47,7 @@ namespace Reloader.Reloading.World
             if (_activeTarget != null && !ReferenceEquals(_activeTarget, target) && _activeTarget.IsWorkbenchOpen)
             {
                 _activeTarget.CloseWorkbench();
+                GameEvents.RaiseWorkbenchMenuVisibilityChanged(false);
             }
 
             _activeTarget = target;
@@ -51,6 +58,7 @@ namespace Reloader.Reloading.World
             }
 
             target.OpenWorkbench();
+            GameEvents.RaiseWorkbenchMenuVisibilityChanged(true);
         }
 
         private void CloseActiveWorkbenchIfAny()
@@ -58,6 +66,7 @@ namespace Reloader.Reloading.World
             if (_activeTarget != null && _activeTarget.IsWorkbenchOpen)
             {
                 _activeTarget.CloseWorkbench();
+                GameEvents.RaiseWorkbenchMenuVisibilityChanged(false);
             }
 
             _activeTarget = null;

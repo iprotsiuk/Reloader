@@ -1,16 +1,171 @@
+@import url("UiKit.uss");
+
+.inventory {
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    padding-top: 12px;
+    padding-right: 12px;
+    padding-bottom: 12px;
+    padding-left: 12px;
+}
+
 .inventory__panel {
     flex-direction: column;
-    gap: 6px;
+    width: 92%;
+    max-width: 980px;
+    min-width: 320px;
+    max-height: 92%;
+    flex-shrink: 1;
+}
+
+.inventory__header-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.inventory__header-hint {
+    font-size: 10px;
+}
+
+.inventory__tabbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    margin-top: 6px;
+    overflow: hidden;
+}
+
+.inventory__tab {
+    min-height: 24px;
+    height: 24px;
+    min-width: 56px;
+    padding-left: 8px;
+    padding-right: 8px;
+    font-size: 10px;
+    -unity-font-style: normal;
+    flex-shrink: 1;
+    margin-right: 6px;
+    margin-bottom: 6px;
+}
+
+.inventory__section {
+    flex-direction: column;
+    min-height: 0;
+    flex-grow: 1;
+}
+
+.inventory__section--hidden {
+    display: none;
+}
+
+.inventory__content {
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-height: 0;
+    flex-grow: 1;
+}
+
+.inventory__grid-area {
+    flex-direction: column;
+    flex-grow: 1;
+    min-width: 0;
+    min-height: 0;
+}
+
+.inventory__details {
+    width: 240px;
+    max-width: 100%;
+    min-width: 180px;
+    padding-top: 10px;
+    padding-right: 10px;
+    padding-bottom: 10px;
+    padding-left: 10px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.08);
+    border-right-color: rgba(255, 255, 255, 0.08);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    border-left-color: rgba(255, 255, 255, 0.08);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    flex-direction: column;
+    margin-left: 12px;
+    margin-top: 2px;
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
+.inventory__details-title {
+    color: rgba(238, 242, 248, 0.95);
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+.inventory__section-title {
+    margin-top: 4px;
+    margin-bottom: 6px;
+    font-size: 11px;
+}
+
+.inventory__section-title-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.inventory__section-title-row .inventory__section-title {
+    margin-left: 6px;
+}
+
+.inventory__grid-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+    align-content: flex-start;
+}
+
+.inventory__backpack-grid {
+    min-height: 0;
+    flex-grow: 1;
+}
+
+.inventory__grid-row--belt {
+    margin-top: 2px;
+}
+
+.inventory__belt-divider {
+    height: 2px;
+    background-color: rgba(255, 255, 255, 0.16);
 }
 
 .inventory__slot {
-    width: 52px;
-    height: 52px;
-    background-color: rgba(255, 255, 255, 0.06);
+    width: 46px;
+    height: 46px;
+    background-color: rgba(255, 255, 255, 0.05);
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
+.inventory__slot--belt {
+    width: 44px;
+    height: 40px;
 }
 
 .inventory__slot.is-occupied {
-    background-color: rgba(255, 255, 255, 0.18);
+    background-color: rgba(108, 174, 255, 0.22);
+    border-top-color: rgba(108, 174, 255, 0.58);
+    border-right-color: rgba(108, 174, 255, 0.58);
+    border-bottom-color: rgba(108, 174, 255, 0.58);
+    border-left-color: rgba(108, 174, 255, 0.58);
 }
 
 .inventory__tooltip {
@@ -18,5 +173,16 @@
     padding-right: 6px;
     padding-bottom: 4px;
     padding-left: 6px;
-    background-color: rgba(0, 0, 0, 0.72);
+    background-color: rgba(0, 0, 0, 0.3);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+
+.inventory__mock-line {
+    color: rgba(228, 233, 239, 0.86);
+    font-size: 11px;
+    white-space: normal;
+    margin-bottom: 6px;
 }

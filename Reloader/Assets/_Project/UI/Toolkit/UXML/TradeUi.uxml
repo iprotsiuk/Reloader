@@ -1,8 +1,21 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <ui:VisualElement name="trade__root" class="trade">
-        <ui:VisualElement name="trade__buy-panel" class="trade__panel" />
-        <ui:VisualElement name="trade__sell-panel" class="trade__panel" />
-        <ui:VisualElement name="trade__order-panel" class="trade__panel" />
-        <ui:Label name="trade__cart-total" text="$0" />
+    <ui:Style src="Assets/_Project/UI/Toolkit/USS/TradeUi.uss" />
+    <ui:VisualElement name="trade__root" class="trade ui-kit__panel">
+        <ui:Label text="Vendor" class="ui-kit__title" />
+        <ui:VisualElement class="trade__tabs">
+            <ui:Label text="Buy" class="ui-kit__tab is-active" />
+            <ui:Label text="Sell" class="ui-kit__tab" />
+        </ui:VisualElement>
+        <ui:VisualElement name="trade__buy-panel" class="trade__panel">
+            <ui:Label text="- Match bullets x100" class="trade__line" />
+            <ui:Label text="- Rifle powder 1lb" class="trade__line" />
+        </ui:VisualElement>
+        <ui:VisualElement name="trade__sell-panel" class="trade__panel">
+            <ui:Label text="- Sell spare brass (mock)" class="trade__line" />
+        </ui:VisualElement>
+        <ui:VisualElement name="trade__order-panel" class="trade__panel">
+            <ui:Label text="Delivery: Inventory (mock)" class="trade__line" />
+        </ui:VisualElement>
+        <ui:Label name="trade__cart-total" text="$0" class="trade__total" />
     </ui:VisualElement>
 </ui:UXML>

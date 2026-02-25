@@ -1,29 +1,32 @@
+@import url("UiKit.uss");
+
 .belt-hud {
+    position: absolute;
+    left: 24px;
+    bottom: 24px;
     flex-direction: row;
     gap: 8px;
+    padding-top: 8px;
+    padding-right: 8px;
+    padding-bottom: 8px;
+    padding-left: 8px;
+    background-color: rgba(16, 18, 21, 0.72);
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+    border-bottom-left-radius: 10px;
 }
 
 .belt-hud__slot {
-    width: 56px;
-    height: 56px;
-    align-items: center;
-    justify-content: center;
-    background-color: rgba(255, 255, 255, 0.08);
-    border-top-width: 1px;
-    border-right-width: 1px;
-    border-bottom-width: 1px;
-    border-left-width: 1px;
-    border-top-color: rgba(255, 255, 255, 0.2);
-    border-right-color: rgba(255, 255, 255, 0.2);
-    border-bottom-color: rgba(255, 255, 255, 0.2);
-    border-left-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.05);
 }
 
 .belt-hud__slot.is-selected {
-    border-top-color: rgb(255, 238, 194);
-    border-right-color: rgb(255, 238, 194);
-    border-bottom-color: rgb(255, 238, 194);
-    border-left-color: rgb(255, 238, 194);
+    background-color: rgba(111, 176, 255, 0.22);
+    border-top-color: rgba(111, 176, 255, 0.62);
+    border-right-color: rgba(111, 176, 255, 0.62);
+    border-bottom-color: rgba(111, 176, 255, 0.62);
+    border-left-color: rgba(111, 176, 255, 0.62);
 }
 
 .belt-hud__slot.is-occupied {
@@ -32,5 +35,6 @@
 
 .belt-hud__slot-label {
     font-size: 14px;
+    color: rgba(239, 243, 249, 0.88);
     unity-text-align: middle-center;
 }

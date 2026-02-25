@@ -6,17 +6,33 @@ namespace Reloader.UI.Toolkit.Reloading
 {
     public sealed class ReloadingWorkbenchViewBinder : IUiViewBinder
     {
+        private VisualElement _root;
         private VisualElement[] _operationElements = Array.Empty<VisualElement>();
+        private Button _executeButton;
         private Label _resultLabel;
 
         public event Action<UiIntent> IntentRaised;
 
         public void Initialize(VisualElement root, int operationCount)
         {
+            _root = root;
             _operationElements = new VisualElement[Math.Max(0, operationCount)];
             for (var i = 0; i < _operationElements.Length; i++)
             {
-                _operationElements[i] = root?.Q<VisualElement>($"reloading__operation-{i}");
+                var operationElement = root?.Q<VisualElement>($"reloading__operation-{i}");
+                _operationElements[i] = operationElement;
+                if (operationElement != null)
+                {
+                    var captured = i;
+                    operationElement.RegisterCallback<ClickEvent>(_ => IntentRaised?.Invoke(new UiIntent("reloading.operation.select", captured)));
+                    operationElement.RegisterCallback<PointerUpEvent>(_ => IntentRaised?.Invoke(new UiIntent("reloading.operation.select", captured)));
+                }
+            }
+
+            _executeButton = root?.Q<Button>("reloading__execute");
+            if (_executeButton != null)
+            {
+                _executeButton.clicked += () => IntentRaised?.Invoke(new UiIntent("reloading.operation.execute"));
             }
 
             _resultLabel = root?.Q<Label>("reloading__result-label");
@@ -62,6 +78,16 @@ namespace Reloader.UI.Toolkit.Reloading
         {
             IntentRaised?.Invoke(new UiIntent("reloading.operation.execute"));
             return true;
+        }
+
+        public void SetVisible(bool isVisible)
+        {
+            if (_root == null)
+            {
+                return;
+            }
+
+            _root.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
         }
     }
 }

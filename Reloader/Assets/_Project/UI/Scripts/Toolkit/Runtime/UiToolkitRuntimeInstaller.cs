@@ -42,6 +42,8 @@ namespace Reloader.UI.Toolkit.Runtime
             {
                 DisableLegacyPresenters();
             }
+
+            EnsureRuntimeBridge();
         }
 
         public int ActiveLegacyPresenterCountForTests()
@@ -144,6 +146,22 @@ namespace Reloader.UI.Toolkit.Runtime
                     behaviour.enabled = false;
                 }
             }
+        }
+
+        private void EnsureRuntimeBridge()
+        {
+            if (_runtimeRoot == null)
+            {
+                return;
+            }
+
+            var bridge = _runtimeRoot.GetComponent<UiToolkitScreenRuntimeBridge>();
+            if (bridge == null)
+            {
+                bridge = _runtimeRoot.gameObject.AddComponent<UiToolkitScreenRuntimeBridge>();
+            }
+
+            bridge.Initialize(_runtimeRoot);
         }
     }
 }

@@ -1,9 +1,35 @@
+@import url("UiKit.uss");
+
 .trade {
     flex-direction: column;
     gap: 8px;
+    width: 460px;
+}
+
+.trade__tabs {
+    flex-direction: row;
+    gap: 6px;
 }
 
 .trade__panel {
-    min-height: 120px;
-    background-color: rgba(255, 255, 255, 0.06);
+    min-height: 90px;
+    padding-top: 8px;
+    padding-right: 8px;
+    padding-bottom: 8px;
+    padding-left: 8px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+
+.trade__line {
+    color: rgba(230, 234, 240, 0.86);
+    font-size: 13px;
+}
+
+.trade__total {
+    color: rgba(240, 243, 248, 0.96);
+    -unity-font-style: bold;
 }

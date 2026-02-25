@@ -361,6 +361,11 @@ namespace Reloader.Player.Tests.PlayMode
                 return pressed;
             }
 
+            public bool ConsumeMenuTogglePressed()
+            {
+                return false;
+            }
+
             public bool ConsumeFirePressed()
             {
                 if (!FirePressedThisFrame)

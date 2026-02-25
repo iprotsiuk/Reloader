@@ -13,5 +13,6 @@ namespace Reloader.Player
         bool ConsumeReloadPressed();
         bool ConsumePickupPressed();
         int ConsumeBeltSelectPressed();
+        bool ConsumeMenuTogglePressed();
     }
 }

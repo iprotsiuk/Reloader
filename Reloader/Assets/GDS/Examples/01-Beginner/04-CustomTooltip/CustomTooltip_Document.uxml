@@ -1,0 +1,6 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <Style src="project://database/Assets/GDS/Examples/01_Beginner/04-CustomTooltip/CustomTooltip_Styles.uss?fileID=7433441132597879392&amp;guid=356c7dfc169a2e04cafe07267bc24f8b&amp;type=3#CustomTooltip_Styles" />
+    <ui:VisualElement name="Root" class="cover place-items-center bg-dark-gray">
+        <GDS.Core.ListBagView name="ListBagView" title="Custom Tooltip Example" />
+    </ui:VisualElement>
+</ui:UXML>

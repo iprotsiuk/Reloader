@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: e72c633225f899b45aea66515139a327
+TextScriptImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 283656
+  packageName: Inventory Framework v2 (UI Toolkit)
+  packageVersion: 2.0
+  assetPath: Assets/GDS/Examples/02-Intermediate/01-DiscardItem/Readme.md
+  uploadId: 864308

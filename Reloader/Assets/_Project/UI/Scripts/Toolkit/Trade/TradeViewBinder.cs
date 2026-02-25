@@ -6,6 +6,7 @@ namespace Reloader.UI.Toolkit.Trade
 {
     public sealed class TradeViewBinder : IUiViewBinder
     {
+        private VisualElement _root;
         private VisualElement _buyPanel;
         private VisualElement _sellPanel;
         private VisualElement _orderPanel;
@@ -15,6 +16,7 @@ namespace Reloader.UI.Toolkit.Trade
 
         public void Initialize(VisualElement root)
         {
+            _root = root;
             _buyPanel = root?.Q<VisualElement>("trade__buy-panel");
             _sellPanel = root?.Q<VisualElement>("trade__sell-panel");
             _orderPanel = root?.Q<VisualElement>("trade__order-panel");
@@ -59,6 +61,16 @@ namespace Reloader.UI.Toolkit.Trade
         {
             IntentRaised?.Invoke(new UiIntent("trade.confirm.sell"));
             return true;
+        }
+
+        public void SetVisible(bool isVisible)
+        {
+            if (_root == null)
+            {
+                return;
+            }
+
+            _root.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
         }
     }
 }

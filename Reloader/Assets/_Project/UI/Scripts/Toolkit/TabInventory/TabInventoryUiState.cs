@@ -28,7 +28,8 @@ namespace Reloader.UI.Toolkit.TabInventory
             SlotState[] beltSlots,
             SlotState[] backpackSlots,
             string tooltipTitle,
-            bool tooltipVisible)
+            bool tooltipVisible,
+            string activeSection)
             : base("tab-inventory")
         {
             IsOpen = isOpen;
@@ -36,6 +37,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             _backpackSlots = backpackSlots ?? Array.Empty<SlotState>();
             TooltipTitle = tooltipTitle ?? string.Empty;
             TooltipVisible = tooltipVisible;
+            ActiveSection = string.IsNullOrWhiteSpace(activeSection) ? "inventory" : activeSection;
         }
 
         public bool IsOpen { get; }
@@ -43,17 +45,19 @@ namespace Reloader.UI.Toolkit.TabInventory
         public IReadOnlyList<SlotState> BackpackSlots => _backpackSlots;
         public string TooltipTitle { get; }
         public bool TooltipVisible { get; }
+        public string ActiveSection { get; }
 
         public static TabInventoryUiState Create(
             bool isOpen,
             IEnumerable<SlotState> beltSlots,
             IEnumerable<SlotState> backpackSlots,
             string tooltipTitle,
-            bool tooltipVisible)
+            bool tooltipVisible,
+            string activeSection = "inventory")
         {
             var belt = beltSlots == null ? Array.Empty<SlotState>() : new List<SlotState>(beltSlots).ToArray();
             var backpack = backpackSlots == null ? Array.Empty<SlotState>() : new List<SlotState>(backpackSlots).ToArray();
-            return new TabInventoryUiState(isOpen, belt, backpack, tooltipTitle, tooltipVisible);
+            return new TabInventoryUiState(isOpen, belt, backpack, tooltipTitle, tooltipVisible, activeSection);
         }
     }
 }

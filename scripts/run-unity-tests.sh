@@ -13,6 +13,19 @@ FILTER="${2:-}"
 RESULTS_PATH="${3:-$ROOT_DIR/tmp/test-results-${PLATFORM}.xml}"
 LOG_PATH="${4:-$ROOT_DIR/tmp/test-${PLATFORM}.log}"
 
+resolve_path() {
+  local input_path="$1"
+  if [[ "$input_path" = /* ]]; then
+    printf '%s\n' "$input_path"
+    return 0
+  fi
+
+  printf '%s/%s\n' "$ROOT_DIR" "$input_path"
+}
+
+RESULTS_PATH="$(resolve_path "$RESULTS_PATH")"
+LOG_PATH="$(resolve_path "$LOG_PATH")"
+
 mkdir -p "$(dirname "$RESULTS_PATH")" "$(dirname "$LOG_PATH")"
 
 if [[ ! -x "$UNITY_EDITOR" ]]; then

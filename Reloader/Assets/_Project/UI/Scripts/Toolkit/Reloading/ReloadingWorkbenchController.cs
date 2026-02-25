@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Reloader.Core.Events;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine;
 
@@ -11,6 +12,18 @@ namespace Reloader.UI.Toolkit.Reloading
         private ReloadingWorkbenchViewBinder _viewBinder;
         private int _selectedOperation;
         private string _resultText;
+        private bool _isVisible;
+
+        private void OnEnable()
+        {
+            GameEvents.OnWorkbenchMenuVisibilityChanged += HandleWorkbenchVisibilityChanged;
+            Refresh();
+        }
+
+        private void OnDisable()
+        {
+            GameEvents.OnWorkbenchMenuVisibilityChanged -= HandleWorkbenchVisibilityChanged;
+        }
 
         public void SetViewBinder(ReloadingWorkbenchViewBinder binder)
         {
@@ -43,6 +56,12 @@ namespace Reloader.UI.Toolkit.Reloading
                 return;
             }
 
+            _viewBinder.SetVisible(_isVisible);
+            if (!_isVisible)
+            {
+                return;
+            }
+
             var operations = new List<ReloadingWorkbenchUiState.OperationState>(_operationLabels.Length);
             for (var i = 0; i < _operationLabels.Length; i++)
             {
@@ -50,6 +69,12 @@ namespace Reloader.UI.Toolkit.Reloading
             }
 
             _viewBinder.Render(ReloadingWorkbenchUiState.Create(operations, _resultText));
+        }
+
+        private void HandleWorkbenchVisibilityChanged(bool isVisible)
+        {
+            _isVisible = isVisible;
+            Refresh();
         }
     }
 }

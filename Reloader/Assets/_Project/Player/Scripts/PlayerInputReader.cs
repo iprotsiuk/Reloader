@@ -16,6 +16,7 @@ namespace Reloader.Player
         [SerializeField] private string _fireActionName = "Attack";
         [SerializeField] private string _reloadActionName = "Reload";
         [SerializeField] private string _pickupActionName = "Pickup";
+        [SerializeField] private string _menuToggleActionName = "MenuToggle";
         [SerializeField] private string _beltSlot1ActionName = "BeltSlot1";
         [SerializeField] private string _beltSlot2ActionName = "BeltSlot2";
         [SerializeField] private string _beltSlot3ActionName = "BeltSlot3";
@@ -30,6 +31,7 @@ namespace Reloader.Player
         public bool FireQueued { get; private set; }
         public bool ReloadQueued { get; private set; }
         public bool PickupQueued { get; private set; }
+        public bool MenuToggleQueued { get; private set; }
 
         private InputActionMap _playerMap;
         private InputAction _moveAction;
@@ -40,6 +42,7 @@ namespace Reloader.Player
         private InputAction _fireAction;
         private InputAction _reloadAction;
         private InputAction _pickupAction;
+        private InputAction _menuToggleAction;
         private readonly InputAction[] _beltSlotActions = new InputAction[5];
         private int _beltSlotQueued = -1;
         private bool _missingAssetWarningLogged;
@@ -66,6 +69,7 @@ namespace Reloader.Player
             FireQueued = false;
             ReloadQueued = false;
             PickupQueued = false;
+            MenuToggleQueued = false;
             _beltSlotQueued = -1;
         }
 
@@ -102,6 +106,15 @@ namespace Reloader.Player
             if (_pickupAction != null && _pickupAction.WasPressedThisFrame())
             {
                 PickupQueued = true;
+            }
+
+            if (_menuToggleAction != null && _menuToggleAction.WasPressedThisFrame())
+            {
+                MenuToggleQueued = true;
+            }
+            else if (Keyboard.current != null && Keyboard.current.tabKey.wasPressedThisFrame)
+            {
+                MenuToggleQueued = true;
             }
 
             for (var i = 0; i < _beltSlotActions.Length; i++)
@@ -169,6 +182,17 @@ namespace Reloader.Player
             return queued;
         }
 
+        public bool ConsumeMenuTogglePressed()
+        {
+            if (!MenuToggleQueued)
+            {
+                return false;
+            }
+
+            MenuToggleQueued = false;
+            return true;
+        }
+
         public void SetActionsAsset(InputActionAsset actionsAsset)
         {
             _actionsAsset = actionsAsset;
@@ -194,6 +218,7 @@ namespace Reloader.Player
                 _fireAction = null;
                 _reloadAction = null;
                 _pickupAction = null;
+                _menuToggleAction = null;
                 for (var i = 0; i < _beltSlotActions.Length; i++)
                 {
                     _beltSlotActions[i] = null;
@@ -211,6 +236,7 @@ namespace Reloader.Player
             _fireAction = _playerMap != null ? _playerMap.FindAction(_fireActionName, false) : null;
             _reloadAction = _playerMap != null ? _playerMap.FindAction(_reloadActionName, false) : null;
             _pickupAction = _playerMap != null ? _playerMap.FindAction(_pickupActionName, false) : null;
+            _menuToggleAction = _playerMap != null ? _playerMap.FindAction(_menuToggleActionName, false) : null;
             _beltSlotActions[0] = _playerMap != null ? _playerMap.FindAction(_beltSlot1ActionName, false) : null;
             _beltSlotActions[1] = _playerMap != null ? _playerMap.FindAction(_beltSlot2ActionName, false) : null;
             _beltSlotActions[2] = _playerMap != null ? _playerMap.FindAction(_beltSlot3ActionName, false) : null;

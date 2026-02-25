@@ -1,15 +1,78 @@
-<ui:UXML xmlns:ui="UnityEngine.UIElements">
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/_Project/UI/Toolkit/USS/TabInventory.uss?fileID=7433441132597879392&amp;guid=7ac3939fa962f413abd5b1feaccc76d2&amp;type=3#TabInventory"/>
     <ui:VisualElement name="inventory__root" class="inventory">
-        <ui:VisualElement name="inventory__panel" class="inventory__panel">
-            <ui:VisualElement name="inventory__belt-slot-0" class="inventory__slot" />
-            <ui:VisualElement name="inventory__belt-slot-1" class="inventory__slot" />
-            <ui:VisualElement name="inventory__belt-slot-2" class="inventory__slot" />
-            <ui:VisualElement name="inventory__belt-slot-3" class="inventory__slot" />
-            <ui:VisualElement name="inventory__belt-slot-4" class="inventory__slot" />
-            <ui:VisualElement name="inventory__backpack-slot-0" class="inventory__slot" />
-            <ui:VisualElement name="inventory__backpack-slot-1" class="inventory__slot" />
-            <ui:VisualElement name="inventory__tooltip" class="inventory__tooltip">
-                <ui:Label name="inventory__tooltip-title" text="" />
+        <ui:VisualElement name="inventory__panel" class="inventory__panel ui-kit__panel" style="max-width: 60%; max-height: 80%; min-width: 30%; min-height: 20%; height: 80%; flex-direction: column; flex-wrap: nowrap;">
+            <ui:VisualElement class="inventory__header-row">
+                <ui:Label text="Player Menu" class="ui-kit__title"/>
+                <ui:Label text="Inventory" class="inventory__header-hint ui-kit__hint"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="inventory__tabbar" class="inventory__tabbar">
+                <ui:Button name="inventory__tab-inventory" text="Inventory" class="inventory__tab ui-kit__tab is-active"/>
+                <ui:Button name="inventory__tab-quests" text="Quests" class="inventory__tab ui-kit__tab"/>
+                <ui:Button name="inventory__tab-journal" text="Journal" class="inventory__tab ui-kit__tab"/>
+                <ui:Button name="inventory__tab-calendar" text="Calendar" class="inventory__tab ui-kit__tab"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="inventory__section-inventory" class="inventory__section">
+                <ui:VisualElement class="inventory__content">
+                    <ui:VisualElement class="inventory__grid-area">
+                        <ui:VisualElement class="inventory__section-title-row">
+                            <ui:VisualElement class="ui-kit__icon ui-kit__icon--backpack"/>
+                            <ui:Label text="Inventory Grid" class="inventory__section-title ui-kit__hint"/>
+                        </ui:VisualElement>
+                        <ui:VisualElement name="inventory__backpack-grid" class="inventory__grid-row inventory__backpack-grid">
+                            <ui:VisualElement name="inventory__backpack-slot-0" class="inventory__slot ui-kit__slot"/>
+                            <ui:VisualElement name="inventory__backpack-slot-1" class="inventory__slot ui-kit__slot"/>
+                            <ui:VisualElement name="inventory__backpack-slot-2" class="inventory__slot ui-kit__slot"/>
+                            <ui:VisualElement name="inventory__backpack-slot-3" class="inventory__slot ui-kit__slot"/>
+                            <ui:VisualElement name="inventory__backpack-slot-4" class="inventory__slot ui-kit__slot"/>
+                            <ui:VisualElement name="inventory__backpack-slot-5" class="inventory__slot ui-kit__slot"/>
+                            <ui:VisualElement name="inventory__backpack-slot-6" class="inventory__slot ui-kit__slot"/>
+                            <ui:VisualElement name="inventory__backpack-slot-7" class="inventory__slot ui-kit__slot"/>
+                            <ui:VisualElement name="inventory__backpack-slot-8" class="inventory__slot ui-kit__slot"/>
+                            <ui:VisualElement name="inventory__backpack-slot-9" class="inventory__slot ui-kit__slot"/>
+                            <ui:VisualElement name="inventory__backpack-slot-10" class="inventory__slot ui-kit__slot"/>
+                            <ui:VisualElement name="inventory__backpack-slot-11" class="inventory__slot ui-kit__slot"/>
+                            <ui:VisualElement name="inventory__backpack-slot-12" class="inventory__slot ui-kit__slot"/>
+                            <ui:VisualElement name="inventory__backpack-slot-13" class="inventory__slot ui-kit__slot"/>
+                            <ui:VisualElement name="inventory__backpack-slot-14" class="inventory__slot ui-kit__slot"/>
+                            <ui:VisualElement name="inventory__backpack-slot-15" class="inventory__slot ui-kit__slot"/>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="inventory__belt-divider"/>
+                        <ui:Label text="Toolbelt" class="inventory__section-title ui-kit__hint"/>
+                        <ui:VisualElement class="inventory__grid-row inventory__grid-row--belt">
+                            <ui:VisualElement name="inventory__belt-slot-0" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
+                            <ui:VisualElement name="inventory__belt-slot-1" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
+                            <ui:VisualElement name="inventory__belt-slot-2" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
+                            <ui:VisualElement name="inventory__belt-slot-3" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
+                            <ui:VisualElement name="inventory__belt-slot-4" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
+                            <ui:VisualElement class="inventory__slot ui-kit__slot inventory__slot--belt"/>
+                            <ui:VisualElement class="inventory__slot ui-kit__slot inventory__slot--belt"/>
+                            <ui:VisualElement class="inventory__slot ui-kit__slot inventory__slot--belt"/>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="inventory__details" style="min-width: auto; width: auto;">
+                        <ui:Label text="Item Details" class="inventory__details-title"/>
+                        <ui:Label text="Select an item to inspect description and stack information." class="inventory__mock-line"/>
+                        <ui:VisualElement name="inventory__tooltip" class="inventory__tooltip">
+                            <ui:Label name="inventory__tooltip-title" text=""/>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="inventory__section-quests" class="inventory__section inventory__section--hidden">
+                <ui:Label text="Quests" class="inventory__section-title ui-kit__hint"/>
+                <ui:Label text="- Main Goal: Build Match-Grade .308 batch" class="inventory__mock-line"/>
+                <ui:Label text="- Side Task: Visit Town Gun Store" class="inventory__mock-line"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="inventory__section-journal" class="inventory__section inventory__section--hidden">
+                <ui:Label text="Journal" class="inventory__section-title ui-kit__hint"/>
+                <ui:Label text="- New entry: pressure ladder session notes" class="inventory__mock-line"/>
+                <ui:Label text="- Remember to verify primer pocket prep" class="inventory__mock-line"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="inventory__section-calendar" class="inventory__section inventory__section--hidden">
+                <ui:Label text="Calendar" class="inventory__section-title ui-kit__hint"/>
+                <ui:Label text="- Thu: Range practice 18:00" class="inventory__mock-line"/>
+                <ui:Label text="- Sat: Local competition 11:00" class="inventory__mock-line"/>
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>

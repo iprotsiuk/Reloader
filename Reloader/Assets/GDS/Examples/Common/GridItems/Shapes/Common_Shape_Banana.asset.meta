@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: cf63ad2fb0ff0eb49bee623e56ccf3cc
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 283656
+  packageName: Inventory Framework v2 (UI Toolkit)
+  packageVersion: 2.0
+  assetPath: Assets/GDS/Examples/Common/GridItems/Shapes/Common_Shape_Banana.asset
+  uploadId: 864308

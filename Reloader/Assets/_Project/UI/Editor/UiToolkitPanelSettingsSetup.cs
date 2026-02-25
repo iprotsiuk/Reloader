@@ -1,6 +1,5 @@
 using Reloader.UI.Toolkit.Runtime;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -114,7 +113,6 @@ namespace Reloader.UI.Editor
 
             PrefabUtility.SaveAsPrefabAsset(root, BeltHudPrefabPath);
             PrefabUtility.UnloadPrefabContents(root);
-            EditorSceneManager.MarkAllScenesDirty();
             AssetDatabase.SaveAssets();
             return true;
         }

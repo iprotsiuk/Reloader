@@ -141,6 +141,7 @@ namespace Reloader.NPCs.Tests.PlayMode
             public bool ConsumeFirePressed() => false;
             public bool ConsumeReloadPressed() => false;
             public int ConsumeBeltSelectPressed() => -1;
+            public bool ConsumeMenuTogglePressed() => false;
 
             public bool ConsumePickupPressed()
             {

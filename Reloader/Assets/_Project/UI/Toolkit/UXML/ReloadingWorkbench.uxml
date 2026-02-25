@@ -1,8 +1,17 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <ui:VisualElement name="reloading__root" class="reloading">
-        <ui:VisualElement name="reloading__operation-0" class="reloading__operation" />
-        <ui:VisualElement name="reloading__operation-1" class="reloading__operation" />
-        <ui:VisualElement name="reloading__operation-2" class="reloading__operation" />
+    <ui:Style src="Assets/_Project/UI/Toolkit/USS/ReloadingWorkbench.uss" />
+    <ui:VisualElement name="reloading__root" class="reloading ui-kit__panel">
+        <ui:Label text="Workbench" class="ui-kit__title" />
+        <ui:VisualElement name="reloading__operation-0" class="reloading__operation ui-kit__tab">
+            <ui:Label text="Resize (mock)" class="reloading__op-label" />
+        </ui:VisualElement>
+        <ui:VisualElement name="reloading__operation-1" class="reloading__operation ui-kit__tab">
+            <ui:Label text="Prime (mock)" class="reloading__op-label" />
+        </ui:VisualElement>
+        <ui:VisualElement name="reloading__operation-2" class="reloading__operation ui-kit__tab">
+            <ui:Label text="Seat (mock)" class="reloading__op-label" />
+        </ui:VisualElement>
+        <ui:Button name="reloading__execute" text="Execute" class="reloading__execute ui-kit__tab" />
         <ui:Label name="reloading__result-label" text="" class="reloading__result" />
     </ui:VisualElement>
 </ui:UXML>

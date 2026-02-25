@@ -73,6 +73,7 @@ namespace Reloader.UI.Tests.PlayMode
                 root.Add(new VisualElement { name = $"reloading__operation-{i}" });
             }
 
+            root.Add(new Button { name = "reloading__execute", text = "Execute" });
             root.Add(new Label { name = "reloading__result-label" });
             return root;
         }

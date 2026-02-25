@@ -1,13 +1,30 @@
+@import url("UiKit.uss");
+
 .reloading {
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
+    width: 340px;
 }
 
 .reloading__operation {
-    min-height: 34px;
-    background-color: rgba(255, 255, 255, 0.08);
+    min-height: 36px;
+    justify-content: center;
 }
 
 .reloading__operation.is-selected {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(111, 176, 255, 0.22);
+}
+
+.reloading__op-label {
+    color: rgba(236, 239, 244, 0.88);
+    margin-left: 10px;
+}
+
+.reloading__result {
+    color: rgba(236, 239, 244, 0.96);
+    -unity-font-style: bold;
+}
+
+.reloading__execute {
+    min-height: 30px;
 }
