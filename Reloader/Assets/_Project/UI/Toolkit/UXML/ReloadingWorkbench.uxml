@@ -1,4 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="Assets/_Project/UI/Toolkit/USS/ReloadingWorkbench.uss" />
     <ui:VisualElement name="reloading__root" class="reloading ui-kit__panel">
         <ui:Label text="Workbench" class="ui-kit__title" />
         <ui:VisualElement name="reloading__operation-0" class="reloading__operation ui-kit__tab">

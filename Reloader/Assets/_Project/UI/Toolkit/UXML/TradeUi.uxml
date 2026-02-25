@@ -1,4 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="Assets/_Project/UI/Toolkit/USS/TradeUi.uss" />
     <ui:VisualElement name="trade__root" class="trade ui-kit__panel">
         <ui:Label text="Vendor" class="ui-kit__title" />
         <ui:VisualElement class="trade__tabs">

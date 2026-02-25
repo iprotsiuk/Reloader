@@ -1,6 +1,9 @@
 @import url("UiKit.uss");
 
 .belt-hud {
+    position: absolute;
+    left: 24px;
+    bottom: 24px;
     flex-direction: row;
     gap: 8px;
     padding-top: 8px;
