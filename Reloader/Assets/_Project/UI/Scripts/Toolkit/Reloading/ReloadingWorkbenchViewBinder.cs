@@ -25,6 +25,7 @@ namespace Reloader.UI.Toolkit.Reloading
                 {
                     var captured = i;
                     operationElement.RegisterCallback<ClickEvent>(_ => IntentRaised?.Invoke(new UiIntent("reloading.operation.select", captured)));
+                    operationElement.RegisterCallback<PointerUpEvent>(_ => IntentRaised?.Invoke(new UiIntent("reloading.operation.select", captured)));
                 }
             }
 

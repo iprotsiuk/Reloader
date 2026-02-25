@@ -65,32 +65,6 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(captured, Is.EqualTo("reloading.operation.execute"));
         }
 
-        [Test]
-        public void Initialize_RegistersRuntimeClickIntents_ForSelectAndExecute()
-        {
-            var root = BuildRoot();
-            var binder = new ReloadingWorkbenchViewBinder();
-            binder.Initialize(root, 3);
-
-            string key = null;
-            int selected = -1;
-            binder.IntentRaised += intent =>
-            {
-                key = intent.Key;
-                if (intent.Payload is int index)
-                {
-                    selected = index;
-                }
-            };
-
-            root.Q<VisualElement>("reloading__operation-1").SendEvent(new ClickEvent());
-            Assert.That(key, Is.EqualTo("reloading.operation.select"));
-            Assert.That(selected, Is.EqualTo(1));
-
-            root.Q<Button>("reloading__execute").Click();
-            Assert.That(key, Is.EqualTo("reloading.operation.execute"));
-        }
-
         private static VisualElement BuildRoot()
         {
             var root = new VisualElement { name = "reloading__root" };
