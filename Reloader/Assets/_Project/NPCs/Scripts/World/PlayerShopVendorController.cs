@@ -1,3 +1,4 @@
+using Reloader.Core;
 using Reloader.Core.Events;
 using Reloader.Player;
 using UnityEngine;
@@ -45,11 +46,12 @@ namespace Reloader.NPCs.World
 
         public void Tick()
         {
-            if ((_inputSource == null || _resolver == null) && !_loggedMissingDependencies)
-            {
-                Debug.LogError("PlayerShopVendorController requires both input source and vendor resolver references.", this);
-                _loggedMissingDependencies = true;
-            }
+            DependencyResolutionGuard.HasRequiredReferences(
+                ref _loggedMissingDependencies,
+                this,
+                "PlayerShopVendorController requires both input source and vendor resolver references.",
+                _inputSource,
+                _resolver);
 
             if (_resolver == null || !_resolver.TryResolveVendorTarget(out var target) || target == null)
             {
@@ -91,31 +93,13 @@ namespace Reloader.NPCs.World
 
             if (_inputSource == null)
             {
-                _inputSource = GetInterfaceFromBehaviours<IPlayerInputSource>(GetComponents<MonoBehaviour>());
+                _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(GetComponents<MonoBehaviour>());
             }
 
             if (_resolver == null)
             {
-                _resolver = GetInterfaceFromBehaviours<IPlayerShopVendorResolver>(GetComponents<MonoBehaviour>());
+                _resolver = DependencyResolutionGuard.FindInterface<IPlayerShopVendorResolver>(GetComponents<MonoBehaviour>());
             }
-        }
-
-        private static TInterface GetInterfaceFromBehaviours<TInterface>(MonoBehaviour[] behaviours) where TInterface : class
-        {
-            if (behaviours == null)
-            {
-                return null;
-            }
-
-            for (var i = 0; i < behaviours.Length; i++)
-            {
-                if (behaviours[i] is TInterface typed)
-                {
-                    return typed;
-                }
-            }
-
-            return null;
         }
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Reloader.Core;
 using Reloader.Core.Events;
 using Reloader.Player;
 using UnityEngine;
@@ -58,14 +59,17 @@ namespace Reloader.Inventory
         public void Tick()
         {
             UpdateDebugFields();
-            if (_inputSource == null || Runtime == null)
+            if (Runtime == null)
             {
-                if (_inputSource == null && !_loggedMissingInputSource)
-                {
-                    Debug.LogError("PlayerInventoryController requires an IPlayerInputSource reference.", this);
-                    _loggedMissingInputSource = true;
-                }
+                return;
+            }
 
+            if (!DependencyResolutionGuard.HasRequiredReferences(
+                    ref _loggedMissingInputSource,
+                    this,
+                    "PlayerInventoryController requires an IPlayerInputSource reference.",
+                    _inputSource))
+            {
                 return;
             }
 
@@ -164,18 +168,18 @@ namespace Reloader.Inventory
             _inputSource ??= _inputSourceBehaviour as IPlayerInputSource;
             if (_inputSource == null)
             {
-                _inputSource = GetInterfaceFromBehaviours<IPlayerInputSource>(GetComponents<MonoBehaviour>());
+                _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(GetComponents<MonoBehaviour>());
             }
 
             if (_inputSource == null)
             {
-                _inputSource = GetInterfaceFromBehaviours<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+                _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
             }
 
             _pickupTargetResolver ??= _pickupTargetResolverBehaviour as IInventoryPickupTargetResolver;
             if (_pickupTargetResolver == null)
             {
-                _pickupTargetResolver = GetInterfaceFromBehaviours<IInventoryPickupTargetResolver>(GetComponents<MonoBehaviour>());
+                _pickupTargetResolver = DependencyResolutionGuard.FindInterface<IInventoryPickupTargetResolver>(GetComponents<MonoBehaviour>());
             }
         }
 
@@ -205,22 +209,5 @@ namespace Reloader.Inventory
             _selectedBeltItemIdDebug = Runtime.SelectedBeltItemId;
         }
 
-        private static TInterface GetInterfaceFromBehaviours<TInterface>(MonoBehaviour[] behaviours) where TInterface : class
-        {
-            if (behaviours == null)
-            {
-                return null;
-            }
-
-            for (var i = 0; i < behaviours.Length; i++)
-            {
-                if (behaviours[i] is TInterface typed)
-                {
-                    return typed;
-                }
-            }
-
-            return null;
-        }
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Reloader.Core;
 using Reloader.Core.Events;
 using Reloader.Inventory;
 using Reloader.Player;
@@ -69,14 +70,13 @@ namespace Reloader.Weapons.Controllers
 
         private void Update()
         {
-            if (_inventoryController == null || _weaponRegistry == null)
+            if (!DependencyResolutionGuard.HasRequiredReferences(
+                    ref _loggedMissingCoreDependencies,
+                    this,
+                    "PlayerWeaponController requires PlayerInventoryController and WeaponRegistry references.",
+                    _inventoryController,
+                    _weaponRegistry))
             {
-                if (!_loggedMissingCoreDependencies)
-                {
-                    Debug.LogError("PlayerWeaponController requires PlayerInventoryController and WeaponRegistry references.", this);
-                    _loggedMissingCoreDependencies = true;
-                }
-
                 return;
             }
 
@@ -84,11 +84,10 @@ namespace Reloader.Weapons.Controllers
             SyncEquippedReserveFromInventory();
             if (_inputSource == null)
             {
-                if (!_attemptedSceneInputResolution)
-                {
-                    _inputSource = GetInterfaceFromBehaviours<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
-                    _attemptedSceneInputResolution = true;
-                }
+                DependencyResolutionGuard.ResolveOnce(
+                    ref _inputSource,
+                    ref _attemptedSceneInputResolution,
+                    () => DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None)));
 
                 return;
             }
@@ -172,12 +171,12 @@ namespace Reloader.Weapons.Controllers
             _inputSource ??= _inputSourceBehaviour as IPlayerInputSource;
             if (_inputSource == null)
             {
-                _inputSource = GetInterfaceFromBehaviours<IPlayerInputSource>(GetComponents<MonoBehaviour>());
+                _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(GetComponents<MonoBehaviour>());
             }
 
             if (_inputSource == null)
             {
-                _inputSource = GetInterfaceFromBehaviours<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+                _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
                 _attemptedSceneInputResolution = true;
             }
 
@@ -568,22 +567,5 @@ namespace Reloader.Weapons.Controllers
             return _weaponRegistry.TryGetWeaponDefinition(itemId, out var definition) ? definition : null;
         }
 
-        private static TInterface GetInterfaceFromBehaviours<TInterface>(MonoBehaviour[] behaviours) where TInterface : class
-        {
-            if (behaviours == null)
-            {
-                return null;
-            }
-
-            for (var i = 0; i < behaviours.Length; i++)
-            {
-                if (behaviours[i] is TInterface typed)
-                {
-                    return typed;
-                }
-            }
-
-            return null;
-        }
     }
 }

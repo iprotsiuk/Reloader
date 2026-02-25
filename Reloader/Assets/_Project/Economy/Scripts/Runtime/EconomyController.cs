@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Reloader.Core;
 using Reloader.Core.Events;
 using Reloader.Inventory;
 using UnityEngine;
@@ -288,17 +289,15 @@ namespace Reloader.Economy
         private void ResolveReferences()
         {
             _inventoryController ??= _inventoryControllerBehaviour as PlayerInventoryController;
-            if (_inventoryController == null && !_attemptedInventoryResolution)
-            {
-                _inventoryController = FindFirstObjectByType<PlayerInventoryController>();
-                _attemptedInventoryResolution = true;
-            }
-
-            if (_inventoryController == null && !_loggedMissingInventoryController)
-            {
-                Debug.LogError("EconomyController requires a PlayerInventoryController reference.", this);
-                _loggedMissingInventoryController = true;
-            }
+            DependencyResolutionGuard.ResolveOnce(
+                ref _inventoryController,
+                ref _attemptedInventoryResolution,
+                FindFirstObjectByType<PlayerInventoryController>);
+            DependencyResolutionGuard.HasRequiredReferences(
+                ref _loggedMissingInventoryController,
+                this,
+                "EconomyController requires a PlayerInventoryController reference.",
+                _inventoryController);
         }
     }
 }
