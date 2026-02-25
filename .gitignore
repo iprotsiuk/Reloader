@@ -59,6 +59,7 @@ Reloader/[Aa]ssets/AddressableAssetsData/link.xml*
 Reloader/[Aa]ssets/Addressables_Temp*
 Reloader/[Aa]ssets/AddressableAssetsData/*/*.bin*
 Reloader/Assets/**/LightingData.asset
+Reloader/Assets/**/LightingData.asset.meta
 *.unitypackage
 *.unitypackage.meta
 

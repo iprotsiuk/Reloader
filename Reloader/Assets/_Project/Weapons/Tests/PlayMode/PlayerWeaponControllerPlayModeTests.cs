@@ -128,6 +128,19 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator MissingCoreDependencies_LogsErrorOnce_AndSkipsTick()
+        {
+            var root = new GameObject("PlayerRoot");
+            root.AddComponent<PlayerWeaponController>();
+
+            LogAssert.Expect(LogType.Error, "PlayerWeaponController requires PlayerInventoryController and WeaponRegistry references.");
+            yield return null;
+            yield return null;
+
+            Object.Destroy(root);
+        }
+
+        [UnityTest]
         public IEnumerator MissingProjectilePrefab_StillSpawnsRuntimeProjectile()
         {
             var root = new GameObject("PlayerRoot");

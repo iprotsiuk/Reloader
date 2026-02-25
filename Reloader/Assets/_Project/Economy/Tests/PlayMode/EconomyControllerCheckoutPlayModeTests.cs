@@ -166,6 +166,39 @@ namespace Reloader.Economy.Tests.PlayMode
             UnityEngine.Object.DestroyImmediate(inventoryGo);
         }
 
+        [UnityTest]
+        public IEnumerator MissingInventoryController_LogsErrorAndBuyRequestFailsGracefully()
+        {
+            var economyGo = new GameObject("EconomyController");
+            var controller = economyGo.AddComponent<EconomyController>();
+
+            string failureReason = null;
+            void Handler(string _, int __, bool ___, bool success, string reason)
+            {
+                if (!success)
+                {
+                    failureReason = reason;
+                }
+            }
+
+            GameEvents.OnShopTradeResult += Handler;
+            try
+            {
+                LogAssert.Expect(LogType.Error, "EconomyController requires a PlayerInventoryController reference.");
+                yield return null;
+
+                GameEvents.RaiseShopBuyRequested("ammo-22lr", 1);
+                Assert.That(failureReason, Is.EqualTo(TradeFailureReason.InventoryFull.ToString()));
+            }
+            finally
+            {
+                GameEvents.OnShopTradeResult -= Handler;
+                UnityEngine.Object.DestroyImmediate(economyGo);
+            }
+
+            Assert.That(controller.Runtime, Is.Not.Null);
+        }
+
         private static void SetVendorBindings(EconomyController controller, string vendorId, ShopCatalogDefinition catalog)
         {
             var bindingType = typeof(EconomyController).GetNestedType("VendorCatalogBinding", BindingFlags.NonPublic);
