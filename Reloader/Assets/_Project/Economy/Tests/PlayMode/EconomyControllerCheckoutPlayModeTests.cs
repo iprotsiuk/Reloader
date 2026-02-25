@@ -69,6 +69,7 @@ namespace Reloader.Economy.Tests.PlayMode
             var controller = economyGo.AddComponent<EconomyController>();
             SetPrivateField(controller, "_inventoryControllerBehaviour", inventoryController);
             SetPrivateField(controller, "_startingMoney", 1000);
+            SetPrivateField(controller, "_runtime", new EconomyRuntime(1000));
 
             var catalog = ScriptableObject.CreateInstance<ShopCatalogDefinition>();
             JsonUtility.FromJsonOverwrite(
