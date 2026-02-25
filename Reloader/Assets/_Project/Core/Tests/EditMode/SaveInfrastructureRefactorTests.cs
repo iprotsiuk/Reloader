@@ -85,6 +85,22 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void DependencyResolutionGuard_HasRequiredReferences_TreatsDestroyedUnityObjectAsMissing()
+        {
+            var context = new GameObject("GuardContext");
+            var dependency = new GameObject("DestroyedDependency");
+            var logged = false;
+            var message = "Missing required dependency.";
+
+            UnityEngine.Object.DestroyImmediate(dependency);
+
+            LogAssert.Expect(LogType.Error, message);
+            Assert.That(DependencyResolutionGuard.HasRequiredReferences(ref logged, context, message, dependency), Is.False);
+
+            UnityEngine.Object.DestroyImmediate(context);
+        }
+
+        [Test]
         public void DependencyResolutionGuard_ResolveOnce_AttemptsResolverOnce()
         {
             var attempted = false;
@@ -106,6 +122,31 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(dependency, Is.Not.Null);
             Assert.That(calls, Is.EqualTo(1));
             Assert.That(attempted, Is.True);
+        }
+
+        [Test]
+        public void DependencyResolutionGuard_ResolveOnce_ReResolvesDestroyedUnityObject()
+        {
+            var sourceObject = new GameObject("Source");
+            var replacementObject = new GameObject("Replacement");
+            var dependency = sourceObject.AddComponent<DummyDependency>();
+            var replacement = replacementObject.AddComponent<DummyDependency>();
+            var attempted = false;
+            var calls = 0;
+
+            UnityEngine.Object.DestroyImmediate(sourceObject);
+
+            DependencyResolutionGuard.ResolveOnce(ref dependency, ref attempted, () =>
+            {
+                calls++;
+                return replacement;
+            });
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(dependency, Is.SameAs(replacement));
+            Assert.That(attempted, Is.True);
+
+            UnityEngine.Object.DestroyImmediate(replacementObject);
         }
 
         private sealed class RecordingModule : ISaveDomainModule
@@ -144,6 +185,10 @@ namespace Reloader.Core.Tests.EditMode
             public void ValidateModuleState()
             {
             }
+        }
+
+        private sealed class DummyDependency : MonoBehaviour
+        {
         }
     }
 }

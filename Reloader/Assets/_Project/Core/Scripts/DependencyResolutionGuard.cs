@@ -21,7 +21,7 @@ namespace Reloader.Core
             var hasAll = true;
             for (var i = 0; i < dependencies.Length; i++)
             {
-                if (dependencies[i] == null)
+                if (IsMissingReference(dependencies[i]))
                 {
                     hasAll = false;
                     break;
@@ -44,7 +44,7 @@ namespace Reloader.Core
 
         public static void ResolveOnce<T>(ref T dependency, ref bool attempted, Func<T> resolver) where T : class
         {
-            if (dependency != null || attempted)
+            if (!IsMissingReference(dependency) || attempted)
             {
                 return;
             }
@@ -69,6 +69,16 @@ namespace Reloader.Core
             }
 
             return null;
+        }
+
+        private static bool IsMissingReference(object dependency)
+        {
+            if (dependency == null)
+            {
+                return true;
+            }
+
+            return dependency is UnityEngine.Object unityObject && unityObject == null;
         }
     }
 }
