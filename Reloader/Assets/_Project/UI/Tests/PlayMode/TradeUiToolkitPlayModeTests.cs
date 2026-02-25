@@ -1,5 +1,8 @@
 using NUnit.Framework;
+using Reloader.Core.Events;
+using Reloader.UI.Toolkit.Contracts;
 using Reloader.UI.Toolkit.Trade;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Reloader.UI.Tests.PlayMode
@@ -67,6 +70,64 @@ namespace Reloader.UI.Tests.PlayMode
 
             Assert.That(raised, Is.True);
             Assert.That(captured, Is.EqualTo("trade.confirm.sell"));
+        }
+
+        [Test]
+        public void HandleIntent_ConfirmBuy_RaisesBuyCheckoutEvent()
+        {
+            var go = new GameObject("trade-controller");
+            var controller = go.AddComponent<TradeController>();
+            var raised = 0;
+            ShopCheckoutRequest captured = null;
+
+            void Handler(ShopCheckoutRequest request)
+            {
+                raised++;
+                captured = request;
+            }
+
+            GameEvents.OnShopBuyCheckoutRequested += Handler;
+            try
+            {
+                controller.HandleIntent(new UiIntent("trade.confirm.buy"));
+
+                Assert.That(raised, Is.EqualTo(1));
+                Assert.That(captured, Is.Not.Null);
+            }
+            finally
+            {
+                GameEvents.OnShopBuyCheckoutRequested -= Handler;
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void HandleIntent_ConfirmSell_RaisesSellCheckoutEvent()
+        {
+            var go = new GameObject("trade-controller");
+            var controller = go.AddComponent<TradeController>();
+            var raised = 0;
+            ShopCheckoutRequest captured = null;
+
+            void Handler(ShopCheckoutRequest request)
+            {
+                raised++;
+                captured = request;
+            }
+
+            GameEvents.OnShopSellCheckoutRequested += Handler;
+            try
+            {
+                controller.HandleIntent(new UiIntent("trade.confirm.sell"));
+
+                Assert.That(raised, Is.EqualTo(1));
+                Assert.That(captured, Is.Not.Null);
+            }
+            finally
+            {
+                GameEvents.OnShopSellCheckoutRequested -= Handler;
+                Object.DestroyImmediate(go);
+            }
         }
 
         private static VisualElement BuildRoot()
