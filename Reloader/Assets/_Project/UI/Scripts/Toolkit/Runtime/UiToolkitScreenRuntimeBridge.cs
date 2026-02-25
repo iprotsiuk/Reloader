@@ -22,6 +22,7 @@ namespace Reloader.UI.Toolkit.Runtime
         private IDisposable _tabSubscription;
         private IDisposable _tradeSubscription;
         private IDisposable _reloadingSubscription;
+        private bool _awaitingInventoryBinding;
 
         public void Initialize(UiToolkitRuntimeRoot runtimeRoot)
         {
@@ -37,6 +38,23 @@ namespace Reloader.UI.Toolkit.Runtime
         private void OnDisable()
         {
             DisposeSubscriptions();
+            _awaitingInventoryBinding = false;
+        }
+
+        private void Update()
+        {
+            if (!_awaitingInventoryBinding || _runtimeRoot == null)
+            {
+                return;
+            }
+
+            var inventoryController = FindFirstObjectByType<PlayerInventoryController>(FindObjectsInactive.Include);
+            if (inventoryController == null)
+            {
+                return;
+            }
+
+            RebuildBindings();
         }
 
         public int ActiveBindingsForTests()
@@ -61,6 +79,7 @@ namespace Reloader.UI.Toolkit.Runtime
             var inventoryController = FindFirstObjectByType<PlayerInventoryController>(FindObjectsInactive.Include);
             var weaponController = FindFirstObjectByType<PlayerWeaponController>(FindObjectsInactive.Include);
             var inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+            _awaitingInventoryBinding = inventoryController == null;
 
             BindBeltHud(inventoryController);
             BindAmmoHud(weaponController);
