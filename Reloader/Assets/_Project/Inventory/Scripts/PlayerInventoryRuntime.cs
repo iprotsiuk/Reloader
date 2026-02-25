@@ -140,7 +140,7 @@ namespace Reloader.Inventory
             }
 
             var maxStack = ResolveItemMaxStack(itemId);
-            if (!CanAcceptStackQuantity(itemId, quantity, maxStack))
+            if (!CanAcceptStackQuantityInternal(itemId, quantity, maxStack))
             {
                 rejectReason = PickupRejectReason.NoSpace;
                 return false;
@@ -192,7 +192,17 @@ namespace Reloader.Inventory
                 return false;
             }
 
-            return CanAcceptStackQuantity(itemId, 1, ResolveItemMaxStack(itemId));
+            return CanAcceptStackQuantity(itemId, 1);
+        }
+
+        public bool CanAcceptStackQuantity(string itemId, int quantity)
+        {
+            if (string.IsNullOrWhiteSpace(itemId) || quantity <= 0)
+            {
+                return false;
+            }
+
+            return CanAcceptStackQuantityInternal(itemId, quantity, ResolveItemMaxStack(itemId));
         }
 
         public bool TryRemoveStackItem(string itemId, int quantity)
@@ -539,7 +549,7 @@ namespace Reloader.Inventory
             return merged > 0;
         }
 
-        private bool CanAcceptStackQuantity(string itemId, int quantity, int maxStack)
+        private bool CanAcceptStackQuantityInternal(string itemId, int quantity, int maxStack)
         {
             var remaining = quantity;
 
