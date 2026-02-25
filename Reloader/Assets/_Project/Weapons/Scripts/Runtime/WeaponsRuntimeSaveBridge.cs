@@ -34,6 +34,7 @@ namespace Reloader.Weapons.Runtime
                     ItemId = snapshot.ItemId,
                     ChamberLoaded = snapshot.ChamberLoaded,
                     MagCount = snapshot.MagCount,
+                    MagCapacity = snapshot.MagCapacity,
                     ReserveCount = snapshot.ReserveCount,
                     ChamberRound = snapshot.ChamberRound.HasValue ? ToRecord(snapshot.ChamberRound.Value) : null,
                     MagazineRounds = ToRecords(snapshot.MagazineRounds)

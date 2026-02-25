@@ -49,6 +49,9 @@ namespace Reloader.Core.Save.Modules
             [JsonProperty("magCount")]
             public int MagCount { get; set; }
 
+            [JsonProperty("magCapacity")]
+            public int MagCapacity { get; set; }
+
             [JsonProperty("reserveCount")]
             public int ReserveCount { get; set; }
 
@@ -108,9 +111,34 @@ namespace Reloader.Core.Save.Modules
                     throw new InvalidOperationException($"Weapon '{state.ItemId}' has negative mag count.");
                 }
 
+                if (state.MagCapacity < 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Weapon '{state.ItemId}' has invalid mag capacity '{state.MagCapacity}'.");
+                }
+
+                var effectiveMagCapacity = state.MagCapacity > 0
+                    ? state.MagCapacity
+                    : Math.Max(state.MagCount, state.MagazineRounds?.Count ?? 0);
+                if (state.MagCount > effectiveMagCapacity)
+                {
+                    throw new InvalidOperationException(
+                        $"Weapon '{state.ItemId}' mag count '{state.MagCount}' exceeds capacity '{effectiveMagCapacity}'.");
+                }
+
                 if (state.ReserveCount < 0)
                 {
                     throw new InvalidOperationException($"Weapon '{state.ItemId}' has negative reserve count.");
+                }
+
+                if (state.ChamberLoaded && state.ChamberRound == null)
+                {
+                    throw new InvalidOperationException($"Weapon '{state.ItemId}' is marked chamberLoaded but has no chamberRound.");
+                }
+
+                if (!state.ChamberLoaded && state.ChamberRound != null)
+                {
+                    throw new InvalidOperationException($"Weapon '{state.ItemId}' has chamberRound payload while chamberLoaded is false.");
                 }
 
                 if (state.ChamberRound != null)
@@ -121,6 +149,12 @@ namespace Reloader.Core.Save.Modules
                 if (state.MagazineRounds == null)
                 {
                     continue;
+                }
+
+                if (state.MagazineRounds.Count != state.MagCount)
+                {
+                    throw new InvalidOperationException(
+                        $"Weapon '{state.ItemId}' magazine round payload count '{state.MagazineRounds.Count}' does not match magCount '{state.MagCount}'.");
                 }
 
                 for (var j = 0; j < state.MagazineRounds.Count; j++)

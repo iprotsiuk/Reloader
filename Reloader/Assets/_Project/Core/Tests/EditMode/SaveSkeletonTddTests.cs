@@ -191,6 +191,36 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(restoreOrder, Is.EqualTo(new[] { "CoreWorld", "Inventory" }));
         }
 
+        [Test]
+        public void SaveCoordinator_Load_WhenValidationFails_RollsBackModuleState()
+        {
+            var coreWorld = new RecordingModule("CoreWorld");
+            var inventory = new RecordingModule("Inventory");
+            coreWorld.SetStateForTests("{\"name\":\"core-before\"}");
+            inventory.SetStateForTests("{\"name\":\"inventory-before\"}");
+            inventory.ThrowOnValidate = true;
+
+            var coordinator = CreateCoordinator(coreWorld, inventory);
+            var repository = new SaveFileRepository();
+            var envelope = new SaveEnvelope
+            {
+                SchemaVersion = 1,
+                BuildVersion = "0.1.0-dev",
+                CreatedAtUtc = "2026-02-23T18:00:00Z",
+                FeatureFlags = new SaveFeatureFlags(),
+                Modules = new Dictionary<string, ModuleSaveBlock>
+                {
+                    { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{\"name\":\"core-after\"}" } },
+                    { "Inventory", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{\"name\":\"inventory-after\"}" } }
+                }
+            };
+            repository.WriteEnvelope(_savePath, envelope);
+
+            Assert.Throws<InvalidOperationException>(() => coordinator.Load(_savePath));
+            Assert.That(coreWorld.CurrentPayload, Is.EqualTo("{\"name\":\"core-before\"}"));
+            Assert.That(inventory.CurrentPayload, Is.EqualTo("{\"name\":\"inventory-before\"}"));
+        }
+
         private SaveCoordinator CreateCoordinator(RecordingModule coreWorld, RecordingModule inventory)
         {
             return new SaveCoordinator(
@@ -242,16 +272,24 @@ namespace Reloader.Core.Tests.EditMode
             public RecordingModule(string moduleKey)
             {
                 ModuleKey = moduleKey;
+                CurrentPayload = "{\"name\":\"" + moduleKey + "\"}";
             }
 
             public string ModuleKey { get; }
             public int ModuleVersion => 1;
             public int RestoreCallCount { get; private set; }
             public Action<string> OnRestore { get; set; }
+            public bool ThrowOnValidate { get; set; }
+            public string CurrentPayload { get; private set; }
+
+            public void SetStateForTests(string payloadJson)
+            {
+                CurrentPayload = payloadJson;
+            }
 
             public string CaptureModuleStateJson()
             {
-                return "{\"name\":\"" + ModuleKey + "\"}";
+                return CurrentPayload;
             }
 
             public void RestoreModuleStateFromJson(string payloadJson)
@@ -263,11 +301,16 @@ namespace Reloader.Core.Tests.EditMode
                 }
 
                 RestoreCallCount++;
+                CurrentPayload = trimmed;
                 OnRestore?.Invoke(ModuleKey);
             }
 
             public void ValidateModuleState()
             {
+                if (ThrowOnValidate)
+                {
+                    throw new InvalidOperationException($"Validation failed for module {ModuleKey}.");
+                }
             }
         }
     }

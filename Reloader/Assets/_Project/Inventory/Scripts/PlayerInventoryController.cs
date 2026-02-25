@@ -18,6 +18,7 @@ namespace Reloader.Inventory
         private IPlayerInputSource _inputSource;
         private IInventoryPickupTargetResolver _pickupTargetResolver;
         private readonly Dictionary<string, IInventoryPickupTarget> _pendingPickupTargetsById = new Dictionary<string, IInventoryPickupTarget>();
+        private bool _loggedMissingInputSource;
 
         public PlayerInventoryRuntime Runtime { get; private set; }
         public int SelectedBeltIndexDebug => _selectedBeltIndexDebug;
@@ -56,10 +57,15 @@ namespace Reloader.Inventory
 
         public void Tick()
         {
-            ResolveReferences();
             UpdateDebugFields();
             if (_inputSource == null || Runtime == null)
             {
+                if (_inputSource == null && !_loggedMissingInputSource)
+                {
+                    Debug.LogError("PlayerInventoryController requires an IPlayerInputSource reference.", this);
+                    _loggedMissingInputSource = true;
+                }
+
                 return;
             }
 

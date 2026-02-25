@@ -12,6 +12,7 @@ namespace Reloader.NPCs.World
         private IPlayerInputSource _inputSource;
         private IPlayerShopVendorResolver _resolver;
         private bool _isTradeOpen;
+        private bool _loggedMissingDependencies;
 
         private void Awake()
         {
@@ -44,7 +45,11 @@ namespace Reloader.NPCs.World
 
         public void Tick()
         {
-            ResolveReferences();
+            if ((_inputSource == null || _resolver == null) && !_loggedMissingDependencies)
+            {
+                Debug.LogError("PlayerShopVendorController requires both input source and vendor resolver references.", this);
+                _loggedMissingDependencies = true;
+            }
 
             if (_resolver == null || !_resolver.TryResolveVendorTarget(out var target) || target == null)
             {

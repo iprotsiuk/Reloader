@@ -24,6 +24,8 @@ namespace Reloader.Economy
 
         private PlayerInventoryController _inventoryController;
         private EconomyRuntime _runtime;
+        private bool _attemptedInventoryResolution;
+        private bool _loggedMissingInventoryController;
 
         public EconomyRuntime Runtime => _runtime;
 
@@ -286,12 +288,17 @@ namespace Reloader.Economy
         private void ResolveReferences()
         {
             _inventoryController ??= _inventoryControllerBehaviour as PlayerInventoryController;
-            if (_inventoryController != null)
+            if (_inventoryController == null && !_attemptedInventoryResolution)
             {
-                return;
+                _inventoryController = FindFirstObjectByType<PlayerInventoryController>();
+                _attemptedInventoryResolution = true;
             }
 
-            _inventoryController = FindFirstObjectByType<PlayerInventoryController>();
+            if (_inventoryController == null && !_loggedMissingInventoryController)
+            {
+                Debug.LogError("EconomyController requires a PlayerInventoryController reference.", this);
+                _loggedMissingInventoryController = true;
+            }
         }
     }
 }

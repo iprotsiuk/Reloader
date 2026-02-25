@@ -77,8 +77,19 @@ namespace Reloader.Core.Save
 
             ValidateRequiredModulesPresent(envelope);
             ValidateAllPayloadsAreWellFormedJson(envelope);
-            RestoreModules(envelope);
-            ValidateRestoredState();
+
+            // Load is transactional: if restore/validation fails, roll back module state.
+            var rollbackSnapshot = CaptureCurrentModuleStates();
+            try
+            {
+                RestoreModules(envelope);
+                ValidateRestoredState();
+            }
+            catch (Exception restoreEx)
+            {
+                TryRollback(rollbackSnapshot, restoreEx);
+                throw;
+            }
         }
 
         private void ValidateRequiredModulesPresent(SaveEnvelope envelope)
@@ -127,6 +138,39 @@ namespace Reloader.Core.Save
             foreach (var registration in _moduleRegistrations)
             {
                 registration.Module.ValidateModuleState();
+            }
+        }
+
+        private Dictionary<string, string> CaptureCurrentModuleStates()
+        {
+            var snapshot = new Dictionary<string, string>(_moduleRegistrations.Count, StringComparer.Ordinal);
+            foreach (var registration in _moduleRegistrations)
+            {
+                snapshot[registration.Module.ModuleKey] = registration.Module.CaptureModuleStateJson() ?? "{}";
+            }
+
+            return snapshot;
+        }
+
+        private void TryRollback(Dictionary<string, string> rollbackSnapshot, Exception restoreEx)
+        {
+            try
+            {
+                foreach (var registration in _moduleRegistrations)
+                {
+                    if (!rollbackSnapshot.TryGetValue(registration.Module.ModuleKey, out var payload))
+                    {
+                        continue;
+                    }
+
+                    registration.Module.RestoreModuleStateFromJson(payload);
+                }
+            }
+            catch (Exception rollbackEx)
+            {
+                throw new InvalidOperationException(
+                    "Save load failed and rollback to pre-load state also failed.",
+                    new AggregateException(restoreEx, rollbackEx));
             }
         }
     }
