@@ -1,7 +1,9 @@
 {
   "name": "Reloader.Core",
   "rootNamespace": "Reloader.Core",
-  "references": [],
+  "references": [
+    "Unity.Newtonsoft.Json"
+  ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
