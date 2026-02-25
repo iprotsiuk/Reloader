@@ -1,0 +1,17 @@
+=== MainWorld Post-Merge Checks ===
+Timestamp: 2026-02-23 21:22:35 UTC
+Scene: Assets/Scenes/MainWorld.unity
+Missing scripts: 0
+Renderers scanned: 3854
+Missing material refs: 0
+Null shaders: 0
+Unsupported shaders: 0
+Directional lights (enabled): 1
+Directional light objects:
+- Directional light
+Reflection probes (total/baked): 1/1
+Lightmap count: 0
+Lighting data asset assigned: True
+NavMesh vertices: 15303
+NavMesh triangle indices: 20475
+Result: PASS (no blocking issues found).

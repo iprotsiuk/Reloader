@@ -1,0 +1,36 @@
+.belt-hud {
+    flex-direction: row;
+    gap: 8px;
+}
+
+.belt-hud__slot {
+    width: 56px;
+    height: 56px;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.2);
+    border-right-color: rgba(255, 255, 255, 0.2);
+    border-bottom-color: rgba(255, 255, 255, 0.2);
+    border-left-color: rgba(255, 255, 255, 0.2);
+}
+
+.belt-hud__slot.is-selected {
+    border-top-color: rgb(255, 238, 194);
+    border-right-color: rgb(255, 238, 194);
+    border-bottom-color: rgb(255, 238, 194);
+    border-left-color: rgb(255, 238, 194);
+}
+
+.belt-hud__slot.is-occupied {
+    background-color: rgba(255, 255, 255, 0.16);
+}
+
+.belt-hud__slot-label {
+    font-size: 14px;
+    unity-text-align: middle-center;
+}

@@ -1,0 +1,16 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="inventory__root" class="inventory">
+        <ui:VisualElement name="inventory__panel" class="inventory__panel">
+            <ui:VisualElement name="inventory__belt-slot-0" class="inventory__slot" />
+            <ui:VisualElement name="inventory__belt-slot-1" class="inventory__slot" />
+            <ui:VisualElement name="inventory__belt-slot-2" class="inventory__slot" />
+            <ui:VisualElement name="inventory__belt-slot-3" class="inventory__slot" />
+            <ui:VisualElement name="inventory__belt-slot-4" class="inventory__slot" />
+            <ui:VisualElement name="inventory__backpack-slot-0" class="inventory__slot" />
+            <ui:VisualElement name="inventory__backpack-slot-1" class="inventory__slot" />
+            <ui:VisualElement name="inventory__tooltip" class="inventory__tooltip">
+                <ui:Label name="inventory__tooltip-title" text="" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,24 @@
+{
+  "name": "Reloader.UI.Editor",
+  "rootNamespace": "Reloader.UI.Editor",
+  "references": [
+    "Reloader.UI",
+    "Reloader.Core",
+    "Reloader.Inventory",
+    "Reloader.Economy",
+    "Reloader.Weapons",
+    "Unity.TextMeshPro",
+    "Unity.ugui"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
