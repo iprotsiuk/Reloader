@@ -261,6 +261,20 @@ These principles govern every design decision:
 
 ---
 
+## Runtime UI Contract [v0.1]
+
+- Runtime gameplay UI uses **UI Toolkit** (`UIDocument` + UXML/USS templates).
+- View/binder layers are **dumb** by contract:
+  - They only query elements, render state, and emit intents.
+  - They never call gameplay/economy/reloading services directly.
+- Domain wiring is centralized in screen controllers/adapters.
+- Runtime extension points are required:
+  - Action mapping table (intent key -> command mapping)
+  - Screen composition config (enabled components per screen)
+  - Stable element naming conventions for query/style contracts
+
+---
+
 ## Asset Store Packages in Use [v0.1]
 
 | Asset | Use |
