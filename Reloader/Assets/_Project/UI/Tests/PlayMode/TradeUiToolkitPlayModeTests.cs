@@ -73,12 +73,42 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
-        public void HandleIntent_ConfirmBuy_RaisesBuyCheckoutEvent()
+        public void HandleIntent_ConfirmBuy_WithoutPayload_DoesNotRaiseBuyCheckoutEvent()
+        {
+            var go = new GameObject("trade-controller");
+            var controller = go.AddComponent<TradeController>();
+            var raised = 0;
+
+            void Handler(ShopCheckoutRequest request)
+            {
+                raised++;
+            }
+
+            GameEvents.OnShopBuyCheckoutRequested += Handler;
+            try
+            {
+                controller.HandleIntent(new UiIntent("trade.confirm.buy"));
+
+                Assert.That(raised, Is.EqualTo(0));
+            }
+            finally
+            {
+                GameEvents.OnShopBuyCheckoutRequested -= Handler;
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void HandleIntent_ConfirmBuy_WithPayload_RaisesBuyCheckoutEvent()
         {
             var go = new GameObject("trade-controller");
             var controller = go.AddComponent<TradeController>();
             var raised = 0;
             ShopCheckoutRequest captured = null;
+            var payload = new ShopCheckoutRequest(
+                new[] { new ShopCheckoutLine("item-a", 2) },
+                "inventory",
+                0);
 
             void Handler(ShopCheckoutRequest request)
             {
@@ -89,10 +119,14 @@ namespace Reloader.UI.Tests.PlayMode
             GameEvents.OnShopBuyCheckoutRequested += Handler;
             try
             {
-                controller.HandleIntent(new UiIntent("trade.confirm.buy"));
+                controller.HandleIntent(new UiIntent("trade.confirm.buy", payload));
 
                 Assert.That(raised, Is.EqualTo(1));
                 Assert.That(captured, Is.Not.Null);
+                Assert.That(captured.Lines, Is.Not.Null);
+                Assert.That(captured.Lines.Length, Is.EqualTo(1));
+                Assert.That(captured.Lines[0].ItemId, Is.EqualTo("item-a"));
+                Assert.That(captured.Lines[0].Quantity, Is.EqualTo(2));
             }
             finally
             {
@@ -102,17 +136,15 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
-        public void HandleIntent_ConfirmSell_RaisesSellCheckoutEvent()
+        public void HandleIntent_ConfirmSell_WithoutPayload_DoesNotRaiseSellCheckoutEvent()
         {
             var go = new GameObject("trade-controller");
             var controller = go.AddComponent<TradeController>();
             var raised = 0;
-            ShopCheckoutRequest captured = null;
 
             void Handler(ShopCheckoutRequest request)
             {
                 raised++;
-                captured = request;
             }
 
             GameEvents.OnShopSellCheckoutRequested += Handler;
@@ -120,8 +152,7 @@ namespace Reloader.UI.Tests.PlayMode
             {
                 controller.HandleIntent(new UiIntent("trade.confirm.sell"));
 
-                Assert.That(raised, Is.EqualTo(1));
-                Assert.That(captured, Is.Not.Null);
+                Assert.That(raised, Is.EqualTo(0));
             }
             finally
             {

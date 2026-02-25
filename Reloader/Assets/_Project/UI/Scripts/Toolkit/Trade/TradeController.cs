@@ -1,4 +1,3 @@
-using System;
 using Reloader.Core.Events;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine;
@@ -35,12 +34,18 @@ namespace Reloader.UI.Toolkit.Trade
             if (intent.Key == "trade.confirm.buy")
             {
                 _activeTab = TradeUiTab.Buy;
-                GameEvents.RaiseShopBuyCheckoutRequested(ResolveCheckoutRequest(intent.Payload));
+                if (TryResolveCheckoutRequest(intent.Payload, out var request))
+                {
+                    GameEvents.RaiseShopBuyCheckoutRequested(request);
+                }
             }
             else if (intent.Key == "trade.confirm.sell")
             {
                 _activeTab = TradeUiTab.Sell;
-                GameEvents.RaiseShopSellCheckoutRequested(ResolveCheckoutRequest(intent.Payload));
+                if (TryResolveCheckoutRequest(intent.Payload, out var request))
+                {
+                    GameEvents.RaiseShopSellCheckoutRequested(request);
+                }
             }
 
             Refresh();
@@ -79,9 +84,10 @@ namespace Reloader.UI.Toolkit.Trade
             Render(new TradeUiState(_activeTab, false, "$245", true, true));
         }
 
-        private static ShopCheckoutRequest ResolveCheckoutRequest(object payload)
+        private static bool TryResolveCheckoutRequest(object payload, out ShopCheckoutRequest request)
         {
-            return payload as ShopCheckoutRequest ?? new ShopCheckoutRequest(Array.Empty<ShopCheckoutLine>(), "inventory", 0);
+            request = payload as ShopCheckoutRequest;
+            return request?.Lines != null && request.Lines.Length > 0;
         }
     }
 }
