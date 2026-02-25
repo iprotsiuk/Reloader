@@ -53,6 +53,114 @@ namespace Reloader.Economy.Tests.PlayMode
             UnityEngine.Object.DestroyImmediate(inventoryGo);
         }
 
+        [UnityTest]
+        public IEnumerator BuyCheckoutRequest_WhenLaterLineCannotStore_RollsBackInventoryMoneyAndStock()
+        {
+            var inventoryGo = new GameObject("InventoryController");
+            var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(0);
+            inventoryController.Configure(null, null, runtime);
+
+            var economyGo = new GameObject("EconomyController");
+            var controller = economyGo.AddComponent<EconomyController>();
+            SetPrivateField(controller, "_inventoryControllerBehaviour", inventoryController);
+            SetPrivateField(controller, "_startingMoney", 1000);
+
+            var catalog = ScriptableObject.CreateInstance<ShopCatalogDefinition>();
+            JsonUtility.FromJsonOverwrite(
+                "{\"_items\":[" +
+                "{\"_itemId\":\"item-1\",\"_displayName\":\"Item 1\",\"_category\":\"misc\",\"_unitPrice\":1,\"_startingStock\":10}," +
+                "{\"_itemId\":\"item-2\",\"_displayName\":\"Item 2\",\"_category\":\"misc\",\"_unitPrice\":1,\"_startingStock\":10}," +
+                "{\"_itemId\":\"item-3\",\"_displayName\":\"Item 3\",\"_category\":\"misc\",\"_unitPrice\":1,\"_startingStock\":10}," +
+                "{\"_itemId\":\"item-4\",\"_displayName\":\"Item 4\",\"_category\":\"misc\",\"_unitPrice\":1,\"_startingStock\":10}," +
+                "{\"_itemId\":\"item-5\",\"_displayName\":\"Item 5\",\"_category\":\"misc\",\"_unitPrice\":1,\"_startingStock\":10}," +
+                "{\"_itemId\":\"item-6\",\"_displayName\":\"Item 6\",\"_category\":\"misc\",\"_unitPrice\":1,\"_startingStock\":10}" +
+                "]}",
+                catalog);
+            SetVendorBindings(controller, "vendor-1", catalog);
+
+            yield return null;
+
+            GameEvents.RaiseShopTradeOpenRequested("vendor-1");
+            var request = new ShopCheckoutRequest(
+                new[]
+                {
+                    new ShopCheckoutLine("item-1", 1),
+                    new ShopCheckoutLine("item-2", 1),
+                    new ShopCheckoutLine("item-3", 1),
+                    new ShopCheckoutLine("item-4", 1),
+                    new ShopCheckoutLine("item-5", 1),
+                    new ShopCheckoutLine("item-6", 1)
+                },
+                "delivery-standard",
+                0);
+
+            GameEvents.RaiseShopBuyCheckoutRequested(request);
+
+            Assert.That(runtime.GetItemQuantity("item-1"), Is.EqualTo(0));
+            Assert.That(runtime.GetItemQuantity("item-2"), Is.EqualTo(0));
+            Assert.That(runtime.GetItemQuantity("item-3"), Is.EqualTo(0));
+            Assert.That(runtime.GetItemQuantity("item-4"), Is.EqualTo(0));
+            Assert.That(runtime.GetItemQuantity("item-5"), Is.EqualTo(0));
+            Assert.That(runtime.GetItemQuantity("item-6"), Is.EqualTo(0));
+            Assert.That(controller.Runtime.Money, Is.EqualTo(1000));
+
+            Assert.That(controller.Runtime.TryGetStock("item-1", out var stock1), Is.True);
+            Assert.That(stock1, Is.EqualTo(10));
+            Assert.That(controller.Runtime.TryGetStock("item-6", out var stock6), Is.True);
+            Assert.That(stock6, Is.EqualTo(10));
+
+            UnityEngine.Object.DestroyImmediate(catalog);
+            UnityEngine.Object.DestroyImmediate(economyGo);
+            UnityEngine.Object.DestroyImmediate(inventoryGo);
+        }
+
+        [UnityTest]
+        public IEnumerator SellCheckoutRequest_WhenRemovalFailsMidBatch_RollsBackInventoryMoneyAndStock()
+        {
+            var inventoryGo = new GameObject("InventoryController");
+            var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(2);
+            inventoryController.Configure(null, null, runtime);
+            Assert.That(runtime.TryAddStackItem("ammo-22lr", 3, out _, out _, out _), Is.True);
+
+            var economyGo = new GameObject("EconomyController");
+            var controller = economyGo.AddComponent<EconomyController>();
+            SetPrivateField(controller, "_inventoryControllerBehaviour", inventoryController);
+            SetPrivateField(controller, "_startingMoney", 500);
+
+            var catalog = ScriptableObject.CreateInstance<ShopCatalogDefinition>();
+            JsonUtility.FromJsonOverwrite(
+                "{\"_items\":[{\"_itemId\":\"ammo-22lr\",\"_displayName\":\"22LR\",\"_category\":\"ammo\",\"_unitPrice\":2,\"_startingStock\":500}]}",
+                catalog);
+            SetVendorBindings(controller, "vendor-1", catalog);
+
+            yield return null;
+
+            GameEvents.RaiseShopTradeOpenRequested("vendor-1");
+            var request = new ShopCheckoutRequest(
+                new[]
+                {
+                    new ShopCheckoutLine("ammo-22lr", 2),
+                    new ShopCheckoutLine("ammo-22lr", 2)
+                },
+                "delivery-standard",
+                0);
+
+            GameEvents.RaiseShopSellCheckoutRequested(request);
+
+            Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(3));
+            Assert.That(controller.Runtime.Money, Is.EqualTo(500));
+            Assert.That(controller.Runtime.TryGetStock("ammo-22lr", out var stock), Is.True);
+            Assert.That(stock, Is.EqualTo(500));
+
+            UnityEngine.Object.DestroyImmediate(catalog);
+            UnityEngine.Object.DestroyImmediate(economyGo);
+            UnityEngine.Object.DestroyImmediate(inventoryGo);
+        }
+
         private static void SetVendorBindings(EconomyController controller, string vendorId, ShopCatalogDefinition catalog)
         {
             var bindingType = typeof(EconomyController).GetNestedType("VendorCatalogBinding", BindingFlags.NonPublic);

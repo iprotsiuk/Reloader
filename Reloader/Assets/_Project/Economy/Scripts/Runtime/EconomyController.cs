@@ -74,7 +74,7 @@ namespace Reloader.Economy
                 return;
             }
 
-            if (!_inventoryController.Runtime.CanAcceptStackItem(itemId))
+            if (!_inventoryController.Runtime.CanAcceptStackQuantity(itemId, quantity))
             {
                 GameEvents.RaiseShopTradeResult(itemId, quantity, true, false, TradeFailureReason.InventoryFull.ToString());
                 return;
@@ -154,7 +154,7 @@ namespace Reloader.Economy
                     return;
                 }
 
-                if (!_inventoryController.Runtime.CanAcceptStackItem(line.ItemId))
+                if (!_inventoryController.Runtime.CanAcceptStackQuantity(line.ItemId, line.Quantity))
                 {
                     GameEvents.RaiseShopTradeResult(line.ItemId, line.Quantity, true, false, TradeFailureReason.InventoryFull.ToString());
                     return;
@@ -169,13 +169,21 @@ namespace Reloader.Economy
                 return;
             }
 
+            var addedLines = new List<(string itemId, int quantity)>(lines.Count);
             for (var i = 0; i < lines.Count; i++)
             {
                 var line = lines[i];
                 var stored = _inventoryController.Runtime.TryAddStackItem(line.itemId, line.quantity, out _, out _, out _);
                 if (stored)
                 {
+                    addedLines.Add(line);
                     continue;
+                }
+
+                for (var addedIndex = 0; addedIndex < addedLines.Count; addedIndex++)
+                {
+                    var added = addedLines[addedIndex];
+                    _inventoryController.Runtime.TryRemoveStackItem(added.itemId, added.quantity);
                 }
 
                 _runtime.TrySellBatch(lines, out _, out _);
@@ -198,6 +206,7 @@ namespace Reloader.Economy
             }
 
             var lines = new List<(string itemId, int quantity)>();
+            var requestedTotals = new Dictionary<string, int>(StringComparer.Ordinal);
             for (var i = 0; i < request.Lines.Length; i++)
             {
                 var line = request.Lines[i];
@@ -207,12 +216,19 @@ namespace Reloader.Economy
                     return;
                 }
 
-                if (_inventoryController.Runtime.GetItemQuantity(line.ItemId) < line.Quantity)
+                if (!requestedTotals.TryGetValue(line.ItemId, out var existing))
+                {
+                    existing = 0;
+                }
+
+                var nextTotal = existing + line.Quantity;
+                if (_inventoryController.Runtime.GetItemQuantity(line.ItemId) < nextTotal)
                 {
                     GameEvents.RaiseShopTradeResult(line.ItemId, line.Quantity, false, false, TradeFailureReason.InsufficientPlayerQuantity.ToString());
                     return;
                 }
 
+                requestedTotals[line.ItemId] = nextTotal;
                 lines.Add((line.ItemId, line.Quantity));
             }
 
@@ -222,13 +238,21 @@ namespace Reloader.Economy
                 return;
             }
 
+            var removedLines = new List<(string itemId, int quantity)>(lines.Count);
             for (var i = 0; i < lines.Count; i++)
             {
                 var line = lines[i];
                 var removed = _inventoryController.Runtime.TryRemoveStackItem(line.itemId, line.quantity);
                 if (removed)
                 {
+                    removedLines.Add(line);
                     continue;
+                }
+
+                for (var removedIndex = 0; removedIndex < removedLines.Count; removedIndex++)
+                {
+                    var removedLine = removedLines[removedIndex];
+                    _inventoryController.Runtime.TryAddStackItem(removedLine.itemId, removedLine.quantity, out _, out _, out _);
                 }
 
                 _runtime.TryBuyBatch(lines, 0, out _, out _);
