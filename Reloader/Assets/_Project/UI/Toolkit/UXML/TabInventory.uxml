@@ -10,6 +10,7 @@
                 <ui:Button name="inventory__tab-events" text="Events" class="inventory__tab ui-kit__tab" />
             </ui:VisualElement>
             <ui:VisualElement name="inventory__section-inventory" class="inventory__section">
+                <ui:Label text="Inventory" class="inventory__main-title" />
                 <ui:VisualElement class="inventory__section-title-row">
                     <ui:VisualElement class="ui-kit__icon ui-kit__icon--backpack" />
                     <ui:Label text="Inventory Grid" class="inventory__section-title ui-kit__hint" />
@@ -39,7 +40,7 @@
                     <ui:VisualElement class="inventory__slot ui-kit__slot" />
                 </ui:VisualElement>
                 <ui:VisualElement class="inventory__belt-divider" />
-                <ui:Label text="Belt" class="inventory__section-title ui-kit__hint" />
+                <ui:Label text="Toolbelt" class="inventory__section-title ui-kit__hint" />
                 <ui:VisualElement class="inventory__grid-row inventory__grid-row--belt">
                     <ui:VisualElement name="inventory__belt-slot-0" class="inventory__slot ui-kit__slot inventory__slot--belt" />
                     <ui:VisualElement name="inventory__belt-slot-1" class="inventory__slot ui-kit__slot inventory__slot--belt" />

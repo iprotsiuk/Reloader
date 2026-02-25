@@ -7,22 +7,36 @@
 
 .inventory__panel {
     flex-direction: column;
-    width: 860px;
+    width: 760px;
     gap: 10px;
 }
 
 .inventory__tabbar {
     flex-direction: row;
     gap: 6px;
+    align-items: center;
+    justify-content: flex-start;
 }
 
 .inventory__tab {
-    width: 130px;
+    width: auto;
+    min-height: 24px;
+    flex-grow: 0;
+    padding-left: 10px;
+    padding-right: 10px;
+    font-size: 12px;
+    -unity-font-style: normal;
 }
 
 .inventory__section {
     flex-direction: column;
     gap: 8px;
+}
+
+.inventory__main-title {
+    color: rgba(238, 242, 248, 0.95);
+    font-size: 14px;
+    -unity-font-style: bold;
 }
 
 .inventory__section-title {
