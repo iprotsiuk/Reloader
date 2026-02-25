@@ -51,6 +51,12 @@ Each step is a physical interaction at the workbench:
 - Player's recipe book tracks what worked and what didn't
 - Upgraded equipment adds safety features
 
+### Runtime Workbench UI Contract [v0.1]
+
+- Reloading bench runtime UI is implemented in UI Toolkit.
+- Workbench view binder is render/intent only; operation authority remains in reloading runtime controllers.
+- Operation select/execute actions flow through intent keys (`reloading.operation.select`, `reloading.operation.execute`) mapped by runtime UI action config.
+
 ---
 
 ## Data Model [v0.1]

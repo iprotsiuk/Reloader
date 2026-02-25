@@ -57,6 +57,13 @@ Hundreds of items (brass casings, etc.) on the floor:
 - Selected slot visuals use brighter tint + slight scale increase.
 - Occupied slots can use a placeholder icon until item-specific icons are implemented.
 - HUD wiring should stay decoupled from the future TAB shell (inventory/quests/manuals tabs).
+- Runtime implementation contract: UI Toolkit templates + dumb view binders; no domain calls from views.
+
+### Runtime UI Extension Points [v0.1]
+
+- `UiActionMapConfig`: inventory/trade intent mapping keys are data-driven.
+- `UiScreenCompositionConfig`: screen components are composition-driven per screen id.
+- Element naming is contract-based (`inventory__*`, `trade__*`) for safe layout rewiring.
 
 ---
 
