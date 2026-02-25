@@ -27,9 +27,25 @@ namespace Reloader.UI.Toolkit.Runtime
             RebuildBindings();
         }
 
+        private void OnEnable()
+        {
+            RebuildBindings();
+        }
+
         private void OnDisable()
         {
             DisposeSubscriptions();
+        }
+
+        public int ActiveBindingsForTests()
+        {
+            var count = 0;
+            if (_beltSubscription != null) count++;
+            if (_ammoSubscription != null) count++;
+            if (_tabSubscription != null) count++;
+            if (_tradeSubscription != null) count++;
+            if (_reloadingSubscription != null) count++;
+            return count;
         }
 
         private void RebuildBindings()
@@ -91,11 +107,9 @@ namespace Reloader.UI.Toolkit.Runtime
 
             var viewBinder = new TabInventoryViewBinder();
             viewBinder.Initialize(root, PlayerInventoryRuntime.BeltSlotCount, backpackSlotCount: 2);
-            var dragController = new TabInventoryDragController();
-
             var controller = GetOrAddController<TabInventoryController>("tab-menu-controller");
             controller.SetInventoryController(inventoryController);
-            controller.Configure(viewBinder, dragController);
+            controller.Configure(viewBinder, null);
             _tabSubscription = UiContractGuard.Bind(controller, viewBinder);
         }
 

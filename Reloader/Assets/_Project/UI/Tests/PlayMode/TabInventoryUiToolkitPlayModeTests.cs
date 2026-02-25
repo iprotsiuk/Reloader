@@ -90,6 +90,54 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(title.text, Is.EqualTo("Tooltip Title"));
         }
 
+        [Test]
+        public void SlotInteraction_EmitsDragSwapIntent()
+        {
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+            binder.Render(TabInventoryUiState.Create(
+                true,
+                new[]
+                {
+                    new TabInventoryUiState.SlotState(0, "item-a", true),
+                    new TabInventoryUiState.SlotState(1, null, false),
+                    new TabInventoryUiState.SlotState(2, null, false),
+                    new TabInventoryUiState.SlotState(3, null, false),
+                    new TabInventoryUiState.SlotState(4, null, false)
+                },
+                new[]
+                {
+                    new TabInventoryUiState.SlotState(0, "item-b", true),
+                    new TabInventoryUiState.SlotState(1, null, false)
+                },
+                string.Empty,
+                false));
+
+            string capturedKey = null;
+            TabInventoryDragController.DragIntentPayload? capturedPayload = null;
+            binder.IntentRaised += intent =>
+            {
+                capturedKey = intent.Key;
+                if (intent.Payload is TabInventoryDragController.DragIntentPayload payload)
+                {
+                    capturedPayload = payload;
+                }
+            };
+
+            var started = binder.TryInteractSlotForTests("belt", 0);
+            var dropped = binder.TryInteractSlotForTests("backpack", 0);
+
+            Assert.That(started, Is.True);
+            Assert.That(dropped, Is.True);
+            Assert.That(capturedKey, Is.EqualTo("inventory.drag.swap"));
+            Assert.That(capturedPayload.HasValue, Is.True);
+            Assert.That(capturedPayload.Value.SourceContainer, Is.EqualTo("belt"));
+            Assert.That(capturedPayload.Value.SourceIndex, Is.EqualTo(0));
+            Assert.That(capturedPayload.Value.TargetContainer, Is.EqualTo("backpack"));
+            Assert.That(capturedPayload.Value.TargetIndex, Is.EqualTo(0));
+        }
+
         private static VisualElement BuildRoot()
         {
             var root = new VisualElement { name = "inventory__root" };

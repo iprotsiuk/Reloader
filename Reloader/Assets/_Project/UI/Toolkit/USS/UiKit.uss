@@ -58,6 +58,9 @@
     height: 56px;
     align-items: center;
     justify-content: center;
+    background-image: url("project://database/Assets/_Project/UI/Toolkit/Images/GridBoxDefault.png");
+    background-size: cover;
+    -unity-background-scale-mode: scale-and-crop;
     background-color: rgba(255, 255, 255, 0.04);
     border-top-width: 1px;
     border-right-width: 1px;
@@ -76,4 +79,18 @@
 .ui-kit__hint {
     color: rgba(214, 217, 223, 0.64);
     font-size: 12px;
+}
+
+.ui-kit__icon {
+    width: 16px;
+    height: 16px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.ui-kit__icon--backpack {
+    background-image: url("project://database/Assets/_Project/UI/Toolkit/Images/backpack.png");
+}
+
+.ui-kit__icon--clear {
+    background-image: url("project://database/Assets/_Project/UI/Toolkit/Images/icon_clear.png");
 }

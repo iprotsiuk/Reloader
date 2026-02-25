@@ -17,7 +17,10 @@
                     <ui:VisualElement name="inventory__belt-slot-3" class="inventory__slot ui-kit__slot" />
                     <ui:VisualElement name="inventory__belt-slot-4" class="inventory__slot ui-kit__slot" />
                 </ui:VisualElement>
-                <ui:Label text="Backpack" class="inventory__section-title ui-kit__hint" />
+                <ui:VisualElement class="inventory__section-title-row">
+                    <ui:VisualElement class="ui-kit__icon ui-kit__icon--backpack" />
+                    <ui:Label text="Backpack" class="inventory__section-title ui-kit__hint" />
+                </ui:VisualElement>
                 <ui:VisualElement class="inventory__slots-row">
                     <ui:VisualElement name="inventory__backpack-slot-0" class="inventory__slot ui-kit__slot" />
                     <ui:VisualElement name="inventory__backpack-slot-1" class="inventory__slot ui-kit__slot" />
@@ -37,7 +40,10 @@
                 <ui:Label text="- Sat: Local competition 11:00" class="inventory__mock-line" />
             </ui:VisualElement>
             <ui:VisualElement name="inventory__section-events" class="inventory__section">
-                <ui:Label text="Event Board (Mock)" class="inventory__section-title ui-kit__hint" />
+                <ui:VisualElement class="inventory__section-title-row">
+                    <ui:VisualElement class="ui-kit__icon ui-kit__icon--clear" />
+                    <ui:Label text="Event Board (Mock)" class="inventory__section-title ui-kit__hint" />
+                </ui:VisualElement>
                 <ui:Label text="- Dealer sale on match bullets" class="inventory__mock-line" />
                 <ui:Label text="- Reloading workshop opens tomorrow" class="inventory__mock-line" />
             </ui:VisualElement>
