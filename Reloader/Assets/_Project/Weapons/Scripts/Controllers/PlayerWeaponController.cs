@@ -14,6 +14,7 @@ namespace Reloader.Weapons.Controllers
         public WeaponRuntimeSnapshot(
             string itemId,
             bool chamberLoaded,
+            int magCapacity,
             int magCount,
             int reserveCount,
             AmmoBallisticSnapshot? chamberRound,
@@ -21,6 +22,7 @@ namespace Reloader.Weapons.Controllers
         {
             ItemId = itemId;
             ChamberLoaded = chamberLoaded;
+            MagCapacity = magCapacity;
             MagCount = magCount;
             ReserveCount = reserveCount;
             ChamberRound = chamberRound;
@@ -29,6 +31,7 @@ namespace Reloader.Weapons.Controllers
 
         public string ItemId { get; }
         public bool ChamberLoaded { get; }
+        public int MagCapacity { get; }
         public int MagCount { get; }
         public int ReserveCount { get; }
         public AmmoBallisticSnapshot? ChamberRound { get; }
@@ -55,6 +58,8 @@ namespace Reloader.Weapons.Controllers
         private WeaponDefinition _equippedDefinition;
         private bool _isAiming;
         private bool _loggedMissingProjectilePrefab;
+        private bool _loggedMissingCoreDependencies;
+        private bool _attemptedSceneInputResolution;
         public string EquippedItemId => _equippedItemId;
 
         private void Awake()
@@ -64,9 +69,14 @@ namespace Reloader.Weapons.Controllers
 
         private void Update()
         {
-            ResolveReferences();
             if (_inventoryController == null || _weaponRegistry == null)
             {
+                if (!_loggedMissingCoreDependencies)
+                {
+                    Debug.LogError("PlayerWeaponController requires PlayerInventoryController and WeaponRegistry references.", this);
+                    _loggedMissingCoreDependencies = true;
+                }
+
                 return;
             }
 
@@ -74,6 +84,12 @@ namespace Reloader.Weapons.Controllers
             SyncEquippedReserveFromInventory();
             if (_inputSource == null)
             {
+                if (!_attemptedSceneInputResolution)
+                {
+                    _inputSource = GetInterfaceFromBehaviours<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+                    _attemptedSceneInputResolution = true;
+                }
+
                 return;
             }
 
@@ -103,6 +119,7 @@ namespace Reloader.Weapons.Controllers
                 snapshots.Add(new WeaponRuntimeSnapshot(
                     entry.Key,
                     state.ChamberLoaded,
+                    state.MagazineCapacity,
                     state.MagazineCount,
                     state.ReserveCount,
                     state.ChamberRound,
@@ -161,6 +178,7 @@ namespace Reloader.Weapons.Controllers
             if (_inputSource == null)
             {
                 _inputSource = GetInterfaceFromBehaviours<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+                _attemptedSceneInputResolution = true;
             }
 
             if (_inventoryController == null)

@@ -14,6 +14,7 @@ namespace Reloader.Core.Tests.EditMode
             {
                 ItemId = "weapon-rifle-01",
                 ChamberLoaded = true,
+                MagCapacity = 5,
                 MagCount = 3,
                 ReserveCount = 19,
                 ChamberRound = new WeaponsModule.AmmoBallisticRecord
@@ -47,6 +48,7 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(restored.WeaponStates.Count, Is.EqualTo(1));
             Assert.That(restored.WeaponStates[0].ItemId, Is.EqualTo("weapon-rifle-01"));
             Assert.That(restored.WeaponStates[0].ChamberLoaded, Is.True);
+            Assert.That(restored.WeaponStates[0].MagCapacity, Is.EqualTo(5));
             Assert.That(restored.WeaponStates[0].MagCount, Is.EqualTo(3));
             Assert.That(restored.WeaponStates[0].ReserveCount, Is.EqualTo(19));
             Assert.That(restored.WeaponStates[0].ChamberRound, Is.Not.Null);
@@ -63,6 +65,46 @@ namespace Reloader.Core.Tests.EditMode
             module.RestoreModuleStateFromJson("{}");
 
             Assert.That(module.WeaponStates.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void WeaponsModule_Validate_Throws_WhenMagCountExceedsCapacity()
+        {
+            var module = new WeaponsModule();
+            module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
+            {
+                ItemId = "weapon-rifle-01",
+                MagCapacity = 3,
+                MagCount = 4,
+                ReserveCount = 0,
+                ChamberLoaded = false
+            });
+
+            Assert.Throws<System.InvalidOperationException>(() => module.ValidateModuleState());
+        }
+
+        [Test]
+        public void WeaponsModule_Validate_Throws_WhenMagazinePayloadCountDiffersFromMagCount()
+        {
+            var module = new WeaponsModule();
+            module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
+            {
+                ItemId = "weapon-rifle-01",
+                MagCapacity = 5,
+                MagCount = 2,
+                ReserveCount = 10,
+                ChamberLoaded = false,
+                MagazineRounds = new System.Collections.Generic.List<WeaponsModule.AmmoBallisticRecord>
+                {
+                    new WeaponsModule.AmmoBallisticRecord
+                    {
+                        AmmoSource = (int)AmmoSourceType.Factory,
+                        MuzzleVelocityFps = 2650f
+                    }
+                }
+            });
+
+            Assert.Throws<System.InvalidOperationException>(() => module.ValidateModuleState());
         }
     }
 }
