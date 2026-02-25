@@ -93,11 +93,14 @@ namespace Reloader.UI.Toolkit.TabInventory
             if ((intent.Key == "inventory.drag.swap" || intent.Key == "inventory.drag.merge")
                 && intent.Payload is TabInventoryDragController.DragIntentPayload dragPayload)
             {
+                var sourceArea = ResolveArea(dragPayload.SourceContainer);
+                var targetArea = ResolveArea(dragPayload.TargetContainer);
+                var targetIndex = NormalizeTargetIndex(sourceArea, targetArea, dragPayload.TargetIndex);
                 var moved = _inventoryController.TryMoveItem(
-                    ResolveArea(dragPayload.SourceContainer),
+                    sourceArea,
                     dragPayload.SourceIndex,
-                    ResolveArea(dragPayload.TargetContainer),
-                    dragPayload.TargetIndex);
+                    targetArea,
+                    targetIndex);
 
                 if (moved)
                 {
@@ -178,6 +181,19 @@ namespace Reloader.UI.Toolkit.TabInventory
                 "calendar" => "calendar",
                 _ => "inventory"
             };
+        }
+
+        private int NormalizeTargetIndex(InventoryArea sourceArea, InventoryArea targetArea, int requestedTargetIndex)
+        {
+            if (sourceArea == InventoryArea.Belt
+                && targetArea == InventoryArea.Backpack
+                && _inventoryController?.Runtime != null
+                && requestedTargetIndex >= _inventoryController.Runtime.BackpackItemIds.Count)
+            {
+                return _inventoryController.Runtime.BackpackItemIds.Count;
+            }
+
+            return requestedTargetIndex;
         }
 
         private void ResolveInputSource()

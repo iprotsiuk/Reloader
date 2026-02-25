@@ -48,6 +48,43 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void TabInventoryController_HandleSwapIntent_BackpackSparseTargetIndex_AppendsMove()
+        {
+            var go = new GameObject("TabInventoryControllerSparseTarget");
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(null, null, runtime);
+            runtime.SetBackpackCapacity(16);
+
+            runtime.BeltSlotItemIds[0] = "item-belt";
+            runtime.BeltSlotItemIds[1] = "slot-1";
+            runtime.BeltSlotItemIds[2] = "slot-2";
+            runtime.BeltSlotItemIds[3] = "slot-3";
+            runtime.BeltSlotItemIds[4] = "slot-4";
+            Assert.That(runtime.TryStoreItem("item-pack", out _, out var storedIndex, out _), Is.True);
+            Assert.That(storedIndex, Is.EqualTo(0));
+            Assert.That(runtime.BackpackItemIds.Count, Is.EqualTo(1));
+
+            var root = BuildTabRoot();
+            var viewBinder = new TabInventoryViewBinder();
+            viewBinder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 16);
+
+            var controller = go.AddComponent<TabInventoryController>();
+            controller.SetInventoryController(inventoryController);
+            controller.Configure(viewBinder, new TabInventoryDragController());
+
+            var payload = new TabInventoryDragController.DragIntentPayload("belt", 0, "backpack", 8);
+            controller.HandleIntent(new UiIntent("inventory.drag.swap", payload));
+
+            Assert.That(runtime.BeltSlotItemIds[0], Is.Null);
+            Assert.That(runtime.BackpackItemIds.Count, Is.EqualTo(2));
+            Assert.That(runtime.BackpackItemIds[0], Is.EqualTo("item-pack"));
+            Assert.That(runtime.BackpackItemIds[1], Is.EqualTo("item-belt"));
+
+            Object.DestroyImmediate(go);
+        }
+
+        [Test]
         public void TabInventoryViewBinder_Render_SwitchesActiveSection()
         {
             var root = BuildTabRoot();

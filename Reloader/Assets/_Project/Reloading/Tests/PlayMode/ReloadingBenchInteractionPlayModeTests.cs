@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using Reloader.Core.Events;
 using Reloader.Player;
 using Reloader.Reloading.World;
 using UnityEngine;
@@ -60,6 +61,47 @@ namespace Reloader.Reloading.Tests.PlayMode
             Assert.That(target.IsWorkbenchOpen, Is.False);
 
             Object.Destroy(root);
+        }
+
+        [Test]
+        public void OpenWorkbench_WhenControllerDisabled_ClosesWorkbenchAndRaisesVisibilityFalse()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerReloadingBenchController>();
+            var resolver = root.AddComponent<TestBenchResolver>();
+            var target = root.AddComponent<TestBenchTarget>();
+            resolver.Target = target;
+            controller.Configure(input, resolver);
+
+            var visibilityEvents = 0;
+            var lastVisibility = false;
+            void HandleVisibilityChanged(bool isVisible)
+            {
+                visibilityEvents++;
+                lastVisibility = isVisible;
+            }
+
+            GameEvents.OnWorkbenchMenuVisibilityChanged += HandleVisibilityChanged;
+            try
+            {
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
+                Assert.That(target.IsWorkbenchOpen, Is.True);
+                Assert.That(lastVisibility, Is.True);
+
+                controller.enabled = false;
+
+                Assert.That(target.CloseCalls, Is.EqualTo(1));
+                Assert.That(target.IsWorkbenchOpen, Is.False);
+                Assert.That(visibilityEvents, Is.EqualTo(2));
+                Assert.That(lastVisibility, Is.False);
+            }
+            finally
+            {
+                GameEvents.OnWorkbenchMenuVisibilityChanged -= HandleVisibilityChanged;
+                Object.Destroy(root);
+            }
         }
 
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource

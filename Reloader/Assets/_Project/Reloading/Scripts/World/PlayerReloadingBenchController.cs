@@ -24,6 +24,11 @@ namespace Reloader.Reloading.World
             Tick();
         }
 
+        private void OnDisable()
+        {
+            CloseActiveWorkbenchIfAny();
+        }
+
         public void Configure(IPlayerInputSource inputSource, IPlayerReloadingBenchResolver resolver)
         {
             _inputSource = inputSource;
