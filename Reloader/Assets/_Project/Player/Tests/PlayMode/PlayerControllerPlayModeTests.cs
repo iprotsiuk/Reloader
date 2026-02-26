@@ -154,6 +154,93 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerLookController_Tick_UsesInjectedUiStateEvents_InsteadOfGameEvents()
+        {
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Look = new Vector2(12f, -8f);
+
+            var uiStateEvents = new TestUiStateEvents();
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform, uiStateEvents);
+            look.LookSensitivity = Vector2.one;
+            look.Tick(1f);
+            var yawAfterFirstTick = root.transform.eulerAngles.y;
+
+            GameEvents.RaiseTabInventoryVisibilityChanged(true);
+            look.Tick(1f);
+            var yawAfterGameEventsTick = root.transform.eulerAngles.y;
+
+            uiStateEvents.RaiseTabInventoryVisibilityChanged(true);
+            look.Tick(1f);
+            var yawAfterInjectedUiStateOpenTick = root.transform.eulerAngles.y;
+
+            Assert.That(yawAfterGameEventsTick, Is.GreaterThan(yawAfterFirstTick + 0.01f));
+            Assert.That(yawAfterInjectedUiStateOpenTick, Is.EqualTo(yawAfterGameEventsTick).Within(0.001f));
+
+            uiStateEvents.RaiseTabInventoryVisibilityChanged(false);
+            GameEvents.RaiseTabInventoryVisibilityChanged(false);
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void PlayerLookController_WithoutInjectedUiStateEvents_RebindsWhenRuntimeKernelHubIsReplaced()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = initialHub;
+
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Look = new Vector2(12f, 0f);
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            look.LookSensitivity = Vector2.one;
+            look.Tick(1f);
+            var yawAfterFirstTick = root.transform.eulerAngles.y;
+
+            try
+            {
+                initialHub.RaiseTabInventoryVisibilityChanged(true);
+                look.Tick(1f);
+                var yawAfterInitialHubOpenTick = root.transform.eulerAngles.y;
+
+                initialHub.RaiseTabInventoryVisibilityChanged(false);
+                look.Tick(1f);
+                var yawAfterInitialHubCloseTick = root.transform.eulerAngles.y;
+
+                RuntimeKernelBootstrapper.Events = replacementHub;
+
+                initialHub.RaiseTabInventoryVisibilityChanged(true);
+                look.Tick(1f);
+                var yawAfterOldHubOpenPostSwapTick = root.transform.eulerAngles.y;
+
+                replacementHub.RaiseTabInventoryVisibilityChanged(true);
+                look.Tick(1f);
+                var yawAfterReplacementHubOpenTick = root.transform.eulerAngles.y;
+
+                Assert.That(yawAfterInitialHubOpenTick, Is.EqualTo(yawAfterFirstTick).Within(0.001f));
+                Assert.That(yawAfterInitialHubCloseTick, Is.GreaterThan(yawAfterInitialHubOpenTick + 0.01f));
+                Assert.That(yawAfterOldHubOpenPostSwapTick, Is.GreaterThan(yawAfterInitialHubCloseTick + 0.01f));
+                Assert.That(yawAfterReplacementHubOpenTick, Is.EqualTo(yawAfterOldHubOpenPostSwapTick).Within(0.001f));
+            }
+            finally
+            {
+                replacementHub.RaiseTabInventoryVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void PlayerLookController_Tick_Aiming_UsesAdsSensitivityMultiplier()
         {
             var root = new GameObject("PlayerRoot");
