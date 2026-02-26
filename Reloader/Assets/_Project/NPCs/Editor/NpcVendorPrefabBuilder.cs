@@ -2,6 +2,7 @@ using Reloader.NPCs.Runtime;
 using Reloader.NPCs.Runtime.Capabilities;
 using Reloader.NPCs.World;
 using Reloader.Player;
+using System;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -10,6 +11,7 @@ namespace Reloader.NPCs.Editor
 {
     public static class NpcVendorPrefabBuilder
     {
+        private const bool IncludeOptionalRoleCapabilities = false;
         private const string VendorPrefabPath = "Assets/_Project/NPCs/Prefabs/ShopVendor.prefab";
         private const string PlayerInteractorPrefabPath = "Assets/_Project/NPCs/Prefabs/PlayerShopVendorInteractor.prefab";
         private const string NpcFoundationPrefabPath = "Assets/_Project/NPCs/Prefabs/NpcFoundation.prefab";
@@ -24,12 +26,35 @@ namespace Reloader.NPCs.Editor
             RolePrefabConfig.Vendor(NpcRoleKind.WeaponVendor, "WeaponVendor", "vendor-weapon-store"),
             RolePrefabConfig.Vendor(NpcRoleKind.AmmoVendor, "AmmoVendor", "vendor-ammo-store"),
             RolePrefabConfig.Vendor(NpcRoleKind.ReloadingSuppliesVendor, "ReloadingSuppliesVendor", "vendor-reloading-store"),
-            RolePrefabConfig.NonVendor(NpcRoleKind.FrontDeskClerk, "FrontDeskClerk"),
-            RolePrefabConfig.NonVendor(NpcRoleKind.RangeSafetyOfficer, "RangeSafetyOfficer"),
+            RolePrefabConfig.NonVendor(
+                NpcRoleKind.FrontDeskClerk,
+                "FrontDeskClerk",
+                new[] { NpcCapabilityKind.FrontDeskInteraction, NpcCapabilityKind.EntryFeeInteraction },
+                new[] { NpcCapabilityKind.Dialogue }),
+            RolePrefabConfig.NonVendor(
+                NpcRoleKind.RangeSafetyOfficer,
+                "RangeSafetyOfficer",
+                new[] { NpcCapabilityKind.EntryFeeInteraction, NpcCapabilityKind.Dialogue }),
             RolePrefabConfig.NonVendor(NpcRoleKind.Competitor, "Competitor"),
-            RolePrefabConfig.NonVendor(NpcRoleKind.CompetitionOrganizer, "CompetitionOrganizer"),
-            RolePrefabConfig.NonVendor(NpcRoleKind.BankWorker, "BankWorker"),
-            RolePrefabConfig.NonVendor(NpcRoleKind.PostWorker, "PostWorker")
+            RolePrefabConfig.NonVendor(
+                NpcRoleKind.CompetitionOrganizer,
+                "CompetitionOrganizer",
+                new[] { NpcCapabilityKind.FrontDeskInteraction, NpcCapabilityKind.EntryFeeInteraction, NpcCapabilityKind.Dialogue }),
+            RolePrefabConfig.NonVendor(
+                NpcRoleKind.BankWorker,
+                "BankWorker",
+                new[] { NpcCapabilityKind.FrontDeskInteraction, NpcCapabilityKind.Dialogue }),
+            RolePrefabConfig.NonVendor(
+                NpcRoleKind.PostWorker,
+                "PostWorker",
+                new[] { NpcCapabilityKind.FrontDeskInteraction, NpcCapabilityKind.Dialogue })
+        };
+
+        private static readonly CapabilityComponentBinding[] ManagedRoleCapabilityBindings =
+        {
+            CapabilityComponentBinding.Create(NpcCapabilityKind.Dialogue, typeof(DialogueCapability)),
+            CapabilityComponentBinding.Create(NpcCapabilityKind.FrontDeskInteraction, typeof(FrontDeskInteractionCapability)),
+            CapabilityComponentBinding.Create(NpcCapabilityKind.EntryFeeInteraction, typeof(EntryFeeInteractionCapability))
         };
 
         [MenuItem("Reloader/NPCs/Rebuild Vendor Prefabs")]
@@ -58,6 +83,7 @@ namespace Reloader.NPCs.Editor
                 BuildRoleVariantPrefab(basePrefab, RolePrefabConfigs[i]);
             }
 
+            ValidateRolePrefabVariants();
             Debug.Log($"NPC role prefabs rebuilt ({RolePrefabConfigs.Length} variants).");
         }
 
@@ -67,6 +93,30 @@ namespace Reloader.NPCs.Editor
             BuildBaseNpcFoundationPrefab();
             CreateRolePrefabVariants();
             Debug.Log("NPC foundation and role prefabs rebuilt.");
+        }
+
+        [MenuItem("Reloader/NPCs/Foundation/Validate Role Prefab Variants")]
+        public static void ValidateRolePrefabVariants()
+        {
+            var errorCount = 0;
+            var warningCount = 0;
+
+            for (var i = 0; i < RolePrefabConfigs.Length; i++)
+            {
+                var config = RolePrefabConfigs[i];
+                var prefabPath = GetRolePrefabPath(config);
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                ValidateRolePrefab(prefab, prefabPath, config, ref errorCount, ref warningCount);
+            }
+
+            if (errorCount > 0 || warningCount > 0)
+            {
+                Debug.LogWarning(
+                    $"NPC role prefab validation finished with {errorCount} error(s) and {warningCount} warning(s).");
+                return;
+            }
+
+            Debug.Log($"NPC role prefab validation passed ({RolePrefabConfigs.Length} variants).");
         }
 
         [MenuItem("Reloader/NPCs/Auto-Wire Vendor Interaction In Active Scene")]
@@ -103,7 +153,7 @@ namespace Reloader.NPCs.Editor
             }
             finally
             {
-                Object.DestroyImmediate(root);
+                UnityEngine.Object.DestroyImmediate(root);
             }
         }
 
@@ -116,7 +166,7 @@ namespace Reloader.NPCs.Editor
             }
             finally
             {
-                Object.DestroyImmediate(root);
+                UnityEngine.Object.DestroyImmediate(root);
             }
         }
 
@@ -172,7 +222,7 @@ namespace Reloader.NPCs.Editor
             var root = PrefabUtility.InstantiatePrefab(basePrefab) as GameObject;
             if (root == null)
             {
-                root = Object.Instantiate(basePrefab);
+                root = UnityEngine.Object.Instantiate(basePrefab);
             }
 
             try
@@ -187,12 +237,16 @@ namespace Reloader.NPCs.Editor
                     RemoveVendorComponents(root);
                 }
 
+                EnsureRoleCapabilities(root, config);
                 var prefabPath = GetRolePrefabPath(config);
+                var errorCount = 0;
+                var warningCount = 0;
+                ValidateRolePrefab(root, prefabPath, config, ref errorCount, ref warningCount);
                 PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             }
             finally
             {
-                Object.DestroyImmediate(root);
+                UnityEngine.Object.DestroyImmediate(root);
             }
         }
 
@@ -229,6 +283,96 @@ namespace Reloader.NPCs.Editor
             }
         }
 
+        private static void EnsureRoleCapabilities(GameObject root, RolePrefabConfig config)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < ManagedRoleCapabilityBindings.Length; i++)
+            {
+                var binding = ManagedRoleCapabilityBindings[i];
+                var shouldExist = config.RequiresCapability(binding.Kind)
+                    || (IncludeOptionalRoleCapabilities && config.SupportsOptionalCapability(binding.Kind));
+                var existing = root.GetComponent(binding.ComponentType);
+
+                if (shouldExist && existing == null)
+                {
+                    root.AddComponent(binding.ComponentType);
+                    continue;
+                }
+
+                if (!shouldExist && existing != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(existing);
+                }
+            }
+        }
+
+        private static void ValidateRolePrefab(
+            GameObject prefab,
+            string prefabPath,
+            RolePrefabConfig config,
+            ref int errorCount,
+            ref int warningCount)
+        {
+            if (prefab == null)
+            {
+                Debug.LogError($"Missing role prefab asset for '{config.Role}' at '{prefabPath}'.");
+                errorCount++;
+                return;
+            }
+
+            if (prefab.GetComponent<NpcAgent>() == null)
+            {
+                Debug.LogError($"Role prefab '{prefabPath}' is missing required {nameof(NpcAgent)}.");
+                errorCount++;
+            }
+
+            for (var i = 0; i < ManagedRoleCapabilityBindings.Length; i++)
+            {
+                var binding = ManagedRoleCapabilityBindings[i];
+                var hasCapability = prefab.GetComponent(binding.ComponentType) != null;
+                var required = config.RequiresCapability(binding.Kind);
+                var optional = config.SupportsOptionalCapability(binding.Kind);
+                var expected = required || (IncludeOptionalRoleCapabilities && optional);
+
+                if (required && !hasCapability)
+                {
+                    Debug.LogError(
+                        $"Role prefab '{prefabPath}' missing required capability '{binding.Kind}' ({binding.ComponentType.Name}).");
+                    errorCount++;
+                    continue;
+                }
+
+                if (!expected && hasCapability)
+                {
+                    Debug.LogWarning(
+                        $"Role prefab '{prefabPath}' has unexpected capability '{binding.Kind}' ({binding.ComponentType.Name}).");
+                    warningCount++;
+                }
+            }
+
+            var hasVendorTarget = prefab.GetComponent<ShopVendorTarget>() != null;
+            var hasVendorCapability = prefab.GetComponent<VendorTradeCapability>() != null;
+            if (config.IsVendor)
+            {
+                if (!hasVendorTarget || !hasVendorCapability)
+                {
+                    Debug.LogError(
+                        $"Vendor role prefab '{prefabPath}' must include both {nameof(ShopVendorTarget)} and {nameof(VendorTradeCapability)}.");
+                    errorCount++;
+                }
+            }
+            else if (hasVendorTarget || hasVendorCapability)
+            {
+                Debug.LogWarning(
+                    $"Non-vendor role prefab '{prefabPath}' still has vendor wiring components.");
+                warningCount++;
+            }
+        }
+
         private static void RemoveVendorComponents(GameObject root)
         {
             if (root == null)
@@ -239,13 +383,13 @@ namespace Reloader.NPCs.Editor
             var vendorCapability = root.GetComponent<VendorTradeCapability>();
             if (vendorCapability != null)
             {
-                Object.DestroyImmediate(vendorCapability);
+                UnityEngine.Object.DestroyImmediate(vendorCapability);
             }
 
             var vendorTarget = root.GetComponent<ShopVendorTarget>();
             if (vendorTarget != null)
             {
-                Object.DestroyImmediate(vendorTarget);
+                UnityEngine.Object.DestroyImmediate(vendorTarget);
             }
         }
 
@@ -281,7 +425,7 @@ namespace Reloader.NPCs.Editor
             }
 
             var model = PrefabUtility.InstantiatePrefab(modelAsset) as GameObject;
-            model ??= Object.Instantiate(modelAsset);
+            model ??= UnityEngine.Object.Instantiate(modelAsset);
             model.name = instanceName;
             model.transform.SetParent(parent, false);
             model.transform.localPosition = Vector3.zero;
@@ -308,7 +452,7 @@ namespace Reloader.NPCs.Editor
             }
             finally
             {
-                Object.DestroyImmediate(root);
+                UnityEngine.Object.DestroyImmediate(root);
             }
         }
 
@@ -326,7 +470,7 @@ namespace Reloader.NPCs.Editor
 
         private static GameObject FindOrCreateInteractorRoot()
         {
-            var existingController = Object.FindFirstObjectByType<PlayerShopVendorController>(FindObjectsInactive.Include);
+            var existingController = UnityEngine.Object.FindFirstObjectByType<PlayerShopVendorController>(FindObjectsInactive.Include);
             if (existingController != null)
             {
                 return existingController.gameObject;
@@ -353,7 +497,7 @@ namespace Reloader.NPCs.Editor
                 return false;
             }
 
-            var playerInput = Object.FindFirstObjectByType<PlayerInputReader>(FindObjectsInactive.Include);
+            var playerInput = UnityEngine.Object.FindFirstObjectByType<PlayerInputReader>(FindObjectsInactive.Include);
             var playerTransform = playerInput != null ? playerInput.transform : null;
             if (playerTransform != null && interactorRoot.transform.parent != playerTransform)
             {
@@ -384,7 +528,7 @@ namespace Reloader.NPCs.Editor
             var sceneCamera = Camera.main;
             if (sceneCamera == null)
             {
-                sceneCamera = Object.FindFirstObjectByType<Camera>(FindObjectsInactive.Include);
+                sceneCamera = UnityEngine.Object.FindFirstObjectByType<Camera>(FindObjectsInactive.Include);
             }
 
             var resolverSerialized = new SerializedObject(resolver);
@@ -402,7 +546,7 @@ namespace Reloader.NPCs.Editor
         private static bool WireEconomyInScene()
         {
             var changed = false;
-            var economyController = Object.FindFirstObjectByType<Reloader.Economy.EconomyController>(FindObjectsInactive.Include);
+            var economyController = UnityEngine.Object.FindFirstObjectByType<Reloader.Economy.EconomyController>(FindObjectsInactive.Include);
             if (economyController == null)
             {
                 return false;
@@ -445,12 +589,20 @@ namespace Reloader.NPCs.Editor
 
         private readonly struct RolePrefabConfig
         {
-            public RolePrefabConfig(NpcRoleKind role, string prefabName, bool isVendor, string vendorId)
+            public RolePrefabConfig(
+                NpcRoleKind role,
+                string prefabName,
+                bool isVendor,
+                string vendorId,
+                NpcCapabilityKind[] requiredCapabilities,
+                NpcCapabilityKind[] optionalCapabilities)
             {
                 Role = role;
                 PrefabName = prefabName;
                 IsVendor = isVendor;
                 VendorId = vendorId;
+                RequiredCapabilities = requiredCapabilities ?? Array.Empty<NpcCapabilityKind>();
+                OptionalCapabilities = optionalCapabilities ?? Array.Empty<NpcCapabilityKind>();
             }
 
             public NpcRoleKind Role { get; }
@@ -461,14 +613,80 @@ namespace Reloader.NPCs.Editor
 
             public string VendorId { get; }
 
-            public static RolePrefabConfig NonVendor(NpcRoleKind role, string prefabName)
+            public NpcCapabilityKind[] RequiredCapabilities { get; }
+
+            public NpcCapabilityKind[] OptionalCapabilities { get; }
+
+            public bool RequiresCapability(NpcCapabilityKind kind)
             {
-                return new RolePrefabConfig(role, prefabName, false, string.Empty);
+                return Contains(RequiredCapabilities, kind);
             }
 
-            public static RolePrefabConfig Vendor(NpcRoleKind role, string prefabName, string vendorId)
+            public bool SupportsOptionalCapability(NpcCapabilityKind kind)
             {
-                return new RolePrefabConfig(role, prefabName, true, vendorId);
+                return Contains(OptionalCapabilities, kind);
+            }
+
+            public static RolePrefabConfig NonVendor(
+                NpcRoleKind role,
+                string prefabName,
+                NpcCapabilityKind[] requiredCapabilities = null,
+                NpcCapabilityKind[] optionalCapabilities = null)
+            {
+                return new RolePrefabConfig(
+                    role,
+                    prefabName,
+                    false,
+                    string.Empty,
+                    requiredCapabilities,
+                    optionalCapabilities);
+            }
+
+            public static RolePrefabConfig Vendor(
+                NpcRoleKind role,
+                string prefabName,
+                string vendorId,
+                NpcCapabilityKind[] requiredCapabilities = null,
+                NpcCapabilityKind[] optionalCapabilities = null)
+            {
+                return new RolePrefabConfig(
+                    role,
+                    prefabName,
+                    true,
+                    vendorId,
+                    requiredCapabilities,
+                    optionalCapabilities);
+            }
+
+            private static bool Contains(NpcCapabilityKind[] items, NpcCapabilityKind kind)
+            {
+                for (var i = 0; i < items.Length; i++)
+                {
+                    if (items[i] == kind)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        private readonly struct CapabilityComponentBinding
+        {
+            public CapabilityComponentBinding(NpcCapabilityKind kind, Type componentType)
+            {
+                Kind = kind;
+                ComponentType = componentType;
+            }
+
+            public NpcCapabilityKind Kind { get; }
+
+            public Type ComponentType { get; }
+
+            public static CapabilityComponentBinding Create(NpcCapabilityKind kind, Type componentType)
+            {
+                return new CapabilityComponentBinding(kind, componentType);
             }
         }
     }
