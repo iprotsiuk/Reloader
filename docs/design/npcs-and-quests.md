@@ -57,3 +57,32 @@ Each NPC tracks relationship level with the player. Higher relationship → bett
 - `deadline` — optional time limit in game days
 - `prerequisites` — required quests, reputation levels, or items
 - `customProperties`
+
+---
+
+## NPC Capability Foundation Status + World Authoring Quickstart [v0.1]
+
+### Current Implemented Slice
+- Data contracts exist for `NpcDefinition`, `NpcRolePreset`, and `NpcCapabilityConfig`.
+- `NpcAgent` discovers `INpcCapability` components on the prefab and manages lifecycle (`Initialize`/`Shutdown`).
+- `NpcAgent.CollectActions()` aggregates player actions from capabilities implementing `INpcActionProvider`.
+- `NpcAiController` consumes `INpcDecisionProvider`; if none is assigned, it falls back to `RuleBasedDecisionProvider`.
+- Vendor interaction is wired through `VendorTradeCapability` (`vendor.trade.open`) and remains compatible with shop-vendor targets.
+
+### Designer Quickstart (Now)
+1. Drag a role prefab from `Reloader/Assets/_Project/NPCs/Prefabs/Roles/` into `MainWorld`.
+2. On `NpcAgent`, assign an `NpcDefinition` asset.
+3. In `NpcDefinition`, set `NpcId` and assign `RolePreset`.
+4. In `NpcRolePreset`, set `RoleKind` and capability config assets (`NpcCapabilityConfig[]`) for the role intent.
+5. On the prefab instance, add/remove capability MonoBehaviours (`INpcCapability`) to match the role. For vendors, ensure `VendorTradeCapability` can resolve an `IShopVendorTarget`.
+6. If the NPC needs AI ticking now, keep `NpcAiController` with default rule-based evaluation.
+
+### Implemented vs Deferred
+| Area | Status | Notes |
+|------|--------|-------|
+| Capability composition shell (`NpcAgent` + `INpcCapability`) | Implemented now | Reusable across role prefabs. |
+| Action-provider seam (`INpcActionProvider`) | Implemented now | Enables interaction UI action aggregation. |
+| Decision-provider seam (`INpcDecisionProvider`) | Implemented now | Runtime seam exists via `NpcAiController`. |
+| `BehaviorTreeDecisionProvider` and BT assets/tooling | Deferred | Planned drop-in provider implementing `INpcDecisionProvider`. |
+| Dialogue/quest behavior integration on capabilities | Deferred | Will attach to capability and action flows later. |
+| Full capability runtime-state save integration | Deferred | Current slice does not persist all capability internals. |

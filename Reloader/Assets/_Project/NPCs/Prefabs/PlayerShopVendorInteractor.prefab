@@ -11,6 +11,8 @@ GameObject:
   - component: {fileID: 5512295492392572168}
   - component: {fileID: 3893816709889594410}
   - component: {fileID: 7304960421169747197}
+  - component: {fileID: 2711845902514378101}
+  - component: {fileID: 1184409749233057742}
   m_Layer: 0
   m_Name: PlayerShopVendorInteractor
   m_TagString: Untagged
@@ -64,3 +66,35 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.World.PlayerShopVendorController
   _inputSourceBehaviour: {fileID: 0}
   _resolverBehaviour: {fileID: 3893816709889594410}
+--- !u!114 &2711845902514378101
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4854490547327053399}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 807d189245ffb4978ace0edcc4f6a18d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.World.PlayerNpcResolver
+  _playerCamera: {fileID: 0}
+  _maxDistance: 4
+  _npcMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  _excludeShopVendors: 1
+--- !u!114 &1184409749233057742
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4854490547327053399}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29cf288de632a4497808af1a3d51066e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.World.PlayerNpcInteractionController
+  _inputSourceBehaviour: {fileID: 0}
+  _resolverBehaviour: {fileID: 2711845902514378101}
