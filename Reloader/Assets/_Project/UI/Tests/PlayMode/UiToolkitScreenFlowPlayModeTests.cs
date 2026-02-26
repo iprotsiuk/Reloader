@@ -211,6 +211,10 @@ namespace Reloader.UI.Tests.PlayMode
         [Test]
         public void TradeController_ShopEvents_ToggleTradeVisibility()
         {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), runtimeHub);
+
             var go = new GameObject("TradeController");
             var root = BuildTradeRoot();
             root.style.display = DisplayStyle.None;
@@ -221,13 +225,19 @@ namespace Reloader.UI.Tests.PlayMode
             var controller = go.AddComponent<TradeController>();
             controller.SetViewBinder(binder);
 
-            GameEvents.RaiseShopTradeOpened("vendor-1");
-            Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            try
+            {
+                RuntimeKernelBootstrapper.ShopEvents.RaiseShopTradeOpened("vendor-1");
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.Flex));
 
-            GameEvents.RaiseShopTradeClosed();
-            Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
-
-            UnityEngine.Object.DestroyImmediate(go);
+                RuntimeKernelBootstrapper.ShopEvents.RaiseShopTradeClosed();
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(go);
+            }
         }
 
         [Test]
@@ -288,7 +298,7 @@ namespace Reloader.UI.Tests.PlayMode
 
             var visibilityEventCount = 0;
             var latestVisibility = false;
-            GameEvents.OnTabInventoryVisibilityChanged += HandleVisibilityChanged;
+            RuntimeKernelBootstrapper.UiStateEvents.OnTabInventoryVisibilityChanged += HandleVisibilityChanged;
             void HandleVisibilityChanged(bool isVisible)
             {
                 visibilityEventCount++;
@@ -308,13 +318,17 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(visibilityEventCount, Is.EqualTo(2));
             Assert.That(latestVisibility, Is.False);
 
-            GameEvents.OnTabInventoryVisibilityChanged -= HandleVisibilityChanged;
+            RuntimeKernelBootstrapper.UiStateEvents.OnTabInventoryVisibilityChanged -= HandleVisibilityChanged;
             UnityEngine.Object.DestroyImmediate(go);
         }
 
         [Test]
         public void TabInventoryController_Tick_UsesInjectedUiStateEvents()
         {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
             var go = new GameObject("TabInventoryControllerInjectedEvents");
             var inventoryController = go.AddComponent<PlayerInventoryController>();
             var runtime = new PlayerInventoryRuntime();
@@ -334,7 +348,7 @@ namespace Reloader.UI.Tests.PlayMode
             controller.Configure(viewBinder, new TabInventoryDragController());
 
             var gameEventsCount = 0;
-            GameEvents.OnTabInventoryVisibilityChanged += HandleGameEventsVisibilityChanged;
+            RuntimeKernelBootstrapper.UiStateEvents.OnTabInventoryVisibilityChanged += HandleGameEventsVisibilityChanged;
             void HandleGameEventsVisibilityChanged(bool _) => gameEventsCount++;
 
             try
@@ -348,7 +362,8 @@ namespace Reloader.UI.Tests.PlayMode
             }
             finally
             {
-                GameEvents.OnTabInventoryVisibilityChanged -= HandleGameEventsVisibilityChanged;
+                RuntimeKernelBootstrapper.UiStateEvents.OnTabInventoryVisibilityChanged -= HandleGameEventsVisibilityChanged;
+                RuntimeKernelBootstrapper.Events = originalHub;
                 UnityEngine.Object.DestroyImmediate(go);
             }
         }
@@ -380,7 +395,7 @@ namespace Reloader.UI.Tests.PlayMode
                 Assert.That(root.Q<VisualElement>("inventory__slot-item-belt-0"), Is.Null);
 
                 runtime.BeltSlotItemIds[0] = "item-injected";
-                GameEvents.RaiseInventoryChanged();
+                RuntimeKernelBootstrapper.InventoryEvents.RaiseInventoryChanged();
                 Assert.That(root.Q<VisualElement>("inventory__slot-item-belt-0"), Is.Null);
 
                 injectedInventoryEvents.RaiseInventoryChanged();
@@ -462,7 +477,7 @@ namespace Reloader.UI.Tests.PlayMode
             controller.SetViewBinder(viewBinder);
 
             var staticSelectionChangedCount = 0;
-            GameEvents.OnBeltSelectionChanged += HandleSelectionChanged;
+            RuntimeKernelBootstrapper.InventoryEvents.OnBeltSelectionChanged += HandleSelectionChanged;
             void HandleSelectionChanged(int _) => staticSelectionChangedCount++;
 
             try
@@ -472,7 +487,7 @@ namespace Reloader.UI.Tests.PlayMode
                 Assert.That(root.Q<VisualElement>("belt-hud__slot-item-0"), Is.Null);
 
                 runtime.BeltSlotItemIds[0] = "item-belt";
-                GameEvents.RaiseInventoryChanged();
+                RuntimeKernelBootstrapper.InventoryEvents.RaiseInventoryChanged();
                 Assert.That(root.Q<VisualElement>("belt-hud__slot-item-0"), Is.Null);
 
                 injectedInventoryEvents.RaiseInventoryChanged();
@@ -485,7 +500,7 @@ namespace Reloader.UI.Tests.PlayMode
             }
             finally
             {
-                GameEvents.OnBeltSelectionChanged -= HandleSelectionChanged;
+                RuntimeKernelBootstrapper.InventoryEvents.OnBeltSelectionChanged -= HandleSelectionChanged;
                 UnityEngine.Object.DestroyImmediate(go);
             }
         }
@@ -632,7 +647,7 @@ namespace Reloader.UI.Tests.PlayMode
             controller.Configure(uiStateEvents);
             controller.SetViewBinder(binder);
 
-            GameEvents.RaiseWorkbenchMenuVisibilityChanged(true);
+            RuntimeKernelBootstrapper.UiStateEvents.RaiseWorkbenchMenuVisibilityChanged(true);
             Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
 
             uiStateEvents.RaiseWorkbenchMenuVisibilityChanged(true);
