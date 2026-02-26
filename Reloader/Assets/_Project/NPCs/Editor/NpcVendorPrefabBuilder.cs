@@ -494,7 +494,13 @@ namespace Reloader.NPCs.Editor
             var existingNpcController = UnityEngine.Object.FindFirstObjectByType<PlayerNpcInteractionController>(FindObjectsInactive.Include);
             if (existingNpcController != null)
             {
-                return existingNpcController.gameObject;
+                var candidateRoot = existingNpcController.gameObject;
+                var hasVendorController = candidateRoot.GetComponent<PlayerShopVendorController>() != null;
+                var hasVendorResolver = candidateRoot.GetComponent<PlayerShopVendorResolver>() != null;
+                if (hasVendorController || hasVendorResolver)
+                {
+                    return candidateRoot;
+                }
             }
 
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerInteractorPrefabPath);
