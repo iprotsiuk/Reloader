@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.UI.Toolkit.Contracts;
 using Reloader.UI.Toolkit.Trade;
 using UnityEngine;
@@ -161,6 +162,69 @@ namespace Reloader.UI.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void Configure_InjectedShopEvents_UsesInjectedDependencyForIntentAndVisibility()
+        {
+            var go = new GameObject("trade-controller");
+            var root = BuildRoot();
+            root.style.display = DisplayStyle.None;
+            var binder = new TradeViewBinder();
+            binder.Initialize(root);
+            var controller = go.AddComponent<TradeController>();
+            controller.SetViewBinder(binder);
+
+            var injectedEvents = new FakeShopEvents();
+            controller.Configure(injectedEvents);
+
+            var payload = new ShopCheckoutRequest(
+                new[] { new ShopCheckoutLine("item-a", 2) },
+                "inventory",
+                0);
+
+            try
+            {
+                controller.HandleIntent(new UiIntent("trade.confirm.buy", payload));
+                Assert.That(injectedEvents.BuyCheckoutRequestedCount, Is.EqualTo(1));
+                Assert.That(injectedEvents.LastBuyCheckoutRequest, Is.SameAs(payload));
+
+                injectedEvents.RaiseShopTradeOpened("vendor-1");
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+
+                injectedEvents.RaiseShopTradeClosed();
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void OnDisable_UnsubscribesFromShopEvents()
+        {
+            var go = new GameObject("trade-controller");
+            var root = BuildRoot();
+            root.style.display = DisplayStyle.None;
+            var binder = new TradeViewBinder();
+            binder.Initialize(root);
+            var controller = go.AddComponent<TradeController>();
+            controller.SetViewBinder(binder);
+
+            var injectedEvents = new FakeShopEvents();
+            controller.Configure(injectedEvents);
+            controller.enabled = false;
+
+            try
+            {
+                injectedEvents.RaiseShopTradeOpened("vendor-1");
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
         private static VisualElement BuildRoot()
         {
             var root = new VisualElement { name = "trade__root" };
@@ -169,6 +233,38 @@ namespace Reloader.UI.Tests.PlayMode
             root.Add(new VisualElement { name = "trade__order-panel" });
             root.Add(new Label { name = "trade__cart-total" });
             return root;
+        }
+
+        private sealed class FakeShopEvents : IShopEvents
+        {
+            public int BuyCheckoutRequestedCount { get; private set; }
+            public ShopCheckoutRequest LastBuyCheckoutRequest { get; private set; }
+
+            public event System.Action<string> OnShopTradeOpenRequested;
+            public event System.Action<string> OnShopTradeOpened;
+            public event System.Action OnShopTradeClosed;
+            public event System.Action<string, int> OnShopBuyRequested;
+            public event System.Action<string, int> OnShopSellRequested;
+            public event System.Action<ShopCheckoutRequest> OnShopBuyCheckoutRequested;
+            public event System.Action<ShopCheckoutRequest> OnShopSellCheckoutRequested;
+            public event System.Action<string, int, bool, bool, string> OnShopTradeResult;
+
+            public void RaiseShopTradeOpenRequested(string vendorId) => OnShopTradeOpenRequested?.Invoke(vendorId);
+            public void RaiseShopTradeOpened(string vendorId) => OnShopTradeOpened?.Invoke(vendorId);
+            public void RaiseShopTradeClosed() => OnShopTradeClosed?.Invoke();
+            public void RaiseShopBuyRequested(string itemId, int quantity) => OnShopBuyRequested?.Invoke(itemId, quantity);
+            public void RaiseShopSellRequested(string itemId, int quantity) => OnShopSellRequested?.Invoke(itemId, quantity);
+
+            public void RaiseShopBuyCheckoutRequested(ShopCheckoutRequest request)
+            {
+                BuyCheckoutRequestedCount++;
+                LastBuyCheckoutRequest = request;
+                OnShopBuyCheckoutRequested?.Invoke(request);
+            }
+
+            public void RaiseShopSellCheckoutRequested(ShopCheckoutRequest request) => OnShopSellCheckoutRequested?.Invoke(request);
+            public void RaiseShopTradeResult(string itemId, int quantity, bool isBuy, bool success, string failureReason)
+                => OnShopTradeResult?.Invoke(itemId, quantity, isBuy, success, failureReason);
         }
     }
 }

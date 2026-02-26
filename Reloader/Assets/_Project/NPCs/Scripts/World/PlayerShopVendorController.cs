@@ -1,6 +1,7 @@
 using Reloader.Core;
-using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.Player;
+using System;
 using UnityEngine;
 
 namespace Reloader.NPCs.World
@@ -12,6 +13,9 @@ namespace Reloader.NPCs.World
 
         private IPlayerInputSource _inputSource;
         private IPlayerShopVendorResolver _resolver;
+        private IShopEvents _shopEvents;
+        private IShopEvents _subscribedShopEvents;
+        private bool _useRuntimeKernelShopEvents = true;
         private bool _isTradeOpen;
         private bool _loggedMissingDependencies;
 
@@ -27,21 +31,26 @@ namespace Reloader.NPCs.World
 
         private void OnEnable()
         {
-            GameEvents.OnShopTradeOpened += HandleTradeOpened;
-            GameEvents.OnShopTradeClosed += HandleTradeClosed;
+            ResolveReferences();
+            SubscribeToShopEvents(ResolveShopEvents());
         }
 
         private void OnDisable()
         {
-            GameEvents.OnShopTradeOpened -= HandleTradeOpened;
-            GameEvents.OnShopTradeClosed -= HandleTradeClosed;
+            UnsubscribeFromShopEvents();
             _isTradeOpen = false;
         }
 
-        public void Configure(IPlayerInputSource inputSource, IPlayerShopVendorResolver resolver)
+        public void Configure(IPlayerInputSource inputSource, IPlayerShopVendorResolver resolver, IShopEvents shopEvents = null)
         {
             _inputSource = inputSource;
             _resolver = resolver;
+            _useRuntimeKernelShopEvents = shopEvents == null;
+            _shopEvents = shopEvents;
+            if (isActiveAndEnabled)
+            {
+                SubscribeToShopEvents(ResolveShopEvents());
+            }
         }
 
         public void Tick()
@@ -59,7 +68,7 @@ namespace Reloader.NPCs.World
             {
                 if (_isTradeOpen)
                 {
-                    GameEvents.RaiseShopTradeClosed();
+                    ResolveShopEvents()?.RaiseShopTradeClosed();
                 }
                 return;
             }
@@ -69,18 +78,38 @@ namespace Reloader.NPCs.World
                 return;
             }
 
-            GameEvents.RaiseShopTradeOpenRequested(target.VendorId);
+            ResolveShopEvents()?.RaiseShopTradeOpenRequested(target.VendorId);
             target.OnTradeOpened();
         }
 
-        private void HandleTradeOpened(string _)
+        private void HandleTradeOpened(string vendorId)
         {
+            if (!IsCurrentTargetVendor(vendorId))
+            {
+                return;
+            }
+
             _isTradeOpen = true;
         }
 
         private void HandleTradeClosed()
         {
             _isTradeOpen = false;
+        }
+
+        private bool IsCurrentTargetVendor(string vendorId)
+        {
+            if (_resolver == null || string.IsNullOrWhiteSpace(vendorId))
+            {
+                return false;
+            }
+
+            if (!_resolver.TryResolveVendorTarget(out var target) || target == null)
+            {
+                return false;
+            }
+
+            return string.Equals(target.VendorId, vendorId, StringComparison.Ordinal);
         }
 
         private void ResolveReferences()
@@ -97,6 +126,65 @@ namespace Reloader.NPCs.World
             {
                 _resolver = DependencyResolutionGuard.FindInterface<IPlayerShopVendorResolver>(GetComponents<MonoBehaviour>());
             }
+
+            ResolveShopEvents();
+        }
+
+        private IShopEvents ResolveShopEvents()
+        {
+            if (_useRuntimeKernelShopEvents)
+            {
+                var runtimeShopEvents = RuntimeKernelBootstrapper.ShopEvents;
+                if (!ReferenceEquals(_shopEvents, runtimeShopEvents))
+                {
+                    _shopEvents = runtimeShopEvents;
+                    SubscribeToShopEvents(_shopEvents);
+                }
+                else if (!ReferenceEquals(_subscribedShopEvents, _shopEvents))
+                {
+                    SubscribeToShopEvents(_shopEvents);
+                }
+
+                return _shopEvents;
+            }
+
+            if (!ReferenceEquals(_subscribedShopEvents, _shopEvents))
+            {
+                SubscribeToShopEvents(_shopEvents);
+            }
+
+            return _shopEvents;
+        }
+
+        private void SubscribeToShopEvents(IShopEvents shopEvents)
+        {
+            if (shopEvents == null)
+            {
+                UnsubscribeFromShopEvents();
+                return;
+            }
+
+            if (ReferenceEquals(_subscribedShopEvents, shopEvents))
+            {
+                return;
+            }
+
+            UnsubscribeFromShopEvents();
+            _subscribedShopEvents = shopEvents;
+            _subscribedShopEvents.OnShopTradeOpened += HandleTradeOpened;
+            _subscribedShopEvents.OnShopTradeClosed += HandleTradeClosed;
+        }
+
+        private void UnsubscribeFromShopEvents()
+        {
+            if (_subscribedShopEvents == null)
+            {
+                return;
+            }
+
+            _subscribedShopEvents.OnShopTradeOpened -= HandleTradeOpened;
+            _subscribedShopEvents.OnShopTradeClosed -= HandleTradeClosed;
+            _subscribedShopEvents = null;
         }
     }
 }

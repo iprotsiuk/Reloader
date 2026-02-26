@@ -1,4 +1,5 @@
 using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine;
 
@@ -7,20 +8,31 @@ namespace Reloader.UI.Toolkit.Trade
     public sealed class TradeController : MonoBehaviour, IUiController
     {
         private TradeViewBinder _viewBinder;
+        private IShopEvents _shopEvents;
+        private IShopEvents _subscribedShopEvents;
+        private bool _useRuntimeKernelShopEvents = true;
         private bool _isOpen;
         private TradeUiTab _activeTab = TradeUiTab.Buy;
 
         private void OnEnable()
         {
-            GameEvents.OnShopTradeOpened += HandleTradeOpened;
-            GameEvents.OnShopTradeClosed += HandleTradeClosed;
+            SubscribeToShopEvents(ResolveShopEvents());
             Refresh();
         }
 
         private void OnDisable()
         {
-            GameEvents.OnShopTradeOpened -= HandleTradeOpened;
-            GameEvents.OnShopTradeClosed -= HandleTradeClosed;
+            UnsubscribeFromShopEvents();
+        }
+
+        public void Configure(IShopEvents shopEvents = null)
+        {
+            _useRuntimeKernelShopEvents = shopEvents == null;
+            _shopEvents = shopEvents;
+            if (isActiveAndEnabled)
+            {
+                SubscribeToShopEvents(ResolveShopEvents());
+            }
         }
 
         public void SetViewBinder(TradeViewBinder binder)
@@ -36,7 +48,7 @@ namespace Reloader.UI.Toolkit.Trade
                 _activeTab = TradeUiTab.Buy;
                 if (TryResolveCheckoutRequest(intent.Payload, out var request))
                 {
-                    GameEvents.RaiseShopBuyCheckoutRequested(request);
+                    ResolveShopEvents()?.RaiseShopBuyCheckoutRequested(request);
                 }
             }
             else if (intent.Key == "trade.confirm.sell")
@@ -44,7 +56,7 @@ namespace Reloader.UI.Toolkit.Trade
                 _activeTab = TradeUiTab.Sell;
                 if (TryResolveCheckoutRequest(intent.Payload, out var request))
                 {
-                    GameEvents.RaiseShopSellCheckoutRequested(request);
+                    ResolveShopEvents()?.RaiseShopSellCheckoutRequested(request);
                 }
             }
 
@@ -88,6 +100,63 @@ namespace Reloader.UI.Toolkit.Trade
         {
             request = payload as ShopCheckoutRequest;
             return request?.Lines != null && request.Lines.Length > 0;
+        }
+
+        private IShopEvents ResolveShopEvents()
+        {
+            if (_useRuntimeKernelShopEvents)
+            {
+                var runtimeShopEvents = RuntimeKernelBootstrapper.ShopEvents;
+                if (!ReferenceEquals(_shopEvents, runtimeShopEvents))
+                {
+                    _shopEvents = runtimeShopEvents;
+                    SubscribeToShopEvents(_shopEvents);
+                }
+                else if (!ReferenceEquals(_subscribedShopEvents, _shopEvents))
+                {
+                    SubscribeToShopEvents(_shopEvents);
+                }
+
+                return _shopEvents;
+            }
+
+            if (!ReferenceEquals(_subscribedShopEvents, _shopEvents))
+            {
+                SubscribeToShopEvents(_shopEvents);
+            }
+
+            return _shopEvents;
+        }
+
+        private void SubscribeToShopEvents(IShopEvents shopEvents)
+        {
+            if (shopEvents == null)
+            {
+                UnsubscribeFromShopEvents();
+                return;
+            }
+
+            if (ReferenceEquals(_subscribedShopEvents, shopEvents))
+            {
+                return;
+            }
+
+            UnsubscribeFromShopEvents();
+            _subscribedShopEvents = shopEvents;
+            _subscribedShopEvents.OnShopTradeOpened += HandleTradeOpened;
+            _subscribedShopEvents.OnShopTradeClosed += HandleTradeClosed;
+        }
+
+        private void UnsubscribeFromShopEvents()
+        {
+            if (_subscribedShopEvents == null)
+            {
+                return;
+            }
+
+            _subscribedShopEvents.OnShopTradeOpened -= HandleTradeOpened;
+            _subscribedShopEvents.OnShopTradeClosed -= HandleTradeClosed;
+            _subscribedShopEvents = null;
         }
     }
 }

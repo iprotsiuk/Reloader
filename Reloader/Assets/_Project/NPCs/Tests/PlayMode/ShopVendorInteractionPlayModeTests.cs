@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.NPCs.World;
 using Reloader.Player;
@@ -91,6 +92,8 @@ namespace Reloader.NPCs.Tests.PlayMode
             var controller = root.AddComponent<PlayerShopVendorController>();
             var resolver = root.AddComponent<TestVendorResolver>();
             controller.Configure(input, resolver);
+            var vendor = new GameObject("Vendor").AddComponent<ShopVendorTarget>();
+            resolver.Target = vendor;
 
             var closeCount = 0;
             void ClosedHandler() => closeCount++;
@@ -105,9 +108,105 @@ namespace Reloader.NPCs.Tests.PlayMode
             {
                 GameEvents.OnShopTradeClosed -= ClosedHandler;
                 Object.DestroyImmediate(root);
+                Object.DestroyImmediate(vendor.gameObject);
             }
 
             Assert.That(closeCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Configure_InjectedShopEvents_UsesInjectedDependencyForTradeFlow()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerShopVendorController>();
+            var resolver = root.AddComponent<TestVendorResolver>();
+            var injectedEvents = new FakeShopEvents();
+            controller.Configure(input, resolver, injectedEvents);
+
+            var vendor = new GameObject("Vendor").AddComponent<ShopVendorTarget>();
+            resolver.Target = vendor;
+
+            try
+            {
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
+                Assert.That(injectedEvents.TradeOpenRequestedCount, Is.EqualTo(1));
+                Assert.That(injectedEvents.LastTradeOpenRequestedVendorId, Is.EqualTo("vendor-reloading-store"));
+
+                injectedEvents.RaiseShopTradeOpened("vendor-reloading-store");
+                resolver.Target = null;
+                controller.Tick();
+                Assert.That(injectedEvents.TradeClosedCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(vendor.gameObject);
+            }
+
+            Assert.That(vendor.OpenCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void TradeOpened_ForDifferentVendorId_DoesNotBlockCurrentVendorOpenRequest()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerShopVendorController>();
+            var resolver = root.AddComponent<TestVendorResolver>();
+            var injectedEvents = new FakeShopEvents();
+            controller.Configure(input, resolver, injectedEvents);
+
+            var vendor = new GameObject("Vendor").AddComponent<ShopVendorTarget>();
+            resolver.Target = vendor;
+
+            try
+            {
+                injectedEvents.RaiseShopTradeOpened("vendor-other");
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(vendor.gameObject);
+            }
+
+            Assert.That(injectedEvents.TradeOpenRequestedCount, Is.EqualTo(1));
+            Assert.That(injectedEvents.LastTradeOpenRequestedVendorId, Is.EqualTo("vendor-reloading-store"));
+            Assert.That(vendor.OpenCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void OnDisable_UnsubscribesFromShopEvents()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerShopVendorController>();
+            var resolver = root.AddComponent<TestVendorResolver>();
+            var injectedEvents = new FakeShopEvents();
+            controller.Configure(input, resolver, injectedEvents);
+
+            var vendor = new GameObject("Vendor").AddComponent<ShopVendorTarget>();
+            resolver.Target = vendor;
+
+            try
+            {
+                controller.enabled = false;
+                injectedEvents.RaiseShopTradeOpened("vendor-reloading-store");
+
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(vendor.gameObject);
+            }
+
+            Assert.That(injectedEvents.TradeOpenRequestedCount, Is.EqualTo(1));
+            Assert.That(vendor.OpenCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -181,6 +280,44 @@ namespace Reloader.NPCs.Tests.PlayMode
                 target = null;
                 return false;
             }
+        }
+
+        private sealed class FakeShopEvents : IShopEvents
+        {
+            public int TradeOpenRequestedCount { get; private set; }
+            public int TradeClosedCount { get; private set; }
+            public string LastTradeOpenRequestedVendorId { get; private set; }
+
+            public event System.Action<string> OnShopTradeOpenRequested;
+            public event System.Action<string> OnShopTradeOpened;
+            public event System.Action OnShopTradeClosed;
+            public event System.Action<string, int> OnShopBuyRequested;
+            public event System.Action<string, int> OnShopSellRequested;
+            public event System.Action<ShopCheckoutRequest> OnShopBuyCheckoutRequested;
+            public event System.Action<ShopCheckoutRequest> OnShopSellCheckoutRequested;
+            public event System.Action<string, int, bool, bool, string> OnShopTradeResult;
+
+            public void RaiseShopTradeOpenRequested(string vendorId)
+            {
+                TradeOpenRequestedCount++;
+                LastTradeOpenRequestedVendorId = vendorId;
+                OnShopTradeOpenRequested?.Invoke(vendorId);
+            }
+
+            public void RaiseShopTradeOpened(string vendorId) => OnShopTradeOpened?.Invoke(vendorId);
+
+            public void RaiseShopTradeClosed()
+            {
+                TradeClosedCount++;
+                OnShopTradeClosed?.Invoke();
+            }
+
+            public void RaiseShopBuyRequested(string itemId, int quantity) => OnShopBuyRequested?.Invoke(itemId, quantity);
+            public void RaiseShopSellRequested(string itemId, int quantity) => OnShopSellRequested?.Invoke(itemId, quantity);
+            public void RaiseShopBuyCheckoutRequested(ShopCheckoutRequest request) => OnShopBuyCheckoutRequested?.Invoke(request);
+            public void RaiseShopSellCheckoutRequested(ShopCheckoutRequest request) => OnShopSellCheckoutRequested?.Invoke(request);
+            public void RaiseShopTradeResult(string itemId, int quantity, bool isBuy, bool success, string failureReason)
+                => OnShopTradeResult?.Invoke(itemId, quantity, isBuy, success, failureReason);
         }
     }
 }
