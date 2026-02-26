@@ -57,7 +57,18 @@ namespace Reloader.NPCs.Runtime
 
             for (var i = 0; i < _capabilities.Count; i++)
             {
-                _capabilities[i].Shutdown();
+                var capability = _capabilities[i];
+                if (capability == null)
+                {
+                    continue;
+                }
+
+                if (capability is UnityEngine.Object unityObject && unityObject == null)
+                {
+                    continue;
+                }
+
+                capability.Shutdown();
             }
 
             _capabilities.Clear();

@@ -143,10 +143,33 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
+        [Test]
+        public void OnDisable_WhenCapabilityDestroyed_ContinuesShutdownForRemainingCapabilities()
+        {
+            var go = new GameObject("agent");
+            var agent = go.AddComponent<NpcAgent>();
+            var destroyedCapability = go.AddComponent<TestLifecycleCapability>();
+            var activeCapability = go.AddComponent<TestLifecycleCapability>();
+
+            try
+            {
+                agent.InitializeCapabilities();
+                Object.DestroyImmediate(destroyedCapability);
+
+                Assert.DoesNotThrow(() => go.SetActive(false));
+                Assert.That(activeCapability.ShutdownCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
         private sealed class TestLifecycleCapability : MonoBehaviour, INpcCapability
         {
             public NpcCapabilityKind CapabilityKind => NpcCapabilityKind.None;
             public int InitializeCount { get; private set; }
+            public int ShutdownCount { get; private set; }
 
             public void Initialize(NpcAgent agent)
             {
@@ -155,6 +178,7 @@ namespace Reloader.NPCs.Tests.EditMode
 
             public void Shutdown()
             {
+                ShutdownCount++;
             }
         }
 
