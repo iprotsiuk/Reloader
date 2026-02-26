@@ -357,7 +357,6 @@ namespace Reloader.UI.Tests.PlayMode
         public void TabInventoryController_UsesInjectedInventoryEvents_InsteadOfStaticGameEvents()
         {
             var go = new GameObject("TabInventoryInjectedInventoryEvents");
-            go.SetActive(false);
 
             var inventoryController = go.AddComponent<PlayerInventoryController>();
             var runtime = new PlayerInventoryRuntime();
@@ -370,33 +369,25 @@ namespace Reloader.UI.Tests.PlayMode
 
             var controller = go.AddComponent<TabInventoryController>();
             var injectedInventoryEvents = new TestInventoryEvents();
-            var configureMethod = typeof(TabInventoryController).GetMethod("Configure", new[] { typeof(IInventoryEvents) });
-            Assert.That(configureMethod, Is.Not.Null, "TabInventoryController must expose Configure(IInventoryEvents).");
-            configureMethod.Invoke(controller, new object[] { injectedInventoryEvents });
+            controller.Configure(injectedInventoryEvents);
             controller.SetInventoryController(inventoryController);
             controller.Configure(viewBinder, new TabInventoryDragController());
 
-            var staticGameEventsRaiseCount = 0;
-            GameEvents.OnInventoryChanged += HandleInventoryChanged;
-            void HandleInventoryChanged() => staticGameEventsRaiseCount++;
-
             try
             {
-                go.SetActive(true);
-                var subscribedField = typeof(TabInventoryController).GetField("_subscribedInventoryEvents", BindingFlags.Instance | BindingFlags.NonPublic);
-                Assert.That(subscribedField, Is.Not.Null);
-                Assert.That(subscribedField.GetValue(controller), Is.SameAs(injectedInventoryEvents));
+                runtime.BeltSlotItemIds[0] = null;
+                injectedInventoryEvents.RaiseInventoryChanged();
+                Assert.That(root.Q<VisualElement>("inventory__slot-item-belt-0"), Is.Null);
 
+                runtime.BeltSlotItemIds[0] = "item-injected";
                 GameEvents.RaiseInventoryChanged();
-                Assert.That(subscribedField.GetValue(controller), Is.SameAs(injectedInventoryEvents));
+                Assert.That(root.Q<VisualElement>("inventory__slot-item-belt-0"), Is.Null);
 
                 injectedInventoryEvents.RaiseInventoryChanged();
-                Assert.That(subscribedField.GetValue(controller), Is.SameAs(injectedInventoryEvents));
-                Assert.That(staticGameEventsRaiseCount, Is.EqualTo(1));
+                Assert.That(root.Q<VisualElement>("inventory__slot-item-belt-0"), Is.Not.Null);
             }
             finally
             {
-                GameEvents.OnInventoryChanged -= HandleInventoryChanged;
                 UnityEngine.Object.DestroyImmediate(go);
             }
         }
@@ -407,10 +398,9 @@ namespace Reloader.UI.Tests.PlayMode
             var originalHub = RuntimeKernelBootstrapper.Events;
             var initialHub = new DefaultRuntimeEvents();
             var replacementHub = new DefaultRuntimeEvents();
-            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
+            RuntimeKernelBootstrapper.Events = initialHub;
 
             var go = new GameObject("TabInventoryRuntimeHubReconfigure");
-            go.SetActive(false);
 
             var inventoryController = go.AddComponent<PlayerInventoryController>();
             var runtime = new PlayerInventoryRuntime();
@@ -427,13 +417,22 @@ namespace Reloader.UI.Tests.PlayMode
 
             try
             {
-                go.SetActive(true);
-                var subscribedField = typeof(TabInventoryController).GetField("_subscribedInventoryEvents", BindingFlags.Instance | BindingFlags.NonPublic);
-                Assert.That(subscribedField, Is.Not.Null);
-                Assert.That(subscribedField.GetValue(controller), Is.SameAs(initialHub));
+                runtime.BeltSlotItemIds[0] = null;
+                initialHub.RaiseInventoryChanged();
+                Assert.That(root.Q<VisualElement>("inventory__slot-item-belt-0"), Is.Null);
 
-                RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
-                Assert.That(subscribedField.GetValue(controller), Is.SameAs(replacementHub));
+                runtime.BeltSlotItemIds[0] = "item-initial";
+                initialHub.RaiseInventoryChanged();
+                Assert.That(root.Q<VisualElement>("inventory__slot-item-belt-0"), Is.Not.Null);
+
+                RuntimeKernelBootstrapper.Events = replacementHub;
+
+                runtime.BeltSlotItemIds[0] = null;
+                initialHub.RaiseInventoryChanged();
+                Assert.That(root.Q<VisualElement>("inventory__slot-item-belt-0"), Is.Not.Null);
+
+                replacementHub.RaiseInventoryChanged();
+                Assert.That(root.Q<VisualElement>("inventory__slot-item-belt-0"), Is.Null);
             }
             finally
             {
@@ -446,7 +445,6 @@ namespace Reloader.UI.Tests.PlayMode
         public void BeltHudController_UsesInjectedInventoryEvents_InsteadOfStaticGameEvents()
         {
             var go = new GameObject("BeltHudInjectedInventoryEvents");
-            go.SetActive(false);
 
             var inventoryController = go.AddComponent<PlayerInventoryController>();
             var runtime = new PlayerInventoryRuntime();
@@ -459,9 +457,7 @@ namespace Reloader.UI.Tests.PlayMode
 
             var controller = go.AddComponent<BeltHudController>();
             var injectedInventoryEvents = new TestInventoryEvents();
-            var configureMethod = typeof(BeltHudController).GetMethod("Configure", new[] { typeof(IInventoryEvents) });
-            Assert.That(configureMethod, Is.Not.Null, "BeltHudController must expose Configure(IInventoryEvents).");
-            configureMethod.Invoke(controller, new object[] { injectedInventoryEvents });
+            controller.Configure(injectedInventoryEvents);
             controller.SetInventoryController(inventoryController);
             controller.SetViewBinder(viewBinder);
 
@@ -471,16 +467,16 @@ namespace Reloader.UI.Tests.PlayMode
 
             try
             {
-                go.SetActive(true);
-                var subscribedField = typeof(BeltHudController).GetField("_subscribedInventoryEvents", BindingFlags.Instance | BindingFlags.NonPublic);
-                Assert.That(subscribedField, Is.Not.Null);
-                Assert.That(subscribedField.GetValue(controller), Is.SameAs(injectedInventoryEvents));
+                runtime.BeltSlotItemIds[0] = null;
+                injectedInventoryEvents.RaiseInventoryChanged();
+                Assert.That(root.Q<VisualElement>("belt-hud__slot-item-0"), Is.Null);
 
+                runtime.BeltSlotItemIds[0] = "item-belt";
                 GameEvents.RaiseInventoryChanged();
-                Assert.That(subscribedField.GetValue(controller), Is.SameAs(injectedInventoryEvents));
+                Assert.That(root.Q<VisualElement>("belt-hud__slot-item-0"), Is.Null);
 
                 injectedInventoryEvents.RaiseInventoryChanged();
-                Assert.That(subscribedField.GetValue(controller), Is.SameAs(injectedInventoryEvents));
+                Assert.That(root.Q<VisualElement>("belt-hud__slot-item-0"), Is.Not.Null);
 
                 runtime.SelectBeltSlot(0);
                 controller.HandleIntent(new UiIntent("belt.slot.select", 1));
@@ -500,10 +496,9 @@ namespace Reloader.UI.Tests.PlayMode
             var originalHub = RuntimeKernelBootstrapper.Events;
             var initialHub = new DefaultRuntimeEvents();
             var replacementHub = new DefaultRuntimeEvents();
-            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
+            RuntimeKernelBootstrapper.Events = initialHub;
 
             var go = new GameObject("BeltHudRuntimeHubReconfigure");
-            go.SetActive(false);
 
             var inventoryController = go.AddComponent<PlayerInventoryController>();
             var runtime = new PlayerInventoryRuntime();
@@ -527,13 +522,22 @@ namespace Reloader.UI.Tests.PlayMode
 
             try
             {
-                go.SetActive(true);
-                var subscribedField = typeof(BeltHudController).GetField("_subscribedInventoryEvents", BindingFlags.Instance | BindingFlags.NonPublic);
-                Assert.That(subscribedField, Is.Not.Null);
-                Assert.That(subscribedField.GetValue(controller), Is.SameAs(initialHub));
+                runtime.BeltSlotItemIds[0] = null;
+                initialHub.RaiseInventoryChanged();
+                Assert.That(root.Q<VisualElement>("belt-hud__slot-item-0"), Is.Null);
 
-                RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
-                Assert.That(subscribedField.GetValue(controller), Is.SameAs(replacementHub));
+                runtime.BeltSlotItemIds[0] = "item-initial";
+                initialHub.RaiseInventoryChanged();
+                Assert.That(root.Q<VisualElement>("belt-hud__slot-item-0"), Is.Not.Null);
+
+                RuntimeKernelBootstrapper.Events = replacementHub;
+
+                runtime.BeltSlotItemIds[0] = null;
+                initialHub.RaiseInventoryChanged();
+                Assert.That(root.Q<VisualElement>("belt-hud__slot-item-0"), Is.Not.Null);
+
+                replacementHub.RaiseInventoryChanged();
+                Assert.That(root.Q<VisualElement>("belt-hud__slot-item-0"), Is.Null);
 
                 runtime.SelectBeltSlot(0);
                 controller.HandleIntent(new UiIntent("belt.slot.select", 2));
