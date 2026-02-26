@@ -94,6 +94,54 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void EventSubscription_StaticSubscribers_RebindToReplacementHub_WhenConfigureSwapsHub()
+        {
+            var initialHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var replacementHub = new DefaultRuntimeEvents();
+            var invocationCount = 0;
+            void Handler() => invocationCount++;
+
+            GameEvents.OnInventoryChanged += Handler;
+            try
+            {
+                RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+                replacementHub.RaiseInventoryChanged();
+            }
+            finally
+            {
+                GameEvents.OnInventoryChanged -= Handler;
+            }
+
+            Assert.That(invocationCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void EventSubscription_StaticSubscribers_RebindToReplacementHub_WhenEventsPropertySwapsHub()
+        {
+            var initialHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var replacementHub = new DefaultRuntimeEvents();
+            var invocationCount = 0;
+            void Handler() => invocationCount++;
+
+            GameEvents.OnInventoryChanged += Handler;
+            try
+            {
+                RuntimeKernelBootstrapper.Events = replacementHub;
+                replacementHub.RaiseInventoryChanged();
+            }
+            finally
+            {
+                GameEvents.OnInventoryChanged -= Handler;
+            }
+
+            Assert.That(invocationCount, Is.EqualTo(1));
+        }
+
+        [Test]
         public void RaiseWeaponReloaded_ForwardsToRuntimeEventHub()
         {
             var hub = new DefaultRuntimeEvents();
