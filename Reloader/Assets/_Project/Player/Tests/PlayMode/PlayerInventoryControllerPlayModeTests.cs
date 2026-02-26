@@ -159,6 +159,34 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void DisabledBeforeOnEnable_DoesNotProcessRuntimePickupEventsUntilEnabled()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
+            var root = new GameObject("InventoryControllerRoot");
+            root.SetActive(false);
+            var controller = root.AddComponent<PlayerInventoryController>();
+            controller.Configure(null, null, new PlayerInventoryRuntime());
+
+            try
+            {
+                runtimeHub.RaiseItemPickupRequested("item-before-enable");
+                Assert.That(controller.Runtime.GetItemQuantity("item-before-enable"), Is.EqualTo(0));
+
+                root.SetActive(true);
+                runtimeHub.RaiseItemPickupRequested("item-after-enable");
+                Assert.That(controller.Runtime.GetItemQuantity("item-after-enable"), Is.EqualTo(1));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void Tick_BeltKeyPress_UpdatesSelectedSlot()
         {
             var root = new GameObject("InventoryControllerRoot");

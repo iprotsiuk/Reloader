@@ -38,6 +38,7 @@ namespace Reloader.Player
             SubscribeToRuntimeHubReconfigure();
             SubscribeToShopEvents(ResolveShopEvents());
             SubscribeToUiStateEvents(ResolveUiStateEvents());
+            ReconcileMenuFlagsFromCurrentEventState();
             ApplyCursorState();
         }
 
@@ -144,6 +145,9 @@ namespace Reloader.Player
             {
                 SubscribeToUiStateEvents(ResolveUiStateEvents());
             }
+
+            ReconcileMenuFlagsFromCurrentEventState();
+            ApplyCursorState();
         }
 
         private void ApplyCursorState()
@@ -158,6 +162,26 @@ namespace Reloader.Player
 
             Cursor.lockState = _isCursorLockRequested ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !_isCursorLockRequested;
+        }
+
+        private void ReconcileMenuFlagsFromCurrentEventState()
+        {
+            var uiStateEvents = _uiStateEvents;
+            if (uiStateEvents == null)
+            {
+                if (_useRuntimeKernelUiStateEvents)
+                {
+                    _isTradeMenuOpen = false;
+                    _isWorkbenchMenuOpen = false;
+                    _isTabInventoryOpen = false;
+                }
+
+                return;
+            }
+
+            _isTradeMenuOpen = uiStateEvents.IsShopTradeMenuOpen;
+            _isWorkbenchMenuOpen = uiStateEvents.IsWorkbenchMenuVisible;
+            _isTabInventoryOpen = uiStateEvents.IsTabInventoryVisible;
         }
 
         private IUiStateEvents ResolveUiStateEvents()

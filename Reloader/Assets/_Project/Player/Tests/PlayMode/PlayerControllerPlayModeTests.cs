@@ -470,6 +470,81 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerCursorLockController_WithoutInjectedEvents_RebindsWhenRuntimeKernelHubIsReplacedViaSetter()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = initialHub;
+
+            var go = new GameObject("CursorLockRuntimeHubSetterSwap");
+            go.SetActive(false);
+            var controller = go.AddComponent<PlayerCursorLockController>();
+            go.SetActive(true);
+
+            try
+            {
+                initialHub.RaiseWorkbenchMenuVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+
+                initialHub.RaiseWorkbenchMenuVisibilityChanged(false);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+
+                RuntimeKernelBootstrapper.Events = replacementHub;
+
+                initialHub.RaiseWorkbenchMenuVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+
+                replacementHub.RaiseWorkbenchMenuVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+            }
+            finally
+            {
+                replacementHub.RaiseWorkbenchMenuVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(go);
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
+        }
+
+        [Test]
+        public void PlayerCursorLockController_RuntimeHubSwap_ReconcilesMenuFlagsImmediately()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = initialHub;
+
+            var go = new GameObject("CursorLockRuntimeHubSwapStateReconcile");
+            var controller = go.AddComponent<PlayerCursorLockController>();
+
+            try
+            {
+                controller.LockCursor();
+                initialHub.RaiseShopTradeOpened("vendor-1");
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+
+                RuntimeKernelBootstrapper.Events = replacementHub;
+
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+                Assert.That(controller.IsCursorLockRequested, Is.True);
+            }
+            finally
+            {
+                replacementHub.RaiseShopTradeClosed();
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(go);
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
+        }
+
+        [Test]
         public void TestInputSource_ExposesFireAndReloadConsumeMethods()
         {
             var root = new GameObject("InputSourceRoot");
