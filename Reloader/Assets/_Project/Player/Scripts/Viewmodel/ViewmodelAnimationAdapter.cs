@@ -1,4 +1,5 @@
 using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using UnityEngine;
 
 namespace Reloader.Player.Viewmodel
@@ -14,6 +15,9 @@ namespace Reloader.Player.Viewmodel
         private int _isAimingHash;
         private int _aimWeightHash;
         private string _equippedItemId;
+        private IWeaponEvents _weaponEvents;
+        private IWeaponEvents _subscribedWeaponEvents;
+        private bool _useRuntimeKernelWeaponEvents = true;
 
         public bool IsReloadingDebug { get; private set; }
         public bool IsAimingDebug { get; private set; }
@@ -30,22 +34,14 @@ namespace Reloader.Player.Viewmodel
         {
             CacheHashes();
             ResolveAnimator();
-            GameEvents.OnWeaponEquipped += HandleWeaponEquipped;
-            GameEvents.OnWeaponFired += HandleWeaponFired;
-            GameEvents.OnWeaponReloadStarted += HandleWeaponReloadStarted;
-            GameEvents.OnWeaponReloadCancelled += HandleWeaponReloadCancelled;
-            GameEvents.OnWeaponReloaded += HandleWeaponReloaded;
-            GameEvents.OnWeaponAimChanged += HandleWeaponAimChanged;
+            SubscribeToRuntimeHubReconfigure();
+            SubscribeToWeaponEvents(ResolveWeaponEvents());
         }
 
         private void OnDisable()
         {
-            GameEvents.OnWeaponEquipped -= HandleWeaponEquipped;
-            GameEvents.OnWeaponFired -= HandleWeaponFired;
-            GameEvents.OnWeaponReloadStarted -= HandleWeaponReloadStarted;
-            GameEvents.OnWeaponReloadCancelled -= HandleWeaponReloadCancelled;
-            GameEvents.OnWeaponReloaded -= HandleWeaponReloaded;
-            GameEvents.OnWeaponAimChanged -= HandleWeaponAimChanged;
+            UnsubscribeFromRuntimeHubReconfigure();
+            UnsubscribeFromWeaponEvents();
         }
 
         public void SetEquippedItemIdForTests(string itemId)
@@ -58,6 +54,16 @@ namespace Reloader.Player.Viewmodel
             _animator = animator;
             _contractProfile = contractProfile;
             CacheHashes();
+        }
+
+        public void ConfigureEventChannel(IWeaponEvents weaponEvents = null)
+        {
+            _useRuntimeKernelWeaponEvents = weaponEvents == null;
+            _weaponEvents = weaponEvents;
+            if (isActiveAndEnabled)
+            {
+                SubscribeToWeaponEvents(ResolveWeaponEvents());
+            }
         }
 
         private void HandleWeaponEquipped(string itemId)
@@ -128,6 +134,89 @@ namespace Reloader.Player.Viewmodel
         private bool MatchesEquipped(string itemId)
         {
             return string.IsNullOrWhiteSpace(_equippedItemId) || _equippedItemId == itemId;
+        }
+
+        private void HandleRuntimeEventsReconfigured()
+        {
+            if (!isActiveAndEnabled || !_useRuntimeKernelWeaponEvents)
+            {
+                return;
+            }
+
+            SubscribeToWeaponEvents(ResolveWeaponEvents());
+        }
+
+        private IWeaponEvents ResolveWeaponEvents()
+        {
+            if (_useRuntimeKernelWeaponEvents)
+            {
+                var runtimeWeaponEvents = RuntimeKernelBootstrapper.WeaponEvents;
+                if (!ReferenceEquals(_weaponEvents, runtimeWeaponEvents))
+                {
+                    _weaponEvents = runtimeWeaponEvents;
+                    SubscribeToWeaponEvents(_weaponEvents);
+                }
+                else if (!ReferenceEquals(_subscribedWeaponEvents, _weaponEvents))
+                {
+                    SubscribeToWeaponEvents(_weaponEvents);
+                }
+            }
+            else if (!ReferenceEquals(_subscribedWeaponEvents, _weaponEvents))
+            {
+                SubscribeToWeaponEvents(_weaponEvents);
+            }
+
+            return _weaponEvents;
+        }
+
+        private void SubscribeToWeaponEvents(IWeaponEvents weaponEvents)
+        {
+            if (weaponEvents == null)
+            {
+                UnsubscribeFromWeaponEvents();
+                return;
+            }
+
+            if (ReferenceEquals(_subscribedWeaponEvents, weaponEvents))
+            {
+                return;
+            }
+
+            UnsubscribeFromWeaponEvents();
+            _subscribedWeaponEvents = weaponEvents;
+            _subscribedWeaponEvents.OnWeaponEquipped += HandleWeaponEquipped;
+            _subscribedWeaponEvents.OnWeaponFired += HandleWeaponFired;
+            _subscribedWeaponEvents.OnWeaponReloadStarted += HandleWeaponReloadStarted;
+            _subscribedWeaponEvents.OnWeaponReloadCancelled += HandleWeaponReloadCancelled;
+            _subscribedWeaponEvents.OnWeaponReloaded += HandleWeaponReloaded;
+            _subscribedWeaponEvents.OnWeaponAimChanged += HandleWeaponAimChanged;
+        }
+
+        private void UnsubscribeFromWeaponEvents()
+        {
+            if (_subscribedWeaponEvents == null)
+            {
+                return;
+            }
+
+            _subscribedWeaponEvents.OnWeaponEquipped -= HandleWeaponEquipped;
+            _subscribedWeaponEvents.OnWeaponFired -= HandleWeaponFired;
+            _subscribedWeaponEvents.OnWeaponReloadStarted -= HandleWeaponReloadStarted;
+            _subscribedWeaponEvents.OnWeaponReloadCancelled -= HandleWeaponReloadCancelled;
+            _subscribedWeaponEvents.OnWeaponReloaded -= HandleWeaponReloaded;
+            _subscribedWeaponEvents.OnWeaponAimChanged -= HandleWeaponAimChanged;
+            _subscribedWeaponEvents = null;
+        }
+
+        private void SubscribeToRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
+            RuntimeKernelBootstrapper.EventsReconfigured += HandleRuntimeEventsReconfigured;
+        }
+
+        private void UnsubscribeFromRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
         }
 
         private void ResolveAnimator()
