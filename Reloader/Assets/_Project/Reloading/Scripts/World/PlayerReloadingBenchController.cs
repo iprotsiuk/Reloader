@@ -38,6 +38,8 @@ namespace Reloader.Reloading.World
         public void Tick()
         {
             ResolveReferences();
+            var pickupPressedThisFrame = IsPickupPressedThisFrame();
+
             if (_resolver == null || !_resolver.TryResolveBenchTarget(out var target) || target == null)
             {
                 CloseActiveWorkbenchIfAny();
@@ -52,7 +54,7 @@ namespace Reloader.Reloading.World
 
             _activeTarget = target;
 
-            if (!IsPickupPressedThisFrame())
+            if (!pickupPressedThisFrame)
             {
                 return;
             }

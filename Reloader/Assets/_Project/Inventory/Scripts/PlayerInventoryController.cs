@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Reloader.Core;
 using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.Player;
 using UnityEngine;
 
@@ -20,6 +21,9 @@ namespace Reloader.Inventory
 
         private IPlayerInputSource _inputSource;
         private IInventoryPickupTargetResolver _pickupTargetResolver;
+        private IInventoryEvents _inventoryEvents;
+        private IInventoryEvents _subscribedInventoryEvents;
+        private bool _useRuntimeKernelInventoryEvents = true;
         private readonly Dictionary<string, IInventoryPickupTarget> _pendingPickupTargetsById = new Dictionary<string, IInventoryPickupTarget>();
         private bool _loggedMissingInputSource;
 
@@ -36,12 +40,12 @@ namespace Reloader.Inventory
         private void OnEnable()
         {
             ResolveReferences();
-            GameEvents.OnItemPickupRequested += HandleItemPickupRequested;
+            SubscribeToInventoryEvents(ResolveInventoryEvents());
         }
 
         private void OnDisable()
         {
-            GameEvents.OnItemPickupRequested -= HandleItemPickupRequested;
+            UnsubscribeFromInventoryEvents();
             _pendingPickupTargetsById.Clear();
         }
 
@@ -50,10 +54,21 @@ namespace Reloader.Inventory
             Tick();
         }
 
-        public void Configure(IPlayerInputSource inputSource, IInventoryPickupTargetResolver pickupTargetResolver, PlayerInventoryRuntime runtime = null)
+        public void Configure(
+            IPlayerInputSource inputSource,
+            IInventoryPickupTargetResolver pickupTargetResolver,
+            PlayerInventoryRuntime runtime = null,
+            IInventoryEvents inventoryEvents = null)
         {
             _inputSource = inputSource;
             _pickupTargetResolver = pickupTargetResolver;
+            _useRuntimeKernelInventoryEvents = inventoryEvents == null;
+            _inventoryEvents = inventoryEvents;
+            if (isActiveAndEnabled)
+            {
+                SubscribeToInventoryEvents(ResolveInventoryEvents());
+            }
+
             Runtime = runtime ?? new PlayerInventoryRuntime();
             Runtime.SetBackpackCapacity(ResolveStartingBackpackCapacity());
         }
@@ -82,17 +97,18 @@ namespace Reloader.Inventory
                 Runtime.SelectBeltSlot(beltPressed);
                 if (Runtime.SelectedBeltIndex != previous)
                 {
-                    GameEvents.RaiseBeltSelectionChanged(Runtime.SelectedBeltIndex);
+                    ResolveInventoryEvents().RaiseBeltSelectionChanged(Runtime.SelectedBeltIndex);
                     UpdateDebugFields();
                 }
             }
 
-            if (_pickupTargetResolver == null || !_pickupTargetResolver.TryResolvePickupTarget(out var pickupTarget) || pickupTarget == null)
+            var pickupPressedThisFrame = _inputSource.ConsumePickupPressed();
+            if (!pickupPressedThisFrame)
             {
                 return;
             }
 
-            if (!_inputSource.ConsumePickupPressed())
+            if (_pickupTargetResolver == null || !_pickupTargetResolver.TryResolvePickupTarget(out var pickupTarget) || pickupTarget == null)
             {
                 return;
             }
@@ -101,7 +117,7 @@ namespace Reloader.Inventory
             if (!string.IsNullOrWhiteSpace(resolvedItemId))
             {
                 _pendingPickupTargetsById[resolvedItemId] = pickupTarget;
-                GameEvents.RaiseItemPickupRequested(resolvedItemId);
+                ResolveInventoryEvents().RaiseItemPickupRequested(resolvedItemId);
             }
         }
 
@@ -118,7 +134,7 @@ namespace Reloader.Inventory
                 return false;
             }
 
-            GameEvents.RaiseInventoryChanged();
+            ResolveInventoryEvents().RaiseInventoryChanged();
             UpdateDebugFields();
             return true;
         }
@@ -150,13 +166,13 @@ namespace Reloader.Inventory
                 : Runtime.TryStoreItem(itemId, out area, out index, out rejectReason);
             if (!stored)
             {
-                GameEvents.RaiseItemPickupRejected(itemId, rejectReason);
+                ResolveInventoryEvents().RaiseItemPickupRejected(itemId, rejectReason);
                 _pendingPickupTargetsById.Remove(itemId);
                 return;
             }
 
-            GameEvents.RaiseItemStored(itemId, area, index);
-            GameEvents.RaiseInventoryChanged();
+            ResolveInventoryEvents().RaiseItemStored(itemId, area, index);
+            ResolveInventoryEvents().RaiseInventoryChanged();
             if (_pendingPickupTargetsById.TryGetValue(itemId, out var target) && target != null)
             {
                 target.OnPickedUp();
@@ -183,6 +199,63 @@ namespace Reloader.Inventory
             {
                 _pickupTargetResolver = DependencyResolutionGuard.FindInterface<IInventoryPickupTargetResolver>(GetComponents<MonoBehaviour>());
             }
+
+            ResolveInventoryEvents();
+        }
+
+        private IInventoryEvents ResolveInventoryEvents()
+        {
+            if (_useRuntimeKernelInventoryEvents)
+            {
+                var runtimeInventoryEvents = RuntimeKernelBootstrapper.InventoryEvents;
+                if (!ReferenceEquals(_inventoryEvents, runtimeInventoryEvents))
+                {
+                    _inventoryEvents = runtimeInventoryEvents;
+                    SubscribeToInventoryEvents(_inventoryEvents);
+                }
+                else if (!ReferenceEquals(_subscribedInventoryEvents, _inventoryEvents))
+                {
+                    SubscribeToInventoryEvents(_inventoryEvents);
+                }
+
+                return _inventoryEvents;
+            }
+
+            if (!ReferenceEquals(_subscribedInventoryEvents, _inventoryEvents))
+            {
+                SubscribeToInventoryEvents(_inventoryEvents);
+            }
+
+            return _inventoryEvents;
+        }
+
+        private void SubscribeToInventoryEvents(IInventoryEvents inventoryEvents)
+        {
+            if (inventoryEvents == null)
+            {
+                UnsubscribeFromInventoryEvents();
+                return;
+            }
+
+            if (ReferenceEquals(_subscribedInventoryEvents, inventoryEvents))
+            {
+                return;
+            }
+
+            UnsubscribeFromInventoryEvents();
+            _subscribedInventoryEvents = inventoryEvents;
+            _subscribedInventoryEvents.OnItemPickupRequested += HandleItemPickupRequested;
+        }
+
+        private void UnsubscribeFromInventoryEvents()
+        {
+            if (_subscribedInventoryEvents == null)
+            {
+                return;
+            }
+
+            _subscribedInventoryEvents.OnItemPickupRequested -= HandleItemPickupRequested;
+            _subscribedInventoryEvents = null;
         }
 
         private static string ResolvePickupItemId(IInventoryPickupTarget pickupTarget)

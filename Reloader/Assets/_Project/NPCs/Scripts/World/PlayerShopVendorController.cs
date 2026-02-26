@@ -53,6 +53,8 @@ namespace Reloader.NPCs.World
                 _inputSource,
                 _resolver);
 
+            var pickupPressedThisFrame = _inputSource != null && _inputSource.ConsumePickupPressed();
+
             if (_resolver == null || !_resolver.TryResolveVendorTarget(out var target) || target == null)
             {
                 if (_isTradeOpen)
@@ -62,12 +64,7 @@ namespace Reloader.NPCs.World
                 return;
             }
 
-            if (_isTradeOpen || _inputSource == null)
-            {
-                return;
-            }
-
-            if (!_inputSource.ConsumePickupPressed())
+            if (_isTradeOpen || !pickupPressedThisFrame)
             {
                 return;
             }

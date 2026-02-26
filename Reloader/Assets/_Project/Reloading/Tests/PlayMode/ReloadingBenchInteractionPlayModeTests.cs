@@ -104,6 +104,31 @@ namespace Reloader.Reloading.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void PickupPressWithoutBenchTarget_ConsumesInputAndDoesNotAutoOpenWhenBenchAppearsLater()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerReloadingBenchController>();
+            var resolver = root.AddComponent<TestBenchResolver>();
+            var target = root.AddComponent<TestBenchTarget>();
+            controller.Configure(input, resolver);
+
+            input.PickupPressedThisFrame = true;
+            resolver.Target = null;
+            controller.Tick();
+
+            resolver.Target = target;
+            controller.Tick();
+            Assert.That(target.OpenCalls, Is.EqualTo(0));
+
+            input.PickupPressedThisFrame = true;
+            controller.Tick();
+            Assert.That(target.OpenCalls, Is.EqualTo(1));
+
+            Object.Destroy(root);
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public bool PickupPressedThisFrame;
