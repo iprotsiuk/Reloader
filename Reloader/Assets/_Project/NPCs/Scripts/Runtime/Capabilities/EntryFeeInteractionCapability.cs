@@ -9,6 +9,7 @@ namespace Reloader.NPCs.Runtime.Capabilities
 
         [SerializeField] private string _displayName = "Pay Entry Fee";
         [SerializeField] private int _priority = 15;
+        [SerializeField] private int _defaultEntryFeeAmount = 25;
 
         private bool _hasPaidEntryFee;
         private int _lastPaidAmount;
@@ -29,9 +30,10 @@ namespace Reloader.NPCs.Runtime.Capabilities
 
         public NpcActionDefinition[] GetActions()
         {
+            var amount = Mathf.Max(1, _defaultEntryFeeAmount);
             return new[]
             {
-                new NpcActionDefinition(ActionKey, _displayName, _priority)
+                new NpcActionDefinition(ActionKey, _displayName, _priority, "amount:" + amount)
             };
         }
 
