@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Reloader.Core;
 using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.UI.Toolkit.Contracts;
@@ -18,12 +19,18 @@ namespace Reloader.UI.Toolkit.TabInventory
         private TabInventoryViewBinder _viewBinder;
         private TabInventoryDragController _dragController;
         private IPlayerInputSource _inputSource;
+        private IInventoryEvents _inventoryEvents;
+        private IInventoryEvents _subscribedInventoryEvents;
+        private bool _useRuntimeKernelInventoryEvents = true;
+        private IUiStateEvents _uiStateEvents;
+        private bool _useRuntimeKernelUiStateEvents = true;
         private bool _isOpen;
         private string _activeSection = "inventory";
 
         private void OnEnable()
         {
-            GameEvents.OnInventoryChanged += HandleInventoryChanged;
+            SubscribeToRuntimeHubReconfigure();
+            SubscribeToInventoryEvents(ResolveInventoryEvents());
             Refresh();
         }
 
@@ -42,6 +49,22 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             Refresh();
+        }
+
+        public void Configure(IUiStateEvents uiStateEvents = null)
+        {
+            _useRuntimeKernelUiStateEvents = uiStateEvents == null;
+            _uiStateEvents = uiStateEvents;
+        }
+
+        public void Configure(IInventoryEvents inventoryEvents = null)
+        {
+            _useRuntimeKernelInventoryEvents = inventoryEvents == null;
+            _inventoryEvents = inventoryEvents;
+            if (isActiveAndEnabled)
+            {
+                SubscribeToInventoryEvents(ResolveInventoryEvents());
+            }
         }
 
         public void SetInputSource(IPlayerInputSource inputSource)
@@ -111,7 +134,8 @@ namespace Reloader.UI.Toolkit.TabInventory
 
         private void OnDisable()
         {
-            GameEvents.OnInventoryChanged -= HandleInventoryChanged;
+            UnsubscribeFromRuntimeHubReconfigure();
+            UnsubscribeFromInventoryEvents();
             if (_isOpen)
             {
                 SetMenuOpen(false);
@@ -255,7 +279,101 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             _isOpen = isOpen;
-            GameEvents.RaiseTabInventoryVisibilityChanged(_isOpen);
+            ResolveUiStateEvents()?.RaiseTabInventoryVisibilityChanged(_isOpen);
+        }
+
+        private IUiStateEvents ResolveUiStateEvents()
+        {
+            if (_useRuntimeKernelUiStateEvents)
+            {
+                _uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
+            }
+
+            return _uiStateEvents;
+        }
+
+        private void HandleRuntimeEventsReconfigured()
+        {
+            if (!isActiveAndEnabled)
+            {
+                return;
+            }
+
+            if (_useRuntimeKernelInventoryEvents)
+            {
+                SubscribeToInventoryEvents(ResolveInventoryEvents());
+            }
+
+            if (_useRuntimeKernelUiStateEvents)
+            {
+                ResolveUiStateEvents()?.RaiseTabInventoryVisibilityChanged(_isOpen);
+            }
+        }
+
+        private IInventoryEvents ResolveInventoryEvents()
+        {
+            if (_useRuntimeKernelInventoryEvents)
+            {
+                var runtimeInventoryEvents = RuntimeKernelBootstrapper.InventoryEvents;
+                if (!ReferenceEquals(_inventoryEvents, runtimeInventoryEvents))
+                {
+                    _inventoryEvents = runtimeInventoryEvents;
+                    SubscribeToInventoryEvents(_inventoryEvents);
+                }
+                else if (!ReferenceEquals(_subscribedInventoryEvents, _inventoryEvents))
+                {
+                    SubscribeToInventoryEvents(_inventoryEvents);
+                }
+
+                return _inventoryEvents;
+            }
+
+            if (!ReferenceEquals(_subscribedInventoryEvents, _inventoryEvents))
+            {
+                SubscribeToInventoryEvents(_inventoryEvents);
+            }
+
+            return _inventoryEvents;
+        }
+
+        private void SubscribeToInventoryEvents(IInventoryEvents inventoryEvents)
+        {
+            if (inventoryEvents == null)
+            {
+                UnsubscribeFromInventoryEvents();
+                return;
+            }
+
+            if (ReferenceEquals(_subscribedInventoryEvents, inventoryEvents))
+            {
+                return;
+            }
+
+            UnsubscribeFromInventoryEvents();
+            _subscribedInventoryEvents = inventoryEvents;
+            _subscribedInventoryEvents.OnInventoryChanged += HandleInventoryChanged;
+        }
+
+        private void UnsubscribeFromInventoryEvents()
+        {
+            if (_subscribedInventoryEvents == null)
+            {
+                return;
+            }
+
+            _subscribedInventoryEvents.OnInventoryChanged -= HandleInventoryChanged;
+            _subscribedInventoryEvents = null;
+        }
+
+        private void SubscribeToRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
+            RuntimeKernelBootstrapper.EventsReconfigured += HandleRuntimeEventsReconfigured;
+        }
+
+        private void UnsubscribeFromRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
         }
     }
 }

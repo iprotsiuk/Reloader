@@ -1,5 +1,5 @@
 using UnityEngine;
-using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 
 namespace Reloader.Player
 {
@@ -19,6 +19,8 @@ namespace Reloader.Player
         [SerializeField] private Vector2 _lookFovScaleClamp = new Vector2(0.1f, 2f);
 
         private IPlayerInputSource _inputSource;
+        private IUiStateEvents _uiStateEvents;
+        private bool _useRuntimeKernelUiStateEvents = true;
         private float _yaw;
         private float _pitch;
         private Vector2 _smoothedLookInput;
@@ -72,10 +74,12 @@ namespace Reloader.Player
             Tick(Time.deltaTime);
         }
 
-        public void Configure(IPlayerInputSource inputSource, Transform pitchTransform)
+        public void Configure(IPlayerInputSource inputSource, Transform pitchTransform, IUiStateEvents uiStateEvents = null)
         {
             _inputSource = inputSource;
             _pitchTransform = pitchTransform;
+            _useRuntimeKernelUiStateEvents = uiStateEvents == null;
+            _uiStateEvents = uiStateEvents;
             _yaw = transform.eulerAngles.y;
             _pitch = _pitchTransform != null ? Mathf.DeltaAngle(0f, _pitchTransform.localEulerAngles.x) : 0f;
             ResetSmoothingState();
@@ -100,7 +104,7 @@ namespace Reloader.Player
                 return;
             }
 
-            if (PlayerCursorLockController.IsAnyMenuOpen || GameEvents.IsAnyMenuOpen)
+            if (PlayerCursorLockController.IsAnyMenuOpen || (ResolveUiStateEvents()?.IsAnyMenuOpen ?? false))
             {
                 return;
             }
@@ -151,6 +155,16 @@ namespace Reloader.Player
             var smoothingAlpha = 1f - Mathf.Exp(-Mathf.Max(0f, _lookSmoothingSpeed) * sampleDeltaTime);
             _smoothedLookInput = Vector2.Lerp(_smoothedLookInput, lookInput, smoothingAlpha);
             return Vector2.Lerp(lookInput, _smoothedLookInput, Mathf.Clamp01(_lookSmoothingStrength));
+        }
+
+        private IUiStateEvents ResolveUiStateEvents()
+        {
+            if (_useRuntimeKernelUiStateEvents)
+            {
+                _uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
+            }
+
+            return _uiStateEvents;
         }
 
         private void ResetSmoothingState()

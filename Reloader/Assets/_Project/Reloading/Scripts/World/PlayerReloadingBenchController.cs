@@ -1,5 +1,5 @@
 using Reloader.Player;
-using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -12,7 +12,10 @@ namespace Reloader.Reloading.World
 
         private IPlayerInputSource _inputSource;
         private IPlayerReloadingBenchResolver _resolver;
+        private IUiStateEvents _uiStateEvents;
         private IReloadingBenchTarget _activeTarget;
+        private bool _useRuntimeKernelUiStateEvents = true;
+        private bool _flushPickupInputAtEndOfFrame;
 
         private void Awake()
         {
@@ -24,22 +27,38 @@ namespace Reloader.Reloading.World
             Tick();
         }
 
+        private void LateUpdate()
+        {
+            if (!_flushPickupInputAtEndOfFrame || _inputSource == null)
+            {
+                return;
+            }
+
+            _flushPickupInputAtEndOfFrame = false;
+            _inputSource.ConsumePickupPressed();
+        }
+
         private void OnDisable()
         {
             CloseActiveWorkbenchIfAny();
+            _flushPickupInputAtEndOfFrame = false;
         }
 
-        public void Configure(IPlayerInputSource inputSource, IPlayerReloadingBenchResolver resolver)
+        public void Configure(IPlayerInputSource inputSource, IPlayerReloadingBenchResolver resolver, IUiStateEvents uiStateEvents = null)
         {
             _inputSource = inputSource;
             _resolver = resolver;
+            _useRuntimeKernelUiStateEvents = uiStateEvents == null;
+            _uiStateEvents = uiStateEvents;
         }
 
         public void Tick()
         {
             ResolveReferences();
+
             if (_resolver == null || !_resolver.TryResolveBenchTarget(out var target) || target == null)
             {
+                _flushPickupInputAtEndOfFrame = true;
                 CloseActiveWorkbenchIfAny();
                 return;
             }
@@ -47,18 +66,21 @@ namespace Reloader.Reloading.World
             if (_activeTarget != null && !ReferenceEquals(_activeTarget, target) && _activeTarget.IsWorkbenchOpen)
             {
                 _activeTarget.CloseWorkbench();
-                GameEvents.RaiseWorkbenchMenuVisibilityChanged(false);
+                RaiseWorkbenchMenuVisibilityChanged(false);
             }
 
             _activeTarget = target;
 
-            if (!IsPickupPressedThisFrame())
+            var pickupPressedThisFrame = IsPickupPressedThisFrame();
+            if (!pickupPressedThisFrame)
             {
+                _flushPickupInputAtEndOfFrame = false;
                 return;
             }
 
+            _flushPickupInputAtEndOfFrame = false;
             target.OpenWorkbench();
-            GameEvents.RaiseWorkbenchMenuVisibilityChanged(true);
+            RaiseWorkbenchMenuVisibilityChanged(true);
         }
 
         private void CloseActiveWorkbenchIfAny()
@@ -66,7 +88,7 @@ namespace Reloader.Reloading.World
             if (_activeTarget != null && _activeTarget.IsWorkbenchOpen)
             {
                 _activeTarget.CloseWorkbench();
-                GameEvents.RaiseWorkbenchMenuVisibilityChanged(false);
+                RaiseWorkbenchMenuVisibilityChanged(false);
             }
 
             _activeTarget = null;
@@ -103,6 +125,8 @@ namespace Reloader.Reloading.World
             {
                 _resolver = GetInterfaceFromBehaviours<IPlayerReloadingBenchResolver>(GetComponents<MonoBehaviour>());
             }
+
+            ResolveUiStateEvents();
         }
 
         private static TInterface GetInterfaceFromBehaviours<TInterface>(MonoBehaviour[] behaviours) where TInterface : class
@@ -121,6 +145,21 @@ namespace Reloader.Reloading.World
             }
 
             return null;
+        }
+
+        private void RaiseWorkbenchMenuVisibilityChanged(bool isVisible)
+        {
+            ResolveUiStateEvents()?.RaiseWorkbenchMenuVisibilityChanged(isVisible);
+        }
+
+        private IUiStateEvents ResolveUiStateEvents()
+        {
+            if (_useRuntimeKernelUiStateEvents)
+            {
+                _uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
+            }
+
+            return _uiStateEvents;
         }
     }
 }

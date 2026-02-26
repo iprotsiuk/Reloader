@@ -2,6 +2,7 @@ using NUnit.Framework;
 using Reloader.Player;
 using Reloader.Player.Viewmodel;
 using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using UnityEngine;
 
 namespace Reloader.Player.Tests.PlayMode
@@ -129,27 +130,147 @@ namespace Reloader.Player.Tests.PlayMode
         [Test]
         public void PlayerLookController_Tick_MenuOpen_DoesNotRotateCamera()
         {
-            var root = new GameObject("PlayerRoot");
-            var cameraPivot = new GameObject("CameraPivot");
-            cameraPivot.transform.SetParent(root.transform);
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            GameObject root = null;
 
-            var input = root.AddComponent<TestInputSource>();
-            input.Look = new Vector2(12f, -8f);
+            try
+            {
+                RuntimeKernelBootstrapper.Events = runtimeEvents;
 
-            var look = root.AddComponent<PlayerLookController>();
-            look.Configure(input, cameraPivot.transform);
-            look.LookSensitivity = Vector2.one;
-            look.Tick(1f);
-            var yawAfterFirstTick = root.transform.eulerAngles.y;
+                root = new GameObject("PlayerRoot");
+                var cameraPivot = new GameObject("CameraPivot");
+                cameraPivot.transform.SetParent(root.transform);
 
-            GameEvents.RaiseTabInventoryVisibilityChanged(true);
-            look.Tick(1f);
-            var yawAfterMenuOpenTick = root.transform.eulerAngles.y;
+                var input = root.AddComponent<TestInputSource>();
+                input.Look = new Vector2(12f, -8f);
 
-            Assert.That(yawAfterMenuOpenTick, Is.EqualTo(yawAfterFirstTick).Within(0.001f));
+                var look = root.AddComponent<PlayerLookController>();
+                look.Configure(input, cameraPivot.transform);
+                look.LookSensitivity = Vector2.one;
+                look.Tick(1f);
+                var yawAfterFirstTick = root.transform.eulerAngles.y;
 
-            GameEvents.RaiseTabInventoryVisibilityChanged(false);
-            Object.DestroyImmediate(root);
+                runtimeEvents.RaiseTabInventoryVisibilityChanged(true);
+                look.Tick(1f);
+                var yawAfterMenuOpenTick = root.transform.eulerAngles.y;
+
+                Assert.That(yawAfterMenuOpenTick, Is.EqualTo(yawAfterFirstTick).Within(0.001f));
+            }
+            finally
+            {
+                runtimeEvents.RaiseTabInventoryVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
+                if (root != null)
+                {
+                    Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
+        public void PlayerLookController_Tick_UsesInjectedUiStateEvents_InsteadOfRuntimeKernelUiStateEvents()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeUiStateEvents = new DefaultRuntimeEvents();
+            GameObject root = null;
+
+            try
+            {
+                RuntimeKernelBootstrapper.Events = runtimeUiStateEvents;
+
+                root = new GameObject("PlayerRoot");
+                var cameraPivot = new GameObject("CameraPivot");
+                cameraPivot.transform.SetParent(root.transform);
+
+                var input = root.AddComponent<TestInputSource>();
+                input.Look = new Vector2(12f, -8f);
+
+                var uiStateEvents = new TestUiStateEvents();
+                var look = root.AddComponent<PlayerLookController>();
+                look.Configure(input, cameraPivot.transform, uiStateEvents);
+                look.LookSensitivity = Vector2.one;
+                look.Tick(1f);
+                var yawAfterFirstTick = root.transform.eulerAngles.y;
+
+                runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(true);
+                look.Tick(1f);
+                var yawAfterRuntimeKernelOpenTick = root.transform.eulerAngles.y;
+
+                uiStateEvents.RaiseTabInventoryVisibilityChanged(true);
+                look.Tick(1f);
+                var yawAfterInjectedUiStateOpenTick = root.transform.eulerAngles.y;
+
+                Assert.That(yawAfterRuntimeKernelOpenTick, Is.GreaterThan(yawAfterFirstTick + 0.01f));
+                Assert.That(yawAfterInjectedUiStateOpenTick, Is.EqualTo(yawAfterRuntimeKernelOpenTick).Within(0.001f));
+            }
+            finally
+            {
+                runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
+                if (root != null)
+                {
+                    Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
+        public void PlayerLookController_WithoutInjectedUiStateEvents_RebindsWhenRuntimeKernelHubIsReplaced()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            GameObject root = null;
+
+            try
+            {
+                RuntimeKernelBootstrapper.Events = initialHub;
+
+                root = new GameObject("PlayerRoot");
+                var cameraPivot = new GameObject("CameraPivot");
+                cameraPivot.transform.SetParent(root.transform);
+
+                var input = root.AddComponent<TestInputSource>();
+                input.Look = new Vector2(12f, 0f);
+
+                var look = root.AddComponent<PlayerLookController>();
+                look.Configure(input, cameraPivot.transform);
+                look.LookSensitivity = Vector2.one;
+                look.Tick(1f);
+                var yawAfterFirstTick = root.transform.eulerAngles.y;
+
+                initialHub.RaiseTabInventoryVisibilityChanged(true);
+                look.Tick(1f);
+                var yawAfterInitialHubOpenTick = root.transform.eulerAngles.y;
+
+                initialHub.RaiseTabInventoryVisibilityChanged(false);
+                look.Tick(1f);
+                var yawAfterInitialHubCloseTick = root.transform.eulerAngles.y;
+
+                RuntimeKernelBootstrapper.Events = replacementHub;
+
+                initialHub.RaiseTabInventoryVisibilityChanged(true);
+                look.Tick(1f);
+                var yawAfterOldHubOpenPostSwapTick = root.transform.eulerAngles.y;
+
+                replacementHub.RaiseTabInventoryVisibilityChanged(true);
+                look.Tick(1f);
+                var yawAfterReplacementHubOpenTick = root.transform.eulerAngles.y;
+
+                Assert.That(yawAfterInitialHubOpenTick, Is.EqualTo(yawAfterFirstTick).Within(0.001f));
+                Assert.That(yawAfterInitialHubCloseTick, Is.GreaterThan(yawAfterInitialHubOpenTick + 0.01f));
+                Assert.That(yawAfterOldHubOpenPostSwapTick, Is.GreaterThan(yawAfterInitialHubCloseTick + 0.01f));
+                Assert.That(yawAfterReplacementHubOpenTick, Is.EqualTo(yawAfterOldHubOpenPostSwapTick).Within(0.001f));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                if (root != null)
+                {
+                    Object.DestroyImmediate(root);
+                }
+            }
         }
 
         [Test]
@@ -360,18 +481,21 @@ namespace Reloader.Player.Tests.PlayMode
         {
             var previousLockState = Cursor.lockState;
             var previousVisible = Cursor.visible;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeUiStateEvents = new DefaultRuntimeEvents();
             try
             {
+                RuntimeKernelBootstrapper.Events = runtimeUiStateEvents;
                 var go = new GameObject("CursorLock");
                 var controller = go.AddComponent<PlayerCursorLockController>();
 
                 controller.LockCursor();
                 Assert.That(controller.IsCursorLockRequested, Is.True);
 
-                GameEvents.RaiseTabInventoryVisibilityChanged(true);
+                runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(true);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
 
-                GameEvents.RaiseTabInventoryVisibilityChanged(false);
+                runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(false);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
                 Assert.That(controller.IsCursorLockRequested, Is.True);
 
@@ -379,7 +503,170 @@ namespace Reloader.Player.Tests.PlayMode
             }
             finally
             {
-                GameEvents.RaiseTabInventoryVisibilityChanged(false);
+                runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
+        }
+
+        [Test]
+        public void PlayerCursorLockController_UsesInjectedUiAndShopEventChannels()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeUiStateEvents = new DefaultRuntimeEvents();
+            var go = new GameObject("CursorLockInjectedEvents");
+            go.SetActive(false);
+
+            var controller = go.AddComponent<PlayerCursorLockController>();
+            var uiStateEvents = new TestUiStateEvents();
+            var shopEvents = new TestShopEvents();
+            controller.Configure(uiStateEvents, shopEvents);
+
+            try
+            {
+                RuntimeKernelBootstrapper.Events = runtimeUiStateEvents;
+                go.SetActive(true);
+                controller.LockCursor();
+
+                runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+
+                uiStateEvents.RaiseTabInventoryVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+
+                uiStateEvents.RaiseTabInventoryVisibilityChanged(false);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+
+                shopEvents.RaiseShopTradeOpened("vendor-1");
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+
+                shopEvents.RaiseShopTradeClosed();
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+            }
+            finally
+            {
+                runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(go);
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
+        }
+
+        [Test]
+        public void PlayerCursorLockController_WithoutInjectedEvents_RebindsWhenRuntimeKernelHubIsReconfigured()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(System.Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var go = new GameObject("CursorLockRuntimeHubReconfigure");
+            var controller = go.AddComponent<PlayerCursorLockController>();
+
+            try
+            {
+                controller.LockCursor();
+
+                initialHub.RaiseTabInventoryVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+
+                initialHub.RaiseTabInventoryVisibilityChanged(false);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+
+                RuntimeKernelBootstrapper.Configure(System.Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+
+                initialHub.RaiseTabInventoryVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+
+                replacementHub.RaiseTabInventoryVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+            }
+            finally
+            {
+                replacementHub.RaiseTabInventoryVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(go);
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
+        }
+
+        [Test]
+        public void PlayerCursorLockController_WithoutInjectedEvents_RebindsWhenRuntimeKernelHubIsReplacedViaSetter()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = initialHub;
+
+            var go = new GameObject("CursorLockRuntimeHubSetterSwap");
+            go.SetActive(false);
+            var controller = go.AddComponent<PlayerCursorLockController>();
+            go.SetActive(true);
+
+            try
+            {
+                initialHub.RaiseWorkbenchMenuVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+
+                initialHub.RaiseWorkbenchMenuVisibilityChanged(false);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+
+                RuntimeKernelBootstrapper.Events = replacementHub;
+
+                initialHub.RaiseWorkbenchMenuVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+
+                replacementHub.RaiseWorkbenchMenuVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+            }
+            finally
+            {
+                replacementHub.RaiseWorkbenchMenuVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(go);
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
+        }
+
+        [Test]
+        public void PlayerCursorLockController_RuntimeHubSwap_ReconcilesMenuFlagsImmediately()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = initialHub;
+
+            var go = new GameObject("CursorLockRuntimeHubSwapStateReconcile");
+            var controller = go.AddComponent<PlayerCursorLockController>();
+
+            try
+            {
+                controller.LockCursor();
+                initialHub.RaiseShopTradeOpened("vendor-1");
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+
+                RuntimeKernelBootstrapper.Events = replacementHub;
+
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+                Assert.That(controller.IsCursorLockRequested, Is.True);
+            }
+            finally
+            {
+                replacementHub.RaiseShopTradeClosed();
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(go);
                 Cursor.lockState = previousLockState;
                 Cursor.visible = previousVisible;
             }
@@ -519,21 +806,35 @@ namespace Reloader.Player.Tests.PlayMode
         [Test]
         public void ViewmodelAnimationAdapter_MapsWeaponEventsToRuntimeState()
         {
-            var root = new GameObject("ViewmodelAdapterRoot");
-            var adapter = root.AddComponent<ViewmodelAnimationAdapter>();
-            adapter.SetEquippedItemIdForTests("weapon-rifle-01");
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeWeaponEvents = new DefaultRuntimeEvents();
+            GameObject root = null;
 
-            GameEvents.RaiseWeaponReloadStarted("weapon-rifle-01");
-            GameEvents.RaiseWeaponFired("weapon-rifle-01", Vector3.zero, Vector3.forward);
-            GameEvents.RaiseWeaponAimChanged("weapon-rifle-01", true);
-            GameEvents.RaiseWeaponReloadCancelled("weapon-rifle-01", WeaponReloadCancelReason.Sprint);
+            try
+            {
+                RuntimeKernelBootstrapper.Events = runtimeWeaponEvents;
+                root = new GameObject("ViewmodelAdapterRoot");
+                var adapter = root.AddComponent<ViewmodelAnimationAdapter>();
+                adapter.SetEquippedItemIdForTests("weapon-rifle-01");
 
-            Assert.That(adapter.IsReloadingDebug, Is.False);
-            Assert.That(adapter.IsAimingDebug, Is.True);
-            Assert.That(adapter.AimWeightDebug, Is.EqualTo(1f));
-            Assert.That(adapter.FireTriggerCountDebug, Is.EqualTo(1));
+                runtimeWeaponEvents.RaiseWeaponReloadStarted("weapon-rifle-01");
+                runtimeWeaponEvents.RaiseWeaponFired("weapon-rifle-01", Vector3.zero, Vector3.forward);
+                runtimeWeaponEvents.RaiseWeaponAimChanged("weapon-rifle-01", true);
+                runtimeWeaponEvents.RaiseWeaponReloadCancelled("weapon-rifle-01", WeaponReloadCancelReason.Sprint);
 
-            Object.DestroyImmediate(root);
+                Assert.That(adapter.IsReloadingDebug, Is.False);
+                Assert.That(adapter.IsAimingDebug, Is.True);
+                Assert.That(adapter.AimWeightDebug, Is.EqualTo(1f));
+                Assert.That(adapter.FireTriggerCountDebug, Is.EqualTo(1));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                if (root != null)
+                {
+                    Object.DestroyImmediate(root);
+                }
+            }
         }
 
         [Test]
@@ -656,6 +957,65 @@ namespace Reloader.Player.Tests.PlayMode
                 ReloadPressedThisFrame = false;
                 BeltSlotPressed = -1;
             }
+        }
+
+        private sealed class TestUiStateEvents : IUiStateEvents
+        {
+            public bool IsShopTradeMenuOpen { get; private set; }
+            public bool IsWorkbenchMenuVisible { get; private set; }
+            public bool IsTabInventoryVisible { get; private set; }
+            public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible;
+
+            public event System.Action<bool> OnWorkbenchMenuVisibilityChanged;
+            public event System.Action<bool> OnTabInventoryVisibilityChanged;
+
+            public void RaiseWorkbenchMenuVisibilityChanged(bool isVisible)
+            {
+                IsWorkbenchMenuVisible = isVisible;
+                OnWorkbenchMenuVisibilityChanged?.Invoke(isVisible);
+            }
+
+            public void RaiseTabInventoryVisibilityChanged(bool isVisible)
+            {
+                IsTabInventoryVisible = isVisible;
+                OnTabInventoryVisibilityChanged?.Invoke(isVisible);
+            }
+
+            public void SetShopTradeMenuOpen(bool isOpen)
+            {
+                IsShopTradeMenuOpen = isOpen;
+            }
+        }
+
+        private sealed class TestShopEvents : IShopEvents
+        {
+            public event System.Action<string> OnShopTradeOpenRequested;
+            public event System.Action<string> OnShopTradeOpened;
+            public event System.Action OnShopTradeClosed;
+            public event System.Action<string, int> OnShopBuyRequested;
+            public event System.Action<string, int> OnShopSellRequested;
+            public event System.Action<ShopCheckoutRequest> OnShopBuyCheckoutRequested;
+            public event System.Action<ShopCheckoutRequest> OnShopSellCheckoutRequested;
+            public event System.Action<string, int, bool, bool, string> OnShopTradeResult;
+
+            public void RaiseShopTradeOpenRequested(string vendorId) => OnShopTradeOpenRequested?.Invoke(vendorId);
+
+            public void RaiseShopTradeOpened(string vendorId)
+            {
+                OnShopTradeOpened?.Invoke(vendorId);
+            }
+
+            public void RaiseShopTradeClosed()
+            {
+                OnShopTradeClosed?.Invoke();
+            }
+
+            public void RaiseShopBuyRequested(string itemId, int quantity) => OnShopBuyRequested?.Invoke(itemId, quantity);
+            public void RaiseShopSellRequested(string itemId, int quantity) => OnShopSellRequested?.Invoke(itemId, quantity);
+            public void RaiseShopBuyCheckoutRequested(ShopCheckoutRequest request) => OnShopBuyCheckoutRequested?.Invoke(request);
+            public void RaiseShopSellCheckoutRequested(ShopCheckoutRequest request) => OnShopSellCheckoutRequested?.Invoke(request);
+            public void RaiseShopTradeResult(string itemId, int quantity, bool isBuy, bool success, string failureReason)
+                => OnShopTradeResult?.Invoke(itemId, quantity, isBuy, success, failureReason);
         }
     }
 }

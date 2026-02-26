@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using Reloader.Core.Events;
 using Reloader.Core.Items;
+using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.Player;
 using UnityEngine;
@@ -11,6 +12,33 @@ namespace Reloader.Player.Tests.PlayMode
     public class PlayerInventoryControllerPlayModeTests
     {
         [Test]
+        public void Configure_InjectedInventoryEvents_RaisesAndHandlesEventsThroughInjectedDependency()
+        {
+            var root = new GameObject("InventoryControllerRoot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var target = new TestPickupTarget("item-77");
+            resolver.Target = target;
+
+            var injectedEvents = new FakeInventoryEvents();
+            controller.Configure(input, resolver, new PlayerInventoryRuntime(), injectedEvents);
+
+            input.BeltSlotPressed = 2;
+            input.PickupPressedThisFrame = true;
+            controller.Tick();
+
+            Assert.That(injectedEvents.BeltSelectionChangedCount, Is.EqualTo(1));
+            Assert.That(injectedEvents.PickupRequestedCount, Is.EqualTo(1));
+            Assert.That(injectedEvents.ItemStoredCount, Is.EqualTo(1));
+            Assert.That(injectedEvents.InventoryChangedCount, Is.EqualTo(1));
+            Assert.That(controller.Runtime.BeltSlotItemIds[0], Is.EqualTo("item-77"));
+            Assert.That(target.PickedUpCount, Is.EqualTo(1));
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void Awake_DefaultBackpackCapacity_IsNineSlots()
         {
             var root = new GameObject("InventoryControllerRoot");
@@ -20,6 +48,142 @@ namespace Reloader.Player.Tests.PlayMode
             Assert.That(controller.Runtime.BackpackCapacity, Is.EqualTo(9));
 
             Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void Configure_WithoutInjectedInventoryEvents_UsesRuntimeKernelInventoryEvents()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
+            var root = new GameObject("InventoryControllerRoot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var target = new TestPickupTarget("item-default-fallback");
+            resolver.Target = target;
+
+            var beltSelectionChangedCount = 0;
+            var itemStoredCount = 0;
+            runtimeHub.OnBeltSelectionChanged += _ => beltSelectionChangedCount++;
+            runtimeHub.OnItemStored += (_, _, _) => itemStoredCount++;
+
+            try
+            {
+                controller.Configure(input, resolver, new PlayerInventoryRuntime());
+
+                input.BeltSlotPressed = 1;
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
+
+                Assert.That(beltSelectionChangedCount, Is.EqualTo(1));
+                Assert.That(itemStoredCount, Is.EqualTo(1));
+                Assert.That(controller.Runtime.BeltSlotItemIds[0], Is.EqualTo("item-default-fallback"));
+                Assert.That(target.PickedUpCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void Configure_WithoutInjectedInventoryEvents_RebindsWhenRuntimeKernelHubIsReplaced()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = initialHub;
+
+            var root = new GameObject("InventoryControllerRoot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var target = new TestPickupTarget("item-hub-swap");
+            resolver.Target = target;
+
+            var initialHubPickupRequestedCount = 0;
+            var replacementHubPickupRequestedCount = 0;
+            initialHub.OnItemPickupRequested += _ => initialHubPickupRequestedCount++;
+            replacementHub.OnItemPickupRequested += _ => replacementHubPickupRequestedCount++;
+
+            try
+            {
+                controller.Configure(input, resolver, new PlayerInventoryRuntime());
+
+                RuntimeKernelBootstrapper.Events = replacementHub;
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
+
+                Assert.That(initialHubPickupRequestedCount, Is.EqualTo(0));
+                Assert.That(replacementHubPickupRequestedCount, Is.EqualTo(1));
+                Assert.That(controller.Runtime.BeltSlotItemIds[0], Is.EqualTo("item-hub-swap"));
+                Assert.That(target.PickedUpCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void Configure_WithoutInjectedInventoryEvents_RebindsInboundCallbacksImmediatelyWhenRuntimeKernelHubIsReconfigured()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(System.Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var root = new GameObject("InventoryControllerRoot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+
+            try
+            {
+                controller.Configure(input, resolver, new PlayerInventoryRuntime());
+
+                RuntimeKernelBootstrapper.Configure(System.Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+                replacementHub.RaiseItemPickupRequested("item-inbound-after-swap");
+
+                Assert.That(controller.Runtime.GetItemQuantity("item-inbound-after-swap"), Is.EqualTo(1));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void DisabledBeforeOnEnable_DoesNotProcessRuntimePickupEventsUntilEnabled()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
+            var root = new GameObject("InventoryControllerRoot");
+            root.SetActive(false);
+            var controller = root.AddComponent<PlayerInventoryController>();
+            controller.Configure(null, null, new PlayerInventoryRuntime());
+
+            try
+            {
+                runtimeHub.RaiseItemPickupRequested("item-before-enable");
+                Assert.That(controller.Runtime.GetItemQuantity("item-before-enable"), Is.EqualTo(0));
+
+                root.SetActive(true);
+                runtimeHub.RaiseItemPickupRequested("item-after-enable");
+                Assert.That(controller.Runtime.GetItemQuantity("item-after-enable"), Is.EqualTo(1));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+            }
         }
 
         [Test]
@@ -66,6 +230,34 @@ namespace Reloader.Player.Tests.PlayMode
             controller.Tick();
 
             Assert.That(controller.Runtime.BeltSlotItemIds[0], Is.EqualTo("item-42"));
+            Assert.That(target.PickedUpCount, Is.EqualTo(1));
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void Tick_PickupPressWithoutTarget_ConsumesInputAndDoesNotAutoPickupWhenTargetAppearsLater()
+        {
+            var root = new GameObject("InventoryControllerRoot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            controller.Configure(input, resolver, new PlayerInventoryRuntime());
+
+            input.PickupPressedThisFrame = true;
+            controller.Tick();
+            controller.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+
+            var target = new TestPickupTarget("item-99");
+            resolver.Target = target;
+            controller.Tick();
+
+            Assert.That(controller.Runtime.BeltSlotItemIds[0], Is.Null);
+            Assert.That(target.PickedUpCount, Is.EqualTo(0));
+
+            input.PickupPressedThisFrame = true;
+            controller.Tick();
+
+            Assert.That(controller.Runtime.BeltSlotItemIds[0], Is.EqualTo("item-99"));
             Assert.That(target.PickedUpCount, Is.EqualTo(1));
             Object.DestroyImmediate(root);
         }
@@ -295,6 +487,61 @@ namespace Reloader.Player.Tests.PlayMode
             {
                 PickedUpCount++;
             }
+        }
+
+        private sealed class FakeInventoryEvents : IInventoryEvents
+        {
+            public int PickupRequestedCount { get; private set; }
+            public int ItemStoredCount { get; private set; }
+            public int BeltSelectionChangedCount { get; private set; }
+            public int InventoryChangedCount { get; private set; }
+
+            public event System.Action OnSaveStarted;
+            public event System.Action OnSaveCompleted;
+            public event System.Action OnLoadStarted;
+            public event System.Action OnLoadCompleted;
+            public event System.Action<string> OnItemPickupRequested;
+            public event System.Action<string, InventoryArea, int> OnItemStored;
+            public event System.Action<string, PickupRejectReason> OnItemPickupRejected;
+            public event System.Action<int> OnBeltSelectionChanged;
+            public event System.Action OnInventoryChanged;
+            public event System.Action<int> OnMoneyChanged;
+
+            public void RaiseSaveStarted() => OnSaveStarted?.Invoke();
+            public void RaiseSaveCompleted() => OnSaveCompleted?.Invoke();
+            public void RaiseLoadStarted() => OnLoadStarted?.Invoke();
+            public void RaiseLoadCompleted() => OnLoadCompleted?.Invoke();
+
+            public void RaiseItemPickupRequested(string itemId)
+            {
+                PickupRequestedCount++;
+                OnItemPickupRequested?.Invoke(itemId);
+            }
+
+            public void RaiseItemStored(string itemId, InventoryArea area, int index)
+            {
+                ItemStoredCount++;
+                OnItemStored?.Invoke(itemId, area, index);
+            }
+
+            public void RaiseItemPickupRejected(string itemId, PickupRejectReason reason)
+            {
+                OnItemPickupRejected?.Invoke(itemId, reason);
+            }
+
+            public void RaiseBeltSelectionChanged(int selectedBeltIndex)
+            {
+                BeltSelectionChangedCount++;
+                OnBeltSelectionChanged?.Invoke(selectedBeltIndex);
+            }
+
+            public void RaiseInventoryChanged()
+            {
+                InventoryChangedCount++;
+                OnInventoryChanged?.Invoke();
+            }
+
+            public void RaiseMoneyChanged(int amount) => OnMoneyChanged?.Invoke(amount);
         }
     }
 }

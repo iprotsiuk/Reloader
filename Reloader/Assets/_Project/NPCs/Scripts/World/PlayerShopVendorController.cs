@@ -1,6 +1,7 @@
 using Reloader.Core;
-using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.Player;
+using System;
 using UnityEngine;
 
 namespace Reloader.NPCs.World
@@ -12,8 +13,12 @@ namespace Reloader.NPCs.World
 
         private IPlayerInputSource _inputSource;
         private IPlayerShopVendorResolver _resolver;
+        private IShopEvents _shopEvents;
+        private IShopEvents _subscribedShopEvents;
+        private bool _useRuntimeKernelShopEvents = true;
         private bool _isTradeOpen;
         private bool _loggedMissingDependencies;
+        private bool _flushPickupInputAtEndOfFrame;
 
         private void Awake()
         {
@@ -25,23 +30,42 @@ namespace Reloader.NPCs.World
             Tick();
         }
 
+        private void LateUpdate()
+        {
+            if (!_flushPickupInputAtEndOfFrame || _inputSource == null)
+            {
+                return;
+            }
+
+            _flushPickupInputAtEndOfFrame = false;
+            _inputSource.ConsumePickupPressed();
+        }
+
         private void OnEnable()
         {
-            GameEvents.OnShopTradeOpened += HandleTradeOpened;
-            GameEvents.OnShopTradeClosed += HandleTradeClosed;
+            ResolveReferences();
+            SubscribeToRuntimeHubReconfigure();
+            SubscribeToShopEvents(ResolveShopEvents());
         }
 
         private void OnDisable()
         {
-            GameEvents.OnShopTradeOpened -= HandleTradeOpened;
-            GameEvents.OnShopTradeClosed -= HandleTradeClosed;
+            UnsubscribeFromRuntimeHubReconfigure();
+            UnsubscribeFromShopEvents();
             _isTradeOpen = false;
+            _flushPickupInputAtEndOfFrame = false;
         }
 
-        public void Configure(IPlayerInputSource inputSource, IPlayerShopVendorResolver resolver)
+        public void Configure(IPlayerInputSource inputSource, IPlayerShopVendorResolver resolver, IShopEvents shopEvents = null)
         {
             _inputSource = inputSource;
             _resolver = resolver;
+            _useRuntimeKernelShopEvents = shopEvents == null;
+            _shopEvents = shopEvents;
+            if (isActiveAndEnabled)
+            {
+                SubscribeToShopEvents(ResolveShopEvents());
+            }
         }
 
         public void Tick()
@@ -55,35 +79,64 @@ namespace Reloader.NPCs.World
 
             if (_resolver == null || !_resolver.TryResolveVendorTarget(out var target) || target == null)
             {
+                _flushPickupInputAtEndOfFrame = true;
                 if (_isTradeOpen)
                 {
-                    GameEvents.RaiseShopTradeClosed();
+                    ResolveShopEvents()?.RaiseShopTradeClosed();
                 }
                 return;
             }
 
-            if (_isTradeOpen || _inputSource == null)
+            var pickupPressedThisFrame = _inputSource != null && _inputSource.ConsumePickupPressed();
+            if (_isTradeOpen || !pickupPressedThisFrame)
             {
+                _flushPickupInputAtEndOfFrame = false;
                 return;
             }
 
-            if (!_inputSource.ConsumePickupPressed())
-            {
-                return;
-            }
-
-            GameEvents.RaiseShopTradeOpenRequested(target.VendorId);
+            _flushPickupInputAtEndOfFrame = false;
+            ResolveShopEvents()?.RaiseShopTradeOpenRequested(target.VendorId);
             target.OnTradeOpened();
         }
 
-        private void HandleTradeOpened(string _)
+        private void HandleTradeOpened(string vendorId)
         {
+            if (!IsCurrentTargetVendor(vendorId))
+            {
+                return;
+            }
+
             _isTradeOpen = true;
         }
 
         private void HandleTradeClosed()
         {
             _isTradeOpen = false;
+        }
+
+        private bool IsCurrentTargetVendor(string vendorId)
+        {
+            if (_resolver == null || string.IsNullOrWhiteSpace(vendorId))
+            {
+                return false;
+            }
+
+            if (!_resolver.TryResolveVendorTarget(out var target) || target == null)
+            {
+                return false;
+            }
+
+            return string.Equals(target.VendorId, vendorId, StringComparison.Ordinal);
+        }
+
+        private void HandleRuntimeEventsReconfigured()
+        {
+            if (!isActiveAndEnabled || !_useRuntimeKernelShopEvents)
+            {
+                return;
+            }
+
+            SubscribeToShopEvents(ResolveShopEvents());
         }
 
         private void ResolveReferences()
@@ -100,6 +153,66 @@ namespace Reloader.NPCs.World
             {
                 _resolver = DependencyResolutionGuard.FindInterface<IPlayerShopVendorResolver>(GetComponents<MonoBehaviour>());
             }
+
+            ResolveShopEvents();
+        }
+
+        private IShopEvents ResolveShopEvents()
+        {
+            if (_useRuntimeKernelShopEvents)
+            {
+                var runtimeShopEvents = RuntimeKernelBootstrapper.ShopEvents;
+                if (!ReferenceEquals(_shopEvents, runtimeShopEvents))
+                {
+                    _shopEvents = runtimeShopEvents;
+                }
+
+                return _shopEvents;
+            }
+
+            return _shopEvents;
+        }
+
+        private void SubscribeToShopEvents(IShopEvents shopEvents)
+        {
+            if (shopEvents == null)
+            {
+                UnsubscribeFromShopEvents();
+                return;
+            }
+
+            if (ReferenceEquals(_subscribedShopEvents, shopEvents))
+            {
+                return;
+            }
+
+            UnsubscribeFromShopEvents();
+            _subscribedShopEvents = shopEvents;
+            _subscribedShopEvents.OnShopTradeOpened += HandleTradeOpened;
+            _subscribedShopEvents.OnShopTradeClosed += HandleTradeClosed;
+        }
+
+        private void UnsubscribeFromShopEvents()
+        {
+            if (_subscribedShopEvents == null)
+            {
+                return;
+            }
+
+            _subscribedShopEvents.OnShopTradeOpened -= HandleTradeOpened;
+            _subscribedShopEvents.OnShopTradeClosed -= HandleTradeClosed;
+            _subscribedShopEvents = null;
+        }
+
+        private void SubscribeToRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
+            RuntimeKernelBootstrapper.EventsReconfigured += HandleRuntimeEventsReconfigured;
+        }
+
+        private void UnsubscribeFromRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
         }
     }
 }

@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.Player;
 using Reloader.Reloading.World;
 using UnityEngine;
@@ -104,6 +105,67 @@ namespace Reloader.Reloading.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void PickupPressWithoutBenchTarget_ConsumesInputAndDoesNotAutoOpenWhenBenchAppearsLater()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerReloadingBenchController>();
+            var resolver = root.AddComponent<TestBenchResolver>();
+            var target = root.AddComponent<TestBenchTarget>();
+            controller.Configure(input, resolver);
+
+            input.PickupPressedThisFrame = true;
+            resolver.Target = null;
+            controller.Tick();
+            controller.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+
+            resolver.Target = target;
+            controller.Tick();
+            Assert.That(target.OpenCalls, Is.EqualTo(0));
+
+            input.PickupPressedThisFrame = true;
+            controller.Tick();
+            Assert.That(target.OpenCalls, Is.EqualTo(1));
+
+            Object.Destroy(root);
+        }
+
+        [Test]
+        public void PlayerReloadingBenchController_UsesInjectedUiStateEvents()
+        {
+            var root = new GameObject("PlayerRootInjectedUiEvents");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerReloadingBenchController>();
+            var resolver = root.AddComponent<TestBenchResolver>();
+            var target = root.AddComponent<TestBenchTarget>();
+            var uiStateEvents = new TestUiStateEvents();
+            resolver.Target = target;
+            controller.Configure(input, resolver, uiStateEvents);
+
+            var gameEventsCount = 0;
+            GameEvents.OnWorkbenchMenuVisibilityChanged += HandleGameEventsVisibilityChanged;
+            void HandleGameEventsVisibilityChanged(bool _) => gameEventsCount++;
+
+            try
+            {
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
+                Assert.That(uiStateEvents.WorkbenchVisibilityRaiseCount, Is.EqualTo(1));
+                Assert.That(uiStateEvents.IsWorkbenchMenuVisible, Is.True);
+                Assert.That(gameEventsCount, Is.EqualTo(0));
+
+                controller.enabled = false;
+                Assert.That(uiStateEvents.WorkbenchVisibilityRaiseCount, Is.EqualTo(2));
+                Assert.That(uiStateEvents.IsWorkbenchMenuVisible, Is.False);
+            }
+            finally
+            {
+                GameEvents.OnWorkbenchMenuVisibilityChanged -= HandleGameEventsVisibilityChanged;
+                Object.Destroy(root);
+            }
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public bool PickupPressedThisFrame;
@@ -160,6 +222,30 @@ namespace Reloader.Reloading.Tests.PlayMode
             {
                 target = Target;
                 return target != null;
+            }
+        }
+
+        private sealed class TestUiStateEvents : IUiStateEvents
+        {
+            public bool IsShopTradeMenuOpen => false;
+            public bool IsWorkbenchMenuVisible { get; private set; }
+            public bool IsTabInventoryVisible => false;
+            public bool IsAnyMenuOpen => IsWorkbenchMenuVisible;
+            public int WorkbenchVisibilityRaiseCount { get; private set; }
+
+            public event System.Action<bool> OnWorkbenchMenuVisibilityChanged;
+            public event System.Action<bool> OnTabInventoryVisibilityChanged;
+
+            public void RaiseWorkbenchMenuVisibilityChanged(bool isVisible)
+            {
+                IsWorkbenchMenuVisible = isVisible;
+                WorkbenchVisibilityRaiseCount++;
+                OnWorkbenchMenuVisibilityChanged?.Invoke(isVisible);
+            }
+
+            public void RaiseTabInventoryVisibilityChanged(bool isVisible)
+            {
+                OnTabInventoryVisibilityChanged?.Invoke(isVisible);
             }
         }
     }
