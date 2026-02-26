@@ -165,19 +165,9 @@ namespace Reloader.NPCs.World
                 if (!ReferenceEquals(_shopEvents, runtimeShopEvents))
                 {
                     _shopEvents = runtimeShopEvents;
-                    SubscribeToShopEvents(_shopEvents);
-                }
-                else if (!ReferenceEquals(_subscribedShopEvents, _shopEvents))
-                {
-                    SubscribeToShopEvents(_shopEvents);
                 }
 
                 return _shopEvents;
-            }
-
-            if (!ReferenceEquals(_subscribedShopEvents, _shopEvents))
-            {
-                SubscribeToShopEvents(_shopEvents);
             }
 
             return _shopEvents;

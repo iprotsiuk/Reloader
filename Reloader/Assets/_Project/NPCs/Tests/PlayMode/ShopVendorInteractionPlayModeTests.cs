@@ -4,6 +4,7 @@ using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.NPCs.World;
 using Reloader.Player;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -243,6 +244,45 @@ namespace Reloader.NPCs.Tests.PlayMode
         }
 
         [Test]
+        public void DisabledBeforeEnable_DoesNotProcessShopEventsUntilEnabled()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(System.Array.Empty<RuntimeModuleRegistration>(), runtimeEvents);
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerShopVendorController>();
+            controller.enabled = false;
+            var resolver = root.AddComponent<TestVendorResolver>();
+            controller.Configure(input, resolver);
+
+            var vendor = new GameObject("Vendor").AddComponent<ShopVendorTarget>();
+            resolver.Target = vendor;
+            var openRequestedCount = 0;
+            runtimeEvents.OnShopTradeOpenRequested += _ => openRequestedCount++;
+
+            try
+            {
+                InvokePrivate(controller, "ResolveReferences");
+                runtimeEvents.RaiseShopTradeOpened("vendor-reloading-store");
+
+                controller.enabled = true;
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(vendor.gameObject);
+            }
+
+            Assert.That(openRequestedCount, Is.EqualTo(1));
+            Assert.That(vendor.OpenCount, Is.EqualTo(1));
+        }
+
+        [Test]
         public void Tick_MissingDependencies_LogsErrorOnce_AndDoesNotOpenTrade()
         {
             var root = new GameObject("PlayerRoot");
@@ -351,6 +391,13 @@ namespace Reloader.NPCs.Tests.PlayMode
             public void RaiseShopSellCheckoutRequested(ShopCheckoutRequest request) => OnShopSellCheckoutRequested?.Invoke(request);
             public void RaiseShopTradeResult(string itemId, int quantity, bool isBuy, bool success, string failureReason)
                 => OnShopTradeResult?.Invoke(itemId, quantity, isBuy, success, failureReason);
+        }
+
+        private static void InvokePrivate(object target, string methodName)
+        {
+            var method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, $"Method '{methodName}' was not found.");
+            method.Invoke(target, null);
         }
     }
 }
