@@ -47,6 +47,31 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
+        [Test]
+        public void Evaluate_AfterClearingInjectedProvider_RevertsToFallback()
+        {
+            var go = new GameObject("npc-ai");
+            var ai = go.AddComponent<NpcAiController>();
+            var provider = new RecordingDecisionProvider();
+
+            try
+            {
+                ai.SetDecisionProvider(provider);
+                var injectedDecision = ai.Evaluate(new NpcDecisionContext("npc.vendor.001", 2f));
+                ai.SetDecisionProvider(null);
+                var fallbackDecision = ai.Evaluate(new NpcDecisionContext("npc.vendor.001", 0f));
+
+                Assert.That(provider.EvaluateCount, Is.EqualTo(1));
+                Assert.That(injectedDecision.ActionId, Is.EqualTo("custom.action"));
+                Assert.That(fallbackDecision.ActionId, Is.EqualTo("idle"));
+                Assert.That(fallbackDecision.Reason, Is.EqualTo("rule.fallback"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
         private sealed class RecordingDecisionProvider : INpcDecisionProvider
         {
             public int EvaluateCount { get; private set; }
