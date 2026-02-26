@@ -192,23 +192,25 @@ namespace Reloader.Player.Tests.PlayMode
             var originalHub = RuntimeKernelBootstrapper.Events;
             var initialHub = new DefaultRuntimeEvents();
             var replacementHub = new DefaultRuntimeEvents();
-            RuntimeKernelBootstrapper.Events = initialHub;
-
-            var root = new GameObject("PlayerRoot");
-            var cameraPivot = new GameObject("CameraPivot");
-            cameraPivot.transform.SetParent(root.transform);
-
-            var input = root.AddComponent<TestInputSource>();
-            input.Look = new Vector2(12f, 0f);
-
-            var look = root.AddComponent<PlayerLookController>();
-            look.Configure(input, cameraPivot.transform);
-            look.LookSensitivity = Vector2.one;
-            look.Tick(1f);
-            var yawAfterFirstTick = root.transform.eulerAngles.y;
+            GameObject root = null;
 
             try
             {
+                RuntimeKernelBootstrapper.Events = initialHub;
+
+                root = new GameObject("PlayerRoot");
+                var cameraPivot = new GameObject("CameraPivot");
+                cameraPivot.transform.SetParent(root.transform);
+
+                var input = root.AddComponent<TestInputSource>();
+                input.Look = new Vector2(12f, 0f);
+
+                var look = root.AddComponent<PlayerLookController>();
+                look.Configure(input, cameraPivot.transform);
+                look.LookSensitivity = Vector2.one;
+                look.Tick(1f);
+                var yawAfterFirstTick = root.transform.eulerAngles.y;
+
                 initialHub.RaiseTabInventoryVisibilityChanged(true);
                 look.Tick(1f);
                 var yawAfterInitialHubOpenTick = root.transform.eulerAngles.y;
@@ -236,7 +238,10 @@ namespace Reloader.Player.Tests.PlayMode
             {
                 replacementHub.RaiseTabInventoryVisibilityChanged(false);
                 RuntimeKernelBootstrapper.Events = originalHub;
-                Object.DestroyImmediate(root);
+                if (root != null)
+                {
+                    Object.DestroyImmediate(root);
+                }
             }
         }
 
