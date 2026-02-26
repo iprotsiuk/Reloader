@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 namespace Reloader.NPCs.World
 {
@@ -23,13 +24,29 @@ namespace Reloader.NPCs.World
 
             Physics.SyncTransforms();
             var ray = new Ray(_playerCamera.transform.position, _playerCamera.transform.forward);
-            if (!Physics.Raycast(ray, out var hit, _maxDistance, _vendorMask, QueryTriggerInteraction.Collide))
+            var hits = Physics.RaycastAll(ray, _maxDistance, _vendorMask, QueryTriggerInteraction.Collide);
+            if (hits == null || hits.Length == 0)
             {
                 return false;
             }
 
-            target = hit.collider.GetComponentInParent<IShopVendorTarget>();
-            return target != null;
+            Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
+            for (var i = 0; i < hits.Length; i++)
+            {
+                var collider = hits[i].collider;
+                if (collider == null)
+                {
+                    continue;
+                }
+
+                target = collider.GetComponentInParent<IShopVendorTarget>();
+                if (target != null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public void SetCameraForTests(Camera camera)
@@ -45,7 +62,7 @@ namespace Reloader.NPCs.World
                 return taggedMain;
             }
 
-            var cameras = Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
+            var cameras = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
             for (var i = 0; i < cameras.Length; i++)
             {
                 var camera = cameras[i];

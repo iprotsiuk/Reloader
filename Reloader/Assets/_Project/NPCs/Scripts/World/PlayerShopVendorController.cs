@@ -3,6 +3,7 @@ using Reloader.Core.Runtime;
 using Reloader.Player;
 using System;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Reloader.NPCs.World
 {
@@ -92,7 +93,7 @@ namespace Reloader.NPCs.World
                 return;
             }
 
-            var pickupPressedThisFrame = _inputSource != null && _inputSource.ConsumePickupPressed();
+            var pickupPressedThisFrame = IsPickupPressedThisFrame();
             if (_isTradeOpen || !pickupPressedThisFrame)
             {
                 _flushPickupInputAtEndOfFrame = false;
@@ -102,6 +103,18 @@ namespace Reloader.NPCs.World
             _flushPickupInputAtEndOfFrame = false;
             ResolveShopEvents()?.RaiseShopTradeOpenRequested(target.VendorId);
             target.OnTradeOpened();
+        }
+
+        private bool IsPickupPressedThisFrame()
+        {
+            // Inventory also consumes Pickup input; checking the keyboard edge keeps vendor interaction responsive.
+            var keyboardPressed = Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame;
+            if (keyboardPressed)
+            {
+                return true;
+            }
+
+            return _inputSource != null && _inputSource.ConsumePickupPressed();
         }
 
         private void HandleTradeOpened(string vendorId)

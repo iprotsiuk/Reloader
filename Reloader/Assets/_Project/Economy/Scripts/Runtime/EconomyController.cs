@@ -286,21 +286,24 @@ namespace Reloader.Economy
         private bool TryGetCatalog(string vendorId, out ShopCatalogDefinition catalog)
         {
             catalog = null;
-            for (var i = 0; i < _vendors.Count; i++)
+            if (_vendors != null)
             {
-                var binding = _vendors[i];
-                if (binding == null || binding.Catalog == null || binding.VendorId != vendorId)
+                for (var i = 0; i < _vendors.Count; i++)
                 {
-                    continue;
-                }
+                    var binding = _vendors[i];
+                    if (binding == null
+                        || binding.Catalog == null
+                        || !string.Equals(binding.VendorId, vendorId, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
 
-                catalog = binding.Catalog;
-                return true;
+                    catalog = binding.Catalog;
+                    return true;
+                }
             }
 
-            if (!string.IsNullOrWhiteSpace(_defaultVendorId)
-                && string.Equals(_defaultVendorId, vendorId, StringComparison.Ordinal)
-                && _defaultVendorCatalog != null)
+            if (_defaultVendorCatalog != null)
             {
                 catalog = _defaultVendorCatalog;
                 return true;

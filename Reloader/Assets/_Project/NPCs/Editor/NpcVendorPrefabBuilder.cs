@@ -485,9 +485,11 @@ namespace Reloader.NPCs.Editor
 
         private static GameObject FindOrCreateInteractorRoot()
         {
-            var existingController = UnityEngine.Object.FindFirstObjectByType<PlayerShopVendorController>(FindObjectsInactive.Include);
+            var existingControllers = Object.FindObjectsByType<PlayerShopVendorController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var existingController = ResolvePreferredInteractorController(existingControllers);
             if (existingController != null)
             {
+                RemoveDuplicateInteractorControllers(existingControllers, existingController);
                 return existingController.gameObject;
             }
 
@@ -512,6 +514,57 @@ namespace Reloader.NPCs.Editor
 
             var instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
             return instance;
+        }
+
+        private static PlayerShopVendorController ResolvePreferredInteractorController(PlayerShopVendorController[] controllers)
+        {
+            if (controllers == null || controllers.Length == 0)
+            {
+                return null;
+            }
+
+            var playerInput = Object.FindFirstObjectByType<PlayerInputReader>(FindObjectsInactive.Include);
+            if (playerInput != null)
+            {
+                var playerTransform = playerInput.transform;
+                for (var i = 0; i < controllers.Length; i++)
+                {
+                    var controller = controllers[i];
+                    if (controller != null && controller.transform.parent == playerTransform)
+                    {
+                        return controller;
+                    }
+                }
+            }
+
+            for (var i = 0; i < controllers.Length; i++)
+            {
+                if (controllers[i] != null)
+                {
+                    return controllers[i];
+                }
+            }
+
+            return null;
+        }
+
+        private static void RemoveDuplicateInteractorControllers(PlayerShopVendorController[] controllers, PlayerShopVendorController keep)
+        {
+            if (controllers == null || keep == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < controllers.Length; i++)
+            {
+                var controller = controllers[i];
+                if (controller == null || controller == keep)
+                {
+                    continue;
+                }
+
+                Undo.DestroyObjectImmediate(controller.gameObject);
+            }
         }
 
         private static bool WireInteractorInScene(GameObject interactorRoot)
@@ -694,7 +747,7 @@ namespace Reloader.NPCs.Editor
             {
                 var entry = vendorsProp.GetArrayElementAtIndex(i);
                 var entryVendorId = entry.FindPropertyRelative("_vendorId");
-                if (entryVendorId == null || !string.Equals(entryVendorId.stringValue, vendorId, StringComparison.Ordinal))
+                if (entryVendorId == null || !string.Equals(entryVendorId.stringValue, vendorId, global::System.StringComparison.Ordinal))
                 {
                     continue;
                 }

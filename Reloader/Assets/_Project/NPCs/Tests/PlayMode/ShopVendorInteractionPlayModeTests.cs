@@ -358,6 +358,47 @@ namespace Reloader.NPCs.Tests.PlayMode
             Assert.That(vendor.OpenCount, Is.EqualTo(1));
         }
 
+        [Test]
+        public void PlayerShopVendorResolver_WhenNonVendorColliderIsInFront_ResolvesVendorBehindIt()
+        {
+            var cameraGo = new GameObject("PlayerCamera");
+            var camera = cameraGo.AddComponent<Camera>();
+            cameraGo.transform.position = Vector3.zero;
+            cameraGo.transform.rotation = Quaternion.identity;
+
+            var blocker = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            blocker.name = "Blocker";
+            blocker.transform.position = new Vector3(0f, 0f, 1.5f);
+            blocker.transform.localScale = new Vector3(2f, 2f, 0.2f);
+
+            var vendorRoot = new GameObject("VendorRoot");
+            vendorRoot.AddComponent<ShopVendorTarget>();
+            var vendorBody = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            vendorBody.name = "VendorBody";
+            vendorBody.transform.SetParent(vendorRoot.transform, false);
+            vendorRoot.transform.position = new Vector3(0f, 0f, 2.5f);
+
+            var resolverGo = new GameObject("Resolver");
+            var resolver = resolverGo.AddComponent<PlayerShopVendorResolver>();
+            resolver.SetCameraForTests(camera);
+
+            try
+            {
+                var resolved = resolver.TryResolveVendorTarget(out var target);
+
+                Assert.That(resolved, Is.True);
+                Assert.That(target, Is.Not.Null);
+                Assert.That(target.VendorId, Is.EqualTo("vendor-reloading-store"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(resolverGo);
+                Object.DestroyImmediate(vendorRoot);
+                Object.DestroyImmediate(blocker);
+                Object.DestroyImmediate(cameraGo);
+            }
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public bool PickupPressedThisFrame;

@@ -502,6 +502,52 @@ namespace Reloader.Economy.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator TradeOpenRequested_WhenVendorIdMissingInBindings_UsesDefaultCatalogFallback()
+        {
+            var inventoryGo = new GameObject("InventoryController");
+            var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
+            var input = inventoryGo.AddComponent<TestInputSource>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(4);
+            inventoryController.Configure(input, null, runtime);
+
+            var economyGo = new GameObject("EconomyController");
+            var controller = economyGo.AddComponent<EconomyController>();
+            SetPrivateField(controller, "_inventoryControllerBehaviour", inventoryController);
+            SetPrivateField(controller, "_startingMoney", 500);
+
+            var catalog = ScriptableObject.CreateInstance<ShopCatalogDefinition>();
+            JsonUtility.FromJsonOverwrite(
+                "{\"_items\":[{\"_itemId\":\"ammo-22lr\",\"_displayName\":\"22LR\",\"_category\":\"ammo\",\"_unitPrice\":2,\"_startingStock\":500}]}",
+                catalog);
+            var bindingType = typeof(EconomyController).GetNestedType("VendorCatalogBinding", BindingFlags.NonPublic);
+            var emptyListType = typeof(List<>).MakeGenericType(bindingType);
+            var emptyVendors = Activator.CreateInstance(emptyListType);
+            SetPrivateField(controller, "_vendors", emptyVendors);
+            SetPrivateField(controller, "_defaultVendorCatalog", catalog);
+            SetPrivateField(controller, "_defaultVendorId", "vendor-reloading-store");
+
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+            var openedCount = 0;
+            runtimeHub.OnShopTradeOpened += _ => openedCount++;
+            try
+            {
+                yield return null;
+                runtimeHub.RaiseShopTradeOpenRequested("vendor-weapon-store");
+                Assert.That(openedCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(catalog);
+                UnityEngine.Object.DestroyImmediate(economyGo);
+                UnityEngine.Object.DestroyImmediate(inventoryGo);
+            }
+        }
+
         private static void SetVendorBindings(EconomyController controller, string vendorId, ShopCatalogDefinition catalog)
         {
             var bindingType = typeof(EconomyController).GetNestedType("VendorCatalogBinding", BindingFlags.NonPublic);
