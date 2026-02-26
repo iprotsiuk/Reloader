@@ -3,28 +3,100 @@
 .reloading {
     flex-direction: column;
     gap: 8px;
-    width: 340px;
+    width: 360px;
+    min-width: 320px;
+}
+
+.reloading__header-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.reloading__header-hint {
+    font-size: 10px;
+}
+
+.reloading__menu {
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 4px;
+    padding-right: 4px;
+    padding-bottom: 4px;
+    padding-left: 4px;
+    background-color: rgba(255, 255, 255, 0.02);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.08);
+    border-right-color: rgba(255, 255, 255, 0.08);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    border-left-color: rgba(255, 255, 255, 0.08);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px;
 }
 
 .reloading__operation {
-    min-height: 36px;
-    justify-content: center;
+    min-height: 52px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    padding-left: 8px;
+    padding-right: 10px;
 }
 
-.reloading__operation.is-selected {
+.reloading__operation:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.reloading__operation:active {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.reloading__operation.is-selected,
+.reloading__operation.is-active {
+    color: rgb(246, 249, 252);
     background-color: rgba(111, 176, 255, 0.22);
+    border-top-color: rgba(111, 176, 255, 0.45);
+    border-right-color: rgba(111, 176, 255, 0.45);
+    border-bottom-color: rgba(111, 176, 255, 0.45);
+    border-left-color: rgba(111, 176, 255, 0.45);
+}
+
+.reloading__operation-slot {
+    margin-right: 8px;
+}
+
+.reloading__operation.is-selected .reloading__operation-slot {
+    border-top-color: rgba(111, 176, 255, 0.6);
+    border-right-color: rgba(111, 176, 255, 0.6);
+    border-bottom-color: rgba(111, 176, 255, 0.6);
+    border-left-color: rgba(111, 176, 255, 0.6);
 }
 
 .reloading__op-label {
-    color: rgba(236, 239, 244, 0.88);
-    margin-left: 10px;
-}
-
-.reloading__result {
-    color: rgba(236, 239, 244, 0.96);
-    -unity-font-style: bold;
+    color: rgba(236, 239, 244, 0.9);
+    -unity-font-style: normal;
 }
 
 .reloading__execute {
-    min-height: 30px;
+    min-height: 34px;
+    -unity-font-style: bold;
+    font-size: 11px;
+}
+
+.reloading__execute:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.reloading__execute:active {
+    background-color: rgba(111, 176, 255, 0.22);
+}
+
+.reloading__result {
+    min-height: 18px;
+    color: rgba(236, 239, 244, 0.96);
 }

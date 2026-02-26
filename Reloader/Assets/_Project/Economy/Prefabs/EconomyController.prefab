@@ -46,4 +46,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Economy::Reloader.Economy.EconomyController
   _inventoryControllerBehaviour: {fileID: 0}
   _startingMoney: 500
-  _vendors: []
+  _vendors:
+  - _vendorId: vendor-reloading-store
+    _catalog: {fileID: 11400000, guid: 9813cb0def68f476c964570aa69a51b4, type: 2}
+  _defaultVendorId: vendor-reloading-store
+  _defaultVendorCatalog: {fileID: 11400000, guid: 9813cb0def68f476c964570aa69a51b4, type: 2}

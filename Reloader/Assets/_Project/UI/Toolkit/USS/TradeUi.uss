@@ -1,35 +1,146 @@
 @import url("UiKit.uss");
 
 .trade {
-    flex-direction: column;
-    gap: 8px;
-    width: 460px;
-}
-
-.trade__tabs {
-    flex-direction: row;
-    gap: 6px;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    padding-top: 12px;
+    padding-right: 12px;
+    padding-bottom: 12px;
+    padding-left: 12px;
 }
 
 .trade__panel {
-    min-height: 90px;
-    padding-top: 8px;
-    padding-right: 8px;
-    padding-bottom: 8px;
+    flex-direction: column;
+    width: 92%;
+    max-width: 860px;
+    min-width: 340px;
+    max-height: 90%;
+    min-height: 240px;
+}
+
+.trade__header-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.trade__header-hint {
+    font-size: 10px;
+}
+
+.trade__tabbar {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 6px;
+    margin-bottom: 8px;
+}
+
+.trade__tab {
+    min-height: 24px;
+    height: 24px;
+    min-width: 72px;
+    margin-right: 6px;
     padding-left: 8px;
+    padding-right: 8px;
+    font-size: 10px;
+    -unity-font-style: normal;
+}
+
+.trade__content {
+    flex-direction: row;
+    flex-wrap: wrap;
+    flex-grow: 1;
+}
+
+.trade__section {
+    flex-direction: column;
+    min-width: 220px;
+    flex-grow: 1;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    padding-top: 10px;
+    padding-right: 10px;
+    padding-bottom: 10px;
+    padding-left: 10px;
     background-color: rgba(255, 255, 255, 0.04);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.08);
+    border-right-color: rgba(255, 255, 255, 0.08);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    border-left-color: rgba(255, 255, 255, 0.08);
     border-top-left-radius: 8px;
     border-top-right-radius: 8px;
     border-bottom-right-radius: 8px;
     border-bottom-left-radius: 8px;
 }
 
+.trade__section--order {
+    min-width: 180px;
+    max-width: 240px;
+    margin-right: 0;
+}
+
+.trade__section-title {
+    margin-bottom: 6px;
+    font-size: 11px;
+}
+
+.trade__cell-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.trade__cell {
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
 .trade__line {
     color: rgba(230, 234, 240, 0.86);
-    font-size: 13px;
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+
+.trade__line--muted {
+    color: rgba(214, 217, 223, 0.68);
+}
+
+.trade__total-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 6px;
 }
 
 .trade__total {
     color: rgba(240, 243, 248, 0.96);
     -unity-font-style: bold;
+    font-size: 13px;
+}
+
+.trade__action {
+    min-height: 24px;
+    margin-top: 8px;
+    padding-left: 8px;
+    padding-right: 8px;
+    color: rgba(241, 245, 251, 0.96);
+    background-color: rgba(111, 176, 255, 0.22);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(111, 176, 255, 0.45);
+    border-right-color: rgba(111, 176, 255, 0.45);
+    border-bottom-color: rgba(111, 176, 255, 0.45);
+    border-left-color: rgba(111, 176, 255, 0.45);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
 }

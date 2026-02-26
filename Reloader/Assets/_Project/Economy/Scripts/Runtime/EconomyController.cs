@@ -23,6 +23,8 @@ namespace Reloader.Economy
         [SerializeField] private MonoBehaviour _inventoryControllerBehaviour;
         [SerializeField] private int _startingMoney = 500;
         [SerializeField] private List<VendorCatalogBinding> _vendors = new List<VendorCatalogBinding>();
+        [SerializeField] private string _defaultVendorId = "vendor-reloading-store";
+        [SerializeField] private ShopCatalogDefinition _defaultVendorCatalog;
 
         private PlayerInventoryController _inventoryController;
         private EconomyRuntime _runtime;
@@ -293,6 +295,14 @@ namespace Reloader.Economy
                 }
 
                 catalog = binding.Catalog;
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(_defaultVendorId)
+                && string.Equals(_defaultVendorId, vendorId, StringComparison.Ordinal)
+                && _defaultVendorCatalog != null)
+            {
+                catalog = _defaultVendorCatalog;
                 return true;
             }
 

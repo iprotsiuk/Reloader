@@ -1,21 +1,56 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <ui:Style src="Assets/_Project/UI/Toolkit/USS/TradeUi.uss" />
-    <ui:VisualElement name="trade__root" class="trade ui-kit__panel">
-        <ui:Label text="Vendor" class="ui-kit__title" />
-        <ui:VisualElement class="trade__tabs">
-            <ui:Label text="Buy" class="ui-kit__tab is-active" />
-            <ui:Label text="Sell" class="ui-kit__tab" />
+    <ui:Style src="../USS/TradeUi.uss" />
+    <ui:VisualElement name="trade__root" class="trade">
+        <ui:VisualElement class="trade__panel ui-kit__panel">
+            <ui:VisualElement class="trade__header-row">
+                <ui:Label text="Vendor" class="ui-kit__title" />
+                <ui:Label text="Trade Menu" class="trade__header-hint ui-kit__hint" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="trade__tabbar">
+                <ui:Button name="trade__tab-buy" text="Buy" class="trade__tab ui-kit__tab is-active" />
+                <ui:Button name="trade__tab-sell" text="Sell" class="trade__tab ui-kit__tab" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="trade__content">
+                <ui:VisualElement name="trade__buy-panel" class="trade__section">
+                    <ui:Label text="Vendor Stock" class="trade__section-title ui-kit__hint" />
+                    <ui:VisualElement class="trade__cell-row">
+                        <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
+                        <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
+                        <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
+                        <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
+                        <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
+                        <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
+                    </ui:VisualElement>
+                    <ui:Label text="- Match bullets x100" class="trade__line" />
+                    <ui:Label text="- Rifle powder 1lb" class="trade__line" />
+                    <ui:Button name="trade__confirm-buy" text="Confirm Buy" class="trade__action" />
+                </ui:VisualElement>
+
+                <ui:VisualElement name="trade__sell-panel" class="trade__section">
+                    <ui:Label text="Sell Inventory" class="trade__section-title ui-kit__hint" />
+                    <ui:VisualElement class="trade__cell-row">
+                        <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
+                        <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
+                        <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
+                        <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
+                        <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
+                        <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
+                    </ui:VisualElement>
+                    <ui:Label text="- Sell spare brass (mock)" class="trade__line" />
+                    <ui:Button name="trade__confirm-sell" text="Confirm Sell" class="trade__action" />
+                </ui:VisualElement>
+
+                <ui:VisualElement name="trade__order-panel" class="trade__section trade__section--order">
+                    <ui:Label text="Order Summary" class="trade__section-title ui-kit__hint" />
+                    <ui:Label text="Delivery: Inventory (mock)" class="trade__line" />
+                    <ui:VisualElement class="trade__total-row">
+                        <ui:Label text="Cart Total" class="trade__line trade__line--muted" />
+                        <ui:Label name="trade__cart-total" text="$0" class="trade__total" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
         </ui:VisualElement>
-        <ui:VisualElement name="trade__buy-panel" class="trade__panel">
-            <ui:Label text="- Match bullets x100" class="trade__line" />
-            <ui:Label text="- Rifle powder 1lb" class="trade__line" />
-        </ui:VisualElement>
-        <ui:VisualElement name="trade__sell-panel" class="trade__panel">
-            <ui:Label text="- Sell spare brass (mock)" class="trade__line" />
-        </ui:VisualElement>
-        <ui:VisualElement name="trade__order-panel" class="trade__panel">
-            <ui:Label text="Delivery: Inventory (mock)" class="trade__line" />
-        </ui:VisualElement>
-        <ui:Label name="trade__cart-total" text="$0" class="trade__total" />
     </ui:VisualElement>
 </ui:UXML>

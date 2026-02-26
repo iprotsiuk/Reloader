@@ -63,4 +63,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.World.PlayerShopVendorController
   _inputSourceBehaviour: {fileID: 0}
-  _resolverBehaviour: {fileID: 0}
+  _resolverBehaviour: {fileID: 3893816709889594410}

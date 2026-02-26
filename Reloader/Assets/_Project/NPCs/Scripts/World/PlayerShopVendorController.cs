@@ -70,6 +70,11 @@ namespace Reloader.NPCs.World
 
         public void Tick()
         {
+            if (_inputSource == null || _resolver == null)
+            {
+                ResolveReferences();
+            }
+
             DependencyResolutionGuard.HasRequiredReferences(
                 ref _loggedMissingDependencies,
                 this,
@@ -152,6 +157,36 @@ namespace Reloader.NPCs.World
             if (_resolver == null)
             {
                 _resolver = DependencyResolutionGuard.FindInterface<IPlayerShopVendorResolver>(GetComponents<MonoBehaviour>());
+            }
+
+            if (_inputSource == null)
+            {
+                _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(GetComponentsInParent<MonoBehaviour>(true));
+            }
+
+            if (_resolver == null)
+            {
+                _resolver = DependencyResolutionGuard.FindInterface<IPlayerShopVendorResolver>(GetComponentsInParent<MonoBehaviour>(true));
+            }
+
+            if (_inputSource == null)
+            {
+                _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(GetComponentsInChildren<MonoBehaviour>(true));
+            }
+
+            if (_resolver == null)
+            {
+                _resolver = DependencyResolutionGuard.FindInterface<IPlayerShopVendorResolver>(GetComponentsInChildren<MonoBehaviour>(true));
+            }
+
+            if (_inputSource == null)
+            {
+                _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+            }
+
+            if (_resolver == null)
+            {
+                _resolver = DependencyResolutionGuard.FindInterface<IPlayerShopVendorResolver>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
             }
 
             ResolveShopEvents();

@@ -1,17 +1,27 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <ui:Style src="Assets/_Project/UI/Toolkit/USS/ReloadingWorkbench.uss" />
+    <ui:Style src="../USS/ReloadingWorkbench.uss" />
     <ui:VisualElement name="reloading__root" class="reloading ui-kit__panel">
-        <ui:Label text="Workbench" class="ui-kit__title" />
-        <ui:VisualElement name="reloading__operation-0" class="reloading__operation ui-kit__tab">
-            <ui:Label text="Resize (mock)" class="reloading__op-label" />
+        <ui:VisualElement class="reloading__header-row">
+            <ui:Label text="Workbench" class="ui-kit__title" />
+            <ui:Label text="Operation Menu" class="reloading__header-hint ui-kit__hint" />
         </ui:VisualElement>
-        <ui:VisualElement name="reloading__operation-1" class="reloading__operation ui-kit__tab">
-            <ui:Label text="Prime (mock)" class="reloading__op-label" />
+
+        <ui:VisualElement class="reloading__menu">
+            <ui:VisualElement name="reloading__operation-0" class="reloading__operation ui-kit__tab">
+                <ui:VisualElement class="reloading__operation-slot ui-kit__slot ui-kit__menu-cell" />
+                <ui:Label text="Resize (mock)" class="reloading__op-label" />
+            </ui:VisualElement>
+            <ui:VisualElement name="reloading__operation-1" class="reloading__operation ui-kit__tab">
+                <ui:VisualElement class="reloading__operation-slot ui-kit__slot ui-kit__menu-cell" />
+                <ui:Label text="Prime (mock)" class="reloading__op-label" />
+            </ui:VisualElement>
+            <ui:VisualElement name="reloading__operation-2" class="reloading__operation ui-kit__tab">
+                <ui:VisualElement class="reloading__operation-slot ui-kit__slot ui-kit__menu-cell" />
+                <ui:Label text="Seat (mock)" class="reloading__op-label" />
+            </ui:VisualElement>
         </ui:VisualElement>
-        <ui:VisualElement name="reloading__operation-2" class="reloading__operation ui-kit__tab">
-            <ui:Label text="Seat (mock)" class="reloading__op-label" />
-        </ui:VisualElement>
+
         <ui:Button name="reloading__execute" text="Execute" class="reloading__execute ui-kit__tab" />
-        <ui:Label name="reloading__result-label" text="" class="reloading__result" />
+        <ui:Label name="reloading__result-label" text="" class="reloading__result ui-kit__hint" />
     </ui:VisualElement>
 </ui:UXML>

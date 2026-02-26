@@ -76,6 +76,11 @@
     border-bottom-left-radius: 8px;
 }
 
+.ui-kit__menu-cell {
+    width: 46px;
+    height: 46px;
+}
+
 .ui-kit__hint {
     color: rgba(214, 217, 223, 0.64);
     font-size: 12px;

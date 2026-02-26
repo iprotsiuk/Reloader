@@ -13,7 +13,7 @@ namespace Reloader.NPCs.World
             target = null;
             if (_playerCamera == null)
             {
-                _playerCamera = Camera.main;
+                _playerCamera = ResolveFallbackCamera();
             }
 
             if (_playerCamera == null)
@@ -35,6 +35,29 @@ namespace Reloader.NPCs.World
         public void SetCameraForTests(Camera camera)
         {
             _playerCamera = camera;
+        }
+
+        private static Camera ResolveFallbackCamera()
+        {
+            var taggedMain = Camera.main;
+            if (taggedMain != null)
+            {
+                return taggedMain;
+            }
+
+            var cameras = Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
+            for (var i = 0; i < cameras.Length; i++)
+            {
+                var camera = cameras[i];
+                if (camera == null || !camera.enabled || !camera.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                return camera;
+            }
+
+            return null;
         }
     }
 }

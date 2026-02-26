@@ -322,6 +322,42 @@ namespace Reloader.NPCs.Tests.PlayMode
             Assert.That(openRequestedCount, Is.EqualTo(0));
         }
 
+        [Test]
+        public void Tick_UnwiredDependenciesOnChildHierarchy_ResolvesAndOpensTrade()
+        {
+            var root = new GameObject("PlayerRoot");
+            var controller = root.AddComponent<PlayerShopVendorController>();
+
+            var child = new GameObject("InteractionRig");
+            child.transform.SetParent(root.transform, false);
+            var input = child.AddComponent<TestInputSource>();
+            var resolver = child.AddComponent<TestVendorResolver>();
+            var vendor = new GameObject("Vendor").AddComponent<ShopVendorTarget>();
+            resolver.Target = vendor;
+
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+            var openRequestedCount = 0;
+            void Handler(string _) => openRequestedCount++;
+            runtimeHub.OnShopTradeOpenRequested += Handler;
+            try
+            {
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
+            }
+            finally
+            {
+                runtimeHub.OnShopTradeOpenRequested -= Handler;
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(vendor.gameObject);
+            }
+
+            Assert.That(openRequestedCount, Is.EqualTo(1));
+            Assert.That(vendor.OpenCount, Is.EqualTo(1));
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public bool PickupPressedThisFrame;

@@ -45,7 +45,15 @@ namespace Reloader.UI.Toolkit.Trade
 
         public void HandleIntent(UiIntent intent)
         {
-            if (intent.Key == "trade.confirm.buy")
+            if (intent.Key == "trade.tab.buy")
+            {
+                _activeTab = TradeUiTab.Buy;
+            }
+            else if (intent.Key == "trade.tab.sell")
+            {
+                _activeTab = TradeUiTab.Sell;
+            }
+            else if (intent.Key == "trade.confirm.buy")
             {
                 _activeTab = TradeUiTab.Buy;
                 if (TryResolveCheckoutRequest(intent.Payload, out var request))
