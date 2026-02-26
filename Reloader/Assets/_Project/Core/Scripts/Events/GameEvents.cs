@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Reloader.Core.Runtime;
 using UnityEngine;
 
@@ -13,176 +14,176 @@ namespace Reloader.Core.Events
 
         public static event Action OnSaveStarted
         {
-            add => RuntimeEvents.OnSaveStarted += value;
-            remove => RuntimeEvents.OnSaveStarted -= value;
+            add => AddSubscription(nameof(OnSaveStarted), value, (hub, handler) => hub.OnSaveStarted += handler);
+            remove => RemoveSubscription(nameof(OnSaveStarted), value, (hub, handler) => hub.OnSaveStarted -= handler);
         }
 
         public static event Action OnSaveCompleted
         {
-            add => RuntimeEvents.OnSaveCompleted += value;
-            remove => RuntimeEvents.OnSaveCompleted -= value;
+            add => AddSubscription(nameof(OnSaveCompleted), value, (hub, handler) => hub.OnSaveCompleted += handler);
+            remove => RemoveSubscription(nameof(OnSaveCompleted), value, (hub, handler) => hub.OnSaveCompleted -= handler);
         }
 
         public static event Action OnLoadStarted
         {
-            add => RuntimeEvents.OnLoadStarted += value;
-            remove => RuntimeEvents.OnLoadStarted -= value;
+            add => AddSubscription(nameof(OnLoadStarted), value, (hub, handler) => hub.OnLoadStarted += handler);
+            remove => RemoveSubscription(nameof(OnLoadStarted), value, (hub, handler) => hub.OnLoadStarted -= handler);
         }
 
         public static event Action OnLoadCompleted
         {
-            add => RuntimeEvents.OnLoadCompleted += value;
-            remove => RuntimeEvents.OnLoadCompleted -= value;
+            add => AddSubscription(nameof(OnLoadCompleted), value, (hub, handler) => hub.OnLoadCompleted += handler);
+            remove => RemoveSubscription(nameof(OnLoadCompleted), value, (hub, handler) => hub.OnLoadCompleted -= handler);
         }
 
         public static event Action<string> OnItemPickupRequested
         {
-            add => RuntimeEvents.OnItemPickupRequested += value;
-            remove => RuntimeEvents.OnItemPickupRequested -= value;
+            add => AddSubscription(nameof(OnItemPickupRequested), value, (hub, handler) => hub.OnItemPickupRequested += handler);
+            remove => RemoveSubscription(nameof(OnItemPickupRequested), value, (hub, handler) => hub.OnItemPickupRequested -= handler);
         }
 
         public static event Action<string, InventoryArea, int> OnItemStored
         {
-            add => RuntimeEvents.OnItemStored += value;
-            remove => RuntimeEvents.OnItemStored -= value;
+            add => AddSubscription(nameof(OnItemStored), value, (hub, handler) => hub.OnItemStored += handler);
+            remove => RemoveSubscription(nameof(OnItemStored), value, (hub, handler) => hub.OnItemStored -= handler);
         }
 
         public static event Action<string, PickupRejectReason> OnItemPickupRejected
         {
-            add => RuntimeEvents.OnItemPickupRejected += value;
-            remove => RuntimeEvents.OnItemPickupRejected -= value;
+            add => AddSubscription(nameof(OnItemPickupRejected), value, (hub, handler) => hub.OnItemPickupRejected += handler);
+            remove => RemoveSubscription(nameof(OnItemPickupRejected), value, (hub, handler) => hub.OnItemPickupRejected -= handler);
         }
 
         public static event Action<int> OnBeltSelectionChanged
         {
-            add => RuntimeEvents.OnBeltSelectionChanged += value;
-            remove => RuntimeEvents.OnBeltSelectionChanged -= value;
+            add => AddSubscription(nameof(OnBeltSelectionChanged), value, (hub, handler) => hub.OnBeltSelectionChanged += handler);
+            remove => RemoveSubscription(nameof(OnBeltSelectionChanged), value, (hub, handler) => hub.OnBeltSelectionChanged -= handler);
         }
 
         public static event Action OnInventoryChanged
         {
-            add => RuntimeEvents.OnInventoryChanged += value;
-            remove => RuntimeEvents.OnInventoryChanged -= value;
+            add => AddSubscription(nameof(OnInventoryChanged), value, (hub, handler) => hub.OnInventoryChanged += handler);
+            remove => RemoveSubscription(nameof(OnInventoryChanged), value, (hub, handler) => hub.OnInventoryChanged -= handler);
         }
 
         public static event Action<string> OnWeaponEquipStarted
         {
-            add => RuntimeEvents.OnWeaponEquipStarted += value;
-            remove => RuntimeEvents.OnWeaponEquipStarted -= value;
+            add => AddSubscription(nameof(OnWeaponEquipStarted), value, (hub, handler) => hub.OnWeaponEquipStarted += handler);
+            remove => RemoveSubscription(nameof(OnWeaponEquipStarted), value, (hub, handler) => hub.OnWeaponEquipStarted -= handler);
         }
 
         public static event Action<string> OnWeaponEquipped
         {
-            add => RuntimeEvents.OnWeaponEquipped += value;
-            remove => RuntimeEvents.OnWeaponEquipped -= value;
+            add => AddSubscription(nameof(OnWeaponEquipped), value, (hub, handler) => hub.OnWeaponEquipped += handler);
+            remove => RemoveSubscription(nameof(OnWeaponEquipped), value, (hub, handler) => hub.OnWeaponEquipped -= handler);
         }
 
         public static event Action<string> OnWeaponUnequipStarted
         {
-            add => RuntimeEvents.OnWeaponUnequipStarted += value;
-            remove => RuntimeEvents.OnWeaponUnequipStarted -= value;
+            add => AddSubscription(nameof(OnWeaponUnequipStarted), value, (hub, handler) => hub.OnWeaponUnequipStarted += handler);
+            remove => RemoveSubscription(nameof(OnWeaponUnequipStarted), value, (hub, handler) => hub.OnWeaponUnequipStarted -= handler);
         }
 
         public static event Action<string, Vector3, Vector3> OnWeaponFired
         {
-            add => RuntimeEvents.OnWeaponFired += value;
-            remove => RuntimeEvents.OnWeaponFired -= value;
+            add => AddSubscription(nameof(OnWeaponFired), value, (hub, handler) => hub.OnWeaponFired += handler);
+            remove => RemoveSubscription(nameof(OnWeaponFired), value, (hub, handler) => hub.OnWeaponFired -= handler);
         }
 
         public static event Action<string> OnWeaponReloadStarted
         {
-            add => RuntimeEvents.OnWeaponReloadStarted += value;
-            remove => RuntimeEvents.OnWeaponReloadStarted -= value;
+            add => AddSubscription(nameof(OnWeaponReloadStarted), value, (hub, handler) => hub.OnWeaponReloadStarted += handler);
+            remove => RemoveSubscription(nameof(OnWeaponReloadStarted), value, (hub, handler) => hub.OnWeaponReloadStarted -= handler);
         }
 
         public static event Action<string, WeaponReloadCancelReason> OnWeaponReloadCancelled
         {
-            add => RuntimeEvents.OnWeaponReloadCancelled += value;
-            remove => RuntimeEvents.OnWeaponReloadCancelled -= value;
+            add => AddSubscription(nameof(OnWeaponReloadCancelled), value, (hub, handler) => hub.OnWeaponReloadCancelled += handler);
+            remove => RemoveSubscription(nameof(OnWeaponReloadCancelled), value, (hub, handler) => hub.OnWeaponReloadCancelled -= handler);
         }
 
         public static event Action<string, int, int> OnWeaponReloaded
         {
-            add => RuntimeEvents.OnWeaponReloaded += value;
-            remove => RuntimeEvents.OnWeaponReloaded -= value;
+            add => AddSubscription(nameof(OnWeaponReloaded), value, (hub, handler) => hub.OnWeaponReloaded += handler);
+            remove => RemoveSubscription(nameof(OnWeaponReloaded), value, (hub, handler) => hub.OnWeaponReloaded -= handler);
         }
 
         public static event Action<string, bool> OnWeaponAimChanged
         {
-            add => RuntimeEvents.OnWeaponAimChanged += value;
-            remove => RuntimeEvents.OnWeaponAimChanged -= value;
+            add => AddSubscription(nameof(OnWeaponAimChanged), value, (hub, handler) => hub.OnWeaponAimChanged += handler);
+            remove => RemoveSubscription(nameof(OnWeaponAimChanged), value, (hub, handler) => hub.OnWeaponAimChanged -= handler);
         }
 
         public static event Action<string, Vector3, float> OnProjectileHit
         {
-            add => RuntimeEvents.OnProjectileHit += value;
-            remove => RuntimeEvents.OnProjectileHit -= value;
+            add => AddSubscription(nameof(OnProjectileHit), value, (hub, handler) => hub.OnProjectileHit += handler);
+            remove => RemoveSubscription(nameof(OnProjectileHit), value, (hub, handler) => hub.OnProjectileHit -= handler);
         }
 
         public static event Action<string> OnShopTradeOpenRequested
         {
-            add => RuntimeEvents.OnShopTradeOpenRequested += value;
-            remove => RuntimeEvents.OnShopTradeOpenRequested -= value;
+            add => AddSubscription(nameof(OnShopTradeOpenRequested), value, (hub, handler) => hub.OnShopTradeOpenRequested += handler);
+            remove => RemoveSubscription(nameof(OnShopTradeOpenRequested), value, (hub, handler) => hub.OnShopTradeOpenRequested -= handler);
         }
 
         public static event Action<string> OnShopTradeOpened
         {
-            add => RuntimeEvents.OnShopTradeOpened += value;
-            remove => RuntimeEvents.OnShopTradeOpened -= value;
+            add => AddSubscription(nameof(OnShopTradeOpened), value, (hub, handler) => hub.OnShopTradeOpened += handler);
+            remove => RemoveSubscription(nameof(OnShopTradeOpened), value, (hub, handler) => hub.OnShopTradeOpened -= handler);
         }
 
         public static event Action OnShopTradeClosed
         {
-            add => RuntimeEvents.OnShopTradeClosed += value;
-            remove => RuntimeEvents.OnShopTradeClosed -= value;
+            add => AddSubscription(nameof(OnShopTradeClosed), value, (hub, handler) => hub.OnShopTradeClosed += handler);
+            remove => RemoveSubscription(nameof(OnShopTradeClosed), value, (hub, handler) => hub.OnShopTradeClosed -= handler);
         }
 
         public static event Action<string, int> OnShopBuyRequested
         {
-            add => RuntimeEvents.OnShopBuyRequested += value;
-            remove => RuntimeEvents.OnShopBuyRequested -= value;
+            add => AddSubscription(nameof(OnShopBuyRequested), value, (hub, handler) => hub.OnShopBuyRequested += handler);
+            remove => RemoveSubscription(nameof(OnShopBuyRequested), value, (hub, handler) => hub.OnShopBuyRequested -= handler);
         }
 
         public static event Action<string, int> OnShopSellRequested
         {
-            add => RuntimeEvents.OnShopSellRequested += value;
-            remove => RuntimeEvents.OnShopSellRequested -= value;
+            add => AddSubscription(nameof(OnShopSellRequested), value, (hub, handler) => hub.OnShopSellRequested += handler);
+            remove => RemoveSubscription(nameof(OnShopSellRequested), value, (hub, handler) => hub.OnShopSellRequested -= handler);
         }
 
         public static event Action<ShopCheckoutRequest> OnShopBuyCheckoutRequested
         {
-            add => RuntimeEvents.OnShopBuyCheckoutRequested += value;
-            remove => RuntimeEvents.OnShopBuyCheckoutRequested -= value;
+            add => AddSubscription(nameof(OnShopBuyCheckoutRequested), value, (hub, handler) => hub.OnShopBuyCheckoutRequested += handler);
+            remove => RemoveSubscription(nameof(OnShopBuyCheckoutRequested), value, (hub, handler) => hub.OnShopBuyCheckoutRequested -= handler);
         }
 
         public static event Action<ShopCheckoutRequest> OnShopSellCheckoutRequested
         {
-            add => RuntimeEvents.OnShopSellCheckoutRequested += value;
-            remove => RuntimeEvents.OnShopSellCheckoutRequested -= value;
+            add => AddSubscription(nameof(OnShopSellCheckoutRequested), value, (hub, handler) => hub.OnShopSellCheckoutRequested += handler);
+            remove => RemoveSubscription(nameof(OnShopSellCheckoutRequested), value, (hub, handler) => hub.OnShopSellCheckoutRequested -= handler);
         }
 
         public static event Action<string, int, bool, bool, string> OnShopTradeResult
         {
-            add => RuntimeEvents.OnShopTradeResult += value;
-            remove => RuntimeEvents.OnShopTradeResult -= value;
+            add => AddSubscription(nameof(OnShopTradeResult), value, (hub, handler) => hub.OnShopTradeResult += handler);
+            remove => RemoveSubscription(nameof(OnShopTradeResult), value, (hub, handler) => hub.OnShopTradeResult -= handler);
         }
 
         public static event Action<bool> OnWorkbenchMenuVisibilityChanged
         {
-            add => RuntimeEvents.OnWorkbenchMenuVisibilityChanged += value;
-            remove => RuntimeEvents.OnWorkbenchMenuVisibilityChanged -= value;
+            add => AddSubscription(nameof(OnWorkbenchMenuVisibilityChanged), value, (hub, handler) => hub.OnWorkbenchMenuVisibilityChanged += handler);
+            remove => RemoveSubscription(nameof(OnWorkbenchMenuVisibilityChanged), value, (hub, handler) => hub.OnWorkbenchMenuVisibilityChanged -= handler);
         }
 
         public static event Action<bool> OnTabInventoryVisibilityChanged
         {
-            add => RuntimeEvents.OnTabInventoryVisibilityChanged += value;
-            remove => RuntimeEvents.OnTabInventoryVisibilityChanged -= value;
+            add => AddSubscription(nameof(OnTabInventoryVisibilityChanged), value, (hub, handler) => hub.OnTabInventoryVisibilityChanged += handler);
+            remove => RemoveSubscription(nameof(OnTabInventoryVisibilityChanged), value, (hub, handler) => hub.OnTabInventoryVisibilityChanged -= handler);
         }
 
         public static event Action<int> OnMoneyChanged
         {
-            add => RuntimeEvents.OnMoneyChanged += value;
-            remove => RuntimeEvents.OnMoneyChanged -= value;
+            add => AddSubscription(nameof(OnMoneyChanged), value, (hub, handler) => hub.OnMoneyChanged += handler);
+            remove => RemoveSubscription(nameof(OnMoneyChanged), value, (hub, handler) => hub.OnMoneyChanged -= handler);
         }
 
         public static void RaiseSaveStarted() => RuntimeEvents.RaiseSaveStarted();
@@ -219,6 +220,89 @@ namespace Reloader.Core.Events
         private static IGameEventsRuntimeHub RuntimeEvents
         {
             get => RuntimeKernelBootstrapper.Events;
+        }
+
+        private static readonly Dictionary<SubscriptionKey, Stack<IGameEventsRuntimeHub>> SubscriptionHubs =
+            new Dictionary<SubscriptionKey, Stack<IGameEventsRuntimeHub>>();
+
+        private static void AddSubscription<THandler>(
+            string eventName,
+            THandler handler,
+            Action<IGameEventsRuntimeHub, THandler> subscribe) where THandler : Delegate
+        {
+            if (handler == null)
+            {
+                return;
+            }
+
+            var hub = RuntimeEvents;
+            subscribe(hub, handler);
+
+            var key = new SubscriptionKey(eventName, handler);
+            if (!SubscriptionHubs.TryGetValue(key, out var hubs))
+            {
+                hubs = new Stack<IGameEventsRuntimeHub>();
+                SubscriptionHubs.Add(key, hubs);
+            }
+
+            hubs.Push(hub);
+        }
+
+        private static void RemoveSubscription<THandler>(
+            string eventName,
+            THandler handler,
+            Action<IGameEventsRuntimeHub, THandler> unsubscribe) where THandler : Delegate
+        {
+            if (handler == null)
+            {
+                return;
+            }
+
+            var key = new SubscriptionKey(eventName, handler);
+            if (SubscriptionHubs.TryGetValue(key, out var hubs) && hubs.Count > 0)
+            {
+                var hub = hubs.Pop();
+                unsubscribe(hub, handler);
+                if (hubs.Count == 0)
+                {
+                    SubscriptionHubs.Remove(key);
+                }
+
+                return;
+            }
+
+            unsubscribe(RuntimeEvents, handler);
+        }
+
+        private readonly struct SubscriptionKey : IEquatable<SubscriptionKey>
+        {
+            public SubscriptionKey(string eventName, Delegate handler)
+            {
+                EventName = eventName ?? string.Empty;
+                Handler = handler;
+            }
+
+            private string EventName { get; }
+            private Delegate Handler { get; }
+
+            public bool Equals(SubscriptionKey other)
+            {
+                return string.Equals(EventName, other.EventName, StringComparison.Ordinal)
+                    && Equals(Handler, other.Handler);
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is SubscriptionKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return (EventName.GetHashCode() * 397) ^ (Handler != null ? Handler.GetHashCode() : 0);
+                }
+            }
         }
     }
 }

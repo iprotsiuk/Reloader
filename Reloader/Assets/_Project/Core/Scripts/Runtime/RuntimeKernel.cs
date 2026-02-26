@@ -106,12 +106,33 @@ namespace Reloader.Core.Runtime
                 throw new InvalidOperationException("Runtime kernel is not started.");
             }
 
+            List<Exception> stopExceptions = null;
             for (var index = registrations.Count - 1; index >= 0; index--)
             {
-                registrations[index].Module.Stop();
+                try
+                {
+                    registrations[index].Module.Stop();
+                }
+                catch (Exception ex)
+                {
+                    stopExceptions ??= new List<Exception>();
+                    stopExceptions.Add(ex);
+                }
             }
 
             isStarted = false;
+
+            if (stopExceptions == null)
+            {
+                return;
+            }
+
+            if (stopExceptions.Count == 1)
+            {
+                throw stopExceptions[0];
+            }
+
+            throw new AggregateException("One or more runtime modules failed during stop.", stopExceptions);
         }
 
         private static void EnsureUniqueModuleKeys(List<RuntimeModuleRegistration> moduleRegistrations)

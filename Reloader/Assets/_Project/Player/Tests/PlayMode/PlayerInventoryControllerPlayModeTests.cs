@@ -188,6 +188,7 @@ namespace Reloader.Player.Tests.PlayMode
 
             input.PickupPressedThisFrame = true;
             controller.Tick();
+            controller.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
 
             var target = new TestPickupTarget("item-99");
             resolver.Target = target;

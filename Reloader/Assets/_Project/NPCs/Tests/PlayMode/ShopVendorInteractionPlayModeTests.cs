@@ -43,7 +43,7 @@ namespace Reloader.NPCs.Tests.PlayMode
         }
 
         [Test]
-        public void PickupPress_WhenInventoryHasNoTarget_DoesNotAutoOpenVendorTradeInSameFrame()
+        public void PickupPress_WhenInventoryHasNoTarget_AllowsVendorControllerToConsumeInSameFrame()
         {
             var root = new GameObject("PlayerRoot");
             var input = root.AddComponent<TestInputSource>();
@@ -66,11 +66,6 @@ namespace Reloader.NPCs.Tests.PlayMode
             {
                 input.PickupPressedThisFrame = true;
                 inventoryController.Tick();
-                vendorController.Tick();
-                Assert.That(openRequestedCount, Is.EqualTo(0));
-                Assert.That(vendor.OpenCount, Is.EqualTo(0));
-
-                input.PickupPressedThisFrame = true;
                 vendorController.Tick();
             }
             finally

@@ -26,6 +26,7 @@ namespace Reloader.Inventory
         private bool _useRuntimeKernelInventoryEvents = true;
         private readonly Dictionary<string, IInventoryPickupTarget> _pendingPickupTargetsById = new Dictionary<string, IInventoryPickupTarget>();
         private bool _loggedMissingInputSource;
+        private bool _flushPickupInputAtEndOfFrame;
 
         public PlayerInventoryRuntime Runtime { get; private set; }
         public int SelectedBeltIndexDebug => _selectedBeltIndexDebug;
@@ -47,11 +48,23 @@ namespace Reloader.Inventory
         {
             UnsubscribeFromInventoryEvents();
             _pendingPickupTargetsById.Clear();
+            _flushPickupInputAtEndOfFrame = false;
         }
 
         private void Update()
         {
             Tick();
+        }
+
+        private void LateUpdate()
+        {
+            if (!_flushPickupInputAtEndOfFrame || _inputSource == null)
+            {
+                return;
+            }
+
+            _flushPickupInputAtEndOfFrame = false;
+            _inputSource.ConsumePickupPressed();
         }
 
         public void Configure(
@@ -102,17 +115,20 @@ namespace Reloader.Inventory
                 }
             }
 
+            if (_pickupTargetResolver == null || !_pickupTargetResolver.TryResolvePickupTarget(out var pickupTarget) || pickupTarget == null)
+            {
+                _flushPickupInputAtEndOfFrame = true;
+                return;
+            }
+
             var pickupPressedThisFrame = _inputSource.ConsumePickupPressed();
             if (!pickupPressedThisFrame)
             {
+                _flushPickupInputAtEndOfFrame = false;
                 return;
             }
 
-            if (_pickupTargetResolver == null || !_pickupTargetResolver.TryResolvePickupTarget(out var pickupTarget) || pickupTarget == null)
-            {
-                return;
-            }
-
+            _flushPickupInputAtEndOfFrame = false;
             var resolvedItemId = ResolvePickupItemId(pickupTarget);
             if (!string.IsNullOrWhiteSpace(resolvedItemId))
             {

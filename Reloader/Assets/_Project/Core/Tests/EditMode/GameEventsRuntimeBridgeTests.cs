@@ -74,6 +74,26 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void EventUnsubscription_RemovesFromOriginalHub_WhenHubIsReconfigured()
+        {
+            var initialHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var replacementHub = new DefaultRuntimeEvents();
+            var invocationCount = 0;
+            void Handler() => invocationCount++;
+
+            GameEvents.OnInventoryChanged += Handler;
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+            GameEvents.OnInventoryChanged -= Handler;
+
+            initialHub.RaiseInventoryChanged();
+            replacementHub.RaiseInventoryChanged();
+
+            Assert.That(invocationCount, Is.EqualTo(0));
+        }
+
+        [Test]
         public void RaiseWeaponReloaded_ForwardsToRuntimeEventHub()
         {
             var hub = new DefaultRuntimeEvents();

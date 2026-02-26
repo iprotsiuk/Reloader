@@ -283,6 +283,42 @@ namespace Reloader.Core.Tests.EditMode
             }, lifecycle);
         }
 
+        [Test]
+        public void Stop_WhenModuleThrows_ContinuesStoppingAndKernelIsNotLeftStarted()
+        {
+            var lifecycle = new List<string>();
+            var moduleA = new RecordingGameModule("module-a", lifecycle);
+            var moduleB = new RecordingGameModule("module-b", lifecycle) { ThrowOnStop = true };
+            var moduleC = new RecordingGameModule("module-c", lifecycle);
+
+            var kernel = new RuntimeKernel(new[]
+            {
+                new RuntimeModuleRegistration(0, moduleA),
+                new RuntimeModuleRegistration(1, moduleB),
+                new RuntimeModuleRegistration(2, moduleC)
+            });
+
+            kernel.Initialize();
+            kernel.Start();
+
+            Assert.Throws<InvalidOperationException>(() => kernel.Stop());
+
+            CollectionAssert.AreEqual(new[]
+            {
+                "Initialize:module-a",
+                "Initialize:module-b",
+                "Initialize:module-c",
+                "Start:module-a",
+                "Start:module-b",
+                "Start:module-c",
+                "Stop:module-c",
+                "Stop:module-b",
+                "Stop:module-a"
+            }, lifecycle);
+
+            Assert.Throws<InvalidOperationException>(() => kernel.Stop());
+        }
+
         private sealed class RecordingGameModule : IGameModule
         {
             private readonly List<string> lifecycle;
