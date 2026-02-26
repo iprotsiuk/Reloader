@@ -24,75 +24,101 @@ namespace Reloader.Weapons.Tests.PlayMode
             var fallbackRuntimeEvents = new DefaultRuntimeEvents();
             RuntimeKernelBootstrapper.Events = fallbackRuntimeEvents;
 
-            var root = new GameObject("PlayerRoot");
-            var input = root.AddComponent<TestInputSource>();
-            var resolver = root.AddComponent<TestPickupResolver>();
-            var inventoryController = root.AddComponent<PlayerInventoryController>();
-            var runtime = new PlayerInventoryRuntime();
-            inventoryController.Configure(input, resolver, runtime);
-
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
-            runtime.SelectBeltSlot(0);
-            runtime.TryAddStackItem("ammo-factory-308-147-fmj", 10, out _, out _, out _);
-
-            var registryGo = new GameObject("Registry");
-            var registry = registryGo.AddComponent<WeaponRegistry>();
-            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
-            registry.SetDefinitionsForTests(new[] { definition });
-
-            var injectedEvents = new DefaultRuntimeEvents();
-            var injectedEquipRaised = 0;
-            var injectedFireRaised = 0;
-            var injectedReloadRaised = 0;
-            var injectedInventoryChangedRaised = 0;
-            injectedEvents.OnWeaponEquipped += _ => injectedEquipRaised++;
-            injectedEvents.OnWeaponFired += (_, _, _) => injectedFireRaised++;
-            injectedEvents.OnWeaponReloaded += (_, _, _) => injectedReloadRaised++;
-            injectedEvents.OnInventoryChanged += () => injectedInventoryChangedRaised++;
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            var staticHandlersRegistered = false;
 
             var staticEquipRaised = 0;
             var staticFireRaised = 0;
             var staticReloadRaised = 0;
             var staticInventoryChangedRaised = 0;
-            GameEvents.OnWeaponEquipped += HandleStaticWeaponEquipped;
-            GameEvents.OnWeaponFired += HandleStaticWeaponFired;
-            GameEvents.OnWeaponReloaded += HandleStaticWeaponReloaded;
-            GameEvents.OnInventoryChanged += HandleStaticInventoryChanged;
-
             void HandleStaticWeaponEquipped(string _) => staticEquipRaised++;
             void HandleStaticWeaponFired(string _, Vector3 __, Vector3 ___) => staticFireRaised++;
             void HandleStaticWeaponReloaded(string _, int __, int ___) => staticReloadRaised++;
             void HandleStaticInventoryChanged() => staticInventoryChangedRaised++;
 
-            var controller = root.AddComponent<PlayerWeaponController>();
-            controller.Configure(weaponEvents: injectedEvents, inventoryEvents: injectedEvents);
-            yield return null;
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
 
-            input.FirePressedThisFrame = true;
-            yield return null;
-            input.ReloadPressedThisFrame = true;
-            yield return null;
-            yield return new WaitForSeconds(0.36f);
+                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.SelectBeltSlot(0);
+                runtime.TryAddStackItem("ammo-factory-308-147-fmj", 10, out _, out _, out _);
 
-            Assert.That(injectedEquipRaised, Is.GreaterThan(0));
-            Assert.That(injectedFireRaised, Is.EqualTo(1));
-            Assert.That(injectedReloadRaised, Is.EqualTo(1));
-            Assert.That(injectedInventoryChangedRaised, Is.EqualTo(1));
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+                registry.SetDefinitionsForTests(new[] { definition });
 
-            Assert.That(staticEquipRaised, Is.EqualTo(0));
-            Assert.That(staticFireRaised, Is.EqualTo(0));
-            Assert.That(staticReloadRaised, Is.EqualTo(0));
-            Assert.That(staticInventoryChangedRaised, Is.EqualTo(0));
+                var injectedEvents = new DefaultRuntimeEvents();
+                var injectedEquipRaised = 0;
+                var injectedFireRaised = 0;
+                var injectedReloadRaised = 0;
+                var injectedInventoryChangedRaised = 0;
+                injectedEvents.OnWeaponEquipped += _ => injectedEquipRaised++;
+                injectedEvents.OnWeaponFired += (_, _, _) => injectedFireRaised++;
+                injectedEvents.OnWeaponReloaded += (_, _, _) => injectedReloadRaised++;
+                injectedEvents.OnInventoryChanged += () => injectedInventoryChangedRaised++;
 
-            GameEvents.OnWeaponEquipped -= HandleStaticWeaponEquipped;
-            GameEvents.OnWeaponFired -= HandleStaticWeaponFired;
-            GameEvents.OnWeaponReloaded -= HandleStaticWeaponReloaded;
-            GameEvents.OnInventoryChanged -= HandleStaticInventoryChanged;
-            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
-            Object.Destroy(root);
-            Object.Destroy(registryGo);
-            Object.Destroy(definition);
+                GameEvents.OnWeaponEquipped += HandleStaticWeaponEquipped;
+                GameEvents.OnWeaponFired += HandleStaticWeaponFired;
+                GameEvents.OnWeaponReloaded += HandleStaticWeaponReloaded;
+                GameEvents.OnInventoryChanged += HandleStaticInventoryChanged;
+                staticHandlersRegistered = true;
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                controller.Configure(weaponEvents: injectedEvents, inventoryEvents: injectedEvents);
+                yield return null;
+
+                input.FirePressedThisFrame = true;
+                yield return null;
+                input.ReloadPressedThisFrame = true;
+                yield return null;
+                yield return new WaitForSeconds(0.36f);
+
+                Assert.That(injectedEquipRaised, Is.GreaterThan(0));
+                Assert.That(injectedFireRaised, Is.EqualTo(1));
+                Assert.That(injectedReloadRaised, Is.EqualTo(1));
+                Assert.That(injectedInventoryChangedRaised, Is.EqualTo(1));
+
+                Assert.That(staticEquipRaised, Is.EqualTo(0));
+                Assert.That(staticFireRaised, Is.EqualTo(0));
+                Assert.That(staticReloadRaised, Is.EqualTo(0));
+                Assert.That(staticInventoryChangedRaised, Is.EqualTo(0));
+            }
+            finally
+            {
+                if (staticHandlersRegistered)
+                {
+                    GameEvents.OnWeaponEquipped -= HandleStaticWeaponEquipped;
+                    GameEvents.OnWeaponFired -= HandleStaticWeaponFired;
+                    GameEvents.OnWeaponReloaded -= HandleStaticWeaponReloaded;
+                    GameEvents.OnInventoryChanged -= HandleStaticInventoryChanged;
+                }
+
+                RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
         }
 
         [UnityTest]
@@ -149,6 +175,104 @@ namespace Reloader.Weapons.Tests.PlayMode
             finally
             {
                 RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Configure_InjectedWeaponEvents_ProjectileHitRaisesOnlyInjectedChannel()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            RuntimeKernelBootstrapper.Events = new DefaultRuntimeEvents();
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            GameObject target = null;
+            WeaponProjectile projectile = null;
+            var staticHandlersRegistered = false;
+
+            var staticProjectileHitRaised = 0;
+            void HandleStaticProjectileHit(string _, Vector3 __, float ___) => staticProjectileHitRaised++;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+
+                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 120f, 0f, 20f, 120f, 1, 0, true);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                target.transform.position = new Vector3(0f, 0f, 5f);
+                target.transform.localScale = new Vector3(1f, 1f, 1f);
+
+                var injectedEvents = new DefaultRuntimeEvents();
+                var injectedProjectileHitRaised = 0;
+                injectedEvents.OnProjectileHit += (_, _, _) => injectedProjectileHitRaised++;
+
+                GameEvents.OnProjectileHit += HandleStaticProjectileHit;
+                staticHandlersRegistered = true;
+
+                root.AddComponent<PlayerWeaponController>().Configure(weaponEvents: injectedEvents, inventoryEvents: injectedEvents);
+                yield return null;
+
+                input.FirePressedThisFrame = true;
+                yield return null;
+
+                var elapsed = 0f;
+                while (injectedProjectileHitRaised == 0 && elapsed < 0.75f)
+                {
+                    elapsed += Time.deltaTime;
+                    yield return null;
+                }
+
+                projectile = Object.FindFirstObjectByType<WeaponProjectile>();
+
+                Assert.That(injectedProjectileHitRaised, Is.EqualTo(1));
+                Assert.That(staticProjectileHitRaised, Is.EqualTo(0));
+            }
+            finally
+            {
+                if (staticHandlersRegistered)
+                {
+                    GameEvents.OnProjectileHit -= HandleStaticProjectileHit;
+                }
+
+                RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+                if (projectile != null)
+                {
+                    Object.Destroy(projectile.gameObject);
+                }
+
+                if (target != null)
+                {
+                    Object.Destroy(target);
+                }
+
                 if (root != null)
                 {
                     Object.Destroy(root);
