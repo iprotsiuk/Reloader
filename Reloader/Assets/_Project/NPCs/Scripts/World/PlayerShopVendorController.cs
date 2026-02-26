@@ -3,7 +3,6 @@ using Reloader.Core.Runtime;
 using Reloader.Player;
 using System;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Reloader.NPCs.World
 {
@@ -108,7 +107,7 @@ namespace Reloader.NPCs.World
         private bool IsPickupPressedThisFrame()
         {
             // Inventory also consumes Pickup input; checking the keyboard edge keeps vendor interaction responsive.
-            var keyboardPressed = Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame;
+            var keyboardPressed = Input.GetKeyDown(KeyCode.E);
             if (keyboardPressed)
             {
                 return true;
