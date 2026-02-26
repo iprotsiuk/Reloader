@@ -49,3 +49,9 @@ Use **capability-based NPC composition** as the primary architecture, with a **d
 - Full dialogue/quest UI integration.
 - Full save payload integration for all capability runtime states.
 - Full editor prefab rebuild tool generalization.
+
+## As-Built Note (2026-02-26)
+- Foundation contracts were implemented as designed: `NpcDefinition`, `NpcRolePreset`, `NpcCapabilityConfig`, `NpcAgent`, `INpcCapability`, `INpcActionProvider`, and `INpcDecisionProvider`.
+- Decision seam is active in runtime via `NpcAiController`; default evaluation uses `RuleBasedDecisionProvider`.
+- World-authoring now starts from role prefabs under `Reloader/Assets/_Project/NPCs/Prefabs/Roles/`, then assigning `NpcDefinition`/`NpcRolePreset` plus capability MonoBehaviours on the placed prefab.
+- Deferred items remain unchanged for later slices: behavior-tree provider/assets, full dialogue+quest integration, and complete capability-state persistence.
