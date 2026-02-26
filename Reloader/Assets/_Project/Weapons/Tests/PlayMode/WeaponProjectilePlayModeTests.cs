@@ -1,6 +1,5 @@
 using System.Collections;
 using NUnit.Framework;
-using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Weapons.Ballistics;
 using UnityEngine;
@@ -10,11 +9,26 @@ namespace Reloader.Weapons.Tests.PlayMode
 {
     public class WeaponProjectilePlayModeTests
     {
+        private IGameEventsRuntimeHub _runtimeEventsBeforeEachTest;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _runtimeEventsBeforeEachTest = RuntimeKernelBootstrapper.Events;
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            RuntimeKernelBootstrapper.Events = _runtimeEventsBeforeEachTest;
+        }
+
         [UnityTest]
         public IEnumerator Configure_InjectedWeaponEvents_RaisesProjectileHitThroughInjectedPortOnly()
         {
             var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
-            RuntimeKernelBootstrapper.Events = new DefaultRuntimeEvents();
+            var fallbackRuntimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = fallbackRuntimeEvents;
 
             var projectileGo = new GameObject("Projectile");
             projectileGo.transform.position = Vector3.zero;
@@ -30,9 +44,9 @@ namespace Reloader.Weapons.Tests.PlayMode
             var injectedHitRaised = 0;
             injectedEvents.OnProjectileHit += (_, _, _) => injectedHitRaised++;
 
-            var staticHitRaised = 0;
-            GameEvents.OnProjectileHit += HandleStaticProjectileHit;
-            void HandleStaticProjectileHit(string _, Vector3 __, float ___) => staticHitRaised++;
+            var fallbackHitRaised = 0;
+            fallbackRuntimeEvents.OnProjectileHit += HandleFallbackProjectileHit;
+            void HandleFallbackProjectileHit(string _, Vector3 __, float ___) => fallbackHitRaised++;
 
             projectile.Configure(injectedEvents);
             projectile.Initialize("weapon-rifle-01", Vector3.forward, speed: 120f, gravityMultiplier: 0f, damage: 33f, lifetimeSeconds: 3f);
@@ -44,12 +58,12 @@ namespace Reloader.Weapons.Tests.PlayMode
                 yield return null;
             }
 
-            GameEvents.OnProjectileHit -= HandleStaticProjectileHit;
+            fallbackRuntimeEvents.OnProjectileHit -= HandleFallbackProjectileHit;
             RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
 
             Assert.That(receiver.HitCount, Is.EqualTo(1));
             Assert.That(injectedHitRaised, Is.EqualTo(1));
-            Assert.That(staticHitRaised, Is.EqualTo(0));
+            Assert.That(fallbackHitRaised, Is.EqualTo(0));
 
             Object.Destroy(projectileGo);
             Object.Destroy(target);
@@ -103,6 +117,10 @@ namespace Reloader.Weapons.Tests.PlayMode
         [UnityTest]
         public IEnumerator Projectile_AppliesDamageAndRaisesHitEvent_OnCollision()
         {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
             var projectileGo = new GameObject("Projectile");
             projectileGo.transform.position = Vector3.zero;
             projectileGo.transform.forward = Vector3.forward;
@@ -115,7 +133,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
             string hitItemId = null;
             float hitDamage = 0f;
-            GameEvents.OnProjectileHit += OnProjectileHit;
+            runtimeEvents.OnProjectileHit += OnProjectileHit;
             void OnProjectileHit(string itemId, Vector3 _, float damage)
             {
                 hitItemId = itemId;
@@ -131,7 +149,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 yield return null;
             }
 
-            GameEvents.OnProjectileHit -= OnProjectileHit;
+            runtimeEvents.OnProjectileHit -= OnProjectileHit;
+            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
 
             Assert.That(receiver.HitCount, Is.EqualTo(1));
             Assert.That(receiver.LastDamage, Is.EqualTo(33f));

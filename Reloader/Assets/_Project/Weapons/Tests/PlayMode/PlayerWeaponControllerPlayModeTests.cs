@@ -17,6 +17,20 @@ namespace Reloader.Weapons.Tests.PlayMode
 {
     public class PlayerWeaponControllerPlayModeTests
     {
+        private IGameEventsRuntimeHub _runtimeEventsBeforeEachTest;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _runtimeEventsBeforeEachTest = RuntimeKernelBootstrapper.Events;
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            RuntimeKernelBootstrapper.Events = _runtimeEventsBeforeEachTest;
+        }
+
         [UnityTest]
         public IEnumerator Configure_InjectedWeaponAndInventoryEvents_RaisesThroughInjectedPortsOnly()
         {
@@ -27,16 +41,16 @@ namespace Reloader.Weapons.Tests.PlayMode
             GameObject root = null;
             GameObject registryGo = null;
             WeaponDefinition definition = null;
-            var staticHandlersRegistered = false;
+            var fallbackHandlersRegistered = false;
 
-            var staticEquipRaised = 0;
-            var staticFireRaised = 0;
-            var staticReloadRaised = 0;
-            var staticInventoryChangedRaised = 0;
-            void HandleStaticWeaponEquipped(string _) => staticEquipRaised++;
-            void HandleStaticWeaponFired(string _, Vector3 __, Vector3 ___) => staticFireRaised++;
-            void HandleStaticWeaponReloaded(string _, int __, int ___) => staticReloadRaised++;
-            void HandleStaticInventoryChanged() => staticInventoryChangedRaised++;
+            var fallbackEquipRaised = 0;
+            var fallbackFireRaised = 0;
+            var fallbackReloadRaised = 0;
+            var fallbackInventoryChangedRaised = 0;
+            void HandleFallbackWeaponEquipped(string _) => fallbackEquipRaised++;
+            void HandleFallbackWeaponFired(string _, Vector3 __, Vector3 ___) => fallbackFireRaised++;
+            void HandleFallbackWeaponReloaded(string _, int __, int ___) => fallbackReloadRaised++;
+            void HandleFallbackInventoryChanged() => fallbackInventoryChangedRaised++;
 
             try
             {
@@ -67,11 +81,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 injectedEvents.OnWeaponReloaded += (_, _, _) => injectedReloadRaised++;
                 injectedEvents.OnInventoryChanged += () => injectedInventoryChangedRaised++;
 
-                GameEvents.OnWeaponEquipped += HandleStaticWeaponEquipped;
-                GameEvents.OnWeaponFired += HandleStaticWeaponFired;
-                GameEvents.OnWeaponReloaded += HandleStaticWeaponReloaded;
-                GameEvents.OnInventoryChanged += HandleStaticInventoryChanged;
-                staticHandlersRegistered = true;
+                fallbackRuntimeEvents.OnWeaponEquipped += HandleFallbackWeaponEquipped;
+                fallbackRuntimeEvents.OnWeaponFired += HandleFallbackWeaponFired;
+                fallbackRuntimeEvents.OnWeaponReloaded += HandleFallbackWeaponReloaded;
+                fallbackRuntimeEvents.OnInventoryChanged += HandleFallbackInventoryChanged;
+                fallbackHandlersRegistered = true;
 
                 var controller = root.AddComponent<PlayerWeaponController>();
                 controller.Configure(weaponEvents: injectedEvents, inventoryEvents: injectedEvents);
@@ -88,19 +102,19 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(injectedReloadRaised, Is.EqualTo(1));
                 Assert.That(injectedInventoryChangedRaised, Is.EqualTo(1));
 
-                Assert.That(staticEquipRaised, Is.EqualTo(0));
-                Assert.That(staticFireRaised, Is.EqualTo(0));
-                Assert.That(staticReloadRaised, Is.EqualTo(0));
-                Assert.That(staticInventoryChangedRaised, Is.EqualTo(0));
+                Assert.That(fallbackEquipRaised, Is.EqualTo(0));
+                Assert.That(fallbackFireRaised, Is.EqualTo(0));
+                Assert.That(fallbackReloadRaised, Is.EqualTo(0));
+                Assert.That(fallbackInventoryChangedRaised, Is.EqualTo(0));
             }
             finally
             {
-                if (staticHandlersRegistered)
+                if (fallbackHandlersRegistered)
                 {
-                    GameEvents.OnWeaponEquipped -= HandleStaticWeaponEquipped;
-                    GameEvents.OnWeaponFired -= HandleStaticWeaponFired;
-                    GameEvents.OnWeaponReloaded -= HandleStaticWeaponReloaded;
-                    GameEvents.OnInventoryChanged -= HandleStaticInventoryChanged;
+                    fallbackRuntimeEvents.OnWeaponEquipped -= HandleFallbackWeaponEquipped;
+                    fallbackRuntimeEvents.OnWeaponFired -= HandleFallbackWeaponFired;
+                    fallbackRuntimeEvents.OnWeaponReloaded -= HandleFallbackWeaponReloaded;
+                    fallbackRuntimeEvents.OnInventoryChanged -= HandleFallbackInventoryChanged;
                 }
 
                 RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
@@ -196,17 +210,18 @@ namespace Reloader.Weapons.Tests.PlayMode
         public IEnumerator Configure_InjectedWeaponEvents_ProjectileHitRaisesOnlyInjectedChannel()
         {
             var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
-            RuntimeKernelBootstrapper.Events = new DefaultRuntimeEvents();
+            var fallbackRuntimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = fallbackRuntimeEvents;
 
             GameObject root = null;
             GameObject registryGo = null;
             WeaponDefinition definition = null;
             GameObject target = null;
             WeaponProjectile projectile = null;
-            var staticHandlersRegistered = false;
+            var fallbackHandlersRegistered = false;
 
-            var staticProjectileHitRaised = 0;
-            void HandleStaticProjectileHit(string _, Vector3 __, float ___) => staticProjectileHitRaised++;
+            var fallbackProjectileHitRaised = 0;
+            void HandleFallbackProjectileHit(string _, Vector3 __, float ___) => fallbackProjectileHitRaised++;
 
             try
             {
@@ -234,8 +249,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var injectedProjectileHitRaised = 0;
                 injectedEvents.OnProjectileHit += (_, _, _) => injectedProjectileHitRaised++;
 
-                GameEvents.OnProjectileHit += HandleStaticProjectileHit;
-                staticHandlersRegistered = true;
+                fallbackRuntimeEvents.OnProjectileHit += HandleFallbackProjectileHit;
+                fallbackHandlersRegistered = true;
 
                 root.AddComponent<PlayerWeaponController>().Configure(weaponEvents: injectedEvents, inventoryEvents: injectedEvents);
                 yield return null;
@@ -253,13 +268,13 @@ namespace Reloader.Weapons.Tests.PlayMode
                 projectile = Object.FindFirstObjectByType<WeaponProjectile>();
 
                 Assert.That(injectedProjectileHitRaised, Is.EqualTo(1));
-                Assert.That(staticProjectileHitRaised, Is.EqualTo(0));
+                Assert.That(fallbackProjectileHitRaised, Is.EqualTo(0));
             }
             finally
             {
-                if (staticHandlersRegistered)
+                if (fallbackHandlersRegistered)
                 {
-                    GameEvents.OnProjectileHit -= HandleStaticProjectileHit;
+                    fallbackRuntimeEvents.OnProjectileHit -= HandleFallbackProjectileHit;
                 }
 
                 RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
@@ -387,6 +402,10 @@ namespace Reloader.Weapons.Tests.PlayMode
         [UnityTest]
         public IEnumerator BeltSelectedWeapon_EquipsAndFiresAndReloads()
         {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
             var root = new GameObject("PlayerRoot");
             var input = root.AddComponent<TestInputSource>();
             var resolver = root.AddComponent<TestPickupResolver>();
@@ -410,9 +429,9 @@ namespace Reloader.Weapons.Tests.PlayMode
             string fired = null;
             var firedCount = 0;
             string reloaded = null;
-            GameEvents.OnWeaponEquipped += OnEquipped;
-            GameEvents.OnWeaponFired += OnFired;
-            GameEvents.OnWeaponReloaded += OnReloaded;
+            runtimeEvents.OnWeaponEquipped += OnEquipped;
+            runtimeEvents.OnWeaponFired += OnFired;
+            runtimeEvents.OnWeaponReloaded += OnReloaded;
 
             void OnEquipped(string itemId) => equipped = itemId;
             void OnFired(string itemId, Vector3 _, Vector3 __)
@@ -450,9 +469,10 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(stateAfterReloadFire.ChamberLoaded, Is.True);
             Assert.That(stateAfterReloadFire.MagazineCount, Is.EqualTo(4));
 
-            GameEvents.OnWeaponEquipped -= OnEquipped;
-            GameEvents.OnWeaponFired -= OnFired;
-            GameEvents.OnWeaponReloaded -= OnReloaded;
+            runtimeEvents.OnWeaponEquipped -= OnEquipped;
+            runtimeEvents.OnWeaponFired -= OnFired;
+            runtimeEvents.OnWeaponReloaded -= OnReloaded;
+            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
 
             Object.Destroy(root);
             Object.Destroy(registryGo);
@@ -462,6 +482,10 @@ namespace Reloader.Weapons.Tests.PlayMode
         [UnityTest]
         public IEnumerator MissingLocalInputSource_StillEquips_FromSceneInputProvider()
         {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
             var root = new GameObject("PlayerRoot");
             var resolver = root.AddComponent<TestPickupResolver>();
             var inventoryController = root.AddComponent<PlayerInventoryController>();
@@ -483,14 +507,15 @@ namespace Reloader.Weapons.Tests.PlayMode
             root.AddComponent<PlayerWeaponController>();
 
             string equipped = null;
-            GameEvents.OnWeaponEquipped += OnEquipped;
+            runtimeEvents.OnWeaponEquipped += OnEquipped;
             void OnEquipped(string itemId) => equipped = itemId;
 
             yield return null;
 
             Assert.That(equipped, Is.EqualTo("weapon-rifle-01"));
 
-            GameEvents.OnWeaponEquipped -= OnEquipped;
+            runtimeEvents.OnWeaponEquipped -= OnEquipped;
+            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
             Object.Destroy(root);
             Object.Destroy(inputGo);
             Object.Destroy(registryGo);
@@ -500,6 +525,10 @@ namespace Reloader.Weapons.Tests.PlayMode
         [UnityTest]
         public IEnumerator ReloadCompletion_ConsumesAmmoAndRaisesInventoryChanged()
         {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
             var root = new GameObject("PlayerRoot");
             var input = root.AddComponent<TestInputSource>();
             var resolver = root.AddComponent<TestPickupResolver>();
@@ -521,7 +550,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var quantityBeforeReload = runtime.GetItemQuantity("ammo-factory-308-147-fmj");
 
             var inventoryChangedCount = 0;
-            GameEvents.OnInventoryChanged += OnInventoryChanged;
+            runtimeEvents.OnInventoryChanged += OnInventoryChanged;
             void OnInventoryChanged() => inventoryChangedCount++;
 
             yield return null;
@@ -536,7 +565,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(runtime.GetItemQuantity("ammo-factory-308-147-fmj"), Is.LessThan(quantityBeforeReload));
             Assert.That(inventoryChangedCount, Is.EqualTo(1));
 
-            GameEvents.OnInventoryChanged -= OnInventoryChanged;
+            runtimeEvents.OnInventoryChanged -= OnInventoryChanged;
+            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
             Object.Destroy(root);
             Object.Destroy(registryGo);
             Object.Destroy(definition);
@@ -641,6 +671,10 @@ namespace Reloader.Weapons.Tests.PlayMode
         [UnityTest]
         public IEnumerator Fire_RaisesWeaponFiredWithActualDispersedDirection()
         {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
             var root = new GameObject("PlayerRoot");
             var input = root.AddComponent<TestInputSource>();
             var resolver = root.AddComponent<TestPickupResolver>();
@@ -666,7 +700,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
             var firedDirection = Vector3.zero;
             var firedDirectionCaptured = false;
-            GameEvents.OnWeaponFired += HandleWeaponFired;
+            runtimeEvents.OnWeaponFired += HandleWeaponFired;
             void HandleWeaponFired(string _, Vector3 __, Vector3 direction)
             {
                 firedDirection = direction;
@@ -682,7 +716,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(firedDirectionCaptured, Is.True);
             Assert.That(Vector3.Dot(firedDirection.normalized, projectile.transform.forward), Is.GreaterThan(0.9999f));
 
-            GameEvents.OnWeaponFired -= HandleWeaponFired;
+            runtimeEvents.OnWeaponFired -= HandleWeaponFired;
+            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
             if (projectile != null)
             {
                 Object.Destroy(projectile.gameObject);
@@ -696,6 +731,10 @@ namespace Reloader.Weapons.Tests.PlayMode
         [UnityTest]
         public IEnumerator ReloadStart_ThenSprint_CancelsReload()
         {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
             var root = new GameObject("PlayerRoot");
             var input = root.AddComponent<TestInputSource>();
             var resolver = root.AddComponent<TestPickupResolver>();
@@ -718,8 +757,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             string startedItemId = null;
             string cancelledItemId = null;
             var cancelledReason = WeaponReloadCancelReason.DryStateInvalidated;
-            GameEvents.OnWeaponReloadStarted += HandleStarted;
-            GameEvents.OnWeaponReloadCancelled += HandleCancelled;
+            runtimeEvents.OnWeaponReloadStarted += HandleStarted;
+            runtimeEvents.OnWeaponReloadCancelled += HandleCancelled;
             void HandleStarted(string itemId) => startedItemId = itemId;
             void HandleCancelled(string itemId, WeaponReloadCancelReason reason)
             {
@@ -739,8 +778,9 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(cancelledItemId, Is.EqualTo("weapon-rifle-01"));
             Assert.That(cancelledReason, Is.EqualTo(WeaponReloadCancelReason.Sprint));
 
-            GameEvents.OnWeaponReloadStarted -= HandleStarted;
-            GameEvents.OnWeaponReloadCancelled -= HandleCancelled;
+            runtimeEvents.OnWeaponReloadStarted -= HandleStarted;
+            runtimeEvents.OnWeaponReloadCancelled -= HandleCancelled;
+            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
             Object.Destroy(root);
             Object.Destroy(registryGo);
             Object.Destroy(definition);
@@ -749,6 +789,10 @@ namespace Reloader.Weapons.Tests.PlayMode
         [UnityTest]
         public IEnumerator AimingStateChange_RaisesWeaponAimChangedEvent()
         {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
             var root = new GameObject("PlayerRoot");
             var input = root.AddComponent<TestInputSource>();
             var resolver = root.AddComponent<TestPickupResolver>();
@@ -770,7 +814,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             string eventItemId = null;
             var isAiming = false;
             var raised = false;
-            GameEvents.OnWeaponAimChanged += HandleAimChanged;
+            runtimeEvents.OnWeaponAimChanged += HandleAimChanged;
             void HandleAimChanged(string itemId, bool value)
             {
                 eventItemId = itemId;
@@ -787,7 +831,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(eventItemId, Is.EqualTo("weapon-rifle-01"));
             Assert.That(isAiming, Is.True);
 
-            GameEvents.OnWeaponAimChanged -= HandleAimChanged;
+            runtimeEvents.OnWeaponAimChanged -= HandleAimChanged;
+            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
             Object.Destroy(root);
             Object.Destroy(registryGo);
             Object.Destroy(definition);
@@ -796,6 +841,10 @@ namespace Reloader.Weapons.Tests.PlayMode
         [UnityTest]
         public IEnumerator ReloadingThenUnequip_CancelsReloadWithUnequipReason()
         {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
             var root = new GameObject("PlayerRoot");
             var input = root.AddComponent<TestInputSource>();
             var resolver = root.AddComponent<TestPickupResolver>();
@@ -817,7 +866,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
             string cancelledItemId = null;
             var cancelledReason = WeaponReloadCancelReason.DryStateInvalidated;
-            GameEvents.OnWeaponReloadCancelled += HandleCancelled;
+            runtimeEvents.OnWeaponReloadCancelled += HandleCancelled;
             void HandleCancelled(string itemId, WeaponReloadCancelReason reason)
             {
                 cancelledItemId = itemId;
@@ -835,7 +884,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(cancelledItemId, Is.EqualTo("weapon-rifle-01"));
             Assert.That(cancelledReason, Is.EqualTo(WeaponReloadCancelReason.Unequip));
 
-            GameEvents.OnWeaponReloadCancelled -= HandleCancelled;
+            runtimeEvents.OnWeaponReloadCancelled -= HandleCancelled;
+            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
             Object.Destroy(root);
             Object.Destroy(registryGo);
             Object.Destroy(definition);
