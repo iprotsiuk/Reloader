@@ -1,0 +1,21 @@
+{
+  "name": "Reloader.NPCs.Tests.EditMode",
+  "rootNamespace": "Reloader.NPCs.Tests",
+  "references": [
+    "Reloader.NPCs"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}
