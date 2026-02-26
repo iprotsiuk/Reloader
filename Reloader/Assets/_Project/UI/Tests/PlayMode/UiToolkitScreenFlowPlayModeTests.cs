@@ -457,6 +457,52 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void TabInventoryController_WithoutInjectedUiStateEvents_WhenOpen_ReplaysVisibilityAfterRuntimeKernelHubReconfigure()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var go = new GameObject("TabInventoryRuntimeHubReconfigureUiState");
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(2);
+            inventoryController.Configure(null, null, runtime);
+
+            var root = BuildTabRoot();
+            var viewBinder = new TabInventoryViewBinder();
+            viewBinder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+
+            var input = go.AddComponent<TestInputSource>();
+            var controller = go.AddComponent<TabInventoryController>();
+            controller.SetInventoryController(inventoryController);
+            controller.SetInputSource(input);
+            controller.Configure(viewBinder, new TabInventoryDragController());
+
+            var panel = root.Q<VisualElement>("inventory__panel");
+
+            try
+            {
+                input.MenuTogglePressedThisFrame = true;
+                controller.Tick();
+
+                Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+                Assert.That(initialHub.IsTabInventoryVisible, Is.True);
+
+                RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+
+                Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+                Assert.That(replacementHub.IsTabInventoryVisible, Is.True);
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void BeltHudController_UsesInjectedInventoryEvents_InsteadOfStaticGameEvents()
         {
             var go = new GameObject("BeltHudInjectedInventoryEvents");

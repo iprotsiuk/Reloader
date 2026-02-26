@@ -294,12 +294,20 @@ namespace Reloader.UI.Toolkit.TabInventory
 
         private void HandleRuntimeEventsReconfigured()
         {
-            if (!isActiveAndEnabled || !_useRuntimeKernelInventoryEvents)
+            if (!isActiveAndEnabled)
             {
                 return;
             }
 
-            SubscribeToInventoryEvents(ResolveInventoryEvents());
+            if (_useRuntimeKernelInventoryEvents)
+            {
+                SubscribeToInventoryEvents(ResolveInventoryEvents());
+            }
+
+            if (_useRuntimeKernelUiStateEvents)
+            {
+                ResolveUiStateEvents()?.RaiseTabInventoryVisibilityChanged(_isOpen);
+            }
         }
 
         private IInventoryEvents ResolveInventoryEvents()
