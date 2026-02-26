@@ -5,6 +5,7 @@ using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.Player;
+using Reloader.UI.Toolkit.BeltHud;
 using Reloader.UI.Toolkit.Contracts;
 using Reloader.UI.Toolkit.Reloading;
 using Reloader.UI.Toolkit.Runtime;
@@ -353,6 +354,202 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void TabInventoryController_UsesInjectedInventoryEvents_InsteadOfStaticGameEvents()
+        {
+            var go = new GameObject("TabInventoryInjectedInventoryEvents");
+            go.SetActive(false);
+
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(2);
+            inventoryController.Configure(null, null, runtime);
+
+            var root = BuildTabRoot();
+            var viewBinder = new TabInventoryViewBinder();
+            viewBinder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+
+            var controller = go.AddComponent<TabInventoryController>();
+            var injectedInventoryEvents = new TestInventoryEvents();
+            var configureMethod = typeof(TabInventoryController).GetMethod("Configure", new[] { typeof(IInventoryEvents) });
+            Assert.That(configureMethod, Is.Not.Null, "TabInventoryController must expose Configure(IInventoryEvents).");
+            configureMethod.Invoke(controller, new object[] { injectedInventoryEvents });
+            controller.SetInventoryController(inventoryController);
+            controller.Configure(viewBinder, new TabInventoryDragController());
+
+            var staticGameEventsRaiseCount = 0;
+            GameEvents.OnInventoryChanged += HandleInventoryChanged;
+            void HandleInventoryChanged() => staticGameEventsRaiseCount++;
+
+            try
+            {
+                go.SetActive(true);
+                var subscribedField = typeof(TabInventoryController).GetField("_subscribedInventoryEvents", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(subscribedField, Is.Not.Null);
+                Assert.That(subscribedField.GetValue(controller), Is.SameAs(injectedInventoryEvents));
+
+                GameEvents.RaiseInventoryChanged();
+                Assert.That(subscribedField.GetValue(controller), Is.SameAs(injectedInventoryEvents));
+
+                injectedInventoryEvents.RaiseInventoryChanged();
+                Assert.That(subscribedField.GetValue(controller), Is.SameAs(injectedInventoryEvents));
+                Assert.That(staticGameEventsRaiseCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                GameEvents.OnInventoryChanged -= HandleInventoryChanged;
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void TabInventoryController_WithoutInjectedInventoryEvents_RebindsWhenRuntimeKernelHubIsReconfigured()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var go = new GameObject("TabInventoryRuntimeHubReconfigure");
+            go.SetActive(false);
+
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(2);
+            inventoryController.Configure(null, null, runtime);
+
+            var root = BuildTabRoot();
+            var viewBinder = new TabInventoryViewBinder();
+            viewBinder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+
+            var controller = go.AddComponent<TabInventoryController>();
+            controller.SetInventoryController(inventoryController);
+            controller.Configure(viewBinder, new TabInventoryDragController());
+
+            try
+            {
+                go.SetActive(true);
+                var subscribedField = typeof(TabInventoryController).GetField("_subscribedInventoryEvents", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(subscribedField, Is.Not.Null);
+                Assert.That(subscribedField.GetValue(controller), Is.SameAs(initialHub));
+
+                RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+                Assert.That(subscribedField.GetValue(controller), Is.SameAs(replacementHub));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void BeltHudController_UsesInjectedInventoryEvents_InsteadOfStaticGameEvents()
+        {
+            var go = new GameObject("BeltHudInjectedInventoryEvents");
+            go.SetActive(false);
+
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(2);
+            inventoryController.Configure(null, null, runtime);
+
+            var root = BuildBeltRoot();
+            var viewBinder = new BeltHudViewBinder();
+            viewBinder.Initialize(root, slotCount: PlayerInventoryRuntime.BeltSlotCount);
+
+            var controller = go.AddComponent<BeltHudController>();
+            var injectedInventoryEvents = new TestInventoryEvents();
+            var configureMethod = typeof(BeltHudController).GetMethod("Configure", new[] { typeof(IInventoryEvents) });
+            Assert.That(configureMethod, Is.Not.Null, "BeltHudController must expose Configure(IInventoryEvents).");
+            configureMethod.Invoke(controller, new object[] { injectedInventoryEvents });
+            controller.SetInventoryController(inventoryController);
+            controller.SetViewBinder(viewBinder);
+
+            var staticSelectionChangedCount = 0;
+            GameEvents.OnBeltSelectionChanged += HandleSelectionChanged;
+            void HandleSelectionChanged(int _) => staticSelectionChangedCount++;
+
+            try
+            {
+                go.SetActive(true);
+                var subscribedField = typeof(BeltHudController).GetField("_subscribedInventoryEvents", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(subscribedField, Is.Not.Null);
+                Assert.That(subscribedField.GetValue(controller), Is.SameAs(injectedInventoryEvents));
+
+                GameEvents.RaiseInventoryChanged();
+                Assert.That(subscribedField.GetValue(controller), Is.SameAs(injectedInventoryEvents));
+
+                injectedInventoryEvents.RaiseInventoryChanged();
+                Assert.That(subscribedField.GetValue(controller), Is.SameAs(injectedInventoryEvents));
+
+                runtime.SelectBeltSlot(0);
+                controller.HandleIntent(new UiIntent("belt.slot.select", 1));
+                Assert.That(injectedInventoryEvents.BeltSelectionChangedRaiseCount, Is.EqualTo(1));
+                Assert.That(staticSelectionChangedCount, Is.EqualTo(0));
+            }
+            finally
+            {
+                GameEvents.OnBeltSelectionChanged -= HandleSelectionChanged;
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void BeltHudController_WithoutInjectedInventoryEvents_RebindsWhenRuntimeKernelHubIsReconfigured()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var go = new GameObject("BeltHudRuntimeHubReconfigure");
+            go.SetActive(false);
+
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(2);
+            inventoryController.Configure(null, null, runtime);
+
+            var root = BuildBeltRoot();
+            var viewBinder = new BeltHudViewBinder();
+            viewBinder.Initialize(root, slotCount: PlayerInventoryRuntime.BeltSlotCount);
+
+            var controller = go.AddComponent<BeltHudController>();
+            controller.SetInventoryController(inventoryController);
+            controller.SetViewBinder(viewBinder);
+
+            var initialHubSelectionChangedCount = 0;
+            var replacementHubSelectionChangedCount = 0;
+            initialHub.OnBeltSelectionChanged += HandleInitialHubSelectionChanged;
+            replacementHub.OnBeltSelectionChanged += HandleReplacementHubSelectionChanged;
+            void HandleInitialHubSelectionChanged(int _) => initialHubSelectionChangedCount++;
+            void HandleReplacementHubSelectionChanged(int _) => replacementHubSelectionChangedCount++;
+
+            try
+            {
+                go.SetActive(true);
+                var subscribedField = typeof(BeltHudController).GetField("_subscribedInventoryEvents", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(subscribedField, Is.Not.Null);
+                Assert.That(subscribedField.GetValue(controller), Is.SameAs(initialHub));
+
+                RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+                Assert.That(subscribedField.GetValue(controller), Is.SameAs(replacementHub));
+
+                runtime.SelectBeltSlot(0);
+                controller.HandleIntent(new UiIntent("belt.slot.select", 2));
+                Assert.That(initialHubSelectionChangedCount, Is.EqualTo(0));
+                Assert.That(replacementHubSelectionChangedCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                initialHub.OnBeltSelectionChanged -= HandleInitialHubSelectionChanged;
+                replacementHub.OnBeltSelectionChanged -= HandleReplacementHubSelectionChanged;
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void TabInventoryController_Tick_ResolvesInputSource_WhenSpawnedLater()
         {
             var go = new GameObject("TabInventoryController");
@@ -526,6 +723,20 @@ namespace Reloader.UI.Tests.PlayMode
             return root;
         }
 
+        private static VisualElement BuildBeltRoot()
+        {
+            var root = new VisualElement { name = "belt-hud__root" };
+            for (var i = 0; i < PlayerInventoryRuntime.BeltSlotCount; i++)
+            {
+                var slot = new VisualElement { name = $"belt-hud__slot-{i}" };
+                var label = new Label((i + 1).ToString()) { name = $"belt-hud__slot-label-{i}" };
+                slot.Add(label);
+                root.Add(slot);
+            }
+
+            return root;
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public bool MenuTogglePressedThisFrame;
@@ -578,6 +789,39 @@ namespace Reloader.UI.Tests.PlayMode
                 TabInventoryVisibilityRaiseCount++;
                 OnTabInventoryVisibilityChanged?.Invoke(isVisible);
             }
+        }
+
+        private sealed class TestInventoryEvents : IInventoryEvents
+        {
+            public int BeltSelectionChangedRaiseCount { get; private set; }
+
+            public event Action OnSaveStarted;
+            public event Action OnSaveCompleted;
+            public event Action OnLoadStarted;
+            public event Action OnLoadCompleted;
+            public event Action<string> OnItemPickupRequested;
+            public event Action<string, InventoryArea, int> OnItemStored;
+            public event Action<string, PickupRejectReason> OnItemPickupRejected;
+            public event Action<int> OnBeltSelectionChanged;
+            public event Action OnInventoryChanged;
+            public event Action<int> OnMoneyChanged;
+
+            public void RaiseSaveStarted() => OnSaveStarted?.Invoke();
+            public void RaiseSaveCompleted() => OnSaveCompleted?.Invoke();
+            public void RaiseLoadStarted() => OnLoadStarted?.Invoke();
+            public void RaiseLoadCompleted() => OnLoadCompleted?.Invoke();
+            public void RaiseItemPickupRequested(string itemId) => OnItemPickupRequested?.Invoke(itemId);
+            public void RaiseItemStored(string itemId, InventoryArea area, int index) => OnItemStored?.Invoke(itemId, area, index);
+            public void RaiseItemPickupRejected(string itemId, PickupRejectReason reason) => OnItemPickupRejected?.Invoke(itemId, reason);
+
+            public void RaiseBeltSelectionChanged(int selectedBeltIndex)
+            {
+                BeltSelectionChangedRaiseCount++;
+                OnBeltSelectionChanged?.Invoke(selectedBeltIndex);
+            }
+
+            public void RaiseInventoryChanged() => OnInventoryChanged?.Invoke();
+            public void RaiseMoneyChanged(int amount) => OnMoneyChanged?.Invoke(amount);
         }
     }
 }

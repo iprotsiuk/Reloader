@@ -19,6 +19,9 @@ namespace Reloader.UI.Toolkit.TabInventory
         private TabInventoryViewBinder _viewBinder;
         private TabInventoryDragController _dragController;
         private IPlayerInputSource _inputSource;
+        private IInventoryEvents _inventoryEvents;
+        private IInventoryEvents _subscribedInventoryEvents;
+        private bool _useRuntimeKernelInventoryEvents = true;
         private IUiStateEvents _uiStateEvents;
         private bool _useRuntimeKernelUiStateEvents = true;
         private bool _isOpen;
@@ -26,7 +29,8 @@ namespace Reloader.UI.Toolkit.TabInventory
 
         private void OnEnable()
         {
-            GameEvents.OnInventoryChanged += HandleInventoryChanged;
+            SubscribeToRuntimeHubReconfigure();
+            SubscribeToInventoryEvents(ResolveInventoryEvents());
             Refresh();
         }
 
@@ -51,6 +55,16 @@ namespace Reloader.UI.Toolkit.TabInventory
         {
             _useRuntimeKernelUiStateEvents = uiStateEvents == null;
             _uiStateEvents = uiStateEvents;
+        }
+
+        public void Configure(IInventoryEvents inventoryEvents = null)
+        {
+            _useRuntimeKernelInventoryEvents = inventoryEvents == null;
+            _inventoryEvents = inventoryEvents;
+            if (isActiveAndEnabled)
+            {
+                SubscribeToInventoryEvents(ResolveInventoryEvents());
+            }
         }
 
         public void SetInputSource(IPlayerInputSource inputSource)
@@ -120,7 +134,8 @@ namespace Reloader.UI.Toolkit.TabInventory
 
         private void OnDisable()
         {
-            GameEvents.OnInventoryChanged -= HandleInventoryChanged;
+            UnsubscribeFromRuntimeHubReconfigure();
+            UnsubscribeFromInventoryEvents();
             if (_isOpen)
             {
                 SetMenuOpen(false);
@@ -275,6 +290,82 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             return _uiStateEvents;
+        }
+
+        private void HandleRuntimeEventsReconfigured()
+        {
+            if (!isActiveAndEnabled || !_useRuntimeKernelInventoryEvents)
+            {
+                return;
+            }
+
+            SubscribeToInventoryEvents(ResolveInventoryEvents());
+        }
+
+        private IInventoryEvents ResolveInventoryEvents()
+        {
+            if (_useRuntimeKernelInventoryEvents)
+            {
+                var runtimeInventoryEvents = RuntimeKernelBootstrapper.InventoryEvents;
+                if (!ReferenceEquals(_inventoryEvents, runtimeInventoryEvents))
+                {
+                    _inventoryEvents = runtimeInventoryEvents;
+                    SubscribeToInventoryEvents(_inventoryEvents);
+                }
+                else if (!ReferenceEquals(_subscribedInventoryEvents, _inventoryEvents))
+                {
+                    SubscribeToInventoryEvents(_inventoryEvents);
+                }
+
+                return _inventoryEvents;
+            }
+
+            if (!ReferenceEquals(_subscribedInventoryEvents, _inventoryEvents))
+            {
+                SubscribeToInventoryEvents(_inventoryEvents);
+            }
+
+            return _inventoryEvents;
+        }
+
+        private void SubscribeToInventoryEvents(IInventoryEvents inventoryEvents)
+        {
+            if (inventoryEvents == null)
+            {
+                UnsubscribeFromInventoryEvents();
+                return;
+            }
+
+            if (ReferenceEquals(_subscribedInventoryEvents, inventoryEvents))
+            {
+                return;
+            }
+
+            UnsubscribeFromInventoryEvents();
+            _subscribedInventoryEvents = inventoryEvents;
+            _subscribedInventoryEvents.OnInventoryChanged += HandleInventoryChanged;
+        }
+
+        private void UnsubscribeFromInventoryEvents()
+        {
+            if (_subscribedInventoryEvents == null)
+            {
+                return;
+            }
+
+            _subscribedInventoryEvents.OnInventoryChanged -= HandleInventoryChanged;
+            _subscribedInventoryEvents = null;
+        }
+
+        private void SubscribeToRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
+            RuntimeKernelBootstrapper.EventsReconfigured += HandleRuntimeEventsReconfigured;
+        }
+
+        private void UnsubscribeFromRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
         }
     }
 }
