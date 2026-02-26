@@ -1,3 +1,4 @@
+using System;
 using NUnit.Framework;
 using Reloader.NPCs.Data;
 using Reloader.NPCs.Runtime;
@@ -26,7 +27,7 @@ namespace Reloader.NPCs.Tests.EditMode
             }
             finally
             {
-                Object.DestroyImmediate(agentGo);
+                UnityEngine.Object.DestroyImmediate(agentGo);
             }
         }
 
@@ -54,9 +55,36 @@ namespace Reloader.NPCs.Tests.EditMode
             Assert.That(npcDefinition.NpcId, Is.EqualTo("npc.vendor.001"));
             Assert.That(npcDefinition.RolePreset, Is.SameAs(rolePreset));
 
-            Object.DestroyImmediate(rolePreset);
-            Object.DestroyImmediate(vendorCapability);
-            Object.DestroyImmediate(npcDefinition);
+            UnityEngine.Object.DestroyImmediate(rolePreset);
+            UnityEngine.Object.DestroyImmediate(vendorCapability);
+            UnityEngine.Object.DestroyImmediate(npcDefinition);
+        }
+
+        [Test]
+        public void RoleAndCapabilityEnums_IncludeApprovedScopeCMembers()
+        {
+            Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.PoliceOfficer)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.GameWarden)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.LawEnforcementOfficer)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.WeaponVendor)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.AmmoVendor)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.ReloadingSuppliesVendor)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.RealEstateAgent)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.FrontDeskClerk)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.RangeSafetyOfficer)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.CompetitionOrganizer)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.BankWorker)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.PostWorker)), Is.True);
+
+            Assert.That(Enum.IsDefined(typeof(NpcCapabilityKind), nameof(NpcCapabilityKind.WeaponVendorTrade)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcCapabilityKind), nameof(NpcCapabilityKind.AmmoVendorTrade)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcCapabilityKind), nameof(NpcCapabilityKind.ReloadingSuppliesVendorTrade)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcCapabilityKind), nameof(NpcCapabilityKind.LawEnforcementInteraction)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcCapabilityKind), nameof(NpcCapabilityKind.FrontDeskInteraction)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcCapabilityKind), nameof(NpcCapabilityKind.EntryFeeInteraction)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcCapabilityKind), nameof(NpcCapabilityKind.Follow)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcCapabilityKind), nameof(NpcCapabilityKind.AmbientCitizen)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcCapabilityKind), nameof(NpcCapabilityKind.JobSchedule)), Is.True);
         }
 
         private sealed class TestActionCapability : MonoBehaviour, INpcCapability, INpcActionProvider
