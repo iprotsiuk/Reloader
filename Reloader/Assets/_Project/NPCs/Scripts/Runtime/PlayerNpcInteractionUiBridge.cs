@@ -17,12 +17,7 @@ namespace Reloader.NPCs.Runtime
 
         private void OnEnable()
         {
-            ResolveReferences();
-            if (_interactionController != null)
-            {
-                _interactionController.InteractionProcessed -= HandleInteractionProcessed;
-                _interactionController.InteractionProcessed += HandleInteractionProcessed;
-            }
+            EnsureControllerSubscription();
         }
 
         private void OnDisable()
@@ -54,7 +49,7 @@ namespace Reloader.NPCs.Runtime
             }
 
             ExecuteActionRequested?.Invoke(actionKey, payload ?? string.Empty);
-            ResolveReferences();
+            EnsureControllerSubscription();
             if (_interactionController == null)
             {
                 return;
@@ -90,6 +85,18 @@ namespace Reloader.NPCs.Runtime
             _interactionController ??= GetComponent<PlayerNpcInteractionController>();
             _interactionController ??= GetComponentInParent<PlayerNpcInteractionController>(true);
             _interactionController ??= GetComponentInChildren<PlayerNpcInteractionController>(true);
+        }
+
+        private void EnsureControllerSubscription()
+        {
+            ResolveReferences();
+            if (_interactionController == null)
+            {
+                return;
+            }
+
+            _interactionController.InteractionProcessed -= HandleInteractionProcessed;
+            _interactionController.InteractionProcessed += HandleInteractionProcessed;
         }
     }
 }

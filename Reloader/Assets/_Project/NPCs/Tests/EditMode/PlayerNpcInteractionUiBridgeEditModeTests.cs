@@ -99,6 +99,44 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
+        [Test]
+        public void RequestExecuteAction_WhenControllerAppearsAfterEnable_SubscribesAndPublishesResult()
+        {
+            var root = new GameObject("npc-ui-bridge-latebind");
+            var bridge = root.AddComponent<PlayerNpcInteractionUiBridge>();
+            bridge.enabled = true;
+
+            var resolver = root.AddComponent<TestNpcResolver>();
+            var controller = root.AddComponent<PlayerNpcInteractionController>();
+            controller.Configure(null, resolver);
+
+            var npc = new GameObject("npc-dialogue-late").AddComponent<NpcAgent>();
+            npc.gameObject.AddComponent<DialogueCapability>();
+            resolver.Target = npc;
+
+            var raised = false;
+            NpcActionExecutionResult captured = default;
+            bridge.ActionExecuted += result =>
+            {
+                raised = true;
+                captured = result;
+            };
+
+            try
+            {
+                bridge.RequestExecuteAction(DialogueCapability.ActionKey, "hello");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(npc.gameObject);
+            }
+
+            Assert.That(raised, Is.True);
+            Assert.That(captured.Success, Is.True);
+            Assert.That(captured.ActionKey, Is.EqualTo(DialogueCapability.ActionKey));
+        }
+
         private sealed class TestNpcResolver : MonoBehaviour, IPlayerNpcResolver
         {
             public NpcAgent Target { get; set; }
