@@ -7,7 +7,7 @@
 
 - Build a reusable weapons foundation under `Reloader/Assets/_Project/Weapons/` before adding multiple guns.
 - Deliver one complete playable rifle loop: pickup, inventory belt selection, equip, projectile shooting, reload.
-- Keep architecture event-driven and save-compatible with current `GameEvents` + `SaveCoordinator` contracts.
+- Keep architecture event-driven and save-compatible with runtime event ports/hub (`IGameEventsRuntimeHub`) + `SaveCoordinator` contracts.
 - Provide prefab-based authoring so rifle pickup/view can be placed manually later in scene.
 
 ## Non-Goals (This Slice)
@@ -93,7 +93,7 @@ This contract is intentionally generic for future rifle/pistol/shotgun support.
 
 ## Event Contract Additions
 
-Extend `GameEvents` with weapons lifecycle events (exact signatures finalized in implementation plan), covering at minimum:
+Extend runtime weapon event ports (`IWeaponEvents` via `IGameEventsRuntimeHub`) with weapons lifecycle events (exact signatures finalized in implementation plan), covering at minimum:
 
 - weapon equipped / unequipped
 - weapon fired

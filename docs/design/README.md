@@ -37,7 +37,7 @@ Agent behavior:
 
 ## Cross-Domain Work
 
-If your task spans multiple domains (e.g., "hunting competition that awards money"), load each relevant domain doc. The core architecture doc covers how systems communicate via the EventBus pattern (`GameEvents` in v0.x) — you should NOT need to understand another domain's internals, only what events it fires/listens to.
+If your task spans multiple domains (e.g., "hunting competition that awards money"), load each relevant domain doc. The core architecture doc covers how systems communicate via runtime event ports/hub (`IGameEventsRuntimeHub`). The EventBus pattern formerly exposed a static `GameEvents` facade; that facade is retired. You should NOT need to understand another domain's internals, only what events it fires/listens to.
 
 If your change touches runtime state (item ownership/location, transforms, inventories/containers, weapon/vehicle/NPC/player state), also load [save-and-progression.md](save-and-progression.md) and preserve the exact-restore save contract.
 

@@ -1,6 +1,5 @@
 using System;
 using NUnit.Framework;
-using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.UI.Toolkit.AmmoHud;
 using Reloader.Weapons.Ballistics;
@@ -15,8 +14,12 @@ namespace Reloader.UI.Tests.PlayMode
     public class AmmoHudControllerWeaponEventsPlayModeTests
     {
         [Test]
-        public void Configure_WithInjectedWeaponEvents_StaticGameEventsDoNotDriveController()
+        public void Configure_WithInjectedWeaponEvents_RuntimeKernelEventsDoNotDriveController()
         {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
             var root = new GameObject("AmmoHudInjectedEvents");
             var weaponController = BuildWeaponController(root, "weapon-injected", "Injected Round", 3, 14);
             var (binder, visualRoot, label) = BuildAmmoHudBinder();
@@ -26,16 +29,22 @@ namespace Reloader.UI.Tests.PlayMode
             controller.SetViewBinder(binder);
 
             var injectedWeaponEvents = new DefaultRuntimeEvents();
-            controller.Configure(injectedWeaponEvents);
+            try
+            {
+                controller.Configure(injectedWeaponEvents);
 
-            GameEvents.RaiseWeaponEquipped("weapon-injected");
-            Assert.That(visualRoot.style.display.value, Is.EqualTo(DisplayStyle.None));
+                runtimeHub.RaiseWeaponEquipped("weapon-injected");
+                Assert.That(visualRoot.style.display.value, Is.EqualTo(DisplayStyle.None));
 
-            injectedWeaponEvents.RaiseWeaponEquipped("weapon-injected");
-            Assert.That(visualRoot.style.display.value, Is.EqualTo(DisplayStyle.Flex));
-            Assert.That(label.text, Is.EqualTo("Injected Round 0/14"));
-
-            UnityEngine.Object.DestroyImmediate(root);
+                injectedWeaponEvents.RaiseWeaponEquipped("weapon-injected");
+                Assert.That(visualRoot.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+                Assert.That(label.text, Is.EqualTo("Injected Round 0/14"));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(root);
+            }
         }
 
         [Test]

@@ -2,9 +2,9 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Migrate UI visibility and cursor-lock flows from static `GameEvents` usage to typed domain ports (`IUiStateEvents` and `IShopEvents`).
+**Goal:** Migrate UI visibility and cursor-lock flows from legacy static event usage to typed domain ports (`IUiStateEvents` and `IShopEvents`).
 
-**Architecture:** Controllers receive optional typed event dependencies and default to `RuntimeKernelBootstrapper` channels. Existing `GameEvents` remains compatibility facade; runtime consumers stop depending on it directly.
+**Architecture:** Controllers receive optional typed event dependencies and default to `RuntimeKernelBootstrapper` channels. Runtime consumers depend on typed ports directly.
 
 **Tech Stack:** Unity 6.3, C#, NUnit PlayMode tests.
 
@@ -26,7 +26,7 @@
 
 **Step 3: Implement migration**
 - Add optional typed dependency injection + runtime fallback.
-- Replace direct `GameEvents` visibility subscriptions/raises with typed interfaces.
+- Replace legacy static visibility subscriptions/raises with typed interfaces.
 - Keep behavior identical.
 
 **Step 4: Re-run tests to verify GREEN**
@@ -49,4 +49,4 @@
 3. `ReloadingBenchInteractionPlayModeTests`
 4. `ShopVendorInteractionPlayModeTests`
 5. `PlayerInventoryControllerPlayModeTests`
-6. `GameEventsRuntimeBridgeTests`
+6. `RuntimeEventHubBehaviorTests`

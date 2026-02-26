@@ -36,15 +36,18 @@ namespace Reloader.Economy.Tests.PlayMode
                 catalog);
             SetVendorBindings(controller, "vendor-1", catalog);
 
-            var staticMoneyChangedCount = 0;
-            var staticInventoryChangedCount = 0;
-            void HandleStaticMoneyChanged(int _) => staticMoneyChangedCount++;
-            void HandleStaticInventoryChanged() => staticInventoryChangedCount++;
+            var runtimeHubMoneyChangedCount = 0;
+            var runtimeHubInventoryChangedCount = 0;
+            void HandleRuntimeHubMoneyChanged(int _) => runtimeHubMoneyChangedCount++;
+            void HandleRuntimeHubInventoryChanged() => runtimeHubInventoryChangedCount++;
 
             var injectedShopEvents = new FakeShopEvents();
             var injectedInventoryEvents = new FakeInventoryEvents();
-            GameEvents.OnMoneyChanged += HandleStaticMoneyChanged;
-            GameEvents.OnInventoryChanged += HandleStaticInventoryChanged;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+            runtimeHub.OnMoneyChanged += HandleRuntimeHubMoneyChanged;
+            runtimeHub.OnInventoryChanged += HandleRuntimeHubInventoryChanged;
             try
             {
                 controller.Configure(injectedShopEvents, injectedInventoryEvents);
@@ -64,13 +67,14 @@ namespace Reloader.Economy.Tests.PlayMode
                 Assert.That(injectedInventoryEvents.LastMoneyChangedAmount, Is.EqualTo(290));
                 Assert.That(injectedInventoryEvents.MoneyChangedCount, Is.GreaterThanOrEqualTo(2));
                 Assert.That(injectedInventoryEvents.InventoryChangedCount, Is.GreaterThanOrEqualTo(1));
-                Assert.That(staticMoneyChangedCount, Is.EqualTo(0));
-                Assert.That(staticInventoryChangedCount, Is.EqualTo(0));
+                Assert.That(runtimeHubMoneyChangedCount, Is.EqualTo(0));
+                Assert.That(runtimeHubInventoryChangedCount, Is.EqualTo(0));
             }
             finally
             {
-                GameEvents.OnMoneyChanged -= HandleStaticMoneyChanged;
-                GameEvents.OnInventoryChanged -= HandleStaticInventoryChanged;
+                runtimeHub.OnMoneyChanged -= HandleRuntimeHubMoneyChanged;
+                runtimeHub.OnInventoryChanged -= HandleRuntimeHubInventoryChanged;
+                RuntimeKernelBootstrapper.Events = originalHub;
                 UnityEngine.Object.DestroyImmediate(catalog);
                 UnityEngine.Object.DestroyImmediate(economyGo);
                 UnityEngine.Object.DestroyImmediate(inventoryGo);
@@ -78,7 +82,7 @@ namespace Reloader.Economy.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator Configure_InjectedShopEvents_UsesInjectedChannelInsteadOfStaticGameEvents()
+        public IEnumerator Configure_InjectedShopEvents_UsesInjectedChannelInsteadOfRuntimeHub()
         {
             var inventoryGo = new GameObject("InventoryController");
             var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
@@ -99,32 +103,42 @@ namespace Reloader.Economy.Tests.PlayMode
             SetVendorBindings(controller, "vendor-1", catalog);
 
             var injectedEvents = new FakeShopEvents();
-            controller.Configure(injectedEvents);
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
 
-            yield return null;
+            try
+            {
+                controller.Configure(injectedEvents);
 
-            injectedEvents.RaiseShopTradeOpenRequested("vendor-1");
-            injectedEvents.RaiseShopBuyCheckoutRequested(
-                new ShopCheckoutRequest(
-                    new[] { new ShopCheckoutLine("ammo-22lr", 100) },
-                    "delivery-standard",
-                    10));
+                yield return null;
 
-            Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(100));
-            Assert.That(controller.Runtime.Money, Is.EqualTo(290));
+                injectedEvents.RaiseShopTradeOpenRequested("vendor-1");
+                injectedEvents.RaiseShopBuyCheckoutRequested(
+                    new ShopCheckoutRequest(
+                        new[] { new ShopCheckoutLine("ammo-22lr", 100) },
+                        "delivery-standard",
+                        10));
 
-            GameEvents.RaiseShopBuyCheckoutRequested(
-                new ShopCheckoutRequest(
-                    new[] { new ShopCheckoutLine("ammo-22lr", 10) },
-                    "delivery-standard",
-                    0));
+                Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(100));
+                Assert.That(controller.Runtime.Money, Is.EqualTo(290));
 
-            Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(100));
-            Assert.That(controller.Runtime.Money, Is.EqualTo(290));
+                runtimeHub.RaiseShopBuyCheckoutRequested(
+                    new ShopCheckoutRequest(
+                        new[] { new ShopCheckoutLine("ammo-22lr", 10) },
+                        "delivery-standard",
+                        0));
 
-            UnityEngine.Object.DestroyImmediate(catalog);
-            UnityEngine.Object.DestroyImmediate(economyGo);
-            UnityEngine.Object.DestroyImmediate(inventoryGo);
+                Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(100));
+                Assert.That(controller.Runtime.Money, Is.EqualTo(290));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(catalog);
+                UnityEngine.Object.DestroyImmediate(economyGo);
+                UnityEngine.Object.DestroyImmediate(inventoryGo);
+            }
         }
 
         [UnityTest]
@@ -148,25 +162,35 @@ namespace Reloader.Economy.Tests.PlayMode
                 catalog);
             SetVendorBindings(controller, "vendor-1", catalog);
 
-            // Let Unity run Awake/OnEnable subscription cycle.
-            yield return null;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
 
-            GameEvents.RaiseShopTradeOpenRequested("vendor-1");
+            try
+            {
+                // Let Unity run Awake/OnEnable subscription cycle.
+                yield return null;
 
-            var request = new ShopCheckoutRequest(
-                new[] { new ShopCheckoutLine("ammo-22lr", 100) },
-                "delivery-standard",
-                10);
-            GameEvents.RaiseShopBuyCheckoutRequested(request);
+                runtimeHub.RaiseShopTradeOpenRequested("vendor-1");
 
-            Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(100));
-            Assert.That(controller.Runtime.Money, Is.EqualTo(290));
-            Assert.That(controller.Runtime.TryGetStock("ammo-22lr", out var stock), Is.True);
-            Assert.That(stock, Is.EqualTo(400));
+                var request = new ShopCheckoutRequest(
+                    new[] { new ShopCheckoutLine("ammo-22lr", 100) },
+                    "delivery-standard",
+                    10);
+                runtimeHub.RaiseShopBuyCheckoutRequested(request);
 
-            UnityEngine.Object.DestroyImmediate(catalog);
-            UnityEngine.Object.DestroyImmediate(economyGo);
-            UnityEngine.Object.DestroyImmediate(inventoryGo);
+                Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(100));
+                Assert.That(controller.Runtime.Money, Is.EqualTo(290));
+                Assert.That(controller.Runtime.TryGetStock("ammo-22lr", out var stock), Is.True);
+                Assert.That(stock, Is.EqualTo(400));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(catalog);
+                UnityEngine.Object.DestroyImmediate(economyGo);
+                UnityEngine.Object.DestroyImmediate(inventoryGo);
+            }
         }
 
         [UnityTest]
@@ -198,17 +222,22 @@ namespace Reloader.Economy.Tests.PlayMode
             var openedCount = 0;
             replacementHub.OnShopTradeOpened += _ => openedCount++;
 
-            yield return null;
+            try
+            {
+                yield return null;
 
-            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
-            replacementHub.RaiseShopTradeOpenRequested("vendor-1");
+                RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+                replacementHub.RaiseShopTradeOpenRequested("vendor-1");
 
-            Assert.That(openedCount, Is.EqualTo(1));
-
-            RuntimeKernelBootstrapper.Events = originalHub;
-            UnityEngine.Object.DestroyImmediate(catalog);
-            UnityEngine.Object.DestroyImmediate(economyGo);
-            UnityEngine.Object.DestroyImmediate(inventoryGo);
+                Assert.That(openedCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(catalog);
+                UnityEngine.Object.DestroyImmediate(economyGo);
+                UnityEngine.Object.DestroyImmediate(inventoryGo);
+            }
         }
 
         [UnityTest]
@@ -288,40 +317,49 @@ namespace Reloader.Economy.Tests.PlayMode
                 catalog);
             SetVendorBindings(controller, "vendor-1", catalog);
 
-            yield return null;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+            try
+            {
+                yield return null;
 
-            GameEvents.RaiseShopTradeOpenRequested("vendor-1");
-            var request = new ShopCheckoutRequest(
-                new[]
-                {
-                    new ShopCheckoutLine("item-1", 1),
-                    new ShopCheckoutLine("item-2", 1),
-                    new ShopCheckoutLine("item-3", 1),
-                    new ShopCheckoutLine("item-4", 1),
-                    new ShopCheckoutLine("item-5", 1),
-                    new ShopCheckoutLine("item-6", 1)
-                },
-                "delivery-standard",
-                0);
+                runtimeHub.RaiseShopTradeOpenRequested("vendor-1");
+                var request = new ShopCheckoutRequest(
+                    new[]
+                    {
+                        new ShopCheckoutLine("item-1", 1),
+                        new ShopCheckoutLine("item-2", 1),
+                        new ShopCheckoutLine("item-3", 1),
+                        new ShopCheckoutLine("item-4", 1),
+                        new ShopCheckoutLine("item-5", 1),
+                        new ShopCheckoutLine("item-6", 1)
+                    },
+                    "delivery-standard",
+                    0);
 
-            GameEvents.RaiseShopBuyCheckoutRequested(request);
+                runtimeHub.RaiseShopBuyCheckoutRequested(request);
 
-            Assert.That(runtime.GetItemQuantity("item-1"), Is.EqualTo(0));
-            Assert.That(runtime.GetItemQuantity("item-2"), Is.EqualTo(0));
-            Assert.That(runtime.GetItemQuantity("item-3"), Is.EqualTo(0));
-            Assert.That(runtime.GetItemQuantity("item-4"), Is.EqualTo(0));
-            Assert.That(runtime.GetItemQuantity("item-5"), Is.EqualTo(0));
-            Assert.That(runtime.GetItemQuantity("item-6"), Is.EqualTo(0));
-            Assert.That(controller.Runtime.Money, Is.EqualTo(1000));
+                Assert.That(runtime.GetItemQuantity("item-1"), Is.EqualTo(0));
+                Assert.That(runtime.GetItemQuantity("item-2"), Is.EqualTo(0));
+                Assert.That(runtime.GetItemQuantity("item-3"), Is.EqualTo(0));
+                Assert.That(runtime.GetItemQuantity("item-4"), Is.EqualTo(0));
+                Assert.That(runtime.GetItemQuantity("item-5"), Is.EqualTo(0));
+                Assert.That(runtime.GetItemQuantity("item-6"), Is.EqualTo(0));
+                Assert.That(controller.Runtime.Money, Is.EqualTo(1000));
 
-            Assert.That(controller.Runtime.TryGetStock("item-1", out var stock1), Is.True);
-            Assert.That(stock1, Is.EqualTo(10));
-            Assert.That(controller.Runtime.TryGetStock("item-6", out var stock6), Is.True);
-            Assert.That(stock6, Is.EqualTo(10));
-
-            UnityEngine.Object.DestroyImmediate(catalog);
-            UnityEngine.Object.DestroyImmediate(economyGo);
-            UnityEngine.Object.DestroyImmediate(inventoryGo);
+                Assert.That(controller.Runtime.TryGetStock("item-1", out var stock1), Is.True);
+                Assert.That(stock1, Is.EqualTo(10));
+                Assert.That(controller.Runtime.TryGetStock("item-6", out var stock6), Is.True);
+                Assert.That(stock6, Is.EqualTo(10));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(catalog);
+                UnityEngine.Object.DestroyImmediate(economyGo);
+                UnityEngine.Object.DestroyImmediate(inventoryGo);
+            }
         }
 
         [UnityTest]
@@ -346,28 +384,37 @@ namespace Reloader.Economy.Tests.PlayMode
                 catalog);
             SetVendorBindings(controller, "vendor-1", catalog);
 
-            yield return null;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+            try
+            {
+                yield return null;
 
-            GameEvents.RaiseShopTradeOpenRequested("vendor-1");
-            var request = new ShopCheckoutRequest(
-                new[]
-                {
-                    new ShopCheckoutLine("ammo-22lr", 2),
-                    new ShopCheckoutLine("ammo-22lr", 2)
-                },
-                "delivery-standard",
-                0);
+                runtimeHub.RaiseShopTradeOpenRequested("vendor-1");
+                var request = new ShopCheckoutRequest(
+                    new[]
+                    {
+                        new ShopCheckoutLine("ammo-22lr", 2),
+                        new ShopCheckoutLine("ammo-22lr", 2)
+                    },
+                    "delivery-standard",
+                    0);
 
-            GameEvents.RaiseShopSellCheckoutRequested(request);
+                runtimeHub.RaiseShopSellCheckoutRequested(request);
 
-            Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(3));
-            Assert.That(controller.Runtime.Money, Is.EqualTo(500));
-            Assert.That(controller.Runtime.TryGetStock("ammo-22lr", out var stock), Is.True);
-            Assert.That(stock, Is.EqualTo(500));
-
-            UnityEngine.Object.DestroyImmediate(catalog);
-            UnityEngine.Object.DestroyImmediate(economyGo);
-            UnityEngine.Object.DestroyImmediate(inventoryGo);
+                Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(3));
+                Assert.That(controller.Runtime.Money, Is.EqualTo(500));
+                Assert.That(controller.Runtime.TryGetStock("ammo-22lr", out var stock), Is.True);
+                Assert.That(stock, Is.EqualTo(500));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(catalog);
+                UnityEngine.Object.DestroyImmediate(economyGo);
+                UnityEngine.Object.DestroyImmediate(inventoryGo);
+            }
         }
 
         [UnityTest]
@@ -385,18 +432,22 @@ namespace Reloader.Economy.Tests.PlayMode
                 }
             }
 
-            GameEvents.OnShopTradeResult += Handler;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+            runtimeHub.OnShopTradeResult += Handler;
             try
             {
                 LogAssert.Expect(LogType.Error, "EconomyController requires a PlayerInventoryController reference.");
                 yield return null;
 
-                GameEvents.RaiseShopBuyRequested("ammo-22lr", 1);
+                runtimeHub.RaiseShopBuyRequested("ammo-22lr", 1);
                 Assert.That(failureReason, Is.EqualTo(TradeFailureReason.InventoryFull.ToString()));
             }
             finally
             {
-                GameEvents.OnShopTradeResult -= Handler;
+                runtimeHub.OnShopTradeResult -= Handler;
+                RuntimeKernelBootstrapper.Events = originalHub;
                 UnityEngine.Object.DestroyImmediate(economyGo);
             }
 
@@ -424,22 +475,31 @@ namespace Reloader.Economy.Tests.PlayMode
                 catalog);
             SetVendorBindings(controller, "vendor-1", catalog);
 
-            yield return null;
-            controller.enabled = false;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+            try
+            {
+                yield return null;
+                controller.enabled = false;
 
-            GameEvents.RaiseShopTradeOpenRequested("vendor-1");
-            GameEvents.RaiseShopBuyCheckoutRequested(
-                new ShopCheckoutRequest(
-                    new[] { new ShopCheckoutLine("ammo-22lr", 100) },
-                    "delivery-standard",
-                    10));
+                runtimeHub.RaiseShopTradeOpenRequested("vendor-1");
+                runtimeHub.RaiseShopBuyCheckoutRequested(
+                    new ShopCheckoutRequest(
+                        new[] { new ShopCheckoutLine("ammo-22lr", 100) },
+                        "delivery-standard",
+                        10));
 
-            Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(0));
-            Assert.That(controller.Runtime.Money, Is.EqualTo(500));
-
-            UnityEngine.Object.DestroyImmediate(catalog);
-            UnityEngine.Object.DestroyImmediate(economyGo);
-            UnityEngine.Object.DestroyImmediate(inventoryGo);
+                Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(0));
+                Assert.That(controller.Runtime.Money, Is.EqualTo(500));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(catalog);
+                UnityEngine.Object.DestroyImmediate(economyGo);
+                UnityEngine.Object.DestroyImmediate(inventoryGo);
+            }
         }
 
         private static void SetVendorBindings(EconomyController controller, string vendorId, ShopCatalogDefinition catalog)

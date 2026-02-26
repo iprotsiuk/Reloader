@@ -4,7 +4,7 @@
 
 **Goal:** Introduce a scalable modular runtime kernel and domain event hub while preserving existing gameplay behavior and fixing stale interaction input consumption.
 
-**Architecture:** Add a kernel layer that owns lifecycle modules (`IGameModule`) and a replaceable event hub service, then keep `GameEvents` as a compatibility facade over the hub so current systems continue working. Fix interaction controllers to consume pickup input at frame boundary so queued input cannot trigger delayed interactions.
+**Architecture:** Add a kernel layer that owns lifecycle modules (`IGameModule`) and a replaceable runtime event hub service. Runtime integrations are canonical through `RuntimeKernelBootstrapper.Events` and typed event ports. Fix interaction controllers to consume pickup input at frame boundary so queued input cannot trigger delayed interactions.
 
 **Tech Stack:** Unity 6.3, C#, NUnit EditMode + PlayMode tests, existing `Reloader.Core` asmdef.
 
@@ -41,30 +41,32 @@
 **Step 5: Commit**
 - `feat(core): add modular runtime kernel foundation`
 
-### Task 2: Bridge GameEvents Through Runtime Event Hub
+### Task 2: Harden Runtime Event Hub Contract + Legacy Bridge Coverage
 
 **Files:**
-- Modify: `Reloader/Assets/_Project/Core/Scripts/Events/GameEvents.cs`
-- Create: `Reloader/Assets/_Project/Core/Tests/EditMode/GameEventsRuntimeBridgeTests.cs`
+- Modify: `Reloader/Assets/_Project/Core/Scripts/Runtime/IGameEventsRuntimeHub.cs`
+- Modify: `Reloader/Assets/_Project/Core/Scripts/Runtime/DefaultRuntimeEvents.cs`
+- Modify: `Reloader/Assets/_Project/Core/Scripts/Runtime/RuntimeKernelBootstrapper.cs`
+- Create: `Reloader/Assets/_Project/Core/Tests/EditMode/RuntimeEventHubBehaviorTests.cs`
 - Modify: `Reloader/Assets/_Project/Core/Tests/EditMode/InventoryEventContractsTests.cs` (only if needed for compatibility assertions)
 
 **Step 1: Write failing tests for compatibility facade behavior**
-- Add tests asserting existing static `GameEvents` API forwards to default runtime events hub.
+- Add tests asserting runtime hub channels forward through `RuntimeKernelBootstrapper.Events` consistently.
 - Add test asserting menu visibility state flags stay correct via the bridge.
 
 **Step 2: Run tests to confirm RED**
-- Expected failures because `GameEvents` does not yet use runtime hub abstraction.
+- Expected failures because runtime hub bridge coverage is incomplete.
 
 **Step 3: Implement bridge**
-- Keep all current `GameEvents` signatures unchanged.
-- Route events through `RuntimeKernelBootstrapper.Events` (or equivalent static accessor).
+- Keep runtime event contracts backward-compatible for existing consumers.
+- Route event access through `RuntimeKernelBootstrapper.Events` (or equivalent static accessor).
 - Preserve menu-open state behavior and all current public API.
 
 **Step 4: Re-run tests and confirm GREEN**
 - Run bridge tests plus existing inventory event contract tests.
 
 **Step 5: Commit**
-- `refactor(core): route game events through runtime hub`
+- `refactor(core): route legacy event access through runtime hub`
 
 ### Task 3: Fix Delayed Pickup Interaction Consumption
 
@@ -100,5 +102,5 @@
 **Steps:**
 1. Run all modified EditMode tests.
 2. Run all modified PlayMode tests.
-3. Verify no API breakage in compile errors for `GameEvents` consumers.
+3. Verify no API breakage in compile errors for runtime event consumers and any retained legacy bridge call sites.
 4. Capture `git status` and summarize changed files.

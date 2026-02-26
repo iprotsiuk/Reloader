@@ -1,16 +1,16 @@
 ---
-description: Context for agents changing cross-domain event contracts in the Core event hub
-globs: Reloader/Assets/_Project/Core/Scripts/Events/**/*.cs,Reloader/Assets/_Project/Core/Scripts/Runtime/**/*Events*.cs
+description: Context for agents changing cross-domain runtime event contracts (ports/hub)
+globs: Reloader/Assets/_Project/Core/Scripts/Events/**/*.cs,Reloader/Assets/_Project/Core/Scripts/Runtime/**/*Events*.cs,Reloader/Assets/_Project/Core/Scripts/Runtime/RuntimeKernel*.cs
 alwaysApply: false
 ---
 
 # Core Events Context
 
-You are changing cross-domain EventBus/runtime event contracts (`GameEvents` in v0.x and runtime event interfaces/hubs).
+You are changing cross-domain runtime event contracts (event-port interfaces and runtime hubs).
 
 Read these docs:
 
-1. `docs/design/core-architecture.md` — EventBus pattern + current/planned `GameEvents` surface
+1. `docs/design/core-architecture.md` — EventBus pattern + current/planned runtime event contract
 2. `docs/design/README.md` — domain routing index to load only affected system docs
 3. `docs/design/inventory-and-economy.md` when adding/changing inventory event contracts (`OnItemPickupRequested`, `OnItemStored`, `OnItemPickupRejected`, `OnBeltSelectionChanged`, `OnInventoryChanged`)
 4. `docs/design/weapons-and-ballistics.md` when adding/changing weapon/shooting event contracts (`OnWeaponEquipped`, `OnWeaponFired`, `OnWeaponReloaded`, `OnProjectileHit`)

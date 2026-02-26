@@ -4,7 +4,7 @@
 
 **Goal:** Ensure picked-up rifle/ammo render in UI Toolkit toolbelt/inventory cells, keep ammo text HUD, enable drag-and-drop between belt and inventory, and default backpack capacity to 9 for testing.
 
-**Architecture:** Preserve existing event-driven UI flow (`GameEvents` -> controller refresh -> binder render). Add visual rendering to slot binders using existing item-icon catalog conventions. Keep move semantics in `PlayerInventoryRuntime`/`PlayerInventoryController` and map UI drag/drop intents into existing transfer calls.
+**Architecture:** Preserve existing event-driven UI flow (runtime event ports/hub -> controller refresh -> binder render). Add visual rendering to slot binders using existing item-icon catalog conventions. Keep move semantics in `PlayerInventoryRuntime`/`PlayerInventoryController` and map UI drag/drop intents into existing transfer calls.
 
 **Tech Stack:** Unity 6.3, UI Toolkit (UXML/USS), C# MonoBehaviours/controllers/view binders, NUnit play mode tests.
 

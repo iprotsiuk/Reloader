@@ -2,9 +2,9 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Split runtime events into domain interfaces and start migrating runtime systems from monolithic `GameEvents` to narrow event dependencies for long-term scalability.
+**Goal:** Split runtime events into domain interfaces and migrate runtime systems from legacy static event facade call sites to narrow event dependencies for long-term scalability.
 
-**Architecture:** Keep `GameEvents` as backward-compatible facade while introducing domain event ports (`IInventoryEvents`, `IWeaponEvents`, `IShopEvents`, `IUiStateEvents`). `RuntimeKernelBootstrapper` exposes typed channels so systems can consume only what they need, reducing cross-domain coupling.
+**Architecture:** Runtime event ports (`IInventoryEvents`, `IWeaponEvents`, `IShopEvents`, `IUiStateEvents`) and `IGameEventsRuntimeHub` are canonical. `RuntimeKernelBootstrapper` exposes typed channels so systems consume only what they need, reducing cross-domain coupling.
 
 **Tech Stack:** Unity 6.3, C#, NUnit EditMode/PlayMode tests, existing runtime kernel/event hub.
 
@@ -45,7 +45,7 @@
 - Modify: `Reloader/Assets/_Project/Player/Tests/PlayMode/PlayerInventoryControllerPlayModeTests.cs`
 
 **Step 1: Write failing tests first**
-- Add test asserting controller can run with injected `IInventoryEvents` without relying on `GameEvents` static facade.
+- Add test asserting controller can run with injected `IInventoryEvents` without relying on legacy static event facade access.
 
 **Step 2: Run tests and verify RED**
 - Run targeted PlayMode tests for inventory controller.
@@ -53,7 +53,7 @@
 **Step 3: Implement minimal migration**
 - Add optional event dependency injection in `Configure(...)`.
 - Default to `RuntimeKernelBootstrapper.InventoryEvents` when not injected.
-- Replace direct `GameEvents` usage in controller with `IInventoryEvents` dependency.
+- Replace legacy static event usage in controller with `IInventoryEvents` dependency.
 
 **Step 4: Re-run tests and verify GREEN**
 - Run targeted PlayMode inventory tests.
@@ -65,7 +65,7 @@
 
 1. Run modified EditMode tests:
 - `RuntimeKernelTests`
-- `GameEventsRuntimeBridgeTests`
+- `RuntimeEventHubBehaviorTests`
 - `InventoryEventContractsTests`
 2. Run modified PlayMode tests:
 - `PlayerInventoryControllerPlayModeTests`

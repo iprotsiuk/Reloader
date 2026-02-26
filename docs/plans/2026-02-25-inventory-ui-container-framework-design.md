@@ -94,7 +94,7 @@
 ## Integration With Existing Systems
 
 - Keep economy authority in `EconomyRuntime`/`EconomyController`.
-- Preserve event-driven cross-system communication via `GameEvents`.
+- Preserve event-driven cross-system communication via runtime event ports/hub.
 - Continue emitting inventory/money/trade result events after successful mutations.
 - Extend existing presenters/builders rather than replacing scene wiring pattern.
 

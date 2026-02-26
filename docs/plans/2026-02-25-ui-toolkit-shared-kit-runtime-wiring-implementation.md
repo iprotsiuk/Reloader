@@ -4,7 +4,7 @@
 
 **Goal:** Deliver working, separate UI Toolkit screens (belt HUD, TAB menu with placeholder tabs, vendor, workbench) that share reusable UI kit elements and correctly reflect runtime state/events.
 
-**Architecture:** Add a runtime wiring layer that binds each screen's UIDocument to its controller/view binder and subscribes to existing game events. Keep each screen isolated but styled through shared USS primitives/tokens so visual components are reused. Implement missing controller logic for tab inventory and trade/workbench open-close flows using current `GameEvents` contracts.
+**Architecture:** Add a runtime wiring layer that binds each screen's UIDocument to its controller/view binder and subscribes to runtime event ports/hub channels. Keep each screen isolated but styled through shared USS primitives/tokens so visual components are reused. Implement missing controller logic for tab inventory and trade/workbench open-close flows using typed runtime event contracts.
 
 **Tech Stack:** Unity 6.3, UI Toolkit (UXML/USS), C#, NUnit PlayMode tests.
 
@@ -61,7 +61,8 @@
 - Modify: `Reloader/Assets/_Project/UI/Scripts/Toolkit/Trade/TradeController.cs`
 - Modify: `Reloader/Assets/_Project/UI/Scripts/Toolkit/Reloading/ReloadingWorkbenchController.cs`
 - Modify: `Reloader/Assets/_Project/UI/Scripts/Toolkit/Reloading/ReloadingWorkbenchViewBinder.cs`
-- Modify: `Reloader/Assets/_Project/Core/Scripts/Events/GameEvents.cs` (only if new explicit UI events are required)
+- Modify: `Reloader/Assets/_Project/Core/Scripts/Runtime/IUiStateEvents.cs` (only if new explicit UI events are required)
+- Modify: `Reloader/Assets/_Project/Core/Scripts/Runtime/DefaultRuntimeEvents.cs` (only if new explicit UI events are required)
 
 **Step 1: Implement minimal wiring**
 - Instantiate controllers and view binders against each UIDocument root at runtime.

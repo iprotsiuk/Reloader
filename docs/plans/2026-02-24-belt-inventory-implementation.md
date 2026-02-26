@@ -4,7 +4,7 @@
 
 **Goal:** Implement an event-driven player inventory with 5 belt slots (`1..5`), pickup via `E`, slot-based selection, and save/load persistence for future TAB/backpack expansion.
 
-**Architecture:** Introduce a runtime inventory core (`PlayerInventoryRuntime`) and a thin input/controller bridge (`PlayerInventoryController`). Extend `GameEvents` to publish inventory events and evolve `InventoryModule` payload shape with backward-compatible deserialization. Keep runtime state independent from TAB UI so future menu tabs can consume the same model.
+**Architecture:** Introduce a runtime inventory core (`PlayerInventoryRuntime`) and a thin input/controller bridge (`PlayerInventoryController`). Extend runtime event ports/hub contracts (`IInventoryEvents` via `IGameEventsRuntimeHub`) to publish inventory events and evolve `InventoryModule` payload shape with backward-compatible deserialization. Keep runtime state independent from TAB UI so future menu tabs can consume the same model.
 
 **Tech Stack:** Unity 6 C#, Unity Input System, NUnit (EditMode/PlayMode), existing `SaveCoordinator` + `InventoryModule` JSON pipeline.
 
@@ -18,7 +18,8 @@ Implementation principles for every task:
 ### Task 1: Add inventory event contracts in Core
 
 **Files:**
-- Modify: `Reloader/Assets/_Project/Core/Scripts/Events/GameEvents.cs`
+- Modify (historical/retired path): `Reloader/Assets/_Project/Core/Scripts/Events/GameEvents.cs`
+- Runtime contract target: `IGameEventsRuntimeHub` + `IInventoryEvents` under `Core/Scripts/Events` runtime contracts.
 - Create: `Reloader/Assets/_Project/Core/Scripts/Events/InventoryEventsTypes.cs`
 - Test: `Reloader/Assets/_Project/Core/Tests/EditMode/InventoryEventContractsTests.cs`
 
@@ -39,14 +40,14 @@ namespace Reloader.Core.Tests.EditMode
             InventoryArea storedArea = default;
             int storedIndex = -1;
 
-            GameEvents.OnItemStored += (itemId, area, index) =>
+            runtimeEvents.Inventory.OnItemStored += (itemId, area, index) =>
             {
                 storedItemId = itemId;
                 storedArea = area;
                 storedIndex = index;
             };
 
-            GameEvents.RaiseItemStored("item-1", InventoryArea.Belt, 0);
+            runtimeEvents.Inventory.RaiseItemStored("item-1", InventoryArea.Belt, 0);
 
             Assert.That(storedItemId, Is.EqualTo("item-1"));
             Assert.That(storedArea, Is.EqualTo(InventoryArea.Belt));
@@ -75,18 +76,18 @@ namespace Reloader.Core.Events
     public enum PickupRejectReason { NoSpace, InvalidItem }
 }
 
-// GameEvents.cs additions
-public static event Action<string> OnItemPickupRequested;
-public static event Action<string, InventoryArea, int> OnItemStored;
-public static event Action<string, PickupRejectReason> OnItemPickupRejected;
-public static event Action<int> OnBeltSelectionChanged;
-public static event Action OnInventoryChanged;
+// Runtime inventory event contract additions (IInventoryEvents / runtime hub)
+event Action<string> OnItemPickupRequested;
+event Action<string, InventoryArea, int> OnItemStored;
+event Action<string, PickupRejectReason> OnItemPickupRejected;
+event Action<int> OnBeltSelectionChanged;
+event Action OnInventoryChanged;
 
-public static void RaiseItemPickupRequested(string itemId) => OnItemPickupRequested?.Invoke(itemId);
-public static void RaiseItemStored(string itemId, InventoryArea area, int index) => OnItemStored?.Invoke(itemId, area, index);
-public static void RaiseItemPickupRejected(string itemId, PickupRejectReason reason) => OnItemPickupRejected?.Invoke(itemId, reason);
-public static void RaiseBeltSelectionChanged(int selectedBeltIndex) => OnBeltSelectionChanged?.Invoke(selectedBeltIndex);
-public static void RaiseInventoryChanged() => OnInventoryChanged?.Invoke();
+void RaiseItemPickupRequested(string itemId);
+void RaiseItemStored(string itemId, InventoryArea area, int index);
+void RaiseItemPickupRejected(string itemId, PickupRejectReason reason);
+void RaiseBeltSelectionChanged(int selectedBeltIndex);
+void RaiseInventoryChanged();
 ```
 
 **Step 4: Run test to verify it passes**
@@ -97,7 +98,7 @@ Expected: PASS for `InventoryEventContractsTests`.
 **Step 5: Commit**
 
 ```bash
-git add Reloader/Assets/_Project/Core/Scripts/Events/GameEvents.cs \
+git add Reloader/Assets/_Project/Core/Scripts/Events/*Runtime* \
   Reloader/Assets/_Project/Core/Scripts/Events/InventoryEventsTypes.cs \
   Reloader/Assets/_Project/Core/Tests/EditMode/InventoryEventContractsTests.cs
 git commit -m "feat: add inventory event contracts"
@@ -207,7 +208,7 @@ int ConsumeBeltSelectPressed();
 
 // PlayerInventoryController
 // On update: consume belt select -> runtime.SelectBeltSlot(index)
-// consume pickup -> resolve looked-at world item id -> GameEvents.RaiseItemPickupRequested(itemId)
+// consume pickup -> resolve looked-at world item id -> runtimeEvents.Inventory.RaiseItemPickupRequested(itemId)
 // subscribe to pickup-request and call runtime.TryStoreItem, then RaiseItemStored/RaiseItemPickupRejected + RaiseInventoryChanged
 ```
 

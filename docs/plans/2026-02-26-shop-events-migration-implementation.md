@@ -2,9 +2,9 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Migrate shop gameplay flow to `IShopEvents` domain port so vendor interaction, trade UI intents, and economy runtime are decoupled from static `GameEvents`.
+**Goal:** Migrate shop gameplay flow to `IShopEvents` domain port so vendor interaction, trade UI intents, and economy runtime are decoupled from legacy static event facade usage.
 
-**Architecture:** Keep `GameEvents` as compatibility facade but move runtime consumers to injected/typed domain dependency (`IShopEvents`) with default fallback via `RuntimeKernelBootstrapper.ShopEvents`. This narrows coupling and enables module-level testability.
+**Architecture:** Runtime consumers depend on injected/typed domain dependency (`IShopEvents`) with default fallback via `RuntimeKernelBootstrapper.ShopEvents`. This narrows coupling and enables module-level testability.
 
 **Tech Stack:** Unity 6.3, C#, NUnit PlayMode/EditMode tests, runtime kernel/event hub.
 
@@ -27,7 +27,7 @@
 **Step 3: Implement minimal migration**
 - Add optional `IShopEvents` injection in configure/wiring points.
 - Default to `RuntimeKernelBootstrapper.ShopEvents` when not injected.
-- Replace direct `GameEvents` calls/subscriptions with resolved `IShopEvents` dependency.
+- Replace legacy static event calls/subscriptions with resolved `IShopEvents` dependency.
 
 **Step 4: Re-run tests to verify GREEN**
 - Run same targeted PlayMode suites.
@@ -67,7 +67,7 @@
 - `PlayerInventoryControllerPlayModeTests`
 2. Run modified EditMode suites:
 - `RuntimeKernelTests`
-- `GameEventsRuntimeBridgeTests`
+- `RuntimeEventHubBehaviorTests`
 3. Confirm no regression in previous stale-input tests:
 - `ReloadingBenchInteractionPlayModeTests`
-4. Summarize changed files and remaining direct `GameEvents` shop-call sites.
+4. Summarize changed files and remaining legacy static shop-event call sites.

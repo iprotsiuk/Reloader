@@ -54,4 +54,4 @@
 
 `CrimeType` enum: Poaching / HuntingWithoutLicense / IllegalWeapon / IllegalAttachment / IllegalAmmo / Trespassing / Resisting / Fleeing / BlackMarketTransaction
 
-Each offense maps to a consequence tier (minor violation, hunting violation, illegal possession, arrest). The law enforcement system fires `GameEvents.OnCrimeCommitted(CrimeType)` for other systems to react (reputation, NPC relationships, quest state).
+Each offense maps to a consequence tier (minor violation, hunting violation, illegal possession, arrest). The law enforcement system emits `OnCrimeCommitted(CrimeType)` through the runtime event hub (`IGameEventsRuntimeHub`) so other systems can react (reputation, NPC relationships, quest state; formerly `GameEvents.OnCrimeCommitted`).

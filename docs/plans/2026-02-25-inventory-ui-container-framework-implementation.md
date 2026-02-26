@@ -4,9 +4,9 @@
 
 **Goal:** Deliver a shared container-driven inventory/trade UI framework with standard tooltips, contextual drag/drop for player containers, and cart-based vendor buy/sell checkout with an order/delivery step.
 
-**Architecture:** Build a reusable runtime container + transfer engine layer that all inventory-like UIs consume. Keep vendor interaction button/cart driven (non-draggable), while TAB/storage/car use shared drag/drop and tooltip services. Preserve economy authority in `EconomyController`/`EconomyRuntime` and event-driven integration via `GameEvents`.
+**Architecture:** Build a reusable runtime container + transfer engine layer that all inventory-like UIs consume. Keep vendor interaction button/cart driven (non-draggable), while TAB/storage/car use shared drag/drop and tooltip services. Preserve economy authority in `EconomyController`/`EconomyRuntime` and event-driven integration via runtime event ports/hub.
 
-**Tech Stack:** Unity 6.3 C#, uGUI (`Canvas`, `Image`, `Button`, `TMP`/`Text`), Unity EventSystem drag interfaces, NUnit EditMode/PlayMode tests, existing `GameEvents` and economy runtime.
+**Tech Stack:** Unity 6.3 C#, uGUI (`Canvas`, `Image`, `Button`, `TMP`/`Text`), Unity EventSystem drag interfaces, NUnit EditMode/PlayMode tests, existing runtime event hub and economy runtime.
 
 ---
 
@@ -275,7 +275,8 @@ git commit -m "feat: add vendor cart/order and sell cart checkout ui flow"
 ### Task 8: Extend Economy Controller for Cart Checkout Batching and Delivery Selection
 
 **Files:**
-- Modify: `Reloader/Assets/_Project/Core/Scripts/Events/GameEvents.cs`
+- Modify: `Reloader/Assets/_Project/Core/Scripts/Runtime/IShopEvents.cs`
+- Modify: `Reloader/Assets/_Project/Core/Scripts/Runtime/DefaultRuntimeEvents.cs`
 - Modify: `Reloader/Assets/_Project/Economy/Scripts/Runtime/EconomyController.cs`
 - Modify: `Reloader/Assets/_Project/Economy/Scripts/Runtime/EconomyRuntime.cs`
 - Test: `Reloader/Assets/_Project/Economy/Tests/EditMode/EconomyRuntimeTests.cs`
@@ -305,7 +306,7 @@ Expected: PASS.
 **Step 5: Commit**
 
 ```bash
-git add Reloader/Assets/_Project/Core/Scripts/Events/GameEvents.cs Reloader/Assets/_Project/Economy/Scripts/Runtime/EconomyController.cs Reloader/Assets/_Project/Economy/Scripts/Runtime/EconomyRuntime.cs Reloader/Assets/_Project/Economy/Tests/EditMode/EconomyRuntimeTests.cs Reloader/Assets/_Project/Economy/Tests/PlayMode/TradeUiPresenterPlayModeTests.cs
+git add Reloader/Assets/_Project/Core/Scripts/Runtime/IShopEvents.cs Reloader/Assets/_Project/Core/Scripts/Runtime/DefaultRuntimeEvents.cs Reloader/Assets/_Project/Economy/Scripts/Runtime/EconomyController.cs Reloader/Assets/_Project/Economy/Scripts/Runtime/EconomyRuntime.cs Reloader/Assets/_Project/Economy/Tests/EditMode/EconomyRuntimeTests.cs Reloader/Assets/_Project/Economy/Tests/PlayMode/TradeUiPresenterPlayModeTests.cs
 git commit -m "feat: support cart checkout batching and delivery options in economy flow"
 ```
 

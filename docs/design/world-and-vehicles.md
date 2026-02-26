@@ -83,6 +83,6 @@ Vehicles provide transportation between locations in MainWorld and serve as the 
 - Instanced destinations can reference vehicle cargo state without enabling full in-scene driving
 
 **Integration points:**
-- `GameEvents.OnVehicleParked` / `GameEvents.OnVehicleDriven` for other systems
+- Runtime hub vehicle events `OnVehicleParked` / `OnVehicleDriven` for other systems (formerly `GameEvents` hooks)
 - Law enforcement can perform vehicle stops on roads when that system is active (see [law-enforcement.md](law-enforcement.md))
 - Carry capacity limits what you can bring to/from hunting once hunting gameplay is enabled (see [hunting-and-competitions.md](hunting-and-competitions.md))

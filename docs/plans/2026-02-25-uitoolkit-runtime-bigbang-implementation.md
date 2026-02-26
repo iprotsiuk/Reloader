@@ -6,7 +6,7 @@
 
 **Architecture:** Implement per-screen UI modules with strict layer separation (state, controller, view binder). Centralize domain wiring in controller/adapters, and expose customization via action mapping, composition config, and naming contracts. Remove old runtime uGUI paths after parity.
 
-**Tech Stack:** Unity 6.3 C#, UI Toolkit (`UIDocument`, `VisualElement`, `UXML`, `USS`), NUnit EditMode/PlayMode tests, existing `GameEvents` + domain runtimes (`Inventory`, `Economy`, `Reloading`, `Weapons`).
+**Tech Stack:** Unity 6.3 C#, UI Toolkit (`UIDocument`, `VisualElement`, `UXML`, `USS`), NUnit EditMode/PlayMode tests, existing runtime event ports/hub + domain runtimes (`Inventory`, `Economy`, `Reloading`, `Weapons`).
 
 ---
 

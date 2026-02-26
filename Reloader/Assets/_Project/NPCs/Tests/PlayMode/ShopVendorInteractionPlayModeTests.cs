@@ -24,9 +24,12 @@ namespace Reloader.NPCs.Tests.PlayMode
             var vendor = new GameObject("Vendor").AddComponent<ShopVendorTarget>();
             resolver.Target = vendor;
 
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
             string openedVendorId = null;
             void Handler(string vendorId) => openedVendorId = vendorId;
-            GameEvents.OnShopTradeOpenRequested += Handler;
+            runtimeHub.OnShopTradeOpenRequested += Handler;
             try
             {
                 input.PickupPressedThisFrame = true;
@@ -34,7 +37,8 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
             finally
             {
-                GameEvents.OnShopTradeOpenRequested -= Handler;
+                runtimeHub.OnShopTradeOpenRequested -= Handler;
+                RuntimeKernelBootstrapper.Events = originalHub;
                 Object.DestroyImmediate(root);
                 Object.DestroyImmediate(vendor.gameObject);
             }
@@ -60,9 +64,12 @@ namespace Reloader.NPCs.Tests.PlayMode
             var vendor = new GameObject("Vendor").AddComponent<ShopVendorTarget>();
             vendorResolver.Target = vendor;
 
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
             var openRequestedCount = 0;
             void Handler(string _) => openRequestedCount++;
-            GameEvents.OnShopTradeOpenRequested += Handler;
+            runtimeHub.OnShopTradeOpenRequested += Handler;
             try
             {
                 input.PickupPressedThisFrame = true;
@@ -71,7 +78,8 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
             finally
             {
-                GameEvents.OnShopTradeOpenRequested -= Handler;
+                runtimeHub.OnShopTradeOpenRequested -= Handler;
+                RuntimeKernelBootstrapper.Events = originalHub;
                 Object.DestroyImmediate(root);
                 Object.DestroyImmediate(vendor.gameObject);
             }
@@ -91,18 +99,22 @@ namespace Reloader.NPCs.Tests.PlayMode
             var vendor = new GameObject("Vendor").AddComponent<ShopVendorTarget>();
             resolver.Target = vendor;
 
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
             var closeCount = 0;
             void ClosedHandler() => closeCount++;
-            GameEvents.OnShopTradeClosed += ClosedHandler;
+            runtimeHub.OnShopTradeClosed += ClosedHandler;
             try
             {
-                GameEvents.RaiseShopTradeOpened("vendor-reloading-store");
+                runtimeHub.RaiseShopTradeOpened("vendor-reloading-store");
                 resolver.Target = null;
                 controller.Tick();
             }
             finally
             {
-                GameEvents.OnShopTradeClosed -= ClosedHandler;
+                runtimeHub.OnShopTradeClosed -= ClosedHandler;
+                RuntimeKernelBootstrapper.Events = originalHub;
                 Object.DestroyImmediate(root);
                 Object.DestroyImmediate(vendor.gameObject);
             }
@@ -288,9 +300,12 @@ namespace Reloader.NPCs.Tests.PlayMode
             var root = new GameObject("PlayerRoot");
             var controller = root.AddComponent<PlayerShopVendorController>();
 
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
             var openRequestedCount = 0;
             void Handler(string _) => openRequestedCount++;
-            GameEvents.OnShopTradeOpenRequested += Handler;
+            runtimeHub.OnShopTradeOpenRequested += Handler;
             try
             {
                 LogAssert.Expect(LogType.Error, "PlayerShopVendorController requires both input source and vendor resolver references.");
@@ -299,7 +314,8 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
             finally
             {
-                GameEvents.OnShopTradeOpenRequested -= Handler;
+                runtimeHub.OnShopTradeOpenRequested -= Handler;
+                RuntimeKernelBootstrapper.Events = originalHub;
                 Object.DestroyImmediate(root);
             }
 

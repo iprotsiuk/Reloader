@@ -6,7 +6,7 @@
 
 **Architecture:** Extend gameplay-side weapon/movement contracts first (events + state flow), then add animation-side adapters/profiles that consume only those contracts. Keep one shared animator schema and bind-point contract, with profile-based overrides and deterministic fallback/validation so content scales without controller rewrites.
 
-**Tech Stack:** Unity 6.3, C#, Unity Animator (Mecanim), Animation Rigging-ready bind contracts, NUnit EditMode/PlayMode tests, existing `GameEvents`, `PlayerMover`, `PlayerWeaponController`.
+**Tech Stack:** Unity 6.3, C#, Unity Animator (Mecanim), Animation Rigging-ready bind contracts, NUnit EditMode/PlayMode tests, existing runtime event ports/hub (`IWeaponEvents`), `PlayerMover`, `PlayerWeaponController`.
 
 ---
 
@@ -14,7 +14,8 @@
 
 **Files:**
 - Create: `Reloader/Assets/_Project/Core/Scripts/Events/WeaponEventsTypes.cs`
-- Modify: `Reloader/Assets/_Project/Core/Scripts/Events/GameEvents.cs`
+- Modify: `Reloader/Assets/_Project/Core/Scripts/Runtime/IWeaponEvents.cs`
+- Modify: `Reloader/Assets/_Project/Core/Scripts/Runtime/DefaultRuntimeEvents.cs`
 - Test: `Reloader/Assets/_Project/Core/Tests/EditMode/InventoryEventContractsTests.cs`
 
 **Step 1: Write the failing test**
@@ -48,7 +49,7 @@ public enum WeaponReloadCancelReason
     InterruptedByAction = 3
 }
 ```
-- Add event declarations + `Raise*` methods in `GameEvents`.
+- Add event declarations + `Raise*` methods in `IWeaponEvents` and `DefaultRuntimeEvents`.
 
 **Step 4: Run test to verify it passes**
 
@@ -59,7 +60,8 @@ Expected: PASS.
 
 ```bash
 git add Reloader/Assets/_Project/Core/Scripts/Events/WeaponEventsTypes.cs \
-  Reloader/Assets/_Project/Core/Scripts/Events/GameEvents.cs \
+  Reloader/Assets/_Project/Core/Scripts/Runtime/IWeaponEvents.cs \
+  Reloader/Assets/_Project/Core/Scripts/Runtime/DefaultRuntimeEvents.cs \
   Reloader/Assets/_Project/Core/Tests/EditMode/InventoryEventContractsTests.cs
 git commit -m "feat: add weapon animation lifecycle event contracts"
 ```
@@ -272,7 +274,7 @@ Expected: FAIL due to missing adapter.
 
 **Step 3: Write minimal implementation**
 
-- Subscribe/unsubscribe to `GameEvents` in `OnEnable`/`OnDisable`.
+- Subscribe/unsubscribe to `IWeaponEvents` (`RuntimeKernelBootstrapper.WeaponEvents`) in `OnEnable`/`OnDisable`.
 - Map events to animator params via cached hashes.
 - Read parameter names from `AnimationContractProfile` first, fallback to hardcoded defaults.
 
@@ -433,4 +435,3 @@ Expected:
 - EditMode: all pass.
 - PlayMode: all pass.
 - No new warnings from animation contract validation in wired scenes.
-

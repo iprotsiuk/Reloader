@@ -189,6 +189,10 @@ namespace Reloader.Player.Tests.PlayMode
         [Test]
         public void Tick_BeltKeyPress_UpdatesSelectedSlot()
         {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
             var root = new GameObject("InventoryControllerRoot");
             var controller = root.AddComponent<PlayerInventoryController>();
             var input = root.AddComponent<TestInputSource>();
@@ -197,7 +201,7 @@ namespace Reloader.Player.Tests.PlayMode
 
             var selectedIndex = -1;
             void HandleSelection(int index) => selectedIndex = index;
-            GameEvents.OnBeltSelectionChanged += HandleSelection;
+            runtimeHub.OnBeltSelectionChanged += HandleSelection;
             try
             {
                 input.BeltSlotPressed = 2;
@@ -205,7 +209,8 @@ namespace Reloader.Player.Tests.PlayMode
             }
             finally
             {
-                GameEvents.OnBeltSelectionChanged -= HandleSelection;
+                runtimeHub.OnBeltSelectionChanged -= HandleSelection;
+                RuntimeKernelBootstrapper.Events = originalHub;
                 Object.DestroyImmediate(root);
             }
 

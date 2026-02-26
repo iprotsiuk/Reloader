@@ -140,7 +140,7 @@ Managers survive scene transitions via `DontDestroyOnLoad`:
 | `QuestManager` | Active quests, progress tracking, rewards |
 | `AudioManager` | Music, SFX, ambient sounds per scene |
 
-Manager entries provide a static `Instance` property (singleton pattern). `SaveCoordinator` is a plain service built by `SaveBootstrapper`, not a `DontDestroyOnLoad` singleton manager. Gameplay code should use the EventBus pattern (implemented by `GameEvents` in v0.x) for cross-system communication, not call other managers directly. Managers may call each other's `Instance` for infrastructure tasks.
+Manager entries provide a static `Instance` property (singleton pattern). `SaveCoordinator` is a plain service built by `SaveBootstrapper`, not a `DontDestroyOnLoad` singleton manager. Gameplay code should use runtime event ports/hub (`IGameEventsRuntimeHub` via `RuntimeKernelBootstrapper.Events`) for cross-system communication, not call other managers directly. Managers may call each other's `Instance` for infrastructure tasks.
 
 **Domain managers:** Not every game system requires a persistent singleton manager. Systems like Hunting, Competitions, Law Enforcement, and Vehicles may use scene-level MonoBehaviours or static utility classes instead. The singletons above are for systems that MUST persist across scene transitions. Domain-specific management patterns are defined in each domain's design doc.
 
@@ -148,72 +148,42 @@ Manager entries provide a static `Instance` property (singleton pattern). `SaveC
 
 ## Event Bus [v0.1]
 
-Systems communicate through the EventBus pattern, currently implemented by a central static hub `GameEvents` in v0.x.
+Systems communicate through runtime event ports + a runtime hub.
 
-### Current `GameEvents` surface (implemented in repository)
+### Current `GameEvents` surface (implemented in repository) — legacy compatibility note
 
-```csharp
-public static class GameEvents
-{
-    public static bool IsShopTradeMenuOpen { get; }
-    public static bool IsWorkbenchMenuVisible { get; }
-    public static bool IsTabInventoryVisible { get; }
-    public static bool IsAnyMenuOpen { get; }
-    public static event Action OnSaveStarted;
-    public static event Action OnSaveCompleted;
-    public static event Action OnLoadStarted;
-    public static event Action OnLoadCompleted;
-    public static event Action<string> OnItemPickupRequested;
-    public static event Action<string, InventoryArea, int> OnItemStored;
-    public static event Action<string, PickupRejectReason> OnItemPickupRejected;
-    public static event Action<int> OnBeltSelectionChanged;
-    public static event Action OnInventoryChanged;
-    public static event Action<string> OnWeaponEquipStarted;
-    public static event Action<string> OnWeaponEquipped;
-    public static event Action<string> OnWeaponUnequipStarted;
-    public static event Action<string, Vector3, Vector3> OnWeaponFired;
-    public static event Action<string> OnWeaponReloadStarted;
-    public static event Action<string, WeaponReloadCancelReason> OnWeaponReloadCancelled;
-    public static event Action<string, int, int> OnWeaponReloaded;
-    public static event Action<string, bool> OnWeaponAimChanged;
-    public static event Action<string, Vector3, float> OnProjectileHit;
-    public static event Action<string> OnShopTradeOpenRequested;
-    public static event Action<string> OnShopTradeOpened;
-    public static event Action OnShopTradeClosed;
-    public static event Action<string, int> OnShopBuyRequested;
-    public static event Action<string, int> OnShopSellRequested;
-    public static event Action<ShopCheckoutRequest> OnShopBuyCheckoutRequested;
-    public static event Action<ShopCheckoutRequest> OnShopSellCheckoutRequested;
-    public static event Action<string, int, bool, bool, string> OnShopTradeResult;
-    public static event Action<bool> OnWorkbenchMenuVisibilityChanged;
-    public static event Action<bool> OnTabInventoryVisibilityChanged;
-    public static event Action<int> OnMoneyChanged;
-}
-```
+`GameEvents` is retired. Keep this heading for guardrail compatibility only; runtime code must use `IGameEventsRuntimeHub` and related event-port interfaces.
 
-### Target cross-domain `GameEvents` surface (planned)
+### Current runtime event contract (implemented in repository)
+
+- `IGameEventsRuntimeHub` is the canonical cross-domain contract surface.
+- It composes bounded event ports: `IRuntimeEvents`, `IInventoryEvents`, `IWeaponEvents`, `IShopEvents`, `IUiStateEvents`.
+- `DefaultRuntimeEvents` is the default in-process hub implementation.
+- `RuntimeKernelBootstrapper.Events` is the runtime access point used by modules/adapters.
+
+### Target cross-domain `GameEvents` surface (planned) — represented as runtime hub contracts
 
 ```csharp
-public static class GameEvents
+public interface IGameEventsRuntimeHub
 {
-    public static event Action<ItemInstance> OnItemPickedUp;
-    public static event Action<ItemInstance> OnItemDropped;
-    public static event Action<float> OnMoneyChanged;
-    public static event Action<AmmoInstance> OnAmmoAssembled;
-    public static event Action<CompetitionResult> OnCompetitionEnded;
-    public static event Action OnDayAdvanced;
-    public static event Action<WeaponInstance, AmmoInstance> OnWeaponFired;
-    public static event Action<CrimeType> OnCrimeCommitted;
-    public static event Action<VehicleInstance> OnVehicleParked;
-    public static event Action<VehicleInstance> OnVehicleDriven;
-    public static event Action<AnimalInstance, AmmoInstance> OnAnimalKilled;
-    public static event Action<string> OnHuntingViolation;
-    public static event Action<QuestInstance> OnQuestCompleted;
-    public static event Action<QuestInstance> OnQuestFailed;
-    public static event Action<string, float> OnReputationChanged;
-    public static event Action<NPCInstance, float> OnRelationshipChanged;
-    public static event Action<CrimeType, float> OnFineIssued;
-    public static event Action OnShopTransaction;
+    event Action<ItemInstance> OnItemPickedUp;
+    event Action<ItemInstance> OnItemDropped;
+    event Action<float> OnMoneyChanged;
+    event Action<AmmoInstance> OnAmmoAssembled;
+    event Action<CompetitionResult> OnCompetitionEnded;
+    event Action OnDayAdvanced;
+    event Action<WeaponInstance, AmmoInstance> OnWeaponFired;
+    event Action<CrimeType> OnCrimeCommitted;
+    event Action<VehicleInstance> OnVehicleParked;
+    event Action<VehicleInstance> OnVehicleDriven;
+    event Action<AnimalInstance, AmmoInstance> OnAnimalKilled;
+    event Action<string> OnHuntingViolation;
+    event Action<QuestInstance> OnQuestCompleted;
+    event Action<QuestInstance> OnQuestFailed;
+    event Action<string, float> OnReputationChanged;
+    event Action<NPCInstance, float> OnRelationshipChanged;
+    event Action<CrimeType, float> OnFineIssued;
+    event Action OnShopTransaction;
 }
 ```
 
@@ -277,7 +247,7 @@ These principles govern every design decision:
 
 1. **Simulate, don't restrict.** Never prevent the player from doing something. Simulate the consequence instead.
 2. **Extensible by default.** Every SO has `customProperties`. Every system accepts new content without code changes.
-3. **Feature isolation.** Each system lives in its own folder. Communication goes through the EventBus pattern (`GameEvents` in v0.x).
+3. **Feature isolation.** Each system lives in its own folder. Communication goes through runtime event ports/hub (`IGameEventsRuntimeHub`).
 4. **Data-driven content.** New content is added via ScriptableObject assets, not code changes.
 5. **Earned knowledge, not given.** Players learn by experimentation and consequences, not UI popups.
 6. **Physical world.** Items exist in the world as physical objects. No abstract inventory-only items.

@@ -6,7 +6,7 @@
 
 **Architecture:** Add a UI presenter that subscribes to inventory events and reads `PlayerInventoryController.Runtime` for authoritative slot/selection state. Instantiate via a lightweight bootstrap component so scenes can opt in without hardcoded references. Keep visuals belt-only and independent from future TAB menu systems.
 
-**Tech Stack:** Unity 6 C#, uGUI (`Canvas`, `Image`, `TMP_Text`), existing `GameEvents`, existing `PlayerInventoryController`/`PlayerInventoryRuntime`, imported PNG sprites.
+**Tech Stack:** Unity 6 C#, uGUI (`Canvas`, `Image`, `TMP_Text`), runtime event ports/hub (`IGameEventsRuntimeHub`/`IInventoryEvents`), existing `PlayerInventoryController`/`PlayerInventoryRuntime`, imported PNG sprites.
 
 ---
 
@@ -49,7 +49,7 @@ git commit -m "feat: import belt hud sprites"
 **Step 2: Implement presenter**
 - Serialized list of 5 slot view refs (frame image, item image, label)
 - Bind to `PlayerInventoryController`
-- Subscribe/unsubscribe `GameEvents.OnInventoryChanged` + `OnBeltSelectionChanged`
+- Subscribe/unsubscribe runtime inventory port events (`OnInventoryChanged` + `OnBeltSelectionChanged`)
 - Refresh all slots each update event
 
 **Step 3: Implement bootstrap**

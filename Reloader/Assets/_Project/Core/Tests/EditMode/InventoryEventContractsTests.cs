@@ -1,11 +1,25 @@
 using NUnit.Framework;
 using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using UnityEngine;
+using System;
 
 namespace Reloader.Core.Tests.EditMode
 {
     public class InventoryEventContractsTests
     {
+        [SetUp]
+        public void SetUp()
+        {
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), new DefaultRuntimeEvents());
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), new DefaultRuntimeEvents());
+        }
+
         [Test]
         public void RaiseItemStored_InvokesEventWithPayload()
         {
@@ -20,14 +34,14 @@ namespace Reloader.Core.Tests.EditMode
                 storedIndex = index;
             }
 
-            GameEvents.OnItemStored += Handler;
+            RuntimeKernelBootstrapper.InventoryEvents.OnItemStored += Handler;
             try
             {
-                GameEvents.RaiseItemStored("item-1", InventoryArea.Backpack, 3);
+                RuntimeKernelBootstrapper.InventoryEvents.RaiseItemStored("item-1", InventoryArea.Backpack, 3);
             }
             finally
             {
-                GameEvents.OnItemStored -= Handler;
+                RuntimeKernelBootstrapper.InventoryEvents.OnItemStored -= Handler;
             }
 
             Assert.That(storedItemId, Is.EqualTo("item-1"));
@@ -41,14 +55,14 @@ namespace Reloader.Core.Tests.EditMode
             string equippedItemId = null;
             void Handler(string itemId) => equippedItemId = itemId;
 
-            GameEvents.OnWeaponEquipped += Handler;
+            RuntimeKernelBootstrapper.WeaponEvents.OnWeaponEquipped += Handler;
             try
             {
-                GameEvents.RaiseWeaponEquipped("weapon-rifle-01");
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponEquipped("weapon-rifle-01");
             }
             finally
             {
-                GameEvents.OnWeaponEquipped -= Handler;
+                RuntimeKernelBootstrapper.WeaponEvents.OnWeaponEquipped -= Handler;
             }
 
             Assert.That(equippedItemId, Is.EqualTo("weapon-rifle-01"));
@@ -60,14 +74,14 @@ namespace Reloader.Core.Tests.EditMode
             string equippedItemId = null;
             void Handler(string itemId) => equippedItemId = itemId;
 
-            GameEvents.OnWeaponEquipStarted += Handler;
+            RuntimeKernelBootstrapper.WeaponEvents.OnWeaponEquipStarted += Handler;
             try
             {
-                GameEvents.RaiseWeaponEquipStarted("weapon-rifle-01");
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponEquipStarted("weapon-rifle-01");
             }
             finally
             {
-                GameEvents.OnWeaponEquipStarted -= Handler;
+                RuntimeKernelBootstrapper.WeaponEvents.OnWeaponEquipStarted -= Handler;
             }
 
             Assert.That(equippedItemId, Is.EqualTo("weapon-rifle-01"));
@@ -79,14 +93,14 @@ namespace Reloader.Core.Tests.EditMode
             string unequippedItemId = null;
             void Handler(string itemId) => unequippedItemId = itemId;
 
-            GameEvents.OnWeaponUnequipStarted += Handler;
+            RuntimeKernelBootstrapper.WeaponEvents.OnWeaponUnequipStarted += Handler;
             try
             {
-                GameEvents.RaiseWeaponUnequipStarted("weapon-rifle-01");
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponUnequipStarted("weapon-rifle-01");
             }
             finally
             {
-                GameEvents.OnWeaponUnequipStarted -= Handler;
+                RuntimeKernelBootstrapper.WeaponEvents.OnWeaponUnequipStarted -= Handler;
             }
 
             Assert.That(unequippedItemId, Is.EqualTo("weapon-rifle-01"));
@@ -105,14 +119,14 @@ namespace Reloader.Core.Tests.EditMode
                 firedDirection = direction;
             }
 
-            GameEvents.OnWeaponFired += Handler;
+            RuntimeKernelBootstrapper.WeaponEvents.OnWeaponFired += Handler;
             try
             {
-                GameEvents.RaiseWeaponFired("weapon-rifle-01", new Vector3(1f, 2f, 3f), Vector3.forward);
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponFired("weapon-rifle-01", new Vector3(1f, 2f, 3f), Vector3.forward);
             }
             finally
             {
-                GameEvents.OnWeaponFired -= Handler;
+                RuntimeKernelBootstrapper.WeaponEvents.OnWeaponFired -= Handler;
             }
 
             Assert.That(firedItemId, Is.EqualTo("weapon-rifle-01"));
@@ -133,14 +147,14 @@ namespace Reloader.Core.Tests.EditMode
                 reserveCount = reserve;
             }
 
-            GameEvents.OnWeaponReloaded += Handler;
+            RuntimeKernelBootstrapper.WeaponEvents.OnWeaponReloaded += Handler;
             try
             {
-                GameEvents.RaiseWeaponReloaded("weapon-rifle-01", 5, 25);
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponReloaded("weapon-rifle-01", 5, 25);
             }
             finally
             {
-                GameEvents.OnWeaponReloaded -= Handler;
+                RuntimeKernelBootstrapper.WeaponEvents.OnWeaponReloaded -= Handler;
             }
 
             Assert.That(reloadedItemId, Is.EqualTo("weapon-rifle-01"));
@@ -154,14 +168,14 @@ namespace Reloader.Core.Tests.EditMode
             string reloadedItemId = null;
             void Handler(string itemId) => reloadedItemId = itemId;
 
-            GameEvents.OnWeaponReloadStarted += Handler;
+            RuntimeKernelBootstrapper.WeaponEvents.OnWeaponReloadStarted += Handler;
             try
             {
-                GameEvents.RaiseWeaponReloadStarted("weapon-rifle-01");
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponReloadStarted("weapon-rifle-01");
             }
             finally
             {
-                GameEvents.OnWeaponReloadStarted -= Handler;
+                RuntimeKernelBootstrapper.WeaponEvents.OnWeaponReloadStarted -= Handler;
             }
 
             Assert.That(reloadedItemId, Is.EqualTo("weapon-rifle-01"));
@@ -179,14 +193,14 @@ namespace Reloader.Core.Tests.EditMode
                 reason = cancelReason;
             }
 
-            GameEvents.OnWeaponReloadCancelled += Handler;
+            RuntimeKernelBootstrapper.WeaponEvents.OnWeaponReloadCancelled += Handler;
             try
             {
-                GameEvents.RaiseWeaponReloadCancelled("weapon-rifle-01", WeaponReloadCancelReason.Sprint);
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponReloadCancelled("weapon-rifle-01", WeaponReloadCancelReason.Sprint);
             }
             finally
             {
-                GameEvents.OnWeaponReloadCancelled -= Handler;
+                RuntimeKernelBootstrapper.WeaponEvents.OnWeaponReloadCancelled -= Handler;
             }
 
             Assert.That(reloadedItemId, Is.EqualTo("weapon-rifle-01"));
@@ -204,14 +218,14 @@ namespace Reloader.Core.Tests.EditMode
                 isAiming = value;
             }
 
-            GameEvents.OnWeaponAimChanged += Handler;
+            RuntimeKernelBootstrapper.WeaponEvents.OnWeaponAimChanged += Handler;
             try
             {
-                GameEvents.RaiseWeaponAimChanged("weapon-rifle-01", true);
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponAimChanged("weapon-rifle-01", true);
             }
             finally
             {
-                GameEvents.OnWeaponAimChanged -= Handler;
+                RuntimeKernelBootstrapper.WeaponEvents.OnWeaponAimChanged -= Handler;
             }
 
             Assert.That(aimedItemId, Is.EqualTo("weapon-rifle-01"));
@@ -231,14 +245,14 @@ namespace Reloader.Core.Tests.EditMode
                 damage = hitDamage;
             }
 
-            GameEvents.OnProjectileHit += Handler;
+            RuntimeKernelBootstrapper.WeaponEvents.OnProjectileHit += Handler;
             try
             {
-                GameEvents.RaiseProjectileHit("weapon-rifle-01", new Vector3(3f, 1f, -2f), 42.5f);
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseProjectileHit("weapon-rifle-01", new Vector3(3f, 1f, -2f), 42.5f);
             }
             finally
             {
-                GameEvents.OnProjectileHit -= Handler;
+                RuntimeKernelBootstrapper.WeaponEvents.OnProjectileHit -= Handler;
             }
 
             Assert.That(hitItemId, Is.EqualTo("weapon-rifle-01"));
@@ -252,14 +266,14 @@ namespace Reloader.Core.Tests.EditMode
             string vendorId = null;
             void Handler(string value) => vendorId = value;
 
-            GameEvents.OnShopTradeOpenRequested += Handler;
+            RuntimeKernelBootstrapper.ShopEvents.OnShopTradeOpenRequested += Handler;
             try
             {
-                GameEvents.RaiseShopTradeOpenRequested("vendor-reloading-01");
+                RuntimeKernelBootstrapper.ShopEvents.RaiseShopTradeOpenRequested("vendor-reloading-01");
             }
             finally
             {
-                GameEvents.OnShopTradeOpenRequested -= Handler;
+                RuntimeKernelBootstrapper.ShopEvents.OnShopTradeOpenRequested -= Handler;
             }
 
             Assert.That(vendorId, Is.EqualTo("vendor-reloading-01"));
@@ -276,14 +290,14 @@ namespace Reloader.Core.Tests.EditMode
                 quantity = amount;
             }
 
-            GameEvents.OnShopBuyRequested += Handler;
+            RuntimeKernelBootstrapper.ShopEvents.OnShopBuyRequested += Handler;
             try
             {
-                GameEvents.RaiseShopBuyRequested("powder-varget", 3);
+                RuntimeKernelBootstrapper.ShopEvents.RaiseShopBuyRequested("powder-varget", 3);
             }
             finally
             {
-                GameEvents.OnShopBuyRequested -= Handler;
+                RuntimeKernelBootstrapper.ShopEvents.OnShopBuyRequested -= Handler;
             }
 
             Assert.That(itemId, Is.EqualTo("powder-varget"));
@@ -307,14 +321,14 @@ namespace Reloader.Core.Tests.EditMode
                 reason = failureReason;
             }
 
-            GameEvents.OnShopTradeResult += Handler;
+            RuntimeKernelBootstrapper.ShopEvents.OnShopTradeResult += Handler;
             try
             {
-                GameEvents.RaiseShopTradeResult("primer-cci", 100, true, false, "InsufficientFunds");
+                RuntimeKernelBootstrapper.ShopEvents.RaiseShopTradeResult("primer-cci", 100, true, false, "InsufficientFunds");
             }
             finally
             {
-                GameEvents.OnShopTradeResult -= Handler;
+                RuntimeKernelBootstrapper.ShopEvents.OnShopTradeResult -= Handler;
             }
 
             Assert.That(itemId, Is.EqualTo("primer-cci"));
@@ -330,14 +344,14 @@ namespace Reloader.Core.Tests.EditMode
             var money = -1;
             void Handler(int value) => money = value;
 
-            GameEvents.OnMoneyChanged += Handler;
+            RuntimeKernelBootstrapper.InventoryEvents.OnMoneyChanged += Handler;
             try
             {
-                GameEvents.RaiseMoneyChanged(420);
+                RuntimeKernelBootstrapper.InventoryEvents.RaiseMoneyChanged(420);
             }
             finally
             {
-                GameEvents.OnMoneyChanged -= Handler;
+                RuntimeKernelBootstrapper.InventoryEvents.OnMoneyChanged -= Handler;
             }
 
             Assert.That(money, Is.EqualTo(420));

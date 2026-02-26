@@ -116,9 +116,9 @@ Each round in the magazine is a specific `AmmoInstance`. Match-grade loads carry
 - v0.1 projectile sim includes gravity + BC-informed drag + velocity spread.
 - v0.1 non-goals: wind drift, Coriolis, spin drift, temperature/humidity effects, reloading-bench interactions.
 
-### Runtime Weapon Events [v0.1]
+### Runtime Weapon Event Port [v0.1]
 
-`GameEvents` publishes baseline weapon loop events for decoupled UI/audio/VFX listeners:
+`IWeaponEvents` on the runtime hub (`IGameEventsRuntimeHub`) publishes baseline weapon-loop events for decoupled UI/audio/VFX listeners:
 
 - `OnWeaponEquipStarted(string itemId)`
 - `OnWeaponEquipped(string itemId)`

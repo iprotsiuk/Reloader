@@ -32,7 +32,7 @@ Out of scope:
 
 Data source:
 - `PlayerInventoryController.Runtime` (`BeltSlotItemIds`, `SelectedBeltIndex`).
-- Event-driven refresh via `GameEvents` inventory events.
+- Event-driven refresh via runtime inventory event ports (`IInventoryEvents` via `IGameEventsRuntimeHub`).
 
 ## Asset Mapping
 Source package path:

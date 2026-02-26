@@ -4,9 +4,9 @@
 
 **Goal:** Build a reusable weapons framework with projectile shooting, pickup/inventory equip flow, and save-ready runtime state, implemented first with one rifle.
 
-**Architecture:** Add a modular `Weapons` feature layer that resolves inventory `itemId` selection into weapon runtime state, drives projectile firing/reload workflows, and publishes events through `GameEvents`. Persist minimal per-weapon runtime state keyed by `itemId` so gameplay survives save/load.
+**Architecture:** Add a modular `Weapons` feature layer that resolves inventory `itemId` selection into weapon runtime state, drives projectile firing/reload workflows, and publishes events through runtime event ports/hub (`IGameEventsRuntimeHub`/`IWeaponEvents`). Persist minimal per-weapon runtime state keyed by `itemId` so gameplay survives save/load.
 
-**Tech Stack:** Unity 6.3, C#, Unity Input System, NUnit (EditMode/PlayMode), existing `GameEvents` and `SaveCoordinator` modules.
+**Tech Stack:** Unity 6.3, C#, Unity Input System, NUnit (EditMode/PlayMode), existing runtime event contracts (`IGameEventsRuntimeHub` + ports) and `SaveCoordinator` modules.
 
 ---
 
@@ -57,7 +57,8 @@ git commit -m "feat: add fire and reload input contract"
 ### Task 2: Add Weapon Event Contracts
 
 **Files:**
-- Modify: `Reloader/Assets/_Project/Core/Scripts/Events/GameEvents.cs`
+- Modify (historical/retired path): `Reloader/Assets/_Project/Core/Scripts/Events/GameEvents.cs`
+- Runtime contract target: `IGameEventsRuntimeHub` + `IWeaponEvents` under `Core/Scripts/Events` runtime contracts.
 - Modify: `Reloader/Assets/_Project/Core/Scripts/Events/InventoryEventsTypes.cs` (only if new enums needed)
 - Test: `Reloader/Assets/_Project/Core/Tests/EditMode/InventoryEventContractsTests.cs`
 
@@ -76,7 +77,7 @@ Expected: missing event members/raise methods.
 
 **Step 3: Write minimal implementation**
 
-Add events and raise methods in `GameEvents` with payloads required by tests.
+Add events and raise methods in runtime weapon event ports/hub contracts with payloads required by tests.
 
 **Step 4: Run tests to verify pass**
 
@@ -86,7 +87,7 @@ Expected: event tests pass.
 **Step 5: Commit**
 
 ```bash
-git add Reloader/Assets/_Project/Core/Scripts/Events/GameEvents.cs \
+git add Reloader/Assets/_Project/Core/Scripts/Events/*Runtime* \
   Reloader/Assets/_Project/Core/Tests/EditMode/InventoryEventContractsTests.cs
 git commit -m "feat: add weapon gameplay event contracts"
 ```

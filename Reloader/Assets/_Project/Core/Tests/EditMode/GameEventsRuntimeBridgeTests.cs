@@ -5,7 +5,7 @@ using Reloader.Core.Runtime;
 
 namespace Reloader.Core.Tests.EditMode
 {
-    public class GameEventsRuntimeBridgeTests
+    public class RuntimeEventHubBehaviorTests
     {
         [SetUp]
         public void SetUp()
@@ -20,7 +20,7 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void RaiseItemStored_ForwardsToRuntimeEventHub()
+        public void RaiseItemStored_TypedPortInvokesConfiguredRuntimeHub()
         {
             var hub = new DefaultRuntimeEvents();
             RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), hub);
@@ -39,7 +39,7 @@ namespace Reloader.Core.Tests.EditMode
             hub.OnItemStored += Handler;
             try
             {
-                GameEvents.RaiseItemStored("item-bridge", InventoryArea.Backpack, 4);
+                RuntimeKernelBootstrapper.InventoryEvents.RaiseItemStored("item-bridge", InventoryArea.Backpack, 4);
             }
             finally
             {
@@ -60,89 +60,81 @@ namespace Reloader.Core.Tests.EditMode
             var invocationCount = 0;
             void Handler() => invocationCount++;
 
-            GameEvents.OnInventoryChanged += Handler;
+            RuntimeKernelBootstrapper.InventoryEvents.OnInventoryChanged += Handler;
             try
             {
                 hub.RaiseInventoryChanged();
             }
             finally
             {
-                GameEvents.OnInventoryChanged -= Handler;
+                RuntimeKernelBootstrapper.InventoryEvents.OnInventoryChanged -= Handler;
             }
 
             Assert.That(invocationCount, Is.EqualTo(1));
         }
 
         [Test]
-        public void EventUnsubscription_RemovesFromOriginalHub_WhenHubIsReconfigured()
+        public void RuntimePorts_PointToReplacementHub_WhenConfigureSwapsHub()
         {
             var initialHub = new DefaultRuntimeEvents();
             RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
 
             var replacementHub = new DefaultRuntimeEvents();
-            var invocationCount = 0;
-            void Handler() => invocationCount++;
+            var initialHubCount = 0;
+            var replacementHubCount = 0;
+            void InitialHandler() => initialHubCount++;
+            void ReplacementHandler() => replacementHubCount++;
 
-            GameEvents.OnInventoryChanged += Handler;
+            RuntimeKernelBootstrapper.InventoryEvents.OnInventoryChanged += InitialHandler;
             RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
-            GameEvents.OnInventoryChanged -= Handler;
-
-            initialHub.RaiseInventoryChanged();
-            replacementHub.RaiseInventoryChanged();
-
-            Assert.That(invocationCount, Is.EqualTo(0));
-        }
-
-        [Test]
-        public void EventSubscription_StaticSubscribers_RebindToReplacementHub_WhenConfigureSwapsHub()
-        {
-            var initialHub = new DefaultRuntimeEvents();
-            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
-
-            var replacementHub = new DefaultRuntimeEvents();
-            var invocationCount = 0;
-            void Handler() => invocationCount++;
-
-            GameEvents.OnInventoryChanged += Handler;
             try
             {
-                RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+                RuntimeKernelBootstrapper.InventoryEvents.OnInventoryChanged += ReplacementHandler;
+                initialHub.RaiseInventoryChanged();
                 replacementHub.RaiseInventoryChanged();
             }
             finally
             {
-                GameEvents.OnInventoryChanged -= Handler;
+                initialHub.OnInventoryChanged -= InitialHandler;
+                RuntimeKernelBootstrapper.InventoryEvents.OnInventoryChanged -= ReplacementHandler;
             }
 
-            Assert.That(invocationCount, Is.EqualTo(1));
+            Assert.That(initialHubCount, Is.EqualTo(1));
+            Assert.That(replacementHubCount, Is.EqualTo(1));
         }
 
         [Test]
-        public void EventSubscription_StaticSubscribers_RebindToReplacementHub_WhenEventsPropertySwapsHub()
+        public void RuntimePorts_PointToReplacementHub_WhenEventsPropertySwapsHub()
         {
             var initialHub = new DefaultRuntimeEvents();
             RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
 
             var replacementHub = new DefaultRuntimeEvents();
-            var invocationCount = 0;
-            void Handler() => invocationCount++;
+            var initialHubCount = 0;
+            var replacementHubCount = 0;
+            void InitialHandler() => initialHubCount++;
+            void ReplacementHandler() => replacementHubCount++;
 
-            GameEvents.OnInventoryChanged += Handler;
+            RuntimeKernelBootstrapper.InventoryEvents.OnInventoryChanged += InitialHandler;
             try
             {
                 RuntimeKernelBootstrapper.Events = replacementHub;
+                RuntimeKernelBootstrapper.InventoryEvents.OnInventoryChanged += ReplacementHandler;
+                initialHub.RaiseInventoryChanged();
                 replacementHub.RaiseInventoryChanged();
             }
             finally
             {
-                GameEvents.OnInventoryChanged -= Handler;
+                initialHub.OnInventoryChanged -= InitialHandler;
+                RuntimeKernelBootstrapper.InventoryEvents.OnInventoryChanged -= ReplacementHandler;
             }
 
-            Assert.That(invocationCount, Is.EqualTo(1));
+            Assert.That(initialHubCount, Is.EqualTo(1));
+            Assert.That(replacementHubCount, Is.EqualTo(1));
         }
 
         [Test]
-        public void RaiseWeaponReloaded_ForwardsToRuntimeEventHub()
+        public void RaiseWeaponReloaded_TypedPortInvokesConfiguredRuntimeHub()
         {
             var hub = new DefaultRuntimeEvents();
             RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), hub);
@@ -161,7 +153,7 @@ namespace Reloader.Core.Tests.EditMode
             hub.OnWeaponReloaded += Handler;
             try
             {
-                GameEvents.RaiseWeaponReloaded("weapon-bridge", 5, 27);
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponReloaded("weapon-bridge", 5, 27);
             }
             finally
             {
@@ -174,41 +166,41 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void MenuVisibilityFlags_ArePreservedThroughRuntimeHubBridge()
+        public void MenuVisibilityFlags_ArePreservedOnRuntimeHub()
         {
             var hub = new DefaultRuntimeEvents();
             RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), hub);
 
-            Assert.That(GameEvents.IsShopTradeMenuOpen, Is.False);
-            Assert.That(GameEvents.IsWorkbenchMenuVisible, Is.False);
-            Assert.That(GameEvents.IsTabInventoryVisible, Is.False);
-            Assert.That(GameEvents.IsAnyMenuOpen, Is.False);
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents.IsShopTradeMenuOpen, Is.False);
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents.IsWorkbenchMenuVisible, Is.False);
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents.IsTabInventoryVisible, Is.False);
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents.IsAnyMenuOpen, Is.False);
 
-            GameEvents.RaiseShopTradeOpened("vendor-bridge");
-            Assert.That(GameEvents.IsShopTradeMenuOpen, Is.True);
-            Assert.That(GameEvents.IsAnyMenuOpen, Is.True);
+            RuntimeKernelBootstrapper.ShopEvents.RaiseShopTradeOpened("vendor-bridge");
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents.IsShopTradeMenuOpen, Is.True);
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents.IsAnyMenuOpen, Is.True);
             Assert.That(hub.IsShopTradeMenuOpen, Is.True);
 
-            GameEvents.RaiseShopTradeClosed();
-            Assert.That(GameEvents.IsShopTradeMenuOpen, Is.False);
-            Assert.That(GameEvents.IsAnyMenuOpen, Is.False);
+            RuntimeKernelBootstrapper.ShopEvents.RaiseShopTradeClosed();
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents.IsShopTradeMenuOpen, Is.False);
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents.IsAnyMenuOpen, Is.False);
             Assert.That(hub.IsShopTradeMenuOpen, Is.False);
 
-            GameEvents.RaiseWorkbenchMenuVisibilityChanged(true);
-            Assert.That(GameEvents.IsWorkbenchMenuVisible, Is.True);
-            Assert.That(GameEvents.IsAnyMenuOpen, Is.True);
+            RuntimeKernelBootstrapper.UiStateEvents.RaiseWorkbenchMenuVisibilityChanged(true);
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents.IsWorkbenchMenuVisible, Is.True);
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents.IsAnyMenuOpen, Is.True);
             Assert.That(hub.IsWorkbenchMenuVisible, Is.True);
 
-            GameEvents.RaiseTabInventoryVisibilityChanged(true);
-            Assert.That(GameEvents.IsTabInventoryVisible, Is.True);
-            Assert.That(GameEvents.IsAnyMenuOpen, Is.True);
+            RuntimeKernelBootstrapper.UiStateEvents.RaiseTabInventoryVisibilityChanged(true);
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents.IsTabInventoryVisible, Is.True);
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents.IsAnyMenuOpen, Is.True);
             Assert.That(hub.IsTabInventoryVisible, Is.True);
 
-            GameEvents.RaiseWorkbenchMenuVisibilityChanged(false);
-            GameEvents.RaiseTabInventoryVisibilityChanged(false);
-            Assert.That(GameEvents.IsWorkbenchMenuVisible, Is.False);
-            Assert.That(GameEvents.IsTabInventoryVisible, Is.False);
-            Assert.That(GameEvents.IsAnyMenuOpen, Is.False);
+            RuntimeKernelBootstrapper.UiStateEvents.RaiseWorkbenchMenuVisibilityChanged(false);
+            RuntimeKernelBootstrapper.UiStateEvents.RaiseTabInventoryVisibilityChanged(false);
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents.IsWorkbenchMenuVisible, Is.False);
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents.IsTabInventoryVisible, Is.False);
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents.IsAnyMenuOpen, Is.False);
             Assert.That(hub.IsWorkbenchMenuVisible, Is.False);
             Assert.That(hub.IsTabInventoryVisible, Is.False);
         }

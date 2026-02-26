@@ -172,8 +172,8 @@ Validation runs:
 ## Migration Plan From Current Runtime
 
 1. Keep `FpsViewmodelAnimatorDriver` initially; migrate output to `MoveSpeed01` normalized contract.
-2. Introduce `ViewmodelAnimationAdapter` subscribed to `GameEvents`.
-3. Add new weapon lifecycle events in `GameEvents` and publish them from weapon controller flow.
+2. Introduce `ViewmodelAnimationAdapter` subscribed to `IWeaponEvents` (via `RuntimeKernelBootstrapper.WeaponEvents`).
+3. Add new weapon lifecycle events in `IWeaponEvents` and publish them from weapon controller flow.
 4. Introduce `AnimationContractProfile` and move hardcoded parameter names there.
 5. Add first `WeaponAnimationProfile` as family default (`Rifle_Generic`) to avoid one-off logic.
 6. Add contract validator before scaling content packs.

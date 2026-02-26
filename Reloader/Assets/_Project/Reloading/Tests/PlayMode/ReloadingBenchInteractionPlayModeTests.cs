@@ -1,5 +1,4 @@
 using NUnit.Framework;
-using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Player;
 using Reloader.Reloading.World;
@@ -67,6 +66,10 @@ namespace Reloader.Reloading.Tests.PlayMode
         [Test]
         public void OpenWorkbench_WhenControllerDisabled_ClosesWorkbenchAndRaisesVisibilityFalse()
         {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
             var root = new GameObject("PlayerRoot");
             var input = root.AddComponent<TestInputSource>();
             var controller = root.AddComponent<PlayerReloadingBenchController>();
@@ -83,7 +86,7 @@ namespace Reloader.Reloading.Tests.PlayMode
                 lastVisibility = isVisible;
             }
 
-            GameEvents.OnWorkbenchMenuVisibilityChanged += HandleVisibilityChanged;
+            runtimeHub.OnWorkbenchMenuVisibilityChanged += HandleVisibilityChanged;
             try
             {
                 input.PickupPressedThisFrame = true;
@@ -100,7 +103,8 @@ namespace Reloader.Reloading.Tests.PlayMode
             }
             finally
             {
-                GameEvents.OnWorkbenchMenuVisibilityChanged -= HandleVisibilityChanged;
+                runtimeHub.OnWorkbenchMenuVisibilityChanged -= HandleVisibilityChanged;
+                RuntimeKernelBootstrapper.Events = originalHub;
                 Object.Destroy(root);
             }
         }
@@ -132,8 +136,12 @@ namespace Reloader.Reloading.Tests.PlayMode
         }
 
         [Test]
-        public void PlayerReloadingBenchController_UsesInjectedUiStateEvents()
+        public void PlayerReloadingBenchController_UsesInjectedUiStateEvents_InsteadOfRuntimeKernelUiStateEvents()
         {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
             var root = new GameObject("PlayerRootInjectedUiEvents");
             var input = root.AddComponent<TestInputSource>();
             var controller = root.AddComponent<PlayerReloadingBenchController>();
@@ -143,9 +151,9 @@ namespace Reloader.Reloading.Tests.PlayMode
             resolver.Target = target;
             controller.Configure(input, resolver, uiStateEvents);
 
-            var gameEventsCount = 0;
-            GameEvents.OnWorkbenchMenuVisibilityChanged += HandleGameEventsVisibilityChanged;
-            void HandleGameEventsVisibilityChanged(bool _) => gameEventsCount++;
+            var runtimeHubEventsCount = 0;
+            runtimeHub.OnWorkbenchMenuVisibilityChanged += HandleRuntimeHubVisibilityChanged;
+            void HandleRuntimeHubVisibilityChanged(bool _) => runtimeHubEventsCount++;
 
             try
             {
@@ -153,7 +161,7 @@ namespace Reloader.Reloading.Tests.PlayMode
                 controller.Tick();
                 Assert.That(uiStateEvents.WorkbenchVisibilityRaiseCount, Is.EqualTo(1));
                 Assert.That(uiStateEvents.IsWorkbenchMenuVisible, Is.True);
-                Assert.That(gameEventsCount, Is.EqualTo(0));
+                Assert.That(runtimeHubEventsCount, Is.EqualTo(0));
 
                 controller.enabled = false;
                 Assert.That(uiStateEvents.WorkbenchVisibilityRaiseCount, Is.EqualTo(2));
@@ -161,7 +169,8 @@ namespace Reloader.Reloading.Tests.PlayMode
             }
             finally
             {
-                GameEvents.OnWorkbenchMenuVisibilityChanged -= HandleGameEventsVisibilityChanged;
+                runtimeHub.OnWorkbenchMenuVisibilityChanged -= HandleRuntimeHubVisibilityChanged;
+                RuntimeKernelBootstrapper.Events = originalHub;
                 Object.Destroy(root);
             }
         }

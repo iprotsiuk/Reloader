@@ -78,6 +78,9 @@ namespace Reloader.UI.Tests.PlayMode
         {
             var go = new GameObject("trade-controller");
             var controller = go.AddComponent<TradeController>();
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
             var raised = 0;
 
             void Handler(ShopCheckoutRequest request)
@@ -85,7 +88,7 @@ namespace Reloader.UI.Tests.PlayMode
                 raised++;
             }
 
-            GameEvents.OnShopBuyCheckoutRequested += Handler;
+            runtimeHub.OnShopBuyCheckoutRequested += Handler;
             try
             {
                 controller.HandleIntent(new UiIntent("trade.confirm.buy"));
@@ -94,7 +97,8 @@ namespace Reloader.UI.Tests.PlayMode
             }
             finally
             {
-                GameEvents.OnShopBuyCheckoutRequested -= Handler;
+                runtimeHub.OnShopBuyCheckoutRequested -= Handler;
+                RuntimeKernelBootstrapper.Events = originalHub;
                 Object.DestroyImmediate(go);
             }
         }
@@ -104,6 +108,9 @@ namespace Reloader.UI.Tests.PlayMode
         {
             var go = new GameObject("trade-controller");
             var controller = go.AddComponent<TradeController>();
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
             var raised = 0;
             ShopCheckoutRequest captured = null;
             var payload = new ShopCheckoutRequest(
@@ -117,7 +124,7 @@ namespace Reloader.UI.Tests.PlayMode
                 captured = request;
             }
 
-            GameEvents.OnShopBuyCheckoutRequested += Handler;
+            runtimeHub.OnShopBuyCheckoutRequested += Handler;
             try
             {
                 controller.HandleIntent(new UiIntent("trade.confirm.buy", payload));
@@ -131,7 +138,8 @@ namespace Reloader.UI.Tests.PlayMode
             }
             finally
             {
-                GameEvents.OnShopBuyCheckoutRequested -= Handler;
+                runtimeHub.OnShopBuyCheckoutRequested -= Handler;
+                RuntimeKernelBootstrapper.Events = originalHub;
                 Object.DestroyImmediate(go);
             }
         }
@@ -141,6 +149,9 @@ namespace Reloader.UI.Tests.PlayMode
         {
             var go = new GameObject("trade-controller");
             var controller = go.AddComponent<TradeController>();
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
             var raised = 0;
 
             void Handler(ShopCheckoutRequest request)
@@ -148,7 +159,7 @@ namespace Reloader.UI.Tests.PlayMode
                 raised++;
             }
 
-            GameEvents.OnShopSellCheckoutRequested += Handler;
+            runtimeHub.OnShopSellCheckoutRequested += Handler;
             try
             {
                 controller.HandleIntent(new UiIntent("trade.confirm.sell"));
@@ -157,7 +168,8 @@ namespace Reloader.UI.Tests.PlayMode
             }
             finally
             {
-                GameEvents.OnShopSellCheckoutRequested -= Handler;
+                runtimeHub.OnShopSellCheckoutRequested -= Handler;
+                RuntimeKernelBootstrapper.Events = originalHub;
                 Object.DestroyImmediate(go);
             }
         }

@@ -50,7 +50,7 @@ Chosen approach: event-driven inventory with placeholder registry boundaries (fu
 TAB is a future multi-tab shell (inventory, quests, manuals, etc.). Inventory runtime must not depend on TAB/UI types. TAB later becomes a consumer/editor of inventory state.
 
 ## Event Contracts (Core)
-Extend `GameEvents` with inventory events:
+Use runtime inventory event ports (`IInventoryEvents` via `IGameEventsRuntimeHub`) for inventory events:
 - `OnItemPickupRequested(string itemId)`
 - `OnItemStored(string itemId, InventoryArea area, int index)`
 - `OnItemPickupRejected(string itemId, PickupRejectReason reason)`
