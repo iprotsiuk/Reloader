@@ -2,9 +2,11 @@ using System;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.UI.Toolkit.Contracts;
+using Reloader.UI.Toolkit.Reloading;
 using Reloader.UI.Toolkit.Runtime;
 using Reloader.UI.Toolkit.TabInventory;
 using Reloader.UI.Toolkit.Trade;
@@ -276,6 +278,47 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void TabInventoryController_Tick_UsesInjectedUiStateEvents()
+        {
+            var go = new GameObject("TabInventoryControllerInjectedEvents");
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(2);
+            inventoryController.Configure(null, null, runtime);
+
+            var root = BuildTabRoot();
+            var viewBinder = new TabInventoryViewBinder();
+            viewBinder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+
+            var input = go.AddComponent<TestInputSource>();
+            var controller = go.AddComponent<TabInventoryController>();
+            var uiStateEvents = new TestUiStateEvents();
+            controller.Configure(uiStateEvents);
+            controller.SetInventoryController(inventoryController);
+            controller.SetInputSource(input);
+            controller.Configure(viewBinder, new TabInventoryDragController());
+
+            var gameEventsCount = 0;
+            GameEvents.OnTabInventoryVisibilityChanged += HandleGameEventsVisibilityChanged;
+            void HandleGameEventsVisibilityChanged(bool _) => gameEventsCount++;
+
+            try
+            {
+                input.MenuTogglePressedThisFrame = true;
+                controller.Tick();
+
+                Assert.That(uiStateEvents.TabInventoryVisibilityRaiseCount, Is.EqualTo(1));
+                Assert.That(uiStateEvents.IsTabInventoryVisible, Is.True);
+                Assert.That(gameEventsCount, Is.EqualTo(0));
+            }
+            finally
+            {
+                GameEvents.OnTabInventoryVisibilityChanged -= HandleGameEventsVisibilityChanged;
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void TabInventoryController_Tick_ResolvesInputSource_WhenSpawnedLater()
         {
             var go = new GameObject("TabInventoryController");
@@ -338,6 +381,28 @@ namespace Reloader.UI.Tests.PlayMode
             controller.Tick();
 
             Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.None));
+            UnityEngine.Object.DestroyImmediate(go);
+        }
+
+        [Test]
+        public void ReloadingWorkbenchController_UsesInjectedUiStateEvents()
+        {
+            var go = new GameObject("ReloadingWorkbenchInjectedEvents");
+            var root = new VisualElement { name = "reloading__root" };
+            var binder = new ReloadingWorkbenchViewBinder();
+            binder.Initialize(root, operationCount: 3);
+
+            var controller = go.AddComponent<ReloadingWorkbenchController>();
+            var uiStateEvents = new TestUiStateEvents();
+            controller.Configure(uiStateEvents);
+            controller.SetViewBinder(binder);
+
+            GameEvents.RaiseWorkbenchMenuVisibilityChanged(true);
+            Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
+
+            uiStateEvents.RaiseWorkbenchMenuVisibilityChanged(true);
+            Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+
             UnityEngine.Object.DestroyImmediate(go);
         }
 
@@ -413,6 +478,31 @@ namespace Reloader.UI.Tests.PlayMode
 
                 MenuTogglePressedThisFrame = false;
                 return true;
+            }
+        }
+
+        private sealed class TestUiStateEvents : IUiStateEvents
+        {
+            public bool IsShopTradeMenuOpen { get; private set; }
+            public bool IsWorkbenchMenuVisible { get; private set; }
+            public bool IsTabInventoryVisible { get; private set; }
+            public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible;
+            public int TabInventoryVisibilityRaiseCount { get; private set; }
+
+            public event Action<bool> OnWorkbenchMenuVisibilityChanged;
+            public event Action<bool> OnTabInventoryVisibilityChanged;
+
+            public void RaiseWorkbenchMenuVisibilityChanged(bool isVisible)
+            {
+                IsWorkbenchMenuVisible = isVisible;
+                OnWorkbenchMenuVisibilityChanged?.Invoke(isVisible);
+            }
+
+            public void RaiseTabInventoryVisibilityChanged(bool isVisible)
+            {
+                IsTabInventoryVisible = isVisible;
+                TabInventoryVisibilityRaiseCount++;
+                OnTabInventoryVisibilityChanged?.Invoke(isVisible);
             }
         }
     }

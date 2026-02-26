@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Reloader.Core;
 using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.UI.Toolkit.Contracts;
@@ -18,6 +19,8 @@ namespace Reloader.UI.Toolkit.TabInventory
         private TabInventoryViewBinder _viewBinder;
         private TabInventoryDragController _dragController;
         private IPlayerInputSource _inputSource;
+        private IUiStateEvents _uiStateEvents;
+        private bool _useRuntimeKernelUiStateEvents = true;
         private bool _isOpen;
         private string _activeSection = "inventory";
 
@@ -42,6 +45,12 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             Refresh();
+        }
+
+        public void Configure(IUiStateEvents uiStateEvents = null)
+        {
+            _useRuntimeKernelUiStateEvents = uiStateEvents == null;
+            _uiStateEvents = uiStateEvents;
         }
 
         public void SetInputSource(IPlayerInputSource inputSource)
@@ -255,7 +264,17 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             _isOpen = isOpen;
-            GameEvents.RaiseTabInventoryVisibilityChanged(_isOpen);
+            ResolveUiStateEvents()?.RaiseTabInventoryVisibilityChanged(_isOpen);
+        }
+
+        private IUiStateEvents ResolveUiStateEvents()
+        {
+            if (_useRuntimeKernelUiStateEvents)
+            {
+                _uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
+            }
+
+            return _uiStateEvents;
         }
     }
 }

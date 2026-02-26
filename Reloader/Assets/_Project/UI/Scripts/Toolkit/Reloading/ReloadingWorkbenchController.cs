@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine;
 
@@ -10,19 +10,32 @@ namespace Reloader.UI.Toolkit.Reloading
         [SerializeField] private string[] _operationLabels = { "Resize", "Prime", "Seat" };
 
         private ReloadingWorkbenchViewBinder _viewBinder;
+        private IUiStateEvents _uiStateEvents;
+        private IUiStateEvents _subscribedUiStateEvents;
+        private bool _useRuntimeKernelUiStateEvents = true;
         private int _selectedOperation;
         private string _resultText;
         private bool _isVisible;
 
         private void OnEnable()
         {
-            GameEvents.OnWorkbenchMenuVisibilityChanged += HandleWorkbenchVisibilityChanged;
+            SubscribeToUiStateEvents(ResolveUiStateEvents());
             Refresh();
         }
 
         private void OnDisable()
         {
-            GameEvents.OnWorkbenchMenuVisibilityChanged -= HandleWorkbenchVisibilityChanged;
+            UnsubscribeFromUiStateEvents();
+        }
+
+        public void Configure(IUiStateEvents uiStateEvents = null)
+        {
+            _useRuntimeKernelUiStateEvents = uiStateEvents == null;
+            _uiStateEvents = uiStateEvents;
+            if (isActiveAndEnabled)
+            {
+                SubscribeToUiStateEvents(ResolveUiStateEvents());
+            }
         }
 
         public void SetViewBinder(ReloadingWorkbenchViewBinder binder)
@@ -75,6 +88,58 @@ namespace Reloader.UI.Toolkit.Reloading
         {
             _isVisible = isVisible;
             Refresh();
+        }
+
+        private IUiStateEvents ResolveUiStateEvents()
+        {
+            if (_useRuntimeKernelUiStateEvents)
+            {
+                var runtimeUiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
+                if (!ReferenceEquals(_uiStateEvents, runtimeUiStateEvents))
+                {
+                    _uiStateEvents = runtimeUiStateEvents;
+                    SubscribeToUiStateEvents(_uiStateEvents);
+                }
+                else if (!ReferenceEquals(_subscribedUiStateEvents, _uiStateEvents))
+                {
+                    SubscribeToUiStateEvents(_uiStateEvents);
+                }
+            }
+            else if (!ReferenceEquals(_subscribedUiStateEvents, _uiStateEvents))
+            {
+                SubscribeToUiStateEvents(_uiStateEvents);
+            }
+
+            return _uiStateEvents;
+        }
+
+        private void SubscribeToUiStateEvents(IUiStateEvents uiStateEvents)
+        {
+            if (uiStateEvents == null)
+            {
+                UnsubscribeFromUiStateEvents();
+                return;
+            }
+
+            if (ReferenceEquals(_subscribedUiStateEvents, uiStateEvents))
+            {
+                return;
+            }
+
+            UnsubscribeFromUiStateEvents();
+            _subscribedUiStateEvents = uiStateEvents;
+            _subscribedUiStateEvents.OnWorkbenchMenuVisibilityChanged += HandleWorkbenchVisibilityChanged;
+        }
+
+        private void UnsubscribeFromUiStateEvents()
+        {
+            if (_subscribedUiStateEvents == null)
+            {
+                return;
+            }
+
+            _subscribedUiStateEvents.OnWorkbenchMenuVisibilityChanged -= HandleWorkbenchVisibilityChanged;
+            _subscribedUiStateEvents = null;
         }
     }
 }

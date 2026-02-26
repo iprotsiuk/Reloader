@@ -2,6 +2,7 @@ using NUnit.Framework;
 using Reloader.Player;
 using Reloader.Player.Viewmodel;
 using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using UnityEngine;
 
 namespace Reloader.Player.Tests.PlayMode
@@ -386,6 +387,48 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerCursorLockController_UsesInjectedUiAndShopEventChannels()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+            var go = new GameObject("CursorLockInjectedEvents");
+            go.SetActive(false);
+
+            var controller = go.AddComponent<PlayerCursorLockController>();
+            var uiStateEvents = new TestUiStateEvents();
+            var shopEvents = new TestShopEvents();
+            controller.Configure(uiStateEvents, shopEvents);
+
+            try
+            {
+                go.SetActive(true);
+                controller.LockCursor();
+
+                GameEvents.RaiseTabInventoryVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+
+                uiStateEvents.RaiseTabInventoryVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+
+                uiStateEvents.RaiseTabInventoryVisibilityChanged(false);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+
+                shopEvents.RaiseShopTradeOpened("vendor-1");
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+
+                shopEvents.RaiseShopTradeClosed();
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+            }
+            finally
+            {
+                GameEvents.RaiseTabInventoryVisibilityChanged(false);
+                Object.DestroyImmediate(go);
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
+        }
+
+        [Test]
         public void TestInputSource_ExposesFireAndReloadConsumeMethods()
         {
             var root = new GameObject("InputSourceRoot");
@@ -656,6 +699,65 @@ namespace Reloader.Player.Tests.PlayMode
                 ReloadPressedThisFrame = false;
                 BeltSlotPressed = -1;
             }
+        }
+
+        private sealed class TestUiStateEvents : IUiStateEvents
+        {
+            public bool IsShopTradeMenuOpen { get; private set; }
+            public bool IsWorkbenchMenuVisible { get; private set; }
+            public bool IsTabInventoryVisible { get; private set; }
+            public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible;
+
+            public event System.Action<bool> OnWorkbenchMenuVisibilityChanged;
+            public event System.Action<bool> OnTabInventoryVisibilityChanged;
+
+            public void RaiseWorkbenchMenuVisibilityChanged(bool isVisible)
+            {
+                IsWorkbenchMenuVisible = isVisible;
+                OnWorkbenchMenuVisibilityChanged?.Invoke(isVisible);
+            }
+
+            public void RaiseTabInventoryVisibilityChanged(bool isVisible)
+            {
+                IsTabInventoryVisible = isVisible;
+                OnTabInventoryVisibilityChanged?.Invoke(isVisible);
+            }
+
+            public void SetShopTradeMenuOpen(bool isOpen)
+            {
+                IsShopTradeMenuOpen = isOpen;
+            }
+        }
+
+        private sealed class TestShopEvents : IShopEvents
+        {
+            public event System.Action<string> OnShopTradeOpenRequested;
+            public event System.Action<string> OnShopTradeOpened;
+            public event System.Action OnShopTradeClosed;
+            public event System.Action<string, int> OnShopBuyRequested;
+            public event System.Action<string, int> OnShopSellRequested;
+            public event System.Action<ShopCheckoutRequest> OnShopBuyCheckoutRequested;
+            public event System.Action<ShopCheckoutRequest> OnShopSellCheckoutRequested;
+            public event System.Action<string, int, bool, bool, string> OnShopTradeResult;
+
+            public void RaiseShopTradeOpenRequested(string vendorId) => OnShopTradeOpenRequested?.Invoke(vendorId);
+
+            public void RaiseShopTradeOpened(string vendorId)
+            {
+                OnShopTradeOpened?.Invoke(vendorId);
+            }
+
+            public void RaiseShopTradeClosed()
+            {
+                OnShopTradeClosed?.Invoke();
+            }
+
+            public void RaiseShopBuyRequested(string itemId, int quantity) => OnShopBuyRequested?.Invoke(itemId, quantity);
+            public void RaiseShopSellRequested(string itemId, int quantity) => OnShopSellRequested?.Invoke(itemId, quantity);
+            public void RaiseShopBuyCheckoutRequested(ShopCheckoutRequest request) => OnShopBuyCheckoutRequested?.Invoke(request);
+            public void RaiseShopSellCheckoutRequested(ShopCheckoutRequest request) => OnShopSellCheckoutRequested?.Invoke(request);
+            public void RaiseShopTradeResult(string itemId, int quantity, bool isBuy, bool success, string failureReason)
+                => OnShopTradeResult?.Invoke(itemId, quantity, isBuy, success, failureReason);
         }
     }
 }
