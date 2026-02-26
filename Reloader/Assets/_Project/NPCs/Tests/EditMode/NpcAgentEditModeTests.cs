@@ -89,6 +89,60 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
+        [Test]
+        public void CollectActions_WhenCapabilityDisabledAfterInitialization_RemovesActions()
+        {
+            var go = new GameObject("agent");
+            var agent = go.AddComponent<NpcAgent>();
+            var capability = go.AddComponent<TestActionCapability>();
+            capability.Actions = new[]
+            {
+                new NpcActionDefinition("dialogue.open", "Talk", 0)
+            };
+
+            try
+            {
+                var initialActions = agent.CollectActions();
+                capability.enabled = false;
+                var updatedActions = agent.CollectActions();
+
+                Assert.That(initialActions.Count, Is.EqualTo(1));
+                Assert.That(updatedActions.Count, Is.EqualTo(0));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void CollectActions_WhenCapabilityEnabledAfterInitialization_AddsActions()
+        {
+            var go = new GameObject("agent");
+            var agent = go.AddComponent<NpcAgent>();
+            var capability = go.AddComponent<TestActionCapability>();
+            capability.Actions = new[]
+            {
+                new NpcActionDefinition("dialogue.open", "Talk", 0)
+            };
+            capability.enabled = false;
+
+            try
+            {
+                var initialActions = agent.CollectActions();
+                capability.enabled = true;
+                var updatedActions = agent.CollectActions();
+
+                Assert.That(initialActions.Count, Is.EqualTo(0));
+                Assert.That(updatedActions.Count, Is.EqualTo(1));
+                Assert.That(updatedActions[0].ActionId, Is.EqualTo("dialogue.open"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
         private sealed class TestLifecycleCapability : MonoBehaviour, INpcCapability
         {
             public NpcCapabilityKind CapabilityKind => NpcCapabilityKind.None;

@@ -1,5 +1,7 @@
 using NUnit.Framework;
 using Reloader.NPCs.Runtime;
+using Reloader.NPCs.Runtime.Capabilities;
+using Reloader.NPCs.World;
 using UnityEngine;
 
 namespace Reloader.NPCs.Tests.EditMode
@@ -53,6 +55,60 @@ namespace Reloader.NPCs.Tests.EditMode
             finally
             {
                 Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void RequestExecuteAction_WithoutExplicitSource_UsesLocalInteractionController()
+        {
+            var root = new GameObject("npc-ui-bridge-root");
+            var controller = root.AddComponent<PlayerNpcInteractionController>();
+            var resolver = root.AddComponent<TestNpcResolver>();
+            var bridge = root.AddComponent<PlayerNpcInteractionUiBridge>();
+            bridge.enabled = false;
+            controller.Configure(null, resolver);
+
+            var npc = new GameObject("npc-dialogue").AddComponent<NpcAgent>();
+            npc.gameObject.AddComponent<DialogueCapability>();
+            resolver.Target = npc;
+
+            var raised = false;
+            NpcActionExecutionResult captured = default;
+            bridge.ActionExecuted += result =>
+            {
+                raised = true;
+                captured = result;
+            };
+
+            try
+            {
+                bridge.enabled = true;
+                bridge.RequestExecuteAction(DialogueCapability.ActionKey, "hello");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(npc.gameObject);
+            }
+
+            Assert.That(resolver.ResolveCallCount, Is.GreaterThan(0));
+            if (raised)
+            {
+                Assert.That(captured.Success, Is.True);
+                Assert.That(captured.ActionKey, Is.EqualTo(DialogueCapability.ActionKey));
+            }
+        }
+
+        private sealed class TestNpcResolver : MonoBehaviour, IPlayerNpcResolver
+        {
+            public NpcAgent Target { get; set; }
+            public int ResolveCallCount { get; private set; }
+
+            public bool TryResolveNpcAgent(out NpcAgent target)
+            {
+                ResolveCallCount++;
+                target = Target;
+                return target != null;
             }
         }
     }

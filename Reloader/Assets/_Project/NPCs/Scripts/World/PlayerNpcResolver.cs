@@ -8,6 +8,7 @@ namespace Reloader.NPCs.World
         [SerializeField] private Camera _playerCamera;
         [SerializeField] private float _maxDistance = 4f;
         [SerializeField] private LayerMask _npcMask = ~0;
+        [SerializeField] private bool _excludeShopVendors = true;
 
         public bool TryResolveNpcAgent(out NpcAgent target)
         {
@@ -30,12 +31,23 @@ namespace Reloader.NPCs.World
             }
 
             target = hit.collider.GetComponentInParent<NpcAgent>();
+            if (_excludeShopVendors && target != null && target.GetComponent<ShopVendorTarget>() != null)
+            {
+                target = null;
+                return false;
+            }
+
             return target != null;
         }
 
         public void SetCameraForTests(Camera camera)
         {
             _playerCamera = camera;
+        }
+
+        public void SetExcludeShopVendorsForTests(bool excludeShopVendors)
+        {
+            _excludeShopVendors = excludeShopVendors;
         }
 
         private static Camera ResolveFallbackCamera()

@@ -38,6 +38,36 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void Resolver_WhenTargetIsShopVendor_IgnoresByDefault()
+        {
+            var cameraRoot = new GameObject("CameraRoot");
+            var camera = cameraRoot.AddComponent<Camera>();
+            camera.transform.position = Vector3.zero;
+            camera.transform.forward = Vector3.forward;
+
+            var resolverRoot = new GameObject("ResolverRoot");
+            var resolver = resolverRoot.AddComponent<PlayerNpcResolver>();
+            resolver.SetCameraForTests(camera);
+
+            var npc = CreateNpcWithCollider("npc-vendor", new Vector3(0f, 0f, 2.5f));
+            npc.gameObject.AddComponent<ShopVendorTarget>();
+
+            try
+            {
+                var resolved = resolver.TryResolveNpcAgent(out var target);
+
+                Assert.That(resolved, Is.False);
+                Assert.That(target, Is.Null);
+            }
+            finally
+            {
+                Object.DestroyImmediate(cameraRoot);
+                Object.DestroyImmediate(resolverRoot);
+                Object.DestroyImmediate(npc.gameObject);
+            }
+        }
+
         [TestCase(DialogueCapability.ActionKey)]
         [TestCase(FrontDeskInteractionCapability.ActionKey)]
         [TestCase(EntryFeeInteractionCapability.ActionKey)]

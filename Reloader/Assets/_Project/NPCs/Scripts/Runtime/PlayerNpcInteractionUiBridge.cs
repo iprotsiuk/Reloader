@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
+using Reloader.NPCs.World;
 using UnityEngine;
 
 namespace Reloader.NPCs.Runtime
@@ -9,9 +9,7 @@ namespace Reloader.NPCs.Runtime
     {
         [SerializeField] private MonoBehaviour _interactionControllerSource;
 
-        private object _interactionController;
-        private EventInfo _interactionProcessedEvent;
-        private Action<NpcActionExecutionResult> _interactionProcessedHandler;
+        private PlayerNpcInteractionController _interactionController;
 
         public event Action<IReadOnlyList<NpcActionDefinition>, string> AvailableActionsChanged;
         public event Action<NpcActionExecutionResult> ActionExecuted;
@@ -20,12 +18,19 @@ namespace Reloader.NPCs.Runtime
         private void OnEnable()
         {
             ResolveReferences();
-            SubscribeInteractionProcessed();
+            if (_interactionController != null)
+            {
+                _interactionController.InteractionProcessed -= HandleInteractionProcessed;
+                _interactionController.InteractionProcessed += HandleInteractionProcessed;
+            }
         }
 
         private void OnDisable()
         {
-            UnsubscribeInteractionProcessed();
+            if (_interactionController != null)
+            {
+                _interactionController.InteractionProcessed -= HandleInteractionProcessed;
+            }
         }
 
         public void PublishAvailableActions(IEnumerable<NpcActionDefinition> actions, string selectedActionKey = "")
@@ -55,8 +60,7 @@ namespace Reloader.NPCs.Runtime
                 return;
             }
 
-            var method = _interactionController.GetType().GetMethod("TryInteract", BindingFlags.Instance | BindingFlags.Public);
-            method?.Invoke(_interactionController, new object[] { actionKey, payload });
+            _interactionController.TryInteract(actionKey, payload);
         }
 
         public void PublishAvailableActionsFromCollection(NpcActionCollection actions, string selectedActionKey = "")
@@ -82,32 +86,10 @@ namespace Reloader.NPCs.Runtime
                 return;
             }
 
-            _interactionController = _interactionControllerSource != null
-                ? _interactionControllerSource
-                : GetComponent<MonoBehaviour>();
-            _interactionProcessedEvent = _interactionController?.GetType().GetEvent("InteractionProcessed", BindingFlags.Instance | BindingFlags.Public);
-            _interactionProcessedHandler = HandleInteractionProcessed;
-        }
-
-        private void SubscribeInteractionProcessed()
-        {
-            if (_interactionProcessedEvent == null || _interactionProcessedHandler == null)
-            {
-                return;
-            }
-
-            _interactionProcessedEvent.RemoveEventHandler(_interactionController, _interactionProcessedHandler);
-            _interactionProcessedEvent.AddEventHandler(_interactionController, _interactionProcessedHandler);
-        }
-
-        private void UnsubscribeInteractionProcessed()
-        {
-            if (_interactionProcessedEvent == null || _interactionProcessedHandler == null)
-            {
-                return;
-            }
-
-            _interactionProcessedEvent.RemoveEventHandler(_interactionController, _interactionProcessedHandler);
+            _interactionController = _interactionControllerSource as PlayerNpcInteractionController;
+            _interactionController ??= GetComponent<PlayerNpcInteractionController>();
+            _interactionController ??= GetComponentInParent<PlayerNpcInteractionController>(true);
+            _interactionController ??= GetComponentInChildren<PlayerNpcInteractionController>(true);
         }
     }
 }

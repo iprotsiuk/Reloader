@@ -445,9 +445,12 @@ namespace Reloader.NPCs.Editor
             var root = new GameObject("PlayerShopVendorInteractor");
             try
             {
-                var resolver = root.AddComponent<PlayerShopVendorResolver>();
-                var controller = root.AddComponent<PlayerShopVendorController>();
-                WireInteractorReferences(controller, resolver);
+                var vendorResolver = root.AddComponent<PlayerShopVendorResolver>();
+                var vendorController = root.AddComponent<PlayerShopVendorController>();
+                var npcResolver = root.AddComponent<PlayerNpcResolver>();
+                var npcController = root.AddComponent<PlayerNpcInteractionController>();
+                WireVendorInteractorReferences(vendorController, vendorResolver);
+                WireNpcInteractorReferences(npcController, npcResolver);
                 PrefabUtility.SaveAsPrefabAsset(root, PlayerInteractorPrefabPath);
             }
             finally
@@ -456,7 +459,19 @@ namespace Reloader.NPCs.Editor
             }
         }
 
-        private static void WireInteractorReferences(PlayerShopVendorController controller, PlayerShopVendorResolver resolver)
+        private static void WireVendorInteractorReferences(PlayerShopVendorController controller, PlayerShopVendorResolver resolver)
+        {
+            if (controller == null || resolver == null)
+            {
+                return;
+            }
+
+            var serialized = new SerializedObject(controller);
+            serialized.FindProperty("_resolverBehaviour").objectReferenceValue = resolver;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void WireNpcInteractorReferences(PlayerNpcInteractionController controller, PlayerNpcResolver resolver)
         {
             if (controller == null || resolver == null)
             {
@@ -476,6 +491,12 @@ namespace Reloader.NPCs.Editor
                 return existingController.gameObject;
             }
 
+            var existingNpcController = UnityEngine.Object.FindFirstObjectByType<PlayerNpcInteractionController>(FindObjectsInactive.Include);
+            if (existingNpcController != null)
+            {
+                return existingNpcController.gameObject;
+            }
+
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerInteractorPrefabPath);
             if (prefab == null)
             {
@@ -490,9 +511,11 @@ namespace Reloader.NPCs.Editor
         private static bool WireInteractorInScene(GameObject interactorRoot)
         {
             var changed = false;
-            var controller = interactorRoot.GetComponent<PlayerShopVendorController>();
-            var resolver = interactorRoot.GetComponent<PlayerShopVendorResolver>();
-            if (controller == null || resolver == null)
+            var vendorController = interactorRoot.GetComponent<PlayerShopVendorController>();
+            var vendorResolver = interactorRoot.GetComponent<PlayerShopVendorResolver>();
+            var npcController = interactorRoot.GetComponent<PlayerNpcInteractionController>();
+            var npcResolver = interactorRoot.GetComponent<PlayerNpcResolver>();
+            if (vendorController == null && npcController == null)
             {
                 return false;
             }
@@ -508,22 +531,45 @@ namespace Reloader.NPCs.Editor
                 changed = true;
             }
 
-            var controllerSerialized = new SerializedObject(controller);
-            var inputProp = controllerSerialized.FindProperty("_inputSourceBehaviour");
-            var resolverProp = controllerSerialized.FindProperty("_resolverBehaviour");
-            if (inputProp != null && inputProp.objectReferenceValue != playerInput)
+            if (vendorController != null && vendorResolver != null)
             {
-                inputProp.objectReferenceValue = playerInput;
-                changed = true;
+                var controllerSerialized = new SerializedObject(vendorController);
+                var inputProp = controllerSerialized.FindProperty("_inputSourceBehaviour");
+                var resolverProp = controllerSerialized.FindProperty("_resolverBehaviour");
+                if (inputProp != null && inputProp.objectReferenceValue != playerInput)
+                {
+                    inputProp.objectReferenceValue = playerInput;
+                    changed = true;
+                }
+
+                if (resolverProp != null && resolverProp.objectReferenceValue != vendorResolver)
+                {
+                    resolverProp.objectReferenceValue = vendorResolver;
+                    changed = true;
+                }
+
+                controllerSerialized.ApplyModifiedPropertiesWithoutUndo();
             }
 
-            if (resolverProp != null && resolverProp.objectReferenceValue != resolver)
+            if (npcController != null && npcResolver != null)
             {
-                resolverProp.objectReferenceValue = resolver;
-                changed = true;
-            }
+                var controllerSerialized = new SerializedObject(npcController);
+                var inputProp = controllerSerialized.FindProperty("_inputSourceBehaviour");
+                var resolverProp = controllerSerialized.FindProperty("_resolverBehaviour");
+                if (inputProp != null && inputProp.objectReferenceValue != playerInput)
+                {
+                    inputProp.objectReferenceValue = playerInput;
+                    changed = true;
+                }
 
-            controllerSerialized.ApplyModifiedPropertiesWithoutUndo();
+                if (resolverProp != null && resolverProp.objectReferenceValue != npcResolver)
+                {
+                    resolverProp.objectReferenceValue = npcResolver;
+                    changed = true;
+                }
+
+                controllerSerialized.ApplyModifiedPropertiesWithoutUndo();
+            }
 
             var sceneCamera = Camera.main;
             if (sceneCamera == null)
@@ -531,15 +577,32 @@ namespace Reloader.NPCs.Editor
                 sceneCamera = UnityEngine.Object.FindFirstObjectByType<Camera>(FindObjectsInactive.Include);
             }
 
-            var resolverSerialized = new SerializedObject(resolver);
-            var playerCameraProp = resolverSerialized.FindProperty("_playerCamera");
-            if (playerCameraProp != null && playerCameraProp.objectReferenceValue != sceneCamera)
+            if (vendorResolver != null)
             {
-                playerCameraProp.objectReferenceValue = sceneCamera;
-                changed = true;
+                var resolverSerialized = new SerializedObject(vendorResolver);
+                var playerCameraProp = resolverSerialized.FindProperty("_playerCamera");
+                if (playerCameraProp != null && playerCameraProp.objectReferenceValue != sceneCamera)
+                {
+                    playerCameraProp.objectReferenceValue = sceneCamera;
+                    changed = true;
+                }
+
+                resolverSerialized.ApplyModifiedPropertiesWithoutUndo();
             }
 
-            resolverSerialized.ApplyModifiedPropertiesWithoutUndo();
+            if (npcResolver != null)
+            {
+                var resolverSerialized = new SerializedObject(npcResolver);
+                var playerCameraProp = resolverSerialized.FindProperty("_playerCamera");
+                if (playerCameraProp != null && playerCameraProp.objectReferenceValue != sceneCamera)
+                {
+                    playerCameraProp.objectReferenceValue = sceneCamera;
+                    changed = true;
+                }
+
+                resolverSerialized.ApplyModifiedPropertiesWithoutUndo();
+            }
+
             return changed;
         }
 

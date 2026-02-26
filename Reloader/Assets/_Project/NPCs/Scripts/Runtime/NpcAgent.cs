@@ -16,36 +16,7 @@ namespace Reloader.NPCs.Runtime
 
         public void InitializeCapabilities()
         {
-            if (_initialized)
-            {
-                return;
-            }
-
-            _capabilities.Clear();
-            _actionExecutors.Clear();
-            var behaviours = new List<MonoBehaviour>();
-            GetComponents(behaviours);
-            for (var i = 0; i < behaviours.Count; i++)
-            {
-                if (behaviours[i] == null || !behaviours[i].isActiveAndEnabled)
-                {
-                    continue;
-                }
-
-                if (!(behaviours[i] is INpcCapability capability))
-                {
-                    continue;
-                }
-
-                _capabilities.Add(capability);
-                if (capability is INpcActionExecutor executor)
-                {
-                    _actionExecutors.Add(executor);
-                }
-
-                capability.Initialize(this);
-            }
-
+            SynchronizeCapabilities();
             _initialized = true;
         }
 
@@ -57,6 +28,11 @@ namespace Reloader.NPCs.Runtime
             for (var i = 0; i < _capabilities.Count; i++)
             {
                 if (!(_capabilities[i] is INpcActionProvider provider))
+                {
+                    continue;
+                }
+
+                if (_capabilities[i] is MonoBehaviour behaviour && !behaviour.isActiveAndEnabled)
                 {
                     continue;
                 }
@@ -111,8 +87,56 @@ namespace Reloader.NPCs.Runtime
                 _capabilities[i].Shutdown();
             }
 
+            _capabilities.Clear();
             _initialized = false;
             _actionExecutors.Clear();
+        }
+
+        private void SynchronizeCapabilities()
+        {
+            var activeCapabilities = new List<INpcCapability>();
+            var behaviours = new List<MonoBehaviour>();
+            GetComponents(behaviours);
+            for (var i = 0; i < behaviours.Count; i++)
+            {
+                if (behaviours[i] == null || !behaviours[i].isActiveAndEnabled || !(behaviours[i] is INpcCapability capability))
+                {
+                    continue;
+                }
+
+                activeCapabilities.Add(capability);
+            }
+
+            for (var i = _capabilities.Count - 1; i >= 0; i--)
+            {
+                var existing = _capabilities[i];
+                if (existing == null || !activeCapabilities.Contains(existing))
+                {
+                    existing?.Shutdown();
+                    _capabilities.RemoveAt(i);
+                }
+            }
+
+            for (var i = 0; i < activeCapabilities.Count; i++)
+            {
+                var capability = activeCapabilities[i];
+                if (_capabilities.Contains(capability))
+                {
+                    continue;
+                }
+
+                _capabilities.Add(capability);
+                capability.Initialize(this);
+            }
+
+            _actionExecutors.Clear();
+            for (var i = 0; i < _capabilities.Count; i++)
+            {
+                if (_capabilities[i] is INpcActionExecutor executor)
+                {
+                    _actionExecutors.Add(executor);
+                }
+            }
         }
     }
 }
