@@ -430,17 +430,66 @@ namespace Reloader.NPCs.Editor
             }
 
             var vendorsProp = serialized.FindProperty("_vendors");
-            if (vendorsProp != null && vendorsProp.arraySize == 0)
+            if (vendorsProp != null)
             {
-                vendorsProp.arraySize = 1;
-                var first = vendorsProp.GetArrayElementAtIndex(0);
-                first.FindPropertyRelative("_vendorId").stringValue = "vendor-reloading-store";
-                first.FindPropertyRelative("_catalog").objectReferenceValue = catalog;
-                changed = true;
+                changed |= EnsureRoleVendorCatalogMappings(vendorsProp, catalog);
             }
 
             serialized.ApplyModifiedPropertiesWithoutUndo();
             return changed;
+        }
+
+        private static bool EnsureRoleVendorCatalogMappings(SerializedProperty vendorsProp, Reloader.Economy.ShopCatalogDefinition catalog)
+        {
+            var changed = false;
+
+            for (var i = 0; i < RolePrefabConfigs.Length; i++)
+            {
+                var config = RolePrefabConfigs[i];
+                if (!config.IsVendor || string.IsNullOrWhiteSpace(config.VendorId))
+                {
+                    continue;
+                }
+
+                var index = FindVendorEntryIndex(vendorsProp, config.VendorId);
+                if (index < 0)
+                {
+                    index = vendorsProp.arraySize;
+                    vendorsProp.arraySize += 1;
+                    var created = vendorsProp.GetArrayElementAtIndex(index);
+                    created.FindPropertyRelative("_vendorId").stringValue = config.VendorId;
+                    created.FindPropertyRelative("_catalog").objectReferenceValue = catalog;
+                    changed = true;
+                    continue;
+                }
+
+                var existing = vendorsProp.GetArrayElementAtIndex(index);
+                var existingCatalog = existing.FindPropertyRelative("_catalog");
+                if (existingCatalog != null && existingCatalog.objectReferenceValue == null)
+                {
+                    existingCatalog.objectReferenceValue = catalog;
+                    changed = true;
+                }
+            }
+
+            return changed;
+        }
+
+        private static int FindVendorEntryIndex(SerializedProperty vendorsProp, string vendorId)
+        {
+            for (var i = 0; i < vendorsProp.arraySize; i++)
+            {
+                var entry = vendorsProp.GetArrayElementAtIndex(i);
+                var entryVendorId = entry.FindPropertyRelative("_vendorId");
+                if (entryVendorId == null || !string.Equals(entryVendorId.stringValue, vendorId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                return i;
+            }
+
+            return -1;
         }
 
         private readonly struct RolePrefabConfig
