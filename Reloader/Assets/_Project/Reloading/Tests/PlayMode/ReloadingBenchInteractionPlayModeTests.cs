@@ -117,6 +117,7 @@ namespace Reloader.Reloading.Tests.PlayMode
             input.PickupPressedThisFrame = true;
             resolver.Target = null;
             controller.Tick();
+            controller.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
 
             resolver.Target = target;
             controller.Tick();

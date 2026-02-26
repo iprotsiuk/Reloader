@@ -13,6 +13,7 @@ namespace Reloader.Reloading.World
         private IPlayerInputSource _inputSource;
         private IPlayerReloadingBenchResolver _resolver;
         private IReloadingBenchTarget _activeTarget;
+        private bool _flushPickupInputAtEndOfFrame;
 
         private void Awake()
         {
@@ -24,9 +25,21 @@ namespace Reloader.Reloading.World
             Tick();
         }
 
+        private void LateUpdate()
+        {
+            if (!_flushPickupInputAtEndOfFrame || _inputSource == null)
+            {
+                return;
+            }
+
+            _flushPickupInputAtEndOfFrame = false;
+            _inputSource.ConsumePickupPressed();
+        }
+
         private void OnDisable()
         {
             CloseActiveWorkbenchIfAny();
+            _flushPickupInputAtEndOfFrame = false;
         }
 
         public void Configure(IPlayerInputSource inputSource, IPlayerReloadingBenchResolver resolver)
@@ -38,10 +51,10 @@ namespace Reloader.Reloading.World
         public void Tick()
         {
             ResolveReferences();
-            var pickupPressedThisFrame = IsPickupPressedThisFrame();
 
             if (_resolver == null || !_resolver.TryResolveBenchTarget(out var target) || target == null)
             {
+                _flushPickupInputAtEndOfFrame = true;
                 CloseActiveWorkbenchIfAny();
                 return;
             }
@@ -54,11 +67,14 @@ namespace Reloader.Reloading.World
 
             _activeTarget = target;
 
+            var pickupPressedThisFrame = IsPickupPressedThisFrame();
             if (!pickupPressedThisFrame)
             {
+                _flushPickupInputAtEndOfFrame = false;
                 return;
             }
 
+            _flushPickupInputAtEndOfFrame = false;
             target.OpenWorkbench();
             GameEvents.RaiseWorkbenchMenuVisibilityChanged(true);
         }

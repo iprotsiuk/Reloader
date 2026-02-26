@@ -18,6 +18,7 @@ namespace Reloader.NPCs.World
         private bool _useRuntimeKernelShopEvents = true;
         private bool _isTradeOpen;
         private bool _loggedMissingDependencies;
+        private bool _flushPickupInputAtEndOfFrame;
 
         private void Awake()
         {
@@ -27,6 +28,17 @@ namespace Reloader.NPCs.World
         private void Update()
         {
             Tick();
+        }
+
+        private void LateUpdate()
+        {
+            if (!_flushPickupInputAtEndOfFrame || _inputSource == null)
+            {
+                return;
+            }
+
+            _flushPickupInputAtEndOfFrame = false;
+            _inputSource.ConsumePickupPressed();
         }
 
         private void OnEnable()
@@ -39,6 +51,7 @@ namespace Reloader.NPCs.World
         {
             UnsubscribeFromShopEvents();
             _isTradeOpen = false;
+            _flushPickupInputAtEndOfFrame = false;
         }
 
         public void Configure(IPlayerInputSource inputSource, IPlayerShopVendorResolver resolver, IShopEvents shopEvents = null)
@@ -62,10 +75,9 @@ namespace Reloader.NPCs.World
                 _inputSource,
                 _resolver);
 
-            var pickupPressedThisFrame = _inputSource != null && _inputSource.ConsumePickupPressed();
-
             if (_resolver == null || !_resolver.TryResolveVendorTarget(out var target) || target == null)
             {
+                _flushPickupInputAtEndOfFrame = true;
                 if (_isTradeOpen)
                 {
                     ResolveShopEvents()?.RaiseShopTradeClosed();
@@ -73,11 +85,14 @@ namespace Reloader.NPCs.World
                 return;
             }
 
+            var pickupPressedThisFrame = _inputSource != null && _inputSource.ConsumePickupPressed();
             if (_isTradeOpen || !pickupPressedThisFrame)
             {
+                _flushPickupInputAtEndOfFrame = false;
                 return;
             }
 
+            _flushPickupInputAtEndOfFrame = false;
             ResolveShopEvents()?.RaiseShopTradeOpenRequested(target.VendorId);
             target.OnTradeOpened();
         }
