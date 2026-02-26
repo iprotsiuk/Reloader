@@ -1,5 +1,4 @@
 using NUnit.Framework;
-using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Player.Viewmodel;
 using UnityEngine;
@@ -9,8 +8,10 @@ namespace Reloader.Player.Tests.PlayMode
     public class ViewmodelAnimationAdapterWeaponEventsPlayModeTests
     {
         [Test]
-        public void Configure_WithInjectedWeaponEvents_StaticGameEventsDoNotDriveAdapter()
+        public void Configure_WithInjectedWeaponEvents_RuntimeKernelEventsDoNotDriveAdapter()
         {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeWeaponEvents = new DefaultRuntimeEvents();
             var root = new GameObject("ViewmodelAdapterInjectedEvents");
             var adapter = root.AddComponent<ViewmodelAnimationAdapter>();
             adapter.SetEquippedItemIdForTests("weapon-injected");
@@ -18,23 +19,30 @@ namespace Reloader.Player.Tests.PlayMode
             var injectedWeaponEvents = new DefaultRuntimeEvents();
             adapter.ConfigureEventChannel(injectedWeaponEvents);
 
-            GameEvents.RaiseWeaponReloadStarted("weapon-injected");
-            GameEvents.RaiseWeaponFired("weapon-injected", Vector3.zero, Vector3.forward);
-            GameEvents.RaiseWeaponAimChanged("weapon-injected", true);
+            try
+            {
+                RuntimeKernelBootstrapper.Events = runtimeWeaponEvents;
+                runtimeWeaponEvents.RaiseWeaponReloadStarted("weapon-injected");
+                runtimeWeaponEvents.RaiseWeaponFired("weapon-injected", Vector3.zero, Vector3.forward);
+                runtimeWeaponEvents.RaiseWeaponAimChanged("weapon-injected", true);
 
-            Assert.That(adapter.IsReloadingDebug, Is.False);
-            Assert.That(adapter.FireTriggerCountDebug, Is.EqualTo(0));
-            Assert.That(adapter.IsAimingDebug, Is.False);
+                Assert.That(adapter.IsReloadingDebug, Is.False);
+                Assert.That(adapter.FireTriggerCountDebug, Is.EqualTo(0));
+                Assert.That(adapter.IsAimingDebug, Is.False);
 
-            injectedWeaponEvents.RaiseWeaponReloadStarted("weapon-injected");
-            injectedWeaponEvents.RaiseWeaponFired("weapon-injected", Vector3.zero, Vector3.forward);
-            injectedWeaponEvents.RaiseWeaponAimChanged("weapon-injected", true);
+                injectedWeaponEvents.RaiseWeaponReloadStarted("weapon-injected");
+                injectedWeaponEvents.RaiseWeaponFired("weapon-injected", Vector3.zero, Vector3.forward);
+                injectedWeaponEvents.RaiseWeaponAimChanged("weapon-injected", true);
 
-            Assert.That(adapter.IsReloadingDebug, Is.True);
-            Assert.That(adapter.FireTriggerCountDebug, Is.EqualTo(1));
-            Assert.That(adapter.IsAimingDebug, Is.True);
-
-            Object.DestroyImmediate(root);
+                Assert.That(adapter.IsReloadingDebug, Is.True);
+                Assert.That(adapter.FireTriggerCountDebug, Is.EqualTo(1));
+                Assert.That(adapter.IsAimingDebug, Is.True);
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+            }
         }
 
         [Test]

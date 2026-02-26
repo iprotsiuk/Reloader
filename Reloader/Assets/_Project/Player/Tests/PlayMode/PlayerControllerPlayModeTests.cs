@@ -130,60 +130,89 @@ namespace Reloader.Player.Tests.PlayMode
         [Test]
         public void PlayerLookController_Tick_MenuOpen_DoesNotRotateCamera()
         {
-            var root = new GameObject("PlayerRoot");
-            var cameraPivot = new GameObject("CameraPivot");
-            cameraPivot.transform.SetParent(root.transform);
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            GameObject root = null;
 
-            var input = root.AddComponent<TestInputSource>();
-            input.Look = new Vector2(12f, -8f);
+            try
+            {
+                RuntimeKernelBootstrapper.Events = runtimeEvents;
 
-            var look = root.AddComponent<PlayerLookController>();
-            look.Configure(input, cameraPivot.transform);
-            look.LookSensitivity = Vector2.one;
-            look.Tick(1f);
-            var yawAfterFirstTick = root.transform.eulerAngles.y;
+                root = new GameObject("PlayerRoot");
+                var cameraPivot = new GameObject("CameraPivot");
+                cameraPivot.transform.SetParent(root.transform);
 
-            GameEvents.RaiseTabInventoryVisibilityChanged(true);
-            look.Tick(1f);
-            var yawAfterMenuOpenTick = root.transform.eulerAngles.y;
+                var input = root.AddComponent<TestInputSource>();
+                input.Look = new Vector2(12f, -8f);
 
-            Assert.That(yawAfterMenuOpenTick, Is.EqualTo(yawAfterFirstTick).Within(0.001f));
+                var look = root.AddComponent<PlayerLookController>();
+                look.Configure(input, cameraPivot.transform);
+                look.LookSensitivity = Vector2.one;
+                look.Tick(1f);
+                var yawAfterFirstTick = root.transform.eulerAngles.y;
 
-            GameEvents.RaiseTabInventoryVisibilityChanged(false);
-            Object.DestroyImmediate(root);
+                runtimeEvents.RaiseTabInventoryVisibilityChanged(true);
+                look.Tick(1f);
+                var yawAfterMenuOpenTick = root.transform.eulerAngles.y;
+
+                Assert.That(yawAfterMenuOpenTick, Is.EqualTo(yawAfterFirstTick).Within(0.001f));
+            }
+            finally
+            {
+                runtimeEvents.RaiseTabInventoryVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
+                if (root != null)
+                {
+                    Object.DestroyImmediate(root);
+                }
+            }
         }
 
         [Test]
-        public void PlayerLookController_Tick_UsesInjectedUiStateEvents_InsteadOfGameEvents()
+        public void PlayerLookController_Tick_UsesInjectedUiStateEvents_InsteadOfRuntimeKernelUiStateEvents()
         {
-            var root = new GameObject("PlayerRoot");
-            var cameraPivot = new GameObject("CameraPivot");
-            cameraPivot.transform.SetParent(root.transform);
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeUiStateEvents = new DefaultRuntimeEvents();
+            GameObject root = null;
 
-            var input = root.AddComponent<TestInputSource>();
-            input.Look = new Vector2(12f, -8f);
+            try
+            {
+                RuntimeKernelBootstrapper.Events = runtimeUiStateEvents;
 
-            var uiStateEvents = new TestUiStateEvents();
-            var look = root.AddComponent<PlayerLookController>();
-            look.Configure(input, cameraPivot.transform, uiStateEvents);
-            look.LookSensitivity = Vector2.one;
-            look.Tick(1f);
-            var yawAfterFirstTick = root.transform.eulerAngles.y;
+                root = new GameObject("PlayerRoot");
+                var cameraPivot = new GameObject("CameraPivot");
+                cameraPivot.transform.SetParent(root.transform);
 
-            GameEvents.RaiseTabInventoryVisibilityChanged(true);
-            look.Tick(1f);
-            var yawAfterGameEventsTick = root.transform.eulerAngles.y;
+                var input = root.AddComponent<TestInputSource>();
+                input.Look = new Vector2(12f, -8f);
 
-            uiStateEvents.RaiseTabInventoryVisibilityChanged(true);
-            look.Tick(1f);
-            var yawAfterInjectedUiStateOpenTick = root.transform.eulerAngles.y;
+                var uiStateEvents = new TestUiStateEvents();
+                var look = root.AddComponent<PlayerLookController>();
+                look.Configure(input, cameraPivot.transform, uiStateEvents);
+                look.LookSensitivity = Vector2.one;
+                look.Tick(1f);
+                var yawAfterFirstTick = root.transform.eulerAngles.y;
 
-            Assert.That(yawAfterGameEventsTick, Is.GreaterThan(yawAfterFirstTick + 0.01f));
-            Assert.That(yawAfterInjectedUiStateOpenTick, Is.EqualTo(yawAfterGameEventsTick).Within(0.001f));
+                runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(true);
+                look.Tick(1f);
+                var yawAfterRuntimeKernelOpenTick = root.transform.eulerAngles.y;
 
-            uiStateEvents.RaiseTabInventoryVisibilityChanged(false);
-            GameEvents.RaiseTabInventoryVisibilityChanged(false);
-            Object.DestroyImmediate(root);
+                uiStateEvents.RaiseTabInventoryVisibilityChanged(true);
+                look.Tick(1f);
+                var yawAfterInjectedUiStateOpenTick = root.transform.eulerAngles.y;
+
+                Assert.That(yawAfterRuntimeKernelOpenTick, Is.GreaterThan(yawAfterFirstTick + 0.01f));
+                Assert.That(yawAfterInjectedUiStateOpenTick, Is.EqualTo(yawAfterRuntimeKernelOpenTick).Within(0.001f));
+            }
+            finally
+            {
+                runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
+                if (root != null)
+                {
+                    Object.DestroyImmediate(root);
+                }
+            }
         }
 
         [Test]
@@ -452,18 +481,21 @@ namespace Reloader.Player.Tests.PlayMode
         {
             var previousLockState = Cursor.lockState;
             var previousVisible = Cursor.visible;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeUiStateEvents = new DefaultRuntimeEvents();
             try
             {
+                RuntimeKernelBootstrapper.Events = runtimeUiStateEvents;
                 var go = new GameObject("CursorLock");
                 var controller = go.AddComponent<PlayerCursorLockController>();
 
                 controller.LockCursor();
                 Assert.That(controller.IsCursorLockRequested, Is.True);
 
-                GameEvents.RaiseTabInventoryVisibilityChanged(true);
+                runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(true);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
 
-                GameEvents.RaiseTabInventoryVisibilityChanged(false);
+                runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(false);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
                 Assert.That(controller.IsCursorLockRequested, Is.True);
 
@@ -471,7 +503,8 @@ namespace Reloader.Player.Tests.PlayMode
             }
             finally
             {
-                GameEvents.RaiseTabInventoryVisibilityChanged(false);
+                runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
                 Cursor.lockState = previousLockState;
                 Cursor.visible = previousVisible;
             }
@@ -482,6 +515,8 @@ namespace Reloader.Player.Tests.PlayMode
         {
             var previousLockState = Cursor.lockState;
             var previousVisible = Cursor.visible;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeUiStateEvents = new DefaultRuntimeEvents();
             var go = new GameObject("CursorLockInjectedEvents");
             go.SetActive(false);
 
@@ -492,10 +527,11 @@ namespace Reloader.Player.Tests.PlayMode
 
             try
             {
+                RuntimeKernelBootstrapper.Events = runtimeUiStateEvents;
                 go.SetActive(true);
                 controller.LockCursor();
 
-                GameEvents.RaiseTabInventoryVisibilityChanged(true);
+                runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(true);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
 
                 uiStateEvents.RaiseTabInventoryVisibilityChanged(true);
@@ -512,7 +548,8 @@ namespace Reloader.Player.Tests.PlayMode
             }
             finally
             {
-                GameEvents.RaiseTabInventoryVisibilityChanged(false);
+                runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
                 Object.DestroyImmediate(go);
                 Cursor.lockState = previousLockState;
                 Cursor.visible = previousVisible;
@@ -769,21 +806,35 @@ namespace Reloader.Player.Tests.PlayMode
         [Test]
         public void ViewmodelAnimationAdapter_MapsWeaponEventsToRuntimeState()
         {
-            var root = new GameObject("ViewmodelAdapterRoot");
-            var adapter = root.AddComponent<ViewmodelAnimationAdapter>();
-            adapter.SetEquippedItemIdForTests("weapon-rifle-01");
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeWeaponEvents = new DefaultRuntimeEvents();
+            GameObject root = null;
 
-            GameEvents.RaiseWeaponReloadStarted("weapon-rifle-01");
-            GameEvents.RaiseWeaponFired("weapon-rifle-01", Vector3.zero, Vector3.forward);
-            GameEvents.RaiseWeaponAimChanged("weapon-rifle-01", true);
-            GameEvents.RaiseWeaponReloadCancelled("weapon-rifle-01", WeaponReloadCancelReason.Sprint);
+            try
+            {
+                RuntimeKernelBootstrapper.Events = runtimeWeaponEvents;
+                root = new GameObject("ViewmodelAdapterRoot");
+                var adapter = root.AddComponent<ViewmodelAnimationAdapter>();
+                adapter.SetEquippedItemIdForTests("weapon-rifle-01");
 
-            Assert.That(adapter.IsReloadingDebug, Is.False);
-            Assert.That(adapter.IsAimingDebug, Is.True);
-            Assert.That(adapter.AimWeightDebug, Is.EqualTo(1f));
-            Assert.That(adapter.FireTriggerCountDebug, Is.EqualTo(1));
+                runtimeWeaponEvents.RaiseWeaponReloadStarted("weapon-rifle-01");
+                runtimeWeaponEvents.RaiseWeaponFired("weapon-rifle-01", Vector3.zero, Vector3.forward);
+                runtimeWeaponEvents.RaiseWeaponAimChanged("weapon-rifle-01", true);
+                runtimeWeaponEvents.RaiseWeaponReloadCancelled("weapon-rifle-01", WeaponReloadCancelReason.Sprint);
 
-            Object.DestroyImmediate(root);
+                Assert.That(adapter.IsReloadingDebug, Is.False);
+                Assert.That(adapter.IsAimingDebug, Is.True);
+                Assert.That(adapter.AimWeightDebug, Is.EqualTo(1f));
+                Assert.That(adapter.FireTriggerCountDebug, Is.EqualTo(1));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                if (root != null)
+                {
+                    Object.DestroyImmediate(root);
+                }
+            }
         }
 
         [Test]
