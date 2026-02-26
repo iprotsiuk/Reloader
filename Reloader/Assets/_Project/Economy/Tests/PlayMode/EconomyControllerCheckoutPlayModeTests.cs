@@ -15,6 +15,67 @@ namespace Reloader.Economy.Tests.PlayMode
     public class EconomyControllerCheckoutPlayModeTests
     {
         [UnityTest]
+        public IEnumerator Configure_InjectedShopAndInventoryEvents_UsesInjectedInventoryChannelWithoutStaticMoneyOrInventoryEvents()
+        {
+            var inventoryGo = new GameObject("InventoryController");
+            var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
+            var input = inventoryGo.AddComponent<TestInputSource>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(4);
+            inventoryController.Configure(input, null, runtime);
+
+            var economyGo = new GameObject("EconomyController");
+            var controller = economyGo.AddComponent<EconomyController>();
+            SetPrivateField(controller, "_inventoryControllerBehaviour", inventoryController);
+            SetPrivateField(controller, "_startingMoney", 500);
+
+            var catalog = ScriptableObject.CreateInstance<ShopCatalogDefinition>();
+            JsonUtility.FromJsonOverwrite(
+                "{\"_items\":[{\"_itemId\":\"ammo-22lr\",\"_displayName\":\"22LR\",\"_category\":\"ammo\",\"_unitPrice\":2,\"_startingStock\":500}]}",
+                catalog);
+            SetVendorBindings(controller, "vendor-1", catalog);
+
+            var staticMoneyChangedCount = 0;
+            var staticInventoryChangedCount = 0;
+            void HandleStaticMoneyChanged(int _) => staticMoneyChangedCount++;
+            void HandleStaticInventoryChanged() => staticInventoryChangedCount++;
+
+            var injectedShopEvents = new FakeShopEvents();
+            var injectedInventoryEvents = new FakeInventoryEvents();
+            GameEvents.OnMoneyChanged += HandleStaticMoneyChanged;
+            GameEvents.OnInventoryChanged += HandleStaticInventoryChanged;
+            try
+            {
+                controller.Configure(injectedShopEvents, injectedInventoryEvents);
+
+                yield return null;
+
+                injectedShopEvents.RaiseShopTradeOpenRequested("vendor-1");
+                injectedShopEvents.RaiseShopBuyCheckoutRequested(
+                    new ShopCheckoutRequest(
+                        new[] { new ShopCheckoutLine("ammo-22lr", 100) },
+                        "delivery-standard",
+                        10));
+
+                Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(100));
+                Assert.That(controller.Runtime.Money, Is.EqualTo(290));
+                Assert.That(injectedInventoryEvents.LastMoneyChangedAmount, Is.EqualTo(290));
+                Assert.That(injectedInventoryEvents.MoneyChangedCount, Is.EqualTo(2));
+                Assert.That(injectedInventoryEvents.InventoryChangedCount, Is.EqualTo(1));
+                Assert.That(staticMoneyChangedCount, Is.EqualTo(0));
+                Assert.That(staticInventoryChangedCount, Is.EqualTo(0));
+            }
+            finally
+            {
+                GameEvents.OnMoneyChanged -= HandleStaticMoneyChanged;
+                GameEvents.OnInventoryChanged -= HandleStaticInventoryChanged;
+                UnityEngine.Object.DestroyImmediate(catalog);
+                UnityEngine.Object.DestroyImmediate(economyGo);
+                UnityEngine.Object.DestroyImmediate(inventoryGo);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator Configure_InjectedShopEvents_UsesInjectedChannelInsteadOfStaticGameEvents()
         {
             var inventoryGo = new GameObject("InventoryController");
@@ -438,6 +499,46 @@ namespace Reloader.Economy.Tests.PlayMode
             public void RaiseShopSellCheckoutRequested(ShopCheckoutRequest request) => OnShopSellCheckoutRequested?.Invoke(request);
             public void RaiseShopTradeResult(string itemId, int quantity, bool isBuy, bool success, string failureReason)
                 => OnShopTradeResult?.Invoke(itemId, quantity, isBuy, success, failureReason);
+        }
+
+        private sealed class FakeInventoryEvents : IInventoryEvents
+        {
+            public int InventoryChangedCount { get; private set; }
+            public int MoneyChangedCount { get; private set; }
+            public int LastMoneyChangedAmount { get; private set; }
+
+            public event Action OnSaveStarted;
+            public event Action OnSaveCompleted;
+            public event Action OnLoadStarted;
+            public event Action OnLoadCompleted;
+            public event Action<string> OnItemPickupRequested;
+            public event Action<string, InventoryArea, int> OnItemStored;
+            public event Action<string, PickupRejectReason> OnItemPickupRejected;
+            public event Action<int> OnBeltSelectionChanged;
+            public event Action OnInventoryChanged;
+            public event Action<int> OnMoneyChanged;
+
+            public void RaiseSaveStarted() => OnSaveStarted?.Invoke();
+            public void RaiseSaveCompleted() => OnSaveCompleted?.Invoke();
+            public void RaiseLoadStarted() => OnLoadStarted?.Invoke();
+            public void RaiseLoadCompleted() => OnLoadCompleted?.Invoke();
+            public void RaiseItemPickupRequested(string itemId) => OnItemPickupRequested?.Invoke(itemId);
+            public void RaiseItemStored(string itemId, InventoryArea area, int index) => OnItemStored?.Invoke(itemId, area, index);
+            public void RaiseItemPickupRejected(string itemId, PickupRejectReason reason) => OnItemPickupRejected?.Invoke(itemId, reason);
+            public void RaiseBeltSelectionChanged(int selectedBeltIndex) => OnBeltSelectionChanged?.Invoke(selectedBeltIndex);
+
+            public void RaiseInventoryChanged()
+            {
+                InventoryChangedCount++;
+                OnInventoryChanged?.Invoke();
+            }
+
+            public void RaiseMoneyChanged(int amount)
+            {
+                MoneyChangedCount++;
+                LastMoneyChangedAmount = amount;
+                OnMoneyChanged?.Invoke(amount);
+            }
         }
     }
 }

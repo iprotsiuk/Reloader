@@ -27,8 +27,10 @@ namespace Reloader.Economy
         private PlayerInventoryController _inventoryController;
         private EconomyRuntime _runtime;
         private IShopEvents _shopEvents;
+        private IInventoryEvents _inventoryEvents;
         private IShopEvents _subscribedShopEvents;
         private bool _useRuntimeKernelShopEvents = true;
+        private bool _useRuntimeKernelInventoryEvents = true;
         private bool _attemptedInventoryResolution;
         private bool _loggedMissingInventoryController;
 
@@ -45,7 +47,7 @@ namespace Reloader.Economy
             ResolveReferences();
             SubscribeToRuntimeHubReconfigure();
             SubscribeToShopEvents(ResolveShopEvents());
-            GameEvents.RaiseMoneyChanged(_runtime.Money);
+            ResolveInventoryEvents()?.RaiseMoneyChanged(_runtime.Money);
         }
 
         private void OnDisable()
@@ -54,13 +56,16 @@ namespace Reloader.Economy
             UnsubscribeFromShopEvents();
         }
 
-        public void Configure(IShopEvents shopEvents = null)
+        public void Configure(IShopEvents shopEvents = null, IInventoryEvents inventoryEvents = null)
         {
             _useRuntimeKernelShopEvents = shopEvents == null;
             _shopEvents = shopEvents;
+            _useRuntimeKernelInventoryEvents = inventoryEvents == null;
+            _inventoryEvents = inventoryEvents;
             if (isActiveAndEnabled)
             {
                 SubscribeToShopEvents(ResolveShopEvents());
+                ResolveInventoryEvents();
             }
         }
 
@@ -73,7 +78,7 @@ namespace Reloader.Economy
             }
 
             ResolveShopEvents()?.RaiseShopTradeOpened(vendorId);
-            GameEvents.RaiseMoneyChanged(_runtime.Money);
+            ResolveInventoryEvents()?.RaiseMoneyChanged(_runtime.Money);
         }
 
         private void HandleBuyRequested(string itemId, int quantity)
@@ -106,8 +111,8 @@ namespace Reloader.Economy
                 return;
             }
 
-            GameEvents.RaiseMoneyChanged(_runtime.Money);
-            GameEvents.RaiseInventoryChanged();
+            ResolveInventoryEvents()?.RaiseMoneyChanged(_runtime.Money);
+            ResolveInventoryEvents()?.RaiseInventoryChanged();
             ResolveShopEvents()?.RaiseShopTradeResult(itemId, quantity, true, true, string.Empty);
         }
 
@@ -141,8 +146,8 @@ namespace Reloader.Economy
                 return;
             }
 
-            GameEvents.RaiseMoneyChanged(_runtime.Money);
-            GameEvents.RaiseInventoryChanged();
+            ResolveInventoryEvents()?.RaiseMoneyChanged(_runtime.Money);
+            ResolveInventoryEvents()?.RaiseInventoryChanged();
             ResolveShopEvents()?.RaiseShopTradeResult(itemId, quantity, false, true, string.Empty);
         }
 
@@ -202,8 +207,8 @@ namespace Reloader.Economy
                 return;
             }
 
-            GameEvents.RaiseMoneyChanged(_runtime.Money);
-            GameEvents.RaiseInventoryChanged();
+            ResolveInventoryEvents()?.RaiseMoneyChanged(_runtime.Money);
+            ResolveInventoryEvents()?.RaiseInventoryChanged();
             ResolveShopEvents()?.RaiseShopTradeResult(string.Empty, 0, true, true, string.Empty);
         }
 
@@ -271,8 +276,8 @@ namespace Reloader.Economy
                 return;
             }
 
-            GameEvents.RaiseMoneyChanged(_runtime.Money);
-            GameEvents.RaiseInventoryChanged();
+            ResolveInventoryEvents()?.RaiseMoneyChanged(_runtime.Money);
+            ResolveInventoryEvents()?.RaiseInventoryChanged();
             ResolveShopEvents()?.RaiseShopTradeResult(string.Empty, 0, false, true, string.Empty);
         }
 
@@ -296,12 +301,20 @@ namespace Reloader.Economy
 
         private void HandleRuntimeEventsReconfigured()
         {
-            if (!isActiveAndEnabled || !_useRuntimeKernelShopEvents)
+            if (!isActiveAndEnabled)
             {
                 return;
             }
 
-            SubscribeToShopEvents(ResolveShopEvents());
+            if (_useRuntimeKernelShopEvents)
+            {
+                SubscribeToShopEvents(ResolveShopEvents());
+            }
+
+            if (_useRuntimeKernelInventoryEvents)
+            {
+                ResolveInventoryEvents();
+            }
         }
 
         private void ResolveReferences()
@@ -342,6 +355,16 @@ namespace Reloader.Economy
             }
 
             return _shopEvents;
+        }
+
+        private IInventoryEvents ResolveInventoryEvents()
+        {
+            if (_useRuntimeKernelInventoryEvents)
+            {
+                _inventoryEvents = RuntimeKernelBootstrapper.InventoryEvents;
+            }
+
+            return _inventoryEvents;
         }
 
         private void SubscribeToShopEvents(IShopEvents shopEvents)
