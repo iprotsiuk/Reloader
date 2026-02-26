@@ -25,6 +25,11 @@ namespace Reloader.NPCs.Runtime
             GetComponents(behaviours);
             for (var i = 0; i < behaviours.Count; i++)
             {
+                if (behaviours[i] == null || !behaviours[i].isActiveAndEnabled)
+                {
+                    continue;
+                }
+
                 if (!(behaviours[i] is INpcCapability capability))
                 {
                     continue;

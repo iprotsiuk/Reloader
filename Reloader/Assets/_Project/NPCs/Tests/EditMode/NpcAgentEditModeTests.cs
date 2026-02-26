@@ -59,6 +59,36 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
+        [Test]
+        public void CollectActions_IgnoresDisabledCapabilities()
+        {
+            var go = new GameObject("agent");
+            var agent = go.AddComponent<NpcAgent>();
+            var enabledCapability = go.AddComponent<TestActionCapability>();
+            enabledCapability.Actions = new[]
+            {
+                new NpcActionDefinition("dialogue.open", "Talk", 0)
+            };
+
+            var disabledCapability = go.AddComponent<TestActionCapability>();
+            disabledCapability.Actions = new[]
+            {
+                new NpcActionDefinition("trade.open", "Trade", 10)
+            };
+            disabledCapability.enabled = false;
+
+            try
+            {
+                var actions = agent.CollectActions();
+                Assert.That(actions.Count, Is.EqualTo(1));
+                Assert.That(actions[0].ActionId, Is.EqualTo("dialogue.open"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
         private sealed class TestLifecycleCapability : MonoBehaviour, INpcCapability
         {
             public NpcCapabilityKind CapabilityKind => NpcCapabilityKind.None;
