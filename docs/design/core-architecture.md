@@ -155,6 +155,10 @@ Systems communicate through the EventBus pattern, currently implemented by a cen
 ```csharp
 public static class GameEvents
 {
+    public static bool IsShopTradeMenuOpen { get; }
+    public static bool IsWorkbenchMenuVisible { get; }
+    public static bool IsTabInventoryVisible { get; }
+    public static bool IsAnyMenuOpen { get; }
     public static event Action OnSaveStarted;
     public static event Action OnSaveCompleted;
     public static event Action OnLoadStarted;
@@ -173,6 +177,17 @@ public static class GameEvents
     public static event Action<string, int, int> OnWeaponReloaded;
     public static event Action<string, bool> OnWeaponAimChanged;
     public static event Action<string, Vector3, float> OnProjectileHit;
+    public static event Action<string> OnShopTradeOpenRequested;
+    public static event Action<string> OnShopTradeOpened;
+    public static event Action OnShopTradeClosed;
+    public static event Action<string, int> OnShopBuyRequested;
+    public static event Action<string, int> OnShopSellRequested;
+    public static event Action<ShopCheckoutRequest> OnShopBuyCheckoutRequested;
+    public static event Action<ShopCheckoutRequest> OnShopSellCheckoutRequested;
+    public static event Action<string, int, bool, bool, string> OnShopTradeResult;
+    public static event Action<bool> OnWorkbenchMenuVisibilityChanged;
+    public static event Action<bool> OnTabInventoryVisibilityChanged;
+    public static event Action<int> OnMoneyChanged;
 }
 ```
 

@@ -82,6 +82,26 @@ In-flight projectile state is intentionally out-of-scope for v0.1 saves.
 
 The broader schema below is the v0.1 design target and forward schema contract. Treat it as planned module scope until those modules are registered and migration-backed in runtime.
 
+### Save Module Readiness Matrix [v0.1]
+
+| Module / Payload Block | Readiness | Runtime Registration (v0.1) | Notes |
+|------------------------|-----------|------------------------------|-------|
+| `CoreWorld` | Implemented now | Yes | Persists `dayCount`, `timeOfDay`. |
+| `Inventory` | Implemented now | Yes | Persists carried/belt/backpack ids + capacity + belt selection. |
+| `Weapons` | Implemented now | Yes | Persists active weapon loadout + chamber/mag ammo ballistic snapshots. |
+| `PlayerState` | Planned target | No | Listed in target schema only. |
+| `ItemRegistry` | Planned target | No | Listed in target schema only. |
+| `ItemLocation` | Planned target | No | Listed in target schema only. |
+| `WorldItemState` | Planned target | No | Listed in target schema only. |
+| `RecipeBook` | Planned target | No | Listed in target schema only. |
+| `NPCState` | Planned target | No | Listed in target schema only; may be empty in early phases. |
+| `QuestState` | Planned target | No | Listed in target schema only. |
+| `WorldState` (extended fields) | Planned target | No | `dayCount`/`timeOfDay` are currently in `CoreWorld`; other fields are planned. |
+| `WorkshopState` | Planned target | No | Listed in target schema only. |
+| `VehicleState` | Planned target | No | Listed in target schema only. |
+
+Use this matrix as the implementation source of truth for v0.1 feature work: only `Implemented now` rows are currently persistence-backed in runtime.
+
 ## Save Data Structure (Target Schema) [v0.1]
 
 The canonical gameplay payload blocks remain:
