@@ -16,12 +16,14 @@ namespace Reloader.UI.Toolkit.Trade
 
         private void OnEnable()
         {
+            SubscribeToRuntimeHubReconfigure();
             SubscribeToShopEvents(ResolveShopEvents());
             Refresh();
         }
 
         private void OnDisable()
         {
+            UnsubscribeFromRuntimeHubReconfigure();
             UnsubscribeFromShopEvents();
         }
 
@@ -78,6 +80,16 @@ namespace Reloader.UI.Toolkit.Trade
         {
             _isOpen = false;
             Refresh();
+        }
+
+        private void HandleRuntimeEventsReconfigured()
+        {
+            if (!isActiveAndEnabled || !_useRuntimeKernelShopEvents)
+            {
+                return;
+            }
+
+            SubscribeToShopEvents(ResolveShopEvents());
         }
 
         private void Refresh()
@@ -157,6 +169,17 @@ namespace Reloader.UI.Toolkit.Trade
             _subscribedShopEvents.OnShopTradeOpened -= HandleTradeOpened;
             _subscribedShopEvents.OnShopTradeClosed -= HandleTradeClosed;
             _subscribedShopEvents = null;
+        }
+
+        private void SubscribeToRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
+            RuntimeKernelBootstrapper.EventsReconfigured += HandleRuntimeEventsReconfigured;
+        }
+
+        private void UnsubscribeFromRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
         }
     }
 }

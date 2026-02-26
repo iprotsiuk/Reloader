@@ -107,6 +107,48 @@ namespace Reloader.Economy.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Configure_WithoutInjectedShopEvents_RebindsInboundCallbacksImmediatelyWhenRuntimeKernelHubIsReconfigured()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var inventoryGo = new GameObject("InventoryController");
+            var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
+            var input = inventoryGo.AddComponent<TestInputSource>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(4);
+            inventoryController.Configure(input, null, runtime);
+
+            var economyGo = new GameObject("EconomyController");
+            var controller = economyGo.AddComponent<EconomyController>();
+            SetPrivateField(controller, "_inventoryControllerBehaviour", inventoryController);
+            SetPrivateField(controller, "_startingMoney", 500);
+
+            var catalog = ScriptableObject.CreateInstance<ShopCatalogDefinition>();
+            JsonUtility.FromJsonOverwrite(
+                "{\"_items\":[{\"_itemId\":\"ammo-22lr\",\"_displayName\":\"22LR\",\"_category\":\"ammo\",\"_unitPrice\":2,\"_startingStock\":500}]}",
+                catalog);
+            SetVendorBindings(controller, "vendor-1", catalog);
+
+            var openedCount = 0;
+            replacementHub.OnShopTradeOpened += _ => openedCount++;
+
+            yield return null;
+
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+            replacementHub.RaiseShopTradeOpenRequested("vendor-1");
+
+            Assert.That(openedCount, Is.EqualTo(1));
+
+            RuntimeKernelBootstrapper.Events = originalHub;
+            UnityEngine.Object.DestroyImmediate(catalog);
+            UnityEngine.Object.DestroyImmediate(economyGo);
+            UnityEngine.Object.DestroyImmediate(inventoryGo);
+        }
+
+        [UnityTest]
         public IEnumerator BuyCheckoutRequest_WhenLaterLineCannotStore_RollsBackInventoryMoneyAndStock()
         {
             var inventoryGo = new GameObject("InventoryController");

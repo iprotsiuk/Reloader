@@ -130,6 +130,35 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void Configure_WithoutInjectedInventoryEvents_RebindsInboundCallbacksImmediatelyWhenRuntimeKernelHubIsReconfigured()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(System.Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var root = new GameObject("InventoryControllerRoot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+
+            try
+            {
+                controller.Configure(input, resolver, new PlayerInventoryRuntime());
+
+                RuntimeKernelBootstrapper.Configure(System.Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+                replacementHub.RaiseItemPickupRequested("item-inbound-after-swap");
+
+                Assert.That(controller.Runtime.GetItemQuantity("item-inbound-after-swap"), Is.EqualTo(1));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void Tick_BeltKeyPress_UpdatesSelectedSlot()
         {
             var root = new GameObject("InventoryControllerRoot");

@@ -35,6 +35,7 @@ namespace Reloader.Player
 
         private void OnEnable()
         {
+            SubscribeToRuntimeHubReconfigure();
             SubscribeToShopEvents(ResolveShopEvents());
             SubscribeToUiStateEvents(ResolveUiStateEvents());
             ApplyCursorState();
@@ -42,6 +43,7 @@ namespace Reloader.Player
 
         private void OnDisable()
         {
+            UnsubscribeFromRuntimeHubReconfigure();
             UnsubscribeFromShopEvents();
             UnsubscribeFromUiStateEvents();
             IsAnyMenuOpen = false;
@@ -124,6 +126,24 @@ namespace Reloader.Player
         {
             _isTabInventoryOpen = isVisible;
             ApplyCursorState();
+        }
+
+        private void HandleRuntimeEventsReconfigured()
+        {
+            if (!isActiveAndEnabled)
+            {
+                return;
+            }
+
+            if (_useRuntimeKernelShopEvents)
+            {
+                SubscribeToShopEvents(ResolveShopEvents());
+            }
+
+            if (_useRuntimeKernelUiStateEvents)
+            {
+                SubscribeToUiStateEvents(ResolveUiStateEvents());
+            }
         }
 
         private void ApplyCursorState()
@@ -246,6 +266,17 @@ namespace Reloader.Player
             _subscribedShopEvents.OnShopTradeOpened -= HandleShopTradeOpened;
             _subscribedShopEvents.OnShopTradeClosed -= HandleShopTradeClosed;
             _subscribedShopEvents = null;
+        }
+
+        private void SubscribeToRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
+            RuntimeKernelBootstrapper.EventsReconfigured += HandleRuntimeEventsReconfigured;
+        }
+
+        private void UnsubscribeFromRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
         }
     }
 }

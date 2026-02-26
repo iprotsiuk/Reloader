@@ -230,6 +230,40 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void TradeController_WithoutInjectedEvents_RebindsInboundCallbacksImmediatelyWhenRuntimeKernelHubIsReconfigured()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var go = new GameObject("TradeControllerRuntimeHubReconfigure");
+            var root = BuildTradeRoot();
+            root.style.display = DisplayStyle.None;
+
+            var binder = new TradeViewBinder();
+            binder.Initialize(root);
+
+            var controller = go.AddComponent<TradeController>();
+            controller.SetViewBinder(binder);
+
+            try
+            {
+                RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+                replacementHub.RaiseShopTradeOpened("vendor-1");
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+
+                replacementHub.RaiseShopTradeClosed();
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void TabInventoryController_Tick_MenuToggleInput_TogglesPanelVisibility()
         {
             var go = new GameObject("TabInventoryController");
@@ -404,6 +438,46 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.Flex));
 
             UnityEngine.Object.DestroyImmediate(go);
+        }
+
+        [Test]
+        public void ReloadingWorkbenchController_WithoutInjectedEvents_RebindsWhenRuntimeKernelHubIsReconfigured()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var go = new GameObject("ReloadingWorkbenchRuntimeHubReconfigure");
+            var root = new VisualElement { name = "reloading__root" };
+            var binder = new ReloadingWorkbenchViewBinder();
+            binder.Initialize(root, operationCount: 3);
+
+            var controller = go.AddComponent<ReloadingWorkbenchController>();
+            controller.SetViewBinder(binder);
+
+            try
+            {
+                initialHub.RaiseWorkbenchMenuVisibilityChanged(true);
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+
+                initialHub.RaiseWorkbenchMenuVisibilityChanged(false);
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
+
+                RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+
+                initialHub.RaiseWorkbenchMenuVisibilityChanged(true);
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
+
+                replacementHub.RaiseWorkbenchMenuVisibilityChanged(true);
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            }
+            finally
+            {
+                replacementHub.RaiseWorkbenchMenuVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(go);
+            }
         }
 
         private static VisualElement BuildTabRoot(int backpackSlotCount = 2)

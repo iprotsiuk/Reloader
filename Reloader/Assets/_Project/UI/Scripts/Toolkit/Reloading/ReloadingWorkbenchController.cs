@@ -19,12 +19,14 @@ namespace Reloader.UI.Toolkit.Reloading
 
         private void OnEnable()
         {
+            SubscribeToRuntimeHubReconfigure();
             SubscribeToUiStateEvents(ResolveUiStateEvents());
             Refresh();
         }
 
         private void OnDisable()
         {
+            UnsubscribeFromRuntimeHubReconfigure();
             UnsubscribeFromUiStateEvents();
         }
 
@@ -90,6 +92,16 @@ namespace Reloader.UI.Toolkit.Reloading
             Refresh();
         }
 
+        private void HandleRuntimeEventsReconfigured()
+        {
+            if (!isActiveAndEnabled || !_useRuntimeKernelUiStateEvents)
+            {
+                return;
+            }
+
+            SubscribeToUiStateEvents(ResolveUiStateEvents());
+        }
+
         private IUiStateEvents ResolveUiStateEvents()
         {
             if (_useRuntimeKernelUiStateEvents)
@@ -140,6 +152,17 @@ namespace Reloader.UI.Toolkit.Reloading
 
             _subscribedUiStateEvents.OnWorkbenchMenuVisibilityChanged -= HandleWorkbenchVisibilityChanged;
             _subscribedUiStateEvents = null;
+        }
+
+        private void SubscribeToRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
+            RuntimeKernelBootstrapper.EventsReconfigured += HandleRuntimeEventsReconfigured;
+        }
+
+        private void UnsubscribeFromRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
         }
     }
 }

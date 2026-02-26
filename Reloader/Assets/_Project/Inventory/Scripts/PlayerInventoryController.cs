@@ -41,11 +41,13 @@ namespace Reloader.Inventory
         private void OnEnable()
         {
             ResolveReferences();
+            SubscribeToRuntimeHubReconfigure();
             SubscribeToInventoryEvents(ResolveInventoryEvents());
         }
 
         private void OnDisable()
         {
+            UnsubscribeFromRuntimeHubReconfigure();
             UnsubscribeFromInventoryEvents();
             _pendingPickupTargetsById.Clear();
             _flushPickupInputAtEndOfFrame = false;
@@ -219,6 +221,16 @@ namespace Reloader.Inventory
             ResolveInventoryEvents();
         }
 
+        private void HandleRuntimeEventsReconfigured()
+        {
+            if (!isActiveAndEnabled || !_useRuntimeKernelInventoryEvents)
+            {
+                return;
+            }
+
+            SubscribeToInventoryEvents(ResolveInventoryEvents());
+        }
+
         private IInventoryEvents ResolveInventoryEvents()
         {
             if (_useRuntimeKernelInventoryEvents)
@@ -274,6 +286,17 @@ namespace Reloader.Inventory
             _subscribedInventoryEvents = null;
         }
 
+        private void SubscribeToRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
+            RuntimeKernelBootstrapper.EventsReconfigured += HandleRuntimeEventsReconfigured;
+        }
+
+        private void UnsubscribeFromRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
+        }
+
         private static string ResolvePickupItemId(IInventoryPickupTarget pickupTarget)
         {
             if (pickupTarget is IInventoryDefinitionPickupTarget definitionTarget
@@ -304,6 +327,5 @@ namespace Reloader.Inventory
         {
             return _startingBackpackCapacity > 0 ? _startingBackpackCapacity : DefaultBackpackCapacity;
         }
-
     }
 }

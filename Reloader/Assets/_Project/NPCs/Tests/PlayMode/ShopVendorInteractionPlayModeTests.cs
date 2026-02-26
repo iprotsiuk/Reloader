@@ -144,6 +144,44 @@ namespace Reloader.NPCs.Tests.PlayMode
         }
 
         [Test]
+        public void Configure_WithoutInjectedShopEvents_RebindsInboundCallbacksImmediatelyWhenRuntimeKernelHubIsReconfigured()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(System.Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerShopVendorController>();
+            var resolver = root.AddComponent<TestVendorResolver>();
+            controller.Configure(input, resolver);
+
+            var vendor = new GameObject("Vendor").AddComponent<ShopVendorTarget>();
+            resolver.Target = vendor;
+
+            var closedCount = 0;
+            replacementHub.OnShopTradeClosed += () => closedCount++;
+
+            try
+            {
+                RuntimeKernelBootstrapper.Configure(System.Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+                replacementHub.RaiseShopTradeOpened("vendor-reloading-store");
+
+                resolver.Target = null;
+                controller.Tick();
+
+                Assert.That(closedCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(vendor.gameObject);
+            }
+        }
+
+        [Test]
         public void TradeOpened_ForDifferentVendorId_DoesNotBlockCurrentVendorOpenRequest()
         {
             var root = new GameObject("PlayerRoot");

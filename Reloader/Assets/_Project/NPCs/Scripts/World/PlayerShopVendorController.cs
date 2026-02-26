@@ -44,11 +44,13 @@ namespace Reloader.NPCs.World
         private void OnEnable()
         {
             ResolveReferences();
+            SubscribeToRuntimeHubReconfigure();
             SubscribeToShopEvents(ResolveShopEvents());
         }
 
         private void OnDisable()
         {
+            UnsubscribeFromRuntimeHubReconfigure();
             UnsubscribeFromShopEvents();
             _isTradeOpen = false;
             _flushPickupInputAtEndOfFrame = false;
@@ -127,6 +129,16 @@ namespace Reloader.NPCs.World
             return string.Equals(target.VendorId, vendorId, StringComparison.Ordinal);
         }
 
+        private void HandleRuntimeEventsReconfigured()
+        {
+            if (!isActiveAndEnabled || !_useRuntimeKernelShopEvents)
+            {
+                return;
+            }
+
+            SubscribeToShopEvents(ResolveShopEvents());
+        }
+
         private void ResolveReferences()
         {
             _inputSource ??= _inputSourceBehaviour as IPlayerInputSource;
@@ -200,6 +212,17 @@ namespace Reloader.NPCs.World
             _subscribedShopEvents.OnShopTradeOpened -= HandleTradeOpened;
             _subscribedShopEvents.OnShopTradeClosed -= HandleTradeClosed;
             _subscribedShopEvents = null;
+        }
+
+        private void SubscribeToRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
+            RuntimeKernelBootstrapper.EventsReconfigured += HandleRuntimeEventsReconfigured;
+        }
+
+        private void UnsubscribeFromRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
         }
     }
 }

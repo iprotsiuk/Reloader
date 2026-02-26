@@ -429,6 +429,47 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerCursorLockController_WithoutInjectedEvents_RebindsWhenRuntimeKernelHubIsReconfigured()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(System.Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var go = new GameObject("CursorLockRuntimeHubReconfigure");
+            var controller = go.AddComponent<PlayerCursorLockController>();
+
+            try
+            {
+                controller.LockCursor();
+
+                initialHub.RaiseTabInventoryVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+
+                initialHub.RaiseTabInventoryVisibilityChanged(false);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+
+                RuntimeKernelBootstrapper.Configure(System.Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+
+                initialHub.RaiseTabInventoryVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+
+                replacementHub.RaiseTabInventoryVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+            }
+            finally
+            {
+                replacementHub.RaiseTabInventoryVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(go);
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
+        }
+
+        [Test]
         public void TestInputSource_ExposesFireAndReloadConsumeMethods()
         {
             var root = new GameObject("InputSourceRoot");

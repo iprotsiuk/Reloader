@@ -43,12 +43,14 @@ namespace Reloader.Economy
         private void OnEnable()
         {
             ResolveReferences();
+            SubscribeToRuntimeHubReconfigure();
             SubscribeToShopEvents(ResolveShopEvents());
             GameEvents.RaiseMoneyChanged(_runtime.Money);
         }
 
         private void OnDisable()
         {
+            UnsubscribeFromRuntimeHubReconfigure();
             UnsubscribeFromShopEvents();
         }
 
@@ -292,6 +294,16 @@ namespace Reloader.Economy
             return false;
         }
 
+        private void HandleRuntimeEventsReconfigured()
+        {
+            if (!isActiveAndEnabled || !_useRuntimeKernelShopEvents)
+            {
+                return;
+            }
+
+            SubscribeToShopEvents(ResolveShopEvents());
+        }
+
         private void ResolveReferences()
         {
             _inventoryController ??= _inventoryControllerBehaviour as PlayerInventoryController;
@@ -367,6 +379,17 @@ namespace Reloader.Economy
             _subscribedShopEvents.OnShopBuyCheckoutRequested -= HandleBuyCheckoutRequested;
             _subscribedShopEvents.OnShopSellCheckoutRequested -= HandleSellCheckoutRequested;
             _subscribedShopEvents = null;
+        }
+
+        private void SubscribeToRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
+            RuntimeKernelBootstrapper.EventsReconfigured += HandleRuntimeEventsReconfigured;
+        }
+
+        private void UnsubscribeFromRuntimeHubReconfigure()
+        {
+            RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
         }
     }
 }
