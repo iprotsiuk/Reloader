@@ -167,21 +167,30 @@ namespace Reloader.Player
         private void ReconcileMenuFlagsFromCurrentEventState()
         {
             var uiStateEvents = _uiStateEvents;
-            if (uiStateEvents == null)
+            var shopUiStateEvents = _shopEvents as IUiStateEvents;
+            if (shopUiStateEvents != null)
             {
-                if (_useRuntimeKernelUiStateEvents)
-                {
-                    _isTradeMenuOpen = false;
-                    _isWorkbenchMenuOpen = false;
-                    _isTabInventoryOpen = false;
-                }
-
-                return;
+                _isTradeMenuOpen = shopUiStateEvents.IsShopTradeMenuOpen;
+            }
+            else if (uiStateEvents != null)
+            {
+                _isTradeMenuOpen = uiStateEvents.IsShopTradeMenuOpen;
+            }
+            else if (_useRuntimeKernelShopEvents || _useRuntimeKernelUiStateEvents)
+            {
+                _isTradeMenuOpen = false;
             }
 
-            _isTradeMenuOpen = uiStateEvents.IsShopTradeMenuOpen;
-            _isWorkbenchMenuOpen = uiStateEvents.IsWorkbenchMenuVisible;
-            _isTabInventoryOpen = uiStateEvents.IsTabInventoryVisible;
+            if (uiStateEvents != null)
+            {
+                _isWorkbenchMenuOpen = uiStateEvents.IsWorkbenchMenuVisible;
+                _isTabInventoryOpen = uiStateEvents.IsTabInventoryVisible;
+            }
+            else if (_useRuntimeKernelUiStateEvents)
+            {
+                _isWorkbenchMenuOpen = false;
+                _isTabInventoryOpen = false;
+            }
         }
 
         private IUiStateEvents ResolveUiStateEvents()

@@ -177,18 +177,23 @@ namespace Reloader.Economy.Tests.PlayMode
             var openedCount = 0;
             replacementHub.OnShopTradeOpened += _ => openedCount++;
 
-            yield return null;
+            try
+            {
+                yield return null;
 
-            RuntimeKernelBootstrapper.Events = replacementHub;
-            initialHub.RaiseShopTradeOpenRequested("vendor-1");
-            replacementHub.RaiseShopTradeOpenRequested("vendor-1");
+                RuntimeKernelBootstrapper.Events = replacementHub;
+                initialHub.RaiseShopTradeOpenRequested("vendor-1");
+                replacementHub.RaiseShopTradeOpenRequested("vendor-1");
 
-            Assert.That(openedCount, Is.EqualTo(1));
-
-            RuntimeKernelBootstrapper.Events = originalHub;
-            UnityEngine.Object.DestroyImmediate(catalog);
-            UnityEngine.Object.DestroyImmediate(economyGo);
-            UnityEngine.Object.DestroyImmediate(inventoryGo);
+                Assert.That(openedCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(catalog);
+                UnityEngine.Object.DestroyImmediate(economyGo);
+                UnityEngine.Object.DestroyImmediate(inventoryGo);
+            }
         }
 
         [UnityTest]
