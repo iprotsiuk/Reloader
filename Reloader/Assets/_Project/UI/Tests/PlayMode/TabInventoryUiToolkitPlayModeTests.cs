@@ -1,5 +1,7 @@
 using NUnit.Framework;
+using Reloader.Core.UI;
 using Reloader.UI.Toolkit.TabInventory;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Reloader.UI.Tests.PlayMode
@@ -39,6 +41,65 @@ namespace Reloader.UI.Tests.PlayMode
 
             binder.Render(TabInventoryUiState.Create(false, new TabInventoryUiState.SlotState[5], new TabInventoryUiState.SlotState[2], null, false));
             Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.None));
+        }
+
+        [Test]
+        public void Render_OccupiedSlots_RenderInCellItemVisuals()
+        {
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+
+            var catalogProviderGo = new GameObject("ItemIconCatalogProvider");
+            var catalogProvider = catalogProviderGo.AddComponent<ItemIconCatalogProvider>();
+            var catalog = ScriptableObject.CreateInstance<ItemIconCatalog>();
+            var texture = new Texture2D(2, 2);
+            texture.SetPixel(0, 0, Color.white);
+            texture.Apply();
+            var sprite = Sprite.Create(texture, new Rect(0, 0, 2, 2), new Vector2(0.5f, 0.5f));
+            catalog.SetEntriesForTests(new[] { new ItemIconCatalog.Entry("rifle_alpha", sprite) });
+            catalogProvider.SetCatalogForTests(catalog);
+
+            binder.Render(TabInventoryUiState.Create(
+                isOpen: true,
+                beltSlots: new[]
+                {
+                    new TabInventoryUiState.SlotState(0, "rifle_alpha", true, 1),
+                    new TabInventoryUiState.SlotState(1, null, false),
+                    new TabInventoryUiState.SlotState(2, null, false),
+                    new TabInventoryUiState.SlotState(3, null, false),
+                    new TabInventoryUiState.SlotState(4, null, false)
+                },
+                backpackSlots: new[]
+                {
+                    new TabInventoryUiState.SlotState(0, "ammo_308", true, 42),
+                    new TabInventoryUiState.SlotState(1, null, false)
+                },
+                tooltipTitle: string.Empty,
+                tooltipVisible: false));
+
+            var beltLabel = root.Q<VisualElement>("inventory__belt-slot-0")?.Q<Label>("inventory__slot-item-name-belt-0");
+            var emptyBeltLabel = root.Q<VisualElement>("inventory__belt-slot-1")?.Q<Label>("inventory__slot-item-name-belt-1");
+            var backpackLabel = root.Q<VisualElement>("inventory__backpack-slot-0")?.Q<Label>("inventory__slot-item-name-backpack-0");
+            var emptyBackpackLabel = root.Q<VisualElement>("inventory__backpack-slot-1")?.Q<Label>("inventory__slot-item-name-backpack-1");
+            var beltIcon = root.Q<VisualElement>("inventory__belt-slot-0")?.Q<VisualElement>("inventory__slot-item-icon-belt-0");
+            var backpackIcon = root.Q<VisualElement>("inventory__backpack-slot-0")?.Q<VisualElement>("inventory__slot-item-icon-backpack-0");
+            var backpackQuantity = root.Q<VisualElement>("inventory__backpack-slot-0")?.Q<Label>("inventory__slot-item-quantity-backpack-0");
+
+            Assert.That(beltLabel, Is.Not.Null);
+            Assert.That(beltLabel?.text, Is.EqualTo("Rifle Alpha"));
+            Assert.That(backpackLabel, Is.Not.Null);
+            Assert.That(backpackLabel?.text, Is.EqualTo("Ammo 308"));
+            Assert.That(beltIcon?.ClassListContains("is-missing"), Is.False);
+            Assert.That(backpackIcon?.ClassListContains("is-missing"), Is.True);
+            Assert.That(backpackQuantity?.text, Is.EqualTo("42"));
+            Assert.That(emptyBeltLabel, Is.Null);
+            Assert.That(emptyBackpackLabel, Is.Null);
+
+            Object.DestroyImmediate(sprite);
+            Object.DestroyImmediate(texture);
+            Object.DestroyImmediate(catalog);
+            Object.DestroyImmediate(catalogProviderGo);
         }
 
         [Test]
@@ -136,6 +197,143 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(capturedPayload.Value.SourceIndex, Is.EqualTo(0));
             Assert.That(capturedPayload.Value.TargetContainer, Is.EqualTo("backpack"));
             Assert.That(capturedPayload.Value.TargetIndex, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void PointerDrag_BeltToBackpack_EmitsSwapIntent()
+        {
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+            binder.Render(TabInventoryUiState.Create(
+                true,
+                new[]
+                {
+                    new TabInventoryUiState.SlotState(0, "item-a", true),
+                    new TabInventoryUiState.SlotState(1, null, false),
+                    new TabInventoryUiState.SlotState(2, null, false),
+                    new TabInventoryUiState.SlotState(3, null, false),
+                    new TabInventoryUiState.SlotState(4, null, false)
+                },
+                new[]
+                {
+                    new TabInventoryUiState.SlotState(0, "item-b", true),
+                    new TabInventoryUiState.SlotState(1, null, false)
+                },
+                string.Empty,
+                false));
+
+            string capturedKey = null;
+            TabInventoryDragController.DragIntentPayload? capturedPayload = null;
+            binder.IntentRaised += intent =>
+            {
+                capturedKey = intent.Key;
+                if (intent.Payload is TabInventoryDragController.DragIntentPayload payload)
+                {
+                    capturedPayload = payload;
+                }
+            };
+
+            var started = binder.TryPointerDownForTests("belt", 0);
+            var hovered = binder.TryPointerEnterForTests("backpack", 0);
+            var dropped = binder.TryPointerUpForTests("backpack", 0);
+
+            Assert.That(started, Is.True);
+            Assert.That(hovered, Is.True);
+            Assert.That(dropped, Is.True);
+            Assert.That(capturedKey, Is.EqualTo("inventory.drag.swap"));
+            Assert.That(capturedPayload.HasValue, Is.True);
+            Assert.That(capturedPayload.Value.SourceContainer, Is.EqualTo("belt"));
+            Assert.That(capturedPayload.Value.SourceIndex, Is.EqualTo(0));
+            Assert.That(capturedPayload.Value.TargetContainer, Is.EqualTo("backpack"));
+            Assert.That(capturedPayload.Value.TargetIndex, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void PointerDrag_DropOnSameItem_EmitsMergeIntent()
+        {
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+            binder.Render(TabInventoryUiState.Create(
+                true,
+                new[]
+                {
+                    new TabInventoryUiState.SlotState(0, "item-a", true),
+                    new TabInventoryUiState.SlotState(1, null, false),
+                    new TabInventoryUiState.SlotState(2, null, false),
+                    new TabInventoryUiState.SlotState(3, null, false),
+                    new TabInventoryUiState.SlotState(4, null, false)
+                },
+                new[]
+                {
+                    new TabInventoryUiState.SlotState(0, "item-a", true),
+                    new TabInventoryUiState.SlotState(1, null, false)
+                },
+                string.Empty,
+                false));
+
+            string capturedKey = null;
+            binder.IntentRaised += intent => capturedKey = intent.Key;
+
+            var started = binder.TryPointerDownForTests("belt", 0);
+            var hovered = binder.TryPointerEnterForTests("backpack", 0);
+            var dropped = binder.TryPointerUpForTests("backpack", 0);
+
+            Assert.That(started, Is.True);
+            Assert.That(hovered, Is.True);
+            Assert.That(dropped, Is.True);
+            Assert.That(capturedKey, Is.EqualTo("inventory.drag.merge"));
+        }
+
+        [Test]
+        public void PointerDrag_SameContainerDrop_EmitsSwapIntent()
+        {
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+            binder.Render(TabInventoryUiState.Create(
+                true,
+                new[]
+                {
+                    new TabInventoryUiState.SlotState(0, "item-a", true),
+                    new TabInventoryUiState.SlotState(1, "item-b", true),
+                    new TabInventoryUiState.SlotState(2, null, false),
+                    new TabInventoryUiState.SlotState(3, null, false),
+                    new TabInventoryUiState.SlotState(4, null, false)
+                },
+                new[]
+                {
+                    new TabInventoryUiState.SlotState(0, null, false),
+                    new TabInventoryUiState.SlotState(1, null, false)
+                },
+                string.Empty,
+                false));
+
+            string capturedKey = null;
+            TabInventoryDragController.DragIntentPayload? capturedPayload = null;
+            binder.IntentRaised += intent =>
+            {
+                capturedKey = intent.Key;
+                if (intent.Payload is TabInventoryDragController.DragIntentPayload payload)
+                {
+                    capturedPayload = payload;
+                }
+            };
+
+            var started = binder.TryPointerDownForTests("belt", 0);
+            var hovered = binder.TryPointerEnterForTests("belt", 1);
+            var dropped = binder.TryPointerUpForTests("belt", 1);
+
+            Assert.That(started, Is.True);
+            Assert.That(hovered, Is.True);
+            Assert.That(dropped, Is.True);
+            Assert.That(capturedKey, Is.EqualTo("inventory.drag.swap"));
+            Assert.That(capturedPayload.HasValue, Is.True);
+            Assert.That(capturedPayload.Value.SourceContainer, Is.EqualTo("belt"));
+            Assert.That(capturedPayload.Value.SourceIndex, Is.EqualTo(0));
+            Assert.That(capturedPayload.Value.TargetContainer, Is.EqualTo("belt"));
+            Assert.That(capturedPayload.Value.TargetIndex, Is.EqualTo(1));
         }
 
         private static VisualElement BuildRoot()

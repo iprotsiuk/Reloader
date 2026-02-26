@@ -201,7 +201,7 @@ namespace Reloader.UI.Toolkit.Runtime
             PlayerInventoryController inventoryController,
             IPlayerInputSource inputSource)
         {
-            var backpackSlotCount = Mathf.Max(16, inventoryController?.Runtime?.BackpackCapacity ?? 0);
+            var backpackSlotCount = Mathf.Max(0, inventoryController?.Runtime?.BackpackCapacity ?? 0);
             var viewBinder = new TabInventoryViewBinder();
             viewBinder.Initialize(root, PlayerInventoryRuntime.BeltSlotCount, backpackSlotCount);
 

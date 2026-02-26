@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Reloader.Core.UI;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -32,6 +33,9 @@ namespace Reloader.UI.Toolkit.TabInventory
         private string _dragSourceContainer;
         private int _dragSourceIndex = -1;
         private string _dragSourceItemId;
+        private string _dragTargetContainer;
+        private int _dragTargetIndex = -1;
+        private bool _suppressNextClick;
         private float _resolvedSlotSize = 46f;
 
         private const float MinSlotSize = 16f;
@@ -75,7 +79,10 @@ namespace Reloader.UI.Toolkit.TabInventory
                 if (slot != null)
                 {
                     var capturedIndex = i;
-                    slot.RegisterCallback<ClickEvent>(_ => TryInteractSlot("belt", capturedIndex));
+                    slot.RegisterCallback<PointerDownEvent>(_ => TryPointerDown("belt", capturedIndex));
+                    slot.RegisterCallback<PointerEnterEvent>(_ => TryPointerEnter("belt", capturedIndex));
+                    slot.RegisterCallback<PointerUpEvent>(_ => TryPointerUp("belt", capturedIndex));
+                    slot.RegisterCallback<ClickEvent>(_ => HandleSlotClick("belt", capturedIndex));
                 }
             }
 
@@ -88,7 +95,10 @@ namespace Reloader.UI.Toolkit.TabInventory
                 if (slot != null)
                 {
                     var capturedIndex = i;
-                    slot.RegisterCallback<ClickEvent>(_ => TryInteractSlot("backpack", capturedIndex));
+                    slot.RegisterCallback<PointerDownEvent>(_ => TryPointerDown("backpack", capturedIndex));
+                    slot.RegisterCallback<PointerEnterEvent>(_ => TryPointerEnter("backpack", capturedIndex));
+                    slot.RegisterCallback<PointerUpEvent>(_ => TryPointerUp("backpack", capturedIndex));
+                    slot.RegisterCallback<ClickEvent>(_ => HandleSlotClick("backpack", capturedIndex));
                 }
             }
 
@@ -111,6 +121,8 @@ namespace Reloader.UI.Toolkit.TabInventory
 
             ApplyOccupancy(_beltSlots, inventoryState.BeltSlots);
             ApplyOccupancy(_backpackSlots, inventoryState.BackpackSlots);
+            RenderSlotVisuals(_beltSlots, inventoryState.BeltSlots, "belt");
+            RenderSlotVisuals(_backpackSlots, inventoryState.BackpackSlots, "backpack");
             CacheSlotItemIds(_beltSlotItemIds, inventoryState.BeltSlots);
             CacheSlotItemIds(_backpackSlotItemIds, inventoryState.BackpackSlots);
             ApplySectionVisibility(inventoryState.ActiveSection);
@@ -322,9 +334,186 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
         }
 
+        private static void RenderSlotVisuals(VisualElement[] slotElements, System.Collections.Generic.IReadOnlyList<TabInventoryUiState.SlotState> slots, string container)
+        {
+            var limit = Math.Min(slotElements.Length, slots.Count);
+            for (var i = 0; i < limit; i++)
+            {
+                var slotElement = slotElements[i];
+                if (slotElement == null)
+                {
+                    continue;
+                }
+
+                var slotState = slots[i];
+                var contentName = $"inventory__slot-item-{container}-{i}";
+                var iconName = $"inventory__slot-item-icon-{container}-{i}";
+                var labelName = $"inventory__slot-item-name-{container}-{i}";
+                var quantityName = $"inventory__slot-item-quantity-{container}-{i}";
+                var hasVisual = slotState.IsOccupied && !string.IsNullOrWhiteSpace(slotState.ItemId);
+                var content = slotElement.Q<VisualElement>(contentName);
+
+                if (!hasVisual)
+                {
+                    content?.RemoveFromHierarchy();
+                    continue;
+                }
+
+                if (content == null)
+                {
+                    content = new VisualElement
+                    {
+                        name = contentName,
+                        pickingMode = PickingMode.Ignore
+                    };
+                    content.AddToClassList("inventory__slot-item");
+                    slotElement.Add(content);
+                }
+
+                var icon = content.Q<VisualElement>(iconName);
+                if (icon == null)
+                {
+                    icon = new VisualElement
+                    {
+                        name = iconName,
+                        pickingMode = PickingMode.Ignore
+                    };
+                    icon.AddToClassList("inventory__slot-item-icon");
+                    content.Add(icon);
+                }
+
+                var label = content.Q<Label>(labelName);
+                if (label == null)
+                {
+                    label = new Label
+                    {
+                        name = labelName,
+                        pickingMode = PickingMode.Ignore
+                    };
+                    label.AddToClassList("inventory__slot-item-name");
+                    content.Add(label);
+                }
+
+                var quantity = content.Q<Label>(quantityName);
+                if (quantity == null)
+                {
+                    quantity = new Label
+                    {
+                        name = quantityName,
+                        pickingMode = PickingMode.Ignore
+                    };
+                    quantity.AddToClassList("inventory__slot-item-quantity");
+                    content.Add(quantity);
+                }
+
+                if (ItemIconCatalogProvider.Catalog != null && ItemIconCatalogProvider.Catalog.TryGetIcon(slotState.ItemId, out var iconSprite))
+                {
+                    icon.style.backgroundImage = new StyleBackground(iconSprite);
+                    icon.EnableInClassList("is-missing", false);
+                }
+                else
+                {
+                    icon.style.backgroundImage = new StyleBackground((Texture2D)null);
+                    icon.EnableInClassList("is-missing", true);
+                }
+
+                label.text = ItemDisplayNameFormatter.Format(slotState.ItemId);
+                var showQuantity = slotState.Quantity > 1;
+                quantity.style.display = showQuantity ? DisplayStyle.Flex : DisplayStyle.None;
+                quantity.text = showQuantity ? slotState.Quantity.ToString() : string.Empty;
+            }
+        }
+
         public bool TryInteractSlotForTests(string container, int slotIndex)
         {
             return TryInteractSlot(container, slotIndex);
+        }
+
+        public bool TryPointerDownForTests(string container, int slotIndex)
+        {
+            return TryPointerDown(container, slotIndex);
+        }
+
+        public bool TryPointerEnterForTests(string container, int slotIndex)
+        {
+            return TryPointerEnter(container, slotIndex);
+        }
+
+        public bool TryPointerUpForTests(string container, int slotIndex)
+        {
+            return TryPointerUp(container, slotIndex);
+        }
+
+        private void HandleSlotClick(string container, int slotIndex)
+        {
+            if (_suppressNextClick)
+            {
+                _suppressNextClick = false;
+                return;
+            }
+
+            TryInteractSlot(container, slotIndex);
+        }
+
+        private bool TryPointerDown(string container, int slotIndex)
+        {
+            if (slotIndex < 0)
+            {
+                return false;
+            }
+
+            var sourceItemId = ResolveSlotItemId(container, slotIndex);
+            if (string.IsNullOrWhiteSpace(sourceItemId))
+            {
+                return false;
+            }
+
+            _dragSourceContainer = NormalizeContainer(container);
+            _dragSourceIndex = slotIndex;
+            _dragSourceItemId = sourceItemId;
+            _dragTargetContainer = null;
+            _dragTargetIndex = -1;
+            ApplyDragVisuals();
+            return true;
+        }
+
+        private bool TryPointerEnter(string container, int slotIndex)
+        {
+            if (_dragSourceIndex < 0 || slotIndex < 0)
+            {
+                return false;
+            }
+
+            _dragTargetContainer = NormalizeContainer(container);
+            _dragTargetIndex = slotIndex;
+            ApplyDragVisuals();
+            return true;
+        }
+
+        private bool TryPointerUp(string container, int slotIndex)
+        {
+            if (_dragSourceIndex < 0 || slotIndex < 0)
+            {
+                return false;
+            }
+
+            _suppressNextClick = true;
+            var targetContainer = NormalizeContainer(container);
+            var targetItemId = ResolveSlotItemId(targetContainer, slotIndex);
+
+            if (_dragSourceContainer == targetContainer && _dragSourceIndex == slotIndex)
+            {
+                ClearDragSource();
+                return true;
+            }
+
+            var key = !string.IsNullOrWhiteSpace(_dragSourceItemId) && _dragSourceItemId == targetItemId
+                ? "inventory.drag.merge"
+                : "inventory.drag.swap";
+            var payload = new TabInventoryDragController.DragIntentPayload(_dragSourceContainer, _dragSourceIndex, targetContainer, slotIndex);
+            IntentRaised?.Invoke(new UiIntent(key, payload));
+            ClearDragSource();
+            return true;
         }
 
         private bool TryInteractSlot(string container, int slotIndex)
@@ -380,6 +569,41 @@ namespace Reloader.UI.Toolkit.TabInventory
             _dragSourceContainer = null;
             _dragSourceIndex = -1;
             _dragSourceItemId = null;
+            _dragTargetContainer = null;
+            _dragTargetIndex = -1;
+            ApplyDragVisuals();
+        }
+
+        private void ApplyDragVisuals()
+        {
+            _panel?.EnableInClassList("is-dragging", _dragSourceIndex >= 0);
+            ApplySlotClass("is-drag-source", _dragSourceContainer, _dragSourceIndex);
+            ApplySlotClass("is-drag-target", _dragTargetContainer, _dragTargetIndex);
+        }
+
+        private void ApplySlotClass(string className, string activeContainer, int activeIndex)
+        {
+            for (var i = 0; i < _beltSlots.Length; i++)
+            {
+                var slot = _beltSlots[i];
+                if (slot == null)
+                {
+                    continue;
+                }
+
+                slot.EnableInClassList(className, activeContainer == "belt" && activeIndex == i);
+            }
+
+            for (var i = 0; i < _backpackSlots.Length; i++)
+            {
+                var slot = _backpackSlots[i];
+                if (slot == null)
+                {
+                    continue;
+                }
+
+                slot.EnableInClassList(className, activeContainer == "backpack" && activeIndex == i);
+            }
         }
     }
 }

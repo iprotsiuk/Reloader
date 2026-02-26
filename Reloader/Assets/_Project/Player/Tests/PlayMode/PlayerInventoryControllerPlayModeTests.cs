@@ -11,6 +11,18 @@ namespace Reloader.Player.Tests.PlayMode
     public class PlayerInventoryControllerPlayModeTests
     {
         [Test]
+        public void Awake_DefaultBackpackCapacity_IsNineSlots()
+        {
+            var root = new GameObject("InventoryControllerRoot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+
+            Assert.That(controller.Runtime, Is.Not.Null);
+            Assert.That(controller.Runtime.BackpackCapacity, Is.EqualTo(9));
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void Tick_BeltKeyPress_UpdatesSelectedSlot()
         {
             var root = new GameObject("InventoryControllerRoot");

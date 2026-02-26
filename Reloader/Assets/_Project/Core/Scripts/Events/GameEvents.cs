@@ -5,6 +5,11 @@ namespace Reloader.Core.Events
 {
     public static class GameEvents
     {
+        public static bool IsShopTradeMenuOpen { get; private set; }
+        public static bool IsWorkbenchMenuVisible { get; private set; }
+        public static bool IsTabInventoryVisible { get; private set; }
+        public static bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible;
+
         public static event Action OnSaveStarted;
         public static event Action OnSaveCompleted;
         public static event Action OnLoadStarted;
@@ -32,6 +37,7 @@ namespace Reloader.Core.Events
         public static event Action<ShopCheckoutRequest> OnShopSellCheckoutRequested;
         public static event Action<string, int, bool, bool, string> OnShopTradeResult;
         public static event Action<bool> OnWorkbenchMenuVisibilityChanged;
+        public static event Action<bool> OnTabInventoryVisibilityChanged;
         public static event Action<int> OnMoneyChanged;
 
         public static void RaiseSaveStarted() => OnSaveStarted?.Invoke();
@@ -53,15 +59,34 @@ namespace Reloader.Core.Events
         public static void RaiseWeaponAimChanged(string itemId, bool isAiming) => OnWeaponAimChanged?.Invoke(itemId, isAiming);
         public static void RaiseProjectileHit(string itemId, Vector3 point, float damage) => OnProjectileHit?.Invoke(itemId, point, damage);
         public static void RaiseShopTradeOpenRequested(string vendorId) => OnShopTradeOpenRequested?.Invoke(vendorId);
-        public static void RaiseShopTradeOpened(string vendorId) => OnShopTradeOpened?.Invoke(vendorId);
-        public static void RaiseShopTradeClosed() => OnShopTradeClosed?.Invoke();
+        public static void RaiseShopTradeOpened(string vendorId)
+        {
+            IsShopTradeMenuOpen = true;
+            OnShopTradeOpened?.Invoke(vendorId);
+        }
+
+        public static void RaiseShopTradeClosed()
+        {
+            IsShopTradeMenuOpen = false;
+            OnShopTradeClosed?.Invoke();
+        }
         public static void RaiseShopBuyRequested(string itemId, int quantity) => OnShopBuyRequested?.Invoke(itemId, quantity);
         public static void RaiseShopSellRequested(string itemId, int quantity) => OnShopSellRequested?.Invoke(itemId, quantity);
         public static void RaiseShopBuyCheckoutRequested(ShopCheckoutRequest request) => OnShopBuyCheckoutRequested?.Invoke(request);
         public static void RaiseShopSellCheckoutRequested(ShopCheckoutRequest request) => OnShopSellCheckoutRequested?.Invoke(request);
         public static void RaiseShopTradeResult(string itemId, int quantity, bool isBuy, bool success, string failureReason)
             => OnShopTradeResult?.Invoke(itemId, quantity, isBuy, success, failureReason);
-        public static void RaiseWorkbenchMenuVisibilityChanged(bool isVisible) => OnWorkbenchMenuVisibilityChanged?.Invoke(isVisible);
+        public static void RaiseWorkbenchMenuVisibilityChanged(bool isVisible)
+        {
+            IsWorkbenchMenuVisible = isVisible;
+            OnWorkbenchMenuVisibilityChanged?.Invoke(isVisible);
+        }
+
+        public static void RaiseTabInventoryVisibilityChanged(bool isVisible)
+        {
+            IsTabInventoryVisible = isVisible;
+            OnTabInventoryVisibilityChanged?.Invoke(isVisible);
+        }
         public static void RaiseMoneyChanged(int amount) => OnMoneyChanged?.Invoke(amount);
     }
 }

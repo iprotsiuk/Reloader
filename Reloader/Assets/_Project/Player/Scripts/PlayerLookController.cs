@@ -1,4 +1,5 @@
 using UnityEngine;
+using Reloader.Core.Events;
 
 namespace Reloader.Player
 {
@@ -61,6 +62,11 @@ namespace Reloader.Player
         {
             ResolveReferences();
             if (_inputSource == null)
+            {
+                return;
+            }
+
+            if (PlayerCursorLockController.IsAnyMenuOpen || GameEvents.IsAnyMenuOpen)
             {
                 return;
             }

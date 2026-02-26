@@ -387,7 +387,11 @@ namespace Reloader.Weapons.Controllers
             var consumed = Mathf.Max(0, availableInInventory - state.ReserveCount);
             if (consumed > 0)
             {
-                _inventoryController.Runtime.TryRemoveStackItem(ammoItemId, consumed);
+                var removed = _inventoryController.Runtime.TryRemoveStackItem(ammoItemId, consumed);
+                if (removed)
+                {
+                    GameEvents.RaiseInventoryChanged();
+                }
             }
 
             state.SetReserveCount(_inventoryController.Runtime.GetItemQuantity(ammoItemId));

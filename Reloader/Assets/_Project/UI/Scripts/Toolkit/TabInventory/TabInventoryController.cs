@@ -66,7 +66,7 @@ namespace Reloader.UI.Toolkit.TabInventory
 
             if (_inputSource.ConsumeMenuTogglePressed())
             {
-                _isOpen = !_isOpen;
+                SetMenuOpen(!_isOpen);
                 if (_isOpen)
                 {
                     _activeSection = "inventory";
@@ -112,6 +112,11 @@ namespace Reloader.UI.Toolkit.TabInventory
         private void OnDisable()
         {
             GameEvents.OnInventoryChanged -= HandleInventoryChanged;
+            if (_isOpen)
+            {
+                SetMenuOpen(false);
+            }
+
             if (_dragController != null)
             {
                 _dragController.IntentRaised -= HandleIntent;
@@ -142,7 +147,9 @@ namespace Reloader.UI.Toolkit.TabInventory
             for (var i = 0; i < PlayerInventoryRuntime.BeltSlotCount; i++)
             {
                 var itemId = runtime.BeltSlotItemIds[i];
-                belt.Add(new TabInventoryUiState.SlotState(i, itemId, !string.IsNullOrWhiteSpace(itemId)));
+                var occupied = !string.IsNullOrWhiteSpace(itemId);
+                var quantity = occupied ? runtime.GetSlotQuantity(InventoryArea.Belt, i) : 0;
+                belt.Add(new TabInventoryUiState.SlotState(i, itemId, occupied, quantity));
             }
 
             var backpackSlots = Mathf.Max(MinimumBackpackUiSlots, runtime.BackpackCapacity);
@@ -150,7 +157,9 @@ namespace Reloader.UI.Toolkit.TabInventory
             for (var i = 0; i < backpackSlots; i++)
             {
                 var itemId = i < runtime.BackpackItemIds.Count ? runtime.BackpackItemIds[i] : null;
-                backpack.Add(new TabInventoryUiState.SlotState(i, itemId, !string.IsNullOrWhiteSpace(itemId)));
+                var occupied = !string.IsNullOrWhiteSpace(itemId);
+                var quantity = occupied ? runtime.GetSlotQuantity(InventoryArea.Backpack, i) : 0;
+                backpack.Add(new TabInventoryUiState.SlotState(i, itemId, occupied, quantity));
             }
 
             _viewBinder.Render(TabInventoryUiState.Create(
@@ -236,6 +245,17 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             return true;
+        }
+
+        private void SetMenuOpen(bool isOpen)
+        {
+            if (_isOpen == isOpen)
+            {
+                return;
+            }
+
+            _isOpen = isOpen;
+            GameEvents.RaiseTabInventoryVisibilityChanged(_isOpen);
         }
     }
 }

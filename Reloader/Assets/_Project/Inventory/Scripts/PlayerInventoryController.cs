@@ -8,9 +8,11 @@ namespace Reloader.Inventory
 {
     public sealed class PlayerInventoryController : MonoBehaviour
     {
+        private const int DefaultBackpackCapacity = 9;
+
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private MonoBehaviour _pickupTargetResolverBehaviour;
-        [SerializeField] private int _startingBackpackCapacity;
+        [SerializeField] private int _startingBackpackCapacity = DefaultBackpackCapacity;
         [Header("Debug (Runtime)")]
         [SerializeField] private int _selectedBeltIndexDebug = -1;
         [SerializeField] private string _selectedBeltItemIdDebug;
@@ -27,7 +29,7 @@ namespace Reloader.Inventory
         private void Awake()
         {
             Runtime = new PlayerInventoryRuntime();
-            Runtime.SetBackpackCapacity(_startingBackpackCapacity);
+            Runtime.SetBackpackCapacity(ResolveStartingBackpackCapacity());
             ResolveReferences();
         }
 
@@ -53,7 +55,7 @@ namespace Reloader.Inventory
             _inputSource = inputSource;
             _pickupTargetResolver = pickupTargetResolver;
             Runtime = runtime ?? new PlayerInventoryRuntime();
-            Runtime.SetBackpackCapacity(_startingBackpackCapacity);
+            Runtime.SetBackpackCapacity(ResolveStartingBackpackCapacity());
         }
 
         public void Tick()
@@ -207,6 +209,11 @@ namespace Reloader.Inventory
 
             _selectedBeltIndexDebug = Runtime.SelectedBeltIndex;
             _selectedBeltItemIdDebug = Runtime.SelectedBeltItemId;
+        }
+
+        private int ResolveStartingBackpackCapacity()
+        {
+            return _startingBackpackCapacity > 0 ? _startingBackpackCapacity : DefaultBackpackCapacity;
         }
 
     }

@@ -73,7 +73,8 @@ namespace Reloader.UI.Toolkit.BeltHud
                 var itemId = runtime.BeltSlotItemIds[i];
                 var occupied = !string.IsNullOrWhiteSpace(itemId);
                 var selected = runtime.SelectedBeltIndex == i;
-                slotStates.Add(new BeltHudUiState.SlotState(i, itemId, occupied, selected));
+                var quantity = occupied ? runtime.GetSlotQuantity(InventoryArea.Belt, i) : 0;
+                slotStates.Add(new BeltHudUiState.SlotState(i, itemId, occupied, selected, quantity));
             }
 
             _viewBinder.Render(BeltHudUiState.Create(slotStates));

@@ -8,18 +8,20 @@ namespace Reloader.UI.Toolkit.BeltHud
     {
         public readonly struct SlotState
         {
-            public SlotState(int index, string itemId, bool isOccupied, bool isSelected)
+            public SlotState(int index, string itemId, bool isOccupied, bool isSelected, int quantity = 1)
             {
                 Index = index;
                 ItemId = itemId;
                 IsOccupied = isOccupied;
                 IsSelected = isSelected;
+                Quantity = quantity;
             }
 
             public int Index { get; }
             public string ItemId { get; }
             public bool IsOccupied { get; }
             public bool IsSelected { get; }
+            public int Quantity { get; }
         }
 
         private readonly SlotState[] _slots;

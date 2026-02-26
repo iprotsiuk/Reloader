@@ -127,6 +127,32 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerLookController_Tick_MenuOpen_DoesNotRotateCamera()
+        {
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Look = new Vector2(12f, -8f);
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            look.LookSensitivity = Vector2.one;
+            look.Tick(1f);
+            var yawAfterFirstTick = root.transform.eulerAngles.y;
+
+            GameEvents.RaiseTabInventoryVisibilityChanged(true);
+            look.Tick(1f);
+            var yawAfterMenuOpenTick = root.transform.eulerAngles.y;
+
+            Assert.That(yawAfterMenuOpenTick, Is.EqualTo(yawAfterFirstTick).Within(0.001f));
+
+            GameEvents.RaiseTabInventoryVisibilityChanged(false);
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void PlayerInputReader_EnableDisable_DoesNotThrowWithoutActionAsset()
         {
             var go = new GameObject("InputReader");
@@ -181,6 +207,36 @@ namespace Reloader.Player.Tests.PlayMode
             }
             finally
             {
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
+        }
+
+        [Test]
+        public void PlayerCursorLockController_MenuVisibility_UnlocksWhileOpen_AndRestoresLockOnClose()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+            try
+            {
+                var go = new GameObject("CursorLock");
+                var controller = go.AddComponent<PlayerCursorLockController>();
+
+                controller.LockCursor();
+                Assert.That(controller.IsCursorLockRequested, Is.True);
+
+                GameEvents.RaiseTabInventoryVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+
+                GameEvents.RaiseTabInventoryVisibilityChanged(false);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+                Assert.That(controller.IsCursorLockRequested, Is.True);
+
+                Object.DestroyImmediate(go);
+            }
+            finally
+            {
+                GameEvents.RaiseTabInventoryVisibilityChanged(false);
                 Cursor.lockState = previousLockState;
                 Cursor.visible = previousVisible;
             }

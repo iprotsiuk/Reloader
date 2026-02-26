@@ -128,6 +128,51 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ReloadCompletion_ConsumesAmmoAndRaisesInventoryChanged()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.SelectBeltSlot(0);
+            runtime.TryAddStackItem("ammo-factory-308-147-fmj", 10, out _, out _, out _);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 0, 0, false);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            var quantityBeforeReload = runtime.GetItemQuantity("ammo-factory-308-147-fmj");
+
+            var inventoryChangedCount = 0;
+            GameEvents.OnInventoryChanged += OnInventoryChanged;
+            void OnInventoryChanged() => inventoryChangedCount++;
+
+            yield return null;
+
+            input.ReloadPressedThisFrame = true;
+            yield return null;
+            yield return new WaitForSeconds(0.36f);
+
+            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var stateAfterReload), Is.True);
+            Assert.That(stateAfterReload.ChamberLoaded, Is.True);
+            Assert.That(stateAfterReload.MagazineCount, Is.GreaterThan(0));
+            Assert.That(runtime.GetItemQuantity("ammo-factory-308-147-fmj"), Is.LessThan(quantityBeforeReload));
+            Assert.That(inventoryChangedCount, Is.EqualTo(1));
+
+            GameEvents.OnInventoryChanged -= OnInventoryChanged;
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
         public IEnumerator MissingCoreDependencies_LogsErrorOnce_AndSkipsTick()
         {
             var root = new GameObject("PlayerRoot");
