@@ -4,7 +4,8 @@
   "references": [
     "Reloader.UI",
     "Reloader.Core",
-    "Reloader.Inventory"
+    "Reloader.Inventory",
+    "Reloader.NPCs"
   ],
   "includePlatforms": [
     "Editor"

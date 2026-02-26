@@ -2,7 +2,8 @@
   "name": "Reloader.NPCs.Tests.EditMode",
   "rootNamespace": "Reloader.NPCs.Tests",
   "references": [
-    "Reloader.NPCs"
+    "Reloader.NPCs",
+    "Reloader.Player"
   ],
   "includePlatforms": [
     "Editor"

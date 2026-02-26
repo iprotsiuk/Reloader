@@ -9,6 +9,7 @@ namespace Reloader.NPCs.Runtime
         [SerializeField] private NpcDefinition _definition;
 
         private readonly List<INpcCapability> _capabilities = new List<INpcCapability>();
+        private readonly List<INpcActionExecutor> _actionExecutors = new List<INpcActionExecutor>();
         private bool _initialized;
 
         public NpcDefinition Definition => _definition;
@@ -48,6 +49,32 @@ namespace Reloader.NPCs.Runtime
             return new NpcActionCollection(actions);
         }
 
+        public bool TryExecuteAction(string actionKey, string payload, out NpcActionExecutionResult result)
+        {
+            InitializeCapabilities();
+
+            if (string.IsNullOrWhiteSpace(actionKey))
+            {
+                result = new NpcActionExecutionResult(string.Empty, false, "npc.action.invalid-key");
+                return false;
+            }
+
+            var context = new NpcActionExecutionContext(actionKey, payload);
+            for (var i = 0; i < _actionExecutors.Count; i++)
+            {
+                var executor = _actionExecutors[i];
+                if (executor == null || !executor.CanExecuteAction(actionKey))
+                {
+                    continue;
+                }
+
+                return executor.TryExecuteAction(in context, out result);
+            }
+
+            result = new NpcActionExecutionResult(actionKey, false, "npc.action.unhandled");
+            return false;
+        }
+
         private void OnDisable()
         {
             if (!_initialized)
@@ -73,6 +100,7 @@ namespace Reloader.NPCs.Runtime
 
             _capabilities.Clear();
             _initialized = false;
+            _actionExecutors.Clear();
         }
 
         private void SynchronizeCapabilities()
@@ -110,6 +138,15 @@ namespace Reloader.NPCs.Runtime
 
                 _capabilities.Add(capability);
                 capability.Initialize(this);
+            }
+
+            _actionExecutors.Clear();
+            for (var i = 0; i < _capabilities.Count; i++)
+            {
+                if (_capabilities[i] is INpcActionExecutor executor)
+                {
+                    _actionExecutors.Add(executor);
+                }
             }
         }
     }
