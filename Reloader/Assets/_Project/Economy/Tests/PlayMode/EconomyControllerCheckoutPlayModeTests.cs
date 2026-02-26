@@ -250,6 +250,45 @@ namespace Reloader.Economy.Tests.PlayMode
             Assert.That(controller.Runtime, Is.Not.Null);
         }
 
+        [UnityTest]
+        public IEnumerator DisabledController_DoesNotProcessShopEvents()
+        {
+            var inventoryGo = new GameObject("InventoryController");
+            var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
+            var input = inventoryGo.AddComponent<TestInputSource>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(4);
+            inventoryController.Configure(input, null, runtime);
+
+            var economyGo = new GameObject("EconomyController");
+            var controller = economyGo.AddComponent<EconomyController>();
+            SetPrivateField(controller, "_inventoryControllerBehaviour", inventoryController);
+            SetPrivateField(controller, "_startingMoney", 500);
+
+            var catalog = ScriptableObject.CreateInstance<ShopCatalogDefinition>();
+            JsonUtility.FromJsonOverwrite(
+                "{\"_items\":[{\"_itemId\":\"ammo-22lr\",\"_displayName\":\"22LR\",\"_category\":\"ammo\",\"_unitPrice\":2,\"_startingStock\":500}]}",
+                catalog);
+            SetVendorBindings(controller, "vendor-1", catalog);
+
+            yield return null;
+            controller.enabled = false;
+
+            GameEvents.RaiseShopTradeOpenRequested("vendor-1");
+            GameEvents.RaiseShopBuyCheckoutRequested(
+                new ShopCheckoutRequest(
+                    new[] { new ShopCheckoutLine("ammo-22lr", 100) },
+                    "delivery-standard",
+                    10));
+
+            Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(0));
+            Assert.That(controller.Runtime.Money, Is.EqualTo(500));
+
+            UnityEngine.Object.DestroyImmediate(catalog);
+            UnityEngine.Object.DestroyImmediate(economyGo);
+            UnityEngine.Object.DestroyImmediate(inventoryGo);
+        }
+
         private static void SetVendorBindings(EconomyController controller, string vendorId, ShopCatalogDefinition catalog)
         {
             var bindingType = typeof(EconomyController).GetNestedType("VendorCatalogBinding", BindingFlags.NonPublic);

@@ -304,7 +304,6 @@ namespace Reloader.Economy
                 this,
                 "EconomyController requires a PlayerInventoryController reference.",
                 _inventoryController);
-            ResolveShopEvents();
         }
 
         private IShopEvents ResolveShopEvents()
