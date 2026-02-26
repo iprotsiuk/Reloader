@@ -1,3 +1,5 @@
+using Reloader.NPCs.Runtime;
+using Reloader.NPCs.Runtime.Capabilities;
 using Reloader.NPCs.World;
 using Reloader.Player;
 using UnityEditor;
@@ -10,8 +12,25 @@ namespace Reloader.NPCs.Editor
     {
         private const string VendorPrefabPath = "Assets/_Project/NPCs/Prefabs/ShopVendor.prefab";
         private const string PlayerInteractorPrefabPath = "Assets/_Project/NPCs/Prefabs/PlayerShopVendorInteractor.prefab";
+        private const string NpcFoundationPrefabPath = "Assets/_Project/NPCs/Prefabs/NpcFoundation.prefab";
+        private const string RolePrefabFolderPath = "Assets/_Project/NPCs/Prefabs/Roles";
         private const string VendorModelPath = "Assets/ThirdParty/Lowpoly Animated Men Pack/Man in Long Sleeves/Male_LongSleeve.fbx";
         private const string DefaultCatalogPath = "Assets/_Project/Economy/Data/ReloadingStore_DefaultCatalog.asset";
+
+        private static readonly RolePrefabConfig[] RolePrefabConfigs =
+        {
+            RolePrefabConfig.NonVendor(NpcRoleKind.Police, "Police"),
+            RolePrefabConfig.NonVendor(NpcRoleKind.GameWarden, "GameWarden"),
+            RolePrefabConfig.Vendor(NpcRoleKind.WeaponVendor, "WeaponVendor", "vendor-weapon-store"),
+            RolePrefabConfig.Vendor(NpcRoleKind.AmmoVendor, "AmmoVendor", "vendor-ammo-store"),
+            RolePrefabConfig.Vendor(NpcRoleKind.ReloadingSuppliesVendor, "ReloadingSuppliesVendor", "vendor-reloading-store"),
+            RolePrefabConfig.NonVendor(NpcRoleKind.FrontDeskClerk, "FrontDeskClerk"),
+            RolePrefabConfig.NonVendor(NpcRoleKind.RangeSafetyOfficer, "RangeSafetyOfficer"),
+            RolePrefabConfig.NonVendor(NpcRoleKind.Competitor, "Competitor"),
+            RolePrefabConfig.NonVendor(NpcRoleKind.CompetitionOrganizer, "CompetitionOrganizer"),
+            RolePrefabConfig.NonVendor(NpcRoleKind.BankWorker, "BankWorker"),
+            RolePrefabConfig.NonVendor(NpcRoleKind.PostWorker, "PostWorker")
+        };
 
         [MenuItem("Reloader/NPCs/Rebuild Vendor Prefabs")]
         public static void RebuildAll()
@@ -19,6 +38,35 @@ namespace Reloader.NPCs.Editor
             BuildShopVendorPrefab();
             BuildPlayerInteractorPrefab();
             Debug.Log("NPC vendor prefabs rebuilt.");
+        }
+
+        [MenuItem("Reloader/NPCs/Foundation/Rebuild Base NPC Foundation Prefab")]
+        public static void RebuildBaseNpcFoundationPrefab()
+        {
+            BuildBaseNpcFoundationPrefab();
+            Debug.Log("Base NPC foundation prefab rebuilt.");
+        }
+
+        [MenuItem("Reloader/NPCs/Foundation/Create Role Prefab Variants")]
+        public static void CreateRolePrefabVariants()
+        {
+            EnsureFolderExists(RolePrefabFolderPath);
+            var basePrefab = EnsureBaseFoundationPrefabAsset();
+
+            for (var i = 0; i < RolePrefabConfigs.Length; i++)
+            {
+                BuildRoleVariantPrefab(basePrefab, RolePrefabConfigs[i]);
+            }
+
+            Debug.Log($"NPC role prefabs rebuilt ({RolePrefabConfigs.Length} variants).");
+        }
+
+        [MenuItem("Reloader/NPCs/Foundation/Rebuild NPC Foundation + Role Variants")]
+        public static void RebuildNpcFoundationAndRoleVariants()
+        {
+            BuildBaseNpcFoundationPrefab();
+            CreateRolePrefabVariants();
+            Debug.Log("NPC foundation and role prefabs rebuilt.");
         }
 
         [MenuItem("Reloader/NPCs/Auto-Wire Vendor Interaction In Active Scene")]
@@ -47,40 +95,179 @@ namespace Reloader.NPCs.Editor
 
         public static void BuildShopVendorPrefab()
         {
-            var root = new GameObject("ShopVendor");
+            var root = BuildNpcFoundationRoot("ShopVendor");
             try
             {
-                var body = new GameObject("Body");
-                body.transform.SetParent(root.transform, false);
-                body.transform.localPosition = Vector3.zero;
-                body.transform.localRotation = Quaternion.identity;
-                body.transform.localScale = Vector3.one;
-
-                var visualModel = TryInstantiateModel(VendorModelPath, body.transform, "VendorModel");
-                if (visualModel == null)
-                {
-                    var fallback = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                    fallback.name = "VendorModel_Fallback";
-                    fallback.transform.SetParent(body.transform, false);
-                    fallback.transform.localPosition = new Vector3(0f, 1f, 0f);
-                    fallback.transform.localScale = new Vector3(0.85f, 1f, 0.85f);
-                }
-
-                var collider = body.AddComponent<CapsuleCollider>();
-                collider.center = new Vector3(0f, 0.9f, 0f);
-                collider.height = 1.8f;
-                collider.radius = 0.35f;
-
-                var target = root.AddComponent<ShopVendorTarget>();
-                var serialized = new SerializedObject(target);
-                serialized.FindProperty("_vendorId").stringValue = "vendor-reloading-store";
-                serialized.ApplyModifiedPropertiesWithoutUndo();
-
+                EnsureVendorComponents(root, "vendor-reloading-store");
                 PrefabUtility.SaveAsPrefabAsset(root, VendorPrefabPath);
             }
             finally
             {
                 Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void BuildBaseNpcFoundationPrefab()
+        {
+            var root = BuildNpcFoundationRoot("NpcFoundation");
+            try
+            {
+                PrefabUtility.SaveAsPrefabAsset(root, NpcFoundationPrefabPath);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        private static GameObject EnsureBaseFoundationPrefabAsset()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(NpcFoundationPrefabPath);
+            if (prefab != null)
+            {
+                return prefab;
+            }
+
+            BuildBaseNpcFoundationPrefab();
+            return AssetDatabase.LoadAssetAtPath<GameObject>(NpcFoundationPrefabPath);
+        }
+
+        private static GameObject BuildNpcFoundationRoot(string rootName)
+        {
+            var root = new GameObject(rootName);
+            root.AddComponent<NpcAgent>();
+
+            var body = new GameObject("Body");
+            body.transform.SetParent(root.transform, false);
+            body.transform.localPosition = Vector3.zero;
+            body.transform.localRotation = Quaternion.identity;
+            body.transform.localScale = Vector3.one;
+
+            var visualModel = TryInstantiateModel(VendorModelPath, body.transform, "NpcModel");
+            if (visualModel == null)
+            {
+                var fallback = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                fallback.name = "NpcModel_Fallback";
+                fallback.transform.SetParent(body.transform, false);
+                fallback.transform.localPosition = new Vector3(0f, 1f, 0f);
+                fallback.transform.localScale = new Vector3(0.85f, 1f, 0.85f);
+            }
+
+            var collider = body.AddComponent<CapsuleCollider>();
+            collider.center = new Vector3(0f, 0.9f, 0f);
+            collider.height = 1.8f;
+            collider.radius = 0.35f;
+
+            return root;
+        }
+
+        private static void BuildRoleVariantPrefab(GameObject basePrefab, RolePrefabConfig config)
+        {
+            if (basePrefab == null)
+            {
+                Debug.LogError($"Cannot build role variant '{config.Role}': missing base prefab at '{NpcFoundationPrefabPath}'.");
+                return;
+            }
+
+            var root = PrefabUtility.InstantiatePrefab(basePrefab) as GameObject;
+            if (root == null)
+            {
+                root = Object.Instantiate(basePrefab);
+            }
+
+            try
+            {
+                root.name = $"Npc_{config.PrefabName}";
+                if (config.IsVendor)
+                {
+                    EnsureVendorComponents(root, config.VendorId);
+                }
+                else
+                {
+                    RemoveVendorComponents(root);
+                }
+
+                var prefabPath = GetRolePrefabPath(config);
+                PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        private static string GetRolePrefabPath(RolePrefabConfig config)
+        {
+            return $"{RolePrefabFolderPath}/Npc_{config.PrefabName}.prefab";
+        }
+
+        private static void EnsureVendorComponents(GameObject root, string vendorId)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            var target = root.GetComponent<ShopVendorTarget>();
+            if (target == null)
+            {
+                target = root.AddComponent<ShopVendorTarget>();
+            }
+
+            var targetSerialized = new SerializedObject(target);
+            var vendorIdProperty = targetSerialized.FindProperty("_vendorId");
+            if (vendorIdProperty != null)
+            {
+                vendorIdProperty.stringValue = vendorId;
+            }
+
+            targetSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+            if (root.GetComponent<VendorTradeCapability>() == null)
+            {
+                root.AddComponent<VendorTradeCapability>();
+            }
+        }
+
+        private static void RemoveVendorComponents(GameObject root)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            var vendorCapability = root.GetComponent<VendorTradeCapability>();
+            if (vendorCapability != null)
+            {
+                Object.DestroyImmediate(vendorCapability);
+            }
+
+            var vendorTarget = root.GetComponent<ShopVendorTarget>();
+            if (vendorTarget != null)
+            {
+                Object.DestroyImmediate(vendorTarget);
+            }
+        }
+
+        private static void EnsureFolderExists(string folderPath)
+        {
+            if (AssetDatabase.IsValidFolder(folderPath))
+            {
+                return;
+            }
+
+            var segments = folderPath.Split('/');
+            var current = segments[0];
+            for (var i = 1; i < segments.Length; i++)
+            {
+                var next = segments[i];
+                var candidate = $"{current}/{next}";
+                if (!AssetDatabase.IsValidFolder(candidate))
+                {
+                    AssetDatabase.CreateFolder(current, next);
+                }
+
+                current = candidate;
             }
         }
 
@@ -254,6 +441,35 @@ namespace Reloader.NPCs.Editor
 
             serialized.ApplyModifiedPropertiesWithoutUndo();
             return changed;
+        }
+
+        private readonly struct RolePrefabConfig
+        {
+            public RolePrefabConfig(NpcRoleKind role, string prefabName, bool isVendor, string vendorId)
+            {
+                Role = role;
+                PrefabName = prefabName;
+                IsVendor = isVendor;
+                VendorId = vendorId;
+            }
+
+            public NpcRoleKind Role { get; }
+
+            public string PrefabName { get; }
+
+            public bool IsVendor { get; }
+
+            public string VendorId { get; }
+
+            public static RolePrefabConfig NonVendor(NpcRoleKind role, string prefabName)
+            {
+                return new RolePrefabConfig(role, prefabName, false, string.Empty);
+            }
+
+            public static RolePrefabConfig Vendor(NpcRoleKind role, string prefabName, string vendorId)
+            {
+                return new RolePrefabConfig(role, prefabName, true, vendorId);
+            }
         }
     }
 }
