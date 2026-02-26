@@ -90,6 +90,7 @@ namespace Reloader.UI.Toolkit.Trade
             }
 
             SubscribeToShopEvents(ResolveShopEvents());
+            ReconcileVisibilityAfterRuntimeHubSwap();
         }
 
         private void Refresh()
@@ -106,6 +107,12 @@ namespace Reloader.UI.Toolkit.Trade
             }
 
             Render(new TradeUiState(_activeTab, false, "$245", true, true));
+        }
+
+        private void ReconcileVisibilityAfterRuntimeHubSwap()
+        {
+            _isOpen = RuntimeKernelBootstrapper.UiStateEvents?.IsShopTradeMenuOpen ?? false;
+            Refresh();
         }
 
         private static bool TryResolveCheckoutRequest(object payload, out ShopCheckoutRequest request)

@@ -275,6 +275,40 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void TradeController_WithoutInjectedEvents_WhenOpen_ReconcilesVisibilityImmediatelyAfterRuntimeKernelHubReconfigure()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var go = new GameObject("TradeControllerRuntimeHubReconfigureVisibility");
+            var root = BuildTradeRoot();
+            root.style.display = DisplayStyle.None;
+
+            var binder = new TradeViewBinder();
+            binder.Initialize(root);
+
+            var controller = go.AddComponent<TradeController>();
+            controller.SetViewBinder(binder);
+
+            try
+            {
+                initialHub.RaiseShopTradeOpened("vendor-1");
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+
+                RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void TabInventoryController_Tick_MenuToggleInput_TogglesPanelVisibility()
         {
             var go = new GameObject("TabInventoryController");
@@ -737,6 +771,38 @@ namespace Reloader.UI.Tests.PlayMode
             finally
             {
                 replacementHub.RaiseWorkbenchMenuVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void ReloadingWorkbenchController_WithoutInjectedEvents_WhenVisible_ReconcilesVisibilityImmediatelyAfterRuntimeKernelHubReconfigure()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var initialHub = new DefaultRuntimeEvents();
+            var replacementHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), initialHub);
+
+            var go = new GameObject("ReloadingWorkbenchRuntimeHubReconfigureVisibility");
+            var root = new VisualElement { name = "reloading__root" };
+            var binder = new ReloadingWorkbenchViewBinder();
+            binder.Initialize(root, operationCount: 3);
+
+            var controller = go.AddComponent<ReloadingWorkbenchController>();
+            controller.SetViewBinder(binder);
+
+            try
+            {
+                initialHub.RaiseWorkbenchMenuVisibilityChanged(true);
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+
+                RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
+            }
+            finally
+            {
                 RuntimeKernelBootstrapper.Events = originalHub;
                 UnityEngine.Object.DestroyImmediate(go);
             }

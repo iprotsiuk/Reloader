@@ -100,6 +100,7 @@ namespace Reloader.UI.Toolkit.Reloading
             }
 
             SubscribeToUiStateEvents(ResolveUiStateEvents());
+            ReconcileVisibilityAfterRuntimeHubSwap();
         }
 
         private IUiStateEvents ResolveUiStateEvents()
@@ -123,6 +124,12 @@ namespace Reloader.UI.Toolkit.Reloading
             }
 
             return _uiStateEvents;
+        }
+
+        private void ReconcileVisibilityAfterRuntimeHubSwap()
+        {
+            _isVisible = _uiStateEvents?.IsWorkbenchMenuVisible ?? false;
+            Refresh();
         }
 
         private void SubscribeToUiStateEvents(IUiStateEvents uiStateEvents)
