@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.Weapons.Ballistics;
@@ -16,6 +17,130 @@ namespace Reloader.Weapons.Tests.PlayMode
 {
     public class PlayerWeaponControllerPlayModeTests
     {
+        [UnityTest]
+        public IEnumerator Configure_InjectedWeaponAndInventoryEvents_RaisesThroughInjectedPortsOnly()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var fallbackRuntimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = fallbackRuntimeEvents;
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.SelectBeltSlot(0);
+            runtime.TryAddStackItem("ammo-factory-308-147-fmj", 10, out _, out _, out _);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 0, 10, false);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var injectedEvents = new DefaultRuntimeEvents();
+            var injectedEquipRaised = 0;
+            var injectedFireRaised = 0;
+            var injectedReloadRaised = 0;
+            var injectedInventoryChangedRaised = 0;
+            injectedEvents.OnWeaponEquipped += _ => injectedEquipRaised++;
+            injectedEvents.OnWeaponFired += (_, _, _) => injectedFireRaised++;
+            injectedEvents.OnWeaponReloaded += (_, _, _) => injectedReloadRaised++;
+            injectedEvents.OnInventoryChanged += () => injectedInventoryChangedRaised++;
+
+            var staticEquipRaised = 0;
+            var staticFireRaised = 0;
+            var staticReloadRaised = 0;
+            var staticInventoryChangedRaised = 0;
+            GameEvents.OnWeaponEquipped += HandleStaticWeaponEquipped;
+            GameEvents.OnWeaponFired += HandleStaticWeaponFired;
+            GameEvents.OnWeaponReloaded += HandleStaticWeaponReloaded;
+            GameEvents.OnInventoryChanged += HandleStaticInventoryChanged;
+
+            void HandleStaticWeaponEquipped(string _) => staticEquipRaised++;
+            void HandleStaticWeaponFired(string _, Vector3 __, Vector3 ___) => staticFireRaised++;
+            void HandleStaticWeaponReloaded(string _, int __, int ___) => staticReloadRaised++;
+            void HandleStaticInventoryChanged() => staticInventoryChangedRaised++;
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            controller.Configure(weaponEvents: injectedEvents, inventoryEvents: injectedEvents);
+            yield return null;
+
+            input.FirePressedThisFrame = true;
+            yield return null;
+            input.ReloadPressedThisFrame = true;
+            yield return null;
+            yield return new WaitForSeconds(0.36f);
+
+            Assert.That(injectedEquipRaised, Is.GreaterThan(0));
+            Assert.That(injectedFireRaised, Is.EqualTo(1));
+            Assert.That(injectedReloadRaised, Is.EqualTo(1));
+            Assert.That(injectedInventoryChangedRaised, Is.EqualTo(1));
+
+            Assert.That(staticEquipRaised, Is.EqualTo(0));
+            Assert.That(staticFireRaised, Is.EqualTo(0));
+            Assert.That(staticReloadRaised, Is.EqualTo(0));
+            Assert.That(staticInventoryChangedRaised, Is.EqualTo(0));
+
+            GameEvents.OnWeaponEquipped -= HandleStaticWeaponEquipped;
+            GameEvents.OnWeaponFired -= HandleStaticWeaponFired;
+            GameEvents.OnWeaponReloaded -= HandleStaticWeaponReloaded;
+            GameEvents.OnInventoryChanged -= HandleStaticInventoryChanged;
+            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
+        public IEnumerator Configure_WithoutInjectedPorts_UsesCurrentRuntimeHubAfterSwap()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var initialRuntimeEvents = new DefaultRuntimeEvents();
+            var replacementRuntimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = initialRuntimeEvents;
+
+            var initialFiredRaised = 0;
+            var replacementFiredRaised = 0;
+            initialRuntimeEvents.OnWeaponFired += (_, _, _) => initialFiredRaised++;
+            replacementRuntimeEvents.OnWeaponFired += (_, _, _) => replacementFiredRaised++;
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            controller.Configure();
+            yield return null;
+
+            RuntimeKernelBootstrapper.Events = replacementRuntimeEvents;
+            input.FirePressedThisFrame = true;
+            yield return null;
+
+            Assert.That(initialFiredRaised, Is.EqualTo(0));
+            Assert.That(replacementFiredRaised, Is.EqualTo(1));
+
+            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
         [UnityTest]
         public IEnumerator ScopedAiming_WithSmallScrollDelta_AppliesNoticeableZoomChange()
         {

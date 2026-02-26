@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Reloader.Core;
 using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.Weapons.Ballistics;
@@ -64,6 +65,10 @@ namespace Reloader.Weapons.Controllers
         private readonly Dictionary<string, WeaponRuntimeState> _statesByItemId = new Dictionary<string, WeaponRuntimeState>();
         private readonly Dictionary<string, WeaponScopeRuntimeState> _scopeStatesByItemId = new Dictionary<string, WeaponScopeRuntimeState>();
         private readonly Dictionary<string, float> _reloadCompleteTimeByItemId = new Dictionary<string, float>();
+        private IWeaponEvents _weaponEvents;
+        private IInventoryEvents _inventoryEvents;
+        private bool _useRuntimeKernelWeaponEvents = true;
+        private bool _useRuntimeKernelInventoryEvents = true;
         private string _equippedItemId;
         private WeaponDefinition _equippedDefinition;
         private bool _isAiming;
@@ -191,6 +196,14 @@ namespace Reloader.Weapons.Controllers
             return true;
         }
 
+        public void Configure(IWeaponEvents weaponEvents = null, IInventoryEvents inventoryEvents = null)
+        {
+            _useRuntimeKernelWeaponEvents = weaponEvents == null;
+            _weaponEvents = weaponEvents;
+            _useRuntimeKernelInventoryEvents = inventoryEvents == null;
+            _inventoryEvents = inventoryEvents;
+        }
+
         private void ResolveReferences()
         {
             _inputSource ??= _inputSourceBehaviour as IPlayerInputSource;
@@ -254,12 +267,12 @@ namespace Reloader.Weapons.Controllers
             var previousItemId = _equippedItemId;
             if (!string.IsNullOrWhiteSpace(previousItemId))
             {
-                GameEvents.RaiseWeaponUnequipStarted(previousItemId);
+                ResolveWeaponEvents()?.RaiseWeaponUnequipStarted(previousItemId);
                 CancelReload(previousItemId, WeaponReloadCancelReason.Unequip);
                 if (_isAiming)
                 {
                     _isAiming = false;
-                    GameEvents.RaiseWeaponAimChanged(previousItemId, false);
+                    ResolveWeaponEvents()?.RaiseWeaponAimChanged(previousItemId, false);
                 }
             }
 
@@ -270,7 +283,7 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
-            GameEvents.RaiseWeaponEquipStarted(_equippedItemId);
+            ResolveWeaponEvents()?.RaiseWeaponEquipStarted(_equippedItemId);
             var state = GetOrCreateState(_equippedItemId, _equippedDefinition, seedFromDefinition: true);
             if (state == null)
             {
@@ -278,7 +291,7 @@ namespace Reloader.Weapons.Controllers
             }
 
             state.IsEquipped = true;
-            GameEvents.RaiseWeaponEquipped(_equippedItemId);
+            ResolveWeaponEvents()?.RaiseWeaponEquipped(_equippedItemId);
         }
 
         private void TickFire()
@@ -316,7 +329,7 @@ namespace Reloader.Weapons.Controllers
                 ballisticSpec.BallisticCoefficientG1,
                 transform);
 
-            GameEvents.RaiseWeaponFired(_equippedItemId, _muzzleTransform.position, firedDirection);
+            ResolveWeaponEvents()?.RaiseWeaponFired(_equippedItemId, _muzzleTransform.position, firedDirection);
         }
 
         private WeaponProjectile SpawnProjectile()
@@ -374,7 +387,7 @@ namespace Reloader.Weapons.Controllers
 
             state.IsReloading = true;
             _reloadCompleteTimeByItemId[_equippedItemId] = Time.time + Mathf.Max(0.01f, _reloadDurationSeconds);
-            GameEvents.RaiseWeaponReloadStarted(_equippedItemId);
+            ResolveWeaponEvents()?.RaiseWeaponReloadStarted(_equippedItemId);
         }
 
         private void TickReloadCancellation()
@@ -421,12 +434,12 @@ namespace Reloader.Weapons.Controllers
                 var removed = _inventoryController.Runtime.TryRemoveStackItem(ammoItemId, consumed);
                 if (removed)
                 {
-                    GameEvents.RaiseInventoryChanged();
+                    ResolveInventoryEvents()?.RaiseInventoryChanged();
                 }
             }
 
             state.SetReserveCount(_inventoryController.Runtime.GetItemQuantity(ammoItemId));
-            GameEvents.RaiseWeaponReloaded(_equippedItemId, state.MagazineCount, state.ReserveCount);
+            ResolveWeaponEvents()?.RaiseWeaponReloaded(_equippedItemId, state.MagazineCount, state.ReserveCount);
         }
 
         private void TickAimState()
@@ -443,7 +456,7 @@ namespace Reloader.Weapons.Controllers
             }
 
             _isAiming = isAimingNow;
-            GameEvents.RaiseWeaponAimChanged(_equippedItemId, _isAiming);
+            ResolveWeaponEvents()?.RaiseWeaponAimChanged(_equippedItemId, _isAiming);
         }
 
         private void TickScopeInput()
@@ -504,7 +517,17 @@ namespace Reloader.Weapons.Controllers
 
             state.IsReloading = false;
             _reloadCompleteTimeByItemId.Remove(itemId);
-            GameEvents.RaiseWeaponReloadCancelled(itemId, reason);
+            ResolveWeaponEvents()?.RaiseWeaponReloadCancelled(itemId, reason);
+        }
+
+        private IWeaponEvents ResolveWeaponEvents()
+        {
+            return _useRuntimeKernelWeaponEvents ? RuntimeKernelBootstrapper.WeaponEvents : _weaponEvents;
+        }
+
+        private IInventoryEvents ResolveInventoryEvents()
+        {
+            return _useRuntimeKernelInventoryEvents ? RuntimeKernelBootstrapper.InventoryEvents : _inventoryEvents;
         }
 
         private bool TryGetEquippedState(out WeaponRuntimeState state)

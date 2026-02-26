@@ -1,4 +1,5 @@
 using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using UnityEngine;
 
 namespace Reloader.Weapons.Ballistics
@@ -21,6 +22,8 @@ namespace Reloader.Weapons.Ballistics
         private Vector3 _velocity;
         private float _remainingLifetime;
         private string _itemId;
+        private IWeaponEvents _weaponEvents;
+        private bool _useRuntimeKernelWeaponEvents = true;
         private Collider[] _ignoredColliders = System.Array.Empty<Collider>();
         private Material _runtimeVisualMaterial;
         public float InitialSpeedMetersPerSecond { get; private set; }
@@ -70,7 +73,7 @@ namespace Reloader.Weapons.Ballistics
                 var damageable = hit.collider.GetComponentInParent<IDamageable>();
                 damageable?.ApplyDamage(payload);
                 SpawnImpactVfx(hit.point, hit.normal);
-                GameEvents.RaiseProjectileHit(_itemId, hit.point, _damage);
+                ResolveWeaponEvents()?.RaiseProjectileHit(_itemId, hit.point, _damage);
                 Destroy(gameObject);
                 return;
             }
@@ -100,6 +103,17 @@ namespace Reloader.Weapons.Ballistics
             {
                 transform.forward = _velocity.normalized;
             }
+        }
+
+        public void Configure(IWeaponEvents weaponEvents = null)
+        {
+            _useRuntimeKernelWeaponEvents = weaponEvents == null;
+            _weaponEvents = weaponEvents;
+        }
+
+        private IWeaponEvents ResolveWeaponEvents()
+        {
+            return _useRuntimeKernelWeaponEvents ? RuntimeKernelBootstrapper.WeaponEvents : _weaponEvents;
         }
 
         private void ApplyDrag(float dt)
