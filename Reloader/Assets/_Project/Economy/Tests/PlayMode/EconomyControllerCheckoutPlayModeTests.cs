@@ -231,6 +231,9 @@ namespace Reloader.Economy.Tests.PlayMode
             public bool ConsumePickupPressed() => false;
             public int ConsumeBeltSelectPressed() => -1;
             public bool ConsumeMenuTogglePressed() => false;
+            public bool ConsumeAimTogglePressed() => false;
+            public float ConsumeZoomInput() => 0f;
+            public int ConsumeZeroAdjustStep() => 0;
             public bool ConsumeFirePressed() => false;
             public bool ConsumeReloadPressed() => false;
         }

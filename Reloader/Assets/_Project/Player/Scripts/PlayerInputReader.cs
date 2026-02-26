@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
 
 namespace Reloader.Player
 {
@@ -28,6 +29,7 @@ namespace Reloader.Player
         public bool SprintHeld { get; private set; }
         public bool AimHeld { get; private set; }
         public bool JumpQueued { get; private set; }
+        public bool AimToggleQueued { get; private set; }
         public bool FireQueued { get; private set; }
         public bool ReloadQueued { get; private set; }
         public bool PickupQueued { get; private set; }
@@ -45,6 +47,8 @@ namespace Reloader.Player
         private InputAction _menuToggleAction;
         private readonly InputAction[] _beltSlotActions = new InputAction[5];
         private int _beltSlotQueued = -1;
+        private float _zoomQueued;
+        private int _zeroAdjustQueued;
         private bool _missingAssetWarningLogged;
 
         private void Awake()
@@ -66,11 +70,14 @@ namespace Reloader.Player
             SprintHeld = false;
             AimHeld = false;
             JumpQueued = false;
+            AimToggleQueued = false;
             FireQueued = false;
             ReloadQueued = false;
             PickupQueued = false;
             MenuToggleQueued = false;
             _beltSlotQueued = -1;
+            _zoomQueued = 0f;
+            _zeroAdjustQueued = 0;
         }
 
         private void Update()
@@ -86,7 +93,12 @@ namespace Reloader.Player
             }
 
             SprintHeld = _sprintAction != null && _sprintAction.IsPressed();
-            AimHeld = _aimAction != null && _aimAction.IsPressed();
+
+            if (_aimAction != null && _aimAction.WasPressedThisFrame())
+            {
+                AimHeld = !AimHeld;
+                AimToggleQueued = true;
+            }
 
             if (_jumpAction != null && _jumpAction.WasPressedThisFrame())
             {
@@ -117,6 +129,55 @@ namespace Reloader.Player
                 MenuToggleQueued = true;
             }
 
+            var scrollY = 0f;
+            var pointer = Pointer.current;
+            if (pointer != null)
+            {
+                var pointerScrollControl = pointer.TryGetChildControl<Vector2Control>("scroll");
+                if (pointerScrollControl != null)
+                {
+                    var pointerScrollY = pointerScrollControl.ReadValue().y;
+                    if (Mathf.Abs(pointerScrollY) > 0.0001f)
+                    {
+                        scrollY += pointerScrollY;
+                    }
+                }
+            }
+
+            var mouse = Mouse.current;
+            if (mouse != null && !ReferenceEquals(mouse, pointer))
+            {
+                var mouseScrollY = mouse.scroll.ReadValue().y;
+                if (Mathf.Abs(mouseScrollY) > 0.0001f)
+                {
+                    scrollY += mouseScrollY;
+                }
+            }
+
+            if (Mathf.Abs(scrollY) > 0.0001f)
+            {
+                _zoomQueued += scrollY;
+            }
+
+            var plusPressed = false;
+            var minusPressed = false;
+            var keyboard = Keyboard.current;
+            if (keyboard != null)
+            {
+                plusPressed = keyboard.equalsKey.wasPressedThisFrame || keyboard.numpadPlusKey.wasPressedThisFrame;
+                minusPressed = keyboard.minusKey.wasPressedThisFrame || keyboard.numpadMinusKey.wasPressedThisFrame;
+            }
+
+            if (plusPressed)
+            {
+                _zeroAdjustQueued += 1;
+            }
+
+            if (minusPressed)
+            {
+                _zeroAdjustQueued -= 1;
+            }
+
             for (var i = 0; i < _beltSlotActions.Length; i++)
             {
                 if (_beltSlotActions[i] != null && _beltSlotActions[i].WasPressedThisFrame())
@@ -134,6 +195,17 @@ namespace Reloader.Player
             }
 
             JumpQueued = false;
+            return true;
+        }
+
+        public bool ConsumeAimTogglePressed()
+        {
+            if (!AimToggleQueued)
+            {
+                return false;
+            }
+
+            AimToggleQueued = false;
             return true;
         }
 
@@ -168,6 +240,30 @@ namespace Reloader.Player
 
             ReloadQueued = false;
             return true;
+        }
+
+        public float ConsumeZoomInput()
+        {
+            if (Mathf.Approximately(_zoomQueued, 0f))
+            {
+                return 0f;
+            }
+
+            var queued = _zoomQueued;
+            _zoomQueued = 0f;
+            return queued;
+        }
+
+        public int ConsumeZeroAdjustStep()
+        {
+            if (_zeroAdjustQueued == 0)
+            {
+                return 0;
+            }
+
+            var queued = _zeroAdjustQueued;
+            _zeroAdjustQueued = 0;
+            return queued;
         }
 
         public int ConsumeBeltSelectPressed()

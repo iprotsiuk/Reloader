@@ -9,9 +9,12 @@ namespace Reloader.Player
         bool SprintHeld { get; }
         bool AimHeld { get; }
         bool ConsumeJumpPressed();
+        bool ConsumeAimTogglePressed();
         bool ConsumeFirePressed();
         bool ConsumeReloadPressed();
         bool ConsumePickupPressed();
+        float ConsumeZoomInput();
+        int ConsumeZeroAdjustStep();
         int ConsumeBeltSelectPressed();
         bool ConsumeMenuTogglePressed();
     }

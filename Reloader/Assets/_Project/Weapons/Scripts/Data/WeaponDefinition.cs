@@ -2,6 +2,59 @@ using UnityEngine;
 
 namespace Reloader.Weapons.Data
 {
+    [System.Serializable]
+    public struct WeaponScopeConfiguration
+    {
+        [SerializeField] private bool _isScopedWeapon;
+        [SerializeField] private float _minZoom;
+        [SerializeField] private float _maxZoom;
+        [SerializeField] private float _defaultZoom;
+        [SerializeField] private string _reticleId;
+        [SerializeField] private int _defaultZeroMeters;
+        [SerializeField] private int _zeroStepMeters;
+
+        public bool IsScopedWeapon => _isScopedWeapon;
+        public float MinZoom => Mathf.Max(1f, _minZoom);
+        public float MaxZoom => Mathf.Max(MinZoom, _maxZoom);
+        public float DefaultZoom => Mathf.Clamp(_defaultZoom, MinZoom, MaxZoom);
+        public string ReticleId => string.IsNullOrWhiteSpace(_reticleId) ? string.Empty : _reticleId;
+        public int DefaultZeroMeters => Mathf.Max(0, _defaultZeroMeters);
+        public int ZeroStepMeters => Mathf.Max(1, _zeroStepMeters);
+
+        public float ClampZoom(float zoom)
+        {
+            return Mathf.Clamp(zoom, MinZoom, MaxZoom);
+        }
+
+        public int ClampZeroMeters(int zeroMeters)
+        {
+            return Mathf.Clamp(zeroMeters, 0, 3000);
+        }
+
+        public static WeaponScopeConfiguration Create(
+            bool isScopedWeapon,
+            float minZoom,
+            float maxZoom,
+            float defaultZoom,
+            string reticleId,
+            int defaultZeroMeters,
+            int zeroStepMeters)
+        {
+            var config = new WeaponScopeConfiguration
+            {
+                _isScopedWeapon = isScopedWeapon,
+                _minZoom = minZoom,
+                _maxZoom = maxZoom,
+                _defaultZoom = defaultZoom,
+                _reticleId = reticleId,
+                _defaultZeroMeters = defaultZeroMeters,
+                _zeroStepMeters = zeroStepMeters
+            };
+
+            return config;
+        }
+    }
+
     [CreateAssetMenu(fileName = "WeaponDefinition", menuName = "Reloader/Weapons/Weapon Definition")]
     public sealed class WeaponDefinition : ScriptableObject
     {
@@ -18,6 +71,7 @@ namespace Reloader.Weapons.Data
         [SerializeField] private int _startingMagazineCount = 4;
         [SerializeField] private int _startingReserveCount = 24;
         [SerializeField] private bool _startingChamberLoaded = true;
+        [SerializeField] private WeaponScopeConfiguration _scopeConfiguration;
 
         public string ItemId => _itemId;
         public string DisplayName => _displayName;
@@ -32,6 +86,7 @@ namespace Reloader.Weapons.Data
         public int StartingMagazineCount => Mathf.Clamp(_startingMagazineCount, 0, MagazineCapacity);
         public int StartingReserveCount => Mathf.Max(0, _startingReserveCount);
         public bool StartingChamberLoaded => _startingChamberLoaded;
+        public WeaponScopeConfiguration ScopeConfiguration => _scopeConfiguration;
 
         public void SetRuntimeValuesForTests(
             string itemId,
@@ -45,7 +100,8 @@ namespace Reloader.Weapons.Data
             int startingMagazineCount = 4,
             int startingReserveCount = 24,
             bool startingChamberLoaded = true,
-            float adsSpeedMultiplier = 0.7f)
+            float adsSpeedMultiplier = 0.7f,
+            WeaponScopeConfiguration? scopeConfiguration = null)
         {
             _itemId = itemId;
             _displayName = displayName;
@@ -60,6 +116,7 @@ namespace Reloader.Weapons.Data
             _startingMagazineCount = startingMagazineCount;
             _startingReserveCount = startingReserveCount;
             _startingChamberLoaded = startingChamberLoaded;
+            _scopeConfiguration = scopeConfiguration ?? default;
         }
     }
 }

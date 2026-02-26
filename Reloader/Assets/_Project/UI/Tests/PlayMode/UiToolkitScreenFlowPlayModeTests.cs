@@ -400,6 +400,9 @@ namespace Reloader.UI.Tests.PlayMode
             public bool ConsumeReloadPressed() => false;
             public bool ConsumePickupPressed() => false;
             public int ConsumeBeltSelectPressed() => -1;
+            public bool ConsumeAimTogglePressed() => false;
+            public float ConsumeZoomInput() => 0f;
+            public int ConsumeZeroAdjustStep() => 0;
 
             public bool ConsumeMenuTogglePressed()
             {

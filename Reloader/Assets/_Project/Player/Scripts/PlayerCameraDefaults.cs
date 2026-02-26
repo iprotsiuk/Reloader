@@ -33,7 +33,7 @@ namespace Reloader.Player
 
             if (_brain != null)
             {
-                _brain.UpdateMethod = CinemachineBrain.UpdateMethods.SmartUpdate;
+                _brain.UpdateMethod = CinemachineBrain.UpdateMethods.LateUpdate;
                 _brain.BlendUpdateMethod = CinemachineBrain.BrainUpdateMethods.LateUpdate;
             }
 
@@ -51,6 +51,43 @@ namespace Reloader.Player
                 cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
                 cameraData.antialiasingQuality = AntialiasingQuality.High;
             }
+        }
+
+        public bool TryGetEffectiveFieldOfView(out float fieldOfView)
+        {
+            if (_cinemachineCamera != null)
+            {
+                fieldOfView = _cinemachineCamera.Lens.FieldOfView;
+                return true;
+            }
+
+            if (_mainCamera != null)
+            {
+                fieldOfView = _mainCamera.fieldOfView;
+                return true;
+            }
+
+            fieldOfView = default;
+            return false;
+        }
+
+        public bool TrySetEffectiveFieldOfView(float fieldOfView)
+        {
+            if (_cinemachineCamera != null)
+            {
+                var lens = _cinemachineCamera.Lens;
+                lens.FieldOfView = fieldOfView;
+                _cinemachineCamera.Lens = lens;
+                return true;
+            }
+
+            if (_mainCamera != null)
+            {
+                _mainCamera.fieldOfView = fieldOfView;
+                return true;
+            }
+
+            return false;
         }
 
         private static void EnsurePipelineComponents(CinemachineCamera cinemachineCamera)

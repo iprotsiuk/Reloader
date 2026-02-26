@@ -1,4 +1,6 @@
 using System.Collections;
+using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Events;
 using Reloader.Inventory;
@@ -14,6 +16,54 @@ namespace Reloader.Weapons.Tests.PlayMode
 {
     public class PlayerWeaponControllerPlayModeTests
     {
+        [UnityTest]
+        public IEnumerator ScopedAiming_WithSmallScrollDelta_AppliesNoticeableZoomChange()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests(
+                "weapon-rifle-01",
+                "Scoped Rifle",
+                5,
+                0.1f,
+                80f,
+                0f,
+                20f,
+                120f,
+                1,
+                10,
+                true,
+                0.7f,
+                WeaponScopeConfiguration.Create(true, 4f, 20f, 8f, "ebr-7c", 100, 25));
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            yield return null;
+
+            input.AimHeldValue = true;
+            input.ZoomQueued = 0.05f;
+            yield return null;
+
+            var scopeState = GetScopeState(controller, "weapon-rifle-01");
+            Assert.That(scopeState, Is.Not.Null);
+            Assert.That(scopeState.CurrentZoom, Is.GreaterThanOrEqualTo(8.1f));
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
         [UnityTest]
         public IEnumerator BeltSelectedWeapon_EquipsAndFiresAndReloads()
         {
@@ -269,6 +319,61 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Fire_RaisesWeaponFiredWithActualDispersedDirection()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 10f, 0f, 20f, 120f, 1, 0, true);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            yield return null;
+
+            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var state), Is.True);
+            var chamberRound = new AmmoBallisticSnapshot(AmmoSourceType.Factory, 3000f, 0f, 168f, 0.46f, 12f);
+            state.SetAmmoLoadoutForTests(chamberRound, System.Array.Empty<AmmoBallisticSnapshot>());
+
+            var firedDirection = Vector3.zero;
+            var firedDirectionCaptured = false;
+            GameEvents.OnWeaponFired += HandleWeaponFired;
+            void HandleWeaponFired(string _, Vector3 __, Vector3 direction)
+            {
+                firedDirection = direction;
+                firedDirectionCaptured = true;
+            }
+
+            Random.InitState(1337);
+            input.FirePressedThisFrame = true;
+            yield return null;
+
+            var projectile = Object.FindFirstObjectByType<WeaponProjectile>();
+            Assert.That(projectile, Is.Not.Null);
+            Assert.That(firedDirectionCaptured, Is.True);
+            Assert.That(Vector3.Dot(firedDirection.normalized, projectile.transform.forward), Is.GreaterThan(0.9999f));
+
+            GameEvents.OnWeaponFired -= HandleWeaponFired;
+            if (projectile != null)
+            {
+                Object.Destroy(projectile.gameObject);
+            }
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
         public IEnumerator ReloadStart_ThenSprint_CancelsReload()
         {
             var root = new GameObject("PlayerRoot");
@@ -422,6 +527,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             public bool ReloadPressedThisFrame;
             public bool SprintHeldValue;
             public bool AimHeldValue;
+            public float ZoomQueued;
+            public int ZeroAdjustQueued;
 
             public Vector2 MoveInput => Vector2.zero;
             public Vector2 LookInput => Vector2.zero;
@@ -431,6 +538,30 @@ namespace Reloader.Weapons.Tests.PlayMode
             public bool ConsumePickupPressed() => false;
             public int ConsumeBeltSelectPressed() => -1;
             public bool ConsumeMenuTogglePressed() => false;
+            public bool ConsumeAimTogglePressed() => false;
+            public float ConsumeZoomInput()
+            {
+                if (Mathf.Approximately(ZoomQueued, 0f))
+                {
+                    return 0f;
+                }
+
+                var queued = ZoomQueued;
+                ZoomQueued = 0f;
+                return queued;
+            }
+
+            public int ConsumeZeroAdjustStep()
+            {
+                if (ZeroAdjustQueued == 0)
+                {
+                    return 0;
+                }
+
+                var queued = ZeroAdjustQueued;
+                ZeroAdjustQueued = 0;
+                return queued;
+            }
 
             public bool ConsumeFirePressed()
             {
@@ -462,6 +593,19 @@ namespace Reloader.Weapons.Tests.PlayMode
                 target = null;
                 return false;
             }
+        }
+
+        private static WeaponScopeRuntimeState GetScopeState(PlayerWeaponController controller, string itemId)
+        {
+            var field = typeof(PlayerWeaponController).GetField("_scopeStatesByItemId", BindingFlags.Instance | BindingFlags.NonPublic);
+            var statesByItemId = field?.GetValue(controller) as Dictionary<string, WeaponScopeRuntimeState>;
+            if (statesByItemId == null)
+            {
+                return null;
+            }
+
+            statesByItemId.TryGetValue(itemId, out var state);
+            return state;
         }
     }
 }

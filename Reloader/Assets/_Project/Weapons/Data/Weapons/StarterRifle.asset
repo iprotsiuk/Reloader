@@ -21,6 +21,15 @@ MonoBehaviour:
   _projectileGravityMultiplier: 1
   _baseDamage: 35
   _maxRangeMeters: 220
+  _adsSpeedMultiplier: 0.7
   _startingMagazineCount: 0
   _startingReserveCount: 0
   _startingChamberLoaded: 0
+  _scopeConfiguration:
+    _isScopedWeapon: 1
+    _minZoom: 5
+    _maxZoom: 25
+    _defaultZoom: 5
+    _reticleId: ebr-7c
+    _defaultZeroMeters: 100
+    _zeroStepMeters: 25

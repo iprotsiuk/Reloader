@@ -207,6 +207,10 @@ namespace Reloader.Player.Tests.PlayMode
                 return false;
             }
 
+            public bool ConsumeAimTogglePressed() => false;
+            public float ConsumeZoomInput() => 0f;
+            public int ConsumeZeroAdjustStep() => 0;
+
             public bool ConsumeFirePressed()
             {
                 if (!FirePressedThisFrame)
