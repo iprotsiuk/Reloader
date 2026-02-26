@@ -38,7 +38,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 0, 10, false);
+            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
             registry.SetDefinitionsForTests(new[] { definition });
 
             var injectedEvents = new DefaultRuntimeEvents();
@@ -93,6 +93,77 @@ namespace Reloader.Weapons.Tests.PlayMode
             Object.Destroy(root);
             Object.Destroy(registryGo);
             Object.Destroy(definition);
+        }
+
+        [UnityTest]
+        public IEnumerator Configure_InjectedWeaponEvents_PropagatesInjectedChannelToSpawnedProjectile()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var fallbackRuntimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = fallbackRuntimeEvents;
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+
+                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var injectedEvents = new DefaultRuntimeEvents();
+
+                root.AddComponent<PlayerWeaponController>().Configure(weaponEvents: injectedEvents, inventoryEvents: injectedEvents);
+
+                yield return null;
+
+                input.FirePressedThisFrame = true;
+                yield return null;
+
+                var projectile = Object.FindFirstObjectByType<WeaponProjectile>();
+                Assert.That(projectile, Is.Not.Null);
+
+                var useRuntimeField = typeof(WeaponProjectile).GetField("_useRuntimeKernelWeaponEvents", BindingFlags.Instance | BindingFlags.NonPublic);
+                var projectileEventsField = typeof(WeaponProjectile).GetField("_weaponEvents", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(useRuntimeField, Is.Not.Null);
+                Assert.That(projectileEventsField, Is.Not.Null);
+
+                var useRuntimeKernelWeaponEvents = (bool)useRuntimeField.GetValue(projectile);
+                var projectileEvents = projectileEventsField.GetValue(projectile);
+                Assert.That(useRuntimeKernelWeaponEvents, Is.False);
+                Assert.That(projectileEvents, Is.SameAs(injectedEvents));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
         }
 
         [UnityTest]

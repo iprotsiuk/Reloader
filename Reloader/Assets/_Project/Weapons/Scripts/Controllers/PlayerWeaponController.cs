@@ -318,6 +318,7 @@ namespace Reloader.Weapons.Controllers
 
             var ballisticSpec = ResolveBallisticSpec(fireData);
             var projectile = SpawnProjectile();
+            projectile?.Configure(_useRuntimeKernelWeaponEvents ? null : _weaponEvents);
             var firedDirection = ApplyDispersion(_muzzleTransform.forward, ballisticSpec.DispersionMoa, Random.value, Random.value);
             projectile?.Initialize(
                 _equippedItemId,
