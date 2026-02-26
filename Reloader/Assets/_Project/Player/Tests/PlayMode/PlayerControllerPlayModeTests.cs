@@ -236,7 +236,6 @@ namespace Reloader.Player.Tests.PlayMode
             }
             finally
             {
-                replacementHub.RaiseTabInventoryVisibilityChanged(false);
                 RuntimeKernelBootstrapper.Events = originalHub;
                 if (root != null)
                 {
