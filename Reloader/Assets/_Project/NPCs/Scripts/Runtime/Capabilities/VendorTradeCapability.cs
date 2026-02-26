@@ -52,10 +52,12 @@ namespace Reloader.NPCs.Runtime.Capabilities
         private void ResolveVendorTarget()
         {
             _vendorTarget ??= _vendorTargetBehaviour as IShopVendorTarget;
-            if (_vendorTarget != null)
+            if (IsAliveUnityObject(_vendorTarget))
             {
                 return;
             }
+
+            _vendorTarget = null;
 
             _vendorTarget = FindInterface(GetComponents<MonoBehaviour>())
                 ?? (_agent != null ? FindInterface(_agent.GetComponents<MonoBehaviour>()) : null)
@@ -74,6 +76,21 @@ namespace Reloader.NPCs.Runtime.Capabilities
             }
 
             return null;
+        }
+
+        private static bool IsAliveUnityObject(IShopVendorTarget vendorTarget)
+        {
+            if (vendorTarget == null)
+            {
+                return false;
+            }
+
+            if (vendorTarget is UnityEngine.Object unityObject)
+            {
+                return unityObject != null;
+            }
+
+            return true;
         }
     }
 }

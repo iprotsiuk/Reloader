@@ -31,5 +31,35 @@ namespace Reloader.NPCs.Tests.EditMode
                 Object.DestroyImmediate(go);
             }
         }
+
+        [Test]
+        public void CollectActions_WhenVendorTargetReplaced_ReResolvesPayload()
+        {
+            var go = new GameObject("vendor-agent");
+            var agent = go.AddComponent<NpcAgent>();
+            var firstTarget = go.AddComponent<ShopVendorTarget>();
+            go.AddComponent<VendorTradeCapability>();
+            JsonUtility.FromJsonOverwrite("{\"_vendorId\":\"vendor-ammo-01\"}", firstTarget);
+
+            try
+            {
+                var initialActions = agent.CollectActions();
+                Object.DestroyImmediate(firstTarget);
+
+                var replacementTarget = go.AddComponent<ShopVendorTarget>();
+                JsonUtility.FromJsonOverwrite("{\"_vendorId\":\"vendor-ammo-02\"}", replacementTarget);
+
+                var updatedActions = agent.CollectActions();
+
+                Assert.That(initialActions.Count, Is.EqualTo(1));
+                Assert.That(initialActions[0].Payload, Is.EqualTo("vendor-ammo-01"));
+                Assert.That(updatedActions.Count, Is.EqualTo(1));
+                Assert.That(updatedActions[0].Payload, Is.EqualTo("vendor-ammo-02"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
     }
 }
