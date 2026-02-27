@@ -210,14 +210,36 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6500001, guid: 3143fdcf524e4248995fde24ef7ac203, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6500001, guid: 3143fdcf524e4248995fde24ef7ac203, type: 3}
       propertyPath: m_Material
       value: 
-      objectReference: {fileID: 1124655657}
-    m_RemovedComponents: []
+      objectReference: {fileID: 473440286}
+    - target: {fileID: 193005944269616498, guid: 3143fdcf524e4248995fde24ef7ac203, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 128131728}
+    m_RemovedComponents:
+    - {fileID: 6500001, guid: 3143fdcf524e4248995fde24ef7ac203, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3143fdcf524e4248995fde24ef7ac203, type: 3}
+--- !u!134 &128131728
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &144302366
 GameObject:
   m_ObjectHideFlags: 0
@@ -797,6 +819,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!134 &340168882
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ' (Instance) (Instance) (Instance) (Instance) (Instance) (Instance)'
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &370412813
 GameObject:
   m_ObjectHideFlags: 0
@@ -972,7 +1007,7 @@ PrefabInstance:
     - target: {fileID: 6500001, guid: 03ec13c6338948e1a9e799962f2a9eea, type: 3}
       propertyPath: m_Material
       value: 
-      objectReference: {fileID: 1634883043}
+      objectReference: {fileID: 1633498478}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1105,6 +1140,19 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
+--- !u!134 &473440286
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ' (Instance) (Instance)'
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &481109653
 GameObject:
   m_ObjectHideFlags: 0
@@ -1197,6 +1245,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!134 &509716426
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ' (Instance) (Instance)'
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &552705213
 GameObject:
   m_ObjectHideFlags: 0
@@ -1579,7 +1640,7 @@ CharacterController:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 573788834}
-  m_Material: {fileID: 1846996624}
+  m_Material: {fileID: 340168882}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -1894,19 +1955,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 737335934}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!134 &790366890
-PhysicsMaterial:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  serializedVersion: 2
-  m_DynamicFriction: 0.6
-  m_StaticFriction: 0.6
-  m_Bounciness: 0
-  m_FrictionCombine: 0
-  m_BounceCombine: 0
 --- !u!134 &790557541
 PhysicsMaterial:
   m_ObjectHideFlags: 0
@@ -2238,6 +2286,19 @@ Transform:
   - {fileID: 1734054245}
   m_Father: {fileID: 936686685}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!134 &902580895
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &936686684
 GameObject:
   m_ObjectHideFlags: 0
@@ -2337,19 +2398,6 @@ PrefabInstance:
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
 --- !u!134 &1050084595
-PhysicsMaterial:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  serializedVersion: 2
-  m_DynamicFriction: 0.6
-  m_StaticFriction: 0.6
-  m_Bounciness: 0
-  m_FrictionCombine: 0
-  m_BounceCombine: 0
---- !u!134 &1124655657
 PhysicsMaterial:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -3350,13 +3398,13 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1535971411}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!134 &1634883043
+--- !u!134 &1633498478
 PhysicsMaterial:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: 
+  m_Name: ' (Instance) (Instance)'
   serializedVersion: 2
   m_DynamicFriction: 0.6
   m_StaticFriction: 0.6
@@ -3840,19 +3888,67 @@ PhysicsMaterial:
   m_Bounciness: 0
   m_FrictionCombine: 0
   m_BounceCombine: 0
---- !u!134 &1846996624
-PhysicsMaterial:
+--- !u!1001 &1870043507
+PrefabInstance:
   m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: ' (Instance) (Instance) (Instance) (Instance)'
   serializedVersion: 2
-  m_DynamicFriction: 0.6
-  m_StaticFriction: 0.6
-  m_Bounciness: 0
-  m_FrictionCombine: 0
-  m_BounceCombine: 0
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 4843703198357679287, guid: f83798dc7eae34d4a9b5b11cc1591e51, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -8.45
+      objectReference: {fileID: 0}
+    - target: {fileID: 4843703198357679287, guid: f83798dc7eae34d4a9b5b11cc1591e51, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.35
+      objectReference: {fileID: 0}
+    - target: {fileID: 4843703198357679287, guid: f83798dc7eae34d4a9b5b11cc1591e51, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.72
+      objectReference: {fileID: 0}
+    - target: {fileID: 4843703198357679287, guid: f83798dc7eae34d4a9b5b11cc1591e51, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4843703198357679287, guid: f83798dc7eae34d4a9b5b11cc1591e51, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4843703198357679287, guid: f83798dc7eae34d4a9b5b11cc1591e51, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4843703198357679287, guid: f83798dc7eae34d4a9b5b11cc1591e51, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4843703198357679287, guid: f83798dc7eae34d4a9b5b11cc1591e51, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4843703198357679287, guid: f83798dc7eae34d4a9b5b11cc1591e51, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4843703198357679287, guid: f83798dc7eae34d4a9b5b11cc1591e51, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5220686584574653965, guid: f83798dc7eae34d4a9b5b11cc1591e51, type: 3}
+      propertyPath: m_Name
+      value: AmmoBox_100R_308
+      objectReference: {fileID: 0}
+    - target: {fileID: 8446679261607689372, guid: f83798dc7eae34d4a9b5b11cc1591e51, type: 3}
+      propertyPath: m_Material
+      value: 
+      objectReference: {fileID: 902580895}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: f83798dc7eae34d4a9b5b11cc1591e51, type: 3}
 --- !u!1001 &1984867684
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3920,7 +4016,7 @@ PrefabInstance:
     - target: {fileID: 6500001, guid: 077a774471444daaa9746994b5ed8359, type: 3}
       propertyPath: m_Material
       value: 
-      objectReference: {fileID: 790366890}
+      objectReference: {fileID: 509716426}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -4194,3 +4290,4 @@ SceneRoots:
   - {fileID: 1639096732}
   - {fileID: 998938150}
   - {fileID: 1418753597}
+  - {fileID: 1870043507}

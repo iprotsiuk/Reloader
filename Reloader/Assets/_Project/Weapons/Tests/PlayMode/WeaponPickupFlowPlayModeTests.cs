@@ -43,6 +43,43 @@ namespace Reloader.Weapons.Tests.PlayMode
             Object.Destroy(pickupGo);
         }
 
+        [UnityTest]
+        public IEnumerator PickupFlow_IgnoresBlockingColliderAndFindsPickupBehindIt()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var inventory = root.AddComponent<PlayerInventoryController>();
+
+            var cameraGo = new GameObject("PlayerCamera");
+            cameraGo.transform.position = Vector3.zero;
+            cameraGo.transform.forward = Vector3.forward;
+            var camera = cameraGo.AddComponent<Camera>();
+
+            var resolver = root.AddComponent<PlayerWeaponPickupResolver>();
+            resolver.SetCameraForTests(camera);
+            inventory.Configure(input, resolver, new PlayerInventoryRuntime());
+
+            var blocker = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            blocker.transform.position = new Vector3(0f, 0f, 1f);
+
+            var pickupGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            pickupGo.transform.position = new Vector3(0f, 0f, 2f);
+            var pickupTarget = pickupGo.AddComponent<WeaponPickupTarget>();
+            pickupTarget.SetItemIdForTests("weapon-rifle-01");
+
+            input.PickupPressedThisFrame = true;
+            inventory.Tick();
+            yield return null;
+
+            Assert.That(inventory.Runtime.BeltSlotItemIds[0], Is.EqualTo("weapon-rifle-01"));
+            Assert.That(pickupGo.activeSelf, Is.False);
+
+            Object.Destroy(root);
+            Object.Destroy(cameraGo);
+            Object.Destroy(blocker);
+            Object.Destroy(pickupGo);
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public bool PickupPressedThisFrame;
