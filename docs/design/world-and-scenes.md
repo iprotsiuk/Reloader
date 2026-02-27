@@ -34,3 +34,16 @@ Exit criteria for removing coexistence gate:
 ## Forward Scope [v0.2]
 
 When new instance destinations are added, append scenes after index `2` and preserve the first-three topology contract.
+
+## Scene Contract Guardrail [v0.2]
+
+World scenes must satisfy explicit wiring contracts, not ad-hoc/manual assumptions.
+
+Required references:
+- [world-scene-contracts.md](world-scene-contracts.md)
+- [world-scene-wiring-incident-2026-02-27.md](world-scene-wiring-incident-2026-02-27.md)
+
+Policy:
+- Scene mutations must be followed by MCP read-back verification of changed objects/components.
+- Scene mutations must pass targeted EditMode/PlayMode tests before completion claims.
+- Deterministic editor wiring tools are preferred over one-off inspector editing for repeatable setup.

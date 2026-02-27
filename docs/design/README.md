@@ -23,7 +23,7 @@ Agent behavior:
 |---------------|----------------|----------------|
 | **Reloading bench, press interactions, ammo assembly** | [reloading-system.md](reloading-system.md) | `reloading-domain-knowledge` (accuracy calc, real-world reference), `adding-game-content` (creating SO assets) |
 | **Weapons, ballistics, shooting, accuracy model** | [weapons-and-ballistics.md](weapons-and-ballistics.md) | `reloading-domain-knowledge` (accuracy calc, ballistics reference), `adding-game-content` (creating weapon/part assets) |
-| **Driving, world layout, vehicles, scene transitions** | [world-and-vehicles.md](world-and-vehicles.md) | — |
+| **Driving, world layout, vehicles, scene transitions** | [world-and-vehicles.md](world-and-vehicles.md), [world-and-scenes.md](world-and-scenes.md), [world-scene-contracts.md](world-scene-contracts.md) | — |
 | **Player controls/input/camera, shared UI shell, shared audio** | [core-architecture.md](core-architecture.md), [prototype-scope.md](prototype-scope.md), plus affected domain doc | `unity-project-conventions` |
 | **Inventory, item persistence, shops, economy, money** | [inventory-and-economy.md](inventory-and-economy.md) | `adding-game-content` (for shop inventory items) |
 | **Hunting, animal AI, competitions, scoring** | [hunting-and-competitions.md](hunting-and-competitions.md) | — |

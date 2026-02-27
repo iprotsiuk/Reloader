@@ -81,6 +81,10 @@ For `File-first` tasks:
 - Script edits via MCP: run `validate_script`
 - Gameplay/editor behavior: run targeted Unity tests (`run_tests`/`get_test_job`)
 - Failures: check `read_console` and iterate from the first concrete error
+- For scene/component wiring work: verify full runtime chain integrity, not only the edited object
+  - Example: pickup may pass while equip/fire chain fails if registry/controller links are incomplete
+  - Validate dependent references (controller -> registry -> definitions, camera defaults, required transforms) in read-back
+  - Run scene-contract tests/checklists when available (for world scenes: follow `docs/design/world-scene-contracts.md` and `docs/plans/2026-02-27-main-town-indoor-range-mcp-authoring-checklist.md`)
 
 Do not claim completion if write operations were not followed by a read-back verification step.
 
