@@ -40,13 +40,17 @@ namespace Reloader.UI.Editor
                 return;
             }
 
-            if (!AssignPanelSettingsToBeltHudPrefab(panelSettings))
+            var changed = AssignPanelSettingsToBeltHudPrefab(panelSettings, out var assignedOrAlreadyValid);
+            if (!assignedOrAlreadyValid)
             {
                 Debug.LogWarning("UI Toolkit setup skipped: BeltHud prefab not found or has no UiToolkitRuntimeInstaller.");
                 return;
             }
 
-            Debug.Log("UI Toolkit setup: RuntimePanelSettings asset created/updated and assigned to BeltHud prefab.");
+            if (changed)
+            {
+                Debug.Log("UI Toolkit setup: RuntimePanelSettings asset created/updated and assigned to BeltHud prefab.");
+            }
         }
 
         private static PanelSettings EnsurePanelSettingsAsset()
@@ -92,8 +96,9 @@ namespace Reloader.UI.Editor
             return panelSettings;
         }
 
-        private static bool AssignPanelSettingsToBeltHudPrefab(PanelSettings panelSettings)
+        private static bool AssignPanelSettingsToBeltHudPrefab(PanelSettings panelSettings, out bool assignedOrAlreadyValid)
         {
+            assignedOrAlreadyValid = false;
             var root = PrefabUtility.LoadPrefabContents(BeltHudPrefabPath);
             if (root == null)
             {
@@ -108,13 +113,24 @@ namespace Reloader.UI.Editor
             }
 
             var serializedInstaller = new SerializedObject(installer);
-            serializedInstaller.FindProperty("_panelSettings").objectReferenceValue = panelSettings;
-            serializedInstaller.ApplyModifiedPropertiesWithoutUndo();
+            var panelProp = serializedInstaller.FindProperty("_panelSettings");
+            var alreadyAssigned = panelProp != null && panelProp.objectReferenceValue == panelSettings;
+            assignedOrAlreadyValid = true;
+            if (!alreadyAssigned && panelProp != null)
+            {
+                panelProp.objectReferenceValue = panelSettings;
+                serializedInstaller.ApplyModifiedPropertiesWithoutUndo();
+                PrefabUtility.SaveAsPrefabAsset(root, BeltHudPrefabPath);
+            }
 
-            PrefabUtility.SaveAsPrefabAsset(root, BeltHudPrefabPath);
             PrefabUtility.UnloadPrefabContents(root);
-            AssetDatabase.SaveAssets();
-            return true;
+            if (!alreadyAssigned)
+            {
+                AssetDatabase.SaveAssets();
+                return true;
+            }
+
+            return false;
         }
     }
 }
