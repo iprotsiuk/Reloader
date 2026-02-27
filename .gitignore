@@ -4,6 +4,8 @@
 tmp/
 .tmp/
 .disabled/
+generatedImages/
+node_modules/
 unity-*.log
 unity-*.xml
 
