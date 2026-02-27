@@ -242,8 +242,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 registry.SetDefinitionsForTests(new[] { definition });
 
                 target = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                target.transform.position = new Vector3(0f, 0f, 5f);
-                target.transform.localScale = new Vector3(1f, 1f, 1f);
+                target.transform.position = new Vector3(0f, 0f, 2f);
+                target.transform.localScale = new Vector3(8f, 8f, 0.5f);
 
                 var injectedEvents = new DefaultRuntimeEvents();
                 var injectedProjectileHitRaised = 0;
@@ -252,14 +252,20 @@ namespace Reloader.Weapons.Tests.PlayMode
                 fallbackRuntimeEvents.OnProjectileHit += HandleFallbackProjectileHit;
                 fallbackHandlersRegistered = true;
 
-                root.AddComponent<PlayerWeaponController>().Configure(weaponEvents: injectedEvents, inventoryEvents: injectedEvents);
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                controller.Configure(weaponEvents: injectedEvents, inventoryEvents: injectedEvents);
                 yield return null;
 
+                var injectedWeaponFiredRaised = 0;
+                injectedEvents.OnWeaponFired += (_, _, _) => injectedWeaponFiredRaised++;
+
+                Random.InitState(1337);
                 input.FirePressedThisFrame = true;
                 yield return null;
 
                 var elapsed = 0f;
-                while (injectedProjectileHitRaised == 0 && elapsed < 0.75f)
+                while (injectedProjectileHitRaised == 0 && elapsed < 2f)
                 {
                     elapsed += Time.deltaTime;
                     yield return null;
@@ -267,8 +273,9 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 projectile = Object.FindFirstObjectByType<WeaponProjectile>();
 
-                Assert.That(injectedProjectileHitRaised, Is.EqualTo(1));
-                Assert.That(fallbackProjectileHitRaised, Is.EqualTo(0));
+                Assert.That(injectedWeaponFiredRaised, Is.EqualTo(1), "Injected weapon fire event was not raised.");
+                Assert.That(injectedProjectileHitRaised, Is.EqualTo(1), "Injected projectile hit event was not raised.");
+                Assert.That(fallbackProjectileHitRaised, Is.EqualTo(0), "Fallback runtime projectile hit channel should stay silent.");
             }
             finally
             {
@@ -520,6 +527,58 @@ namespace Reloader.Weapons.Tests.PlayMode
             Object.Destroy(inputGo);
             Object.Destroy(registryGo);
             Object.Destroy(definition);
+        }
+
+        [UnityTest]
+        public IEnumerator MultipleRegistries_WhenInitialRegistryMissesSelectedItem_ResolvesFallbackRegistryAndFires()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.SelectBeltSlot(0);
+
+            var staleRegistryGo = new GameObject("StaleRegistry");
+            var staleRegistry = staleRegistryGo.AddComponent<WeaponRegistry>();
+            var staleDefinition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            staleDefinition.SetRuntimeValuesForTests("weapon-other-99", "Other", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            staleRegistry.SetDefinitionsForTests(new[] { staleDefinition });
+
+            var activeRegistryGo = new GameObject("ActiveRegistry");
+            var activeRegistry = activeRegistryGo.AddComponent<WeaponRegistry>();
+            var activeDefinition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            activeDefinition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            activeRegistry.SetDefinitionsForTests(new[] { activeDefinition });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+
+            var firedCount = 0;
+            runtimeEvents.OnWeaponFired += HandleWeaponFired;
+            void HandleWeaponFired(string _, Vector3 __, Vector3 ___) => firedCount++;
+
+            yield return null;
+
+            input.FirePressedThisFrame = true;
+            yield return null;
+
+            Assert.That(firedCount, Is.EqualTo(1));
+            Assert.That(controller.EquippedItemId, Is.EqualTo("weapon-rifle-01"));
+
+            runtimeEvents.OnWeaponFired -= HandleWeaponFired;
+            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+            Object.Destroy(root);
+            Object.Destroy(staleRegistryGo);
+            Object.Destroy(activeRegistryGo);
+            Object.Destroy(staleDefinition);
+            Object.Destroy(activeDefinition);
         }
 
         [UnityTest]
@@ -976,6 +1035,13 @@ namespace Reloader.Weapons.Tests.PlayMode
 
             statesByItemId.TryGetValue(itemId, out var state);
             return state;
+        }
+
+        private static void SetControllerField(PlayerWeaponController controller, string fieldName, object value)
+        {
+            var field = typeof(PlayerWeaponController).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
+            field.SetValue(controller, value);
         }
     }
 }
