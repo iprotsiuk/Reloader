@@ -66,6 +66,13 @@ namespace Reloader.World.Tests.PlayMode
                 Is.EqualTo("CameraPivot"),
                 "IndoorRange Main Camera should be parented to CameraPivot for player look/camera control.");
 
+            var cameraPivot = mainCamera.transform.parent;
+            var playerArms = cameraPivot.Find("PlayerArms");
+            Assert.That(playerArms, Is.Not.Null, "IndoorRange rig should include PlayerArms under CameraPivot.");
+            var armsAnimator = playerArms.GetComponentInChildren<Animator>(true);
+            Assert.That(armsAnimator, Is.Not.Null, "PlayerArms should include an Animator.");
+            Assert.That(armsAnimator.runtimeAnimatorController, Is.Not.Null, "PlayerArms Animator should have a RuntimeAnimatorController assigned.");
+
         }
 
         [UnityTest]
@@ -386,6 +393,22 @@ namespace Reloader.World.Tests.PlayMode
 
             yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
             yield return WaitForResolvedEntryPoint("entry.maintown.spawn", SceneSwitchTimeoutSeconds);
+        }
+
+        [UnityTest]
+        public IEnumerator MainTown_ReturnEntryPoint_IsGroundedAndNotVoid()
+        {
+            SceneManager.LoadScene(MainTownSceneName, LoadSceneMode.Single);
+            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+
+            var activeScene = SceneManager.GetActiveScene();
+            var returnEntry = FindEntryPointInScene(activeScene, "entry.maintown.return");
+            Assert.That(returnEntry, Is.Not.Null, "Expected MainTown return entry point.");
+
+            var origin = returnEntry.transform.position + Vector3.up * 2f;
+            var hasGround = Physics.Raycast(origin, Vector3.down, out var hit, 8f);
+            Assert.That(hasGround, Is.True, "MainTown return entry should have walkable ground underneath.");
+            Assert.That(hit.point.y, Is.GreaterThan(-2f), "MainTown return entry should not resolve into void space.");
         }
 
         private static GameObject CreatePlayerInteractor()

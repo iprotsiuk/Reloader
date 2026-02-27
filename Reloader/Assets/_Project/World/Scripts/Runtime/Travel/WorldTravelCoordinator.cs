@@ -16,6 +16,8 @@ namespace Reloader.World.Travel
         private static float _travelSuppressedUntilRealtime;
         private static Dictionary<string, int> _pendingInventoryQuantities = new();
         private static readonly List<WeaponRuntimeSnapshotCapture> _pendingWeaponSnapshots = new();
+        private const string FpsArmsPrefabResourcePath = "Viewmodels/Characters/FPS_Arms";
+        private const string FpsArmsControllerResourcePath = "Viewmodels/Characters/ViewmodelArms";
 
         public static string LastResolvedEntryPointId { get; private set; }
 
@@ -176,6 +178,7 @@ namespace Reloader.World.Travel
                 ApplyWeaponRuntimeSnapshotAfterTravel(activeScenePlayerRoot);
                 activeScenePlayerRoot.position = entryPointTransform.position;
                 activeScenePlayerRoot.rotation = entryPointTransform.rotation;
+                EnsureViewmodelRigAfterTravel(activeScenePlayerRoot);
             }
 
             if (PersistentPlayerRoot.Instance != null)
@@ -513,6 +516,74 @@ namespace Reloader.World.Travel
             }
 
             return null;
+        }
+
+        private static void EnsureViewmodelRigAfterTravel(Transform playerRootTransform)
+        {
+            if (playerRootTransform == null)
+            {
+                return;
+            }
+
+            var cameraPivot = playerRootTransform.Find("CameraPivot");
+            if (cameraPivot == null)
+            {
+                return;
+            }
+
+            var animator = cameraPivot.GetComponentInChildren<Animator>(true);
+            var armsController = Resources.Load<RuntimeAnimatorController>(FpsArmsControllerResourcePath);
+            if (animator == null)
+            {
+                var armsPrefab = Resources.Load<GameObject>(FpsArmsPrefabResourcePath);
+                if (armsPrefab != null)
+                {
+                    var instance = UnityEngine.Object.Instantiate(armsPrefab, cameraPivot);
+                    instance.name = "PlayerArms";
+                    instance.transform.localPosition = new Vector3(0f, -0.24f, 1.56f);
+                    instance.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+                    instance.transform.localScale = new Vector3(0.42f, 0.42f, 0.42f);
+                    animator = instance.GetComponentInChildren<Animator>(true);
+                }
+            }
+
+            if (animator == null)
+            {
+                return;
+            }
+
+            if (animator.runtimeAnimatorController == null && armsController != null)
+            {
+                animator.runtimeAnimatorController = armsController;
+            }
+
+            var viewmodelAdapter = playerRootTransform.GetComponent("ViewmodelAnimationAdapter");
+            SetComponentAnimatorField(viewmodelAdapter, animator);
+
+            var fpsDriver = playerRootTransform.GetComponent("FpsViewmodelAnimatorDriver");
+            SetComponentAnimatorField(fpsDriver, animator);
+        }
+
+        private static void SetComponentAnimatorField(Component component, Animator animator)
+        {
+            if (component == null || animator == null)
+            {
+                return;
+            }
+
+            var field = component.GetType().GetField("_animator", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field == null)
+            {
+                return;
+            }
+
+            var current = field.GetValue(component) as Animator;
+            if (current == animator)
+            {
+                return;
+            }
+
+            field.SetValue(component, animator);
         }
 
         private sealed class WeaponRuntimeSnapshotCapture
