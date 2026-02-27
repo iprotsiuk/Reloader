@@ -3949,6 +3949,51 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f83798dc7eae34d4a9b5b11cc1591e51, type: 3}
+--- !u!1 &1977339822
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1977339824}
+  - component: {fileID: 1977339823}
+  m_Layer: 0
+  m_Name: ItemIconCatalogProvider
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1977339823
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1977339822}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 81d19715971b14823a8dc73ea85d6764, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.Core::Reloader.Core.UI.ItemIconCatalogProvider
+  _itemIconCatalog: {fileID: 11400000, guid: 2437dd75ade0a4b298e240987784b134, type: 2}
+--- !u!4 &1977339824
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1977339822}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1984867684
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4291,3 +4336,4 @@ SceneRoots:
   - {fileID: 998938150}
   - {fileID: 1418753597}
   - {fileID: 1870043507}
+  - {fileID: 1977339824}
