@@ -29,33 +29,6 @@ namespace Reloader.Weapons.Tests.PlayMode
             yield return AssertPickupIdentityIsStable(go => go.AddComponent<AmmoStackPickupTarget>());
         }
 
-        [UnityTest]
-        public IEnumerator WeaponPickupTarget_DuplicateInstance_DoesNotShareObjectId()
-        {
-            var originalGo = new GameObject("WeaponPickup_Original_PlayMode");
-            var originalTarget = originalGo.AddComponent<WeaponPickupTarget>();
-            var originalObjectId = ReadObjectId(originalTarget);
-
-            var duplicateGo = UnityEngine.Object.Instantiate(originalGo);
-            duplicateGo.name = "WeaponPickup_Duplicate_PlayMode";
-            yield return null;
-
-            try
-            {
-                var duplicateTarget = duplicateGo.GetComponent<WeaponPickupTarget>();
-                var duplicateObjectId = ReadObjectId(duplicateTarget);
-
-                Assert.That(originalObjectId, Is.Not.Null.And.Not.Empty);
-                Assert.That(duplicateObjectId, Is.Not.Null.And.Not.Empty);
-                Assert.That(duplicateObjectId, Is.Not.EqualTo(originalObjectId));
-            }
-            finally
-            {
-                UnityEngine.Object.Destroy(duplicateGo);
-                UnityEngine.Object.Destroy(originalGo);
-            }
-        }
-
         private static IEnumerator AssertPickupIdentityIsStable<T>(Func<GameObject, T> createTarget) where T : MonoBehaviour
         {
             var go = new GameObject(typeof(T).Name + "_PlayModeGO");

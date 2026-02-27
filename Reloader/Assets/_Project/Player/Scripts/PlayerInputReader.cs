@@ -81,6 +81,11 @@ namespace Reloader.Player
 
         private void Update()
         {
+            if (_playerMap != null && !_playerMap.enabled)
+            {
+                _playerMap.Enable();
+            }
+
             if (_moveAction != null)
             {
                 MoveInput = _moveAction.ReadValue<Vector2>();
@@ -292,6 +297,13 @@ namespace Reloader.Player
         {
             _actionsAsset = actionsAsset;
             ResolveActions();
+        }
+
+        public void EnsureActionMapEnabled()
+        {
+            ResolveActions();
+            _actionsAsset?.Enable();
+            _playerMap?.Enable();
         }
 
         private void ResolveActions()

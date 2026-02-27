@@ -678,12 +678,35 @@ namespace Reloader.World.Travel
 
                 if (type.Name == "PlayerInputReader")
                 {
+                    type.GetMethod("EnsureActionMapEnabled", BindingFlags.Instance | BindingFlags.Public)?.Invoke(component, null);
+
+                    if (component is Behaviour inputReaderBehaviour)
+                    {
+                        if (inputReaderBehaviour.enabled)
+                        {
+                            inputReaderBehaviour.enabled = false;
+                        }
+
+                        inputReaderBehaviour.enabled = true;
+                    }
+
                     var resolveActions = type.GetMethod("ResolveActions", BindingFlags.Instance | BindingFlags.NonPublic);
                     resolveActions?.Invoke(component, null);
+
+                    var actionsAssetField = type.GetField("_actionsAsset", BindingFlags.Instance | BindingFlags.NonPublic);
+                    var actionsAsset = actionsAssetField?.GetValue(component);
+                    actionsAsset?.GetType().GetMethod("Enable", BindingFlags.Instance | BindingFlags.Public)?.Invoke(actionsAsset, null);
 
                     var playerMapField = type.GetField("_playerMap", BindingFlags.Instance | BindingFlags.NonPublic);
                     var playerMap = playerMapField?.GetValue(component);
                     playerMap?.GetType().GetMethod("Enable", BindingFlags.Instance | BindingFlags.Public)?.Invoke(playerMap, null);
+
+                    var enabledProperty = playerMap?.GetType().GetProperty("enabled", BindingFlags.Instance | BindingFlags.Public);
+                    var isPlayerMapEnabled = enabledProperty?.GetValue(playerMap) as bool? ?? false;
+                    if (!isPlayerMapEnabled)
+                    {
+                        type.GetMethod("OnEnable", BindingFlags.Instance | BindingFlags.NonPublic)?.Invoke(component, null);
+                    }
                 }
                 else if (type.Name == "PlayerMover")
                 {

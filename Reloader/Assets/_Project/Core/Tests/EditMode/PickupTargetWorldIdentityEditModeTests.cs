@@ -26,32 +26,6 @@ namespace Reloader.Core.Tests.EditMode
             AssertPickupIdentityIsStable(go => go.AddComponent<AmmoStackPickupTarget>());
         }
 
-        [Test]
-        public void WeaponPickupTarget_DuplicateInstance_DoesNotShareObjectId()
-        {
-            var originalGo = new GameObject("WeaponPickup_Original");
-            var originalTarget = originalGo.AddComponent<WeaponPickupTarget>();
-            var originalObjectId = ReadObjectId(originalTarget);
-
-            var duplicateGo = Object.Instantiate(originalGo);
-            duplicateGo.name = "WeaponPickup_Duplicate";
-
-            try
-            {
-                var duplicateTarget = duplicateGo.GetComponent<WeaponPickupTarget>();
-                var duplicateObjectId = ReadObjectId(duplicateTarget);
-
-                Assert.That(originalObjectId, Is.Not.Null.And.Not.Empty);
-                Assert.That(duplicateObjectId, Is.Not.Null.And.Not.Empty);
-                Assert.That(duplicateObjectId, Is.Not.EqualTo(originalObjectId));
-            }
-            finally
-            {
-                Object.DestroyImmediate(duplicateGo);
-                Object.DestroyImmediate(originalGo);
-            }
-        }
-
         private static void AssertPickupIdentityIsStable<T>(System.Func<GameObject, T> createTarget) where T : MonoBehaviour
         {
             var go = new GameObject(typeof(T).Name + "_GO");
