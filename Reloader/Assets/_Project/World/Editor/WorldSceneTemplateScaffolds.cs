@@ -42,7 +42,12 @@ namespace Reloader.World.Editor
             var createdCount = 0;
 
             var playerRoot = EnsureRootObject(scene, "PlayerRoot", ref changed, ref createdCount);
-            var cameraPivot = EnsureChild(playerRoot.transform, "CameraPivot", Vector3.zero, ref changed, ref createdCount);
+            var cameraPivot = EnsureChild(playerRoot.transform, "CameraPivot", new Vector3(0f, 1.65f, 0f), ref changed, ref createdCount);
+            if (cameraPivot.localPosition != new Vector3(0f, 1.65f, 0f))
+            {
+                cameraPivot.localPosition = new Vector3(0f, 1.65f, 0f);
+                changed = true;
+            }
             var lookTarget = EnsureChild(cameraPivot, "CameraLookTarget", new Vector3(0f, 0f, 10f), ref changed, ref createdCount);
             var muzzle = EnsureChild(cameraPivot, "WeaponMuzzle", new Vector3(0f, -0.08f, 0.45f), ref changed, ref createdCount);
             var weaponRegistry = EnsureWeaponRegistry(scene, ref changed, ref createdCount);
