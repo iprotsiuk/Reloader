@@ -27,6 +27,11 @@ Reloader/Assets/Scenes/MainWorld.unity -text -merge
 # Project gameplay scenes can be binary in this repo; never normalize line endings
 Reloader/Assets/Scenes/*.unity -text -merge
 
+# Vendor/third-party content: preserve repository bytes as-is to avoid checkout churn
+Reloader/Assets/GDS/** -text
+Reloader/Assets/ThirdParty/** -text
+Reloader/Assets/Polygon-Mega Survival/** -text
+
 # Binary assets
 *.png binary
 *.jpg binary
