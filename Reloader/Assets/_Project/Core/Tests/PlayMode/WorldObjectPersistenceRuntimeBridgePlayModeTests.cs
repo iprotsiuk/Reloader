@@ -12,6 +12,7 @@ namespace Reloader.Core.Tests.PlayMode
     {
         private const string MainTownSceneName = "MainTown";
         private const string MainTownScenePath = "Assets/_Project/World/Scenes/MainTown.unity";
+        private const string IndoorRangeSceneName = "IndoorRangeInstance";
         private const float SceneSwitchTimeoutSeconds = 8f;
 
         [SetUp]
@@ -101,6 +102,155 @@ namespace Reloader.Core.Tests.PlayMode
             Assert.That(targetIdentity.transform.rotation, Is.EqualTo(originalRotation));
         }
 
+        [UnityTest]
+        public IEnumerator SceneLoad_AppliesForLoadedNonActiveScene_CallbackPath()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return LoadSceneAdditive(IndoorRangeSceneName);
+
+            var mainTownScene = SceneManager.GetSceneByName(MainTownSceneName);
+            var indoorScene = SceneManager.GetSceneByName(IndoorRangeSceneName);
+            Assert.That(mainTownScene.IsValid() && mainTownScene.isLoaded, Is.True);
+            Assert.That(indoorScene.IsValid() && indoorScene.isLoaded, Is.True);
+            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(MainTownSceneName));
+
+            var targetIdentity = CreateIdentityInScene(indoorScene, "qa.persistence.non-active-scene");
+
+            WorldObjectPersistenceRuntimeBridge.StateStore.Upsert(indoorScene.path, new WorldObjectStateRecord
+            {
+                ObjectId = targetIdentity.ObjectId,
+                Consumed = true
+            });
+
+            WorldObjectPersistenceRuntimeBridge.EnsureInitialized();
+            InvokeSceneLoaded(indoorScene, LoadSceneMode.Additive);
+
+            Assert.That(targetIdentity.gameObject.activeSelf, Is.False, "Loaded non-active scene should still be applied.");
+
+            yield return UnloadSceneIfLoaded(IndoorRangeSceneName);
+        }
+
+        [UnityTest]
+        public IEnumerator SceneLoad_PolicyTrackTransformsFalse_DoesNotApplyTransformOverride()
+        {
+            yield return LoadScene(MainTownSceneName);
+            var activeScene = SceneManager.GetActiveScene();
+            var targetIdentity = CreateIdentityInScene(activeScene, "qa.persistence.policy.track-transforms");
+            var originalPosition = targetIdentity.transform.position;
+            var originalRotation = targetIdentity.transform.rotation;
+
+            WorldObjectPersistenceRuntimeBridge.RegisterScenePolicy(new WorldScenePersistencePolicy
+            {
+                ScenePath = activeScene.path,
+                Mode = WorldObjectPersistenceMode.Persistent,
+                TrackTransforms = false,
+                TrackConsumed = true,
+                TrackDestroyed = true,
+                TrackSpawnedObjects = true
+            });
+
+            WorldObjectPersistenceRuntimeBridge.StateStore.Upsert(activeScene.path, new WorldObjectStateRecord
+            {
+                ObjectId = targetIdentity.ObjectId,
+                HasTransformOverride = true,
+                Position = originalPosition + new Vector3(5f, 0f, 0f),
+                Rotation = Quaternion.Euler(0f, 45f, 0f)
+            });
+
+            WorldObjectPersistenceRuntimeBridge.EnsureInitialized();
+            InvokeSceneLoaded(activeScene, LoadSceneMode.Single);
+
+            Assert.That(targetIdentity.transform.position, Is.EqualTo(originalPosition));
+            Assert.That(targetIdentity.transform.rotation, Is.EqualTo(originalRotation));
+        }
+
+        [UnityTest]
+        public IEnumerator SceneLoad_PolicyTrackConsumedFalse_DoesNotDeactivateConsumedObject()
+        {
+            yield return LoadScene(MainTownSceneName);
+            var activeScene = SceneManager.GetActiveScene();
+            var targetIdentity = CreateIdentityInScene(activeScene, "qa.persistence.policy.track-consumed");
+
+            WorldObjectPersistenceRuntimeBridge.RegisterScenePolicy(new WorldScenePersistencePolicy
+            {
+                ScenePath = activeScene.path,
+                Mode = WorldObjectPersistenceMode.Persistent,
+                TrackTransforms = true,
+                TrackConsumed = false,
+                TrackDestroyed = true,
+                TrackSpawnedObjects = true
+            });
+
+            WorldObjectPersistenceRuntimeBridge.StateStore.Upsert(activeScene.path, new WorldObjectStateRecord
+            {
+                ObjectId = targetIdentity.ObjectId,
+                Consumed = true
+            });
+
+            WorldObjectPersistenceRuntimeBridge.EnsureInitialized();
+            InvokeSceneLoaded(activeScene, LoadSceneMode.Single);
+
+            Assert.That(targetIdentity.gameObject.activeSelf, Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator SceneLoad_PolicyTrackDestroyedFalse_DoesNotDeactivateDestroyedObject()
+        {
+            yield return LoadScene(MainTownSceneName);
+            var activeScene = SceneManager.GetActiveScene();
+            var targetIdentity = CreateIdentityInScene(activeScene, "qa.persistence.policy.track-destroyed");
+
+            WorldObjectPersistenceRuntimeBridge.RegisterScenePolicy(new WorldScenePersistencePolicy
+            {
+                ScenePath = activeScene.path,
+                Mode = WorldObjectPersistenceMode.Persistent,
+                TrackTransforms = true,
+                TrackConsumed = true,
+                TrackDestroyed = false,
+                TrackSpawnedObjects = true
+            });
+
+            WorldObjectPersistenceRuntimeBridge.StateStore.Upsert(activeScene.path, new WorldObjectStateRecord
+            {
+                ObjectId = targetIdentity.ObjectId,
+                Destroyed = true
+            });
+
+            WorldObjectPersistenceRuntimeBridge.EnsureInitialized();
+            InvokeSceneLoaded(activeScene, LoadSceneMode.Single);
+
+            Assert.That(targetIdentity.gameObject.activeSelf, Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator SceneLoad_DailyResetMode_StillAppliesObjectState()
+        {
+            yield return LoadScene(MainTownSceneName);
+            var activeScene = SceneManager.GetActiveScene();
+            var targetIdentity = CreateIdentityInScene(activeScene, "qa.persistence.policy.daily-reset");
+
+            WorldObjectPersistenceRuntimeBridge.RegisterScenePolicy(new WorldScenePersistencePolicy
+            {
+                ScenePath = activeScene.path,
+                Mode = WorldObjectPersistenceMode.DailyReset,
+                TrackTransforms = true,
+                TrackConsumed = true,
+                TrackDestroyed = true,
+                TrackSpawnedObjects = true
+            });
+
+            WorldObjectPersistenceRuntimeBridge.StateStore.Upsert(activeScene.path, new WorldObjectStateRecord
+            {
+                ObjectId = targetIdentity.ObjectId,
+                Consumed = true
+            });
+
+            WorldObjectPersistenceRuntimeBridge.EnsureInitialized();
+            InvokeSceneLoaded(activeScene, LoadSceneMode.Single);
+
+            Assert.That(targetIdentity.gameObject.activeSelf, Is.False, "DailyReset policy should still apply per-scene state.");
+        }
+
         private static WorldObjectIdentity CreateIdentityInScene(Scene scene, string objectId)
         {
             var gameObject = new GameObject("QaWorldObject");
@@ -141,6 +291,46 @@ namespace Reloader.Core.Tests.PlayMode
             }
 
             Assert.Fail($"Timed out waiting for active scene '{sceneName}'.");
+        }
+
+        private static IEnumerator LoadSceneAdditive(string sceneName)
+        {
+            if (SceneManager.GetSceneByName(sceneName).isLoaded)
+            {
+                yield break;
+            }
+
+            SceneManager.LoadScene(sceneName, LoadSceneMode.Additive);
+
+            var elapsed = 0f;
+            while (elapsed < SceneSwitchTimeoutSeconds)
+            {
+                var scene = SceneManager.GetSceneByName(sceneName);
+                if (scene.IsValid() && scene.isLoaded)
+                {
+                    yield break;
+                }
+
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            Assert.Fail($"Timed out waiting for additive scene '{sceneName}' to load.");
+        }
+
+        private static IEnumerator UnloadSceneIfLoaded(string sceneName)
+        {
+            var scene = SceneManager.GetSceneByName(sceneName);
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                yield break;
+            }
+
+            var operation = SceneManager.UnloadSceneAsync(scene);
+            while (operation != null && !operation.isDone)
+            {
+                yield return null;
+            }
         }
     }
 }

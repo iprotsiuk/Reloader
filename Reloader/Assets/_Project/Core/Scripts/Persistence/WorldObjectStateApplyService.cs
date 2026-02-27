@@ -24,28 +24,33 @@ namespace Reloader.Core.Persistence
             }
 
             var policy = policyRegistry.ResolvePolicy(scene.path);
-            if (policy.Mode != WorldObjectPersistenceMode.Persistent)
-            {
-                return 0;
-            }
-
             var appliedCount = 0;
-            var identities = UnityEngine.Object.FindObjectsByType<WorldObjectIdentity>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            for (var i = 0; i < identities.Length; i++)
+            var roots = scene.GetRootGameObjects();
+            for (var rootIndex = 0; rootIndex < roots.Length; rootIndex++)
             {
-                var identity = identities[i];
-                if (identity == null || identity.gameObject.scene.handle != scene.handle)
+                var root = roots[rootIndex];
+                if (root == null)
                 {
                     continue;
                 }
 
-                if (!stateStore.TryGet(scene.path, identity.ObjectId, out var savedRecord))
+                var identities = root.GetComponentsInChildren<WorldObjectIdentity>(true);
+                for (var identityIndex = 0; identityIndex < identities.Length; identityIndex++)
                 {
-                    continue;
-                }
+                    var identity = identities[identityIndex];
+                    if (identity == null)
+                    {
+                        continue;
+                    }
 
-                ApplySavedState(identity, savedRecord, policy);
-                appliedCount++;
+                    if (!stateStore.TryGet(scene.path, identity.ObjectId, out var savedRecord))
+                    {
+                        continue;
+                    }
+
+                    ApplySavedState(identity, savedRecord, policy);
+                    appliedCount++;
+                }
             }
 
             return appliedCount;

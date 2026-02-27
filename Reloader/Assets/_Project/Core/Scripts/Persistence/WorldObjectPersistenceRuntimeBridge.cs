@@ -35,7 +35,7 @@ namespace Reloader.Core.Persistence
             _isInitialized = true;
 
             var activeScene = SceneManager.GetActiveScene();
-            TryApplyForActiveScene(activeScene);
+            TryApplyForScene(activeScene);
         }
 
         public static void ResetForTests()
@@ -63,16 +63,10 @@ namespace Reloader.Core.Persistence
                 return;
             }
 
-            var activeScene = SceneManager.GetActiveScene();
-            if (!activeScene.IsValid() || loadedScene.handle != activeScene.handle)
-            {
-                return;
-            }
-
-            TryApplyForActiveScene(loadedScene);
+            TryApplyForScene(loadedScene);
         }
 
-        private static void TryApplyForActiveScene(Scene scene)
+        private static void TryApplyForScene(Scene scene)
         {
             if (!scene.IsValid() || !scene.isLoaded || string.IsNullOrWhiteSpace(scene.path))
             {
