@@ -1,4 +1,5 @@
 using Reloader.Player;
+using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -7,6 +8,9 @@ namespace Reloader.Reloading.World
 {
     public sealed class PlayerReloadingBenchController : MonoBehaviour
     {
+        private const string BenchHintContextId = "bench";
+        private const string BenchHintActionText = "Use bench";
+
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private MonoBehaviour _resolverBehaviour;
 
@@ -42,6 +46,7 @@ namespace Reloader.Reloading.World
         {
             CloseActiveWorkbenchIfAny();
             _flushPickupInputAtEndOfFrame = false;
+            ClearInteractionHint();
         }
 
         public void Configure(IPlayerInputSource inputSource, IPlayerReloadingBenchResolver resolver, IUiStateEvents uiStateEvents = null)
@@ -60,7 +65,18 @@ namespace Reloader.Reloading.World
             {
                 _flushPickupInputAtEndOfFrame = true;
                 CloseActiveWorkbenchIfAny();
+                ClearInteractionHint();
                 return;
+            }
+
+            var uiStateEvents = ResolveUiStateEvents();
+            if (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen)
+            {
+                ClearInteractionHint();
+            }
+            else
+            {
+                PublishInteractionHint();
             }
 
             if (_activeTarget != null && !ReferenceEquals(_activeTarget, target) && _activeTarget.IsWorkbenchOpen)
@@ -160,6 +176,17 @@ namespace Reloader.Reloading.World
             }
 
             return _uiStateEvents;
+        }
+
+        private static void PublishInteractionHint()
+        {
+            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintShown(
+                new InteractionHintPayload(BenchHintContextId, BenchHintActionText));
+        }
+
+        private static void ClearInteractionHint()
+        {
+            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared();
         }
     }
 }

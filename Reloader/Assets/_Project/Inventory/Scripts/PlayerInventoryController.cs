@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Text;
 using Reloader.Core;
 using Reloader.Core.Events;
+using Reloader.Core.Items;
 using Reloader.Core.Runtime;
 using Reloader.Player;
 using UnityEngine;
@@ -11,9 +13,12 @@ namespace Reloader.Inventory
     public sealed class PlayerInventoryController : MonoBehaviour
     {
         private const int DefaultBackpackCapacity = 9;
+        private const string PickupHintContextId = "pickup";
+        private const string PickupHintActionText = "Pick up";
 
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private MonoBehaviour _pickupTargetResolverBehaviour;
+        [SerializeField] private List<ItemDefinition> _itemDefinitionRegistry = new List<ItemDefinition>();
         [SerializeField] private int _startingBackpackCapacity = DefaultBackpackCapacity;
         [Header("Debug (Runtime)")]
         [SerializeField] private int _selectedBeltIndexDebug = -1;
@@ -52,6 +57,7 @@ namespace Reloader.Inventory
             UnsubscribeFromInventoryEvents();
             _pendingPickupTargetsById.Clear();
             _flushPickupInputAtEndOfFrame = false;
+            ClearInteractionHint();
         }
 
         private void Update()
@@ -121,7 +127,18 @@ namespace Reloader.Inventory
             if (_pickupTargetResolver == null || !_pickupTargetResolver.TryResolvePickupTarget(out var pickupTarget) || pickupTarget == null)
             {
                 _flushPickupInputAtEndOfFrame = true;
+                ClearInteractionHint();
                 return;
+            }
+
+            var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
+            if (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen)
+            {
+                ClearInteractionHint();
+            }
+            else
+            {
+                PublishPickupHint(pickupTarget);
             }
 
             var pickupPressedThisFrame = IsPickupPressedThisFrame();
@@ -308,6 +325,121 @@ namespace Reloader.Inventory
             }
 
             return pickupTarget.ItemId;
+        }
+
+        private void PublishPickupHint(IInventoryPickupTarget pickupTarget)
+        {
+            var subjectText = ResolvePickupDisplayName(pickupTarget);
+            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintShown(
+                new InteractionHintPayload(PickupHintContextId, PickupHintActionText, subjectText));
+        }
+
+        private static void ClearInteractionHint()
+        {
+            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared();
+        }
+
+        private string ResolvePickupDisplayName(IInventoryPickupTarget pickupTarget)
+        {
+            if (pickupTarget is IInventoryDisplayNamePickupTarget displayNameTarget
+                && !string.IsNullOrWhiteSpace(displayNameTarget.DisplayName))
+            {
+                return displayNameTarget.DisplayName;
+            }
+
+            if (pickupTarget is IInventoryDefinitionPickupTarget definitionTarget
+                && definitionTarget.SpawnDefinition != null
+                && definitionTarget.SpawnDefinition.ItemDefinition != null
+                && !string.IsNullOrWhiteSpace(definitionTarget.SpawnDefinition.ItemDefinition.DisplayName))
+            {
+                return definitionTarget.SpawnDefinition.ItemDefinition.DisplayName;
+            }
+
+            var itemId = ResolvePickupItemId(pickupTarget);
+            if (TryResolveDisplayNameFromRegistry(itemId, out var displayName))
+            {
+                return displayName;
+            }
+
+            return FormatItemId(itemId);
+        }
+
+        private bool TryResolveDisplayNameFromRegistry(string itemId, out string displayName)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                displayName = string.Empty;
+                return false;
+            }
+
+            for (var i = 0; i < _itemDefinitionRegistry.Count; i++)
+            {
+                var definition = _itemDefinitionRegistry[i];
+                if (definition == null || string.IsNullOrWhiteSpace(definition.DefinitionId))
+                {
+                    continue;
+                }
+
+                if (!string.Equals(definition.DefinitionId, itemId, System.StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(definition.DisplayName))
+                {
+                    continue;
+                }
+
+                displayName = definition.DisplayName;
+                return true;
+            }
+
+            displayName = string.Empty;
+            return false;
+        }
+
+        private static string FormatItemId(string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return "Item";
+            }
+
+            var builder = new StringBuilder(itemId.Length);
+            var uppercaseNext = true;
+            for (var i = 0; i < itemId.Length; i++)
+            {
+                var character = itemId[i];
+                if (character == '-' || character == '_')
+                {
+                    if (builder.Length > 0 && builder[builder.Length - 1] != ' ')
+                    {
+                        builder.Append(' ');
+                    }
+
+                    uppercaseNext = true;
+                    continue;
+                }
+
+                if (uppercaseNext && char.IsLetter(character))
+                {
+                    builder.Append(char.ToUpperInvariant(character));
+                    uppercaseNext = false;
+                    continue;
+                }
+
+                if (char.IsLetter(character))
+                {
+                    builder.Append(char.ToLowerInvariant(character));
+                    uppercaseNext = false;
+                    continue;
+                }
+
+                builder.Append(character);
+                uppercaseNext = false;
+            }
+
+            return builder.ToString().Trim();
         }
 
         private bool IsPickupPressedThisFrame()

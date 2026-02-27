@@ -28,6 +28,7 @@ namespace Reloader.Core.Runtime
         public static IWeaponEvents WeaponEvents => kernel.Events;
         public static IShopEvents ShopEvents => kernel.Events;
         public static IUiStateEvents UiStateEvents => kernel.Events;
+        public static IInteractionHintEvents InteractionHintEvents => kernel.Events;
 
         public static RuntimeKernel Configure(IEnumerable<RuntimeModuleRegistration> registrations, IGameEventsRuntimeHub eventsImplementation = null)
         {

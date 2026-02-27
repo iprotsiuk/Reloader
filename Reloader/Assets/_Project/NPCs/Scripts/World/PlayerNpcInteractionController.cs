@@ -1,5 +1,7 @@
 using System;
 using Reloader.Core;
+using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.NPCs.Runtime;
 using Reloader.Player;
 using UnityEngine;
@@ -8,6 +10,9 @@ namespace Reloader.NPCs.World
 {
     public sealed class PlayerNpcInteractionController : MonoBehaviour
     {
+        private const string NpcHintContextId = "npc";
+        private const string DefaultNpcActionText = "Interact";
+
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private MonoBehaviour _resolverBehaviour;
 
@@ -26,6 +31,12 @@ namespace Reloader.NPCs.World
         private void OnEnable()
         {
             ResolveReferences();
+        }
+
+        private void OnDisable()
+        {
+            _flushPickupInputAtEndOfFrame = false;
+            ClearInteractionHint();
         }
 
         private void Update()
@@ -64,13 +75,24 @@ namespace Reloader.NPCs.World
                     _inputSource,
                     _resolver))
             {
+                ClearInteractionHint();
                 return;
             }
 
             if (!_resolver.TryResolveNpcAgent(out var target) || target == null)
             {
                 _flushPickupInputAtEndOfFrame = true;
+                ClearInteractionHint();
                 return;
+            }
+
+            if (RuntimeKernelBootstrapper.UiStateEvents != null && RuntimeKernelBootstrapper.UiStateEvents.IsAnyMenuOpen)
+            {
+                ClearInteractionHint();
+            }
+            else
+            {
+                PublishInteractionHint(target);
             }
 
             var pickupPressedThisFrame = _inputSource.ConsumePickupPressed();
@@ -144,6 +166,26 @@ namespace Reloader.NPCs.World
 
             action = default;
             return false;
+        }
+
+        private static void ClearInteractionHint()
+        {
+            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared();
+        }
+
+        private void PublishInteractionHint(NpcAgent target)
+        {
+            var actionText = DefaultNpcActionText;
+            if (target != null && TrySelectDefaultAction(target.CollectActions(), out var selectedAction))
+            {
+                if (!string.IsNullOrWhiteSpace(selectedAction.DisplayName))
+                {
+                    actionText = selectedAction.DisplayName;
+                }
+            }
+
+            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintShown(
+                new InteractionHintPayload(NpcHintContextId, actionText));
         }
 
         private static bool TrySelectDefaultAction(NpcActionCollection actions, out NpcActionDefinition selected)

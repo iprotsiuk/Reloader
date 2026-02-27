@@ -1,4 +1,5 @@
 using Reloader.Core;
+using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Player;
 using System;
@@ -9,6 +10,9 @@ namespace Reloader.NPCs.World
 {
     public sealed class PlayerShopVendorController : MonoBehaviour
     {
+        private const string VendorHintContextId = "vendor";
+        private const string VendorHintActionText = "Trade";
+
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private MonoBehaviour _resolverBehaviour;
 
@@ -55,6 +59,7 @@ namespace Reloader.NPCs.World
             UnsubscribeFromShopEvents();
             _isTradeOpen = false;
             _flushPickupInputAtEndOfFrame = false;
+            ClearInteractionHint();
         }
 
         public void Configure(IPlayerInputSource inputSource, IPlayerShopVendorResolver resolver, IShopEvents shopEvents = null)
@@ -86,11 +91,22 @@ namespace Reloader.NPCs.World
             if (_resolver == null || !_resolver.TryResolveVendorTarget(out var target) || target == null)
             {
                 _flushPickupInputAtEndOfFrame = true;
+                ClearInteractionHint();
                 if (_isTradeOpen)
                 {
                     ResolveShopEvents()?.RaiseShopTradeClosed();
                 }
                 return;
+            }
+
+            var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
+            if (_isTradeOpen || (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen))
+            {
+                ClearInteractionHint();
+            }
+            else
+            {
+                PublishInteractionHint();
             }
 
             var pickupPressedThisFrame = IsPickupPressedThisFrame();
@@ -261,6 +277,17 @@ namespace Reloader.NPCs.World
         private void UnsubscribeFromRuntimeHubReconfigure()
         {
             RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
+        }
+
+        private static void PublishInteractionHint()
+        {
+            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintShown(
+                new InteractionHintPayload(VendorHintContextId, VendorHintActionText));
+        }
+
+        private static void ClearInteractionHint()
+        {
+            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared();
         }
     }
 }

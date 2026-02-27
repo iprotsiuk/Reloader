@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Player;
 using Reloader.Reloading.World;
@@ -173,6 +174,71 @@ namespace Reloader.Reloading.Tests.PlayMode
                 RuntimeKernelBootstrapper.Events = originalHub;
                 Object.Destroy(root);
             }
+        }
+
+        [Test]
+        public void Tick_TargetedBench_EmitsUseBenchHint()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerReloadingBenchController>();
+            var resolver = root.AddComponent<TestBenchResolver>();
+            var target = root.AddComponent<TestBenchTarget>();
+            resolver.Target = target;
+            controller.Configure(input, resolver);
+
+            InteractionHintPayload hinted = default;
+            runtimeHub.OnInteractionHintShown += payload => hinted = payload;
+
+            try
+            {
+                controller.Tick();
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.Destroy(root);
+            }
+
+            Assert.That(hinted.ContextId, Is.EqualTo("bench"));
+            Assert.That(hinted.ActionText, Is.EqualTo("Use bench"));
+        }
+
+        [Test]
+        public void Tick_NoBenchTargetAfterHint_ClearsHint()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerReloadingBenchController>();
+            var resolver = root.AddComponent<TestBenchResolver>();
+            var target = root.AddComponent<TestBenchTarget>();
+            resolver.Target = target;
+            controller.Configure(input, resolver);
+
+            var clearCount = 0;
+            runtimeHub.OnInteractionHintCleared += () => clearCount++;
+
+            try
+            {
+                controller.Tick();
+                resolver.Target = null;
+                controller.Tick();
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.Destroy(root);
+            }
+
+            Assert.That(clearCount, Is.GreaterThanOrEqualTo(1));
         }
 
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource

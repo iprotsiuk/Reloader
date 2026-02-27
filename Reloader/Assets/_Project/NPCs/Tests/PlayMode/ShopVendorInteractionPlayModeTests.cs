@@ -399,6 +399,73 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void Tick_TargetedVendor_EmitsTradeHint()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerShopVendorController>();
+            var resolver = root.AddComponent<TestVendorResolver>();
+            controller.Configure(input, resolver);
+            var vendor = new GameObject("Vendor").AddComponent<ShopVendorTarget>();
+            resolver.Target = vendor;
+
+            InteractionHintPayload hinted = default;
+            runtimeHub.OnInteractionHintShown += payload => hinted = payload;
+
+            try
+            {
+                controller.Tick();
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(vendor.gameObject);
+            }
+
+            Assert.That(hinted.ContextId, Is.EqualTo("vendor"));
+            Assert.That(hinted.ActionText, Is.EqualTo("Trade"));
+        }
+
+        [Test]
+        public void Tick_WhenTradeMenuIsOpen_ClearsTradeHint()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerShopVendorController>();
+            var resolver = root.AddComponent<TestVendorResolver>();
+            controller.Configure(input, resolver);
+            var vendor = new GameObject("Vendor").AddComponent<ShopVendorTarget>();
+            resolver.Target = vendor;
+
+            var clearCount = 0;
+            runtimeHub.OnInteractionHintCleared += () => clearCount++;
+
+            try
+            {
+                controller.Tick();
+                runtimeHub.RaiseShopTradeOpened(vendor.VendorId);
+                controller.Tick();
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(vendor.gameObject);
+            }
+
+            Assert.That(clearCount, Is.GreaterThanOrEqualTo(1));
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public bool PickupPressedThisFrame;

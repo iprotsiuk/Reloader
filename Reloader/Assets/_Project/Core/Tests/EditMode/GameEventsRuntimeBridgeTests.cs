@@ -204,5 +204,55 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(hub.IsWorkbenchMenuVisible, Is.False);
             Assert.That(hub.IsTabInventoryVisible, Is.False);
         }
+
+        [Test]
+        public void RaiseInteractionHintShown_TypedPortInvokesConfiguredRuntimeHub()
+        {
+            var hub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), hub);
+
+            InteractionHintPayload received = default;
+            var raised = false;
+            void Handler(InteractionHintPayload payload)
+            {
+                raised = true;
+                received = payload;
+            }
+
+            hub.OnInteractionHintShown += Handler;
+            try
+            {
+                RuntimeKernelBootstrapper.InteractionHintEvents.RaiseInteractionHintShown(
+                    new InteractionHintPayload("pickup", "Pick up", "Hodgdon Varget"));
+            }
+            finally
+            {
+                hub.OnInteractionHintShown -= Handler;
+            }
+
+            Assert.That(raised, Is.True);
+            Assert.That(received.ContextId, Is.EqualTo("pickup"));
+            Assert.That(received.ActionText, Is.EqualTo("Pick up"));
+            Assert.That(received.SubjectText, Is.EqualTo("Hodgdon Varget"));
+            Assert.That(hub.HasInteractionHint, Is.True);
+        }
+
+        [Test]
+        public void RaiseInteractionHintCleared_ResetsHubInteractionHintState()
+        {
+            var hub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), hub);
+
+            var clearedCount = 0;
+            hub.OnInteractionHintCleared += () => clearedCount++;
+
+            RuntimeKernelBootstrapper.InteractionHintEvents.RaiseInteractionHintShown(
+                new InteractionHintPayload("vendor", "Trade", "Reloading Store"));
+            RuntimeKernelBootstrapper.InteractionHintEvents.RaiseInteractionHintCleared();
+
+            Assert.That(clearedCount, Is.EqualTo(1));
+            Assert.That(hub.HasInteractionHint, Is.False);
+            Assert.That(hub.CurrentInteractionHint.ContextId, Is.Empty);
+        }
     }
 }

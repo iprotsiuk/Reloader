@@ -6,5 +6,6 @@ namespace Reloader.Core.Runtime
         IWeaponEvents WeaponEvents { get; }
         IShopEvents ShopEvents { get; }
         IUiStateEvents UiStateEvents { get; }
+        IInteractionHintEvents InteractionHintEvents { get; }
     }
 }

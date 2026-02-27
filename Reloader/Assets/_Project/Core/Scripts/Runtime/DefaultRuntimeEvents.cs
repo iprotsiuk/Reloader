@@ -10,11 +10,14 @@ namespace Reloader.Core.Runtime
         public IWeaponEvents WeaponEvents => this;
         public IShopEvents ShopEvents => this;
         public IUiStateEvents UiStateEvents => this;
+        public IInteractionHintEvents InteractionHintEvents => this;
 
         public bool IsShopTradeMenuOpen { get; private set; }
         public bool IsWorkbenchMenuVisible { get; private set; }
         public bool IsTabInventoryVisible { get; private set; }
         public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible;
+        public bool HasInteractionHint { get; private set; }
+        public InteractionHintPayload CurrentInteractionHint { get; private set; }
 
         public event Action OnSaveStarted;
         public event Action OnSaveCompleted;
@@ -45,6 +48,8 @@ namespace Reloader.Core.Runtime
         public event Action<bool> OnWorkbenchMenuVisibilityChanged;
         public event Action<bool> OnTabInventoryVisibilityChanged;
         public event Action<int> OnMoneyChanged;
+        public event Action<InteractionHintPayload> OnInteractionHintShown;
+        public event Action OnInteractionHintCleared;
 
         public void RaiseSaveStarted() => OnSaveStarted?.Invoke();
         public void RaiseSaveCompleted() => OnSaveCompleted?.Invoke();
@@ -99,5 +104,19 @@ namespace Reloader.Core.Runtime
         }
 
         public void RaiseMoneyChanged(int amount) => OnMoneyChanged?.Invoke(amount);
+
+        public void RaiseInteractionHintShown(InteractionHintPayload payload)
+        {
+            CurrentInteractionHint = payload;
+            HasInteractionHint = true;
+            OnInteractionHintShown?.Invoke(payload);
+        }
+
+        public void RaiseInteractionHintCleared()
+        {
+            CurrentInteractionHint = default;
+            HasInteractionHint = false;
+            OnInteractionHintCleared?.Invoke();
+        }
     }
 }
