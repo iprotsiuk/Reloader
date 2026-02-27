@@ -17,12 +17,16 @@ namespace Reloader.Core.Persistence
                 throw new ArgumentNullException(nameof(record));
             }
 
+            EnsureRequired(scenePath, nameof(scenePath));
+            EnsureRequired(record.ObjectId, nameof(record.ObjectId));
             var key = BuildKey(scenePath, record.ObjectId);
             _records[key] = record;
         }
 
         public bool TryGet(string scenePath, string objectId, out WorldObjectStateRecord record)
         {
+            EnsureRequired(scenePath, nameof(scenePath));
+            EnsureRequired(objectId, nameof(objectId));
             var key = BuildKey(scenePath, objectId);
             return _records.TryGetValue(key, out record);
         }
@@ -30,6 +34,14 @@ namespace Reloader.Core.Persistence
         private static string BuildKey(string scenePath, string objectId)
         {
             return (scenePath ?? string.Empty) + "\u001f" + (objectId ?? string.Empty);
+        }
+
+        private static void EnsureRequired(string value, string paramName)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new ArgumentException($"{paramName} cannot be null or whitespace.", paramName);
+            }
         }
     }
 }

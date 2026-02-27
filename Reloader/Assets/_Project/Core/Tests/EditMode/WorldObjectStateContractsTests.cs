@@ -1,3 +1,4 @@
+using System;
 using NUnit.Framework;
 using Reloader.Core.Persistence;
 
@@ -82,6 +83,49 @@ namespace Reloader.Core.Tests.EditMode
 
             Assert.That(store.TryGet("Assets/Scenes/MainWorld.unity", "pickup-001", out _), Is.False);
             Assert.That(store.TryGet(" Assets/Scenes/MainWorld.unity ", "pickup-001", out _), Is.True);
+        }
+
+        [Test]
+        public void WorldObjectStateStore_Upsert_ThrowsOnNullRecord()
+        {
+            var store = new WorldObjectStateStore();
+
+            Assert.Throws<ArgumentNullException>(() => store.Upsert("Assets/Scenes/MainWorld.unity", null));
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase(" ")]
+        public void WorldObjectStateStore_Upsert_ThrowsOnInvalidScenePath(string scenePath)
+        {
+            var store = new WorldObjectStateStore();
+
+            Assert.Throws<ArgumentException>(() =>
+                store.Upsert(scenePath, new WorldObjectStateRecord { ObjectId = "pickup-001" }));
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase(" ")]
+        public void WorldObjectStateStore_Upsert_ThrowsOnInvalidRecordObjectId(string objectId)
+        {
+            var store = new WorldObjectStateStore();
+
+            Assert.Throws<ArgumentException>(() =>
+                store.Upsert("Assets/Scenes/MainWorld.unity", new WorldObjectStateRecord { ObjectId = objectId }));
+        }
+
+        [TestCase(null, "pickup-001")]
+        [TestCase("", "pickup-001")]
+        [TestCase(" ", "pickup-001")]
+        [TestCase("Assets/Scenes/MainWorld.unity", null)]
+        [TestCase("Assets/Scenes/MainWorld.unity", "")]
+        [TestCase("Assets/Scenes/MainWorld.unity", " ")]
+        public void WorldObjectStateStore_TryGet_ThrowsOnInvalidIdentifiers(string scenePath, string objectId)
+        {
+            var store = new WorldObjectStateStore();
+
+            Assert.Throws<ArgumentException>(() => store.TryGet(scenePath, objectId, out _));
         }
     }
 }
