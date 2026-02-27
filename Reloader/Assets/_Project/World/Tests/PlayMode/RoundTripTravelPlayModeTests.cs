@@ -80,6 +80,7 @@ namespace Reloader.World.Tests.PlayMode
         {
             SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
             yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            AssertSinglePlayerRootGlobal();
 
             var playerHouse = GameObject.Find("PlayerHouse");
             Assert.That(playerHouse, Is.Not.Null, "Expected authored PlayerHouse object in MainTown.");
@@ -109,6 +110,8 @@ namespace Reloader.World.Tests.PlayMode
             yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
             yield return WaitForResolvedEntryPoint("entry.indoor.arrival", SceneSwitchTimeoutSeconds);
             AssertPlayerRootIsAtEntryPoint("entry.indoor.arrival");
+            AssertSinglePlayerRootGlobal();
+            AssertPlayerArmsRigPresentAndBound();
 
             var returnInteractor = CreatePlayerInteractor();
             var toTownObject = GameObject.Find("IndoorRange_SmokeToMainTown_Trigger");
@@ -135,6 +138,8 @@ namespace Reloader.World.Tests.PlayMode
             yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
             yield return WaitForResolvedEntryPoint("entry.maintown.return", SceneSwitchTimeoutSeconds);
             AssertPlayerRootIsAtEntryPoint("entry.maintown.return");
+            AssertSinglePlayerRootGlobal();
+            AssertMainTownControlRigWired();
         }
 
         [UnityTest]
@@ -478,6 +483,70 @@ namespace Reloader.World.Tests.PlayMode
 
             var globalPlayerRoot = GameObject.Find("PlayerRoot");
             return globalPlayerRoot != null ? globalPlayerRoot.transform : null;
+        }
+
+        private static void AssertSinglePlayerRootGlobal()
+        {
+            var all = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var count = 0;
+            for (var i = 0; i < all.Length; i++)
+            {
+                var t = all[i];
+                if (t != null && t.name == "PlayerRoot")
+                {
+                    count++;
+                }
+            }
+
+            Assert.That(count, Is.EqualTo(1), "Expected exactly one PlayerRoot globally after travel.");
+        }
+
+        private static void AssertPlayerArmsRigPresentAndBound()
+        {
+            var playerRoot = GameObject.Find("PlayerRoot");
+            Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot.");
+
+            var cameraPivot = playerRoot.transform.Find("CameraPivot");
+            Assert.That(cameraPivot, Is.Not.Null, "Expected CameraPivot under PlayerRoot.");
+
+            var playerArms = cameraPivot.Find("PlayerArms");
+            Assert.That(playerArms, Is.Not.Null, "Expected PlayerArms under CameraPivot.");
+            var animator = playerArms.GetComponentInChildren<Animator>(true);
+            Assert.That(animator, Is.Not.Null, "Expected Animator on PlayerArms.");
+            Assert.That(animator.runtimeAnimatorController, Is.Not.Null, "Expected runtime animator controller on PlayerArms animator.");
+        }
+
+        private static void AssertMainTownControlRigWired()
+        {
+            var playerRoot = GameObject.Find("PlayerRoot");
+            Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot in MainTown.");
+
+            var inputReader = playerRoot.GetComponent("PlayerInputReader");
+            Assert.That(inputReader, Is.Not.Null, "Expected PlayerInputReader.");
+            var actionsField = inputReader.GetType().GetField("_actionsAsset", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(actionsField, Is.Not.Null, "Expected _actionsAsset field on PlayerInputReader.");
+            Assert.That(actionsField.GetValue(inputReader), Is.Not.Null, "Expected input actions asset assigned after travel.");
+
+            var lookController = playerRoot.GetComponent("PlayerLookController");
+            Assert.That(lookController, Is.Not.Null, "Expected PlayerLookController.");
+            var lookInputField = lookController.GetType().GetField("_inputSourceBehaviour", BindingFlags.Instance | BindingFlags.NonPublic);
+            var lookPitchField = lookController.GetType().GetField("_pitchTransform", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(lookInputField?.GetValue(lookController), Is.Not.Null, "Look controller input reference should be assigned.");
+            Assert.That(lookPitchField?.GetValue(lookController), Is.Not.Null, "Look controller pitch transform should be assigned.");
+
+            var mover = playerRoot.GetComponent("PlayerMover");
+            Assert.That(mover, Is.Not.Null, "Expected PlayerMover.");
+            var moverInputField = mover.GetType().GetField("_inputSourceBehaviour", BindingFlags.Instance | BindingFlags.NonPublic);
+            var moverControllerField = mover.GetType().GetField("_characterController", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(moverInputField?.GetValue(mover), Is.Not.Null, "Mover input reference should be assigned.");
+            Assert.That(moverControllerField?.GetValue(mover), Is.Not.Null, "Mover character controller should be assigned.");
+
+            var weaponController = playerRoot.GetComponent("PlayerWeaponController");
+            Assert.That(weaponController, Is.Not.Null, "Expected PlayerWeaponController.");
+            var weaponInputField = weaponController.GetType().GetField("_inputSourceBehaviour", BindingFlags.Instance | BindingFlags.NonPublic);
+            var weaponInventoryField = weaponController.GetType().GetField("_inventoryController", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(weaponInputField?.GetValue(weaponController), Is.Not.Null, "Weapon controller input reference should be assigned.");
+            Assert.That(weaponInventoryField?.GetValue(weaponController), Is.Not.Null, "Weapon controller inventory reference should be assigned.");
         }
 
         private static SceneEntryPoint FindEntryPointInScene(Scene scene, string entryPointId)

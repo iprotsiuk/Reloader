@@ -72,6 +72,7 @@ namespace Reloader.World.Travel
             }
 
             EnsureSubscribed();
+            PreparePersistentPlayerRootForTravel();
             CaptureInventorySnapshotForTravel();
             CaptureWeaponRuntimeSnapshotForTravel();
             _pendingSceneName = sceneName.Trim();
@@ -170,7 +171,7 @@ namespace Reloader.World.Travel
                 return;
             }
 
-            var activeScenePlayerRoot = FindPlayerRootInScene(scene);
+            var activeScenePlayerRoot = ResolveTravelPlayerRoot(scene);
 
             if (activeScenePlayerRoot != null)
             {
@@ -181,12 +182,37 @@ namespace Reloader.World.Travel
                 EnsureViewmodelRigAfterTravel(activeScenePlayerRoot);
             }
 
-            if (PersistentPlayerRoot.Instance != null)
+        }
+
+        private static void PreparePersistentPlayerRootForTravel()
+        {
+            var persistentRoot = PersistentPlayerRoot.EnsureInstance();
+            if (persistentRoot == null)
             {
-                var persistentRootTransform = PersistentPlayerRoot.Instance.transform;
-                persistentRootTransform.position = entryPointTransform.position;
-                persistentRootTransform.rotation = entryPointTransform.rotation;
+                return;
             }
+
+            var activeScene = SceneManager.GetActiveScene();
+            if (!activeScene.IsValid() || !activeScene.isLoaded)
+            {
+                return;
+            }
+
+            persistentRoot.CaptureOrAdoptPlayerRootForScene(activeScene, preferSceneRoot: true);
+        }
+
+        private static Transform ResolveTravelPlayerRoot(Scene destinationScene)
+        {
+            if (destinationScene.IsValid() && destinationScene.isLoaded && PersistentPlayerRoot.Instance != null)
+            {
+                var adopted = PersistentPlayerRoot.Instance.CaptureOrAdoptPlayerRootForScene(destinationScene, preferSceneRoot: false);
+                if (adopted != null)
+                {
+                    return adopted;
+                }
+            }
+
+            return FindPlayerRootInScene(destinationScene);
         }
 
         private static void CaptureInventorySnapshotForTravel()
