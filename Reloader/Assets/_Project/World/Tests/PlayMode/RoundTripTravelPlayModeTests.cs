@@ -55,6 +55,17 @@ namespace Reloader.World.Tests.PlayMode
             var beltHud = GameObject.Find("BeltHud");
             Assert.That(beltHud, Is.Not.Null, "IndoorRange scene should include BeltHud runtime prefab.");
 
+            var mainCamera = GameObject.Find("Main Camera");
+            Assert.That(mainCamera, Is.Not.Null, "Expected Main Camera in IndoorRange scene.");
+            Assert.That(
+                mainCamera.transform.parent,
+                Is.Not.Null,
+                "Expected Main Camera to be parented under PlayerRoot camera rig.");
+            Assert.That(
+                mainCamera.transform.parent.name,
+                Is.EqualTo("CameraPivot"),
+                "IndoorRange Main Camera should be parented to CameraPivot for player look/camera control.");
+
         }
 
         [UnityTest]
