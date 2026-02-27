@@ -1,0 +1,85 @@
+using System.Collections.Generic;
+using Reloader.World.Runtime;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+namespace Reloader.World.Travel
+{
+    public static class WorldTravelCoordinator
+    {
+        private static string _pendingEntryPointId;
+        private static bool _isSubscribedToSceneLoaded;
+
+        public static string LastResolvedEntryPointId { get; private set; }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetState()
+        {
+            _pendingEntryPointId = null;
+            LastResolvedEntryPointId = null;
+            _isSubscribedToSceneLoaded = false;
+        }
+
+        public static bool TryTravel(TravelContext context)
+        {
+            if (context == null)
+            {
+                return false;
+            }
+
+            context.Validate();
+            EnsureSubscribed();
+            _pendingEntryPointId = context.DestinationEntryPointId;
+            LastResolvedEntryPointId = null;
+            SceneManager.LoadScene(context.DestinationSceneName, LoadSceneMode.Single);
+            return true;
+        }
+
+        private static void EnsureSubscribed()
+        {
+            if (_isSubscribedToSceneLoaded)
+            {
+                return;
+            }
+
+            SceneManager.sceneLoaded += OnSceneLoaded;
+            _isSubscribedToSceneLoaded = true;
+        }
+
+        private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (string.IsNullOrWhiteSpace(_pendingEntryPointId))
+            {
+                return;
+            }
+
+            var candidates = new List<SceneEntryPoint>();
+            var allEntryPoints = Object.FindObjectsByType<SceneEntryPoint>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < allEntryPoints.Length; i++)
+            {
+                var entryPoint = allEntryPoints[i];
+                if (entryPoint != null && entryPoint.gameObject.scene == scene)
+                {
+                    candidates.Add(entryPoint);
+                }
+            }
+
+            if (SceneEntryPoint.TryFindById(candidates, _pendingEntryPointId, out var resolvedEntryPoint))
+            {
+                LastResolvedEntryPointId = resolvedEntryPoint.EntryPointId;
+                if (PersistentPlayerRoot.Instance != null)
+                {
+                    var rootTransform = PersistentPlayerRoot.Instance.transform;
+                    rootTransform.position = resolvedEntryPoint.transform.position;
+                    rootTransform.rotation = resolvedEntryPoint.transform.rotation;
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"Travel entry point '{_pendingEntryPointId}' was not found in scene '{scene.name}'.");
+            }
+
+            _pendingEntryPointId = null;
+        }
+    }
+}

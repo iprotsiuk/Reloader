@@ -2,6 +2,7 @@
   "name": "Reloader.World.Tests.PlayMode",
   "rootNamespace": "Reloader.World.Tests.PlayMode",
   "references": [
+    "Reloader.World",
     "Reloader.Core"
   ],
   "includePlatforms": [],
