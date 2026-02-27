@@ -181,8 +181,12 @@ if [[ ! -f docs/plans/2026-02-27-main-town-indoor-range-mcp-authoring-checklist.
   fail "Missing MCP authoring checklist for world scene workflow."
 fi
 
-if ! rg -n "world-and-scenes.md|world-scene-contracts.md" .cursor/rules/world-vehicles-context.mdc >/dev/null 2>&1; then
-  fail "world-vehicles-context must route to world-and-scenes.md and world-scene-contracts.md."
+if ! rg -n "world-and-scenes.md" .cursor/rules/world-vehicles-context.mdc >/dev/null 2>&1; then
+  fail "world-vehicles-context must route to world-and-scenes.md."
+fi
+
+if ! rg -n "world-scene-contracts.md" .cursor/rules/world-vehicles-context.mdc >/dev/null 2>&1; then
+  fail "world-vehicles-context must route to world-scene-contracts.md."
 fi
 
 if ! rg -n "world-scene-contracts.md" .agent/skills/using-unity-mcp/SKILL.md >/dev/null 2>&1; then
