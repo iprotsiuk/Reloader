@@ -4,6 +4,7 @@ using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Player;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Reloader.Inventory
 {
@@ -123,7 +124,7 @@ namespace Reloader.Inventory
                 return;
             }
 
-            var pickupPressedThisFrame = _inputSource.ConsumePickupPressed();
+            var pickupPressedThisFrame = IsPickupPressedThisFrame();
             if (!pickupPressedThisFrame)
             {
                 _flushPickupInputAtEndOfFrame = false;
@@ -307,6 +308,16 @@ namespace Reloader.Inventory
             }
 
             return pickupTarget.ItemId;
+        }
+
+        private bool IsPickupPressedThisFrame()
+        {
+            if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
+            {
+                return true;
+            }
+
+            return _inputSource != null && _inputSource.ConsumePickupPressed();
         }
 
         private void UpdateDebugFields()
