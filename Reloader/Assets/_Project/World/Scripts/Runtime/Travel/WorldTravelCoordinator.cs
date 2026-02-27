@@ -92,7 +92,7 @@ namespace Reloader.World.Travel
                 return;
             }
 
-            if (scene.name != _pendingSceneName)
+            if (!IsMatchingPendingScene(scene, _pendingSceneName))
             {
                 return;
             }
@@ -120,6 +120,29 @@ namespace Reloader.World.Travel
 
             _pendingSceneName = null;
             _pendingEntryPointId = null;
+        }
+
+        private static bool IsMatchingPendingScene(Scene loadedScene, string pendingSceneIdentifier)
+        {
+            if (string.IsNullOrWhiteSpace(pendingSceneIdentifier))
+            {
+                return false;
+            }
+
+            var pending = pendingSceneIdentifier.Trim();
+            if (string.Equals(loadedScene.name, pending, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var loadedScenePath = loadedScene.path;
+            if (string.IsNullOrWhiteSpace(loadedScenePath))
+            {
+                return false;
+            }
+
+            var normalizedPending = pending.Replace('\\', '/');
+            return string.Equals(loadedScenePath, normalizedPending, StringComparison.OrdinalIgnoreCase);
         }
 
         private static void RepositionPlayerToEntryPoint(Scene scene, Transform entryPointTransform)

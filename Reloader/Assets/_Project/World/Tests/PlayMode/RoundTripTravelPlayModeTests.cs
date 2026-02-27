@@ -11,6 +11,8 @@ namespace Reloader.World.Tests.PlayMode
     {
         private const string BootstrapSceneName = "Bootstrap";
         private const string MainTownSceneName = "MainTown";
+        private const string MainTownScenePath = "Assets/_Project/World/Scenes/MainTown.unity";
+
         private const string IndoorRangeSceneName = "IndoorRangeInstance";
         private const float SceneSwitchTimeoutSeconds = 5f;
 
@@ -44,6 +46,19 @@ namespace Reloader.World.Tests.PlayMode
             yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
             yield return WaitForResolvedEntryPoint("entry.maintown.return", SceneSwitchTimeoutSeconds);
             AssertPlayerRootIsAtEntryPoint("entry.maintown.return");
+        }
+
+        [UnityTest]
+        public IEnumerator TryLoadSceneAtEntry_MatchesScenePathIdentifier_OnSceneLoaded()
+        {
+            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
+            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+
+            var started = WorldTravelCoordinator.TryLoadSceneAtEntry(MainTownScenePath, "entry.maintown.spawn");
+            Assert.That(started, Is.True);
+
+            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            yield return WaitForResolvedEntryPoint("entry.maintown.spawn", SceneSwitchTimeoutSeconds);
         }
 
         private static GameObject CreatePlayerInteractor()
