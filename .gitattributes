@@ -21,6 +21,12 @@
 *.overrideController text merge=unityyamlmerge
 *.playable text merge=unityyamlmerge
 
+# MainWorld scene is stored in Unity binary format; force binary handling
+Reloader/Assets/Scenes/MainWorld.unity -text -merge
+
+# Project gameplay scenes can be binary in this repo; never normalize line endings
+Reloader/Assets/Scenes/*.unity -text -merge
+
 # Binary assets
 *.png binary
 *.jpg binary
