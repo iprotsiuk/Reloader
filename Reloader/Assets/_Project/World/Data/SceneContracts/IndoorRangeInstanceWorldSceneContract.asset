@@ -20,6 +20,16 @@ MonoBehaviour:
   - PlayerRoot/CameraPivot/CameraLookTarget
   - PlayerRoot/CameraPivot/WeaponMuzzle
   - WeaponRegistry
+  - IndoorRange_Geometry
+  - IndoorRange_Geometry/Range_Floor
+  - IndoorRange_Geometry/Range_Ceiling
+  - IndoorRange_Geometry/Range_Wall_Left
+  - IndoorRange_Geometry/Range_Wall_Right
+  - IndoorRange_Geometry/Range_Wall_Backstop
+  - IndoorRange_Geometry/FiringLine
+  - IndoorRange_Geometry/TargetPlate_1
+  - IndoorRange_Geometry/TargetPlate_2
+  - IndoorRange_Geometry/TargetPlate_3
   _requiredComponentContracts:
   - _objectPath: WeaponRegistry
     _componentScriptAsset: {fileID: 11500000, guid: 3331390cdd63f426a9872b70f2353cce, type: 3}

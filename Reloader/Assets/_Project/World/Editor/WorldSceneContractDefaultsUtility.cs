@@ -71,6 +71,20 @@ namespace Reloader.World.Editor
             contract.RequiredObjectPaths.Add("PlayerRoot/CameraPivot/CameraLookTarget");
             contract.RequiredObjectPaths.Add("PlayerRoot/CameraPivot/WeaponMuzzle");
             contract.RequiredObjectPaths.Add("WeaponRegistry");
+
+            if (string.Equals(contract.ScenePath, IndoorRangeScenePath, StringComparison.Ordinal))
+            {
+                contract.RequiredObjectPaths.Add("IndoorRange_Geometry");
+                contract.RequiredObjectPaths.Add("IndoorRange_Geometry/Range_Floor");
+                contract.RequiredObjectPaths.Add("IndoorRange_Geometry/Range_Ceiling");
+                contract.RequiredObjectPaths.Add("IndoorRange_Geometry/Range_Wall_Left");
+                contract.RequiredObjectPaths.Add("IndoorRange_Geometry/Range_Wall_Right");
+                contract.RequiredObjectPaths.Add("IndoorRange_Geometry/Range_Wall_Backstop");
+                contract.RequiredObjectPaths.Add("IndoorRange_Geometry/FiringLine");
+                contract.RequiredObjectPaths.Add("IndoorRange_Geometry/TargetPlate_1");
+                contract.RequiredObjectPaths.Add("IndoorRange_Geometry/TargetPlate_2");
+                contract.RequiredObjectPaths.Add("IndoorRange_Geometry/TargetPlate_3");
+            }
         }
 
         private static void ReplaceWithDefaultComponentContracts(WorldSceneContract contract)

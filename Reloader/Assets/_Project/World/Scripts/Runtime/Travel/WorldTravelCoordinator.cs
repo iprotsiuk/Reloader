@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System;
+using System.Reflection;
 using Reloader.World.Runtime;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -57,6 +58,7 @@ namespace Reloader.World.Travel
             }
 
             EnsureSubscribed();
+            EnsureTravelPlayerRootCaptured();
             _pendingSceneName = sceneName.Trim();
             _pendingEntryPointId = entryPointId.Trim();
             LastResolvedEntryPointId = null;
@@ -152,7 +154,12 @@ namespace Reloader.World.Travel
                 return;
             }
 
-            var activeScenePlayerRoot = FindPlayerRootInScene(scene);
+            var activeScenePlayerRoot = ResolveTravelPlayerRoot(scene);
+            if (activeScenePlayerRoot == null)
+            {
+                activeScenePlayerRoot = FindPlayerRootInScene(scene);
+            }
+
             if (activeScenePlayerRoot != null)
             {
                 activeScenePlayerRoot.position = entryPointTransform.position;
@@ -165,6 +172,101 @@ namespace Reloader.World.Travel
                 persistentRootTransform.position = entryPointTransform.position;
                 persistentRootTransform.rotation = entryPointTransform.rotation;
             }
+        }
+
+        private static void EnsureTravelPlayerRootCaptured()
+        {
+            var persistentRoot = PersistentPlayerRoot.EnsureInstance();
+            var activeScene = SceneManager.GetActiveScene();
+            if (!activeScene.IsValid() || !activeScene.isLoaded)
+            {
+                return;
+            }
+
+            var capturedPlayerRoot = persistentRoot.CaptureOrAdoptPlayerRootForScene(activeScene, preferSceneRoot: true);
+            SetTravelSensitiveControllersEnabled(capturedPlayerRoot, false);
+        }
+
+        private static Transform ResolveTravelPlayerRoot(Scene destinationScene)
+        {
+            var persistentRoot = PersistentPlayerRoot.EnsureInstance();
+            var playerRoot = persistentRoot.CaptureOrAdoptPlayerRootForScene(destinationScene);
+            RebindTravelPlayerRootDependencies(playerRoot);
+            SetTravelSensitiveControllersEnabled(playerRoot, true);
+            return playerRoot;
+        }
+
+        private static void SetTravelSensitiveControllersEnabled(Transform playerRootTransform, bool isEnabled)
+        {
+            if (playerRootTransform == null)
+            {
+                return;
+            }
+
+            var playerWeaponController = playerRootTransform.GetComponent("PlayerWeaponController") as Behaviour;
+            if (playerWeaponController != null)
+            {
+                playerWeaponController.enabled = isEnabled;
+            }
+        }
+
+        private static void RebindTravelPlayerRootDependencies(Transform playerRootTransform)
+        {
+            if (playerRootTransform == null)
+            {
+                return;
+            }
+
+            InvokePrivateMethodIfPresent(playerRootTransform.GetComponent("PlayerInventoryController"), "ResolveReferences");
+            var playerWeaponController = playerRootTransform.GetComponent("PlayerWeaponController");
+            InvokePrivateMethodIfPresent(playerWeaponController, "ResolveReferences");
+            RebindPlayerWeaponRegistry(playerWeaponController);
+        }
+
+        private static void RebindPlayerWeaponRegistry(Component playerWeaponController)
+        {
+            if (playerWeaponController == null)
+            {
+                return;
+            }
+
+            var weaponControllerType = playerWeaponController.GetType();
+            var weaponRegistryField = weaponControllerType.GetField("_weaponRegistry", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (weaponRegistryField == null)
+            {
+                return;
+            }
+
+            var currentValue = weaponRegistryField.GetValue(playerWeaponController) as UnityEngine.Object;
+            if (currentValue != null)
+            {
+                return;
+            }
+
+            var weaponRegistryType = Type.GetType("Reloader.Weapons.Runtime.WeaponRegistry, Reloader.Weapons");
+            if (weaponRegistryType == null)
+            {
+                return;
+            }
+
+            var registry = UnityEngine.Object.FindFirstObjectByType(weaponRegistryType);
+            if (registry == null)
+            {
+                return;
+            }
+
+            weaponRegistryField.SetValue(playerWeaponController, registry);
+        }
+
+        private static void InvokePrivateMethodIfPresent(Component component, string methodName)
+        {
+            if (component == null || string.IsNullOrWhiteSpace(methodName))
+            {
+                return;
+            }
+
+            var method = component.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+            method?.Invoke(component, null);
         }
 
         private static Transform FindPlayerRootInScene(Scene scene)

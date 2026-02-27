@@ -54,6 +54,7 @@ namespace Reloader.World.Tests.PlayMode
 
             var beltHud = GameObject.Find("BeltHud");
             Assert.That(beltHud, Is.Not.Null, "IndoorRange scene should include BeltHud runtime prefab.");
+
         }
 
         [UnityTest]
@@ -86,6 +87,89 @@ namespace Reloader.World.Tests.PlayMode
             yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
             yield return WaitForResolvedEntryPoint("entry.maintown.return", SceneSwitchTimeoutSeconds);
             AssertPlayerRootIsAtEntryPoint("entry.maintown.return");
+        }
+
+        [UnityTest]
+        public IEnumerator Travel_MainTownToIndoor_PreservesPlayerRootIdentityAndInventoryState()
+        {
+            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
+            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+
+            var initialPlayerRoot = GameObject.Find("PlayerRoot");
+            Assert.That(initialPlayerRoot, Is.Not.Null, "Expected PlayerRoot in MainTown scene.");
+
+            var inventoryController = initialPlayerRoot.GetComponent("PlayerInventoryController");
+            Assert.That(inventoryController, Is.Not.Null, "Expected PlayerInventoryController on PlayerRoot.");
+
+            var runtimeProperty = inventoryController.GetType().GetProperty("Runtime", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(runtimeProperty, Is.Not.Null, "Expected Runtime property on PlayerInventoryController.");
+            var runtime = runtimeProperty.GetValue(inventoryController);
+            Assert.That(runtime, Is.Not.Null, "Expected non-null PlayerInventoryRuntime.");
+
+            var testItemId = "qa.travel.persist.item";
+            var tryStoreItem = runtime.GetType().GetMethod("TryStoreItem", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(tryStoreItem, Is.Not.Null, "Expected TryStoreItem on PlayerInventoryRuntime.");
+            var storeArgs = new object[] { testItemId, null, null, null };
+            var stored = (bool)tryStoreItem.Invoke(runtime, storeArgs);
+            Assert.That(stored, Is.True, "Expected to seed one inventory item before travel.");
+
+            var interactor = CreatePlayerInteractor();
+            var toIndoorObject = GameObject.Find("MainTown_SmokeToIndoor_Trigger");
+            Assert.That(toIndoorObject, Is.Not.Null, "Expected authored smoke trigger in MainTown.");
+            var toIndoor = toIndoorObject.GetComponent<TravelSceneTrigger>();
+            Assert.That(toIndoor, Is.Not.Null);
+            Assert.That(toIndoor.TryHandleInteractor(interactor), Is.True, "Expected travel trigger to start scene travel.");
+
+            yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
+            yield return WaitForResolvedEntryPoint("entry.indoor.arrival", SceneSwitchTimeoutSeconds);
+
+            var indoorPlayerRoot = GameObject.Find("PlayerRoot");
+            Assert.That(indoorPlayerRoot, Is.Not.Null, "Expected PlayerRoot after arriving to IndoorRange.");
+
+            var indoorInventoryController = indoorPlayerRoot.GetComponent("PlayerInventoryController");
+            Assert.That(indoorInventoryController, Is.Not.Null, "Expected PlayerInventoryController after travel.");
+            var indoorRuntime = runtimeProperty.GetValue(indoorInventoryController);
+            Assert.That(indoorRuntime, Is.Not.Null, "Expected non-null PlayerInventoryRuntime after travel.");
+
+            var getItemQuantity = indoorRuntime.GetType().GetMethod("GetItemQuantity", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(getItemQuantity, Is.Not.Null, "Expected GetItemQuantity on PlayerInventoryRuntime.");
+            var quantity = (int)getItemQuantity.Invoke(indoorRuntime, new object[] { testItemId });
+            Assert.That(quantity, Is.EqualTo(1), "Expected inventory quantity to persist after scene travel.");
+
+            Assert.That(indoorPlayerRoot.GetComponent("PlayerLookController"), Is.Not.Null, "Expected look controller after travel.");
+            Assert.That(indoorPlayerRoot.GetComponent("PlayerMover"), Is.Not.Null, "Expected movement controller after travel.");
+            Assert.That(indoorPlayerRoot.GetComponent("PlayerCursorLockController"), Is.Not.Null, "Expected cursor lock controller after travel.");
+            Assert.That(indoorPlayerRoot.GetComponent("ViewmodelAnimationAdapter"), Is.Not.Null, "Expected viewmodel adapter after travel.");
+            Assert.That(indoorPlayerRoot.GetComponent("FpsViewmodelAnimatorDriver"), Is.Not.Null, "Expected viewmodel animator driver after travel.");
+        }
+
+        [UnityTest]
+        public IEnumerator IndoorRange_HasShootingRangeBlockoutGeometry()
+        {
+            SceneManager.LoadScene(IndoorRangeSceneName, LoadSceneMode.Single);
+            yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
+
+            var requiredObjects = new[]
+            {
+                "IndoorRange_Geometry",
+                "Range_Floor",
+                "Range_Ceiling",
+                "Range_Wall_Left",
+                "Range_Wall_Right",
+                "Range_Wall_Backstop",
+                "FiringLine",
+                "LaneDivider_1",
+                "LaneDivider_2",
+                "TargetPlate_1",
+                "TargetPlate_2",
+                "TargetPlate_3"
+            };
+
+            for (var i = 0; i < requiredObjects.Length; i++)
+            {
+                var gameObject = GameObject.Find(requiredObjects[i]);
+                Assert.That(gameObject, Is.Not.Null, $"Expected IndoorRange geometry object '{requiredObjects[i]}'.");
+            }
         }
 
         [UnityTest]
@@ -166,7 +250,8 @@ namespace Reloader.World.Tests.PlayMode
                 }
             }
 
-            return null;
+            var globalPlayerRoot = GameObject.Find("PlayerRoot");
+            return globalPlayerRoot != null ? globalPlayerRoot.transform : null;
         }
 
         private static SceneEntryPoint FindEntryPointInScene(Scene scene, string entryPointId)
