@@ -5,8 +5,8 @@ namespace Reloader.Core.Persistence
 {
     public sealed class WorldObjectStateStore
     {
-        private static readonly StringComparer KeyComparer = StringComparer.Ordinal;
-        private readonly Dictionary<string, WorldObjectStateRecord> _records = new Dictionary<string, WorldObjectStateRecord>(KeyComparer);
+        private readonly Dictionary<(string scenePath, string objectId), WorldObjectStateRecord> _records =
+            new Dictionary<(string scenePath, string objectId), WorldObjectStateRecord>();
 
         public int Count => _records.Count;
 
@@ -31,9 +31,9 @@ namespace Reloader.Core.Persistence
             return _records.TryGetValue(key, out record);
         }
 
-        private static string BuildKey(string scenePath, string objectId)
+        private static (string scenePath, string objectId) BuildKey(string scenePath, string objectId)
         {
-            return (scenePath ?? string.Empty) + "\u001f" + (objectId ?? string.Empty);
+            return (scenePath, objectId);
         }
 
         private static void EnsureRequired(string value, string paramName)

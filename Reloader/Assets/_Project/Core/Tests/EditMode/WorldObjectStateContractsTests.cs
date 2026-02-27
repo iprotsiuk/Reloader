@@ -127,5 +127,26 @@ namespace Reloader.Core.Tests.EditMode
 
             Assert.Throws<ArgumentException>(() => store.TryGet(scenePath, objectId, out _));
         }
+
+        [Test]
+        public void WorldObjectStateStore_Keying_DoesNotCollideWhenValuesContainDelimiterCharacter()
+        {
+            var store = new WorldObjectStateStore();
+            var delimiter = "\u001f";
+
+            var scenePathA = "sceneA" + delimiter + "tail";
+            var objectIdA = "idA";
+            var scenePathB = "sceneA";
+            var objectIdB = "tail" + delimiter + "idA";
+
+            store.Upsert(scenePathA, new WorldObjectStateRecord { ObjectId = objectIdA, Consumed = true });
+            store.Upsert(scenePathB, new WorldObjectStateRecord { ObjectId = objectIdB, Consumed = false });
+
+            Assert.That(store.Count, Is.EqualTo(2));
+            Assert.That(store.TryGet(scenePathA, objectIdA, out var first), Is.True);
+            Assert.That(store.TryGet(scenePathB, objectIdB, out var second), Is.True);
+            Assert.That(first.Consumed, Is.True);
+            Assert.That(second.Consumed, Is.False);
+        }
     }
 }
