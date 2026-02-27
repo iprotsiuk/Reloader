@@ -60,5 +60,28 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(mainWorld.Consumed, Is.True);
             Assert.That(indoorRange.Consumed, Is.False);
         }
+
+        [Test]
+        public void WorldObjectStateStore_UpsertAndTryGet_UseStoredRecordInstance()
+        {
+            var store = new WorldObjectStateStore();
+            var record = new WorldObjectStateRecord { ObjectId = "pickup-001" };
+
+            store.Upsert("Assets/Scenes/MainWorld.unity", record);
+
+            Assert.That(store.TryGet("Assets/Scenes/MainWorld.unity", "pickup-001", out var actual), Is.True);
+            Assert.That(object.ReferenceEquals(actual, record), Is.True);
+        }
+
+        [Test]
+        public void WorldObjectStateStore_Keying_DoesNotNormalizeScenePath()
+        {
+            var store = new WorldObjectStateStore();
+
+            store.Upsert(" Assets/Scenes/MainWorld.unity ", new WorldObjectStateRecord { ObjectId = "pickup-001" });
+
+            Assert.That(store.TryGet("Assets/Scenes/MainWorld.unity", "pickup-001", out _), Is.False);
+            Assert.That(store.TryGet(" Assets/Scenes/MainWorld.unity ", "pickup-001", out _), Is.True);
+        }
     }
 }

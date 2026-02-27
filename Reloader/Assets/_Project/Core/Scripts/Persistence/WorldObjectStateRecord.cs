@@ -31,19 +31,5 @@ namespace Reloader.Core.Persistence
         [JsonProperty("itemInstanceId")]
         public string ItemInstanceId { get; set; } = string.Empty;
 
-        internal WorldObjectStateRecord Copy()
-        {
-            return new WorldObjectStateRecord
-            {
-                ObjectId = ObjectId,
-                Consumed = Consumed,
-                Destroyed = Destroyed,
-                HasTransformOverride = HasTransformOverride,
-                Position = Position,
-                Rotation = Rotation,
-                LastUpdatedDay = LastUpdatedDay,
-                ItemInstanceId = ItemInstanceId
-            };
-        }
     }
 }

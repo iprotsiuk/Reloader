@@ -18,38 +18,18 @@ namespace Reloader.Core.Persistence
             }
 
             var key = BuildKey(scenePath, record.ObjectId);
-            _records[key] = record.Copy();
+            _records[key] = record;
         }
 
         public bool TryGet(string scenePath, string objectId, out WorldObjectStateRecord record)
         {
             var key = BuildKey(scenePath, objectId);
-            if (_records.TryGetValue(key, out var stored))
-            {
-                record = stored.Copy();
-                return true;
-            }
-
-            record = null;
-            return false;
+            return _records.TryGetValue(key, out record);
         }
 
         private static string BuildKey(string scenePath, string objectId)
         {
-            var normalizedScenePath = NormalizeRequired(scenePath, nameof(scenePath));
-            var normalizedObjectId = NormalizeRequired(objectId, nameof(objectId));
-            return normalizedScenePath + "\u001f" + normalizedObjectId;
-        }
-
-        private static string NormalizeRequired(string value, string paramName)
-        {
-            var normalized = (value ?? string.Empty).Trim();
-            if (normalized.Length == 0)
-            {
-                throw new ArgumentException($"{paramName} cannot be null or whitespace.", paramName);
-            }
-
-            return normalized;
+            return (scenePath ?? string.Empty) + "\u001f" + (objectId ?? string.Empty);
         }
     }
 }
