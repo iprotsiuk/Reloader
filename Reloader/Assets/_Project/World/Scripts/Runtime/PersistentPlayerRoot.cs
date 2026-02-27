@@ -14,10 +14,44 @@ namespace Reloader.World.Runtime
             }
 
             var gameObject = new GameObject(nameof(PersistentPlayerRoot));
-            return gameObject.AddComponent<PersistentPlayerRoot>();
+            var root = gameObject.AddComponent<PersistentPlayerRoot>();
+            root.InitializeSingleton();
+            return root;
         }
 
         private void Awake()
+        {
+            RegisterOrDestroyDuplicate();
+        }
+
+        private void OnEnable()
+        {
+            RegisterOrDestroyDuplicate();
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+        }
+
+        private void InitializeSingleton()
+        {
+            if (Instance == this)
+            {
+                return;
+            }
+
+            Instance = this;
+            if (Application.isPlaying)
+            {
+                DontDestroyOnLoad(gameObject);
+            }
+        }
+
+        private void RegisterOrDestroyDuplicate()
         {
             if (Instance != null && Instance != this)
             {
@@ -33,16 +67,7 @@ namespace Reloader.World.Runtime
                 return;
             }
 
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-
-        private void OnDestroy()
-        {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
+            InitializeSingleton();
         }
     }
 }

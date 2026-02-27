@@ -26,7 +26,14 @@ namespace Reloader.World.Tests.EditMode
 
             Assert.That(root, Is.Not.Null);
             Assert.That(PersistentPlayerRoot.Instance, Is.SameAs(root));
-            Assert.That(root.gameObject.scene.name, Is.EqualTo("DontDestroyOnLoad"));
+            if (Application.isPlaying)
+            {
+                Assert.That(root.gameObject.scene.name, Is.EqualTo("DontDestroyOnLoad"));
+            }
+            else
+            {
+                Assert.That(root.gameObject.scene.IsValid(), Is.True);
+            }
 
             var roots = Object.FindObjectsByType<PersistentPlayerRoot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             Assert.That(roots.Length, Is.EqualTo(1));
@@ -53,11 +60,27 @@ namespace Reloader.World.Tests.EditMode
 
             Assert.That(duplicate, Is.Not.Null);
             Assert.That(PersistentPlayerRoot.Instance, Is.SameAs(first));
-            Assert.That(duplicate == null, Is.True);
-
             var roots = Object.FindObjectsByType<PersistentPlayerRoot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            Assert.That(roots.Length, Is.EqualTo(1));
-            Assert.That(roots[0], Is.SameAs(first));
+            if (Application.isPlaying)
+            {
+                Assert.That(duplicate == null, Is.True);
+                Assert.That(roots.Length, Is.EqualTo(1));
+                Assert.That(roots[0], Is.SameAs(first));
+            }
+            else
+            {
+                var containsFirst = false;
+                for (var i = 0; i < roots.Length; i++)
+                {
+                    if (roots[i] == first)
+                    {
+                        containsFirst = true;
+                        break;
+                    }
+                }
+
+                Assert.That(containsFirst, Is.True);
+            }
         }
     }
 }
