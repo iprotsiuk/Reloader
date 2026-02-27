@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d3942909d1cc042b2b51fb9b5de5bb27, type: 3}
+  m_Name: MainTownWorldSceneContract
+  m_EditorClassIdentifier: Reloader.World::Reloader.World.Contracts.WorldSceneContract
+  _scenePath: Assets/_Project/World/Scenes/MainTown.unity
+  _sceneRole: 1
+  _requiredObjectPaths:
+  - PlayerRoot
+  - PlayerRoot/CameraPivot
+  - PlayerRoot/CameraPivot/CameraLookTarget
+  - PlayerRoot/CameraPivot/WeaponMuzzle
+  - WeaponRegistry
+  _requiredComponentContracts:
+  - _objectPath: WeaponRegistry
+    _componentScriptAsset: {fileID: 11500000, guid: 3331390cdd63f426a9872b70f2353cce, type: 3}
+    _componentTypeName: Reloader.Weapons.Runtime.WeaponRegistry, Reloader.Weapons,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    _requiredNonNullObjectReferenceFields: []
+    _requiredNonEmptyArrayFields:
+    - _definitions
+    _requiredNonEmptyStringFields: []
+  - _objectPath: PlayerRoot
+    _componentScriptAsset: {fileID: 11500000, guid: 29f65bd28bff74eb1b31709470453ced, type: 3}
+    _componentTypeName: Reloader.Weapons.Controllers.PlayerWeaponController, Reloader.Weapons,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    _requiredNonNullObjectReferenceFields:
+    - _inputSourceBehaviour
+    - _inventoryController
+    - _weaponRegistry
+    - _muzzleTransform
+    - _cameraDefaults
+    - _projectilePrefab
+    _requiredNonEmptyArrayFields: []
+    _requiredNonEmptyStringFields: []
+  - _objectPath: MainTownEntry_Spawn
+    _componentScriptAsset: {fileID: 11500000, guid: 52cd80be86124d7aa463a5be22eeebf3, type: 3}
+    _componentTypeName: Reloader.World.Travel.SceneEntryPoint, Reloader.World, Version=0.0.0.0,
+      Culture=neutral, PublicKeyToken=null
+    _requiredNonNullObjectReferenceFields: []
+    _requiredNonEmptyArrayFields: []
+    _requiredNonEmptyStringFields:
+    - _entryPointId
+  _validateRequiredSceneEntryPointIds: 1
+  _requiredSceneEntryPointIds:
+  - entry.maintown.spawn
+  - entry.maintown.return

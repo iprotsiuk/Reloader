@@ -1,9 +1,11 @@
 {
-  "name": "Reloader.World.Tests.EditMode",
-  "rootNamespace": "Reloader.World.Tests",
+  "name": "Reloader.World.Editor",
+  "rootNamespace": "Reloader.World.Editor",
   "references": [
     "Reloader.World",
-    "Reloader.World.Editor"
+    "Reloader.Inventory",
+    "Reloader.Player",
+    "Reloader.Weapons"
   ],
   "includePlatforms": [
     "Editor"
@@ -12,11 +14,8 @@
   "allowUnsafeCode": false,
   "overrideReferences": false,
   "precompiledReferences": [],
-  "autoReferenced": false,
+  "autoReferenced": true,
   "defineConstraints": [],
   "versionDefines": [],
-  "noEngineReferences": false,
-  "optionalUnityReferences": [
-    "TestAssemblies"
-  ]
+  "noEngineReferences": false
 }
