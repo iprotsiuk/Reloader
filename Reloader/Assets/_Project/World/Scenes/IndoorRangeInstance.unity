@@ -749,7 +749,7 @@ Transform:
   m_GameObject: {fileID: 458825650}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.5, y: 0.2, z: 0}
+  m_LocalPosition: {x: 10, y: 0.2, z: -6}
   m_LocalScale: {x: 0.9, y: 0.2, z: 0.9}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1209,7 +1209,7 @@ Transform:
   m_GameObject: {fileID: 1044486941}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.5, y: 1, z: 0}
+  m_LocalPosition: {x: 10, y: 1, z: -6}
   m_LocalScale: {x: 1.8, y: 2, z: 1.8}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1936,6 +1936,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1445638036}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!134 &1548983245
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &1585390458
 GameObject:
   m_ObjectHideFlags: 0
@@ -2282,6 +2295,11 @@ GameObject:
   - component: {fileID: 1873501835}
   - component: {fileID: 1873501834}
   - component: {fileID: 1873501833}
+  - component: {fileID: 1873501841}
+  - component: {fileID: 1873501840}
+  - component: {fileID: 1873501839}
+  - component: {fileID: 1873501838}
+  - component: {fileID: 1873501837}
   m_Layer: 0
   m_Name: PlayerRoot
   m_TagString: Player
@@ -2342,7 +2360,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Player::Reloader.Player.PlayerCameraDefaults
   _applyOnAwake: 1
   _enableVSync: 1
-  _mainCamera: {fileID: 0}
+  _mainCamera: {fileID: 330585545}
   _brain: {fileID: 0}
   _cinemachineCamera: {fileID: 0}
   _cameraFollowTarget: {fileID: 1821212248}
@@ -2359,8 +2377,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8585a128967e4fe2b05b0da29bdadca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Reloader.Inventory::Reloader.Inventory.PlayerInventoryController
-  _inputSourceBehaviour: {fileID: 0}
-  _pickupTargetResolverBehaviour: {fileID: 0}
+  _inputSourceBehaviour: {fileID: 1873501836}
+  _pickupTargetResolverBehaviour: {fileID: 1873501837}
   _itemDefinitionRegistry: []
   _startingBackpackCapacity: 9
   _interactionCoordinatorModeEnabled: 0
@@ -2396,6 +2414,115 @@ MonoBehaviour:
   _beltSlot3ActionName: BeltSlot3
   _beltSlot4ActionName: BeltSlot4
   _beltSlot5ActionName: BeltSlot5
+--- !u!114 &1873501837
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1873501831}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f5b4d0002bdc40378f2eecbc373572b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.World.PlayerWeaponPickupResolver
+  _playerCamera: {fileID: 330585545}
+  _maxDistance: 6
+  _pickupMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!114 &1873501838
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1873501831}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0cb92ad850e44e24827496b80a72e36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.Player::Reloader.Player.PlayerCursorLockController
+  _lockOnStart: 0
+  _lockOnClick: 1
+  _unlockOnEscape: 1
+  _unlockOnApplicationFocusLost: 1
+--- !u!114 &1873501839
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1873501831}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 007468385f8ab49cf8d54cb5bf54274f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.Player::Reloader.Player.PlayerMover
+  _characterController: {fileID: 1873501841}
+  _inputSourceBehaviour: {fileID: 1873501836}
+  _settings:
+    _walkSpeed: 4.5
+    _sprintSpeed: 7.2
+    _acceleration: 28
+    _gravity: -25
+    _jumpHeight: 1.25
+    _jumpBufferTime: 0.15
+    _groundedSnapVelocity: -2
+  _adsSpeedMultiplier: 0.7
+  _isGroundedDebug: 0
+  _jumpBufferTimerDebug: 0
+  _lastCollisionFlags: 0
+  _jumpPressConsumedDebug: 0
+--- !u!114 &1873501840
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1873501831}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 272fe0217f9c942098d42c91f803c6c3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.Player::Reloader.Player.PlayerLookController
+  _inputSourceBehaviour: {fileID: 1873501836}
+  _pitchTransform: {fileID: 1821212248}
+  _lookSensitivity: {x: 1, y: 1}
+  _pitchClamp: {x: -85, y: 85}
+  _adsSensitivityMultiplier: {x: 0.35, y: 0.35}
+  _scaleByDeltaTime: 0
+  _lookSmoothingEnabled: 0
+  _lookSmoothingSpeed: 20
+  _lookSmoothingStrength: 1
+  _cameraDefaults: {fileID: 1873501834}
+  _referenceFieldOfView: 60
+  _lookFovScaleClamp: {x: 0.1, y: 2}
+--- !u!143 &1873501841
+CharacterController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1873501831}
+  m_Material: {fileID: 1548983245}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Height: 1.75
+  m_Radius: 0.34
+  m_SlopeLimit: 45
+  m_StepOffset: 0.3
+  m_SkinWidth: 0.08
+  m_MinMoveDistance: 0.001
+  m_Center: {x: 0, y: 0.88, z: 0}
 --- !u!1 &1903998857
 GameObject:
   m_ObjectHideFlags: 0

@@ -72,7 +72,22 @@ namespace Reloader.World.Tests.PlayMode
             var toIndoor = toIndoorObject.GetComponent<TravelSceneTrigger>();
             Assert.That(toIndoor, Is.Not.Null);
 
-            Assert.That(toIndoor.TryHandleInteractor(interactor), Is.True);
+            var startedTravel = false;
+            var startTimeout = 2f;
+            var elapsedStart = 0f;
+            while (!startedTravel && elapsedStart < startTimeout)
+            {
+                startedTravel = toIndoor.TryHandleInteractor(interactor);
+                if (startedTravel)
+                {
+                    break;
+                }
+
+                elapsedStart += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            Assert.That(startedTravel, Is.True, "Expected indoor travel to start once suppression window passes.");
             yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
             yield return WaitForResolvedEntryPoint("entry.indoor.arrival", SceneSwitchTimeoutSeconds);
             AssertPlayerRootIsAtEntryPoint("entry.indoor.arrival");
@@ -83,10 +98,44 @@ namespace Reloader.World.Tests.PlayMode
             var toTown = toTownObject.GetComponent<TravelSceneTrigger>();
             Assert.That(toTown, Is.Not.Null);
 
-            Assert.That(toTown.TryHandleInteractor(returnInteractor), Is.True);
+            var startedReturnTravel = false;
+            var returnTimeout = 2f;
+            var elapsedReturn = 0f;
+            while (!startedReturnTravel && elapsedReturn < returnTimeout)
+            {
+                startedReturnTravel = toTown.TryHandleInteractor(returnInteractor);
+                if (startedReturnTravel)
+                {
+                    break;
+                }
+
+                elapsedReturn += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            Assert.That(startedReturnTravel, Is.True, "Expected return travel to start once suppression window passes.");
             yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
             yield return WaitForResolvedEntryPoint("entry.maintown.return", SceneSwitchTimeoutSeconds);
             AssertPlayerRootIsAtEntryPoint("entry.maintown.return");
+        }
+
+        [UnityTest]
+        public IEnumerator Travel_ToIndoor_DoesNotImmediatelyBounceBackToMainTown()
+        {
+            var startedTravel = WorldTravelCoordinator.TryLoadSceneAtEntry(IndoorRangeSceneName, "entry.indoor.arrival");
+            Assert.That(startedTravel, Is.True, "Expected direct indoor travel to start.");
+            yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
+
+            var elapsed = 0f;
+            while (elapsed < 1.2f)
+            {
+                Assert.That(
+                    SceneManager.GetActiveScene().name,
+                    Is.EqualTo(IndoorRangeSceneName),
+                    "IndoorRange should remain active briefly after arrival and must not bounce travel immediately.");
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
         }
 
         [UnityTest]
@@ -118,7 +167,22 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(toIndoorObject, Is.Not.Null, "Expected authored smoke trigger in MainTown.");
             var toIndoor = toIndoorObject.GetComponent<TravelSceneTrigger>();
             Assert.That(toIndoor, Is.Not.Null);
-            Assert.That(toIndoor.TryHandleInteractor(interactor), Is.True, "Expected travel trigger to start scene travel.");
+            var startedTravel = false;
+            var startTimeout = 2f;
+            var elapsedStart = 0f;
+            while (!startedTravel && elapsedStart < startTimeout)
+            {
+                startedTravel = toIndoor.TryHandleInteractor(interactor);
+                if (startedTravel)
+                {
+                    break;
+                }
+
+                elapsedStart += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            Assert.That(startedTravel, Is.True, "Expected travel trigger to start scene travel.");
 
             yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
             yield return WaitForResolvedEntryPoint("entry.indoor.arrival", SceneSwitchTimeoutSeconds);
