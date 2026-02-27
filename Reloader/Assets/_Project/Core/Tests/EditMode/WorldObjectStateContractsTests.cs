@@ -148,5 +148,40 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(first.Consumed, Is.True);
             Assert.That(second.Consumed, Is.False);
         }
+
+        [Test]
+        public void WorldObjectPersistenceRuntimeBridge_MarkConsumed_MergesIntoExistingRecordWithoutOverwritingOtherFields()
+        {
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+            var scenePath = "Assets/Scenes/MainWorld.unity";
+            var objectId = "pickup-merge-001";
+            var originalPosition = new UnityEngine.Vector3(12f, 3f, -8f);
+            var originalRotation = UnityEngine.Quaternion.Euler(5f, 45f, 10f);
+            var original = new WorldObjectStateRecord
+            {
+                ObjectId = objectId,
+                Consumed = false,
+                Destroyed = true,
+                HasTransformOverride = true,
+                Position = originalPosition,
+                Rotation = originalRotation,
+                LastUpdatedDay = 123,
+                ItemInstanceId = "instance-77"
+            };
+
+            WorldObjectPersistenceRuntimeBridge.StateStore.Upsert(scenePath, original);
+            WorldObjectPersistenceRuntimeBridge.MarkConsumed(scenePath, objectId);
+
+            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath, objectId, out var merged), Is.True);
+            Assert.That(merged.Consumed, Is.True);
+            Assert.That(merged.Destroyed, Is.True);
+            Assert.That(merged.HasTransformOverride, Is.True);
+            Assert.That(merged.Position, Is.EqualTo(originalPosition));
+            Assert.That(merged.Rotation, Is.EqualTo(originalRotation));
+            Assert.That(merged.LastUpdatedDay, Is.EqualTo(123));
+            Assert.That(merged.ItemInstanceId, Is.EqualTo("instance-77"));
+
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+        }
     }
 }

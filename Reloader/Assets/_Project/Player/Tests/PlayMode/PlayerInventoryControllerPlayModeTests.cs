@@ -244,66 +244,147 @@ namespace Reloader.Player.Tests.PlayMode
         [Test]
         public void Tick_PickupPress_WorldIdentityTarget_MarksConsumedInStateStore()
         {
+            GameObject root = null;
+            GameObject pickupGo = null;
+
             WorldObjectPersistenceRuntimeBridge.ResetForTests();
+            try
+            {
+                root = new GameObject("InventoryControllerRoot");
+                var controller = root.AddComponent<PlayerInventoryController>();
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                controller.Configure(input, resolver, new PlayerInventoryRuntime());
 
-            var root = new GameObject("InventoryControllerRoot");
-            var controller = root.AddComponent<PlayerInventoryController>();
-            var input = root.AddComponent<TestInputSource>();
-            var resolver = root.AddComponent<TestPickupResolver>();
-            controller.Configure(input, resolver, new PlayerInventoryRuntime());
+                pickupGo = new GameObject("WorldPickupTarget");
+                var identity = pickupGo.AddComponent<WorldObjectIdentity>();
+                SetObjectIdForTests(identity, "qa.pickup.consume");
+                var target = pickupGo.AddComponent<TestWorldPickupTarget>();
+                target.SetItemIdForTests("item-world-01");
+                resolver.Target = target;
 
-            var pickupGo = new GameObject("WorldPickupTarget");
-            var identity = pickupGo.AddComponent<WorldObjectIdentity>();
-            SetObjectIdForTests(identity, "qa.pickup.consume");
-            var target = pickupGo.AddComponent<TestWorldPickupTarget>();
-            target.SetItemIdForTests("item-world-01");
-            resolver.Target = target;
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
 
-            input.PickupPressedThisFrame = true;
-            controller.Tick();
+                var scenePath = pickupGo.scene.path;
+                var objectId = identity.ObjectId;
+                Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath, objectId, out var record), Is.True);
+                Assert.That(record.Consumed, Is.True);
+                Assert.That(target.PickedUpCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                if (pickupGo != null)
+                {
+                    Object.DestroyImmediate(pickupGo);
+                }
 
-            var scenePath = pickupGo.scene.path;
-            var objectId = identity.ObjectId;
-            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath, objectId, out var record), Is.True);
-            Assert.That(record.Consumed, Is.True);
-            Assert.That(target.PickedUpCount, Is.EqualTo(1));
+                if (root != null)
+                {
+                    Object.DestroyImmediate(root);
+                }
 
-            Object.DestroyImmediate(pickupGo);
-            Object.DestroyImmediate(root);
-            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+                WorldObjectPersistenceRuntimeBridge.ResetForTests();
+            }
         }
 
         [Test]
         public void Tick_PickupPress_WorldIdentityTarget_StoresConsumedUsingScenePathPlusObjectIdKey()
         {
+            GameObject root = null;
+            GameObject pickupGo = null;
+
             WorldObjectPersistenceRuntimeBridge.ResetForTests();
+            try
+            {
+                root = new GameObject("InventoryControllerRoot");
+                var controller = root.AddComponent<PlayerInventoryController>();
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                controller.Configure(input, resolver, new PlayerInventoryRuntime());
 
-            var root = new GameObject("InventoryControllerRoot");
-            var controller = root.AddComponent<PlayerInventoryController>();
-            var input = root.AddComponent<TestInputSource>();
-            var resolver = root.AddComponent<TestPickupResolver>();
-            controller.Configure(input, resolver, new PlayerInventoryRuntime());
+                pickupGo = new GameObject("WorldPickupTarget");
+                var identity = pickupGo.AddComponent<WorldObjectIdentity>();
+                SetObjectIdForTests(identity, "qa.pickup.keyed");
+                var target = pickupGo.AddComponent<TestWorldPickupTarget>();
+                target.SetItemIdForTests("item-world-02");
+                resolver.Target = target;
 
-            var pickupGo = new GameObject("WorldPickupTarget");
-            var identity = pickupGo.AddComponent<WorldObjectIdentity>();
-            SetObjectIdForTests(identity, "qa.pickup.keyed");
-            var target = pickupGo.AddComponent<TestWorldPickupTarget>();
-            target.SetItemIdForTests("item-world-02");
-            resolver.Target = target;
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
 
-            input.PickupPressedThisFrame = true;
-            controller.Tick();
+                var scenePath = pickupGo.scene.path;
+                var objectId = identity.ObjectId;
+                Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath, objectId, out var record), Is.True);
+                Assert.That(record.Consumed, Is.True);
+                Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath + ".alt", objectId, out _), Is.False);
+                Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath, objectId + ".alt", out _), Is.False);
+            }
+            finally
+            {
+                if (pickupGo != null)
+                {
+                    Object.DestroyImmediate(pickupGo);
+                }
 
-            var scenePath = pickupGo.scene.path;
-            var objectId = identity.ObjectId;
-            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath, objectId, out var record), Is.True);
-            Assert.That(record.Consumed, Is.True);
-            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath + ".alt", objectId, out _), Is.False);
-            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath, objectId + ".alt", out _), Is.False);
+                if (root != null)
+                {
+                    Object.DestroyImmediate(root);
+                }
 
-            Object.DestroyImmediate(pickupGo);
-            Object.DestroyImmediate(root);
+                WorldObjectPersistenceRuntimeBridge.ResetForTests();
+            }
+        }
+
+        [Test]
+        public void Tick_PickupPress_WhenInventoryRejects_DoesNotMarkConsumedInStateStore()
+        {
+            GameObject root = null;
+            GameObject pickupGo = null;
+
             WorldObjectPersistenceRuntimeBridge.ResetForTests();
+            try
+            {
+                root = new GameObject("InventoryControllerRoot");
+                var controller = root.AddComponent<PlayerInventoryController>();
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                controller.Configure(input, resolver, new PlayerInventoryRuntime());
+
+                for (var i = 0; i < PlayerInventoryRuntime.BeltSlotCount + controller.Runtime.BackpackCapacity; i++)
+                {
+                    var preloaded = controller.Runtime.TryStoreItem($"preload-item-{i}", out _, out _, out _);
+                    Assert.That(preloaded, Is.True, $"Expected preload index {i} to fill available inventory slots.");
+                }
+
+                pickupGo = new GameObject("WorldPickupTarget");
+                var identity = pickupGo.AddComponent<WorldObjectIdentity>();
+                SetObjectIdForTests(identity, "qa.pickup.reject");
+                var target = pickupGo.AddComponent<TestWorldPickupTarget>();
+                target.SetItemIdForTests("item-rejected");
+                resolver.Target = target;
+
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
+
+                var scenePath = pickupGo.scene.path;
+                Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath, identity.ObjectId, out _), Is.False);
+                Assert.That(target.PickedUpCount, Is.EqualTo(0));
+            }
+            finally
+            {
+                if (pickupGo != null)
+                {
+                    Object.DestroyImmediate(pickupGo);
+                }
+
+                if (root != null)
+                {
+                    Object.DestroyImmediate(root);
+                }
+
+                WorldObjectPersistenceRuntimeBridge.ResetForTests();
+            }
         }
 
         [Test]
