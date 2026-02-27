@@ -485,7 +485,7 @@ namespace Reloader.NPCs.Editor
 
         private static GameObject FindOrCreateInteractorRoot()
         {
-            var existingControllers = Object.FindObjectsByType<PlayerShopVendorController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var existingControllers = UnityEngine.Object.FindObjectsByType<PlayerShopVendorController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             var existingController = ResolvePreferredInteractorController(existingControllers);
             if (existingController != null)
             {
@@ -523,7 +523,7 @@ namespace Reloader.NPCs.Editor
                 return null;
             }
 
-            var playerInput = Object.FindFirstObjectByType<PlayerInputReader>(FindObjectsInactive.Include);
+            var playerInput = UnityEngine.Object.FindFirstObjectByType<PlayerInputReader>(FindObjectsInactive.Include);
             if (playerInput != null)
             {
                 var playerTransform = playerInput.transform;

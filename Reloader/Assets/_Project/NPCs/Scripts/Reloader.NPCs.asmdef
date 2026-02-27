@@ -3,7 +3,8 @@
   "rootNamespace": "Reloader.NPCs",
   "references": [
     "Reloader.Core",
-    "Reloader.Player"
+    "Reloader.Player",
+    "Unity.InputSystem"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
