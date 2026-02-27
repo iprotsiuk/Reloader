@@ -13,27 +13,18 @@
     max-width: 420px;
     margin-left: 22px;
     margin-top: 18px;
-    padding-top: 6px;
-    padding-right: 10px;
-    padding-bottom: 6px;
-    padding-left: 10px;
-    background-color: rgba(14, 18, 24, 0.86);
-    border-top-width: 1px;
-    border-right-width: 1px;
-    border-bottom-width: 1px;
-    border-left-width: 1px;
-    border-top-color: rgba(255, 255, 255, 0.16);
-    border-right-color: rgba(255, 255, 255, 0.16);
-    border-bottom-color: rgba(255, 255, 255, 0.16);
-    border-left-color: rgba(255, 255, 255, 0.16);
-    border-top-left-radius: 7px;
-    border-top-right-radius: 7px;
-    border-bottom-right-radius: 7px;
-    border-bottom-left-radius: 7px;
+    padding-top: 4px;
+    padding-right: 6px;
+    padding-bottom: 4px;
+    padding-left: 6px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
 }
 
 .interaction-hint__text {
-    color: rgba(241, 245, 250, 0.96);
-    font-size: 16px;
-    -unity-font-style: bold;
+    color: rgba(228, 233, 239, 0.86);
+    font-size: 11px;
 }

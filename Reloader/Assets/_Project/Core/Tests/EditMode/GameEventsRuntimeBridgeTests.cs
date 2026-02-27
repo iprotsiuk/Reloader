@@ -254,5 +254,20 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(hub.HasInteractionHint, Is.False);
             Assert.That(hub.CurrentInteractionHint.ContextId, Is.Empty);
         }
+
+        [Test]
+        public void RaiseInteractionHintCleared_WithDifferentContext_DoesNotClearActiveHint()
+        {
+            var hub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), hub);
+
+            RuntimeKernelBootstrapper.InteractionHintEvents.RaiseInteractionHintShown(
+                new InteractionHintPayload("pickup", "Pick up", "Hodgdon Varget"));
+            RuntimeKernelBootstrapper.InteractionHintEvents.RaiseInteractionHintCleared("vendor");
+
+            Assert.That(hub.HasInteractionHint, Is.True);
+            Assert.That(hub.CurrentInteractionHint.ContextId, Is.EqualTo("pickup"));
+            Assert.That(hub.CurrentInteractionHint.SubjectText, Is.EqualTo("Hodgdon Varget"));
+        }
     }
 }

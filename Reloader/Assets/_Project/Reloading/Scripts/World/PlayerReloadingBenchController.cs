@@ -186,7 +186,7 @@ namespace Reloader.Reloading.World
 
         private static void ClearInteractionHint()
         {
-            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared();
+            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared(BenchHintContextId);
         }
     }
 }

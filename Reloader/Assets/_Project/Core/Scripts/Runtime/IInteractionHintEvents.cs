@@ -12,6 +12,6 @@ namespace Reloader.Core.Runtime
         event Action OnInteractionHintCleared;
 
         void RaiseInteractionHintShown(InteractionHintPayload payload);
-        void RaiseInteractionHintCleared();
+        void RaiseInteractionHintCleared(string contextId = null);
     }
 }

@@ -336,7 +336,7 @@ namespace Reloader.Inventory
 
         private static void ClearInteractionHint()
         {
-            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared();
+            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared(PickupHintContextId);
         }
 
         private string ResolvePickupDisplayName(IInventoryPickupTarget pickupTarget)

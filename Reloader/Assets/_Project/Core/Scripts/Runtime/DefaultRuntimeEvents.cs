@@ -112,8 +112,14 @@ namespace Reloader.Core.Runtime
             OnInteractionHintShown?.Invoke(payload);
         }
 
-        public void RaiseInteractionHintCleared()
+        public void RaiseInteractionHintCleared(string contextId = null)
         {
+            if (!string.IsNullOrWhiteSpace(contextId)
+                && !string.Equals(CurrentInteractionHint.ContextId, contextId, StringComparison.Ordinal))
+            {
+                return;
+            }
+
             CurrentInteractionHint = default;
             HasInteractionHint = false;
             OnInteractionHintCleared?.Invoke();

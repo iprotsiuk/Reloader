@@ -170,7 +170,7 @@ namespace Reloader.NPCs.World
 
         private static void ClearInteractionHint()
         {
-            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared();
+            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared(NpcHintContextId);
         }
 
         private void PublishInteractionHint(NpcAgent target)
