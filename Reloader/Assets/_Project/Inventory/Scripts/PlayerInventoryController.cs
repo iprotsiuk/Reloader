@@ -116,6 +116,11 @@ namespace Reloader.Inventory
                 return;
             }
 
+            if (_inputSource == null)
+            {
+                ResolveReferences();
+            }
+
             if (!DependencyResolutionGuard.HasRequiredReferences(
                     ref _loggedMissingInputSource,
                     this,
@@ -292,7 +297,21 @@ namespace Reloader.Inventory
 
             if (_inputSource == null)
             {
+                _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(GetComponentsInParent<MonoBehaviour>(true));
+            }
+
+            if (_inputSource == null)
+            {
+                _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(GetComponentsInChildren<MonoBehaviour>(true));
+            }
+
+            if (_inputSource == null)
+            {
                 _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+            }
+            else
+            {
+                _loggedMissingInputSource = false;
             }
 
             _pickupTargetResolver ??= _pickupTargetResolverBehaviour as IInventoryPickupTargetResolver;

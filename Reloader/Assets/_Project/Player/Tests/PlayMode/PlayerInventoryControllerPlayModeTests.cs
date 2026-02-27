@@ -619,6 +619,29 @@ namespace Reloader.Player.Tests.PlayMode
             Object.DestroyImmediate(root);
         }
 
+        [Test]
+        public void Tick_InputSourceBoundAfterFirstFailure_RecoversAndProcessesPickup()
+        {
+            var root = new GameObject("InventoryControllerRoot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var target = new TestPickupTarget("item-late-bind");
+            resolver.Target = target;
+            controller.Configure(null, resolver, new PlayerInventoryRuntime());
+
+            LogAssert.Expect(LogType.Error, "PlayerInventoryController requires an IPlayerInputSource reference.");
+            controller.Tick();
+
+            var input = root.AddComponent<TestInputSource>();
+            input.PickupPressedThisFrame = true;
+            controller.Tick();
+
+            Assert.That(controller.Runtime.BeltSlotItemIds[0], Is.EqualTo("item-late-bind"));
+            Assert.That(target.PickedUpCount, Is.EqualTo(1));
+
+            Object.DestroyImmediate(root);
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public bool PickupPressedThisFrame;
