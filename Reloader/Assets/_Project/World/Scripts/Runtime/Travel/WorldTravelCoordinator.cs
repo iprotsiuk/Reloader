@@ -111,12 +111,7 @@ namespace Reloader.World.Travel
             if (SceneEntryPoint.TryFindById(candidates, _pendingEntryPointId, out var resolvedEntryPoint))
             {
                 LastResolvedEntryPointId = resolvedEntryPoint.EntryPointId;
-                if (PersistentPlayerRoot.Instance != null)
-                {
-                    var rootTransform = PersistentPlayerRoot.Instance.transform;
-                    rootTransform.position = resolvedEntryPoint.transform.position;
-                    rootTransform.rotation = resolvedEntryPoint.transform.rotation;
-                }
+                RepositionPlayerToEntryPoint(scene, resolvedEntryPoint.transform);
             }
             else
             {
@@ -125,6 +120,48 @@ namespace Reloader.World.Travel
 
             _pendingSceneName = null;
             _pendingEntryPointId = null;
+        }
+
+        private static void RepositionPlayerToEntryPoint(Scene scene, Transform entryPointTransform)
+        {
+            if (entryPointTransform == null)
+            {
+                return;
+            }
+
+            var activeScenePlayerRoot = FindPlayerRootInScene(scene);
+            if (activeScenePlayerRoot != null)
+            {
+                activeScenePlayerRoot.position = entryPointTransform.position;
+                activeScenePlayerRoot.rotation = entryPointTransform.rotation;
+            }
+
+            if (PersistentPlayerRoot.Instance != null)
+            {
+                var persistentRootTransform = PersistentPlayerRoot.Instance.transform;
+                persistentRootTransform.position = entryPointTransform.position;
+                persistentRootTransform.rotation = entryPointTransform.rotation;
+            }
+        }
+
+        private static Transform FindPlayerRootInScene(Scene scene)
+        {
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                return null;
+            }
+
+            var rootObjects = scene.GetRootGameObjects();
+            for (var i = 0; i < rootObjects.Length; i++)
+            {
+                var root = rootObjects[i];
+                if (root != null && root.name == "PlayerRoot")
+                {
+                    return root.transform;
+                }
+            }
+
+            return null;
         }
     }
 }

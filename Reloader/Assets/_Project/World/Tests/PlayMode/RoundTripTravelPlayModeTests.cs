@@ -32,6 +32,7 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(toIndoor.TryHandleInteractor(interactor), Is.True);
             yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
             yield return WaitForResolvedEntryPoint("entry.indoor.arrival", SceneSwitchTimeoutSeconds);
+            AssertPlayerRootIsAtEntryPoint("entry.indoor.arrival");
 
             var returnInteractor = CreatePlayerInteractor();
             var toTownObject = GameObject.Find("IndoorRange_SmokeToMainTown_Trigger");
@@ -42,6 +43,7 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(toTown.TryHandleInteractor(returnInteractor), Is.True);
             yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
             yield return WaitForResolvedEntryPoint("entry.maintown.return", SceneSwitchTimeoutSeconds);
+            AssertPlayerRootIsAtEntryPoint("entry.maintown.return");
         }
 
         private static GameObject CreatePlayerInteractor()
@@ -79,6 +81,57 @@ namespace Reloader.World.Tests.PlayMode
                 WorldTravelCoordinator.LastResolvedEntryPointId,
                 Is.EqualTo(expectedEntryPointId),
                 $"Timed out waiting for resolved entry point '{expectedEntryPointId}'.");
+        }
+
+        private static void AssertPlayerRootIsAtEntryPoint(string entryPointId)
+        {
+            var activeScene = SceneManager.GetActiveScene();
+            var playerRoot = FindPlayerRootInScene(activeScene);
+            Assert.That(playerRoot, Is.Not.Null, $"Expected PlayerRoot in scene '{activeScene.name}'.");
+
+            var entryPoint = FindEntryPointInScene(activeScene, entryPointId);
+            Assert.That(entryPoint, Is.Not.Null, $"Expected SceneEntryPoint '{entryPointId}' in scene '{activeScene.name}'.");
+
+            var distance = Vector3.Distance(playerRoot.position, entryPoint.transform.position);
+            Assert.That(
+                distance,
+                Is.LessThanOrEqualTo(0.25f),
+                $"Expected PlayerRoot to be moved to '{entryPointId}', but distance was {distance:0.###}.");
+        }
+
+        private static Transform FindPlayerRootInScene(Scene scene)
+        {
+            var roots = scene.GetRootGameObjects();
+            for (var i = 0; i < roots.Length; i++)
+            {
+                var root = roots[i];
+                if (root != null && root.name == "PlayerRoot")
+                {
+                    return root.transform;
+                }
+            }
+
+            return null;
+        }
+
+        private static SceneEntryPoint FindEntryPointInScene(Scene scene, string entryPointId)
+        {
+            var candidates = Object.FindObjectsByType<SceneEntryPoint>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < candidates.Length; i++)
+            {
+                var candidate = candidates[i];
+                if (candidate == null || candidate.gameObject.scene != scene)
+                {
+                    continue;
+                }
+
+                if (candidate.EntryPointId == entryPointId)
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
         }
 
     }
