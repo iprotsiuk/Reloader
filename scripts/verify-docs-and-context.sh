@@ -17,9 +17,15 @@ fi
 
 if ! rg -n "EventBus pattern.*GameEvents|GameEvents.*EventBus pattern" \
   docs/design/core-architecture.md \
+  docs/design/README.md >/dev/null 2>&1; then
+  fail "EventBus/GameEvents terminology contract is missing."
+fi
+
+if ! rg -n "IGameEventsRuntimeHub|runtime event ports/hub" \
+  docs/design/core-architecture.md \
   docs/design/README.md \
   .agent/skills/unity-project-conventions/SKILL.md >/dev/null 2>&1; then
-  fail "EventBus/GameEvents terminology contract is missing."
+  fail "Runtime event hub terminology contract is missing."
 fi
 
 if rg -n "\\bSaveManager\\b" \
@@ -169,6 +175,50 @@ if ! rg -n "law-enforcement.md" .cursor/rules/law-enforcement-context.mdc >/dev/
   fail "law-enforcement-context must route to docs/design/law-enforcement.md."
 fi
 
+if [[ ! -f docs/design/world-scene-contracts.md ]]; then
+  fail "Missing docs/design/world-scene-contracts.md."
+fi
+
+if [[ ! -f docs/design/extensible-development-contracts.md ]]; then
+  fail "Missing docs/design/extensible-development-contracts.md."
+fi
+
+if ! rg -n "extensible-development-contracts.md" \
+  docs/design/README.md \
+  .cursor/rules/core-events-context.mdc \
+  .cursor/rules/scene-persistence-context.mdc \
+  .cursor/rules/world-vehicles-context.mdc \
+  .cursor/rules/player-ui-audio-context.mdc \
+  .cursor/rules/inventory-economy-context.mdc \
+  .cursor/rules/npcs-quests-context.mdc \
+  .agent/skills/using-unity-mcp/SKILL.md >/dev/null 2>&1; then
+  fail "extensible-development-contracts.md is not wired into docs/rules/skills."
+fi
+
+if ! rg -n "IInteractionHintEvents" docs/design/core-architecture.md docs/design/extensible-development-contracts.md >/dev/null 2>&1; then
+  fail "Interaction hint runtime port contract is missing from canonical docs."
+fi
+
+if [[ ! -f docs/design/world-scene-wiring-incident-2026-02-27.md ]]; then
+  fail "Missing world scene wiring incident writeup."
+fi
+
+if [[ ! -f docs/plans/2026-02-27-main-town-indoor-range-mcp-authoring-checklist.md ]]; then
+  fail "Missing MCP authoring checklist for world scene workflow."
+fi
+
+if ! rg -n "world-and-scenes.md" .cursor/rules/world-vehicles-context.mdc >/dev/null 2>&1; then
+  fail "world-vehicles-context must route to world-and-scenes.md."
+fi
+
+if ! rg -n "world-scene-contracts.md" .cursor/rules/world-vehicles-context.mdc >/dev/null 2>&1; then
+  fail "world-vehicles-context must route to world-scene-contracts.md."
+fi
+
+if ! rg -n "world-scene-contracts.md" .agent/skills/using-unity-mcp/SKILL.md >/dev/null 2>&1; then
+  fail "using-unity-mcp skill must reference world scene contract guardrails."
+fi
+
 if ! rg -n "MainWorld\\.unity.*Current baseline scene scaffold" docs/design/core-architecture.md >/dev/null 2>&1; then
   fail "core-architecture project tree is missing current MainWorld scaffold wording."
 fi
@@ -197,12 +247,20 @@ if ! rg -n "save-contract-quick-reference.md" docs/design/README.md .cursor/rule
   fail "save-contract-quick-reference.md is not wired into routing docs/rules."
 fi
 
+if ! rg -n "Feature Flag / Module Coherence|feature flag" docs/design/save-contract-quick-reference.md >/dev/null 2>&1; then
+  fail "save-contract-quick-reference.md is missing feature-flag/module coherence guidance."
+fi
+
 if ! rg -n 'Soft threshold.*500 KB|Hard threshold.*1 MB' docs/design/save-and-progression.md >/dev/null 2>&1; then
   fail "Save size thresholds (500 KB soft, 1 MB hard) are missing from save-and-progression.md."
 fi
 
 if [[ ! -f scripts/report-save-size.sh ]]; then
   fail "Missing scripts/report-save-size.sh."
+fi
+
+if [[ ! -f scripts/verify-extensible-development-contracts.sh ]]; then
+  fail "Missing scripts/verify-extensible-development-contracts.sh."
 fi
 
 if ! rg -n "SOFT_KB=500|HARD_KB=1024" scripts/report-save-size.sh >/dev/null 2>&1; then

@@ -52,6 +52,16 @@ else
   fail "Missing scripts/verify-docs-and-context.sh"
 fi
 
+if [[ -f scripts/verify-extensible-development-contracts.sh ]]; then
+  if bash scripts/verify-extensible-development-contracts.sh; then
+    pass "Extensible development guardrails"
+  else
+    fail "Extensible development guardrails"
+  fi
+else
+  fail "Missing scripts/verify-extensible-development-contracts.sh"
+fi
+
 if python3 - <<'PY'
 import os
 import re

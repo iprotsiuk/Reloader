@@ -1,4 +1,6 @@
 using NUnit.Framework;
+using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.NPCs.Runtime;
 using Reloader.NPCs.Runtime.Capabilities;
 using Reloader.NPCs.World;
@@ -216,6 +218,77 @@ namespace Reloader.NPCs.Tests.PlayMode
             Assert.That(interactionResult.Success, Is.False);
             Assert.That(interactionResult.ActionKey, Is.EqualTo("npc.action.unknown"));
             Assert.That(interactionResult.Reason, Is.EqualTo("npc.action.unhandled"));
+        }
+
+        [Test]
+        public void Tick_TargetedNpc_EmitsHintWithDefaultActionVerb()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestNpcResolver>();
+            var controller = root.AddComponent<PlayerNpcInteractionController>();
+            controller.Configure(input, resolver);
+
+            var npc = new GameObject("npc-dialogue").AddComponent<NpcAgent>();
+            npc.gameObject.AddComponent<DialogueCapability>();
+            resolver.Target = npc;
+
+            InteractionHintPayload hinted = default;
+            runtimeHub.OnInteractionHintShown += payload => hinted = payload;
+
+            try
+            {
+                controller.Tick();
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(npc.gameObject);
+            }
+
+            Assert.That(hinted.ContextId, Is.EqualTo("npc"));
+            Assert.That(hinted.ActionText, Is.EqualTo("Talk"));
+        }
+
+        [Test]
+        public void Tick_NoNpcTargetAfterHint_ClearsInteractionHint()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestNpcResolver>();
+            var controller = root.AddComponent<PlayerNpcInteractionController>();
+            controller.Configure(input, resolver);
+
+            var npc = new GameObject("npc-dialogue").AddComponent<NpcAgent>();
+            npc.gameObject.AddComponent<DialogueCapability>();
+            resolver.Target = npc;
+
+            var clearCount = 0;
+            runtimeHub.OnInteractionHintCleared += () => clearCount++;
+
+            try
+            {
+                controller.Tick();
+                resolver.Target = null;
+                controller.Tick();
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(npc.gameObject);
+            }
+
+            Assert.That(clearCount, Is.GreaterThanOrEqualTo(1));
         }
 
         private static NpcAgent CreateNpcWithCollider(string name, Vector3 position)

@@ -19,6 +19,7 @@ namespace Reloader.UI.Tests.PlayMode
         private const string TabInventoryScreenId = "tab-inventory";
         private const string TradeScreenId = "trade-ui";
         private const string ReloadingScreenId = "reloading-workbench";
+        private const string InteractionHintScreenId = "interaction-hint";
 
         [SetUp]
         public void SetUp()
@@ -65,7 +66,7 @@ namespace Reloader.UI.Tests.PlayMode
             bridge.enabled = true;
             Assert.That(bridge.ActiveBindingsForTests(), Is.GreaterThanOrEqualTo(2));
 
-            Assert.That(runtimeRoot.GetComponentsInChildren<UIDocument>(true).Length, Is.GreaterThanOrEqualTo(5));
+            Assert.That(runtimeRoot.GetComponentsInChildren<UIDocument>(true).Length, Is.GreaterThanOrEqualTo(6));
         }
 
         [UnityTest]
@@ -86,6 +87,7 @@ namespace Reloader.UI.Tests.PlayMode
 
             Assert.That(bridge.IsScreenBoundForTests(TradeScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(ReloadingScreenId), Is.True);
+            Assert.That(bridge.IsScreenBoundForTests(InteractionHintScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(BeltHudScreenId), Is.False);
             Assert.That(bridge.IsScreenBoundForTests(TabInventoryScreenId), Is.False);
             Assert.That(bridge.IsScreenBoundForTests(AmmoHudScreenId), Is.False);
@@ -104,7 +106,8 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(bridge.IsScreenBoundForTests(AmmoHudScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(TradeScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(ReloadingScreenId), Is.True);
-            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(5));
+            Assert.That(bridge.IsScreenBoundForTests(InteractionHintScreenId), Is.True);
+            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(6));
         }
 
         [UnityTest]
@@ -127,7 +130,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(runtimeRoot, Is.Not.Null);
             var bridge = runtimeRoot.GetComponent<UiToolkitScreenRuntimeBridge>();
             Assert.That(bridge, Is.Not.Null);
-            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(5));
+            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(6));
 
             bridge.enabled = false;
             yield return null;
@@ -135,13 +138,14 @@ namespace Reloader.UI.Tests.PlayMode
 
             bridge.enabled = true;
             yield return null;
-            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(5));
+            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(6));
 
             Assert.That(bridge.IsScreenBoundForTests(BeltHudScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(TabInventoryScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(AmmoHudScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(TradeScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(ReloadingScreenId), Is.True);
+            Assert.That(bridge.IsScreenBoundForTests(InteractionHintScreenId), Is.True);
         }
 
         private static void CleanupScene()

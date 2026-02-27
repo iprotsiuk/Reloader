@@ -1,15 +1,24 @@
 using System;
 using Reloader.Core;
+using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.NPCs.Runtime;
 using Reloader.Player;
+using Reloader.Player.Interaction;
 using UnityEngine;
 
 namespace Reloader.NPCs.World
 {
-    public sealed class PlayerNpcInteractionController : MonoBehaviour
+    public sealed class PlayerNpcInteractionController : MonoBehaviour, IPlayerInteractionCandidateProvider, IPlayerInteractionCoordinatorModeAware
     {
+        private const string NpcHintContextId = "npc";
+        private const string DefaultNpcActionText = "Interact";
+
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private MonoBehaviour _resolverBehaviour;
+        [Header("Interaction")]
+        [SerializeField] private bool _interactionCoordinatorModeEnabled;
+        [SerializeField] private int _interactionPriority = 40;
 
         private IPlayerInputSource _inputSource;
         private IPlayerNpcResolver _resolver;
@@ -28,6 +37,15 @@ namespace Reloader.NPCs.World
             ResolveReferences();
         }
 
+        private void OnDisable()
+        {
+            _flushPickupInputAtEndOfFrame = false;
+            if (!_interactionCoordinatorModeEnabled)
+            {
+                ClearInteractionHint();
+            }
+        }
+
         private void Update()
         {
             Tick();
@@ -35,6 +53,11 @@ namespace Reloader.NPCs.World
 
         private void LateUpdate()
         {
+            if (_interactionCoordinatorModeEnabled)
+            {
+                return;
+            }
+
             if (!_flushPickupInputAtEndOfFrame || _inputSource == null)
             {
                 return;
@@ -64,13 +87,34 @@ namespace Reloader.NPCs.World
                     _inputSource,
                     _resolver))
             {
+                if (!_interactionCoordinatorModeEnabled)
+                {
+                    ClearInteractionHint();
+                }
+
+                return;
+            }
+
+            if (_interactionCoordinatorModeEnabled)
+            {
+                _flushPickupInputAtEndOfFrame = false;
                 return;
             }
 
             if (!_resolver.TryResolveNpcAgent(out var target) || target == null)
             {
                 _flushPickupInputAtEndOfFrame = true;
+                ClearInteractionHint();
                 return;
+            }
+
+            if (RuntimeKernelBootstrapper.UiStateEvents != null && RuntimeKernelBootstrapper.UiStateEvents.IsAnyMenuOpen)
+            {
+                ClearInteractionHint();
+            }
+            else
+            {
+                PublishInteractionHint(target);
             }
 
             var pickupPressedThisFrame = _inputSource.ConsumePickupPressed();
@@ -82,6 +126,59 @@ namespace Reloader.NPCs.World
 
             _flushPickupInputAtEndOfFrame = false;
             TryInteract(target);
+        }
+
+        public void SetInteractionCoordinatorMode(bool isEnabled)
+        {
+            _interactionCoordinatorModeEnabled = isEnabled;
+            if (isEnabled)
+            {
+                _flushPickupInputAtEndOfFrame = false;
+                ClearInteractionHint();
+            }
+        }
+
+        public bool TryGetInteractionCandidate(out PlayerInteractionCandidate candidate)
+        {
+            candidate = default;
+            if (_resolver == null)
+            {
+                ResolveReferences();
+            }
+
+            if (_resolver == null || !_resolver.TryResolveNpcAgent(out var target) || target == null)
+            {
+                return false;
+            }
+
+            var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
+            if (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen)
+            {
+                return false;
+            }
+
+            var actionText = DefaultNpcActionText;
+            var actionKey = string.Empty;
+            if (TrySelectDefaultAction(target.CollectActions(), out var selectedAction))
+            {
+                if (!string.IsNullOrWhiteSpace(selectedAction.DisplayName))
+                {
+                    actionText = selectedAction.DisplayName;
+                }
+
+                actionKey = selectedAction.ActionKey;
+            }
+
+            var stableTieBreaker = $"{target.GetInstanceID()}:{actionKey}";
+            candidate = new PlayerInteractionCandidate(
+                NpcHintContextId,
+                actionText,
+                target.name,
+                _interactionPriority,
+                stableTieBreaker,
+                PlayerInteractionActionKind.NpcInteract,
+                () => TryInteract(target));
+            return true;
         }
 
         public bool TryInteract(string explicitActionKey = null, string explicitPayload = null)
@@ -144,6 +241,26 @@ namespace Reloader.NPCs.World
 
             action = default;
             return false;
+        }
+
+        private static void ClearInteractionHint()
+        {
+            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared(NpcHintContextId);
+        }
+
+        private void PublishInteractionHint(NpcAgent target)
+        {
+            var actionText = DefaultNpcActionText;
+            if (target != null && TrySelectDefaultAction(target.CollectActions(), out var selectedAction))
+            {
+                if (!string.IsNullOrWhiteSpace(selectedAction.DisplayName))
+                {
+                    actionText = selectedAction.DisplayName;
+                }
+            }
+
+            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintShown(
+                new InteractionHintPayload(NpcHintContextId, actionText));
         }
 
         private static bool TrySelectDefaultAction(NpcActionCollection actions, out NpcActionDefinition selected)

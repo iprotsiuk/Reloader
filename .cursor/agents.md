@@ -16,7 +16,7 @@ This file is the canonical local guidance entrypoint for agents working in this 
   - `inventory-save-context.mdc` → pipeline orchestration under `Core/Scripts/Save/**`
   - `save-schema-context.mdc` → persisted DTO/schema contract changes
   - `scene-persistence-context.mdc` → scene/world placement restore behavior
-  - `core-events-context.mdc` → cross-domain EventBus contract changes under `Core/Scripts/Events/**`
+  - `core-events-context.mdc` → cross-domain runtime event contract changes under `Core/Scripts/Events/**` and `Core/Scripts/Runtime/*Events*.cs`
 - Prefer modular docs and avoid the superseded monolithic design plan.
 
 ## Skill Sources
@@ -48,9 +48,10 @@ This file is the canonical local guidance entrypoint for agents working in this 
 - Follow `docs/design/core-architecture.md` as the shared contract before domain docs.
 - Keep changes data-driven and consistent with ScriptableObject + runtime-instance patterns.
 - Keep docs and skills synchronized when contracts or naming conventions change.
+- For cross-domain extension work, load `docs/design/extensible-development-contracts.md` in addition to domain docs.
 - Do not load generated Unity directories for context (`Reloader/Library/**`, `Reloader/Temp/**`, `Reloader/Logs/**`) unless a task explicitly targets build/runtime diagnostics.
 - For Unity discovery, start with code/docs filters (for example `rg --files -g '*.cs' -g '*.asmdef' -g '*.md' Reloader/Assets/_Project docs .cursor .agent`) before broad file scans.
 - Do not load Unity `*.meta` files unless the task explicitly requires GUID/reference/import diagnostics.
-- If event contracts are added or changed under `Reloader/Assets/_Project/Core/Scripts/Events/**`, update routing in `.cursor/rules/core-events-context.mdc` in the same change.
+- If event contracts are added or changed under `Reloader/Assets/_Project/Core/Scripts/Events/**` or `Reloader/Assets/_Project/Core/Scripts/Runtime/*Events*.cs`, update routing in `.cursor/rules/core-events-context.mdc` in the same change.
 - Place scene/world-item persistence orchestration scripts under `Reloader/Assets/_Project/Core/Scripts/Persistence/**` and keep `scene-persistence-context.mdc` globs aligned with that folder.
 - If a referenced workflow tool is unavailable in the current agent runtime (for example `Skill` tool or `TodoWrite`), follow the same workflow manually: open the referenced skill file directly and track checklist progress in plain text updates.

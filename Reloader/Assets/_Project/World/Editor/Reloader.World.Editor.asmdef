@@ -1,0 +1,21 @@
+{
+  "name": "Reloader.World.Editor",
+  "rootNamespace": "Reloader.World.Editor",
+  "references": [
+    "Reloader.World",
+    "Reloader.Inventory",
+    "Reloader.Player",
+    "Reloader.Weapons"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

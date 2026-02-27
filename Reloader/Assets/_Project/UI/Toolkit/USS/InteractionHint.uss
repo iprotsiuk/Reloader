@@ -1,0 +1,30 @@
+.interaction-hint__screen {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+.interaction-hint {
+    display: none;
+    max-width: 420px;
+    margin-left: 22px;
+    margin-top: 18px;
+    padding-top: 4px;
+    padding-right: 6px;
+    padding-bottom: 4px;
+    padding-left: 6px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+
+.interaction-hint__text {
+    color: rgba(228, 233, 239, 0.86);
+    font-size: 11px;
+}

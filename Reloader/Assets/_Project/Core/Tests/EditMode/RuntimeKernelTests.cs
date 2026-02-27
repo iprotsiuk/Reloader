@@ -167,6 +167,7 @@ namespace Reloader.Core.Tests.EditMode
             AssertTypedChannel("WeaponEvents", typeof(IWeaponEvents));
             AssertTypedChannel("ShopEvents", typeof(IShopEvents));
             AssertTypedChannel("UiStateEvents", typeof(IUiStateEvents));
+            AssertTypedChannel("InteractionHintEvents", typeof(IInteractionHintEvents));
         }
 
         [Test]
@@ -179,6 +180,7 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(ReadTypedChannel("WeaponEvents"), Is.SameAs(hub));
             Assert.That(ReadTypedChannel("ShopEvents"), Is.SameAs(hub));
             Assert.That(ReadTypedChannel("UiStateEvents"), Is.SameAs(hub));
+            Assert.That(ReadTypedChannel("InteractionHintEvents"), Is.SameAs(hub));
         }
 
         [Test]
@@ -194,6 +196,7 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(ReadTypedChannel("WeaponEvents"), Is.SameAs(initialHub));
             Assert.That(ReadTypedChannel("ShopEvents"), Is.SameAs(initialHub));
             Assert.That(ReadTypedChannel("UiStateEvents"), Is.SameAs(initialHub));
+            Assert.That(ReadTypedChannel("InteractionHintEvents"), Is.SameAs(initialHub));
         }
 
         [Test]
@@ -216,6 +219,7 @@ namespace Reloader.Core.Tests.EditMode
             AssertRuntimePortAccessor("WeaponEvents", typeof(IWeaponEvents));
             AssertRuntimePortAccessor("ShopEvents", typeof(IShopEvents));
             AssertRuntimePortAccessor("UiStateEvents", typeof(IUiStateEvents));
+            AssertRuntimePortAccessor("InteractionHintEvents", typeof(IInteractionHintEvents));
         }
 
         [Test]
@@ -227,6 +231,7 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(ReadRuntimePort(runtimeEvents, "WeaponEvents"), Is.SameAs(runtimeEvents));
             Assert.That(ReadRuntimePort(runtimeEvents, "ShopEvents"), Is.SameAs(runtimeEvents));
             Assert.That(ReadRuntimePort(runtimeEvents, "UiStateEvents"), Is.SameAs(runtimeEvents));
+            Assert.That(ReadRuntimePort(runtimeEvents, "InteractionHintEvents"), Is.SameAs(runtimeEvents));
         }
 
         [Test]

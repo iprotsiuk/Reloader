@@ -8,6 +8,11 @@
 
 **Every physical item in the world persists.** Dropped a brass casing? It stays on the floor until you pick it up. Left a tool on the bench? Still there tomorrow. This applies to all scenes.
 
+Implementation status note:
+- This section is the **target v0.1 contract**.
+- Current implemented runtime save slice guarantees persistence for `CoreWorld`, `Inventory`, and `Weapons` payloads.
+- Full dropped-world-item transform restore (`WorldItemState` + scene placement reconstruction) remains planned until corresponding persistence modules are registered.
+
 ```
 WorldItem (MonoBehaviour on every physical item in the world)
 ├── itemInstance        → reference to the runtime ItemInstance

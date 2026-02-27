@@ -1,0 +1,47 @@
+# MainTown + IndoorRange MCP Authoring Checklist
+
+Use this checklist for scene/world MCP sessions in this slice.
+
+## 1) Preflight
+
+- Confirm branch/working policy (this project: `main`, no worktrees unless explicitly requested).
+- Read MCP instance list: `mcpforunity://instances`.
+- Set active instance explicitly when needed.
+- Confirm project: `mcpforunity://project/info`.
+- Confirm editor ready: `mcpforunity://editor/state` (`ready_for_tools=true`).
+- Confirm target scene path before mutation.
+
+## 2) Mutation Order
+
+- Apply deterministic wiring tools first when available.
+- Apply focused scene object/component edits second.
+- Avoid broad/manual rewiring across unrelated objects.
+- Save scene after mutation.
+
+## 3) Mandatory Read-Back
+
+After every scene mutation set:
+
+- Read changed objects/components and verify key references.
+- Verify required runtime chains are complete (not partial).
+- For MainTown combat specifically:
+  - `WeaponRegistry._definitions` non-empty and includes starter rifle.
+  - `PlayerWeaponController` refs set: input, inventory, registry, muzzle, camera defaults, projectile.
+  - `PlayerLookController._cameraDefaults` set.
+  - `CameraPivot/CameraLookTarget` and `CameraPivot/WeaponMuzzle` present.
+
+## 4) Verification Gates
+
+Run targeted tests before completion claim:
+
+- `Reloader.World.Tests.PlayMode.SceneTopologySmokeTests`
+- `Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests`
+- `Reloader.World.Tests.EditMode.TravelContextEditModeTests`
+- world-flow tests touched by the change (for combat/pickup: relevant weapons playmode tests)
+
+## 5) Completion Rules
+
+- Do not claim done without:
+  - read-back evidence
+  - targeted test evidence
+- Commit only scoped files (ignore unrelated repository changes).

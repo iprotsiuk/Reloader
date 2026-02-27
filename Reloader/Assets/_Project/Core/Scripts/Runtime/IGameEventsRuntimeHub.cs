@@ -1,6 +1,6 @@
 namespace Reloader.Core.Runtime
 {
-    public interface IGameEventsRuntimeHub : IRuntimeEvents, IInventoryEvents, IWeaponEvents, IShopEvents, IUiStateEvents
+    public interface IGameEventsRuntimeHub : IRuntimeEvents, IInventoryEvents, IWeaponEvents, IShopEvents, IUiStateEvents, IInteractionHintEvents
     {
     }
 }

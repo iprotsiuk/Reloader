@@ -82,6 +82,12 @@ In-flight projectile state is intentionally out-of-scope for v0.1 saves.
 
 The broader schema below is the v0.1 design target and forward schema contract. Treat it as planned module scope until those modules are registered and migration-backed in runtime.
 
+### Feature Flags and Module Registration Coherence [v0.1]
+
+- `SaveFeatureFlags` are declarative capability toggles, not runtime guarantees by themselves.
+- A flag may be enabled only when the corresponding module is registered in `SaveBootstrapper` and covered by migration-aware payload handling.
+- Introducing a new enabled save feature requires all of: registration, payload contract, restore validation, and migration notes in the same change.
+
 ### Save Module Readiness Matrix [v0.1]
 
 | Module / Payload Block | Readiness | Runtime Registration (v0.1) | Notes |

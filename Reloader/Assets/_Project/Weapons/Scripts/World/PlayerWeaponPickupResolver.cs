@@ -1,4 +1,5 @@
 using Reloader.Inventory;
+using System;
 using UnityEngine;
 
 namespace Reloader.Weapons.World
@@ -25,13 +26,29 @@ namespace Reloader.Weapons.World
             // Ensure transforms created/moved this frame are visible to physics queries.
             Physics.SyncTransforms();
             var ray = new Ray(_playerCamera.transform.position, _playerCamera.transform.forward);
-            if (!Physics.Raycast(ray, out var hit, _maxDistance, _pickupMask, QueryTriggerInteraction.Collide))
+            var hits = Physics.RaycastAll(ray, _maxDistance, _pickupMask, QueryTriggerInteraction.Collide);
+            if (hits == null || hits.Length == 0)
             {
                 return false;
             }
 
-            target = hit.collider.GetComponentInParent<IInventoryPickupTarget>();
-            return target != null;
+            Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
+            for (var i = 0; i < hits.Length; i++)
+            {
+                var collider = hits[i].collider;
+                if (collider == null)
+                {
+                    continue;
+                }
+
+                target = collider.GetComponentInParent<IInventoryPickupTarget>();
+                if (target != null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public void SetCameraForTests(Camera camera)

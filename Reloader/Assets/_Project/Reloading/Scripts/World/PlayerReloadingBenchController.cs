@@ -1,14 +1,22 @@
 using Reloader.Player;
+using Reloader.Player.Interaction;
+using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace Reloader.Reloading.World
 {
-    public sealed class PlayerReloadingBenchController : MonoBehaviour
+    public sealed class PlayerReloadingBenchController : MonoBehaviour, IPlayerInteractionCandidateProvider, IPlayerInteractionCoordinatorModeAware
     {
+        private const string BenchHintContextId = "bench";
+        private const string BenchHintActionText = "Use bench";
+
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private MonoBehaviour _resolverBehaviour;
+        [Header("Interaction")]
+        [SerializeField] private bool _interactionCoordinatorModeEnabled;
+        [SerializeField] private int _interactionPriority = 50;
 
         private IPlayerInputSource _inputSource;
         private IPlayerReloadingBenchResolver _resolver;
@@ -29,6 +37,11 @@ namespace Reloader.Reloading.World
 
         private void LateUpdate()
         {
+            if (_interactionCoordinatorModeEnabled)
+            {
+                return;
+            }
+
             if (!_flushPickupInputAtEndOfFrame || _inputSource == null)
             {
                 return;
@@ -42,6 +55,10 @@ namespace Reloader.Reloading.World
         {
             CloseActiveWorkbenchIfAny();
             _flushPickupInputAtEndOfFrame = false;
+            if (!_interactionCoordinatorModeEnabled)
+            {
+                ClearInteractionHint();
+            }
         }
 
         public void Configure(IPlayerInputSource inputSource, IPlayerReloadingBenchResolver resolver, IUiStateEvents uiStateEvents = null)
@@ -58,9 +75,24 @@ namespace Reloader.Reloading.World
 
             if (_resolver == null || !_resolver.TryResolveBenchTarget(out var target) || target == null)
             {
-                _flushPickupInputAtEndOfFrame = true;
+                _flushPickupInputAtEndOfFrame = !_interactionCoordinatorModeEnabled;
                 CloseActiveWorkbenchIfAny();
+                if (!_interactionCoordinatorModeEnabled)
+                {
+                    ClearInteractionHint();
+                }
+
                 return;
+            }
+
+            var uiStateEvents = ResolveUiStateEvents();
+            if (!_interactionCoordinatorModeEnabled && uiStateEvents != null && uiStateEvents.IsAnyMenuOpen)
+            {
+                ClearInteractionHint();
+            }
+            else if (!_interactionCoordinatorModeEnabled)
+            {
+                PublishInteractionHint();
             }
 
             if (_activeTarget != null && !ReferenceEquals(_activeTarget, target) && _activeTarget.IsWorkbenchOpen)
@@ -70,6 +102,12 @@ namespace Reloader.Reloading.World
             }
 
             _activeTarget = target;
+
+            if (_interactionCoordinatorModeEnabled)
+            {
+                _flushPickupInputAtEndOfFrame = false;
+                return;
+            }
 
             var pickupPressedThisFrame = IsPickupPressedThisFrame();
             if (!pickupPressedThisFrame)
@@ -81,6 +119,49 @@ namespace Reloader.Reloading.World
             _flushPickupInputAtEndOfFrame = false;
             target.OpenWorkbench();
             RaiseWorkbenchMenuVisibilityChanged(true);
+        }
+
+        public void SetInteractionCoordinatorMode(bool isEnabled)
+        {
+            _interactionCoordinatorModeEnabled = isEnabled;
+            if (isEnabled)
+            {
+                _flushPickupInputAtEndOfFrame = false;
+                ClearInteractionHint();
+            }
+        }
+
+        public bool TryGetInteractionCandidate(out PlayerInteractionCandidate candidate)
+        {
+            candidate = default;
+            ResolveReferences();
+
+            var uiStateEvents = ResolveUiStateEvents();
+            if (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen)
+            {
+                return false;
+            }
+
+            if (_resolver == null || !_resolver.TryResolveBenchTarget(out var target) || target == null)
+            {
+                return false;
+            }
+
+            var subjectText = target is MonoBehaviour benchBehaviour ? benchBehaviour.name : "Reloading Bench";
+            var stableTieBreaker = target is Object benchObject ? benchObject.GetInstanceID().ToString() : "bench";
+            candidate = new PlayerInteractionCandidate(
+                BenchHintContextId,
+                BenchHintActionText,
+                subjectText,
+                _interactionPriority,
+                stableTieBreaker,
+                PlayerInteractionActionKind.Workbench,
+                () =>
+                {
+                    target.OpenWorkbench();
+                    RaiseWorkbenchMenuVisibilityChanged(true);
+                });
+            return true;
         }
 
         private void CloseActiveWorkbenchIfAny()
@@ -100,6 +181,7 @@ namespace Reloader.Reloading.World
             var keyboardPressed = Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame;
             if (keyboardPressed)
             {
+                _inputSource?.ConsumePickupPressed();
                 return true;
             }
 
@@ -160,6 +242,17 @@ namespace Reloader.Reloading.World
             }
 
             return _uiStateEvents;
+        }
+
+        private static void PublishInteractionHint()
+        {
+            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintShown(
+                new InteractionHintPayload(BenchHintContextId, BenchHintActionText));
+        }
+
+        private static void ClearInteractionHint()
+        {
+            RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared(BenchHintContextId);
         }
     }
 }

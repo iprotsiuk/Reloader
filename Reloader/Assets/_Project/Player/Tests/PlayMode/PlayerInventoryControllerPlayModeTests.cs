@@ -322,6 +322,110 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void Tick_TargetedPickup_EmitsHintWithActionAndDisplayName()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
+            var root = new GameObject("InventoryControllerRoot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            controller.Configure(input, resolver, new PlayerInventoryRuntime());
+
+            var itemDefinition = ScriptableObject.CreateInstance<ItemDefinition>();
+            itemDefinition.SetValuesForTests("powder-varget", ItemCategory.Powder, "Hodgdon Varget");
+            var spawnDefinition = ScriptableObject.CreateInstance<ItemSpawnDefinition>();
+            spawnDefinition.SetValuesForTests(itemDefinition, quantity: 1);
+            resolver.Target = new TestDefinitionPickupTarget(spawnDefinition);
+
+            InteractionHintPayload hinted = default;
+            runtimeHub.OnInteractionHintShown += payload => hinted = payload;
+
+            try
+            {
+                controller.Tick();
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(spawnDefinition);
+                Object.DestroyImmediate(itemDefinition);
+                Object.DestroyImmediate(root);
+            }
+
+            Assert.That(hinted.ContextId, Is.EqualTo("pickup"));
+            Assert.That(hinted.ActionText, Is.EqualTo("Pick up"));
+            Assert.That(hinted.SubjectText, Is.EqualTo("Hodgdon Varget"));
+        }
+
+        [Test]
+        public void Tick_NoPickupTargetAfterHint_ClearsInteractionHint()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
+            var root = new GameObject("InventoryControllerRoot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            controller.Configure(input, resolver, new PlayerInventoryRuntime());
+
+            resolver.Target = new TestPickupTarget("ammo-factory-308-147-fmj");
+
+            var clearCount = 0;
+            runtimeHub.OnInteractionHintCleared += () => clearCount++;
+
+            try
+            {
+                controller.Tick();
+                resolver.Target = null;
+                controller.Tick();
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+            }
+
+            Assert.That(clearCount, Is.GreaterThanOrEqualTo(1));
+            Assert.That(runtimeHub.HasInteractionHint, Is.False);
+        }
+
+        [Test]
+        public void Tick_PickupWithoutDefinitionDisplayName_UsesFormattedItemIdInHint()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
+            var root = new GameObject("InventoryControllerRoot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            controller.Configure(input, resolver, new PlayerInventoryRuntime());
+
+            resolver.Target = new TestPickupTarget("ammo-factory-308-147-fmj");
+
+            InteractionHintPayload hinted = default;
+            runtimeHub.OnInteractionHintShown += payload => hinted = payload;
+
+            try
+            {
+                controller.Tick();
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(root);
+            }
+
+            Assert.That(hinted.SubjectText, Is.EqualTo("Ammo Factory 308 147 Fmj"));
+        }
+
+        [Test]
         public void InputSource_ExposesFireAndReloadConsumeMethods()
         {
             var root = new GameObject("InputSourceRoot");

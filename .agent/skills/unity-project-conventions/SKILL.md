@@ -43,7 +43,7 @@ Reloader/Assets/_Project/<Feature>/
 | Runtime instances | `<Thing>Instance.cs` | `AmmoInstance.cs` |
 | Managers | `<System>Manager.cs` | `GameManager.cs` |
 | Interfaces | `I<Name>.cs` | `ISaveable.cs` |
-| Events | `GameEvents.cs` (central) or `<System>Events.cs` | `GameEvents.cs` |
+| Events | Runtime port interfaces (`I*Events.cs`) + payload types (`*EventsTypes.cs`) | `IInventoryEvents.cs` |
 | SO asset files | PascalCase descriptive | `Hodgdon_Varget.asset` |
 | Prefabs | PascalCase | `BoltActionRifle.prefab` |
 | Scenes | PascalCase | `MainWorld.unity` |
@@ -123,24 +123,23 @@ Save orchestration terminology contract: use `SaveCoordinator` (service) as the 
 
 ### Event Bus Usage
 
-Terminology contract: "EventBus" is the architecture pattern; `GameEvents` is the concrete v0.x implementation.
+Terminology contract: "EventBus" is the architecture pattern. Runtime implementation contract is `IGameEventsRuntimeHub` + bounded event ports.
 
-Fire events for cross-system communication. Never call other system's managers directly from gameplay code:
+Use runtime ports/hub for cross-system communication. Never call another domain's manager directly from gameplay code:
 
 ```csharp
-// GOOD - fire event, let listeners handle it
-GameEvents.OnAmmoAssembled?.Invoke(newAmmo);
+// GOOD - runtime port/hub access
+var events = RuntimeKernelBootstrapper.Events;
+events?.InventoryEvents?.RaiseInventoryChanged();
 
-// BAD - directly coupling reloading to inventory
+// BAD - direct coupling between domains
 InventoryManager.Instance.AddItem(newAmmo);
 ```
 
-Listeners subscribe in `OnEnable`, unsubscribe in `OnDisable`:
-
-```csharp
-private void OnEnable() => GameEvents.OnAmmoAssembled += HandleAmmoReloaded;
-private void OnDisable() => GameEvents.OnAmmoAssembled -= HandleAmmoReloaded;
-```
+When extending contracts, update these together:
+- Runtime interfaces under `Core/Scripts/Runtime/*Events*.cs`
+- Payload types under `Core/Scripts/Events/**`
+- Routing/docs guardrails (`.cursor/rules/core-events-context.mdc`, `docs/design/extensible-development-contracts.md`)
 
 ### Definition vs. Instance
 
@@ -191,7 +190,7 @@ Never add persisted runtime fields without updating the save contract at the sam
 |---------|-----|
 | Putting scripts in ThirdParty/ | Always use `_Project/<Feature>/Scripts/` |
 | Hard-coding item data in MonoBehaviours | Use ScriptableObject definitions |
-| Systems calling each other directly | Use GameEvents event bus |
+| Systems calling each other directly | Use runtime event ports/hub (`IGameEventsRuntimeHub`) |
 | Single weapon condition float | Track per-part condition on WeaponPartInstance |
 | Preventing player from making mistakes | Simulate the consequence instead |
 | Creating scenes without checking design doc | Main world is ONE scene; only specific areas are instanced |
@@ -207,10 +206,11 @@ Never add persisted runtime fields without updating the save contract at the sam
 | Aspect | Rule |
 |--------|------|
 | Design docs | `docs/design/README.md` → routes to modular docs |
+| Cross-domain extension guardrails | `docs/design/extensible-development-contracts.md` |
 | Custom code root | `Reloader/Assets/_Project/` |
 | Third-party assets | `Reloader/Assets/ThirdParty/` (read-only) |
 | New items | ScriptableObject definition + CreateAssetMenu |
-| Cross-system comms | GameEvents event bus |
+| Cross-system comms | Runtime event ports/hub (`IGameEventsRuntimeHub`) |
 | Singletons | DontDestroyOnLoad + static Instance |
 | Save/load | `SaveCoordinator` orchestrates module serializers and migrations |
 | Render pipeline | URP (Universal Render Pipeline) |

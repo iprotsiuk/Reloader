@@ -23,6 +23,7 @@ namespace Reloader.UI.Toolkit.Runtime
         [SerializeField] private VisualTreeAsset _tabInventoryTree;
         [SerializeField] private VisualTreeAsset _tradeTree;
         [SerializeField] private VisualTreeAsset _reloadingTree;
+        [SerializeField] private VisualTreeAsset _interactionHintTree;
 
         [SerializeField] private bool _disableLegacyRuntimePresenters = true;
 
@@ -37,6 +38,7 @@ namespace Reloader.UI.Toolkit.Runtime
             EnsureScreenDocument("tab-inventory", _tabInventoryTree);
             EnsureScreenDocument("trade-ui", _tradeTree);
             EnsureScreenDocument("reloading-workbench", _reloadingTree);
+            EnsureScreenDocument("interaction-hint", _interactionHintTree);
 
             if (_disableLegacyRuntimePresenters)
             {
@@ -88,6 +90,7 @@ namespace Reloader.UI.Toolkit.Runtime
             _tabInventoryTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/TabInventory.uxml");
             _tradeTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/TradeUi.uxml");
             _reloadingTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/ReloadingWorkbench.uxml");
+            _interactionHintTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/InteractionHint.uxml");
 #endif
         }
 
