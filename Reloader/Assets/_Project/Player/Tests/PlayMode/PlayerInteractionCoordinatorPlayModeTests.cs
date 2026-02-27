@@ -152,6 +152,63 @@ namespace Reloader.Player.Tests.PlayMode
             SetPrivateField(coordinator, "_providerBehaviours", new List<MonoBehaviour>(providers));
         }
 
+        [Test]
+        public void Tick_NoWinner_ConsumesPickupInputToAvoidCarryOver()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
+            var root = new GameObject("InteractionCoordinatorRoot");
+            var coordinator = root.AddComponent<PlayerInteractionCoordinator>();
+            var input = root.AddComponent<TestInputSource>();
+            var provider = root.AddComponent<TestCandidateProvider>();
+            provider.HasCandidate = false;
+
+            input.PickupPressed = true;
+
+            try
+            {
+                ConfigureCoordinator(coordinator, input, new MonoBehaviour[] { provider }, enabled: true);
+                coordinator.Tick();
+
+                Assert.That(input.PickupConsumeCount, Is.EqualTo(1));
+                Assert.That(input.PickupPressed, Is.False);
+                Assert.That(runtimeHub.HasInteractionHint, Is.False);
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void Tick_DoesNotReapplyCoordinatorModeEveryFrame()
+        {
+            var root = new GameObject("InteractionCoordinatorRoot");
+            var coordinator = root.AddComponent<PlayerInteractionCoordinator>();
+            var input = root.AddComponent<TestInputSource>();
+            var provider = root.AddComponent<TestModeAwareProvider>();
+            provider.HasCandidate = true;
+            provider.Candidate = new PlayerInteractionCandidate("pickup", "Pick up", "Ammo", 10, "pickup", PlayerInteractionActionKind.Pickup, null);
+
+            try
+            {
+                ConfigureCoordinator(coordinator, input, new MonoBehaviour[] { provider }, enabled: true);
+
+                coordinator.Tick();
+                coordinator.Tick();
+                coordinator.Tick();
+
+                Assert.That(provider.SetModeCallCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
         private static void SetPrivateField(object instance, string fieldName, object value)
         {
             var field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
@@ -187,6 +244,24 @@ namespace Reloader.Player.Tests.PlayMode
 
                 PickupPressed = false;
                 return true;
+            }
+        }
+
+        private sealed class TestModeAwareProvider : MonoBehaviour, IPlayerInteractionCandidateProvider, IPlayerInteractionCoordinatorModeAware
+        {
+            public bool HasCandidate;
+            public PlayerInteractionCandidate Candidate;
+            public int SetModeCallCount;
+
+            public bool TryGetInteractionCandidate(out PlayerInteractionCandidate candidate)
+            {
+                candidate = Candidate;
+                return HasCandidate;
+            }
+
+            public void SetInteractionCoordinatorMode(bool isEnabled)
+            {
+                SetModeCallCount++;
             }
         }
 

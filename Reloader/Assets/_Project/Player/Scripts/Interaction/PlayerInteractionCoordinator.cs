@@ -30,18 +30,21 @@ namespace Reloader.Player.Interaction
         private PlayerInteractionCandidate _winner;
         private int _winnerProviderIndex = -1;
         private bool _hasPublishedHint;
+        private bool _hasAppliedCoordinatorMode;
+        private bool _appliedCoordinatorMode;
+        private int _appliedModeAwareProviderCount = -1;
         private InteractionHintPayload _publishedHint;
 
         private void Awake()
         {
             ResolveReferences();
-            ApplyCoordinatorModeToProviders();
+            EnsureCoordinatorModeApplied();
         }
 
         private void OnEnable()
         {
             ResolveReferences();
-            ApplyCoordinatorModeToProviders();
+            EnsureCoordinatorModeApplied();
         }
 
         private void OnDisable()
@@ -64,8 +67,11 @@ namespace Reloader.Player.Interaction
 
         public void Tick()
         {
-            ResolveReferences();
-            ApplyCoordinatorModeToProviders();
+            if (_inputSource == null || (_providers.Count == 0 && _providerBehaviours.Count > 0))
+            {
+                ResolveReferences();
+                EnsureCoordinatorModeApplied();
+            }
 
             if (!_coordinatorModeEnabled)
             {
@@ -80,6 +86,7 @@ namespace Reloader.Player.Interaction
 
             if (!_hasWinner)
             {
+                _inputSource?.ConsumePickupPressed();
                 ClearPublishedHint();
                 _diagnosticSnapshot = BuildDiagnosticSnapshot(true, false);
                 return;
@@ -186,6 +193,21 @@ namespace Reloader.Player.Interaction
                     _modeAwareProviders.Add(modeAware);
                 }
             }
+        }
+
+        private void EnsureCoordinatorModeApplied()
+        {
+            if (_hasAppliedCoordinatorMode
+                && _appliedCoordinatorMode == _coordinatorModeEnabled
+                && _appliedModeAwareProviderCount == _modeAwareProviders.Count)
+            {
+                return;
+            }
+
+            ApplyCoordinatorModeToProviders();
+            _hasAppliedCoordinatorMode = true;
+            _appliedCoordinatorMode = _coordinatorModeEnabled;
+            _appliedModeAwareProviderCount = _modeAwareProviders.Count;
         }
 
         private void ApplyCoordinatorModeToProviders()
