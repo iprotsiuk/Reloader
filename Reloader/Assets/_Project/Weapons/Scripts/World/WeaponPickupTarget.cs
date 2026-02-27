@@ -1,15 +1,26 @@
 using Reloader.Inventory;
+using Reloader.Core.Persistence;
 using UnityEngine;
 
 namespace Reloader.Weapons.World
 {
+    [RequireComponent(typeof(WorldObjectIdentity))]
     public sealed class WeaponPickupTarget : MonoBehaviour, IInventoryPickupTarget
     {
         [SerializeField] private string _itemId;
         [SerializeField] private GameObject _visualRoot;
         [SerializeField] private bool _disableGameObjectOnPickup = true;
+        [SerializeField] private WorldObjectIdentity _identity;
 
         public string ItemId => _itemId;
+        public string ObjectId
+        {
+            get
+            {
+                var identity = ResolveIdentity();
+                return identity != null ? identity.ObjectId : string.Empty;
+            }
+        }
 
         public void OnPickedUp()
         {
@@ -27,6 +38,26 @@ namespace Reloader.Weapons.World
         public void SetItemIdForTests(string itemId)
         {
             _itemId = itemId;
+        }
+
+        private void Awake()
+        {
+            ResolveIdentity();
+        }
+
+        private void OnValidate()
+        {
+            ResolveIdentity();
+        }
+
+        private WorldObjectIdentity ResolveIdentity()
+        {
+            if (_identity == null)
+            {
+                _identity = GetComponent<WorldObjectIdentity>();
+            }
+
+            return _identity;
         }
     }
 }

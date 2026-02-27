@@ -1,17 +1,28 @@
 using Reloader.Inventory;
+using Reloader.Core.Persistence;
 using UnityEngine;
 
 namespace Reloader.Weapons.World
 {
+    [RequireComponent(typeof(WorldObjectIdentity))]
     public sealed class AmmoStackPickupTarget : MonoBehaviour, IInventoryStackPickupTarget
     {
         [SerializeField] private string _itemId = "ammo-factory-308-147-fmj";
         [SerializeField] private int _quantity = 20;
         [SerializeField] private GameObject _visualRoot;
         [SerializeField] private bool _disableGameObjectOnPickup = true;
+        [SerializeField] private WorldObjectIdentity _identity;
 
         public string ItemId => _itemId;
         public int Quantity => Mathf.Max(1, _quantity);
+        public string ObjectId
+        {
+            get
+            {
+                var identity = ResolveIdentity();
+                return identity != null ? identity.ObjectId : string.Empty;
+            }
+        }
 
         public void OnPickedUp()
         {
@@ -24,6 +35,26 @@ namespace Reloader.Weapons.World
             {
                 gameObject.SetActive(false);
             }
+        }
+
+        private void Awake()
+        {
+            ResolveIdentity();
+        }
+
+        private void OnValidate()
+        {
+            ResolveIdentity();
+        }
+
+        private WorldObjectIdentity ResolveIdentity()
+        {
+            if (_identity == null)
+            {
+                _identity = GetComponent<WorldObjectIdentity>();
+            }
+
+            return _identity;
         }
     }
 }

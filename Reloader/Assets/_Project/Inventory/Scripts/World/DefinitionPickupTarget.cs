@@ -1,16 +1,27 @@
 using UnityEngine;
+using Reloader.Core.Persistence;
 
 namespace Reloader.Inventory
 {
+    [RequireComponent(typeof(WorldObjectIdentity))]
     public sealed class DefinitionPickupTarget : MonoBehaviour, IInventoryDefinitionPickupTarget, IInventoryStackPickupTarget
     {
         [SerializeField] private ItemSpawnDefinition _spawnDefinition;
         [SerializeField] private GameObject _visualRoot;
         [SerializeField] private bool _disableGameObjectOnPickup = true;
+        [SerializeField] private WorldObjectIdentity _identity;
 
         public ItemSpawnDefinition SpawnDefinition => _spawnDefinition;
         public string ItemId => _spawnDefinition != null ? _spawnDefinition.ItemId : null;
         public int Quantity => _spawnDefinition != null ? _spawnDefinition.Quantity : 1;
+        public string ObjectId
+        {
+            get
+            {
+                var identity = ResolveIdentity();
+                return identity != null ? identity.ObjectId : string.Empty;
+            }
+        }
 
         public void OnPickedUp()
         {
@@ -28,6 +39,26 @@ namespace Reloader.Inventory
         public void SetSpawnDefinitionForTests(ItemSpawnDefinition spawnDefinition)
         {
             _spawnDefinition = spawnDefinition;
+        }
+
+        private void Awake()
+        {
+            ResolveIdentity();
+        }
+
+        private void OnValidate()
+        {
+            ResolveIdentity();
+        }
+
+        private WorldObjectIdentity ResolveIdentity()
+        {
+            if (_identity == null)
+            {
+                _identity = GetComponent<WorldObjectIdentity>();
+            }
+
+            return _identity;
         }
     }
 }
