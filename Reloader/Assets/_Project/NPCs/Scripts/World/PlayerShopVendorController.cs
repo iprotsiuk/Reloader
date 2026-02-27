@@ -194,6 +194,7 @@ namespace Reloader.NPCs.World
             var keyboardPressed = Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame;
             if (keyboardPressed)
             {
+                _inputSource?.ConsumePickupPressed();
                 return true;
             }
 
