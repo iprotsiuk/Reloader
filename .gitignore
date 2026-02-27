@@ -4,6 +4,7 @@
 tmp/
 .tmp/
 .disabled/
+.worktrees/
 unity-*.log
 unity-*.xml
 
