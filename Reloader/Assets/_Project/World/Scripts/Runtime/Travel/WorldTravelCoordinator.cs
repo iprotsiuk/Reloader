@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System;
 using Reloader.World.Runtime;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -29,7 +30,16 @@ namespace Reloader.World.Travel
                 return false;
             }
 
-            context.Validate();
+            try
+            {
+                context.Validate();
+            }
+            catch (ArgumentException ex)
+            {
+                Debug.LogWarning($"Travel context validation failed: {ex.Message}");
+                return false;
+            }
+
             return TryLoadSceneAtEntry(context.DestinationSceneName, context.DestinationEntryPointId);
         }
 
@@ -72,7 +82,7 @@ namespace Reloader.World.Travel
             }
 
             var candidates = new List<SceneEntryPoint>();
-            var allEntryPoints = Object.FindObjectsByType<SceneEntryPoint>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var allEntryPoints = UnityEngine.Object.FindObjectsByType<SceneEntryPoint>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             for (var i = 0; i < allEntryPoints.Length; i++)
             {
                 var entryPoint = allEntryPoints[i];

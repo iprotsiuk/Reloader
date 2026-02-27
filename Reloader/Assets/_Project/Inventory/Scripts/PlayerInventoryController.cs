@@ -314,6 +314,7 @@ namespace Reloader.Inventory
         {
             if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
             {
+                _inputSource?.ConsumePickupPressed();
                 return true;
             }
 

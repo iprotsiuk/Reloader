@@ -148,5 +148,22 @@ namespace Reloader.World.Tests.EditMode
                 UnityEngine.Object.DestroyImmediate(interactor);
             }
         }
+
+        [Test]
+        public void WorldTravelCoordinator_TryTravel_ReturnsFalse_WhenContextIsInvalid()
+        {
+            var context = new TravelContext(
+                "MainTown",
+                "entry.indoor-range",
+                "entry.main-town.return",
+                TravelActivityType.IndoorRange,
+                TravelTimeAdvancePolicy.None);
+
+            JsonUtility.FromJsonOverwrite("{\"_destinationSceneName\":\"\"}", context);
+
+            var result = false;
+            Assert.That(() => result = WorldTravelCoordinator.TryTravel(context), Throws.Nothing);
+            Assert.That(result, Is.False);
+        }
     }
 }
