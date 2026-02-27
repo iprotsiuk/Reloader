@@ -245,12 +245,22 @@ namespace Reloader.Player.Viewmodel
                 return;
             }
 
+            if (!HasParameter(hash, AnimatorControllerParameterType.Trigger))
+            {
+                return;
+            }
+
             _animator.SetTrigger(hash);
         }
 
         private void SetBool(int hash, bool value)
         {
             if (_animator == null)
+            {
+                return;
+            }
+
+            if (!HasParameter(hash, AnimatorControllerParameterType.Bool))
             {
                 return;
             }
@@ -265,7 +275,32 @@ namespace Reloader.Player.Viewmodel
                 return;
             }
 
+            if (!HasParameter(hash, AnimatorControllerParameterType.Float))
+            {
+                return;
+            }
+
             _animator.SetFloat(hash, value);
+        }
+
+        private bool HasParameter(int hash, AnimatorControllerParameterType type)
+        {
+            if (_animator == null)
+            {
+                return false;
+            }
+
+            var parameters = _animator.parameters;
+            for (var i = 0; i < parameters.Length; i++)
+            {
+                var parameter = parameters[i];
+                if (parameter.nameHash == hash && parameter.type == type)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

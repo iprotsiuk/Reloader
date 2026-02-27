@@ -44,6 +44,11 @@ namespace Reloader.Player
                 _movementSettings != null ? _movementSettings.WalkSpeed : 0f,
                 _movementSettings != null ? _movementSettings.SprintSpeed : 0f);
             _current = Mathf.Lerp(_current, target, Time.deltaTime * _damping);
+            if (!HasParameter(_animator, _speedHash, AnimatorControllerParameterType.Float))
+            {
+                return;
+            }
+
             _animator.SetFloat(_speedHash, _current);
         }
 
@@ -78,6 +83,26 @@ namespace Reloader.Player
             }
 
             return null;
+        }
+
+        private static bool HasParameter(Animator animator, int hash, AnimatorControllerParameterType type)
+        {
+            if (animator == null)
+            {
+                return false;
+            }
+
+            var parameters = animator.parameters;
+            for (var i = 0; i < parameters.Length; i++)
+            {
+                var parameter = parameters[i];
+                if (parameter.nameHash == hash && parameter.type == type)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void CacheParameter()

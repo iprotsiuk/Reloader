@@ -64,7 +64,6 @@ namespace Reloader.Player
 
         private void OnDisable()
         {
-            _playerMap?.Disable();
             MoveInput = Vector2.zero;
             LookInput = Vector2.zero;
             SprintHeld = false;
@@ -338,6 +337,11 @@ namespace Reloader.Player
             _beltSlotActions[2] = _playerMap != null ? _playerMap.FindAction(_beltSlot3ActionName, false) : null;
             _beltSlotActions[3] = _playerMap != null ? _playerMap.FindAction(_beltSlot4ActionName, false) : null;
             _beltSlotActions[4] = _playerMap != null ? _playerMap.FindAction(_beltSlot5ActionName, false) : null;
+
+            if (isActiveAndEnabled)
+            {
+                _playerMap?.Enable();
+            }
         }
     }
 }

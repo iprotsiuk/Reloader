@@ -557,7 +557,8 @@ namespace Reloader.World.Travel
                 return;
             }
 
-            var animator = cameraPivot.GetComponentInChildren<Animator>(true);
+            var playerArms = cameraPivot.Find("PlayerArms");
+            var animator = playerArms != null ? playerArms.GetComponentInChildren<Animator>(true) : null;
             var armsController = Resources.Load<RuntimeAnimatorController>(FpsArmsControllerResourcePath);
             if (animator == null)
             {

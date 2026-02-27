@@ -526,6 +526,13 @@ namespace Reloader.World.Tests.PlayMode
             var actionsField = inputReader.GetType().GetField("_actionsAsset", BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(actionsField, Is.Not.Null, "Expected _actionsAsset field on PlayerInputReader.");
             Assert.That(actionsField.GetValue(inputReader), Is.Not.Null, "Expected input actions asset assigned after travel.");
+            var playerMapField = inputReader.GetType().GetField("_playerMap", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(playerMapField, Is.Not.Null, "Expected _playerMap field on PlayerInputReader.");
+            var playerMap = playerMapField.GetValue(inputReader);
+            Assert.That(playerMap, Is.Not.Null, "Expected resolved Player action map after travel.");
+            var enabledProperty = playerMap.GetType().GetProperty("enabled", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(enabledProperty, Is.Not.Null, "Expected enabled property on action map.");
+            Assert.That((bool)enabledProperty.GetValue(playerMap), Is.True, "Player action map must be enabled after return travel.");
 
             var lookController = playerRoot.GetComponent("PlayerLookController");
             Assert.That(lookController, Is.Not.Null, "Expected PlayerLookController.");
