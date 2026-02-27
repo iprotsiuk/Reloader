@@ -2,19 +2,23 @@ using Reloader.Core;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Player;
+using Reloader.Player.Interaction;
 using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace Reloader.NPCs.World
 {
-    public sealed class PlayerShopVendorController : MonoBehaviour
+    public sealed class PlayerShopVendorController : MonoBehaviour, IPlayerInteractionCandidateProvider, IPlayerInteractionCoordinatorModeAware
     {
         private const string VendorHintContextId = "vendor";
         private const string VendorHintActionText = "Trade";
 
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private MonoBehaviour _resolverBehaviour;
+        [Header("Interaction")]
+        [SerializeField] private bool _interactionCoordinatorModeEnabled;
+        [SerializeField] private int _interactionPriority = 60;
 
         private IPlayerInputSource _inputSource;
         private IPlayerShopVendorResolver _resolver;
@@ -37,6 +41,11 @@ namespace Reloader.NPCs.World
 
         private void LateUpdate()
         {
+            if (_interactionCoordinatorModeEnabled)
+            {
+                return;
+            }
+
             if (!_flushPickupInputAtEndOfFrame || _inputSource == null)
             {
                 return;
@@ -59,7 +68,10 @@ namespace Reloader.NPCs.World
             UnsubscribeFromShopEvents();
             _isTradeOpen = false;
             _flushPickupInputAtEndOfFrame = false;
-            ClearInteractionHint();
+            if (!_interactionCoordinatorModeEnabled)
+            {
+                ClearInteractionHint();
+            }
         }
 
         public void Configure(IPlayerInputSource inputSource, IPlayerShopVendorResolver resolver, IShopEvents shopEvents = null)
@@ -90,8 +102,12 @@ namespace Reloader.NPCs.World
 
             if (_resolver == null || !_resolver.TryResolveVendorTarget(out var target) || target == null)
             {
-                _flushPickupInputAtEndOfFrame = true;
-                ClearInteractionHint();
+                _flushPickupInputAtEndOfFrame = !_interactionCoordinatorModeEnabled;
+                if (!_interactionCoordinatorModeEnabled)
+                {
+                    ClearInteractionHint();
+                }
+
                 if (_isTradeOpen)
                 {
                     ResolveShopEvents()?.RaiseShopTradeClosed();
@@ -100,13 +116,19 @@ namespace Reloader.NPCs.World
             }
 
             var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
-            if (_isTradeOpen || (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen))
+            if (!_interactionCoordinatorModeEnabled && (_isTradeOpen || (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen)))
             {
                 ClearInteractionHint();
             }
-            else
+            else if (!_interactionCoordinatorModeEnabled)
             {
                 PublishInteractionHint();
+            }
+
+            if (_interactionCoordinatorModeEnabled)
+            {
+                _flushPickupInputAtEndOfFrame = false;
+                return;
             }
 
             var pickupPressedThisFrame = IsPickupPressedThisFrame();
@@ -119,6 +141,51 @@ namespace Reloader.NPCs.World
             _flushPickupInputAtEndOfFrame = false;
             ResolveShopEvents()?.RaiseShopTradeOpenRequested(target.VendorId);
             target.OnTradeOpened();
+        }
+
+        public void SetInteractionCoordinatorMode(bool isEnabled)
+        {
+            _interactionCoordinatorModeEnabled = isEnabled;
+            if (isEnabled)
+            {
+                _flushPickupInputAtEndOfFrame = false;
+                ClearInteractionHint();
+            }
+        }
+
+        public bool TryGetInteractionCandidate(out PlayerInteractionCandidate candidate)
+        {
+            candidate = default;
+            if (_resolver == null)
+            {
+                ResolveReferences();
+            }
+
+            var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
+            if (_isTradeOpen || (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen))
+            {
+                return false;
+            }
+
+            if (_resolver == null || !_resolver.TryResolveVendorTarget(out var target) || target == null)
+            {
+                return false;
+            }
+
+            var stableTieBreaker = string.IsNullOrWhiteSpace(target.VendorId) ? "vendor" : target.VendorId;
+            candidate = new PlayerInteractionCandidate(
+                VendorHintContextId,
+                VendorHintActionText,
+                stableTieBreaker,
+                _interactionPriority,
+                stableTieBreaker,
+                PlayerInteractionActionKind.VendorTrade,
+                () =>
+                {
+                    ResolveShopEvents()?.RaiseShopTradeOpenRequested(target.VendorId);
+                    target.OnTradeOpened();
+                });
+            return true;
         }
 
         private bool IsPickupPressedThisFrame()

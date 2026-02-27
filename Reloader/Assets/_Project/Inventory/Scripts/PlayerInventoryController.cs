@@ -5,12 +5,13 @@ using Reloader.Core.Events;
 using Reloader.Core.Items;
 using Reloader.Core.Runtime;
 using Reloader.Player;
+using Reloader.Player.Interaction;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace Reloader.Inventory
 {
-    public sealed class PlayerInventoryController : MonoBehaviour
+    public sealed class PlayerInventoryController : MonoBehaviour, IPlayerInteractionCandidateProvider, IPlayerInteractionCoordinatorModeAware
     {
         private const int DefaultBackpackCapacity = 9;
         private const string PickupHintContextId = "pickup";
@@ -20,6 +21,9 @@ namespace Reloader.Inventory
         [SerializeField] private MonoBehaviour _pickupTargetResolverBehaviour;
         [SerializeField] private List<ItemDefinition> _itemDefinitionRegistry = new List<ItemDefinition>();
         [SerializeField] private int _startingBackpackCapacity = DefaultBackpackCapacity;
+        [Header("Interaction")]
+        [SerializeField] private bool _interactionCoordinatorModeEnabled;
+        [SerializeField] private int _interactionPriority = 10;
         [Header("Debug (Runtime)")]
         [SerializeField] private int _selectedBeltIndexDebug = -1;
         [SerializeField] private string _selectedBeltItemIdDebug;
@@ -57,7 +61,10 @@ namespace Reloader.Inventory
             UnsubscribeFromInventoryEvents();
             _pendingPickupTargetsById.Clear();
             _flushPickupInputAtEndOfFrame = false;
-            ClearInteractionHint();
+            if (!_interactionCoordinatorModeEnabled)
+            {
+                ClearInteractionHint();
+            }
         }
 
         private void Update()
@@ -67,6 +74,11 @@ namespace Reloader.Inventory
 
         private void LateUpdate()
         {
+            if (_interactionCoordinatorModeEnabled)
+            {
+                return;
+            }
+
             if (!_flushPickupInputAtEndOfFrame || _inputSource == null)
             {
                 return;
@@ -124,6 +136,12 @@ namespace Reloader.Inventory
                 }
             }
 
+            if (_interactionCoordinatorModeEnabled)
+            {
+                _flushPickupInputAtEndOfFrame = false;
+                return;
+            }
+
             if (_pickupTargetResolver == null || !_pickupTargetResolver.TryResolvePickupTarget(out var pickupTarget) || pickupTarget == null)
             {
                 _flushPickupInputAtEndOfFrame = true;
@@ -149,12 +167,57 @@ namespace Reloader.Inventory
             }
 
             _flushPickupInputAtEndOfFrame = false;
-            var resolvedItemId = ResolvePickupItemId(pickupTarget);
-            if (!string.IsNullOrWhiteSpace(resolvedItemId))
+            TryExecutePickupTarget(pickupTarget);
+        }
+
+        public void SetInteractionCoordinatorMode(bool isEnabled)
+        {
+            _interactionCoordinatorModeEnabled = isEnabled;
+            if (isEnabled)
             {
-                _pendingPickupTargetsById[resolvedItemId] = pickupTarget;
-                ResolveInventoryEvents().RaiseItemPickupRequested(resolvedItemId);
+                _flushPickupInputAtEndOfFrame = false;
+                ClearInteractionHint();
             }
+        }
+
+        public bool TryGetInteractionCandidate(out PlayerInteractionCandidate candidate)
+        {
+            candidate = default;
+
+            if (_pickupTargetResolver == null)
+            {
+                ResolveReferences();
+            }
+
+            if (_pickupTargetResolver == null || !_pickupTargetResolver.TryResolvePickupTarget(out var pickupTarget) || pickupTarget == null)
+            {
+                return false;
+            }
+
+            var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
+            if (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen)
+            {
+                return false;
+            }
+
+            var resolvedItemId = ResolvePickupItemId(pickupTarget);
+            if (string.IsNullOrWhiteSpace(resolvedItemId))
+            {
+                return false;
+            }
+
+            var subjectText = ResolvePickupDisplayName(pickupTarget);
+            var targetInstanceId = pickupTarget is Object pickupTargetObject ? pickupTargetObject.GetInstanceID() : 0;
+            var stableTieBreaker = $"{resolvedItemId}:{targetInstanceId}";
+            candidate = new PlayerInteractionCandidate(
+                PickupHintContextId,
+                PickupHintActionText,
+                subjectText,
+                _interactionPriority,
+                stableTieBreaker,
+                PlayerInteractionActionKind.Pickup,
+                () => TryExecutePickupTarget(pickupTarget));
+            return true;
         }
 
         public bool TryMoveItem(InventoryArea sourceArea, int sourceIndex, InventoryArea targetArea, int targetIndex)
@@ -451,6 +514,19 @@ namespace Reloader.Inventory
             }
 
             return _inputSource != null && _inputSource.ConsumePickupPressed();
+        }
+
+        private bool TryExecutePickupTarget(IInventoryPickupTarget pickupTarget)
+        {
+            var resolvedItemId = ResolvePickupItemId(pickupTarget);
+            if (string.IsNullOrWhiteSpace(resolvedItemId))
+            {
+                return false;
+            }
+
+            _pendingPickupTargetsById[resolvedItemId] = pickupTarget;
+            ResolveInventoryEvents().RaiseItemPickupRequested(resolvedItemId);
+            return true;
         }
 
         private void UpdateDebugFields()
