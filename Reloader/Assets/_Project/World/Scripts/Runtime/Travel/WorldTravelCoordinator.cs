@@ -588,6 +588,8 @@ namespace Reloader.World.Travel
 
             var fpsDriver = playerRootTransform.GetComponent("FpsViewmodelAnimatorDriver");
             SetComponentAnimatorField(fpsDriver, animator);
+
+            RebindPlayerRigRuntimeReferences(playerRootTransform);
         }
 
         private static void SetComponentAnimatorField(Component component, Animator animator)
@@ -610,6 +612,34 @@ namespace Reloader.World.Travel
             }
 
             field.SetValue(component, animator);
+        }
+
+        private static void RebindPlayerRigRuntimeReferences(Transform playerRootTransform)
+        {
+            if (playerRootTransform == null)
+            {
+                return;
+            }
+
+            var components = playerRootTransform.GetComponents<MonoBehaviour>();
+            for (var i = 0; i < components.Length; i++)
+            {
+                var component = components[i];
+                if (component == null)
+                {
+                    continue;
+                }
+
+                var type = component.GetType();
+                if (type.Name == "PlayerInputReader")
+                {
+                    var resolveActions = type.GetMethod("ResolveActions", BindingFlags.Instance | BindingFlags.NonPublic);
+                    resolveActions?.Invoke(component, null);
+                }
+
+                var resolveReferences = type.GetMethod("ResolveReferences", BindingFlags.Instance | BindingFlags.NonPublic);
+                resolveReferences?.Invoke(component, null);
+            }
         }
 
         private sealed class WeaponRuntimeSnapshotCapture

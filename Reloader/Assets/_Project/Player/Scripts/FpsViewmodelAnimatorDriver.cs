@@ -27,6 +27,16 @@ namespace Reloader.Player
                 return;
             }
 
+            if (_animator.runtimeAnimatorController == null)
+            {
+                // Travel/scene swaps can momentarily leave stale animator refs.
+                _animator = FindAnimatorWithController(transform);
+                if (_animator == null)
+                {
+                    return;
+                }
+            }
+
             var horizontalVelocity = _characterController.velocity;
             horizontalVelocity.y = 0f;
             var target = NormalizeSpeed(
@@ -48,6 +58,26 @@ namespace Reloader.Player
         {
             _animator ??= GetComponentInChildren<Animator>(true);
             _characterController ??= GetComponent<CharacterController>();
+        }
+
+        private static Animator FindAnimatorWithController(Transform root)
+        {
+            if (root == null)
+            {
+                return null;
+            }
+
+            var animators = root.GetComponentsInChildren<Animator>(true);
+            for (var i = 0; i < animators.Length; i++)
+            {
+                var candidate = animators[i];
+                if (candidate != null && candidate.runtimeAnimatorController != null)
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
         }
 
         private void CacheParameter()

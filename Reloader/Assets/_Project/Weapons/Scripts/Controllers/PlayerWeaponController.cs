@@ -89,6 +89,7 @@ namespace Reloader.Weapons.Controllers
 
         private void Update()
         {
+            ResolveReferences();
             if (!DependencyResolutionGuard.HasRequiredReferences(
                     ref _loggedMissingCoreDependencies,
                     this,
