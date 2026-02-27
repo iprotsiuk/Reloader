@@ -192,16 +192,18 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(controller, Is.Not.Null);
 
             var label = root.Q<Label>("interaction-hint__text");
+            var tooltipRoot = root.Q<VisualElement>("interaction-hint__root");
             Assert.That(label, Is.Not.Null);
+            Assert.That(tooltipRoot, Is.Not.Null);
 
             try
             {
                 runtimeHub.RaiseInteractionHintShown(new InteractionHintPayload("pickup", "Pick up", "Hodgdon Varget"));
                 Assert.That(label.text, Is.EqualTo("Pick up Hodgdon Varget"));
-                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+                Assert.That(tooltipRoot.style.display.value, Is.EqualTo(DisplayStyle.Flex));
 
                 runtimeHub.RaiseInteractionHintCleared();
-                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
+                Assert.That(tooltipRoot.style.display.value, Is.EqualTo(DisplayStyle.None));
             }
             finally
             {
@@ -901,9 +903,12 @@ namespace Reloader.UI.Tests.PlayMode
 
         private static VisualElement BuildInteractionHintRoot()
         {
+            var screen = new VisualElement { name = "interaction-hint__screen" };
             var root = new VisualElement { name = "interaction-hint__root" };
+            root.style.display = DisplayStyle.None;
             root.Add(new Label { name = "interaction-hint__text" });
-            return root;
+            screen.Add(root);
+            return screen;
         }
 
         private static VisualElement BuildBeltRoot()

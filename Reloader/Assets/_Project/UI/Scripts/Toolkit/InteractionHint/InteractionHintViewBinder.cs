@@ -7,6 +7,7 @@ namespace Reloader.UI.Toolkit.InteractionHint
     public sealed class InteractionHintViewBinder : IUiViewBinder
     {
         private VisualElement _root;
+        private VisualElement _hintRoot;
         private Label _textLabel;
 
         public event Action<UiIntent> IntentRaised;
@@ -14,6 +15,7 @@ namespace Reloader.UI.Toolkit.InteractionHint
         public void Initialize(VisualElement root)
         {
             _root = root;
+            _hintRoot = root?.Q<VisualElement>("interaction-hint__root");
             _textLabel = root?.Q<Label>("interaction-hint__text");
         }
 
@@ -29,9 +31,10 @@ namespace Reloader.UI.Toolkit.InteractionHint
                 _textLabel.text = interactionHintState.Text;
             }
 
-            if (_root != null)
+            var visibilityTarget = _hintRoot ?? _root;
+            if (visibilityTarget != null)
             {
-                _root.style.display = interactionHintState.IsVisible ? DisplayStyle.Flex : DisplayStyle.None;
+                visibilityTarget.style.display = interactionHintState.IsVisible ? DisplayStyle.Flex : DisplayStyle.None;
             }
         }
     }
