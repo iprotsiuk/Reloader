@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Reloader.Core.Persistence;
 
 namespace Reloader.Core.Runtime
 {
@@ -32,6 +33,8 @@ namespace Reloader.Core.Runtime
 
         public static RuntimeKernel Configure(IEnumerable<RuntimeModuleRegistration> registrations, IGameEventsRuntimeHub eventsImplementation = null)
         {
+            WorldObjectPersistenceRuntimeBridge.EnsureInitialized();
+
             var previousEvents = kernel.Events;
             kernel = new RuntimeKernel(registrations, eventsImplementation ?? previousEvents);
             if (!ReferenceEquals(previousEvents, kernel.Events))

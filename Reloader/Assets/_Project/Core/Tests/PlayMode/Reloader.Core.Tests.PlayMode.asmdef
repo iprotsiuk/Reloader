@@ -1,0 +1,19 @@
+{
+  "name": "Reloader.Core.Tests.PlayMode",
+  "rootNamespace": "Reloader.Core.Tests.PlayMode",
+  "references": [
+    "Reloader.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}
