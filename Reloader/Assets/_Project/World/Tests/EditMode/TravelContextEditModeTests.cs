@@ -2,6 +2,7 @@ using System;
 using NUnit.Framework;
 using Reloader.World.Travel;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Reloader.World.Tests.EditMode
 {
@@ -164,6 +165,44 @@ namespace Reloader.World.Tests.EditMode
             var result = false;
             Assert.That(() => result = WorldTravelCoordinator.TryTravel(context), Throws.Nothing);
             Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void WorldTravelCoordinator_TryLoadSceneAtEntry_ReturnsFalse_WhenSceneIsMissing()
+        {
+            var result = false;
+            Assert.That(() => result = WorldTravelCoordinator.TryLoadSceneAtEntry("__MissingScene__", "entry.any"), Throws.Nothing);
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public void TravelSceneTrigger_IsInteractorAllowed_ReturnsFalse_WhenRequiredTagIsInvalid()
+        {
+            var triggerObject = new GameObject("trigger");
+            var interactor = new GameObject("interactor");
+            var trigger = triggerObject.AddComponent<TravelSceneTrigger>();
+
+            try
+            {
+                trigger.SetInteractorTag("__InvalidTag__");
+                var previousIgnoreFailingMessages = LogAssert.ignoreFailingMessages;
+                LogAssert.ignoreFailingMessages = true;
+                var allowed = true;
+                try
+                {
+                    Assert.That(() => allowed = trigger.IsInteractorAllowed(interactor), Throws.Nothing);
+                    Assert.That(allowed, Is.False);
+                }
+                finally
+                {
+                    LogAssert.ignoreFailingMessages = previousIgnoreFailingMessages;
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(triggerObject);
+                UnityEngine.Object.DestroyImmediate(interactor);
+            }
         }
     }
 }

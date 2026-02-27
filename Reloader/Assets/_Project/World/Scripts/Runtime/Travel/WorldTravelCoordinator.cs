@@ -50,12 +50,28 @@ namespace Reloader.World.Travel
                 return false;
             }
 
+            if (!Application.CanStreamedLevelBeLoaded(sceneName))
+            {
+                Debug.LogWarning($"Travel scene '{sceneName}' is not available in build settings.");
+                return false;
+            }
+
             EnsureSubscribed();
             _pendingSceneName = sceneName.Trim();
             _pendingEntryPointId = entryPointId.Trim();
             LastResolvedEntryPointId = null;
-            SceneManager.LoadScene(_pendingSceneName, LoadSceneMode.Single);
-            return true;
+            try
+            {
+                SceneManager.LoadScene(_pendingSceneName, LoadSceneMode.Single);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"Failed to load travel scene '{_pendingSceneName}': {ex.Message}");
+                _pendingSceneName = null;
+                _pendingEntryPointId = null;
+                return false;
+            }
         }
 
         private static void EnsureSubscribed()

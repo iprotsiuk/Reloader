@@ -50,7 +50,15 @@ namespace Reloader.World.Travel
                 return true;
             }
 
-            return interactor.CompareTag(_requiredInteractorTag);
+            try
+            {
+                return interactor.CompareTag(_requiredInteractorTag);
+            }
+            catch (UnityException ex)
+            {
+                Debug.LogWarning($"TravelSceneTrigger has invalid required tag '{_requiredInteractorTag}': {ex.Message}");
+                return false;
+            }
         }
 
         private void OnTriggerEnter(Collider other)
