@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using Reloader.Core.Persistence;
 
@@ -18,8 +19,7 @@ namespace Reloader.Inventory
         {
             get
             {
-                var identity = ResolveIdentity();
-                return identity != null ? identity.ObjectId : string.Empty;
+                return ResolveIdentity().ObjectId;
             }
         }
 
@@ -56,6 +56,11 @@ namespace Reloader.Inventory
             if (_identity == null)
             {
                 _identity = GetComponent<WorldObjectIdentity>();
+            }
+
+            if (_identity == null)
+            {
+                throw new InvalidOperationException($"{nameof(DefinitionPickupTarget)} requires {nameof(WorldObjectIdentity)} on '{name}'.");
             }
 
             return _identity;

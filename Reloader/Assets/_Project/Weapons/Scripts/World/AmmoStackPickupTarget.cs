@@ -1,3 +1,4 @@
+using System;
 using Reloader.Inventory;
 using Reloader.Core.Persistence;
 using UnityEngine;
@@ -19,8 +20,7 @@ namespace Reloader.Weapons.World
         {
             get
             {
-                var identity = ResolveIdentity();
-                return identity != null ? identity.ObjectId : string.Empty;
+                return ResolveIdentity().ObjectId;
             }
         }
 
@@ -52,6 +52,11 @@ namespace Reloader.Weapons.World
             if (_identity == null)
             {
                 _identity = GetComponent<WorldObjectIdentity>();
+            }
+
+            if (_identity == null)
+            {
+                throw new InvalidOperationException($"{nameof(AmmoStackPickupTarget)} requires {nameof(WorldObjectIdentity)} on '{name}'.");
             }
 
             return _identity;
