@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System;
+using System.Collections;
 using System.Reflection;
 using Reloader.World.Runtime;
 using UnityEngine;
@@ -14,6 +15,7 @@ namespace Reloader.World.Travel
         private static bool _isSubscribedToSceneLoaded;
         private static float _travelSuppressedUntilRealtime;
         private static Dictionary<string, int> _pendingInventoryQuantities = new();
+        private static readonly List<WeaponRuntimeSnapshotCapture> _pendingWeaponSnapshots = new();
 
         public static string LastResolvedEntryPointId { get; private set; }
 
@@ -26,6 +28,7 @@ namespace Reloader.World.Travel
             _isSubscribedToSceneLoaded = false;
             _travelSuppressedUntilRealtime = 0f;
             _pendingInventoryQuantities = new Dictionary<string, int>();
+            _pendingWeaponSnapshots.Clear();
         }
 
         public static bool TryTravel(TravelContext context)
@@ -68,6 +71,7 @@ namespace Reloader.World.Travel
 
             EnsureSubscribed();
             CaptureInventorySnapshotForTravel();
+            CaptureWeaponRuntimeSnapshotForTravel();
             _pendingSceneName = sceneName.Trim();
             _pendingEntryPointId = entryPointId.Trim();
             LastResolvedEntryPointId = null;
@@ -169,6 +173,7 @@ namespace Reloader.World.Travel
             if (activeScenePlayerRoot != null)
             {
                 ApplyInventorySnapshotAfterTravel(activeScenePlayerRoot);
+                ApplyWeaponRuntimeSnapshotAfterTravel(activeScenePlayerRoot);
                 activeScenePlayerRoot.position = entryPointTransform.position;
                 activeScenePlayerRoot.rotation = entryPointTransform.rotation;
             }
@@ -304,6 +309,152 @@ namespace Reloader.World.Travel
             _pendingInventoryQuantities.Clear();
         }
 
+        private static void CaptureWeaponRuntimeSnapshotForTravel()
+        {
+            _pendingWeaponSnapshots.Clear();
+
+            var activeScene = SceneManager.GetActiveScene();
+            var playerRoot = FindPlayerRootInScene(activeScene);
+            if (playerRoot == null)
+            {
+                return;
+            }
+
+            var weaponController = playerRoot.GetComponent("PlayerWeaponController");
+            if (weaponController == null)
+            {
+                return;
+            }
+
+            var getSnapshots = weaponController.GetType().GetMethod("GetRuntimeStateSnapshots", BindingFlags.Instance | BindingFlags.Public);
+            if (getSnapshots == null)
+            {
+                return;
+            }
+
+            if (getSnapshots.Invoke(weaponController, null) is not IEnumerable snapshots)
+            {
+                return;
+            }
+
+            foreach (var snapshot in snapshots)
+            {
+                if (snapshot == null)
+                {
+                    continue;
+                }
+
+                var snapshotType = snapshot.GetType();
+                var itemId = snapshotType.GetProperty("ItemId", BindingFlags.Instance | BindingFlags.Public)?.GetValue(snapshot) as string;
+                if (string.IsNullOrWhiteSpace(itemId))
+                {
+                    continue;
+                }
+
+                var chamberLoaded = (bool?)snapshotType.GetProperty("ChamberLoaded", BindingFlags.Instance | BindingFlags.Public)?.GetValue(snapshot) ?? false;
+                var magazineCount = (int?)snapshotType.GetProperty("MagCount", BindingFlags.Instance | BindingFlags.Public)?.GetValue(snapshot) ?? 0;
+                var reserveCount = (int?)snapshotType.GetProperty("ReserveCount", BindingFlags.Instance | BindingFlags.Public)?.GetValue(snapshot) ?? 0;
+                var chamberRound = snapshotType.GetProperty("ChamberRound", BindingFlags.Instance | BindingFlags.Public)?.GetValue(snapshot);
+                var magazineRounds = snapshotType.GetProperty("MagazineRounds", BindingFlags.Instance | BindingFlags.Public)?.GetValue(snapshot);
+                if (magazineRounds is not IEnumerable)
+                {
+                    continue;
+                }
+
+                _pendingWeaponSnapshots.Add(new WeaponRuntimeSnapshotCapture
+                {
+                    ItemId = itemId,
+                    ChamberLoaded = chamberLoaded,
+                    MagazineCount = magazineCount,
+                    ReserveCount = reserveCount,
+                    ChamberRound = chamberRound,
+                    MagazineRounds = magazineRounds
+                });
+            }
+        }
+
+        private static void ApplyWeaponRuntimeSnapshotAfterTravel(Transform playerRootTransform)
+        {
+            if (_pendingWeaponSnapshots.Count == 0 || playerRootTransform == null)
+            {
+                return;
+            }
+
+            var weaponController = playerRootTransform.GetComponent("PlayerWeaponController");
+            if (weaponController == null)
+            {
+                _pendingWeaponSnapshots.Clear();
+                return;
+            }
+
+            var applyRuntimeState = weaponController.GetType().GetMethod("ApplyRuntimeState", BindingFlags.Instance | BindingFlags.Public);
+            var applyRuntimeBallistics = weaponController.GetType().GetMethod("ApplyRuntimeBallistics", BindingFlags.Instance | BindingFlags.Public);
+            if (applyRuntimeState == null || applyRuntimeBallistics == null)
+            {
+                _pendingWeaponSnapshots.Clear();
+                return;
+            }
+
+            var ballisticsParameters = applyRuntimeBallistics.GetParameters();
+            if (ballisticsParameters.Length != 3)
+            {
+                _pendingWeaponSnapshots.Clear();
+                return;
+            }
+
+            var chamberParameterType = ballisticsParameters[1].ParameterType;
+            var magazineParameterType = ballisticsParameters[2].ParameterType;
+            foreach (var snapshot in _pendingWeaponSnapshots)
+            {
+                if (snapshot == null || string.IsNullOrWhiteSpace(snapshot.ItemId) || snapshot.MagazineRounds == null)
+                {
+                    continue;
+                }
+
+                if (!magazineParameterType.IsInstanceOfType(snapshot.MagazineRounds))
+                {
+                    continue;
+                }
+
+                var appliedCounts = (bool)applyRuntimeState.Invoke(
+                    weaponController,
+                    new object[] { snapshot.ItemId, snapshot.MagazineCount, snapshot.ReserveCount, snapshot.ChamberLoaded });
+                if (!appliedCounts)
+                {
+                    continue;
+                }
+
+                var chamberArgument = snapshot.ChamberRound;
+                if (chamberArgument == null && snapshot.ChamberLoaded && snapshot.MagazineRounds is IEnumerable rounds)
+                {
+                    foreach (var round in rounds)
+                    {
+                        chamberArgument = round;
+                        break;
+                    }
+                }
+
+                if (chamberArgument == null && snapshot.ChamberLoaded)
+                {
+                    // Keep chamber-loaded state from ApplyRuntimeState when there is no concrete ballistic payload to apply.
+                    continue;
+                }
+
+                if (chamberParameterType.IsGenericType
+                    && chamberParameterType.GetGenericTypeDefinition() == typeof(Nullable<>)
+                    && chamberArgument != null)
+                {
+                    chamberArgument = Activator.CreateInstance(chamberParameterType, chamberArgument);
+                }
+
+                applyRuntimeBallistics.Invoke(
+                    weaponController,
+                    new[] { (object)snapshot.ItemId, chamberArgument, snapshot.MagazineRounds });
+            }
+
+            _pendingWeaponSnapshots.Clear();
+        }
+
         private static object GetRuntimeFromInventoryController(Component inventoryController)
         {
             if (inventoryController == null)
@@ -362,6 +513,16 @@ namespace Reloader.World.Travel
             }
 
             return null;
+        }
+
+        private sealed class WeaponRuntimeSnapshotCapture
+        {
+            public string ItemId;
+            public bool ChamberLoaded;
+            public int MagazineCount;
+            public int ReserveCount;
+            public object ChamberRound;
+            public object MagazineRounds;
         }
     }
 }

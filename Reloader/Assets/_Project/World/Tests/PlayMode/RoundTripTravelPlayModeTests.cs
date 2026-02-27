@@ -219,6 +219,134 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Travel_MainTownToIndoor_PreservesEquippedWeaponMagazineAndChamberState()
+        {
+            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
+            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+
+            var playerRoot = GameObject.Find("PlayerRoot");
+            Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot in MainTown scene.");
+
+            var inventoryController = playerRoot.GetComponent("PlayerInventoryController");
+            Assert.That(inventoryController, Is.Not.Null, "Expected PlayerInventoryController on PlayerRoot.");
+            var runtimeProperty = inventoryController.GetType().GetProperty("Runtime", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(runtimeProperty, Is.Not.Null, "Expected Runtime property on PlayerInventoryController.");
+            var runtime = runtimeProperty.GetValue(inventoryController);
+            Assert.That(runtime, Is.Not.Null, "Expected non-null PlayerInventoryRuntime.");
+
+            var weaponController = playerRoot.GetComponent("PlayerWeaponController");
+            Assert.That(weaponController, Is.Not.Null, "Expected PlayerWeaponController on PlayerRoot.");
+
+            var applyRuntimeState = weaponController.GetType().GetMethod("ApplyRuntimeState", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(applyRuntimeState, Is.Not.Null, "Expected ApplyRuntimeState on PlayerWeaponController.");
+
+            var candidateItemIds = new System.Collections.Generic.List<string>();
+            var selectedBeltItemIdProperty = runtime.GetType().GetProperty("SelectedBeltItemId", BindingFlags.Instance | BindingFlags.Public);
+            var selectedBeltItemId = selectedBeltItemIdProperty?.GetValue(runtime) as string;
+            if (!string.IsNullOrWhiteSpace(selectedBeltItemId))
+            {
+                candidateItemIds.Add(selectedBeltItemId);
+            }
+
+            var beltSlotItemIdsProperty = runtime.GetType().GetProperty("BeltSlotItemIds", BindingFlags.Instance | BindingFlags.Public);
+            if (beltSlotItemIdsProperty?.GetValue(runtime) is System.Collections.IEnumerable beltItems)
+            {
+                foreach (var entry in beltItems)
+                {
+                    if (entry is string id && !string.IsNullOrWhiteSpace(id) && !candidateItemIds.Contains(id))
+                    {
+                        candidateItemIds.Add(id);
+                    }
+                }
+            }
+
+            var weaponRegistryField = weaponController.GetType().GetField("_weaponRegistry", BindingFlags.Instance | BindingFlags.NonPublic);
+            var weaponRegistry = weaponRegistryField?.GetValue(weaponController);
+            var definitionsField = weaponRegistry?.GetType().GetField("_definitions", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (definitionsField?.GetValue(weaponRegistry) is System.Collections.IEnumerable definitions)
+            {
+                foreach (var definition in definitions)
+                {
+                    if (definition == null)
+                    {
+                        continue;
+                    }
+
+                    var itemId = definition.GetType().GetProperty("ItemId", BindingFlags.Instance | BindingFlags.Public)?.GetValue(definition) as string;
+                    if (!string.IsNullOrWhiteSpace(itemId) && !candidateItemIds.Contains(itemId))
+                    {
+                        candidateItemIds.Add(itemId);
+                    }
+                }
+            }
+
+            string weaponItemId = null;
+            for (var i = 0; i < candidateItemIds.Count; i++)
+            {
+                var candidateId = candidateItemIds[i];
+                var applied = (bool)applyRuntimeState.Invoke(weaponController, new object[] { candidateId, 2, 11, true });
+                if (!applied)
+                {
+                    continue;
+                }
+
+                weaponItemId = candidateId;
+                break;
+            }
+
+            Assert.That(weaponItemId, Is.Not.Null.And.Not.Empty, "Expected a weapon item id that accepts runtime state apply.");
+
+            var interactor = CreatePlayerInteractor();
+            var toIndoorObject = GameObject.Find("MainTown_SmokeToIndoor_Trigger");
+            Assert.That(toIndoorObject, Is.Not.Null, "Expected authored smoke trigger in MainTown.");
+            var toIndoor = toIndoorObject.GetComponent<TravelSceneTrigger>();
+            Assert.That(toIndoor, Is.Not.Null);
+
+            var startedTravel = false;
+            var startTimeout = 2f;
+            var elapsedStart = 0f;
+            while (!startedTravel && elapsedStart < startTimeout)
+            {
+                startedTravel = toIndoor.TryHandleInteractor(interactor);
+                if (startedTravel)
+                {
+                    break;
+                }
+
+                elapsedStart += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            Assert.That(startedTravel, Is.True, "Expected travel trigger to start scene travel.");
+            yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
+            yield return WaitForResolvedEntryPoint("entry.indoor.arrival", SceneSwitchTimeoutSeconds);
+
+            var indoorPlayerRoot = GameObject.Find("PlayerRoot");
+            Assert.That(indoorPlayerRoot, Is.Not.Null, "Expected PlayerRoot after arriving to IndoorRange.");
+            var indoorWeaponController = indoorPlayerRoot.GetComponent("PlayerWeaponController");
+            Assert.That(indoorWeaponController, Is.Not.Null, "Expected PlayerWeaponController after travel.");
+
+            var tryGetRuntimeState = indoorWeaponController.GetType().GetMethod("TryGetRuntimeState", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(tryGetRuntimeState, Is.Not.Null, "Expected TryGetRuntimeState on PlayerWeaponController.");
+
+            var tryGetArgs = new object[] { weaponItemId, null };
+            var hasState = (bool)tryGetRuntimeState.Invoke(indoorWeaponController, tryGetArgs);
+            Assert.That(hasState, Is.True, $"Expected runtime state for '{weaponItemId}' after travel.");
+            Assert.That(tryGetArgs[1], Is.Not.Null, "Expected non-null runtime state payload.");
+
+            var state = tryGetArgs[1];
+            var magazineCountProperty = state.GetType().GetProperty("MagazineCount", BindingFlags.Instance | BindingFlags.Public);
+            var chamberLoadedProperty = state.GetType().GetProperty("ChamberLoaded", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(magazineCountProperty, Is.Not.Null, "Expected MagazineCount on WeaponRuntimeState.");
+            Assert.That(chamberLoadedProperty, Is.Not.Null, "Expected ChamberLoaded on WeaponRuntimeState.");
+
+            var magazineCount = (int)magazineCountProperty.GetValue(state);
+            var chamberLoaded = (bool)chamberLoadedProperty.GetValue(state);
+            Assert.That(magazineCount, Is.EqualTo(2), "Expected magazine count to persist across travel.");
+            Assert.That(chamberLoaded, Is.True, "Expected chamber loaded state to persist across travel.");
+        }
+
+        [UnityTest]
         public IEnumerator IndoorRange_HasShootingRangeBlockoutGeometry()
         {
             SceneManager.LoadScene(IndoorRangeSceneName, LoadSceneMode.Single);
