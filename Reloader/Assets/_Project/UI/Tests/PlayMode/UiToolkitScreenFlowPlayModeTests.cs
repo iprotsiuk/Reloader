@@ -7,6 +7,7 @@ using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.UI.Toolkit.BeltHud;
 using Reloader.UI.Toolkit.Contracts;
+using Reloader.UI.Toolkit.InteractionHint;
 using Reloader.UI.Toolkit.Reloading;
 using Reloader.UI.Toolkit.Runtime;
 using Reloader.UI.Toolkit.TabInventory;
@@ -164,6 +165,50 @@ namespace Reloader.UI.Tests.PlayMode
             subscription.Dispose();
             UnityEngine.Object.DestroyImmediate(inventoryGo);
             UnityEngine.Object.DestroyImmediate(bridgeGo);
+        }
+
+        [Test]
+        public void UiToolkitScreenRuntimeBridge_BindInteractionHint_RendersRuntimePayloadAndClears()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), runtimeHub);
+
+            var bridgeGo = new GameObject("UiBridgeInteractionHint");
+            var bridge = bridgeGo.AddComponent<UiToolkitScreenRuntimeBridge>();
+            var root = BuildInteractionHintRoot();
+
+            var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
+                "BindInteractionHint",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(bindMethod, Is.Not.Null);
+
+            var subscription = bindMethod.Invoke(
+                bridge,
+                new object[] { root, "interaction-hint-controller" }) as IDisposable;
+            Assert.That(subscription, Is.Not.Null);
+
+            var controller = bridgeGo.transform.Find("interaction-hint-controller")?.GetComponent<InteractionHintController>();
+            Assert.That(controller, Is.Not.Null);
+
+            var label = root.Q<Label>("interaction-hint__text");
+            Assert.That(label, Is.Not.Null);
+
+            try
+            {
+                runtimeHub.RaiseInteractionHintShown(new InteractionHintPayload("pickup", "Pick up", "Hodgdon Varget"));
+                Assert.That(label.text, Is.EqualTo("Pick up Hodgdon Varget"));
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+
+                runtimeHub.RaiseInteractionHintCleared();
+                Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
+            }
+            finally
+            {
+                subscription.Dispose();
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(bridgeGo);
+            }
         }
 
         [Test]
@@ -851,6 +896,13 @@ namespace Reloader.UI.Tests.PlayMode
             root.Add(new VisualElement { name = "trade__sell-panel" });
             root.Add(new VisualElement { name = "trade__order-panel" });
             root.Add(new Label { name = "trade__cart-total" });
+            return root;
+        }
+
+        private static VisualElement BuildInteractionHintRoot()
+        {
+            var root = new VisualElement { name = "interaction-hint__root" };
+            root.Add(new Label { name = "interaction-hint__text" });
             return root;
         }
 

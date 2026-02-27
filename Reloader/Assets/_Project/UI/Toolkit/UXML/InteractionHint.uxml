@@ -1,0 +1,8 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="../USS/InteractionHint.uss" />
+    <ui:VisualElement name="interaction-hint__screen" class="interaction-hint__screen" picking-mode="Ignore">
+        <ui:VisualElement name="interaction-hint__root" class="interaction-hint" picking-mode="Ignore">
+            <ui:Label name="interaction-hint__text" class="interaction-hint__text" text="" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

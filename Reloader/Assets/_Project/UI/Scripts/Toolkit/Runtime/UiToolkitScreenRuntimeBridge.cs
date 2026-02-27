@@ -7,6 +7,7 @@ using Reloader.Player;
 using Reloader.UI.Toolkit.AmmoHud;
 using Reloader.UI.Toolkit.BeltHud;
 using Reloader.UI.Toolkit.Contracts;
+using Reloader.UI.Toolkit.InteractionHint;
 using Reloader.UI.Toolkit.Reloading;
 using Reloader.UI.Toolkit.TabInventory;
 using Reloader.UI.Toolkit.Trade;
@@ -26,6 +27,7 @@ namespace Reloader.UI.Toolkit.Runtime
         private const string TabInventoryScreenId = "tab-inventory";
         private const string TradeScreenId = "trade-ui";
         private const string ReloadingScreenId = "reloading-workbench";
+        private const string InteractionHintScreenId = "interaction-hint";
 
         private static readonly ScreenBindingDefinition[] ScreenBindings =
         {
@@ -33,7 +35,8 @@ namespace Reloader.UI.Toolkit.Runtime
             new(AmmoHudScreenId, "ammo-hud-controller", ScreenBindingKind.AmmoHud, DependencyRequirement.Weapon),
             new(TabInventoryScreenId, "tab-menu-controller", ScreenBindingKind.TabInventory, DependencyRequirement.Inventory | DependencyRequirement.Input),
             new(TradeScreenId, "trade-menu-controller", ScreenBindingKind.Trade, DependencyRequirement.None),
-            new(ReloadingScreenId, "reloading-menu-controller", ScreenBindingKind.ReloadingWorkbench, DependencyRequirement.None)
+            new(ReloadingScreenId, "reloading-menu-controller", ScreenBindingKind.ReloadingWorkbench, DependencyRequirement.None),
+            new(InteractionHintScreenId, "interaction-hint-controller", ScreenBindingKind.InteractionHint, DependencyRequirement.None)
         };
 
         [SerializeField] private float _selfHealIntervalSeconds = DefaultSelfHealIntervalSeconds;
@@ -159,6 +162,7 @@ namespace Reloader.UI.Toolkit.Runtime
                 ScreenBindingKind.TabInventory => BindTabInventory(root, definition.ControllerObjectName, dependencies.InventoryController, dependencies.InputSource),
                 ScreenBindingKind.Trade => BindTrade(root, definition.ControllerObjectName),
                 ScreenBindingKind.ReloadingWorkbench => BindReloadingWorkbench(root, definition.ControllerObjectName),
+                ScreenBindingKind.InteractionHint => BindInteractionHint(root, definition.ControllerObjectName),
                 _ => null
             };
 
@@ -228,6 +232,16 @@ namespace Reloader.UI.Toolkit.Runtime
             viewBinder.Initialize(root, operationCount: 3);
 
             var controller = GetOrAddController<ReloadingWorkbenchController>(controllerName);
+            controller.SetViewBinder(viewBinder);
+            return UiContractGuard.Bind(controller, viewBinder);
+        }
+
+        private IDisposable BindInteractionHint(VisualElement root, string controllerName)
+        {
+            var viewBinder = new InteractionHintViewBinder();
+            viewBinder.Initialize(root);
+
+            var controller = GetOrAddController<InteractionHintController>(controllerName);
             controller.SetViewBinder(viewBinder);
             return UiContractGuard.Bind(controller, viewBinder);
         }
@@ -405,7 +419,8 @@ namespace Reloader.UI.Toolkit.Runtime
             AmmoHud,
             TabInventory,
             Trade,
-            ReloadingWorkbench
+            ReloadingWorkbench,
+            InteractionHint
         }
 
         private readonly struct ScreenBindingDefinition

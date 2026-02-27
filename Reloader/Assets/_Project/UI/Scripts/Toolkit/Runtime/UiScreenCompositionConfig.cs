@@ -48,6 +48,7 @@ namespace Reloader.UI.Toolkit.Runtime
             config.SetComponents("tab-inventory", new[] { "inventory.slots", "inventory.tooltip", "inventory.drag" });
             config.SetComponents("trade-ui", new[] { "trade.tabs", "trade.cart", "trade.order" });
             config.SetComponents("reloading-workbench", new[] { "reloading.operations", "reloading.result" });
+            config.SetComponents("interaction-hint", new[] { "interaction-hint.text" });
             return config;
         }
     }
