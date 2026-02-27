@@ -4,6 +4,7 @@ using Reloader.World.Travel;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.SceneManagement;
+using System.Reflection;
 
 namespace Reloader.World.Tests.PlayMode
 {
@@ -15,6 +16,45 @@ namespace Reloader.World.Tests.PlayMode
 
         private const string IndoorRangeSceneName = "IndoorRangeInstance";
         private const float SceneSwitchTimeoutSeconds = 5f;
+
+        [UnityTest]
+        public IEnumerator BootstrapLoad_DoesNotAutoTravelToIndoorRange()
+        {
+            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
+            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+
+            var elapsed = 0f;
+            while (elapsed < 1.5f)
+            {
+                Assert.That(
+                    SceneManager.GetActiveScene().name,
+                    Is.EqualTo(MainTownSceneName),
+                    "MainTown should remain active after bootstrap load and must not auto-travel.");
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator IndoorRange_PlayerRig_HasInputAssetAndBeltHud()
+        {
+            SceneManager.LoadScene(IndoorRangeSceneName, LoadSceneMode.Single);
+            yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
+
+            var playerRoot = GameObject.Find("PlayerRoot");
+            Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot in IndoorRange scene.");
+
+            var inputReader = playerRoot.GetComponent("PlayerInputReader");
+            Assert.That(inputReader, Is.Not.Null, "Expected PlayerInputReader on IndoorRange PlayerRoot.");
+
+            var actionsField = inputReader.GetType().GetField("_actionsAsset", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(actionsField, Is.Not.Null, "Expected _actionsAsset field on PlayerInputReader.");
+            var actionsAsset = actionsField.GetValue(inputReader);
+            Assert.That(actionsAsset, Is.Not.Null, "IndoorRange PlayerInputReader must have an InputActionAsset assigned.");
+
+            var beltHud = GameObject.Find("BeltHud");
+            Assert.That(beltHud, Is.Not.Null, "IndoorRange scene should include BeltHud runtime prefab.");
+        }
 
         [UnityTest]
         public IEnumerator RoundTripTravel_UsesSceneEntryPoints_InBothDirections()
