@@ -1,9 +1,11 @@
 using NUnit.Framework;
 using Reloader.Core.Events;
 using Reloader.Core.Items;
+using Reloader.Core.Persistence;
 using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.Player;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -237,6 +239,71 @@ namespace Reloader.Player.Tests.PlayMode
             Assert.That(controller.Runtime.BeltSlotItemIds[0], Is.EqualTo("item-42"));
             Assert.That(target.PickedUpCount, Is.EqualTo(1));
             Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void Tick_PickupPress_WorldIdentityTarget_MarksConsumedInStateStore()
+        {
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+
+            var root = new GameObject("InventoryControllerRoot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            controller.Configure(input, resolver, new PlayerInventoryRuntime());
+
+            var pickupGo = new GameObject("WorldPickupTarget");
+            var identity = pickupGo.AddComponent<WorldObjectIdentity>();
+            SetObjectIdForTests(identity, "qa.pickup.consume");
+            var target = pickupGo.AddComponent<TestWorldPickupTarget>();
+            target.SetItemIdForTests("item-world-01");
+            resolver.Target = target;
+
+            input.PickupPressedThisFrame = true;
+            controller.Tick();
+
+            var scenePath = pickupGo.scene.path;
+            var objectId = identity.ObjectId;
+            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath, objectId, out var record), Is.True);
+            Assert.That(record.Consumed, Is.True);
+            Assert.That(target.PickedUpCount, Is.EqualTo(1));
+
+            Object.DestroyImmediate(pickupGo);
+            Object.DestroyImmediate(root);
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+        }
+
+        [Test]
+        public void Tick_PickupPress_WorldIdentityTarget_StoresConsumedUsingScenePathPlusObjectIdKey()
+        {
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+
+            var root = new GameObject("InventoryControllerRoot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            controller.Configure(input, resolver, new PlayerInventoryRuntime());
+
+            var pickupGo = new GameObject("WorldPickupTarget");
+            var identity = pickupGo.AddComponent<WorldObjectIdentity>();
+            SetObjectIdForTests(identity, "qa.pickup.keyed");
+            var target = pickupGo.AddComponent<TestWorldPickupTarget>();
+            target.SetItemIdForTests("item-world-02");
+            resolver.Target = target;
+
+            input.PickupPressedThisFrame = true;
+            controller.Tick();
+
+            var scenePath = pickupGo.scene.path;
+            var objectId = identity.ObjectId;
+            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath, objectId, out var record), Is.True);
+            Assert.That(record.Consumed, Is.True);
+            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath + ".alt", objectId, out _), Is.False);
+            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath, objectId + ".alt", out _), Is.False);
+
+            Object.DestroyImmediate(pickupGo);
+            Object.DestroyImmediate(root);
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
         }
 
         [Test]
@@ -596,6 +663,34 @@ namespace Reloader.Player.Tests.PlayMode
             {
                 PickedUpCount++;
             }
+        }
+
+        private sealed class TestWorldPickupTarget : MonoBehaviour, IInventoryPickupTarget
+        {
+            [SerializeField] private string _itemId;
+
+            public string ItemId => _itemId;
+            public string ObjectId => GetComponent<WorldObjectIdentity>().ObjectId;
+            public int PickedUpCount { get; private set; }
+
+            public void SetItemIdForTests(string itemId)
+            {
+                _itemId = itemId;
+            }
+
+            public void OnPickedUp()
+            {
+                PickedUpCount++;
+                gameObject.SetActive(false);
+            }
+        }
+
+        private static void SetObjectIdForTests(WorldObjectIdentity identity, string objectId)
+        {
+            var objectIdField = typeof(WorldObjectIdentity).GetField("_objectId", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(objectIdField, Is.Not.Null, "Expected private _objectId field on WorldObjectIdentity.");
+            objectIdField.SetValue(identity, objectId);
+            Assert.That(identity.ObjectId, Is.EqualTo(objectId));
         }
 
         private sealed class FakeInventoryEvents : IInventoryEvents

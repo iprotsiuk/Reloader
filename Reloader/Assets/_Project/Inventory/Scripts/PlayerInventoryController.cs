@@ -3,6 +3,7 @@ using System.Text;
 using Reloader.Core;
 using Reloader.Core.Events;
 using Reloader.Core.Items;
+using Reloader.Core.Persistence;
 using Reloader.Core.Runtime;
 using Reloader.Player;
 using Reloader.Player.Interaction;
@@ -274,6 +275,7 @@ namespace Reloader.Inventory
             ResolveInventoryEvents().RaiseInventoryChanged();
             if (_pendingPickupTargetsById.TryGetValue(itemId, out var target) && target != null)
             {
+                CapturePickupConsumedMutation(target);
                 target.OnPickedUp();
             }
 
@@ -527,6 +529,27 @@ namespace Reloader.Inventory
             _pendingPickupTargetsById[resolvedItemId] = pickupTarget;
             ResolveInventoryEvents().RaiseItemPickupRequested(resolvedItemId);
             return true;
+        }
+
+        private static void CapturePickupConsumedMutation(IInventoryPickupTarget pickupTarget)
+        {
+            if (pickupTarget is not Component component || component == null)
+            {
+                return;
+            }
+
+            if (!component.TryGetComponent<WorldObjectIdentity>(out var identity) || identity == null)
+            {
+                return;
+            }
+
+            var scene = component.gameObject.scene;
+            if (!scene.IsValid() || string.IsNullOrWhiteSpace(scene.path))
+            {
+                return;
+            }
+
+            WorldObjectPersistenceRuntimeBridge.MarkConsumed(scene.path, identity.ObjectId);
         }
 
         private void UpdateDebugFields()

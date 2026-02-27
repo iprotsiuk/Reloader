@@ -56,6 +56,27 @@ namespace Reloader.Core.Persistence
             _policyRegistry.Register(policy);
         }
 
+        public static void MarkConsumed(string scenePath, string objectId)
+        {
+            if (string.IsNullOrWhiteSpace(scenePath) || string.IsNullOrWhiteSpace(objectId))
+            {
+                return;
+            }
+
+            if (_stateStore.TryGet(scenePath, objectId, out var existingRecord) && existingRecord != null)
+            {
+                existingRecord.Consumed = true;
+                _stateStore.Upsert(scenePath, existingRecord);
+                return;
+            }
+
+            _stateStore.Upsert(scenePath, new WorldObjectStateRecord
+            {
+                ObjectId = objectId,
+                Consumed = true
+            });
+        }
+
         private static void OnSceneLoaded(Scene loadedScene, LoadSceneMode mode)
         {
             if (!loadedScene.IsValid() || !loadedScene.isLoaded)
