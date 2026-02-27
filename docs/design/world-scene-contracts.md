@@ -87,6 +87,18 @@ After scene mutations through MCP/editor tooling:
 For current workflow details, use:
 - `docs/plans/2026-02-27-main-town-indoor-range-mcp-authoring-checklist.md`
 
+## Integration Workflow Contract [v0.1]
+
+When world-scene changes also affect interactables/checkpoints/NPC hooks, validate this chain end-to-end:
+
+1. `TravelContext` validity (`ScenePathOrName`, `EntryPointId`, optional return-link coherence).
+2. `TravelSceneTrigger` interactor gate validity (required tag + input source path).
+3. `SceneEntryPoint` uniqueness and expected destination coverage.
+4. NPC interaction surfaces (`NpcAgent` capability config + world interaction controller links).
+5. Save/persistence impact assessment for any new runtime state introduced by scene interactions.
+
+Reference [extensible-development-contracts.md](extensible-development-contracts.md) for cross-domain enforcement checklist and required guardrails.
+
 ## Rollout Plan
 
 Phase 1 (now):

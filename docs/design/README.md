@@ -31,6 +31,7 @@ Agent behavior:
 | **Police, wardens, legal system, black market** | [law-enforcement.md](law-enforcement.md) | — |
 | **Save/load, game loop, progression, day cycle** | [save-and-progression.md](save-and-progression.md) | — |
 | **Quick save contract checks (schema/load order/size policy)** | [save-contract-quick-reference.md](save-contract-quick-reference.md) | — |
+| **Cross-domain extension guardrails (events, wiring, UI bridge, persistence, world integration)** | [extensible-development-contracts.md](extensible-development-contracts.md) | `writing-agent-docs`, `reviewing-design-docs` |
 | **Scoping work, prioritizing features** | [prototype-scope.md](prototype-scope.md) | — |
 | **Adding new data assets (weapons, ammo, equipment)** | Depends on asset type — check skill | `adding-game-content`, `unity-project-conventions` |
 | **Any new C# script or Unity feature** | [core-architecture.md](core-architecture.md) | `unity-project-conventions` |
@@ -38,6 +39,7 @@ Agent behavior:
 ## Cross-Domain Work
 
 If your task spans multiple domains (e.g., "hunting competition that awards money"), load each relevant domain doc. The core architecture doc covers how systems communicate via runtime event ports/hub (`IGameEventsRuntimeHub`). The EventBus pattern formerly exposed a static `GameEvents` facade; that facade is retired. You should NOT need to understand another domain's internals, only what events it fires/listens to.
+For any cross-domain runtime extension, also load [extensible-development-contracts.md](extensible-development-contracts.md) before editing code/docs/rules.
 
 If your change touches runtime state (item ownership/location, transforms, inventories/containers, weapon/vehicle/NPC/player state), also load [save-and-progression.md](save-and-progression.md) and preserve the exact-restore save contract.
 

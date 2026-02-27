@@ -85,8 +85,26 @@ For `File-first` tasks:
   - Example: pickup may pass while equip/fire chain fails if registry/controller links are incomplete
   - Validate dependent references (controller -> registry -> definitions, camera defaults, required transforms) in read-back
   - Run scene-contract tests/checklists when available (for world scenes: follow `docs/design/world-scene-contracts.md` and `docs/plans/2026-02-27-main-town-indoor-range-mcp-authoring-checklist.md`)
+  - For cross-domain scene wiring changes, also follow `docs/design/extensible-development-contracts.md`
 
 Do not claim completion if write operations were not followed by a read-back verification step.
+
+### Required Read-Back Matrix (World/Interaction Integration)
+
+When changes include travel/interactable/checkpoint/NPC/save touchpoints, read back all relevant surfaces:
+
+1. Travel:
+   - `TravelSceneTrigger` (`_travelContext`, `_travelCoordinator`, `_requiredInteractorTag`)
+   - `SceneEntryPoint` ids in source and destination scenes
+2. Interaction:
+   - `PlayerInteractionCoordinator` provider list and mode-aware provider wiring
+   - Interaction hint controller binding and UIDocument references
+3. NPC hooks:
+   - `NpcAgent` capability/action references
+   - world interaction controller and vendor bridge links (when present)
+4. Save/persistence hooks:
+   - Save bootstrap/module registration state for any new runtime state owners
+   - Ensure feature flags are coherent with registered modules
 
 ## Quick Reference
 

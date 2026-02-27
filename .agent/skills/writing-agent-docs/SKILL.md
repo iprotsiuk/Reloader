@@ -74,6 +74,7 @@ Run from repo root:
 
 ```bash
 bash scripts/verify-docs-and-context.sh
+bash scripts/verify-extensible-development-contracts.sh
 bash .agent/skills/reviewing-design-docs/scripts/audit-docs-context.sh
 ```
 

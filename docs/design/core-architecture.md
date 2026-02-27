@@ -157,9 +157,10 @@ Systems communicate through runtime event ports + a runtime hub.
 ### Current runtime event contract (implemented in repository)
 
 - `IGameEventsRuntimeHub` is the canonical cross-domain contract surface.
-- It composes bounded event ports: `IRuntimeEvents`, `IInventoryEvents`, `IWeaponEvents`, `IShopEvents`, `IUiStateEvents`.
+- It composes bounded event ports: `IRuntimeEvents`, `IInventoryEvents`, `IWeaponEvents`, `IShopEvents`, `IUiStateEvents`, `IInteractionHintEvents`.
 - `DefaultRuntimeEvents` is the default in-process hub implementation.
 - `RuntimeKernelBootstrapper.Events` is the runtime access point used by modules/adapters.
+- Cross-domain extension guardrails are defined in [extensible-development-contracts.md](extensible-development-contracts.md).
 
 ### Target cross-domain `GameEvents` surface (planned) — represented as runtime hub contracts
 
@@ -266,6 +267,7 @@ These principles govern every design decision:
   - Action mapping table (intent key -> command mapping)
   - Screen composition config (enabled components per screen)
   - Stable element naming conventions for query/style contracts
+- See [extensible-development-contracts.md](extensible-development-contracts.md) for enforced UI/runtime bridge and integration workflow rules.
 
 ---
 
@@ -295,4 +297,5 @@ Each game system has its own detailed design doc. See [README.md](README.md) for
 | NPCs & Quests | [npcs-and-quests.md](npcs-and-quests.md) | — |
 | Law Enforcement | [law-enforcement.md](law-enforcement.md) | — |
 | Save System & Progression | [save-and-progression.md](save-and-progression.md) | — |
+| Extensible Development Contracts | [extensible-development-contracts.md](extensible-development-contracts.md) | `writing-agent-docs`, `reviewing-design-docs` |
 | Prototype Scope | [prototype-scope.md](prototype-scope.md) | — |

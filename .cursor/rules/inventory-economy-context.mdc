@@ -10,10 +10,11 @@ You are working on inventory/economy systems. Read these docs:
 
 1. `docs/design/core-architecture.md` — shared patterns and event contracts
 2. `docs/design/inventory-and-economy.md` — inventory ownership, storage, economy, shops
+3. `docs/design/extensible-development-contracts.md` — interaction/UI/persistence guardrails
 
 If your change touches persisted runtime ownership/location state, also load:
 
-3. `docs/design/save-contract-quick-reference.md`
-4. `docs/design/save-and-progression.md`
+4. `docs/design/save-contract-quick-reference.md`
+5. `docs/design/save-and-progression.md`
 
 Do NOT load unrelated deep domain docs unless the task explicitly crosses boundaries.

@@ -12,6 +12,7 @@ You are working on the world/scene layout or driving system. Read these docs:
 2. `docs/design/world-and-vehicles.md` — world layout, instanced scenes, vehicles, driving
 3. `docs/design/world-and-scenes.md` — scene topology and migration contract
 4. `docs/design/world-scene-contracts.md` — required world-scene wiring/validation guardrails
+5. `docs/design/extensible-development-contracts.md` — integration workflows (scene/checkpoint/interactable/NPC/save touchpoints)
 
 If your scene task also modifies gameplay/UI systems in the same change, load the corresponding domain docs for those systems.
 

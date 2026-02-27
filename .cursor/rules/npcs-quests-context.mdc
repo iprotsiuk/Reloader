@@ -10,9 +10,10 @@ You are working on NPC or quest systems. Read these docs:
 
 1. `docs/design/core-architecture.md` — shared runtime patterns and event bus contracts
 2. `docs/design/npcs-and-quests.md` — NPC types, quest models, relationship design
+3. `docs/design/extensible-development-contracts.md` — NPC/world/interactable integration workflow contract
 
 If your task crosses into legal outcomes or enforcement hooks, also load:
 
-3. `docs/design/law-enforcement.md`
+4. `docs/design/law-enforcement.md`
 
 Do NOT load unrelated deep domain docs unless the task explicitly crosses boundaries.

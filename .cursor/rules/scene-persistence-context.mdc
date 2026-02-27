@@ -19,5 +19,7 @@ Read these docs:
 2. `docs/design/save-contract-quick-reference.md` — ID ownership and location mapping rules
 3. `docs/design/save-and-progression.md` — exact-restore contract
 4. `docs/design/world-and-vehicles.md` — scene/layout expectations when world or travel flows are involved
+5. `docs/design/world-scene-contracts.md` — scene wiring and validation gates
+6. `docs/design/extensible-development-contracts.md` — cross-domain persistence/integration guardrails
 
 Do not load unrelated deep domain docs unless the task crosses that system boundary.

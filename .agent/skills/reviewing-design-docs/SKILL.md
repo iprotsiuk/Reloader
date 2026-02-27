@@ -90,6 +90,7 @@ bash .agent/skills/reviewing-design-docs/scripts/audit-docs-context.sh
 
 ```bash
 bash scripts/verify-docs-and-context.sh
+bash scripts/verify-extensible-development-contracts.sh
 ```
 
 - Validate this skill:

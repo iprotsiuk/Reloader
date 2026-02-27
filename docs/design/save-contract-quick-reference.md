@@ -22,6 +22,12 @@ In-flight projectiles are intentionally excluded from v0.1 save scope.
 
 The broader `SaveData` tree in `save-and-progression.md` is the target schema contract. Blocks become required only after module registration + migration support land in runtime.
 
+### Feature Flag / Module Coherence [v0.1]
+
+- `SaveFeatureFlags` may only enable systems that have registered domain modules in `SaveBootstrapper`.
+- If a feature flag exists without module registration support, it must remain disabled.
+- Enabling a new flag requires, in the same change: module registration, payload contract, and migration notes.
+
 ## Load/Restore Guarantees [v0.1]
 
 - Unknown module keys are ignored safely.
