@@ -7,6 +7,7 @@ namespace Reloader.World.Travel
 {
     public static class WorldTravelCoordinator
     {
+        private static string _pendingSceneName;
         private static string _pendingEntryPointId;
         private static bool _isSubscribedToSceneLoaded;
 
@@ -15,6 +16,7 @@ namespace Reloader.World.Travel
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetState()
         {
+            _pendingSceneName = null;
             _pendingEntryPointId = null;
             LastResolvedEntryPointId = null;
             _isSubscribedToSceneLoaded = false;
@@ -28,10 +30,21 @@ namespace Reloader.World.Travel
             }
 
             context.Validate();
+            return TryLoadSceneAtEntry(context.DestinationSceneName, context.DestinationEntryPointId);
+        }
+
+        public static bool TryLoadSceneAtEntry(string sceneName, string entryPointId)
+        {
+            if (string.IsNullOrWhiteSpace(sceneName) || string.IsNullOrWhiteSpace(entryPointId))
+            {
+                return false;
+            }
+
             EnsureSubscribed();
-            _pendingEntryPointId = context.DestinationEntryPointId;
+            _pendingSceneName = sceneName.Trim();
+            _pendingEntryPointId = entryPointId.Trim();
             LastResolvedEntryPointId = null;
-            SceneManager.LoadScene(context.DestinationSceneName, LoadSceneMode.Single);
+            SceneManager.LoadScene(_pendingSceneName, LoadSceneMode.Single);
             return true;
         }
 
@@ -48,7 +61,12 @@ namespace Reloader.World.Travel
 
         private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (string.IsNullOrWhiteSpace(_pendingEntryPointId))
+            if (string.IsNullOrWhiteSpace(_pendingSceneName) || string.IsNullOrWhiteSpace(_pendingEntryPointId))
+            {
+                return;
+            }
+
+            if (scene.name != _pendingSceneName)
             {
                 return;
             }
@@ -79,6 +97,7 @@ namespace Reloader.World.Travel
                 Debug.LogWarning($"Travel entry point '{_pendingEntryPointId}' was not found in scene '{scene.name}'.");
             }
 
+            _pendingSceneName = null;
             _pendingEntryPointId = null;
         }
     }

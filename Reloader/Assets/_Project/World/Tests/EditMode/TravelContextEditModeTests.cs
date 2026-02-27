@@ -106,5 +106,47 @@ namespace Reloader.World.Tests.EditMode
                 UnityEngine.Object.DestroyImmediate(secondObject);
             }
         }
+
+        [Test]
+        public void TravelSceneTrigger_IsInteractorAllowed_UsesOptionalTagFilter()
+        {
+            var triggerObject = new GameObject("trigger");
+            var interactor = new GameObject("interactor");
+            var trigger = triggerObject.AddComponent<TravelSceneTrigger>();
+
+            try
+            {
+                Assert.That(trigger.IsInteractorAllowed(interactor), Is.True);
+
+                trigger.SetInteractorTag("Untagged");
+                Assert.That(trigger.IsInteractorAllowed(interactor), Is.True);
+
+                trigger.SetInteractorTag("Player");
+                Assert.That(trigger.IsInteractorAllowed(interactor), Is.False);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(triggerObject);
+                UnityEngine.Object.DestroyImmediate(interactor);
+            }
+        }
+
+        [Test]
+        public void TravelSceneTrigger_TryHandleInteractor_ReturnsFalseWithoutContext()
+        {
+            var triggerObject = new GameObject("trigger");
+            var interactor = new GameObject("interactor");
+            var trigger = triggerObject.AddComponent<TravelSceneTrigger>();
+
+            try
+            {
+                Assert.That(trigger.TryHandleInteractor(interactor), Is.False);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(triggerObject);
+                UnityEngine.Object.DestroyImmediate(interactor);
+            }
+        }
     }
 }

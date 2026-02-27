@@ -2,8 +2,8 @@ using System.Collections;
 using NUnit.Framework;
 using Reloader.World.Travel;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using UnityEngine.SceneManagement;
 
 namespace Reloader.World.Tests.PlayMode
 {
@@ -17,50 +17,38 @@ namespace Reloader.World.Tests.PlayMode
         [UnityTest]
         public IEnumerator RoundTripTravel_UsesSceneEntryPoints_InBothDirections()
         {
-            SceneManager.sceneLoaded += EnsureTravelEntryPointsForTest;
-            try
-            {
-                SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
-                yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
+            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
 
-                var toIndoor = CreateTrigger(
-                    "MainTownToIndoorTrigger",
-                    new TravelContext(
-                        IndoorRangeSceneName,
-                        "entry.indoor.arrival",
-                        "entry.maintown.return",
-                        TravelActivityType.IndoorRange,
-                        TravelTimeAdvancePolicy.ShortTrip));
+            var playerHouse = GameObject.Find("PlayerHouse");
+            Assert.That(playerHouse, Is.Not.Null, "Expected authored PlayerHouse object in MainTown.");
 
-                Assert.That(toIndoor.TryTravel(), Is.True);
-                yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
-                Assert.That(WorldTravelCoordinator.LastResolvedEntryPointId, Is.EqualTo("entry.indoor.arrival"));
+            var interactor = CreatePlayerInteractor();
+            var toIndoorObject = GameObject.Find("MainTown_SmokeToIndoor_Trigger");
+            Assert.That(toIndoorObject, Is.Not.Null, "Expected authored smoke trigger in MainTown.");
+            var toIndoor = toIndoorObject.GetComponent<TravelSceneTrigger>();
+            Assert.That(toIndoor, Is.Not.Null);
 
-                var toTown = CreateTrigger(
-                    "IndoorToMainTownTrigger",
-                    new TravelContext(
-                        MainTownSceneName,
-                        "entry.maintown.return",
-                        "entry.indoor.arrival",
-                        TravelActivityType.IndoorRange,
-                        TravelTimeAdvancePolicy.ShortTrip));
+            Assert.That(toIndoor.TryHandleInteractor(interactor), Is.True);
+            yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
+            yield return WaitForResolvedEntryPoint("entry.indoor.arrival", SceneSwitchTimeoutSeconds);
 
-                Assert.That(toTown.TryTravel(), Is.True);
-                yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
-                Assert.That(WorldTravelCoordinator.LastResolvedEntryPointId, Is.EqualTo("entry.maintown.return"));
-            }
-            finally
-            {
-                SceneManager.sceneLoaded -= EnsureTravelEntryPointsForTest;
-            }
+            var returnInteractor = CreatePlayerInteractor();
+            var toTownObject = GameObject.Find("IndoorRange_SmokeToMainTown_Trigger");
+            Assert.That(toTownObject, Is.Not.Null, "Expected authored smoke trigger in IndoorRangeInstance.");
+            var toTown = toTownObject.GetComponent<TravelSceneTrigger>();
+            Assert.That(toTown, Is.Not.Null);
+
+            Assert.That(toTown.TryHandleInteractor(returnInteractor), Is.True);
+            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            yield return WaitForResolvedEntryPoint("entry.maintown.return", SceneSwitchTimeoutSeconds);
         }
 
-        private static TravelSceneTrigger CreateTrigger(string objectName, TravelContext context)
+        private static GameObject CreatePlayerInteractor()
         {
-            var triggerObject = new GameObject(objectName);
-            var trigger = triggerObject.AddComponent<TravelSceneTrigger>();
-            trigger.Configure(context);
-            return trigger;
+            var interactor = new GameObject("TestPlayerInteractor");
+            interactor.tag = "Player";
+            return interactor;
         }
 
         private static IEnumerator WaitForActiveScene(string expectedSceneName, float timeoutSeconds)
@@ -78,25 +66,20 @@ namespace Reloader.World.Tests.PlayMode
                 $"Timed out waiting for scene '{expectedSceneName}'.");
         }
 
-        private static void EnsureTravelEntryPointsForTest(Scene scene, LoadSceneMode mode)
+        private static IEnumerator WaitForResolvedEntryPoint(string expectedEntryPointId, float timeoutSeconds)
         {
-            if (scene.name == MainTownSceneName)
+            var elapsed = 0f;
+            while (WorldTravelCoordinator.LastResolvedEntryPointId != expectedEntryPointId && elapsed < timeoutSeconds)
             {
-                CreateEntryPoint(scene, "MainTownEntry_Return", "entry.maintown.return");
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
             }
-            else if (scene.name == IndoorRangeSceneName)
-            {
-                CreateEntryPoint(scene, "IndoorRangeEntry_Arrival", "entry.indoor.arrival");
-            }
+
+            Assert.That(
+                WorldTravelCoordinator.LastResolvedEntryPointId,
+                Is.EqualTo(expectedEntryPointId),
+                $"Timed out waiting for resolved entry point '{expectedEntryPointId}'.");
         }
 
-        private static void CreateEntryPoint(Scene scene, string objectName, string entryPointId)
-        {
-            var gameObject = new GameObject(objectName);
-            SceneManager.MoveGameObjectToScene(gameObject, scene);
-            var entryPoint = gameObject.AddComponent<SceneEntryPoint>();
-            JsonUtility.FromJsonOverwrite($"{{\"_entryPointId\":\"{entryPointId}\"}}", entryPoint);
-            entryPoint.EnsureStableId();
-        }
     }
 }

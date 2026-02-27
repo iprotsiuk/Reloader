@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Reloader.World.Travel;
 
 namespace Reloader.World.Runtime
 {
@@ -7,6 +8,7 @@ namespace Reloader.World.Runtime
     {
         private const string BootstrapSceneName = "Bootstrap";
         private const string MainTownSceneName = "MainTown";
+        private const string MainTownSpawnEntryPointId = "entry.maintown.spawn";
 
         private void Awake()
         {
@@ -38,7 +40,7 @@ namespace Reloader.World.Runtime
                 return;
             }
 
-            SceneManager.LoadScene(MainTownSceneName, LoadSceneMode.Single);
+            WorldTravelCoordinator.TryLoadSceneAtEntry(MainTownSceneName, MainTownSpawnEntryPointId);
         }
     }
 }
