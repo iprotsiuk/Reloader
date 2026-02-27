@@ -305,6 +305,13 @@ namespace Reloader.Economy
 
             if (_defaultVendorCatalog != null)
             {
+                if (!string.IsNullOrWhiteSpace(_defaultVendorId)
+                    && string.Equals(_defaultVendorId, vendorId, StringComparison.Ordinal))
+                {
+                    catalog = _defaultVendorCatalog;
+                    return true;
+                }
+
                 catalog = _defaultVendorCatalog;
                 return true;
             }
