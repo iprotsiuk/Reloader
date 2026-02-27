@@ -175,11 +175,14 @@ namespace Reloader.World.Travel
 
             if (activeScenePlayerRoot != null)
             {
+                ResetRuntimeUiStateAfterTravel();
                 ApplyInventorySnapshotAfterTravel(activeScenePlayerRoot);
                 ApplyWeaponRuntimeSnapshotAfterTravel(activeScenePlayerRoot);
                 activeScenePlayerRoot.position = entryPointTransform.position;
                 activeScenePlayerRoot.rotation = entryPointTransform.rotation;
                 EnsureViewmodelRigAfterTravel(activeScenePlayerRoot);
+                RestorePlayerControlsAfterTravel(activeScenePlayerRoot);
+                HideOwnedWeaponPickupsInScene(scene, activeScenePlayerRoot);
             }
 
         }
@@ -641,6 +644,177 @@ namespace Reloader.World.Travel
                 var resolveReferences = type.GetMethod("ResolveReferences", BindingFlags.Instance | BindingFlags.NonPublic);
                 resolveReferences?.Invoke(component, null);
             }
+        }
+
+        private static void RestorePlayerControlsAfterTravel(Transform playerRootTransform)
+        {
+            if (playerRootTransform == null)
+            {
+                return;
+            }
+
+            var playerInputReader = playerRootTransform.GetComponent("PlayerInputReader");
+            var characterController = playerRootTransform.GetComponent<CharacterController>();
+            var cameraPivot = playerRootTransform.Find("CameraPivot");
+            var inventoryController = playerRootTransform.GetComponent("PlayerInventoryController");
+
+            var components = playerRootTransform.GetComponents<MonoBehaviour>();
+            for (var i = 0; i < components.Length; i++)
+            {
+                var component = components[i];
+                if (component == null)
+                {
+                    continue;
+                }
+
+                if (component is Behaviour behaviour && !behaviour.enabled)
+                {
+                    behaviour.enabled = true;
+                }
+
+                var type = component.GetType();
+                var resolveReferences = type.GetMethod("ResolveReferences", BindingFlags.Instance | BindingFlags.NonPublic);
+                resolveReferences?.Invoke(component, null);
+
+                if (type.Name == "PlayerInputReader")
+                {
+                    var resolveActions = type.GetMethod("ResolveActions", BindingFlags.Instance | BindingFlags.NonPublic);
+                    resolveActions?.Invoke(component, null);
+
+                    var playerMapField = type.GetField("_playerMap", BindingFlags.Instance | BindingFlags.NonPublic);
+                    var playerMap = playerMapField?.GetValue(component);
+                    playerMap?.GetType().GetMethod("Enable", BindingFlags.Instance | BindingFlags.Public)?.Invoke(playerMap, null);
+                }
+                else if (type.Name == "PlayerMover")
+                {
+                    type.GetMethod("SetInputSource", BindingFlags.Instance | BindingFlags.Public)
+                        ?.Invoke(component, new[] { playerInputReader });
+                    type.GetMethod("SetCharacterController", BindingFlags.Instance | BindingFlags.Public)
+                        ?.Invoke(component, new object[] { characterController });
+                }
+                else if (type.Name == "PlayerLookController")
+                {
+                    type.GetMethod("SetInputSource", BindingFlags.Instance | BindingFlags.Public)
+                        ?.Invoke(component, new[] { playerInputReader });
+                    type.GetMethod("SetPitchTransform", BindingFlags.Instance | BindingFlags.Public)
+                        ?.Invoke(component, new object[] { cameraPivot });
+                }
+                else if (type.Name == "PlayerInventoryController")
+                {
+                    type.GetField("_inputSource", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(component, null);
+                    type.GetField("_inputSourceBehaviour", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(component, playerInputReader);
+                    resolveReferences?.Invoke(component, null);
+                }
+                else if (type.Name == "PlayerWeaponController")
+                {
+                    type.GetField("_inputSource", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(component, null);
+                    type.GetField("_attemptedSceneInputResolution", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(component, false);
+                    type.GetField("_inputSourceBehaviour", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(component, playerInputReader);
+                    if (inventoryController != null)
+                    {
+                        type.GetField("_inventoryController", BindingFlags.Instance | BindingFlags.NonPublic)
+                            ?.SetValue(component, inventoryController);
+                    }
+
+                    resolveReferences?.Invoke(component, null);
+                }
+                else if (type.Name == "PlayerCursorLockController")
+                {
+                    type.GetField("_isTradeMenuOpen", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(component, false);
+                    type.GetField("_isWorkbenchMenuOpen", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(component, false);
+                    type.GetField("_isTabInventoryOpen", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(component, false);
+                    type.GetMethod("ApplyCursorState", BindingFlags.Instance | BindingFlags.NonPublic)?.Invoke(component, null);
+                    type.GetMethod("LockCursor", BindingFlags.Instance | BindingFlags.Public)?.Invoke(component, null);
+                }
+            }
+        }
+
+        private static void HideOwnedWeaponPickupsInScene(Scene scene, Transform playerRootTransform)
+        {
+            if (!scene.IsValid() || !scene.isLoaded || playerRootTransform == null)
+            {
+                return;
+            }
+
+            var inventoryController = playerRootTransform.GetComponent("PlayerInventoryController");
+            var runtime = GetRuntimeFromInventoryController(inventoryController);
+            if (runtime == null)
+            {
+                return;
+            }
+
+            var ownedItemIds = new HashSet<string>(StringComparer.Ordinal);
+            CollectItemIdsFromRuntimeCollection(runtime, "BeltSlotItemIds", ownedItemIds);
+            CollectItemIdsFromRuntimeCollection(runtime, "BackpackItemIds", ownedItemIds);
+            if (ownedItemIds.Count == 0)
+            {
+                return;
+            }
+
+            var pickupComponents = UnityEngine.Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < pickupComponents.Length; i++)
+            {
+                var pickup = pickupComponents[i];
+                if (pickup == null || pickup.gameObject.scene != scene)
+                {
+                    continue;
+                }
+
+                var pickupType = pickup.GetType();
+                if (pickupType.Name != "WeaponPickupTarget")
+                {
+                    continue;
+                }
+
+                var itemIdProperty = pickupType.GetProperty("ItemId", BindingFlags.Instance | BindingFlags.Public);
+                var itemId = itemIdProperty?.GetValue(pickup) as string;
+                if (string.IsNullOrWhiteSpace(itemId) || !ownedItemIds.Contains(itemId))
+                {
+                    continue;
+                }
+
+                pickupType.GetMethod("OnPickedUp", BindingFlags.Instance | BindingFlags.Public)?.Invoke(pickup, null);
+            }
+        }
+
+        private static void ResetRuntimeUiStateAfterTravel()
+        {
+            var runtimeKernelType = ResolveRuntimeKernelBootstrapperType();
+            if (runtimeKernelType == null)
+            {
+                return;
+            }
+
+            var shopEvents = runtimeKernelType.GetProperty("ShopEvents", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
+            if (shopEvents != null)
+            {
+                shopEvents.GetType().GetMethod("RaiseShopTradeClosed", BindingFlags.Public | BindingFlags.Instance)?.Invoke(shopEvents, null);
+            }
+
+            var uiStateEvents = runtimeKernelType.GetProperty("UiStateEvents", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
+            if (uiStateEvents != null)
+            {
+                var uiType = uiStateEvents.GetType();
+                uiType.GetMethod("RaiseWorkbenchMenuVisibilityChanged", BindingFlags.Public | BindingFlags.Instance)
+                    ?.Invoke(uiStateEvents, new object[] { false });
+                uiType.GetMethod("RaiseTabInventoryVisibilityChanged", BindingFlags.Public | BindingFlags.Instance)
+                    ?.Invoke(uiStateEvents, new object[] { false });
+            }
+        }
+
+        private static Type ResolveRuntimeKernelBootstrapperType()
+        {
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            for (var i = 0; i < assemblies.Length; i++)
+            {
+                var type = assemblies[i].GetType("Reloader.Core.Runtime.RuntimeKernelBootstrapper", throwOnError: false);
+                if (type != null)
+                {
+                    return type;
+                }
+            }
+
+            return null;
         }
 
         private sealed class WeaponRuntimeSnapshotCapture

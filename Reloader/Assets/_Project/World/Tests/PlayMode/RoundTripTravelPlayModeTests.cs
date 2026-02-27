@@ -1,5 +1,6 @@
 using System.Collections;
 using NUnit.Framework;
+using Reloader.Core.Runtime;
 using Reloader.World.Travel;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -159,6 +160,57 @@ namespace Reloader.World.Tests.PlayMode
                 elapsed += Time.unscaledDeltaTime;
                 yield return null;
             }
+        }
+
+        [UnityTest]
+        public IEnumerator RoundTripTravel_ReturnToMainTown_ResetsMenuOpenState()
+        {
+            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
+            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+
+            var toIndoorObject = GameObject.Find("MainTown_SmokeToIndoor_Trigger");
+            Assert.That(toIndoorObject, Is.Not.Null, "Expected authored smoke trigger in MainTown.");
+            var toIndoor = toIndoorObject.GetComponent<TravelSceneTrigger>();
+            Assert.That(toIndoor, Is.Not.Null);
+
+            var startedTravel = false;
+            var elapsedStart = 0f;
+            while (!startedTravel && elapsedStart < 2f)
+            {
+                startedTravel = toIndoor.TryHandleInteractor(CreatePlayerInteractor());
+                elapsedStart += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            Assert.That(startedTravel, Is.True, "Expected travel from MainTown to IndoorRange to start.");
+            yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
+            yield return WaitForResolvedEntryPoint("entry.indoor.arrival", SceneSwitchTimeoutSeconds);
+
+            RuntimeKernelBootstrapper.ShopEvents?.RaiseShopTradeOpened("qa.vendor");
+            RuntimeKernelBootstrapper.UiStateEvents?.RaiseWorkbenchMenuVisibilityChanged(true);
+            RuntimeKernelBootstrapper.UiStateEvents?.RaiseTabInventoryVisibilityChanged(true);
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents?.IsAnyMenuOpen ?? false, Is.True, "Expected menu state to be open before return travel.");
+
+            var toTownObject = GameObject.Find("IndoorRange_SmokeToMainTown_Trigger");
+            Assert.That(toTownObject, Is.Not.Null, "Expected authored smoke trigger in IndoorRangeInstance.");
+            var toTown = toTownObject.GetComponent<TravelSceneTrigger>();
+            Assert.That(toTown, Is.Not.Null);
+
+            var startedReturnTravel = false;
+            var elapsedReturn = 0f;
+            while (!startedReturnTravel && elapsedReturn < 2f)
+            {
+                startedReturnTravel = toTown.TryHandleInteractor(CreatePlayerInteractor());
+                elapsedReturn += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            Assert.That(startedReturnTravel, Is.True, "Expected travel from IndoorRange back to MainTown to start.");
+            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            yield return WaitForResolvedEntryPoint("entry.maintown.return", SceneSwitchTimeoutSeconds);
+
+            Assert.That(RuntimeKernelBootstrapper.UiStateEvents?.IsAnyMenuOpen ?? false, Is.False, "Expected return travel to reset runtime menu-open state.");
+            Assert.That(IsCursorLockMenuOpen(), Is.False, "Expected cursor lock menu-open flag to reset after return travel.");
         }
 
         [UnityTest]
@@ -574,6 +626,29 @@ namespace Reloader.World.Tests.PlayMode
             }
 
             return null;
+        }
+
+        private static bool IsCursorLockMenuOpen()
+        {
+            var assemblies = System.AppDomain.CurrentDomain.GetAssemblies();
+            for (var i = 0; i < assemblies.Length; i++)
+            {
+                var type = assemblies[i].GetType("Reloader.Player.PlayerCursorLockController", throwOnError: false);
+                if (type == null)
+                {
+                    continue;
+                }
+
+                var property = type.GetProperty("IsAnyMenuOpen", BindingFlags.Public | BindingFlags.Static);
+                if (property == null)
+                {
+                    return false;
+                }
+
+                return property.GetValue(null) as bool? ?? false;
+            }
+
+            return false;
         }
 
     }
