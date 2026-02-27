@@ -109,11 +109,6 @@ namespace Reloader.Core.Save.Modules
                     normalizedRecords.Add(CloneRecord(record));
                 }
 
-                if (normalizedRecords.Count == 0)
-                {
-                    continue;
-                }
-
                 SceneObjectStates.Add(new SceneObjectStateRecord
                 {
                     ScenePath = sceneRecord.ScenePath,

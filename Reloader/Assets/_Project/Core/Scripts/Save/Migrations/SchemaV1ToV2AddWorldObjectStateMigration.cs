@@ -20,7 +20,7 @@ namespace Reloader.Core.Save.Migrations
                 envelope.Modules = new Dictionary<string, ModuleSaveBlock>();
             }
 
-            if (!envelope.Modules.ContainsKey("WorldObjectState"))
+            if (!envelope.Modules.TryGetValue("WorldObjectState", out var worldObjectStateBlock) || worldObjectStateBlock == null)
             {
                 envelope.Modules["WorldObjectState"] = new ModuleSaveBlock
                 {
