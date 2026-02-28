@@ -189,6 +189,36 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator RoundTripTravel_SecondIndoorArrival_StabilizesPlayerArmsLocalPose()
+        {
+            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
+            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+
+            yield return TravelViaTrigger("MainTown_SmokeToIndoor_Trigger", IndoorRangeSceneName, "entry.indoor.arrival");
+            yield return TravelViaTrigger("IndoorRange_SmokeToMainTown_Trigger", MainTownSceneName, "entry.maintown.return");
+            yield return TravelViaTrigger("MainTown_SmokeToIndoor_Trigger", IndoorRangeSceneName, "entry.indoor.arrival");
+
+            var playerRoot = GameObject.Find("PlayerRoot");
+            Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot after second indoor arrival.");
+            var cameraPivot = playerRoot.transform.Find("CameraPivot");
+            Assert.That(cameraPivot, Is.Not.Null, "Expected CameraPivot after second indoor arrival.");
+            var playerArms = cameraPivot.Find("PlayerArms");
+            Assert.That(playerArms, Is.Not.Null, "Expected PlayerArms after second indoor arrival.");
+
+            playerArms.localPosition = new Vector3(7.86f, 0.003f, 0.026f);
+            playerArms.localRotation = Quaternion.identity;
+            playerArms.localScale = new Vector3(0.42f, 0.42f, 0.42f);
+
+            yield return null;
+            yield return null;
+
+            Assert.That(playerArms.localPosition.x, Is.EqualTo(0f).Within(0.02f), "PlayerArms local X should be stabilized.");
+            Assert.That(playerArms.localPosition.y, Is.EqualTo(-0.24f).Within(0.02f), "PlayerArms local Y should be stabilized.");
+            Assert.That(playerArms.localPosition.z, Is.EqualTo(1.56f).Within(0.02f), "PlayerArms local Z should be stabilized.");
+            Assert.That(Quaternion.Angle(playerArms.localRotation, Quaternion.Euler(-90f, 0f, 0f)), Is.LessThanOrEqualTo(1f), "PlayerArms local rotation should be stabilized.");
+        }
+
+        [UnityTest]
         public IEnumerator Travel_ToIndoor_DoesNotImmediatelyBounceBackToMainTown()
         {
             var startedTravel = WorldTravelCoordinator.TryLoadSceneAtEntry(IndoorRangeSceneName, "entry.indoor.arrival");
