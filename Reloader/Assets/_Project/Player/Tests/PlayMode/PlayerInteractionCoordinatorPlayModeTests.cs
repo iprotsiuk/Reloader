@@ -136,6 +136,9 @@ namespace Reloader.Player.Tests.PlayMode
                 coordinator.Tick();
 
                 Assert.That(runtimeHub.HasInteractionHint, Is.False);
+                Assert.That(runtimeHub.CurrentInteractionHint.ContextId, Is.Empty);
+                Assert.That(runtimeHub.CurrentInteractionHint.ActionText, Is.Empty);
+                Assert.That(runtimeHub.CurrentInteractionHint.SubjectText, Is.Empty);
                 StringAssert.Contains("hasWinner=False", coordinator.CaptureDebugSnapshot());
             }
             finally
