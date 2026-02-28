@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using Reloader.NPCs.Runtime;
 using UnityEngine;
+using System.Reflection;
 
 namespace Reloader.NPCs.Tests.EditMode
 {
@@ -156,7 +157,10 @@ namespace Reloader.NPCs.Tests.EditMode
                 agent.InitializeCapabilities();
                 Object.DestroyImmediate(destroyedCapability);
 
-                Assert.DoesNotThrow(() => go.SetActive(false));
+                var onDisable = typeof(NpcAgent).GetMethod("OnDisable", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(onDisable, Is.Not.Null, "Expected private OnDisable on NpcAgent.");
+
+                Assert.DoesNotThrow(() => onDisable.Invoke(agent, null));
                 Assert.That(activeCapability.ShutdownCount, Is.EqualTo(1));
             }
             finally
