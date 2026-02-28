@@ -18,6 +18,9 @@ namespace Reloader.World.Travel
         private static readonly List<WeaponRuntimeSnapshotCapture> _pendingWeaponSnapshots = new();
         private const string FpsArmsPrefabResourcePath = "Viewmodels/Characters/FPS_Arms";
         private const string FpsArmsControllerResourcePath = "Viewmodels/Characters/ViewmodelArms";
+        private static readonly Vector3 FpsArmsLocalPosition = new Vector3(0f, -0.24f, 1.56f);
+        private static readonly Quaternion FpsArmsLocalRotation = Quaternion.Euler(-90f, 0f, 0f);
+        private static readonly Vector3 FpsArmsLocalScale = new Vector3(0.42f, 0.42f, 0.42f);
 
         public static string LastResolvedEntryPointId { get; private set; }
 
@@ -570,16 +573,28 @@ namespace Reloader.World.Travel
                 {
                     var instance = UnityEngine.Object.Instantiate(armsPrefab, cameraPivot);
                     instance.name = "PlayerArms";
-                    instance.transform.localPosition = new Vector3(0f, -0.24f, 1.56f);
-                    instance.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
-                    instance.transform.localScale = new Vector3(0.42f, 0.42f, 0.42f);
+                    playerArms = instance.transform;
                     animator = instance.GetComponentInChildren<Animator>(true);
                 }
             }
 
-            if (animator == null)
+            if (playerArms == null || animator == null)
             {
                 return;
+            }
+
+            playerArms.gameObject.SetActive(true);
+            playerArms.localPosition = FpsArmsLocalPosition;
+            playerArms.localRotation = FpsArmsLocalRotation;
+            playerArms.localScale = FpsArmsLocalScale;
+
+            var renderers = playerArms.GetComponentsInChildren<Renderer>(true);
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] != null)
+                {
+                    renderers[i].enabled = true;
+                }
             }
 
             if (animator.runtimeAnimatorController == null && armsController != null)

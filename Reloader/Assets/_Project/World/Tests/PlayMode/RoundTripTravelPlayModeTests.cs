@@ -144,6 +144,51 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator RoundTripTravel_SecondIndoorArrival_ReactivatesAndShowsPlayerArmsRig()
+        {
+            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
+            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+
+            yield return TravelViaTrigger("MainTown_SmokeToIndoor_Trigger", IndoorRangeSceneName, "entry.indoor.arrival");
+            AssertPlayerArmsRigPresentAndBound();
+            yield return TravelViaTrigger("IndoorRange_SmokeToMainTown_Trigger", MainTownSceneName, "entry.maintown.return");
+
+            var townPlayerRoot = GameObject.Find("PlayerRoot");
+            Assert.That(townPlayerRoot, Is.Not.Null, "Expected PlayerRoot before second indoor travel.");
+
+            var townCameraPivot = townPlayerRoot.transform.Find("CameraPivot");
+            Assert.That(townCameraPivot, Is.Not.Null, "Expected CameraPivot before second indoor travel.");
+            var townPlayerArms = townCameraPivot.Find("PlayerArms");
+            Assert.That(townPlayerArms, Is.Not.Null, "Expected PlayerArms before second indoor travel.");
+            townPlayerArms.gameObject.SetActive(false);
+            var townRenderers = townPlayerArms.GetComponentsInChildren<Renderer>(true);
+            for (var i = 0; i < townRenderers.Length; i++)
+            {
+                if (townRenderers[i] != null)
+                {
+                    townRenderers[i].enabled = false;
+                }
+            }
+
+            yield return TravelViaTrigger("MainTown_SmokeToIndoor_Trigger", IndoorRangeSceneName, "entry.indoor.arrival");
+
+            var indoorPlayerRoot = GameObject.Find("PlayerRoot");
+            Assert.That(indoorPlayerRoot, Is.Not.Null, "Expected PlayerRoot after second indoor arrival.");
+            var indoorCameraPivot = indoorPlayerRoot.transform.Find("CameraPivot");
+            Assert.That(indoorCameraPivot, Is.Not.Null, "Expected CameraPivot after second indoor arrival.");
+            var indoorPlayerArms = indoorCameraPivot.Find("PlayerArms");
+            Assert.That(indoorPlayerArms, Is.Not.Null, "Expected PlayerArms after second indoor arrival.");
+            Assert.That(indoorPlayerArms.gameObject.activeInHierarchy, Is.True, "PlayerArms should be active after second indoor arrival.");
+
+            var indoorRenderers = indoorPlayerArms.GetComponentsInChildren<Renderer>(true);
+            Assert.That(indoorRenderers.Length, Is.GreaterThan(0), "Expected PlayerArms to include renderers.");
+            for (var i = 0; i < indoorRenderers.Length; i++)
+            {
+                Assert.That(indoorRenderers[i].enabled, Is.True, "PlayerArms renderer should be enabled after second indoor arrival.");
+            }
+        }
+
+        [UnityTest]
         public IEnumerator Travel_ToIndoor_DoesNotImmediatelyBounceBackToMainTown()
         {
             var startedTravel = WorldTravelCoordinator.TryLoadSceneAtEntry(IndoorRangeSceneName, "entry.indoor.arrival");
@@ -649,6 +694,32 @@ namespace Reloader.World.Tests.PlayMode
             }
 
             return false;
+        }
+
+        private static IEnumerator TravelViaTrigger(string triggerObjectName, string expectedSceneName, string expectedEntryPointId)
+        {
+            var triggerObject = GameObject.Find(triggerObjectName);
+            Assert.That(triggerObject, Is.Not.Null, $"Expected trigger object '{triggerObjectName}'.");
+            var trigger = triggerObject.GetComponent<TravelSceneTrigger>();
+            Assert.That(trigger, Is.Not.Null, $"Expected TravelSceneTrigger on '{triggerObjectName}'.");
+
+            var startedTravel = false;
+            var elapsed = 0f;
+            while (!startedTravel && elapsed < 2f)
+            {
+                startedTravel = trigger.TryHandleInteractor(CreatePlayerInteractor());
+                if (startedTravel)
+                {
+                    break;
+                }
+
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            Assert.That(startedTravel, Is.True, $"Expected travel trigger '{triggerObjectName}' to start travel.");
+            yield return WaitForActiveScene(expectedSceneName, SceneSwitchTimeoutSeconds);
+            yield return WaitForResolvedEntryPoint(expectedEntryPointId, SceneSwitchTimeoutSeconds);
         }
 
     }
