@@ -12,42 +12,37 @@ namespace Reloader.World.Tests.EditMode
     public class WorldSceneContractValidatorEditModeTests
     {
         private const string TempScenePath = "Assets/_Project/World/Scenes/__ContractValidatorTestScene.unity";
+        private const string RootObjectPath = "Root";
 
         [Test]
         public void ValidateContracts_ReportsRequiredFieldFailures_WithActionableContext()
         {
             var scene = CreateTempScene();
+            WorldSceneContract contract = null;
             try
             {
-                var root = new GameObject("Root");
+                var root = new GameObject(RootObjectPath);
                 SceneManager.MoveGameObjectToScene(root, scene);
                 var component = root.AddComponent<ContractProbeComponent>();
                 component.ResetToInvalidState();
 
-                var contract = ScriptableObject.CreateInstance<WorldSceneContract>();
-                contract.ScenePath = TempScenePath;
-                contract.SceneRole = WorldSceneRole.ActivityInstance;
-                contract.RequiredObjectPaths.Add("Root");
-                contract.ValidateRequiredSceneEntryPointIds = false;
-                contract.RequiredComponentContracts.Add(new WorldRequiredComponentContract
-                {
-                    ObjectPath = "Root",
-                    ComponentTypeName = typeof(ContractProbeComponent).AssemblyQualifiedName,
-                    RequiredNonNullObjectReferenceFields = { "_requiredReference" },
-                    RequiredNonEmptyStringFields = { "_requiredString" },
-                    RequiredNonEmptyArrayFields = { "_requiredArray" }
-                });
+                contract = CreateBaseContract(WorldSceneRole.ActivityInstance);
 
                 var report = WorldSceneContractValidator.ValidateContracts(new[] { contract });
 
                 Assert.That(report.IsSuccess, Is.False);
                 Assert.That(report.Issues.Count, Is.EqualTo(3));
                 Assert.That(report.Issues[0].ScenePath, Is.EqualTo(TempScenePath));
-                Assert.That(report.Issues[0].ObjectPath, Is.EqualTo("Root"));
+                Assert.That(report.Issues[0].ObjectPath, Is.EqualTo(RootObjectPath));
                 Assert.That(report.Issues[0].ComponentType, Does.Contain(nameof(ContractProbeComponent)));
             }
             finally
             {
+                if (contract != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(contract);
+                }
+
                 CloseAndDeleteTempScene(scene);
             }
         }
@@ -56,26 +51,15 @@ namespace Reloader.World.Tests.EditMode
         public void ValidateContracts_PassesWhenAllRequirementsAreSatisfied()
         {
             var scene = CreateTempScene();
+            WorldSceneContract contract = null;
             try
             {
-                var root = new GameObject("Root");
+                var root = new GameObject(RootObjectPath);
                 SceneManager.MoveGameObjectToScene(root, scene);
                 var component = root.AddComponent<ContractProbeComponent>();
                 component.ApplyValidState();
 
-                var contract = ScriptableObject.CreateInstance<WorldSceneContract>();
-                contract.ScenePath = TempScenePath;
-                contract.SceneRole = WorldSceneRole.TownHub;
-                contract.RequiredObjectPaths.Add("Root");
-                contract.ValidateRequiredSceneEntryPointIds = false;
-                contract.RequiredComponentContracts.Add(new WorldRequiredComponentContract
-                {
-                    ObjectPath = "Root",
-                    ComponentTypeName = typeof(ContractProbeComponent).AssemblyQualifiedName,
-                    RequiredNonNullObjectReferenceFields = { "_requiredReference" },
-                    RequiredNonEmptyStringFields = { "_requiredString" },
-                    RequiredNonEmptyArrayFields = { "_requiredArray" }
-                });
+                contract = CreateBaseContract(WorldSceneRole.TownHub);
 
                 var report = WorldSceneContractValidator.ValidateContracts(new[] { contract });
                 Assert.That(report.IsSuccess, Is.True);
@@ -83,8 +67,32 @@ namespace Reloader.World.Tests.EditMode
             }
             finally
             {
+                if (contract != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(contract);
+                }
+
                 CloseAndDeleteTempScene(scene);
             }
+        }
+
+        private static WorldSceneContract CreateBaseContract(WorldSceneRole sceneRole)
+        {
+            var contract = ScriptableObject.CreateInstance<WorldSceneContract>();
+            contract.ScenePath = TempScenePath;
+            contract.SceneRole = sceneRole;
+            contract.RequiredObjectPaths.Add(RootObjectPath);
+            contract.ValidateRequiredSceneEntryPointIds = false;
+            contract.RequiredComponentContracts.Add(new WorldRequiredComponentContract
+            {
+                ObjectPath = RootObjectPath,
+                ComponentTypeName = typeof(ContractProbeComponent).AssemblyQualifiedName,
+                RequiredNonNullObjectReferenceFields = { "_requiredReference" },
+                RequiredNonEmptyStringFields = { "_requiredString" },
+                RequiredNonEmptyArrayFields = { "_requiredArray" }
+            });
+
+            return contract;
         }
 
         private static Scene CreateTempScene()
