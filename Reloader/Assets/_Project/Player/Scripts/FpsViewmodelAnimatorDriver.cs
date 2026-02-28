@@ -26,7 +26,6 @@ namespace Reloader.Player
         private void Update()
         {
             ResolveReferences();
-            StabilizeViewmodelRootPose();
             if (_animator == null || _characterController == null)
             {
                 return;
@@ -55,6 +54,12 @@ namespace Reloader.Player
             }
 
             _animator.SetFloat(_speedHash, _current);
+        }
+
+        private void LateUpdate()
+        {
+            ResolveReferences();
+            StabilizeViewmodelRootPose();
         }
 
         public void Configure(Animator animator, CharacterController characterController)
@@ -107,6 +112,16 @@ namespace Reloader.Player
             if (parent == null || parent.name != "CameraPivot")
             {
                 return;
+            }
+
+            if (_animator.applyRootMotion)
+            {
+                _animator.applyRootMotion = false;
+            }
+
+            if (_animator.cullingMode != AnimatorCullingMode.AlwaysAnimate)
+            {
+                _animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             }
 
             if (!viewmodelRoot.gameObject.activeSelf)
