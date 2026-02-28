@@ -9,7 +9,7 @@ namespace Reloader.World.Tests.EditMode
         [TearDown]
         public void TearDown()
         {
-            var roots = Object.FindObjectsByType<PersistentPlayerRoot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var roots = FindPersistentRoots();
             for (var i = 0; i < roots.Length; i++)
             {
                 if (roots[i] != null)
@@ -69,18 +69,26 @@ namespace Reloader.World.Tests.EditMode
             }
             else
             {
-                var containsFirst = false;
-                for (var i = 0; i < roots.Length; i++)
-                {
-                    if (roots[i] == first)
-                    {
-                        containsFirst = true;
-                        break;
-                    }
-                }
-
-                Assert.That(containsFirst, Is.True);
+                Assert.That(ContainsRoot(roots, first), Is.True);
             }
+        }
+
+        private static PersistentPlayerRoot[] FindPersistentRoots()
+        {
+            return Object.FindObjectsByType<PersistentPlayerRoot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        }
+
+        private static bool ContainsRoot(PersistentPlayerRoot[] roots, PersistentPlayerRoot target)
+        {
+            for (var i = 0; i < roots.Length; i++)
+            {
+                if (roots[i] == target)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

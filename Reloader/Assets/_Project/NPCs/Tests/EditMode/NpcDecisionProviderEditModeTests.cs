@@ -9,8 +9,7 @@ namespace Reloader.NPCs.Tests.EditMode
         [Test]
         public void Evaluate_DelegatesToInjectedDecisionProvider()
         {
-            var go = new GameObject("npc-ai");
-            var ai = go.AddComponent<NpcAiController>();
+            var ai = CreateNpcAiController();
             var provider = new RecordingDecisionProvider();
 
             try
@@ -24,15 +23,14 @@ namespace Reloader.NPCs.Tests.EditMode
             }
             finally
             {
-                Object.DestroyImmediate(go);
+                DestroyNpcAiController(ai);
             }
         }
 
         [Test]
         public void Evaluate_WithoutInjectedProvider_UsesDeterministicRuleBasedFallback()
         {
-            var go = new GameObject("npc-ai");
-            var ai = go.AddComponent<NpcAiController>();
+            var ai = CreateNpcAiController();
 
             try
             {
@@ -43,15 +41,14 @@ namespace Reloader.NPCs.Tests.EditMode
             }
             finally
             {
-                Object.DestroyImmediate(go);
+                DestroyNpcAiController(ai);
             }
         }
 
         [Test]
         public void Evaluate_AfterClearingInjectedProvider_RevertsToFallback()
         {
-            var go = new GameObject("npc-ai");
-            var ai = go.AddComponent<NpcAiController>();
+            var ai = CreateNpcAiController();
             var provider = new RecordingDecisionProvider();
 
             try
@@ -68,7 +65,21 @@ namespace Reloader.NPCs.Tests.EditMode
             }
             finally
             {
-                Object.DestroyImmediate(go);
+                DestroyNpcAiController(ai);
+            }
+        }
+
+        private static NpcAiController CreateNpcAiController()
+        {
+            var gameObject = new GameObject("npc-ai");
+            return gameObject.AddComponent<NpcAiController>();
+        }
+
+        private static void DestroyNpcAiController(NpcAiController controller)
+        {
+            if (controller != null)
+            {
+                Object.DestroyImmediate(controller.gameObject);
             }
         }
 

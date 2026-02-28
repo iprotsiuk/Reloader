@@ -177,7 +177,7 @@ namespace Reloader.Reloading.World
 
         private bool IsPickupPressedThisFrame()
         {
-            // v0.1 workaround: inventory also consumes Pickup; checking E keeps bench interaction responsive.
+            // Keep keyboard fallback for benches because pickup input is shared with inventory flows.
             var keyboardPressed = Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame;
             if (keyboardPressed)
             {
