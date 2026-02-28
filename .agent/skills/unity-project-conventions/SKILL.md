@@ -201,6 +201,22 @@ Never add persisted runtime fields without updating the save contract at the sam
 - Never delete or rename baked `LightingData` files outside Unity without moving their `.meta` pair.
 - After lighting-related merges, run a headless Unity open (`-batchmode -quit`) and check logs for missing `LightingData.asset` warnings before claiming success.
 
+## Travel + Viewmodel Invariants
+
+When adding new travel-connected scenes (or editing existing player rigs), preserve these runtime invariants:
+
+- Keep first-person arms under `PlayerRoot/CameraPivot/PlayerArms` in every travel destination scene.
+- `PlayerArms` must stay in canonical local pose:
+  - position `(0, -0.24, 1.56)`
+  - rotation `(-90, 0, 0)`
+  - scale `(0.42, 0.42, 0.42)`
+- `PlayerArms` `Animator` must not drive root motion for travel rigs (`applyRootMotion=false`).
+- For persistent player roots (`DontDestroyOnLoad`), re-entry validation must include:
+  - `PlayerArms` active in hierarchy
+  - child renderers enabled
+  - animator culling safe for first-person updates (`AlwaysAnimate`)
+- Do not add scene-specific "hide owned pickup" travel workarounds; rely on unified persistence apply.
+
 ## Quick Reference
 
 | Aspect | Rule |

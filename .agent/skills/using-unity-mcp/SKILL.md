@@ -106,6 +106,19 @@ When changes include travel/interactable/checkpoint/NPC/save touchpoints, read b
    - Save bootstrap/module registration state for any new runtime state owners
    - Ensure feature flags are coherent with registered modules
 
+5. Persistent player rig invariants (required for travel scene changes):
+   - In destination scene, confirm one active `PlayerRoot` and that it is the runtime/persistent root when expected
+   - Confirm `PlayerRoot/CameraPivot/PlayerArms` exists
+   - Confirm `PlayerArms` local transform is canonical:
+     - pos `(0, -0.24, 1.56)`
+     - rot `(-90, 0, 0)`
+     - scale `(0.42, 0.42, 0.42)`
+   - Confirm `PlayerArms` active in hierarchy and child renderers enabled
+   - Confirm arms animator safety:
+     - `applyRootMotion=false`
+     - `cullingMode=AlwaysAnimate`
+   - Re-verify after at least one full round-trip travel cycle (A -> B -> A -> B), not only first arrival
+
 ## Quick Reference
 
 | Task Type | Preferred Path | Primary Tools |
