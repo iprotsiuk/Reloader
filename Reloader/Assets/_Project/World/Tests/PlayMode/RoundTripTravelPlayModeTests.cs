@@ -456,6 +456,21 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator TravelCoordinator_DoesNotContainOwnedPickupHideWorkaround()
+        {
+            var workaroundMethod = typeof(WorldTravelCoordinator).GetMethod(
+                "HideOwnedWeaponPickupsInScene",
+                BindingFlags.Static | BindingFlags.NonPublic);
+
+            Assert.That(
+                workaroundMethod,
+                Is.Null,
+                "Travel should rely on unified world-object persistence apply and must not keep ownership-based pickup hiding.");
+
+            yield return null;
+        }
+
+        [UnityTest]
         public IEnumerator IndoorRange_HasShootingRangeBlockoutGeometry()
         {
             SceneManager.LoadScene(IndoorRangeSceneName, LoadSceneMode.Single);

@@ -185,7 +185,6 @@ namespace Reloader.World.Travel
                 activeScenePlayerRoot.rotation = entryPointTransform.rotation;
                 EnsureViewmodelRigAfterTravel(activeScenePlayerRoot);
                 RestorePlayerControlsAfterTravel(activeScenePlayerRoot);
-                HideOwnedWeaponPickupsInScene(scene, activeScenePlayerRoot);
             }
 
         }
@@ -764,54 +763,6 @@ namespace Reloader.World.Travel
                     type.GetMethod("ApplyCursorState", BindingFlags.Instance | BindingFlags.NonPublic)?.Invoke(component, null);
                     type.GetMethod("LockCursor", BindingFlags.Instance | BindingFlags.Public)?.Invoke(component, null);
                 }
-            }
-        }
-
-        private static void HideOwnedWeaponPickupsInScene(Scene scene, Transform playerRootTransform)
-        {
-            if (!scene.IsValid() || !scene.isLoaded || playerRootTransform == null)
-            {
-                return;
-            }
-
-            var inventoryController = playerRootTransform.GetComponent("PlayerInventoryController");
-            var runtime = GetRuntimeFromInventoryController(inventoryController);
-            if (runtime == null)
-            {
-                return;
-            }
-
-            var ownedItemIds = new HashSet<string>(StringComparer.Ordinal);
-            CollectItemIdsFromRuntimeCollection(runtime, "BeltSlotItemIds", ownedItemIds);
-            CollectItemIdsFromRuntimeCollection(runtime, "BackpackItemIds", ownedItemIds);
-            if (ownedItemIds.Count == 0)
-            {
-                return;
-            }
-
-            var pickupComponents = UnityEngine.Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            for (var i = 0; i < pickupComponents.Length; i++)
-            {
-                var pickup = pickupComponents[i];
-                if (pickup == null || pickup.gameObject.scene != scene)
-                {
-                    continue;
-                }
-
-                var pickupType = pickup.GetType();
-                if (pickupType.Name != "WeaponPickupTarget")
-                {
-                    continue;
-                }
-
-                var itemIdProperty = pickupType.GetProperty("ItemId", BindingFlags.Instance | BindingFlags.Public);
-                var itemId = itemIdProperty?.GetValue(pickup) as string;
-                if (string.IsNullOrWhiteSpace(itemId) || !ownedItemIds.Contains(itemId))
-                {
-                    continue;
-                }
-
-                pickupType.GetMethod("OnPickedUp", BindingFlags.Instance | BindingFlags.Public)?.Invoke(pickup, null);
             }
         }
 
