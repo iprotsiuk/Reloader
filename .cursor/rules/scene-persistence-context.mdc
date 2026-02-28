@@ -7,7 +7,7 @@ alwaysApply: false
 # Scene Persistence Context
 
 You are touching scene-level persistence (world item transforms, scene placement restore, scene transition persistence).
-For general world layout edits in `MainWorld` and non-persistence scene files, use the world/vehicles router instead.
+For general world layout edits in `Bootstrap`/`MainTown`/`IndoorRangeInstance` (and compatibility scenes) that are not persistence-focused, use the world/vehicles router instead.
 
 Convention:
 - Place scene/world-item save-restore orchestration scripts under `Reloader/Assets/_Project/Core/Scripts/Persistence/**`.

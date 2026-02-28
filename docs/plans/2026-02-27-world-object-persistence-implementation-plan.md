@@ -1,5 +1,8 @@
 # World Object Persistence (Unified Store) Implementation Plan
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Implement a unified, policy-driven world-object persistence system with per-scene behavior (`Persistent` and `DailyReset`) using scene-path keys, including reclaim/lost-and-found for daily cleanup.
@@ -7,6 +10,21 @@
 **Architecture:** Introduce stable object identity + one canonical runtime world-state service + one save module (`WorldObjectState`). Apply persisted state on scene load/travel, capture mutations at source (pickup/transform/destroy hooks), and enforce scene policy at day boundary. Keep Core save module payload-only and runtime scene scanning in persistence bridge layer.
 
 **Tech Stack:** Unity C#, existing SaveEnvelope/SaveCoordinator pipeline, Json.NET, runtime scene events, existing inventory/weapon/world runtime systems.
+
+---
+
+## Status Update (2026-02-28)
+
+This plan is an execution artifact for a slice that has been implemented.
+
+Implemented outcomes:
+- Unified world-object state module and migration support.
+- Runtime apply bridge and pickup mutation capture.
+- Daily reset cleanup with reclaim storage.
+- Travel workaround removal in favor of unified persistence apply.
+- Scene policy validation + docs sync.
+
+Use `docs/design/v0.1-demo-status-and-milestones.md` and `docs/design/save-and-progression.md` as current status/contract sources.
 
 ---
 
@@ -219,15 +237,10 @@
 3. Identity assignment for existing scene content.
 4. Cleanup ordering at day boundary vs. scene load timing.
 
-## Suggested Execution Order
+## Suggested Execution Order (Historical)
 1. Tasks 1-3 (core contracts + identity + save module)
 2. Tasks 4-5 (runtime apply + pickup capture)
 3. Tasks 6-7 (daily reset + cleanup + remove workaround)
 4. Tasks 8-9 (validation tooling + docs + verification)
 
-Plan complete and saved to `docs/plans/2026-02-27-world-object-persistence-implementation-plan.md`. Two execution options:
-
-1. Subagent-Driven (this session) - I dispatch fresh subagent per task, review between tasks, fast iteration
-2. Parallel Session (separate) - Open new session with executing-plans, batch execution with checkpoints
-
-Which approach?
+This section is preserved as historical execution sequencing context.

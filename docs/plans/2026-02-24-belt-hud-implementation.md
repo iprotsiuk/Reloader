@@ -1,5 +1,8 @@
 # Belt HUD (Reusable Prefab) Implementation Plan
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Build a reusable 5-slot belt HUD prefab that reflects runtime inventory occupancy and selected slot state using the Post-apocalyptic Survival UI assets.

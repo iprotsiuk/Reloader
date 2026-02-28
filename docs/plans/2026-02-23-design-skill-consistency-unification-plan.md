@@ -1,5 +1,10 @@
 # Design/Skill Consistency Unification Plan
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
+> Historical planning artifact (partially superseded by later world-topology/runtime updates). For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
 ## Summary
 This plan aligns design docs and skills around a single item-persistence ownership model, a single `definition` contract, explicit scope tags, consistent asset paths, explicit powder-lot runtime modeling, rimfire buy-only policy, normalized component pricing fields, and fixed skill self-validation.  
 It is documentation-and-skill-only work (no runtime code edits in this pass), but all type/schema contracts are updated as implementation guidance.
@@ -79,7 +84,7 @@ Point caliber/burn-rate references to canonical shared resources under
 `../reloading-domain-knowledge/resources/` and remove duplicate local copies.
 
 9. `.cursor/rules/world-vehicles-context.mdc`
-Scope scene globs to MainWorld files (`Reloader/Assets/Scenes/MainWorld*`) instead of all scenes.
+Scope scene globs to MainWorld files (`Reloader/Assets/Scenes/MainWorld*`) instead of all scenes. *(Historical/superseded by current topology routing that includes `Bootstrap` + `_Project/World/Scenes/**`; `MainWorld` is compatibility-only.)*
 
 10. `.agent/skills/creating-skills/SKILL.md`
 Keep one-level-deep reference behavior explicit and simplify resource-link wording if needed to match validator constraints.
@@ -135,7 +140,7 @@ Run: `for f in docs/design/*.md; do [[ "$f" == *README.md ]] && continue; rg '^#
 Expected: no output.
 
 7. Cursor context updates check.
-Run: `rg -n "Reloader/Assets/Scenes/MainWorld\\*" .cursor/rules/world-vehicles-context.mdc`
+Run: `rg -n "Reloader/Assets/Scenes/MainWorld\\*" .cursor/rules/world-vehicles-context.mdc` *(historical check; current routing also includes active topology globs).*
 Expected: one match.
 Run: `test -f .cursor/agents.md && echo OK`
 Expected: `OK`.

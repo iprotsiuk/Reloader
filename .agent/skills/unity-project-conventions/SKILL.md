@@ -46,7 +46,7 @@ Reloader/Assets/_Project/<Feature>/
 | Events | Runtime port interfaces (`I*Events.cs`) + payload types (`*EventsTypes.cs`) | `IInventoryEvents.cs` |
 | SO asset files | PascalCase descriptive | `Hodgdon_Varget.asset` |
 | Prefabs | PascalCase | `BoltActionRifle.prefab` |
-| Scenes | PascalCase | `MainWorld.unity` |
+| Scenes | PascalCase | `MainTown.unity` |
 | Enums | PascalCase, singular | `PrimerType`, `JamState` |
 | Private fields | `_camelCase` with underscore prefix | `_currentCharge` |
 | Public properties | PascalCase | `CurrentCharge` |
@@ -193,7 +193,7 @@ Never add persisted runtime fields without updating the save contract at the sam
 | Systems calling each other directly | Use runtime event ports/hub (`IGameEventsRuntimeHub`) |
 | Single weapon condition float | Track per-part condition on WeaponPartInstance |
 | Preventing player from making mistakes | Simulate the consequence instead |
-| Creating scenes without checking design doc | Main world is ONE scene; only specific areas are instanced |
+| Creating scenes without checking design doc | Follow world topology contract (`Bootstrap -> MainTown -> IndoorRangeInstance`); `MainWorld` is compatibility-only |
 
 ## Baked Lighting Safety
 

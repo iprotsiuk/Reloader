@@ -38,10 +38,12 @@ This file is the canonical local guidance entrypoint for agents working in this 
 
 ## Current Phase Contract
 
-- This repository is currently in design/planning/doc-framework phase.
+- Historical contract phrase retained for guardrails: this repository started in design/planning/doc-framework phase.
+- Current delivery phase is `v0.1` demo implementation + hardening.
+- Treat `docs/design/v0.1-demo-status-and-milestones.md` as the canonical implemented-vs-planned source of truth.
+- Treat `docs/design/prototype-scope.md` as version target scope, not runtime completion truth.
 - Unless the user explicitly requests runtime implementation, default to docs/rules/skills/plan updates.
 - Do not infer game-feature coding work from architecture/design requests alone.
-- If implementation is explicitly requested, keep the scope minimal and aligned with design contracts.
 
 ## Working Rules
 

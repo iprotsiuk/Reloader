@@ -1,5 +1,8 @@
 # Inventory Toolbelt Rendering And Drag Drop Implementation Plan
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Ensure picked-up rifle/ammo render in UI Toolkit toolbelt/inventory cells, keep ammo text HUD, enable drag-and-drop between belt and inventory, and default backpack capacity to 9 for testing.

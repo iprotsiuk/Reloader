@@ -2,11 +2,5 @@
   "name": "reloader-tools",
   "private": true,
   "type": "module",
-  "scripts": {
-    "gen": "node scripts/fal/generate-image.mjs",
-    "test:fal": "node --test test/fal-generator.test.mjs"
-  },
-  "dependencies": {
-    "@fal-ai/client": "^1.2.3"
-  }
+  "scripts": {}
 }

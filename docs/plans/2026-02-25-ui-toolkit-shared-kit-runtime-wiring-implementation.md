@@ -1,5 +1,8 @@
 # UI Toolkit Shared Kit + Runtime Wiring Implementation Plan
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Deliver working, separate UI Toolkit screens (belt HUD, TAB menu with placeholder tabs, vendor, workbench) that share reusable UI kit elements and correctly reflect runtime state/events.

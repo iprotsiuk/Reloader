@@ -1,5 +1,8 @@
 # Weapons Framework v0.1 Design
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 **Date:** 2026-02-24  
 **Scope:** Future-proof weapon framework first, with one rifle as the first implemented content item.
 

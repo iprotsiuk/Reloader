@@ -6,12 +6,12 @@
 
 ## Item Persistence [v0.1]
 
-**Every physical item in the world persists.** Dropped a brass casing? It stays on the floor until you pick it up. Left a tool on the bench? Still there tomorrow. This applies to all scenes.
+**Target v0.1 contract:** Every physical item in the world should persist (including dropped casings/tools) across scene travel and reload in active demo scenes.
 
 Implementation status note:
-- This section is the **target v0.1 contract**.
-- Current implemented runtime save slice guarantees persistence for `CoreWorld`, `Inventory`, and `Weapons` payloads.
-- Full dropped-world-item transform restore (`WorldItemState` + scene placement reconstruction) remains planned until corresponding persistence modules are registered.
+- Current implemented runtime save slice includes `CoreWorld`, `Inventory`, `Weapons`, and `WorldObjectState`.
+- Item pickup/drop/persistence is implemented for the current demo slice.
+- Full save/load exact-restoration scope across all planned payload blocks remains in progress (see `v0.1-demo-status-and-milestones.md`).
 
 ```
 WorldItem (MonoBehaviour on every physical item in the world)

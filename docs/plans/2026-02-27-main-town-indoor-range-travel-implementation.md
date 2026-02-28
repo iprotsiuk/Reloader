@@ -1,5 +1,8 @@
 # Main Town + Indoor Range Travel Implementation Plan
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Establish a production-ready world foundation with a persistent player character that can travel from `MainTown` to an `IndoorRange` instance and back, while preserving player state and applying hybrid time progression.
@@ -7,6 +10,24 @@
 **Architecture:** Use a persistent bootstrap root for global services and player lifetime, with additive scene travel between `MainTown` and reusable activity scenes. Travel is orchestrated through a single world travel pipeline that carries a compact `TravelContext` payload and validates access through data-driven unlock rules. Clock/calendar and selected lightweight systems advance on travel; no background NPC simulation runs while away.
 
 **Tech Stack:** Unity 6.3, C#, ScriptableObject data assets, additive scene loading, existing `SaveCoordinator` pipeline, Unity EditMode/PlayMode tests.
+
+---
+
+## Status Update (2026-02-28)
+
+This plan has been partially executed and should be treated as historical planning context, not as a remaining-task checklist.
+
+Implemented from this plan's core travel loop:
+- Scene topology and build-order contract (`Bootstrap`, `MainTown`, `IndoorRangeInstance`).
+- Persistent player bootstrap lifetime scaffolding.
+- Travel contracts (`TravelContext`, `SceneEntryPoint`, activity/time policy enums).
+- Runtime round-trip travel orchestration via `WorldTravelCoordinator` and `TravelSceneTrigger`.
+- Scene-authored trigger wiring for `MainTown -> IndoorRangeInstance -> MainTown`.
+- PlayMode regression suite in `RoundTripTravelPlayModeTests`.
+
+Still follow-up scope:
+- Data-driven travel unlock profiles/evaluator.
+- Hybrid travel-time advancement service + persistence module integration.
 
 ---
 

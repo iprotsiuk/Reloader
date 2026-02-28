@@ -1,5 +1,8 @@
 # Modular Runtime Kernel Implementation Plan
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Introduce a scalable modular runtime kernel and domain event hub while preserving existing gameplay behavior and fixing stale interaction input consumption.

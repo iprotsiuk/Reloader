@@ -70,7 +70,7 @@ Each NPC tracks relationship level with the player. Higher relationship → bett
 - Vendor interaction is wired through `VendorTradeCapability` (`vendor.trade.open`) and remains compatible with shop-vendor targets.
 
 ### Designer Quickstart (Now)
-1. Drag a role prefab from `Reloader/Assets/_Project/NPCs/Prefabs/Roles/` into `MainWorld`.
+1. Drag a role prefab from `Reloader/Assets/_Project/NPCs/Prefabs/Roles/` into the active runtime world scene (currently `MainTown`; `MainWorld` is compatibility-only).
 2. On `NpcAgent`, assign an `NpcDefinition` asset.
 3. In `NpcDefinition`, set `NpcId` and assign `RolePreset`.
 4. In `NpcRolePreset`, set `RoleKind` and capability config assets (`NpcCapabilityConfig[]`) for the role intent.

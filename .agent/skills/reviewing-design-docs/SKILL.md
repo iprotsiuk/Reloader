@@ -30,9 +30,10 @@ Docs Review Progress:
 
 ## Instructions
 
-### 1. Confirm Design-Phase Constraints
+### 1. Confirm Current Delivery-Phase Constraints
 
-- Follow `.cursor/agents.md` phase contract: planning/design by default.
+- Follow `.cursor/agents.md` current phase contract.
+- Verify live implemented-vs-planned status via `docs/design/v0.1-demo-status-and-milestones.md`.
 - Do not propose implementation work unless user asks.
 
 ### 2. Run Deterministic Audit First

@@ -1,5 +1,8 @@
 # World Object Persistence Design (Unified Store)
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 ## Goal
 Build a modular, policy-driven world persistence architecture where every scene chooses its own behavior, while gameplay objects keep stable identity and exact state restore.
 

@@ -62,7 +62,7 @@ Load order is deterministic and must stay stable:
 1. Read and deserialize `SaveEnvelope`.
 2. Run migration chain from `schemaVersion` -> current runtime schema.
 3. Validate required module presence and payload JSON well-formedness.
-4. Restore modules in explicit registration order (`CoreWorld`, `Inventory`, `Weapons`, `WorldObjectState` in v0.2 baseline).
+4. Restore modules in explicit registration order (`CoreWorld`, `Inventory`, `Weapons`, `WorldObjectState` in current v0.1 implemented baseline).
 5. Run post-restore module validation.
 6. Publish load-complete events.
 
@@ -198,7 +198,7 @@ Field naming convention for payload examples: use lowerCamelCase with `Id`/`Ids`
 
 Forward-compatibility rule: target schema blocks for later-phase systems (for example `NPCState`, hunting population fields, and law-enforcement state) are defined from v0.1 so save files stay migratable. In phases where those systems are not active yet, these blocks can remain empty/default when modules exist, and may be absent in earlier implementation slices.
 
-**Exact restore contract [v0.1]:** Loading a save restores the same world state the player left for every active system in the current phase: player transform, dropped item transforms (including floor items), inventory/container contents, weapon/vehicle state, and progression flags. If NPC simulation is active, NPC transforms/state are restored exactly as well.
+**Exact restore target contract [v0.1]:** Loading a save should restore the same world state the player left for every active system in the current phase: player transform, dropped item transforms (including floor items), inventory/container contents, weapon/vehicle state, and progression flags. If NPC simulation is active, NPC transforms/state should restore exactly as well. **Current implemented scope is partial** (`CoreWorld`, `Inventory`, `Weapons`, `WorldObjectState`) and full exact restoration remains in progress per `v0.1-demo-status-and-milestones.md`.
 
 **Save format:** JSON envelope + per-module payload JSON. Each domain module serializes its own payload contract; migration code evolves schema versions explicitly.
 

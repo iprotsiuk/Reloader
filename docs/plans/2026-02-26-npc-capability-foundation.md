@@ -1,5 +1,8 @@
 # NPC Capability Foundation Implementation Plan
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Establish a reusable NPC foundation using capability composition, with an explicit decision-provider seam for future behavior tree adoption.

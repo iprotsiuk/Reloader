@@ -1,5 +1,8 @@
 # Belt Inventory (5 Slots) Implementation Plan
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Implement an event-driven player inventory with 5 belt slots (`1..5`), pickup via `E`, slot-based selection, and save/load persistence for future TAB/backpack expansion.

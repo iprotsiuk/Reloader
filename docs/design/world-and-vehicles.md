@@ -6,7 +6,11 @@
 
 ## Main World [v0.1]
 
-One non-instanced Unity scene containing the entire playable town area:
+Current implemented v0.1 world slice uses:
+- `Bootstrap` (runtime entrypoint) -> `MainTown` hub -> `IndoorRangeInstance` activity scene.
+- `MainWorld` is a temporary compatibility scene during migration and is not the primary runtime topology source of truth.
+
+MainTown target layout continues to represent the core town experience:
 
 - **Player's House** — bedroom (sleep/save), kitchen, office with computer (online catalog orders), garage/spare room as starter workshop
 - **Town** — streets, buildings, NPCs walking around
@@ -15,17 +19,17 @@ One non-instanced Unity scene containing the entire playable town area:
 - **General Store** — food, cleaning supplies, miscellaneous
 - **Gas Station** — refuel vehicles, buy snacks/drinks
 - **Town Hall** — purchase hunting licenses, tags, and permits
-- **Shooting Range** — practice lanes + competition area
-- **Roads** — driveable roads connecting all locations
-- **Checkpoints** — at world edges, optional transitions to separate instanced areas when implemented
+- **Shooting Range access** — indoor range currently reached via travel flow into `IndoorRangeInstance`
+- **Roads** — forward target for driveable links between locations
+- **Checkpoints** — forward target for edge transitions to additional instanced areas
 
-The player walks/drives between all main-world locations with zero loading screens. The main world is a small town, not a city — performance is manageable.
+In the current implemented slice, travel between MainTown and indoor range uses explicit scene travel. Seamless no-load interiors remain a design target for broader town coverage.
 
-**Hospital** — the player is taken here after catastrophic reloading failures or severe injuries. Not a player-navigable location in v0.1; implemented as a time-skip event with medical bills and debuffs.
+**Hospital** — the player is taken here after catastrophic reloading failures or severe injuries. Not a player-navigable location in v0.1; planned as a future time-skip consequence event with medical bills/debuff hooks.
 
 ---
 
-## Instanced Scenes [v0.2]
+## Instanced Scenes [v0.1]
 
 Checkpoint-driven separate scenes loaded when the player reaches a world-edge checkpoint and chooses to enter:
 
@@ -33,10 +37,11 @@ Checkpoint-driven separate scenes loaded when the player reaches a world-edge ch
 - **Competition Venues** — for major/special competitions that need unique layouts
 - **Future expansion areas** — new towns, wilderness areas, etc.
 
-Transition (default): player drives to checkpoint in MainWorld -> interact -> loading screen -> arrive at destination spawn point.
+Current implemented transition: player interacts with authored travel triggers for `MainTown <-> IndoorRangeInstance`.
+Forward transition target: player drives to checkpoint in town-world routes -> interact -> loading screen -> destination spawn.
 
 Vehicle scope rule:
-- Free driving is scoped to MainWorld roads.
+- Free driving is scoped to active town-world roads once driving is enabled.
 - Instanced scenes use on-foot gameplay by default unless a specific scene explicitly opts into drivable vehicles.
 - The vehicle is the travel trigger and persistence anchor (parked transform + cargo snapshot) for checkpoint transitions.
 
@@ -44,7 +49,7 @@ Vehicle scope rule:
 
 ## Building Interiors [v0.1]
 
-Most building interiors are part of the main world scene (enter through doors with trigger colliders, no loading). For very large interiors or future expansion buildings, use additive scene loading.
+Current slice includes both authored in-scene spaces and scene-travel based interiors (IndoorRangeInstance). For future expansion buildings, additive scene loading or reusable instance scenes are valid.
 
 ---
 
@@ -60,7 +65,7 @@ Workshop equipment is physically placed by the player. Tools sit on benches. She
 
 ## Vehicles [v0.2]
 
-Vehicles provide transportation between locations in MainWorld and serve as the travel mechanism for checkpoint transitions.
+Vehicles provide transportation between locations in town-world routes and serve as the travel mechanism for checkpoint transitions once driving is in scope.
 
 **VehicleDefinition (SO):**
 - Capacity (cargo space for hauling game, equipment, ammo)
@@ -79,7 +84,7 @@ Vehicles provide transportation between locations in MainWorld and serve as the 
 - Roads connect all main-world locations
 - Vehicle trunk acts as mobile storage container
 - Fuel management (refuel at gas station in town)
-- Driving simulation is limited to MainWorld in baseline architecture
+- Driving simulation is limited to active town-world routes in baseline architecture
 - Instanced destinations can reference vehicle cargo state without enabling full in-scene driving
 
 **Integration points:**

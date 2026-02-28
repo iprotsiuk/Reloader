@@ -1,5 +1,8 @@
 # UI Toolkit Runtime Big-Bang Migration Design
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 **Date:** 2026-02-25  
 **Status:** Approved
 

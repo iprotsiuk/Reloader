@@ -1,7 +1,12 @@
 # Main Town + Indoor Range Travel Design
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 **Date:** 2026-02-27
-**Status:** Approved for implementation
+**Status:** Implemented (core travel slice shipped; see `docs/design/v0.1-demo-status-and-milestones.md`)
+
+> Historical planning artifact: use `docs/design/v0.1-demo-status-and-milestones.md` and `docs/design/world-and-scenes.md` for current status/contract truth.
 
 ## Goal
 Define the first production world slice where the player can live in a `MainTown` hub, enter an `IndoorRange` gameplay instance, and return while preserving character state.

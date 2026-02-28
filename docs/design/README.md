@@ -17,6 +17,11 @@ Agent behavior:
 - Prefer **implemented** contracts for coding tasks unless the task explicitly asks for forward-design work.
 - Treat `SaveCoordinator` as the canonical current save orchestration term. If a future save facade is added, it must be documented as a thin wrapper over `SaveCoordinator`.
 
+Live status source-of-truth:
+- Use [v0.1-demo-status-and-milestones.md](v0.1-demo-status-and-milestones.md) for current implemented vs planned demo status and milestone exits.
+- Treat `prototype-scope.md` as version scope intent, not live completion tracking.
+- Treat `docs/plans/*.md` as planning/execution artifacts unless a plan has an explicit as-built status update.
+
 ## Then Read Your Domain
 
 | Working on... | Read these docs | Related skills |
@@ -32,7 +37,7 @@ Agent behavior:
 | **Save/load, game loop, progression, day cycle** | [save-and-progression.md](save-and-progression.md) | — |
 | **Quick save contract checks (schema/load order/size policy)** | [save-contract-quick-reference.md](save-contract-quick-reference.md) | — |
 | **Cross-domain extension guardrails (events, wiring, UI bridge, persistence, world integration)** | [extensible-development-contracts.md](extensible-development-contracts.md) | `writing-agent-docs`, `reviewing-design-docs` |
-| **Scoping work, prioritizing features** | [prototype-scope.md](prototype-scope.md) | — |
+| **Scoping work, prioritizing features** | [prototype-scope.md](prototype-scope.md), [v0.1-demo-status-and-milestones.md](v0.1-demo-status-and-milestones.md) | — |
 | **Adding new data assets (weapons, ammo, equipment)** | Depends on asset type — check skill | `adding-game-content`, `unity-project-conventions` |
 | **Any new C# script or Unity feature** | [core-architecture.md](core-architecture.md) | `unity-project-conventions` |
 

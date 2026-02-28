@@ -1,5 +1,8 @@
 # Domain Event Ports Implementation Plan
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Split runtime events into domain interfaces and migrate runtime systems from legacy static event facade call sites to narrow event dependencies for long-term scalability.

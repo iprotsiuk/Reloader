@@ -17,6 +17,23 @@ Contract rules:
 - Additional scenes may be appended after index `2`.
 - Topology validation is enforced by PlayMode smoke tests under `_Project/World/Tests/PlayMode`.
 
+## Travel Slice Status Snapshot [v0.1]
+
+Status as of 2026-02-28:
+- MainTown <-> IndoorRange round-trip travel is implemented and wired in scenes.
+- Bootstrap runtime entry flow targets MainTown spawn through travel coordinator bootstrap wiring.
+- Scene trigger objects and entry-point IDs are authored for both travel directions.
+- Regression coverage exists in PlayMode via `RoundTripTravelPlayModeTests`.
+
+Implementation references:
+- Runtime travel pipeline: `Reloader/Assets/_Project/World/Scripts/Runtime/Travel/WorldTravelCoordinator.cs`
+- Trigger component: `Reloader/Assets/_Project/World/Scripts/Runtime/Travel/TravelSceneTrigger.cs`
+- Bootstrap handoff: `Reloader/Assets/_Project/World/Scripts/Runtime/BootstrapWorldRoot.cs`
+- Round-trip regression tests: `Reloader/Assets/_Project/World/Tests/PlayMode/RoundTripTravelPlayModeTests.cs`
+
+Out-of-slice note:
+- Data-driven travel unlock evaluation and hybrid travel-time advancement remain separate follow-up slices; their absence does not block the current MainTown/IndoorRange round trip.
+
 ## Temporary MainWorld Coexistence Gate [v0.1]
 
 `Assets/Scenes/MainWorld.unity` remains a temporary compatibility scene during migration.

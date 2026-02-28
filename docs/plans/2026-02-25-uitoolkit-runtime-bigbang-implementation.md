@@ -1,5 +1,8 @@
 # UI Toolkit Runtime Big-Bang Migration Implementation Plan
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Replace all runtime uGUI screens (Belt HUD, TAB inventory, Ammo HUD, Trade UI, Reloading Workbench UI) with UI Toolkit using a data-model-first architecture with dumb views and explicit extension points.
@@ -314,8 +317,10 @@ git commit -m "feat: wire screen composition and action mappings"
 
 ### Task 9: Cut Over Runtime Scenes and Remove Old Runtime uGUI Wiring
 
+> Historical note (2026-02-28): active runtime world scenes are `MainTown` and `IndoorRangeInstance`; `MainWorld` is compatibility-only.
+
 **Files:**
-- Modify: `Reloader/Assets/Scenes/MainWorld.unity` (and any active runtime scene using old UI presenters)
+- Modify: active runtime scenes using old UI presenters (`Reloader/Assets/_Project/World/Scenes/MainTown.unity`, `Reloader/Assets/_Project/World/Scenes/IndoorRangeInstance.unity`, and compatibility scene `Reloader/Assets/Scenes/MainWorld.unity` only if needed)
 - Modify: `Reloader/Assets/_Project/UI/Scripts/BeltHudBootstrap.cs`
 - Modify: `Reloader/Assets/_Project/Economy/Editor/EconomySceneWiring.cs` (remove runtime uGUI dependencies if present)
 - Delete (runtime-only if unused):
@@ -347,7 +352,7 @@ Expected: PASS.
 **Step 5: Commit**
 
 ```bash
-git add Reloader/Assets/Scenes/MainWorld.unity Reloader/Assets/_Project/UI/Scripts/BeltHudBootstrap.cs Reloader/Assets/_Project/Economy/Editor/EconomySceneWiring.cs Reloader/Assets/_Project/UI/Toolkit
+git add Reloader/Assets/_Project/World/Scenes/MainTown.unity Reloader/Assets/_Project/World/Scenes/IndoorRangeInstance.unity Reloader/Assets/Scenes/MainWorld.unity Reloader/Assets/_Project/UI/Scripts/BeltHudBootstrap.cs Reloader/Assets/_Project/Economy/Editor/EconomySceneWiring.cs Reloader/Assets/_Project/UI/Toolkit
 git rm Reloader/Assets/_Project/UI/Prefabs/BeltHud.prefab Reloader/Assets/_Project/UI/Prefabs/TabUi.prefab
 git commit -m "refactor: cut over runtime ui to ui toolkit and remove ugui runtime"
 ```

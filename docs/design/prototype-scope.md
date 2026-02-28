@@ -5,12 +5,20 @@
 
 ---
 
+## Delivery Tracking [v0.1]
+
+Live implementation status and milestone tracking now live in [v0.1-demo-status-and-milestones.md](v0.1-demo-status-and-milestones.md).
+
+Use this document (`prototype-scope.md`) for target scope by version only; do not treat unchecked list items here as runtime completion truth.
+
+---
+
 ## Must Have [v0.1]
 
 The minimum viable prototype that demonstrates the core loop:
 
 - [ ] FPS controller (Modular First Person Controller asset)
-- [ ] One non-instanced `MainWorld` scene with the player's home and starter workshop room/garage
+- [ ] One non-instanced `MainWorld` scene with the player's home and starter workshop room/garage *(Superseded for active runtime topology; see `v0.1-demo-status-and-milestones.md`)*
 - [ ] Seamless interiors for core town locations (no scene loading for house/shops/range access)
 - [ ] Single-stage press interaction (resize, prime, charge, seat)
 - [ ] One caliber (.308 Winchester)
@@ -29,7 +37,7 @@ The minimum viable prototype that demonstrates the core loop:
 
 ## Should Have [v0.2]
 
-- [ ] Driving in MainWorld (car to navigate town locations + checkpoint travel transitions)
+- [ ] Driving in town-world routes (car to navigate town locations + checkpoint travel transitions)
 - [ ] Second caliber
 - [ ] Competition (basic bullseye)
 - [ ] Money from competitions

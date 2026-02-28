@@ -1,5 +1,8 @@
 # Weapon Animation Contract v1 Implementation Plan
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Implement a reusable FPS viewmodel animation contract that supports interruptible reload and ADS movement slowdown across all current and future weapons.

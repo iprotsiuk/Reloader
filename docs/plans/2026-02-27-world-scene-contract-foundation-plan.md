@@ -1,5 +1,8 @@
 # World Scene Contract Foundation Plan
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 ## Objective
 
 Build a scalable, low-regression scene foundation for many towns/instances by replacing implicit scene assumptions with explicit, testable contracts.

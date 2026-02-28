@@ -1,7 +1,12 @@
 # NPC Capability Foundation Design
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 **Date:** 2026-02-26
-**Status:** Approved for implementation
+**Status:** Implemented (foundation slice shipped; see As-Built Note and `docs/design/v0.1-demo-status-and-milestones.md`)
+
+> Historical planning artifact: use `docs/design/v0.1-demo-status-and-milestones.md` and `docs/design/npcs-and-quests.md` for current status/contract truth.
 
 ## Goal
 Build a reusable NPC foundation that lets world-building start immediately with drag-and-drop prefabs while keeping role logic extensible and avoiding role-specific code duplication.

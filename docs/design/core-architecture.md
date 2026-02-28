@@ -61,13 +61,14 @@ Reloader/Assets/
 │   └── Audio/                   # SFX, music, ambient
 ├── ThirdParty/                  # Asset store packages (never modify directly)
 ├── Scenes/
-│   ├── MainWorld.unity          # Current baseline scene scaffold (town + workshop)
+│   ├── Bootstrap.unity          # Runtime entrypoint for persistent bootstrap flow
+│   ├── MainWorld.unity          # Current baseline scene scaffold (compatibility-only; not active topology source of truth)
 │   ├── MainMenu.unity           # Planned menu scene (not in scaffold yet)
 │   └── ...
 └── Resources/                   # Optional. Add only for runtime name-based loading.
 ```
 
-Each feature folder contains: `Scripts/`, `Data/` (SO assets), `Prefabs/`, optionally `UI/` and `Scenes/`. Global scenes (currently `MainWorld`; `MainMenu` planned) live at `Reloader/Assets/Scenes/`. Feature-specific instanced scenes (e.g., HuntingGrounds_01) live in their feature's `Scenes/` subfolder.
+Each feature folder contains: `Scripts/`, `Data/` (SO assets), `Prefabs/`, optionally `UI/` and `Scenes/`. Global scenes live at `Reloader/Assets/Scenes/` (runtime topology starts from `Bootstrap`). Active world scenes are under `Reloader/Assets/_Project/World/Scenes/` (`MainTown`, `IndoorRangeInstance` for current v0.1 slice). `MainWorld` remains compatibility-only during migration.
 
 **Rules:**
 - `_Project/` prefix keeps custom code sorted to the top in Unity's Project window.

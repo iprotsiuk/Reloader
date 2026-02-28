@@ -1,5 +1,8 @@
 # Unity VCS Merge Guard
 
+> Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
+
+
 ## Problem
 Unity conflict resolution can silently drop package dependencies or write stale `ProjectSettings` content (for example switching build scenes or clearing project metadata), causing compile/runtime drift.
 
