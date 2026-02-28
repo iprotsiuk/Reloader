@@ -120,7 +120,7 @@ namespace Reloader.Core.Runtime
                 return;
             }
 
-            CurrentInteractionHint = default;
+            CurrentInteractionHint = new InteractionHintPayload(string.Empty, string.Empty, string.Empty);
             HasInteractionHint = false;
             OnInteractionHintCleared?.Invoke();
         }
