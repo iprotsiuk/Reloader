@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Reloader.Reloading.World
@@ -13,7 +14,7 @@ namespace Reloader.Reloading.World
             target = null;
             if (_playerCamera == null)
             {
-                _playerCamera = Camera.main;
+                _playerCamera = ResolveFallbackCamera();
             }
 
             if (_playerCamera == null)
@@ -35,6 +36,29 @@ namespace Reloader.Reloading.World
         public void SetCameraForTests(Camera camera)
         {
             _playerCamera = camera;
+        }
+
+        private static Camera ResolveFallbackCamera()
+        {
+            var taggedMain = Camera.main;
+            if (taggedMain != null)
+            {
+                return taggedMain;
+            }
+
+            var cameras = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
+            for (var i = 0; i < cameras.Length; i++)
+            {
+                var camera = cameras[i];
+                if (camera == null || !camera.enabled || !camera.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                return camera;
+            }
+
+            return null;
         }
     }
 }

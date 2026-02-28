@@ -124,11 +124,16 @@ namespace Reloader.Player
                 PickupQueued = true;
             }
 
-            if (_menuToggleAction != null && _menuToggleAction.WasPressedThisFrame())
+            var keyboard = Keyboard.current;
+            if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
+            {
+                // Escape is handled directly by open UI/controllers as a close-only action.
+            }
+            else if (_menuToggleAction != null && _menuToggleAction.WasPressedThisFrame())
             {
                 MenuToggleQueued = true;
             }
-            else if (Keyboard.current != null && Keyboard.current.tabKey.wasPressedThisFrame)
+            else if (keyboard != null && keyboard.tabKey.wasPressedThisFrame)
             {
                 MenuToggleQueued = true;
             }
@@ -165,7 +170,6 @@ namespace Reloader.Player
 
             var plusPressed = false;
             var minusPressed = false;
-            var keyboard = Keyboard.current;
             if (keyboard != null)
             {
                 plusPressed = keyboard.equalsKey.wasPressedThisFrame || keyboard.numpadPlusKey.wasPressedThisFrame;
@@ -355,5 +359,6 @@ namespace Reloader.Player
                 _playerMap?.Enable();
             }
         }
+
     }
 }

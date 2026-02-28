@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Reloader.Core.Runtime;
@@ -15,6 +16,7 @@ namespace Reloader.Player
         private bool _isTradeMenuOpen;
         private bool _isWorkbenchMenuOpen;
         private bool _isTabInventoryOpen;
+        private bool _isStorageMenuOpen;
         private IUiStateEvents _uiStateEvents;
         private IUiStateEvents _subscribedUiStateEvents;
         private IShopEvents _shopEvents;
@@ -66,6 +68,13 @@ namespace Reloader.Player
 
         private void Update()
         {
+            var storageMenuOpen = IsStorageUiOpen();
+            if (_isStorageMenuOpen != storageMenuOpen)
+            {
+                _isStorageMenuOpen = storageMenuOpen;
+                ApplyCursorState();
+            }
+
             if (IsAnyMenuOpen)
             {
                 ApplyCursorState();
@@ -152,7 +161,7 @@ namespace Reloader.Player
 
         private void ApplyCursorState()
         {
-            IsAnyMenuOpen = _isTradeMenuOpen || _isWorkbenchMenuOpen || _isTabInventoryOpen;
+            IsAnyMenuOpen = _isTradeMenuOpen || _isWorkbenchMenuOpen || _isTabInventoryOpen || _isStorageMenuOpen;
             if (IsAnyMenuOpen)
             {
                 Cursor.lockState = CursorLockMode.None;
@@ -185,11 +194,13 @@ namespace Reloader.Player
             {
                 _isWorkbenchMenuOpen = uiStateEvents.IsWorkbenchMenuVisible;
                 _isTabInventoryOpen = uiStateEvents.IsTabInventoryVisible;
+                _isStorageMenuOpen = IsStorageUiOpen();
             }
             else if (_useRuntimeKernelUiStateEvents)
             {
                 _isWorkbenchMenuOpen = false;
                 _isTabInventoryOpen = false;
+                _isStorageMenuOpen = IsStorageUiOpen();
             }
         }
 
@@ -310,6 +321,21 @@ namespace Reloader.Player
         private void UnsubscribeFromRuntimeHubReconfigure()
         {
             RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
+        }
+
+        private static bool IsStorageUiOpen()
+        {
+            var type = Type.GetType("Reloader.Inventory.StorageUiSession, Reloader.Inventory");
+            if (type == null)
+            {
+                return false;
+            }
+
+            var prop = type.GetProperty("IsOpen");
+            return prop != null
+                   && prop.PropertyType == typeof(bool)
+                   && prop.GetValue(null) is bool isOpen
+                   && isOpen;
         }
     }
 }

@@ -115,8 +115,18 @@ namespace Reloader.NPCs.World
                 return;
             }
 
+            if (_isTradeOpen
+                && ((Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+                    || (_inputSource != null && _inputSource.ConsumeMenuTogglePressed())))
+            {
+                ResolveShopEvents()?.RaiseShopTradeClosed();
+                _flushPickupInputAtEndOfFrame = false;
+                return;
+            }
+
             var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
-            if (!_interactionCoordinatorModeEnabled && (_isTradeOpen || (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen)))
+            var isAnyMenuOpen = (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen) || IsStorageUiOpen();
+            if (!_interactionCoordinatorModeEnabled && (_isTradeOpen || isAnyMenuOpen))
             {
                 ClearInteractionHint();
             }
@@ -190,9 +200,7 @@ namespace Reloader.NPCs.World
 
         private bool IsPickupPressedThisFrame()
         {
-            // Inventory also consumes Pickup input; checking the keyboard edge keeps vendor interaction responsive.
-            var keyboardPressed = Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame;
-            if (keyboardPressed)
+            if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
             {
                 _inputSource?.ConsumePickupPressed();
                 return true;
@@ -356,6 +364,21 @@ namespace Reloader.NPCs.World
         private static void ClearInteractionHint()
         {
             RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared(VendorHintContextId);
+        }
+
+        private static bool IsStorageUiOpen()
+        {
+            var type = Type.GetType("Reloader.Inventory.StorageUiSession, Reloader.Inventory");
+            if (type == null)
+            {
+                return false;
+            }
+
+            var prop = type.GetProperty("IsOpen");
+            return prop != null
+                   && prop.PropertyType == typeof(bool)
+                   && prop.GetValue(null) is bool isOpen
+                   && isOpen;
         }
     }
 }

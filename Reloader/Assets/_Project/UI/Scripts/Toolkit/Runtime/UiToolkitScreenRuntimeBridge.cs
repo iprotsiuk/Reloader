@@ -6,6 +6,7 @@ using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.UI.Toolkit.AmmoHud;
 using Reloader.UI.Toolkit.BeltHud;
+using Reloader.UI.Toolkit.ChestInventory;
 using Reloader.UI.Toolkit.Contracts;
 using Reloader.UI.Toolkit.InteractionHint;
 using Reloader.UI.Toolkit.Reloading;
@@ -25,6 +26,7 @@ namespace Reloader.UI.Toolkit.Runtime
         private const string BeltHudScreenId = "belt-hud";
         private const string AmmoHudScreenId = "ammo-hud";
         private const string TabInventoryScreenId = "tab-inventory";
+        private const string ChestInventoryScreenId = "chest-inventory";
         private const string TradeScreenId = "trade-ui";
         private const string ReloadingScreenId = "reloading-workbench";
         private const string InteractionHintScreenId = "interaction-hint";
@@ -34,6 +36,7 @@ namespace Reloader.UI.Toolkit.Runtime
             new(BeltHudScreenId, "belt-hud-controller", ScreenBindingKind.BeltHud, DependencyRequirement.Inventory),
             new(AmmoHudScreenId, "ammo-hud-controller", ScreenBindingKind.AmmoHud, DependencyRequirement.Weapon),
             new(TabInventoryScreenId, "tab-menu-controller", ScreenBindingKind.TabInventory, DependencyRequirement.Inventory | DependencyRequirement.Input),
+            new(ChestInventoryScreenId, "chest-inventory-controller", ScreenBindingKind.ChestInventory, DependencyRequirement.Inventory | DependencyRequirement.Input),
             new(TradeScreenId, "trade-menu-controller", ScreenBindingKind.Trade, DependencyRequirement.None),
             new(ReloadingScreenId, "reloading-menu-controller", ScreenBindingKind.ReloadingWorkbench, DependencyRequirement.None),
             new(InteractionHintScreenId, "interaction-hint-controller", ScreenBindingKind.InteractionHint, DependencyRequirement.None)
@@ -160,6 +163,7 @@ namespace Reloader.UI.Toolkit.Runtime
                 ScreenBindingKind.BeltHud => BindBeltHud(root, definition.ControllerObjectName, dependencies.InventoryController),
                 ScreenBindingKind.AmmoHud => BindAmmoHud(root, definition.ControllerObjectName, dependencies.WeaponController),
                 ScreenBindingKind.TabInventory => BindTabInventory(root, definition.ControllerObjectName, dependencies.InventoryController, dependencies.InputSource),
+                ScreenBindingKind.ChestInventory => BindChestInventory(root, definition.ControllerObjectName, dependencies.InventoryController, dependencies.InputSource),
                 ScreenBindingKind.Trade => BindTrade(root, definition.ControllerObjectName),
                 ScreenBindingKind.ReloadingWorkbench => BindReloadingWorkbench(root, definition.ControllerObjectName),
                 ScreenBindingKind.InteractionHint => BindInteractionHint(root, definition.ControllerObjectName),
@@ -223,6 +227,23 @@ namespace Reloader.UI.Toolkit.Runtime
 
             var controller = GetOrAddController<TradeController>(controllerName);
             controller.SetViewBinder(viewBinder);
+            return UiContractGuard.Bind(controller, viewBinder);
+        }
+
+        private IDisposable BindChestInventory(
+            VisualElement root,
+            string controllerName,
+            PlayerInventoryController inventoryController,
+            IPlayerInputSource inputSource)
+        {
+            var playerSlotCount = Mathf.Max(0, inventoryController?.Runtime?.BackpackCapacity ?? 0);
+            var viewBinder = new ChestInventoryViewBinder();
+            viewBinder.Initialize(root, chestSlotCount: 20, playerSlotCount);
+
+            var controller = GetOrAddController<ChestInventoryController>(controllerName);
+            controller.SetInventoryController(inventoryController);
+            controller.SetInputSource(inputSource);
+            controller.Configure(viewBinder);
             return UiContractGuard.Bind(controller, viewBinder);
         }
 
@@ -418,6 +439,7 @@ namespace Reloader.UI.Toolkit.Runtime
             BeltHud,
             AmmoHud,
             TabInventory,
+            ChestInventory,
             Trade,
             ReloadingWorkbench,
             InteractionHint

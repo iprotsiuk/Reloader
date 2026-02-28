@@ -789,6 +789,14 @@ namespace Reloader.World.Travel
                 uiType.GetMethod("RaiseTabInventoryVisibilityChanged", BindingFlags.Public | BindingFlags.Instance)
                     ?.Invoke(uiStateEvents, new object[] { false });
             }
+
+            CloseStorageUiSessionAfterTravel();
+        }
+
+        private static void CloseStorageUiSessionAfterTravel()
+        {
+            var storageUiSessionType = Type.GetType("Reloader.Inventory.StorageUiSession, Reloader.Inventory");
+            storageUiSessionType?.GetMethod("Close", BindingFlags.Public | BindingFlags.Static)?.Invoke(null, null);
         }
 
         private static Type ResolveRuntimeKernelBootstrapperType()

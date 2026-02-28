@@ -1,0 +1,19 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="project://database/Assets/_Project/UI/Toolkit/USS/ChestInventory.uss?fileID=7433441132597879392&amp;guid=0315408d87e748a5b2083937a70bba48&amp;type=3#ChestInventory"/>
+    <ui:VisualElement name="chest__panel" class="chest__panel">
+        <ui:VisualElement class="chest__header-row">
+            <ui:Label text="Storage" class="chest__title"/>
+            <ui:Label text="Chest (left) / Inventory (right)" class="chest__hint"/>
+        </ui:VisualElement>
+        <ui:VisualElement class="chest__content">
+            <ui:VisualElement class="chest__column">
+                <ui:Label text="Chest" class="chest__column-title"/>
+                <ui:VisualElement name="chest__left-grid" class="chest__grid"/>
+            </ui:VisualElement>
+            <ui:VisualElement class="chest__column">
+                <ui:Label text="Inventory" class="chest__column-title"/>
+                <ui:VisualElement name="chest__right-grid" class="chest__grid"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

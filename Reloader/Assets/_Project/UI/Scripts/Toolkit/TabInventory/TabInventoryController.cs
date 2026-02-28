@@ -5,6 +5,7 @@ using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.UI.Toolkit.Contracts;
+using UnityEngine.InputSystem;
 using UnityEngine;
 
 namespace Reloader.UI.Toolkit.TabInventory
@@ -82,6 +83,13 @@ namespace Reloader.UI.Toolkit.TabInventory
         {
             ResolveInputSource();
 
+            if (_isOpen && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            {
+                SetMenuOpen(false);
+                Refresh();
+                return;
+            }
+
             if (_inputSource == null)
             {
                 return;
@@ -89,12 +97,20 @@ namespace Reloader.UI.Toolkit.TabInventory
 
             if (_inputSource.ConsumeMenuTogglePressed())
             {
-                SetMenuOpen(!_isOpen);
-                if (_isOpen)
+                var uiStateEvents = ResolveUiStateEvents();
+                var externalMenuOpen = StorageUiSession.IsOpen
+                                       || (uiStateEvents != null
+                                           && (uiStateEvents.IsShopTradeMenuOpen || uiStateEvents.IsWorkbenchMenuVisible));
+
+                if (_isOpen || externalMenuOpen)
                 {
-                    _activeSection = "inventory";
+                    CloseAllOpenMenus();
+                    Refresh();
+                    return;
                 }
 
+                SetMenuOpen(true);
+                _activeSection = "inventory";
                 Refresh();
             }
         }
@@ -280,6 +296,21 @@ namespace Reloader.UI.Toolkit.TabInventory
 
             _isOpen = isOpen;
             ResolveUiStateEvents()?.RaiseTabInventoryVisibilityChanged(_isOpen);
+        }
+
+        private void CloseAllOpenMenus()
+        {
+            if (StorageUiSession.IsOpen)
+            {
+                StorageUiSession.Close();
+            }
+
+            RuntimeKernelBootstrapper.ShopEvents?.RaiseShopTradeClosed();
+
+            var uiStateEvents = ResolveUiStateEvents();
+            uiStateEvents?.RaiseWorkbenchMenuVisibilityChanged(false);
+
+            SetMenuOpen(false);
         }
 
         private IUiStateEvents ResolveUiStateEvents()

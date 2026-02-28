@@ -1,3 +1,4 @@
+using System;
 using Reloader.Player;
 using Reloader.Player.Interaction;
 using Reloader.Core.Events;
@@ -86,7 +87,8 @@ namespace Reloader.Reloading.World
             }
 
             var uiStateEvents = ResolveUiStateEvents();
-            if (!_interactionCoordinatorModeEnabled && uiStateEvents != null && uiStateEvents.IsAnyMenuOpen)
+            var isAnyMenuOpen = (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen) || IsStorageUiOpen();
+            if (!_interactionCoordinatorModeEnabled && isAnyMenuOpen)
             {
                 ClearInteractionHint();
             }
@@ -103,7 +105,23 @@ namespace Reloader.Reloading.World
 
             _activeTarget = target;
 
+            if (target.IsWorkbenchOpen
+                && ((Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+                    || (_inputSource != null && _inputSource.ConsumeMenuTogglePressed())))
+            {
+                target.CloseWorkbench();
+                RaiseWorkbenchMenuVisibilityChanged(false);
+                _flushPickupInputAtEndOfFrame = false;
+                return;
+            }
+
             if (_interactionCoordinatorModeEnabled)
+            {
+                _flushPickupInputAtEndOfFrame = false;
+                return;
+            }
+
+            if (isAnyMenuOpen)
             {
                 _flushPickupInputAtEndOfFrame = false;
                 return;
@@ -148,7 +166,7 @@ namespace Reloader.Reloading.World
             }
 
             var subjectText = target is MonoBehaviour benchBehaviour ? benchBehaviour.name : "Reloading Bench";
-            var stableTieBreaker = target is Object benchObject ? benchObject.GetInstanceID().ToString() : "bench";
+            var stableTieBreaker = target is UnityEngine.Object benchObject ? benchObject.GetInstanceID().ToString() : "bench";
             candidate = new PlayerInteractionCandidate(
                 BenchHintContextId,
                 BenchHintActionText,
@@ -177,20 +195,13 @@ namespace Reloader.Reloading.World
 
         private bool IsPickupPressedThisFrame()
         {
-            // Keep keyboard fallback for benches because pickup input is shared with inventory flows.
-            var keyboardPressed = Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame;
-            if (keyboardPressed)
+            if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
             {
                 _inputSource?.ConsumePickupPressed();
                 return true;
             }
 
-            if (_inputSource == null)
-            {
-                return false;
-            }
-
-            return _inputSource.ConsumePickupPressed();
+            return _inputSource != null && _inputSource.ConsumePickupPressed();
         }
 
         private void ResolveReferences()
@@ -253,6 +264,21 @@ namespace Reloader.Reloading.World
         private static void ClearInteractionHint()
         {
             RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared(BenchHintContextId);
+        }
+
+        private static bool IsStorageUiOpen()
+        {
+            var type = Type.GetType("Reloader.Inventory.StorageUiSession, Reloader.Inventory");
+            if (type == null)
+            {
+                return false;
+            }
+
+            var prop = type.GetProperty("IsOpen");
+            return prop != null
+                   && prop.PropertyType == typeof(bool)
+                   && prop.GetValue(null) is bool isOpen
+                   && isOpen;
         }
     }
 }

@@ -21,6 +21,7 @@ namespace Reloader.UI.Toolkit.Runtime
         [SerializeField] private VisualTreeAsset _beltHudTree;
         [SerializeField] private VisualTreeAsset _ammoHudTree;
         [SerializeField] private VisualTreeAsset _tabInventoryTree;
+        [SerializeField] private VisualTreeAsset _chestInventoryTree;
         [SerializeField] private VisualTreeAsset _tradeTree;
         [SerializeField] private VisualTreeAsset _reloadingTree;
         [SerializeField] private VisualTreeAsset _interactionHintTree;
@@ -36,6 +37,7 @@ namespace Reloader.UI.Toolkit.Runtime
             EnsureScreenDocument("belt-hud", _beltHudTree);
             EnsureScreenDocument("ammo-hud", _ammoHudTree);
             EnsureScreenDocument("tab-inventory", _tabInventoryTree);
+            EnsureScreenDocument("chest-inventory", _chestInventoryTree);
             EnsureScreenDocument("trade-ui", _tradeTree);
             EnsureScreenDocument("reloading-workbench", _reloadingTree);
             EnsureScreenDocument("interaction-hint", _interactionHintTree);
@@ -88,6 +90,7 @@ namespace Reloader.UI.Toolkit.Runtime
             _beltHudTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/BeltHud.uxml");
             _ammoHudTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/AmmoHud.uxml");
             _tabInventoryTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/TabInventory.uxml");
+            _chestInventoryTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/ChestInventory.uxml");
             _tradeTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/TradeUi.uxml");
             _reloadingTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/ReloadingWorkbench.uxml");
             _interactionHintTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/InteractionHint.uxml");
