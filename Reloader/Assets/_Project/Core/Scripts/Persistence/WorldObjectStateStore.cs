@@ -31,6 +31,18 @@ namespace Reloader.Core.Persistence
             return _records.TryGetValue(key, out record);
         }
 
+        public bool Remove(string scenePath, string objectId)
+        {
+            EnsureRequired(scenePath, nameof(scenePath));
+            EnsureRequired(objectId, nameof(objectId));
+            return _records.Remove(BuildKey(scenePath, objectId));
+        }
+
+        public List<KeyValuePair<(string scenePath, string objectId), WorldObjectStateRecord>> Snapshot()
+        {
+            return new List<KeyValuePair<(string scenePath, string objectId), WorldObjectStateRecord>>(_records);
+        }
+
         private static (string scenePath, string objectId) BuildKey(string scenePath, string objectId)
         {
             return (scenePath, objectId);

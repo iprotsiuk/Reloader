@@ -169,6 +169,13 @@ namespace Reloader.Core.Tests.EditMode
                     }
                 }
             });
+            source.ReclaimEntries.Add(new WorldObjectStateModule.ReclaimRecord
+            {
+                ScenePath = "Assets/Scenes/MainWorld.unity",
+                ObjectId = "pickup-001",
+                ItemInstanceId = "item-123",
+                CleanedOnDay = 13
+            });
 
             var payloadJson = source.CaptureModuleStateJson();
             var restored = new WorldObjectStateModule();
@@ -192,6 +199,13 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(restoredRecord.RotationW, Is.EqualTo(0.75f));
             Assert.That(restoredRecord.LastUpdatedDay, Is.EqualTo(12));
             Assert.That(restoredRecord.ItemInstanceId, Is.EqualTo("item-123"));
+
+            Assert.That(restored.ReclaimEntries.Count, Is.EqualTo(1));
+            var reclaimRecord = restored.ReclaimEntries[0];
+            Assert.That(reclaimRecord.ScenePath, Is.EqualTo("Assets/Scenes/MainWorld.unity"));
+            Assert.That(reclaimRecord.ObjectId, Is.EqualTo("pickup-001"));
+            Assert.That(reclaimRecord.ItemInstanceId, Is.EqualTo("item-123"));
+            Assert.That(reclaimRecord.CleanedOnDay, Is.EqualTo(13));
         }
 
         [Test]
@@ -217,6 +231,18 @@ namespace Reloader.Core.Tests.EditMode
 
             Assert.DoesNotThrow(() => module.RestoreModuleStateFromJson(payloadJson));
             Assert.That(module.SceneObjectStates.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void WorldObjectStateModule_Restore_BackwardCompatiblePayload_WithoutReclaimEntriesDefaultsEmpty()
+        {
+            var module = new WorldObjectStateModule();
+            var payloadJson = "{\"sceneObjectStates\":[{\"scenePath\":\"Assets/Scenes/MainWorld.unity\",\"records\":[{\"objectId\":\"pickup-001\"}]}]}";
+
+            module.RestoreModuleStateFromJson(payloadJson);
+
+            Assert.That(module.SceneObjectStates.Count, Is.EqualTo(1));
+            Assert.That(module.ReclaimEntries.Count, Is.EqualTo(0));
         }
     }
 }

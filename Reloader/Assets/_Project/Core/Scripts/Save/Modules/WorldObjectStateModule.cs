@@ -60,22 +60,43 @@ namespace Reloader.Core.Save.Modules
         }
 
         [Serializable]
+        public sealed class ReclaimRecord
+        {
+            [JsonProperty("scenePath")]
+            public string ScenePath { get; set; } = string.Empty;
+
+            [JsonProperty("objectId")]
+            public string ObjectId { get; set; } = string.Empty;
+
+            [JsonProperty("itemInstanceId")]
+            public string ItemInstanceId { get; set; } = string.Empty;
+
+            [JsonProperty("cleanedOnDay")]
+            public int CleanedOnDay { get; set; }
+        }
+
+        [Serializable]
         private sealed class WorldObjectStatePayload
         {
             [JsonProperty("sceneObjectStates")]
             public List<SceneObjectStateRecord> SceneObjectStates { get; set; } = new List<SceneObjectStateRecord>();
+
+            [JsonProperty("reclaimEntries")]
+            public List<ReclaimRecord> ReclaimEntries { get; set; } = new List<ReclaimRecord>();
         }
 
         public string ModuleKey => "WorldObjectState";
         public int ModuleVersion => 1;
 
         public List<SceneObjectStateRecord> SceneObjectStates { get; } = new List<SceneObjectStateRecord>();
+        public List<ReclaimRecord> ReclaimEntries { get; } = new List<ReclaimRecord>();
 
         public string CaptureModuleStateJson()
         {
             return JsonConvert.SerializeObject(new WorldObjectStatePayload
             {
-                SceneObjectStates = CloneSceneStateRecords(SceneObjectStates)
+                SceneObjectStates = CloneSceneStateRecords(SceneObjectStates),
+                ReclaimEntries = CloneReclaimRecords(ReclaimEntries)
             });
         }
 
@@ -84,36 +105,56 @@ namespace Reloader.Core.Save.Modules
             var payload = JsonConvert.DeserializeObject<WorldObjectStatePayload>(payloadJson);
 
             SceneObjectStates.Clear();
-            if (payload?.SceneObjectStates == null)
-            {
-                return;
-            }
+            ReclaimEntries.Clear();
 
-            for (var i = 0; i < payload.SceneObjectStates.Count; i++)
+            if (payload?.SceneObjectStates != null)
             {
-                var sceneRecord = payload.SceneObjectStates[i];
-                if (sceneRecord == null || string.IsNullOrWhiteSpace(sceneRecord.ScenePath) || sceneRecord.Records == null)
+                for (var i = 0; i < payload.SceneObjectStates.Count; i++)
                 {
-                    continue;
-                }
-
-                var normalizedRecords = new List<WorldObjectRecord>();
-                for (var j = 0; j < sceneRecord.Records.Count; j++)
-                {
-                    var record = sceneRecord.Records[j];
-                    if (record == null || string.IsNullOrWhiteSpace(record.ObjectId))
+                    var sceneRecord = payload.SceneObjectStates[i];
+                    if (sceneRecord == null || string.IsNullOrWhiteSpace(sceneRecord.ScenePath) || sceneRecord.Records == null)
                     {
                         continue;
                     }
 
-                    normalizedRecords.Add(CloneRecord(record));
+                    var normalizedRecords = new List<WorldObjectRecord>();
+                    for (var j = 0; j < sceneRecord.Records.Count; j++)
+                    {
+                        var record = sceneRecord.Records[j];
+                        if (record == null || string.IsNullOrWhiteSpace(record.ObjectId))
+                        {
+                            continue;
+                        }
+
+                        normalizedRecords.Add(CloneRecord(record));
+                    }
+
+                    SceneObjectStates.Add(new SceneObjectStateRecord
+                    {
+                        ScenePath = sceneRecord.ScenePath,
+                        Records = normalizedRecords
+                    });
+                }
+            }
+
+            if (payload?.ReclaimEntries == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < payload.ReclaimEntries.Count; i++)
+            {
+                var reclaimRecord = payload.ReclaimEntries[i];
+                if (reclaimRecord == null
+                    || string.IsNullOrWhiteSpace(reclaimRecord.ScenePath)
+                    || string.IsNullOrWhiteSpace(reclaimRecord.ObjectId)
+                    || string.IsNullOrWhiteSpace(reclaimRecord.ItemInstanceId)
+                    || reclaimRecord.CleanedOnDay < 0)
+                {
+                    continue;
                 }
 
-                SceneObjectStates.Add(new SceneObjectStateRecord
-                {
-                    ScenePath = sceneRecord.ScenePath,
-                    Records = normalizedRecords
-                });
+                ReclaimEntries.Add(CloneReclaimRecord(reclaimRecord));
             }
         }
 
@@ -145,6 +186,20 @@ namespace Reloader.Core.Save.Modules
                     SaveValidation.EnsureRequiredString(record.ObjectId, $"WorldObjectState objectId is missing at scene '{sceneRecord.ScenePath}', index {j}.");
                     SaveValidation.EnsureNonNegative(record.LastUpdatedDay, $"WorldObjectState lastUpdatedDay is negative for '{record.ObjectId}'.");
                 }
+            }
+
+            for (var i = 0; i < ReclaimEntries.Count; i++)
+            {
+                var reclaimRecord = ReclaimEntries[i];
+                if (reclaimRecord == null)
+                {
+                    throw new InvalidOperationException($"WorldObjectState reclaim record at index {i} is null.");
+                }
+
+                SaveValidation.EnsureRequiredString(reclaimRecord.ScenePath, $"WorldObjectState reclaim scenePath is missing at index {i}.");
+                SaveValidation.EnsureRequiredString(reclaimRecord.ObjectId, $"WorldObjectState reclaim objectId is missing at index {i}.");
+                SaveValidation.EnsureRequiredString(reclaimRecord.ItemInstanceId, $"WorldObjectState reclaim itemInstanceId is missing at index {i}.");
+                SaveValidation.EnsureNonNegative(reclaimRecord.CleanedOnDay, $"WorldObjectState reclaim cleanedOnDay is negative for '{reclaimRecord.ItemInstanceId}'.");
             }
         }
 
@@ -191,6 +246,28 @@ namespace Reloader.Core.Save.Modules
             return cloned;
         }
 
+        private static List<ReclaimRecord> CloneReclaimRecords(List<ReclaimRecord> source)
+        {
+            var cloned = new List<ReclaimRecord>();
+            if (source == null)
+            {
+                return cloned;
+            }
+
+            for (var i = 0; i < source.Count; i++)
+            {
+                var record = source[i];
+                if (record == null)
+                {
+                    continue;
+                }
+
+                cloned.Add(CloneReclaimRecord(record));
+            }
+
+            return cloned;
+        }
+
         private static WorldObjectRecord CloneRecord(WorldObjectRecord source)
         {
             return new WorldObjectRecord
@@ -208,6 +285,17 @@ namespace Reloader.Core.Save.Modules
                 RotationW = source.RotationW,
                 LastUpdatedDay = source.LastUpdatedDay,
                 ItemInstanceId = source.ItemInstanceId
+            };
+        }
+
+        private static ReclaimRecord CloneReclaimRecord(ReclaimRecord source)
+        {
+            return new ReclaimRecord
+            {
+                ScenePath = source.ScenePath,
+                ObjectId = source.ObjectId,
+                ItemInstanceId = source.ItemInstanceId,
+                CleanedOnDay = source.CleanedOnDay
             };
         }
     }

@@ -8,9 +8,12 @@ namespace Reloader.Core.Persistence
         private static bool _isInitialized;
         private static WorldObjectStateStore _stateStore = new WorldObjectStateStore();
         private static WorldScenePolicyRegistry _policyRegistry = new WorldScenePolicyRegistry();
+        private static ReclaimStorageService _reclaimStorage = new ReclaimStorageService();
+        private static WorldCleanupService _cleanupService = new WorldCleanupService();
         private static WorldObjectStateApplyService _applyService = new WorldObjectStateApplyService();
 
         public static WorldObjectStateStore StateStore => _stateStore;
+        public static ReclaimStorageService ReclaimStorage => _reclaimStorage;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetForDomainReload()
@@ -48,6 +51,8 @@ namespace Reloader.Core.Persistence
             _isInitialized = false;
             _stateStore = new WorldObjectStateStore();
             _policyRegistry = new WorldScenePolicyRegistry();
+            _reclaimStorage = new ReclaimStorageService();
+            _cleanupService = new WorldCleanupService();
             _applyService = new WorldObjectStateApplyService();
         }
 
@@ -75,6 +80,11 @@ namespace Reloader.Core.Persistence
                 ObjectId = objectId,
                 Consumed = true
             });
+        }
+
+        public static int ProcessDayBoundary(int previousDay, int currentDay)
+        {
+            return _cleanupService.CleanupDailyResetForDayChange(previousDay, currentDay, _stateStore, _policyRegistry, _reclaimStorage);
         }
 
         private static void OnSceneLoaded(Scene loadedScene, LoadSceneMode mode)

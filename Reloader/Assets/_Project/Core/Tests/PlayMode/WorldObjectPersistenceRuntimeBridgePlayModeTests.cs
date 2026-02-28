@@ -251,6 +251,119 @@ namespace Reloader.Core.Tests.PlayMode
             Assert.That(targetIdentity.gameObject.activeSelf, Is.False, "DailyReset policy should still apply per-scene state.");
         }
 
+        [UnityTest]
+        public IEnumerator DayBoundary_DailyResetScene_SameDayRetainsState()
+        {
+            yield return LoadScene(MainTownSceneName);
+            var activeScene = SceneManager.GetActiveScene();
+            var targetIdentity = CreateIdentityInScene(activeScene, "qa.persistence.day-boundary.same-day");
+
+            WorldObjectPersistenceRuntimeBridge.RegisterScenePolicy(new WorldScenePersistencePolicy
+            {
+                ScenePath = activeScene.path,
+                Mode = WorldObjectPersistenceMode.DailyReset,
+                TrackTransforms = true,
+                TrackConsumed = true,
+                TrackDestroyed = true,
+                TrackSpawnedObjects = true
+            });
+
+            WorldObjectPersistenceRuntimeBridge.StateStore.Upsert(activeScene.path, new WorldObjectStateRecord
+            {
+                ObjectId = targetIdentity.ObjectId,
+                Consumed = true,
+                LastUpdatedDay = 6,
+                ItemInstanceId = "item.same-day"
+            });
+
+            var cleaned = WorldObjectPersistenceRuntimeBridge.ProcessDayBoundary(6, 6);
+            Assert.That(cleaned, Is.EqualTo(0));
+            Assert.That(
+                WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(activeScene.path, targetIdentity.ObjectId, out _),
+                Is.True,
+                "Same-day boundary processing must retain DailyReset state.");
+
+            WorldObjectPersistenceRuntimeBridge.EnsureInitialized();
+            InvokeSceneLoaded(activeScene, LoadSceneMode.Single);
+
+            Assert.That(targetIdentity.gameObject.activeSelf, Is.False, "Same-day DailyReset state must still apply on scene load.");
+        }
+
+        [UnityTest]
+        public IEnumerator DayBoundary_DailyResetScene_CleansState_AndMovesToReclaimStorage()
+        {
+            yield return LoadScene(MainTownSceneName);
+            var activeScene = SceneManager.GetActiveScene();
+            var targetIdentity = CreateIdentityInScene(activeScene, "qa.persistence.day-boundary.cleanup");
+
+            WorldObjectPersistenceRuntimeBridge.RegisterScenePolicy(new WorldScenePersistencePolicy
+            {
+                ScenePath = activeScene.path,
+                Mode = WorldObjectPersistenceMode.DailyReset,
+                TrackTransforms = true,
+                TrackConsumed = true,
+                TrackDestroyed = true,
+                TrackSpawnedObjects = true
+            });
+
+            WorldObjectPersistenceRuntimeBridge.StateStore.Upsert(activeScene.path, new WorldObjectStateRecord
+            {
+                ObjectId = targetIdentity.ObjectId,
+                Consumed = true,
+                LastUpdatedDay = 4,
+                ItemInstanceId = "item.reclaim.001"
+            });
+
+            var cleaned = WorldObjectPersistenceRuntimeBridge.ProcessDayBoundary(4, 5);
+            Assert.That(cleaned, Is.EqualTo(1));
+            Assert.That(
+                WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(activeScene.path, targetIdentity.ObjectId, out _),
+                Is.False,
+                "DailyReset state should be removed after day changes.");
+
+            Assert.That(
+                WorldObjectPersistenceRuntimeBridge.ReclaimStorage.TryGetEntry("item.reclaim.001", out var reclaimEntry),
+                Is.True,
+                "Cleaned record should be moved to reclaim storage.");
+            Assert.That(reclaimEntry.ScenePath, Is.EqualTo(activeScene.path));
+            Assert.That(reclaimEntry.ObjectId, Is.EqualTo(targetIdentity.ObjectId));
+            Assert.That(reclaimEntry.CleanedOnDay, Is.EqualTo(5));
+        }
+
+        [UnityTest]
+        public IEnumerator DayBoundary_PersistentScene_StateIsUnaffected()
+        {
+            yield return LoadScene(MainTownSceneName);
+            var activeScene = SceneManager.GetActiveScene();
+            var targetIdentity = CreateIdentityInScene(activeScene, "qa.persistence.day-boundary.persistent");
+
+            WorldObjectPersistenceRuntimeBridge.RegisterScenePolicy(new WorldScenePersistencePolicy
+            {
+                ScenePath = activeScene.path,
+                Mode = WorldObjectPersistenceMode.Persistent,
+                TrackTransforms = true,
+                TrackConsumed = true,
+                TrackDestroyed = true,
+                TrackSpawnedObjects = true
+            });
+
+            WorldObjectPersistenceRuntimeBridge.StateStore.Upsert(activeScene.path, new WorldObjectStateRecord
+            {
+                ObjectId = targetIdentity.ObjectId,
+                Consumed = true,
+                LastUpdatedDay = 8,
+                ItemInstanceId = "item.persistent.001"
+            });
+
+            var cleaned = WorldObjectPersistenceRuntimeBridge.ProcessDayBoundary(8, 9);
+            Assert.That(cleaned, Is.EqualTo(0));
+            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(activeScene.path, targetIdentity.ObjectId, out _), Is.True);
+            Assert.That(
+                WorldObjectPersistenceRuntimeBridge.ReclaimStorage.TryGetEntry("item.persistent.001", out _),
+                Is.False,
+                "Persistent scene records must not be moved to reclaim storage on day boundary.");
+        }
+
         private static WorldObjectIdentity CreateIdentityInScene(Scene scene, string objectId)
         {
             var gameObject = new GameObject("QaWorldObject");
