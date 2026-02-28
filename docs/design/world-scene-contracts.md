@@ -52,6 +52,16 @@ Reusable prefabs/templates:
 - travel trigger prefab
 - optional scene service root prefab
 
+### Persistence Policy Integration (Unified World Object State)
+
+World scene contracts now include per-scene world-object persistence policy:
+
+- policy identity key: scene asset path (`Assets/_Project/World/Scenes/*.unity`)
+- policy modes:
+  - `Persistent` (default): world-object records persist across day boundaries
+  - `DailyReset`: same-day records apply normally, then day-boundary cleanup removes stale records and writes reclaim entries
+- travel behavior contract: do not rely on ownership-based pickup-hide hacks; respawn/apply behavior must come from unified world-object state apply on scene load
+
 ## Validation Gates (Required)
 
 ### Gate 1: EditMode Contract Tests (fast)
@@ -61,6 +71,14 @@ Every world scene change must pass contract tests that assert:
 - required components exist
 - required references are non-null/valid
 - required entry point IDs are present and unique
+
+### Gate 1B: Scene Persistence Policy Validation (fast)
+
+Every world scene change must pass policy validation:
+
+- `WorldScenePersistencePolicyAsset` exists per required world scene under `Assets/_Project/World/Data/SceneContracts`
+- no duplicate `scenePath` policy assets
+- validation command: `Reloader/World/Validate Scene Persistence Policies`
 
 ### Gate 2: PlayMode Flow Tests (behavior)
 
@@ -96,6 +114,7 @@ When world-scene changes also affect interactables/checkpoints/NPC hooks, valida
 3. `SceneEntryPoint` uniqueness and expected destination coverage.
 4. NPC interaction surfaces (`NpcAgent` capability config + world interaction controller links).
 5. Save/persistence impact assessment for any new runtime state introduced by scene interactions.
+6. Scene policy coverage (`Persistent` vs `DailyReset`) and reclaim behavior impact if day-boundary cleanup can touch that scene.
 
 Reference [extensible-development-contracts.md](extensible-development-contracts.md) for cross-domain enforcement checklist and required guardrails.
 

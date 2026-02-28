@@ -62,7 +62,7 @@ Load order is deterministic and must stay stable:
 1. Read and deserialize `SaveEnvelope`.
 2. Run migration chain from `schemaVersion` -> current runtime schema.
 3. Validate required module presence and payload JSON well-formedness.
-4. Restore modules in explicit registration order (baseline: `CoreWorld` first, `Inventory` second).
+4. Restore modules in explicit registration order (`CoreWorld`, `Inventory`, `Weapons`, `WorldObjectState` in v0.2 baseline).
 5. Run post-restore module validation.
 6. Publish load-complete events.
 
@@ -70,15 +70,23 @@ This ordering prevents partial loads and keeps cross-system dependencies predict
 
 ## Current Implemented Save Slice [v0.1]
 
-Current repository implementation only requires these registered module payloads:
+Current repository implementation requires these registered module payloads:
 
 - `CoreWorld` module payload: `dayCount`, `timeOfDay`
 - `Inventory` module payload: `carriedItemIds`, `beltSlotItemIds`, `backpackItemIds`, `backpackCapacity`, `selectedBeltIndex`
 - `Weapons` module payload: `itemId`, `chamberLoaded`, `magCount`, `reserveCount`, `chamberRound`, `magazineRounds[]`
+- `WorldObjectState` module payload:
+  - `sceneObjectStates[]` keyed by `scenePath` with per-object records (`objectId`, `consumed`, `destroyed`, optional transform override, `lastUpdatedDay`, optional `itemInstanceId`)
+  - `reclaimEntries[]` for daily cleanup handoff (`scenePath`, `objectId`, `itemInstanceId`, `cleanedOnDay`)
 
 `chamberRound` and `magazineRounds[]` serialize ammo ballistic snapshots for the active weapon state (`ammoSource`, `muzzleVelocityFps`, `velocityStdDevFps`, `projectileMassGrains`, `ballisticCoefficientG1`, `dispersionMoa`).
 
 In-flight projectile state is intentionally out-of-scope for v0.1 saves.
+
+Schema note:
+- Runtime save schema is now `v2`.
+- `SchemaV1ToV2AddWorldObjectStateMigration` inserts a default `WorldObjectState` block when loading older saves.
+- Load remains transactional: missing required module blocks still fail before restore.
 
 The broader schema below is the v0.1 design target and forward schema contract. Treat it as planned module scope until those modules are registered and migration-backed in runtime.
 
@@ -95,6 +103,7 @@ The broader schema below is the v0.1 design target and forward schema contract. 
 | `CoreWorld` | Implemented now | Yes | Persists `dayCount`, `timeOfDay`. |
 | `Inventory` | Implemented now | Yes | Persists carried/belt/backpack ids + capacity + belt selection. |
 | `Weapons` | Implemented now | Yes | Persists active weapon loadout + chamber/mag ammo ballistic snapshots. |
+| `WorldObjectState` | Implemented now | Yes | Unified world-object state + reclaim entries for daily cleanup. |
 | `PlayerState` | Planned target | No | Listed in target schema only. |
 | `ItemRegistry` | Planned target | No | Listed in target schema only. |
 | `ItemLocation` | Planned target | No | Listed in target schema only. |
@@ -107,6 +116,24 @@ The broader schema below is the v0.1 design target and forward schema contract. 
 | `VehicleState` | Planned target | No | Listed in target schema only. |
 
 Use this matrix as the implementation source of truth for v0.1 feature work: only `Implemented now` rows are currently persistence-backed in runtime.
+
+## World Object Persistence Policy + Day Boundary [v0.2]
+
+- Runtime world-object state is keyed by `scenePath + objectId` and applied on scene load.
+- Scene policy mode controls cleanup behavior:
+  - `Persistent`: records remain across day changes.
+  - `DailyReset`: records are retained same-day, then cleaned on day increment.
+- Day-boundary cleanup moves cleaned `DailyReset` records with `itemInstanceId` into reclaim storage so state is not silently lost.
+- Travel behavior no longer depends on ownership-based pickup hiding workarounds; scene apply uses the unified world-object state contract.
+
+## Verification Sweep Expectations [v0.2]
+
+When this contract changes, expected suites include:
+
+- Core save EditMode coverage (`WorldObjectStateSaveModuleTests`, migration + module registration/load invariants).
+- Core persistence PlayMode coverage (`WorldObjectPersistenceRuntimeBridgePlayModeTests`, including `DailyReset` cleanup + reclaim behavior).
+- World travel PlayMode coverage (`RoundTripTravelPlayModeTests`, including no ownership-based hide workaround).
+- Pickup flow coverage impacted by world identity/state capture (`PlayerInventoryControllerPlayModeTests`, `PickupTargetWorldIdentity*` tests).
 
 ## Save Data Structure (Target Schema) [v0.1]
 

@@ -16,9 +16,12 @@ Current repository runtime requires these registered module blocks:
 - `CoreWorld` (`dayCount`, `timeOfDay`)
 - `Inventory` (`carriedItemIds`, `beltSlotItemIds`, `backpackItemIds`, `backpackCapacity`, `selectedBeltIndex`)
 - `Weapons` (`itemId`, `chamberLoaded`, `magCount`, `reserveCount`, `chamberRound`, `magazineRounds[]`)
+- `WorldObjectState` (`sceneObjectStates[]`, `reclaimEntries[]`; scene-path + object-id keyed world object records)
 
 Weapons ammo snapshot fields are: `ammoSource`, `muzzleVelocityFps`, `velocityStdDevFps`, `projectileMassGrains`, `ballisticCoefficientG1`, `dispersionMoa`.
 In-flight projectiles are intentionally excluded from v0.1 save scope.
+
+Runtime schema note: baseline schema is `v2`, with `SchemaV1ToV2AddWorldObjectStateMigration` adding default `WorldObjectState` for older saves.
 
 The broader `SaveData` tree in `save-and-progression.md` is the target schema contract. Blocks become required only after module registration + migration support land in runtime.
 
@@ -33,7 +36,23 @@ The broader `SaveData` tree in `save-and-progression.md` is the target schema co
 - Unknown module keys are ignored safely.
 - Missing required registered module blocks fail before any restore.
 - Corrupted module payload JSON fails before any restore.
-- Baseline deterministic order: `CoreWorld` then `Inventory`, then explicit registered order.
+- Baseline deterministic order: `CoreWorld`, `Inventory`, `Weapons`, `WorldObjectState`.
+
+## Unified World-Object Policy Contract [v0.2]
+
+- Runtime state key: `scenePath + objectId`.
+- Policy mode:
+  - `Persistent`: day boundary does not clear records.
+  - `DailyReset`: same-day state is retained; day increment clears old records and moves reclaimable entries into reclaim storage.
+- Pickup flows capture consumption via the unified state store; travel must not use ownership-based hide workarounds.
+
+## Scene Policy Authoring + Validation Workflow [v0.2]
+
+- Policy assets: `WorldScenePersistencePolicyAsset` under `Assets/_Project/World/Data/SceneContracts`.
+- Validation gate: `Reloader/World/Validate Scene Persistence Policies` (editor menu).
+- Validator guarantees:
+  - every required world scene has a policy
+  - no duplicate `scenePath` policies
 
 ## Data Ownership Rules (Target Canonical Model) [v0.1]
 
@@ -68,3 +87,10 @@ Load [save-and-progression.md](save-and-progression.md) when changing:
 - exact-restore guarantees
 
 Load domain docs only for the modules you are editing.
+
+## Verification Sweep (Expected Suites) [v0.2]
+
+- Core save EditMode: `WorldObjectStateSaveModuleTests` (+ save coordinator/module registration invariants).
+- Core persistence PlayMode: `WorldObjectPersistenceRuntimeBridgePlayModeTests`.
+- World travel PlayMode: `RoundTripTravelPlayModeTests`.
+- Pickup/identity coverage: `PlayerInventoryControllerPlayModeTests`, `PickupTargetWorldIdentityEditModeTests`, `PickupTargetWorldIdentityPlayModeTests`.
