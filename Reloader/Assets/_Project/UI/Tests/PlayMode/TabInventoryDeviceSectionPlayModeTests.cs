@@ -453,6 +453,61 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void RuntimeBridge_BindTabInventory_DefaultAdapter_StatusFeedback_ReflectsInstalledHooksState()
+        {
+            var go = new GameObject("UiToolkitBridgeInstalledHooksFeedback");
+            var bridge = go.AddComponent<UiToolkitScreenRuntimeBridge>();
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(0);
+            inventoryController.Configure(null, null, runtime);
+
+            var deviceRuntimeStateType = Type.GetType("Reloader.PlayerDevice.Runtime.PlayerDeviceRuntimeState, Reloader.PlayerDevice");
+            Assert.That(deviceRuntimeStateType, Is.Not.Null);
+            var deviceAttachmentType = Type.GetType("Reloader.PlayerDevice.Runtime.DeviceAttachmentType, Reloader.PlayerDevice");
+            Assert.That(deviceAttachmentType, Is.Not.Null);
+            var installAttachmentMethod = deviceRuntimeStateType.GetMethod("InstallAttachment", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(installAttachmentMethod, Is.Not.Null);
+            var rangefinderEnum = Enum.Parse(deviceAttachmentType, "Rangefinder");
+            var deviceRuntimeState = Activator.CreateInstance(deviceRuntimeStateType);
+            installAttachmentMethod.Invoke(deviceRuntimeState, new[] { rangefinderEnum });
+            SetPrivateField(typeof(UiToolkitScreenRuntimeBridge), bridge, "_playerDeviceRuntimeState", deviceRuntimeState);
+
+            var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
+                "BindTabInventory",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(bindMethod, Is.Not.Null);
+
+            var subscription = bindMethod.Invoke(bridge, new object[] { BuildRoot(), "tab-menu-controller", inventoryController, null }) as IDisposable;
+            Assert.That(subscription, Is.Not.Null);
+
+            try
+            {
+                var tabController = go.transform.Find("tab-menu-controller")?.GetComponent<TabInventoryController>();
+                Assert.That(tabController, Is.Not.Null);
+
+                var adapterField = typeof(TabInventoryController).GetField("_deviceController", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(adapterField, Is.Not.Null);
+                var adapter = adapterField.GetValue(tabController);
+                Assert.That(adapter, Is.Not.Null);
+
+                var tryGetStatus = adapter.GetType().GetMethod("TryGetStatus", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(tryGetStatus, Is.Not.Null);
+                var args = new object[] { null };
+                var ok = (bool)tryGetStatus.Invoke(adapter, args);
+                Assert.That(ok, Is.True);
+
+                var status = (TabInventoryController.DeviceStatus)args[0];
+                Assert.That(status.AttachmentFeedbackText, Is.EqualTo("Hooks installed."));
+            }
+            finally
+            {
+                subscription?.Dispose();
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void RuntimeBridge_ResolveTabDeviceControllerAdapter_RecreatesControllerWhenInventoryChanges()
         {
             var go = new GameObject("UiToolkitBridgeInventorySwitch");

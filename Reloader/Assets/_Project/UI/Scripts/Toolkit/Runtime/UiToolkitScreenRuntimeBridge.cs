@@ -558,9 +558,11 @@ namespace Reloader.UI.Toolkit.Runtime
 
         private sealed class TabDeviceControllerAdapter : TabInventoryController.IDeviceController
         {
+            private const string HooksInstalledText = "Hooks installed.";
+            private const string HooksNotInstalledText = "Hooks are not installed.";
             private readonly PlayerDeviceController _deviceController;
             private readonly PlayerDeviceTargetSelectionController _targetSelectionController;
-            private string _attachmentFeedbackText = "Hooks are not installed.";
+            private string _attachmentFeedbackText = string.Empty;
 
             public TabDeviceControllerAdapter(
                 PlayerDeviceController deviceController,
@@ -594,9 +596,12 @@ namespace Reloader.UI.Toolkit.Runtime
 
                 var canInstallHooks = _deviceController.CanInstallSelectedAttachmentFromInventory();
                 var canUninstallHooks = _deviceController.CanUninstallAttachment(DeviceAttachmentType.Rangefinder);
-                if (string.IsNullOrWhiteSpace(_attachmentFeedbackText))
+                var hooksInstalled = _deviceController.IsRangefinderHooksInstalled;
+                if (string.IsNullOrWhiteSpace(_attachmentFeedbackText)
+                    || string.Equals(_attachmentFeedbackText, HooksInstalledText, StringComparison.Ordinal)
+                    || string.Equals(_attachmentFeedbackText, HooksNotInstalledText, StringComparison.Ordinal))
                 {
-                    _attachmentFeedbackText = canUninstallHooks ? "Hooks installed." : "Hooks are not installed.";
+                    _attachmentFeedbackText = hooksInstalled ? HooksInstalledText : HooksNotInstalledText;
                 }
 
                 status = new TabInventoryController.DeviceStatus(
@@ -648,7 +653,7 @@ namespace Reloader.UI.Toolkit.Runtime
 
                 var installed = _deviceController.TryInstallSelectedAttachmentFromInventory();
                 _attachmentFeedbackText = installed
-                    ? "Hooks installed."
+                    ? HooksInstalledText
                     : "Select hooks in your belt to install.";
                 return installed;
             }
@@ -664,7 +669,7 @@ namespace Reloader.UI.Toolkit.Runtime
                 var uninstalled = _deviceController.TryUninstallAttachment(DeviceAttachmentType.Rangefinder);
                 _attachmentFeedbackText = uninstalled
                     ? "Hooks uninstalled."
-                    : "Hooks are not installed.";
+                    : HooksNotInstalledText;
                 return uninstalled;
             }
         }
