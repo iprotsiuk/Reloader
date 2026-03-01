@@ -9,12 +9,13 @@ namespace Reloader.UI.Toolkit.Reloading
 {
     public sealed class ReloadingWorkbenchController : MonoBehaviour, IUiController
     {
-        [SerializeField] private string[] _operationLabels = { "Resize", "Prime", "Seat" };
-        [SerializeField] private bool[] _operationEnabled = { true, false, false };
+        [SerializeField] private string[] _operationLabels = { "Resize", "Prime", "Charge", "Seat" };
+        [SerializeField] private bool[] _operationEnabled = { true, false, false, false };
         [SerializeField] private string[] _operationBlockedDiagnostics =
         {
             string.Empty,
             "Prime blocked: Missing die mount in setup mode.",
+            "Charge blocked: Missing powder tool in setup mode.",
             "Seat blocked: Missing seat die mount in setup mode."
         };
         [SerializeField] private string[] _setupSlots =

@@ -21,6 +21,7 @@ namespace Reloader.Reloading.World
         {
             new OperationDescriptor("Resize", ReloadingOperationType.ResizeCase),
             new OperationDescriptor("Prime", ReloadingOperationType.PrimeCase),
+            new OperationDescriptor("Charge", ReloadingOperationType.ChargePowder),
             new OperationDescriptor("Seat", ReloadingOperationType.SeatBullet)
         };
 

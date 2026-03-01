@@ -276,10 +276,11 @@ namespace Reloader.Reloading.Tests.PlayMode
             Assert.That(snapshot.SetupSlots.Length, Is.EqualTo(2));
             Assert.That(snapshot.SetupSlots[0], Is.EqualTo("die-slot: missing"));
             Assert.That(snapshot.SetupSlots[1], Is.EqualTo("press-slot: missing"));
-            Assert.That(snapshot.OperationStatuses.Length, Is.EqualTo(3));
+            Assert.That(snapshot.OperationStatuses.Length, Is.EqualTo(4));
             Assert.That(snapshot.OperationStatuses[0].IsEnabled, Is.False);
             Assert.That(snapshot.OperationStatuses[1].IsEnabled, Is.False);
             Assert.That(snapshot.OperationStatuses[2].IsEnabled, Is.False);
+            Assert.That(snapshot.OperationStatuses[3].IsEnabled, Is.False);
 
             Object.Destroy(root);
             Object.Destroy(targetGo);
