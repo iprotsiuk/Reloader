@@ -24,6 +24,9 @@
   - `WorkbenchRuntimeSaveBridge` with `SetWorkbenchLoadoutModuleForRuntime`, `CaptureToModule`, `RestoreFromModule`.
   - recursive nested-slot capture/restore by `workbenchId`.
   - regression coverage in `WorkbenchRuntimeSaveBridgeEditModeTests`.
+- Added save-runtime orchestration hooks:
+  - `ISaveRuntimeBridge` contract + `SaveRuntimeBridgeRegistry`.
+  - `SaveCoordinator` now invokes runtime bridge hooks before capture and after restore.
 - Implemented save/load persistence slice:
   - `WorkbenchLoadoutModule` with recursive payload graph.
   - `SchemaV4ToV5AddWorkbenchLoadoutMigration`.
@@ -70,6 +73,12 @@
 - `WorkbenchRuntimeSaveBridgeEditModeTests`
 - `ReloadingBenchInteractionPlayModeTests` (snapshot lifecycle coverage)
 - `UiToolkitScreenFlowPlayModeTests` (snapshot fallback/consumption coverage)
+
+## Recent Review Fixes
+
+- Resolved Codex P1 on nested save/load collisions:
+  - `WorkbenchRuntimeSaveBridge` now persists graph-qualified slot IDs (`GraphSlotId`).
+  - `WorkbenchRuntimeState` now builds deterministic/path-based graph keys for child slots (stable across restore), replacing GUID-based child key generation.
 
 ## In Progress
 
