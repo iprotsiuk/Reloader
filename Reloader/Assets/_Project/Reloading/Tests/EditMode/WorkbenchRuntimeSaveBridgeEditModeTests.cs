@@ -49,7 +49,7 @@ namespace Reloader.Reloading.Tests.EditMode
             Assert.That(pressNode.SlotId, Is.EqualTo("press-slot"));
             Assert.That(pressNode.MountedItemId, Is.EqualTo("press.single"));
             Assert.That(pressNode.ChildSlots.Count, Is.EqualTo(1));
-            Assert.That(pressNode.ChildSlots[0].SlotId, Is.EqualTo("die-slot"));
+            Assert.That(pressNode.ChildSlots[0].SlotId, Is.EqualTo("press-slot/die-slot"));
             Assert.That(pressNode.ChildSlots[0].MountedItemId, Is.EqualTo("die.full-length"));
             UnityEngine.Object.DestroyImmediate(bridgeGo);
             UnityEngine.Object.DestroyImmediate(benchGo);
@@ -86,7 +86,7 @@ namespace Reloader.Reloading.Tests.EditMode
                         {
                             new WorkbenchLoadoutModule.SlotNodeRecord
                             {
-                                SlotId = "die-slot",
+                                SlotId = "press-slot/die-slot",
                                 MountedItemId = "die.full-length"
                             }
                         }

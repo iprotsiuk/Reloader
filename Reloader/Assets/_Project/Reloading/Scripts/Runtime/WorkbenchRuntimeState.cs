@@ -124,7 +124,13 @@ namespace Reloader.Reloading.Runtime
                 return slotId ?? string.Empty;
             }
 
-            return $"{ownerNode.NodeId}/{slotId}";
+            var parentGraphSlotId = ownerNode.ParentSlot?.GraphSlotId;
+            if (string.IsNullOrWhiteSpace(parentGraphSlotId))
+            {
+                return slotId ?? string.Empty;
+            }
+
+            return $"{parentGraphSlotId}/{slotId}";
         }
     }
 }

@@ -209,7 +209,7 @@ namespace Reloader.Reloading.Runtime
 
         private static WorkbenchLoadoutModule.SlotNodeRecord CaptureSlotNode(MountSlotState slotState)
         {
-            var slotId = slotState.Definition?.SlotId;
+            var slotId = slotState.GraphSlotId;
             if (string.IsNullOrWhiteSpace(slotId))
             {
                 return null;
