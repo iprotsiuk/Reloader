@@ -57,6 +57,27 @@ Each step is a physical interaction at the workbench:
 - Workbench view binder is render/intent only; operation authority remains in reloading runtime controllers.
 - Operation select/execute actions flow through intent keys (`reloading.operation.select`, `reloading.operation.execute`) mapped by runtime UI action config.
 
+### Workbench Mount Graph Slice (Implemented) [v0.1]
+
+- Landed runtime mount graph contracts and nested slot model:
+  - `WorkbenchDefinition`, `MountSlotDefinition`, `MountableItemDefinition`, `CompatibilityRuleSet`
+  - `WorkbenchRuntimeState`, `MountNode`, `MountSlotState`
+  - `WorkbenchCompatibilityEvaluator`, `WorkbenchCompatibilityResult`
+- Landed operation-gating + runtime integration:
+  - `WorkbenchLoadoutController` mount/unmount flow with diagnostics
+  - `ReloadingOperationGate` capability checks wired to `ReloadingFlowController`
+  - `ReloadingBenchTarget` exposes bench runtime state to runtime/UI surfaces
+- Landed save/load persistence for mounted graphs:
+  - `WorkbenchLoadout` save module and `SchemaV4ToV5AddWorkbenchLoadoutMigration`
+  - `WorkbenchRuntimeSaveBridge` capture/restore hooks via runtime bridge registry
+- Evidence tests include:
+  - `WorkbenchMountDefinitionsEditModeTests`
+  - `WorkbenchRuntimeStateEditModeTests`
+  - `WorkbenchCompatibilityEvaluatorEditModeTests`
+  - `WorkbenchLoadoutControllerPlayModeTests`
+  - `WorkbenchMountFlowAcceptancePlayModeTests`
+  - `WorkbenchRuntimeSaveBridgeEditModeTests`
+
 ---
 
 ## Data Model [v0.1]

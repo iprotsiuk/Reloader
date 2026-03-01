@@ -1,8 +1,9 @@
 # Workbench Mount Graph Progress
 
 **Date:** 2026-03-01
-**Branch:** feature/workbench-mount-graph-v1
-**PR:** https://github.com/iprotsiuk/Reloader/pull/15
+**Branch:** main
+**Integration:** Integrated into `main` (post-review commits landed directly on `main`)
+**PR:** https://github.com/iprotsiuk/Reloader/pull/15 (`#15`, closed on 2026-03-01)
 
 ## Completed
 
@@ -87,10 +88,16 @@
   - `WorkbenchRuntimeSaveBridge.ResolveBenchTargets` now re-discovers bench targets on each pass and merges new scene targets while pruning destroyed references.
   - Added regression coverage for empty/missing bench records and dynamic bench discovery during repeated capture.
 
-## In Progress
+## Final Evidence + Active Blockers
 
-- Focused/broader MCP verification pass once Unity test runner is no longer busy.
-- Final docs sync in design milestone pages after verification evidence is collected.
+- Workbench mount graph implementation is integrated on `main`.
+- PR `#15` is closed after review cycle completion.
+- Integration evidence on `main` includes:
+  - `b5bd24d` (`test(reloading): add workbench mount flow acceptance coverage`)
+  - `3ab73d4` (`feat(reloading): gate operations from mounted workbench graph`)
+  - `fd97e00` (`fix(save): finalize runtime bridges only after successful validation`)
+  - `9867e64` (`fix(reloading): clear omitted benches and rediscover dynamic targets`)
+- Focused/broader MCP verification reruns remain blocked by Unity test-runner lock state.
 - Baseline triage from latest MCP full-suite runs:
   - EditMode: 252 executed, failures include pre-existing schema expectation drift in active Unity checkout.
   - PlayMode: 263 executed, broad unrelated baseline failures across Economy/NPCs/Player/PlayerDevice/UI.
@@ -99,4 +106,4 @@
 
 - Commits stay small and review-friendly to keep automated review cadence high.
 - Scope authority delegated by user for modular/extensible implementation decisions.
-- Current MCP blocker: editor state reports stale running PlayMode job `d492cb809bc44b17adac38ec28c8bc89` and rejects new test jobs as `tests_running`.
+- Latest MCP blocker: editor state reports stale running PlayMode job `3a79c36cff4945a6bbe06bd535b78abb` and rejects new test jobs as `tests_running`.

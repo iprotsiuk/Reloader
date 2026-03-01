@@ -347,12 +347,12 @@ git add Reloader/Assets/_Project/Reloading/Tests/PlayMode/WorkbenchMountFlowAcce
 git commit -m "test(reloading): add end-to-end workbench mount flow acceptance"
 ```
 
-### Task 9: Final Verification + Documentation Sync
+### Task 9: Final Verification Evidence + Cleanup Workflow
 
 **Files:**
 - Modify: `docs/design/reloading-system.md`
 - Modify: `docs/design/v0.1-demo-status-and-milestones.md`
-- Modify: `docs/plans/2026-03-01-workbench-mount-graph-design.md`
+- Modify: `docs/plans/progress/2026-03-01-workbench-mount-graph-progress.md`
 
 **Step 1: Run focused verification suites**
 
@@ -364,24 +364,30 @@ Run via Unity MCP:
 
 Expected: all pass.
 
-**Step 2: Run relevant broader regression suites**
+**Step 2: Run broader regression suites and capture MCP cleanup state**
 
 Run via Unity MCP:
 - `ReloadingBenchInteractionPlayModeTests`
 - `PlayerInventoryControllerPlayModeTests`
 - `TabInventoryDeviceSectionPlayModeTests`
 
-Expected: all pass.
+Expected: all pass when Unity test execution is unlocked.
 
-**Step 3: Update docs evidence/status**
+If `run_tests` returns `tests_running`:
+- Record the blocking MCP job id and timestamp in progress docs.
+- Treat this as an infrastructure blocker (not feature regression) and stop launching additional test jobs until lock is cleared.
+- Keep the latest blocker snapshot in docs (current snapshot: job `3a79c36cff4945a6bbe06bd535b78abb`).
 
-- Record landed workbench mount-graph scope and test evidence.
+**Step 3: Update docs evidence, integration status, and blocker notes**
+
+- Record landed workbench mount-graph scope and verification evidence.
+- Record integration status on `main` and PR closure state (`#15` closed).
 - Keep milestone board and design docs synchronized.
 
 **Step 4: Commit**
 
 ```bash
-git add docs/design/reloading-system.md docs/design/v0.1-demo-status-and-milestones.md docs/plans/2026-03-01-workbench-mount-graph-design.md
+git add docs/design/reloading-system.md docs/design/v0.1-demo-status-and-milestones.md docs/plans/progress/2026-03-01-workbench-mount-graph-progress.md
 git commit -m "docs: sync workbench mount graph implementation status"
 ```
 
