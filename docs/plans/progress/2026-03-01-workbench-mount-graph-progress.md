@@ -19,6 +19,13 @@
   - `WorkbenchLoadoutModule` with recursive payload graph.
   - `SchemaV4ToV5AddWorkbenchLoadoutMigration`.
   - `SaveBootstrapper` registration + schema bump to v5.
+- Expanded UI setup/operate slice:
+  - `ReloadingWorkbench.uxml/.uss` for setup + operate sections.
+  - `ReloadingWorkbenchUiState` mode-aware render state.
+  - `ReloadingWorkbenchViewBinder` mode intents + diagnostics rendering.
+  - `ReloadingWorkbenchController` mode switching + operation diagnostics.
+- Added acceptance coverage:
+  - `WorkbenchMountFlowAcceptancePlayModeTests` for mount flow/gating/save behavior surface.
 
 ## Save Payload Contract Notes
 
@@ -37,12 +44,14 @@
 - `WorkbenchRuntimeStateEditModeTests`
 - `WorkbenchCompatibilityEvaluatorEditModeTests`
 - `WorkbenchLoadoutModuleTests`
+- `ReloadingWorkbenchUiToolkitPlayModeTests` (expanded)
+- `WorkbenchMountFlowAcceptancePlayModeTests`
 
 ## In Progress
 
 - Workbench loadout install/uninstall API wiring into bench runtime.
 - Operation gating from mounted capabilities.
-- Setup/operate UI expansion and end-to-end acceptance flow.
+- Focused/broader MCP verification pass after Unity test runner clears busy state.
 
 ## Notes
 
