@@ -24,7 +24,7 @@ namespace Reloader.Reloading.Runtime
 
         public bool TryInstall(string slotId, MountableItemDefinition item)
         {
-            if (!_slotsById.TryGetValue(slotId, out var slotState))
+            if (!TryGetSlotState(slotId, out var slotState))
             {
                 return false;
             }

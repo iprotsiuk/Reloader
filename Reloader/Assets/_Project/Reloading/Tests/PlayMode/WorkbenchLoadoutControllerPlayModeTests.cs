@@ -95,6 +95,34 @@ namespace Reloader.Reloading.Tests.PlayMode
             Object.DestroyImmediate(benchDefinition);
         }
 
+        [Test]
+        public void ReinstallTopLevelMount_ClearsPreviousChildSlotIndexEntries()
+        {
+            var benchDefinition = CreateWorkbenchDefinition(
+                "bench.main",
+                new MountSlotDefinition("press-slot", requiredTags: new[] { "cap.press" }));
+
+            var press = CreateItem(
+                "press.single",
+                new[] { "cap.press" },
+                new[] { new MountSlotDefinition("die-slot", requiredTags: new[] { "cap.die" }) });
+            var die = CreateItem("die.full", "cap.die");
+
+            var runtimeState = new WorkbenchRuntimeState(benchDefinition);
+            var controller = new WorkbenchLoadoutController(runtimeState, new WorkbenchCompatibilityEvaluator());
+
+            Assert.That(controller.TryInstall("press-slot", press, out _), Is.True);
+            Assert.That(controller.TryInstall("die-slot", die, out _), Is.True);
+            Assert.That(controller.TryUninstall("press-slot", out _, out _), Is.True);
+
+            Assert.That(controller.TryInstall("press-slot", press, out _), Is.True);
+            Assert.That(controller.TryInstall("die-slot", die, out _), Is.True);
+
+            Object.DestroyImmediate(die);
+            Object.DestroyImmediate(press);
+            Object.DestroyImmediate(benchDefinition);
+        }
+
         private static WorkbenchDefinition CreateWorkbenchDefinition(string workbenchId, params MountSlotDefinition[] slots)
         {
             var definition = ScriptableObject.CreateInstance<WorkbenchDefinition>();
@@ -106,6 +134,13 @@ namespace Reloader.Reloading.Tests.PlayMode
         {
             var item = ScriptableObject.CreateInstance<MountableItemDefinition>();
             item.SetValuesForTests(itemId, tags, childSlots: null);
+            return item;
+        }
+
+        private static MountableItemDefinition CreateItem(string itemId, string[] tags, MountSlotDefinition[] childSlots)
+        {
+            var item = ScriptableObject.CreateInstance<MountableItemDefinition>();
+            item.SetValuesForTests(itemId, tags, childSlots);
             return item;
         }
     }
