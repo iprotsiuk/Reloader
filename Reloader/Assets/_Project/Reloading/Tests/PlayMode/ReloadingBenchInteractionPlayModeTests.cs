@@ -2,6 +2,7 @@ using NUnit.Framework;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Player;
+using Reloader.Reloading.Runtime;
 using Reloader.Reloading.World;
 using UnityEngine;
 
@@ -9,6 +10,18 @@ namespace Reloader.Reloading.Tests.PlayMode
 {
     public class ReloadingBenchInteractionPlayModeTests
     {
+        [SetUp]
+        public void SetUp()
+        {
+            ReloadingWorkbenchUiContextStore.Clear();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            ReloadingWorkbenchUiContextStore.Clear();
+        }
+
         [Test]
         public void PickupPressOnBench_OpensWorkbench()
         {
@@ -239,6 +252,111 @@ namespace Reloader.Reloading.Tests.PlayMode
             }
 
             Assert.That(clearCount, Is.GreaterThanOrEqualTo(1));
+        }
+
+        [Test]
+        public void Tick_OpenWorkbench_PublishesUiSnapshot()
+        {
+            var root = new GameObject("PlayerRootSnapshotOpen");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerReloadingBenchController>();
+            var resolver = root.AddComponent<TestBenchResolver>();
+
+            var targetGo = new GameObject("BenchTargetSnapshotOpen");
+            var target = targetGo.AddComponent<ReloadingBenchTarget>();
+            target.SetWorkbenchDefinitionForTests(CreateWorkbenchDefinition("bench.snapshot.open", new MountSlotDefinition("press-slot"), new MountSlotDefinition("die-slot")));
+
+            resolver.Target = target;
+            controller.Configure(input, resolver);
+
+            input.PickupPressedThisFrame = true;
+            controller.Tick();
+
+            Assert.That(ReloadingWorkbenchUiContextStore.TryGetLatest(out var snapshot), Is.True);
+            Assert.That(snapshot.SetupSlots.Length, Is.EqualTo(2));
+            Assert.That(snapshot.SetupSlots[0], Is.EqualTo("die-slot: missing"));
+            Assert.That(snapshot.SetupSlots[1], Is.EqualTo("press-slot: missing"));
+            Assert.That(snapshot.OperationStatuses.Length, Is.EqualTo(3));
+            Assert.That(snapshot.OperationStatuses[0].IsEnabled, Is.False);
+            Assert.That(snapshot.OperationStatuses[1].IsEnabled, Is.False);
+            Assert.That(snapshot.OperationStatuses[2].IsEnabled, Is.False);
+
+            Object.Destroy(root);
+            Object.Destroy(targetGo);
+        }
+
+        [Test]
+        public void Tick_TargetLostAfterOpen_ClearsUiSnapshot()
+        {
+            var root = new GameObject("PlayerRootSnapshotLost");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerReloadingBenchController>();
+            var resolver = root.AddComponent<TestBenchResolver>();
+
+            var targetGo = new GameObject("BenchTargetSnapshotLost");
+            var target = targetGo.AddComponent<ReloadingBenchTarget>();
+            target.SetWorkbenchDefinitionForTests(CreateWorkbenchDefinition("bench.snapshot.lost", new MountSlotDefinition("press-slot")));
+
+            resolver.Target = target;
+            controller.Configure(input, resolver);
+
+            input.PickupPressedThisFrame = true;
+            controller.Tick();
+            Assert.That(ReloadingWorkbenchUiContextStore.TryGetLatest(out _), Is.True);
+
+            resolver.Target = null;
+            controller.Tick();
+
+            Assert.That(ReloadingWorkbenchUiContextStore.TryGetLatest(out _), Is.False);
+
+            Object.Destroy(root);
+            Object.Destroy(targetGo);
+        }
+
+        [Test]
+        public void Tick_WhenSwitchingActiveBench_ReplacesUiSnapshot()
+        {
+            var root = new GameObject("PlayerRootSnapshotSwitch");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerReloadingBenchController>();
+            var resolver = root.AddComponent<TestBenchResolver>();
+
+            var benchOneGo = new GameObject("BenchOne");
+            var benchOne = benchOneGo.AddComponent<ReloadingBenchTarget>();
+            benchOne.SetWorkbenchDefinitionForTests(CreateWorkbenchDefinition("bench.one", new MountSlotDefinition("slot-a")));
+
+            var benchTwoGo = new GameObject("BenchTwo");
+            var benchTwo = benchTwoGo.AddComponent<ReloadingBenchTarget>();
+            benchTwo.SetWorkbenchDefinitionForTests(CreateWorkbenchDefinition("bench.two", new MountSlotDefinition("slot-b"), new MountSlotDefinition("slot-c")));
+
+            resolver.Target = benchOne;
+            controller.Configure(input, resolver);
+
+            input.PickupPressedThisFrame = true;
+            controller.Tick();
+            Assert.That(ReloadingWorkbenchUiContextStore.TryGetLatest(out var firstSnapshot), Is.True);
+            Assert.That(firstSnapshot.SetupSlots.Length, Is.EqualTo(1));
+            Assert.That(firstSnapshot.SetupSlots[0], Is.EqualTo("slot-a: missing"));
+
+            resolver.Target = benchTwo;
+            input.PickupPressedThisFrame = true;
+            controller.Tick();
+
+            Assert.That(ReloadingWorkbenchUiContextStore.TryGetLatest(out var secondSnapshot), Is.True);
+            Assert.That(secondSnapshot.SetupSlots.Length, Is.EqualTo(2));
+            Assert.That(secondSnapshot.SetupSlots[0], Is.EqualTo("slot-b: missing"));
+            Assert.That(secondSnapshot.SetupSlots[1], Is.EqualTo("slot-c: missing"));
+
+            Object.Destroy(root);
+            Object.Destroy(benchOneGo);
+            Object.Destroy(benchTwoGo);
+        }
+
+        private static WorkbenchDefinition CreateWorkbenchDefinition(string workbenchId, params MountSlotDefinition[] slots)
+        {
+            var definition = ScriptableObject.CreateInstance<WorkbenchDefinition>();
+            definition.SetValuesForTests(workbenchId, slots);
+            return definition;
         }
 
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
