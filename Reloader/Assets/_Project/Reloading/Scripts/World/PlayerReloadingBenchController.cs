@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using Reloader.Player;
 using Reloader.Player.Interaction;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using Reloader.Reloading.Runtime;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -12,6 +14,15 @@ namespace Reloader.Reloading.World
     {
         private const string BenchHintContextId = "bench";
         private const string BenchHintActionText = "Use bench";
+        private const string MissingItemStatus = "missing";
+        private const string InstalledItemStatus = "installed";
+
+        private static readonly OperationDescriptor[] UiOperations =
+        {
+            new OperationDescriptor("Resize", ReloadingOperationType.ResizeCase),
+            new OperationDescriptor("Prime", ReloadingOperationType.PrimeCase),
+            new OperationDescriptor("Seat", ReloadingOperationType.SeatBullet)
+        };
 
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private MonoBehaviour _resolverBehaviour;
@@ -103,7 +114,12 @@ namespace Reloader.Reloading.World
                 RaiseWorkbenchMenuVisibilityChanged(false);
             }
 
+            var targetChanged = !ReferenceEquals(_activeTarget, target);
             _activeTarget = target;
+            if (targetChanged)
+            {
+                PublishWorkbenchSnapshot(target);
+            }
 
             if (target.IsWorkbenchOpen
                 && ((Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
@@ -111,6 +127,7 @@ namespace Reloader.Reloading.World
             {
                 target.CloseWorkbench();
                 RaiseWorkbenchMenuVisibilityChanged(false);
+                ReloadingWorkbenchUiContextStore.Clear();
                 _flushPickupInputAtEndOfFrame = false;
                 return;
             }
@@ -137,6 +154,7 @@ namespace Reloader.Reloading.World
             _flushPickupInputAtEndOfFrame = false;
             target.OpenWorkbench();
             RaiseWorkbenchMenuVisibilityChanged(true);
+            PublishWorkbenchSnapshot(target);
         }
 
         public void SetInteractionCoordinatorMode(bool isEnabled)
@@ -178,6 +196,7 @@ namespace Reloader.Reloading.World
                 {
                     target.OpenWorkbench();
                     RaiseWorkbenchMenuVisibilityChanged(true);
+                    PublishWorkbenchSnapshot(target);
                 });
             return true;
         }
@@ -191,6 +210,7 @@ namespace Reloader.Reloading.World
             }
 
             _activeTarget = null;
+            ReloadingWorkbenchUiContextStore.Clear();
         }
 
         private bool IsPickupPressedThisFrame()
@@ -279,6 +299,99 @@ namespace Reloader.Reloading.World
                    && prop.PropertyType == typeof(bool)
                    && prop.GetValue(null) is bool isOpen
                    && isOpen;
+        }
+
+        private static void PublishWorkbenchSnapshot(IReloadingBenchTarget target)
+        {
+            if (target is not ReloadingBenchTarget benchTarget)
+            {
+                ReloadingWorkbenchUiContextStore.Clear();
+                return;
+            }
+
+            var loadout = benchTarget.LoadoutController;
+            var runtimeState = benchTarget.RuntimeState;
+            if (loadout == null || runtimeState == null)
+            {
+                ReloadingWorkbenchUiContextStore.Clear();
+                return;
+            }
+
+            var setupSlots = BuildSetupSlotSnapshot(runtimeState);
+            var operationSnapshot = BuildOperationSnapshot(loadout);
+            ReloadingWorkbenchUiContextStore.Publish(new ReloadingWorkbenchUiSnapshot(setupSlots, operationSnapshot));
+        }
+
+        private static string[] BuildSetupSlotSnapshot(WorkbenchRuntimeState runtimeState)
+        {
+            var slotsById = runtimeState.SlotsById;
+            if (slotsById == null || slotsById.Count == 0)
+            {
+                return Array.Empty<string>();
+            }
+
+            var slotIds = new List<string>(slotsById.Count);
+            foreach (var kvp in slotsById)
+            {
+                slotIds.Add(kvp.Key);
+            }
+
+            slotIds.Sort(StringComparer.Ordinal);
+            var lines = new string[slotIds.Count];
+            for (var i = 0; i < slotIds.Count; i++)
+            {
+                var slotId = slotIds[i];
+                slotsById.TryGetValue(slotId, out var slotState);
+                var status = slotState != null && slotState.IsOccupied ? InstalledItemStatus : MissingItemStatus;
+                lines[i] = $"{slotId}: {status}";
+            }
+
+            return lines;
+        }
+
+        private static ReloadingWorkbenchUiSnapshot.OperationGateSnapshot[] BuildOperationSnapshot(WorkbenchLoadoutController loadoutController)
+        {
+            var gate = new ReloadingOperationGate(loadoutController);
+            var snapshots = new ReloadingWorkbenchUiSnapshot.OperationGateSnapshot[UiOperations.Length];
+            for (var i = 0; i < UiOperations.Length; i++)
+            {
+                var operation = UiOperations[i];
+                gate.IsOperationAllowed(operation.Operation, out var gateStatus);
+                snapshots[i] = new ReloadingWorkbenchUiSnapshot.OperationGateSnapshot(
+                    operation.Label,
+                    gateStatus.IsAllowed,
+                    BuildGateDiagnostic(gateStatus));
+            }
+
+            return snapshots;
+        }
+
+        private static string BuildGateDiagnostic(ReloadingOperationGate.OperationGateStatus gateStatus)
+        {
+            if (gateStatus.IsAllowed)
+            {
+                return string.Empty;
+            }
+
+            if (gateStatus.MissingCapabilities == null || gateStatus.MissingCapabilities.Count == 0)
+            {
+                return "Operation blocked.";
+            }
+
+            return $"Operation blocked: missing {string.Join(", ", gateStatus.MissingCapabilities)}.";
+        }
+
+        private readonly struct OperationDescriptor
+        {
+            public OperationDescriptor(string label, ReloadingOperationType operation)
+            {
+                Label = label;
+                Operation = operation;
+            }
+
+            public string Label { get; }
+
+            public ReloadingOperationType Operation { get; }
         }
     }
 }
