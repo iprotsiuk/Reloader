@@ -8,9 +8,9 @@ namespace Reloader.Core.Save
     {
         /// <summary>
         /// Creates the default save pipeline for v0.x.
-        /// Registration order is deterministic: CoreWorld, Inventory, Weapons, WorldObjectState, ContainerStorage.
+        /// Registration order is deterministic: CoreWorld, Inventory, Weapons, WorldObjectState, ContainerStorage, PlayerDevice.
         /// </summary>
-        public static SaveCoordinator CreateDefaultCoordinator(int currentSchemaVersion = 3)
+        public static SaveCoordinator CreateDefaultCoordinator(int currentSchemaVersion = 4)
         {
             return new SaveCoordinator(
                 new SaveFileRepository(),
@@ -18,7 +18,8 @@ namespace Reloader.Core.Save
                 {
                     new SchemaV1ToV1NoOpMigration(),
                     new SchemaV1ToV2AddWorldObjectStateMigration(),
-                    new SchemaV2ToV3AddContainerStorageMigration()
+                    new SchemaV2ToV3AddContainerStorageMigration(),
+                    new SchemaV3ToV4AddPlayerDeviceMigration()
                 }),
                 new[]
                 {
@@ -26,7 +27,8 @@ namespace Reloader.Core.Save
                     new SaveModuleRegistration(1, new InventoryModule()),
                     new SaveModuleRegistration(2, new WeaponsModule()),
                     new SaveModuleRegistration(3, new WorldObjectStateModule()),
-                    new SaveModuleRegistration(4, new ContainerStorageModule())
+                    new SaveModuleRegistration(4, new ContainerStorageModule()),
+                    new SaveModuleRegistration(5, new PlayerDeviceModule())
                 },
                 currentSchemaVersion);
         }

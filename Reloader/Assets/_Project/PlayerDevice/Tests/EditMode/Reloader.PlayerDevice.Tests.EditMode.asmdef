@@ -1,0 +1,24 @@
+{
+  "name": "Reloader.PlayerDevice.Tests.EditMode",
+  "rootNamespace": "Reloader.PlayerDevice.Tests.EditMode",
+  "references": [
+    "Reloader.PlayerDevice",
+    "Reloader.Inventory",
+    "Reloader.Core",
+    "Reloader.Player"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

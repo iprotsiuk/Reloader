@@ -4,6 +4,8 @@ using System.Runtime.CompilerServices;
 using Reloader.Core;
 using Reloader.Inventory;
 using Reloader.Player;
+using Reloader.PlayerDevice.Runtime;
+using Reloader.PlayerDevice.World;
 using Reloader.UI.Toolkit.AmmoHud;
 using Reloader.UI.Toolkit.BeltHud;
 using Reloader.UI.Toolkit.ChestInventory;
@@ -30,6 +32,7 @@ namespace Reloader.UI.Toolkit.Runtime
         private const string TradeScreenId = "trade-ui";
         private const string ReloadingScreenId = "reloading-workbench";
         private const string InteractionHintScreenId = "interaction-hint";
+        private const string DeviceTargetSelectionControllerObjectName = "player-device-target-selection-controller";
 
         private static readonly ScreenBindingDefinition[] ScreenBindings =
         {
@@ -46,6 +49,8 @@ namespace Reloader.UI.Toolkit.Runtime
 
         private UiToolkitRuntimeRoot _runtimeRoot;
         private readonly Dictionary<string, ScreenBindingState> _bindingStates = new(StringComparer.Ordinal);
+        private PlayerDeviceRuntimeState _playerDeviceRuntimeState;
+        private PlayerDeviceController _playerDeviceController;
         private float _nextSelfHealAt;
 
         public void Initialize(UiToolkitRuntimeRoot runtimeRoot)
@@ -216,8 +221,52 @@ namespace Reloader.UI.Toolkit.Runtime
             var controller = GetOrAddController<TabInventoryController>(controllerName);
             controller.SetInventoryController(inventoryController);
             controller.SetInputSource(inputSource);
+            controller.SetDeviceController(ResolveTabDeviceControllerAdapter(inventoryController, inputSource));
             controller.Configure(viewBinder, null);
             return UiContractGuard.Bind(controller, viewBinder);
+        }
+
+        private TabInventoryController.IDeviceController ResolveTabDeviceControllerAdapter(
+            PlayerInventoryController inventoryController,
+            IPlayerInputSource inputSource)
+        {
+            var existing = DependencyResolutionGuard.FindInterface<TabInventoryController.IDeviceController>(
+                FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            _playerDeviceRuntimeState ??= new PlayerDeviceRuntimeState();
+            _playerDeviceController ??= new PlayerDeviceController(_playerDeviceRuntimeState, inventoryController, DeviceAttachmentCatalog.Empty);
+            var targetSelectionController = ResolveOrCreateTargetSelectionController(inputSource);
+
+            return new TabDeviceControllerAdapter(_playerDeviceController, targetSelectionController);
+        }
+
+        private PlayerDeviceTargetSelectionController ResolveOrCreateTargetSelectionController(IPlayerInputSource inputSource)
+        {
+            var targetSelectionController = FindAnyObjectByType<PlayerDeviceTargetSelectionController>();
+            if (targetSelectionController == null)
+            {
+                var go = new GameObject(DeviceTargetSelectionControllerObjectName);
+                go.transform.SetParent(transform, false);
+                targetSelectionController = go.AddComponent<PlayerDeviceTargetSelectionController>();
+            }
+
+            targetSelectionController.Configure(inputSource, ResolveTargetSelectionCamera(), _playerDeviceRuntimeState);
+            return targetSelectionController;
+        }
+
+        private static Camera ResolveTargetSelectionCamera()
+        {
+            var mainCamera = Camera.main;
+            if (mainCamera != null)
+            {
+                return mainCamera;
+            }
+
+            return FindFirstObjectByType<Camera>(FindObjectsInactive.Exclude);
         }
 
         private IDisposable BindTrade(VisualElement root, string controllerName)
@@ -423,6 +472,119 @@ namespace Reloader.UI.Toolkit.Runtime
             public PlayerInventoryController InventoryController { get; }
             public PlayerWeaponController WeaponController { get; }
             public IPlayerInputSource InputSource { get; }
+        }
+
+        private sealed class TabDeviceControllerAdapter : TabInventoryController.IDeviceController
+        {
+            private readonly PlayerDeviceController _deviceController;
+            private readonly PlayerDeviceTargetSelectionController _targetSelectionController;
+            private string _attachmentFeedbackText = "Hooks are not installed.";
+
+            public TabDeviceControllerAdapter(
+                PlayerDeviceController deviceController,
+                PlayerDeviceTargetSelectionController targetSelectionController)
+            {
+                _deviceController = deviceController;
+                _targetSelectionController = targetSelectionController;
+            }
+
+            public bool TryGetStatus(out TabInventoryController.DeviceStatus status)
+            {
+                if (_deviceController == null)
+                {
+                    status = default;
+                    return false;
+                }
+
+                var selectedBinding = _deviceController.SelectedTargetBinding;
+                var metrics = _deviceController.ActiveGroupMetrics;
+                var savedGroups = _deviceController.BuildSavedGroupSummaries();
+                var uiSavedGroups = new TabInventoryController.DeviceSavedGroupEntry[savedGroups.Count];
+                for (var i = 0; i < savedGroups.Count; i++)
+                {
+                    var group = savedGroups[i];
+                    uiSavedGroups[i] = new TabInventoryController.DeviceSavedGroupEntry(
+                        shotCount: group.ShotCount,
+                        isMoaAvailable: group.IsMoaAvailable,
+                        moa: group.Moa,
+                        spreadMeters: group.SpreadMeters);
+                }
+
+                var canInstallHooks = _deviceController.CanInstallSelectedAttachmentFromInventory();
+                var canUninstallHooks = _deviceController.CanUninstallAttachment(DeviceAttachmentType.Rangefinder);
+                if (string.IsNullOrWhiteSpace(_attachmentFeedbackText))
+                {
+                    _attachmentFeedbackText = canUninstallHooks ? "Hooks installed." : "Hooks are not installed.";
+                }
+
+                status = new TabInventoryController.DeviceStatus(
+                    hasTarget: _deviceController.HasSelectedTargetBinding,
+                    targetDisplayName: selectedBinding.DisplayName,
+                    targetDistanceMeters: selectedBinding.DistanceMeters,
+                    shotCount: _deviceController.ActiveShotCount,
+                    isMoaAvailable: metrics.IsMoaAvailable,
+                    moa: metrics.Moa,
+                    spreadMeters: metrics.LinearSpreadMeters,
+                    savedGroupCount: _deviceController.SavedGroupCount,
+                    canSaveGroup: _deviceController.ActiveShotCount > 0,
+                    canClearGroup: _deviceController.ActiveShotCount > 0,
+                    canInstallHooks: canInstallHooks,
+                    canUninstallHooks: canUninstallHooks,
+                    attachmentFeedbackText: _attachmentFeedbackText,
+                    savedGroups: uiSavedGroups);
+                return true;
+            }
+
+            public void ChooseTarget()
+            {
+                if (_targetSelectionController != null)
+                {
+                    _targetSelectionController.BeginTargetSelection();
+                    return;
+                }
+
+                _deviceController?.BeginTargetSelection();
+            }
+
+            public void SaveGroup()
+            {
+                _deviceController?.SaveCurrentGroup();
+            }
+
+            public void ClearGroup()
+            {
+                _deviceController?.ClearCurrentGroup();
+            }
+
+            public bool InstallHooks()
+            {
+                if (_deviceController == null)
+                {
+                    _attachmentFeedbackText = "Device unavailable.";
+                    return false;
+                }
+
+                var installed = _deviceController.TryInstallSelectedAttachmentFromInventory();
+                _attachmentFeedbackText = installed
+                    ? "Hooks installed."
+                    : "Select hooks in your belt to install.";
+                return installed;
+            }
+
+            public bool UninstallHooks()
+            {
+                if (_deviceController == null)
+                {
+                    _attachmentFeedbackText = "Device unavailable.";
+                    return false;
+                }
+
+                var uninstalled = _deviceController.TryUninstallAttachment(DeviceAttachmentType.Rangefinder);
+                _attachmentFeedbackText = uninstalled
+                    ? "Hooks uninstalled."
+                    : "Hooks are not installed.";
+                return uninstalled;
+            }
         }
 
         [Flags]

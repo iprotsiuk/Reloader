@@ -26,6 +26,7 @@ namespace Reloader.Weapons.Ballistics
         private bool _useRuntimeKernelWeaponEvents = true;
         private Collider[] _ignoredColliders = System.Array.Empty<Collider>();
         private Material _runtimeVisualMaterial;
+        private Vector3 _sourcePoint;
         public float InitialSpeedMetersPerSecond { get; private set; }
         public float CurrentSpeedMetersPerSecond => _velocity.magnitude;
 
@@ -34,6 +35,7 @@ namespace Reloader.Weapons.Ballistics
             EnsureInFlightVisual();
             _remainingLifetime = _lifetimeSeconds;
             _velocity = transform.forward * _speed;
+            _sourcePoint = transform.position;
         }
 
         private void OnDestroy()
@@ -69,7 +71,7 @@ namespace Reloader.Weapons.Ballistics
             if (TryResolveHit(start, delta, out var hit))
             {
                 transform.position = hit.point;
-                var payload = new ProjectileImpactPayload(_itemId, hit.point, hit.normal, _damage, hit.collider.gameObject);
+                var payload = new ProjectileImpactPayload(_itemId, hit.point, hit.normal, _damage, hit.collider.gameObject, _sourcePoint);
                 var damageable = hit.collider.GetComponentInParent<IDamageable>();
                 damageable?.ApplyDamage(payload);
                 SpawnImpactVfx(hit.point, hit.normal);
@@ -95,6 +97,7 @@ namespace Reloader.Weapons.Ballistics
             _ballisticCoefficientG1 = ballisticCoefficientG1;
             _remainingLifetime = lifetimeSeconds;
             _velocity = direction.normalized * speed;
+            _sourcePoint = transform.position;
             InitialSpeedMetersPerSecond = speed;
             _ignoredColliders = shooterRoot != null
                 ? shooterRoot.GetComponentsInChildren<Collider>()

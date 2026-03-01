@@ -1,0 +1,19 @@
+{
+  "name": "Reloader.PlayerDevice",
+  "rootNamespace": "Reloader.PlayerDevice",
+  "references": [
+    "Reloader.Core",
+    "Reloader.Inventory",
+    "Reloader.Player",
+    "Unity.InputSystem"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

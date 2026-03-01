@@ -3,6 +3,7 @@
   "rootNamespace": "Reloader.Weapons",
   "references": [
     "Reloader.Core",
+    "Reloader.PlayerDevice",
     "Reloader.Inventory",
     "Reloader.Player"
   ],

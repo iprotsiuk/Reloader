@@ -244,6 +244,50 @@ namespace Reloader.Inventory
             return true;
         }
 
+        public bool TryGetSelectedInventoryItemId(out string itemId)
+        {
+            itemId = Runtime?.SelectedBeltItemId;
+            return !string.IsNullOrWhiteSpace(itemId);
+        }
+
+        public bool TryConsumeSelectedBeltItem(out string consumedItemId)
+        {
+            consumedItemId = null;
+            if (!TryGetSelectedInventoryItemId(out var selectedItemId))
+            {
+                return false;
+            }
+
+            if (!Runtime.TryRemoveStackItem(selectedItemId, 1))
+            {
+                return false;
+            }
+
+            ResolveInventoryEvents()?.RaiseInventoryChanged();
+            UpdateDebugFields();
+            consumedItemId = selectedItemId;
+            return true;
+        }
+
+        public bool TryStoreItemWithBeltPriority(string itemId)
+        {
+            if (Runtime == null)
+            {
+                return false;
+            }
+
+            if (!Runtime.TryStoreItem(itemId, out var area, out var index, out _))
+            {
+                return false;
+            }
+
+            var inventoryEvents = ResolveInventoryEvents();
+            inventoryEvents?.RaiseItemStored(itemId, area, index);
+            inventoryEvents?.RaiseInventoryChanged();
+            UpdateDebugFields();
+            return true;
+        }
+
         private void HandleItemPickupRequested(string itemId)
         {
             if (Runtime == null)
