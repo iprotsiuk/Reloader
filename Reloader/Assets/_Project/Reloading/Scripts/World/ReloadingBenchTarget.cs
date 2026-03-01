@@ -9,6 +9,7 @@ namespace Reloader.Reloading.World
         private const string PressSlotId = "press-slot";
         private const string ResizeDieSlotId = "resize-die-slot";
         private const string SeatingDieSlotId = "seating-die-slot";
+        private const string PrimerSlotId = "primer-slot";
 
         [SerializeField] private bool _isWorkbenchOpen;
         [SerializeField] private WorkbenchDefinition _workbenchDefinition;
@@ -20,6 +21,7 @@ namespace Reloader.Reloading.World
         private MountableItemDefinition _temporaryPressItem;
         private MountableItemDefinition _temporaryResizeDieItem;
         private MountableItemDefinition _temporarySeatingDieItem;
+        private MountableItemDefinition _temporaryPrimerItem;
 
         public bool IsWorkbenchOpen => _isWorkbenchOpen;
 
@@ -82,7 +84,8 @@ namespace Reloader.Reloading.World
                 {
                     new MountSlotDefinition(PressSlotId, new[] { "cap.press" }),
                     new MountSlotDefinition(ResizeDieSlotId, new[] { "cap.die" }),
-                    new MountSlotDefinition(SeatingDieSlotId, new[] { "cap.die" })
+                    new MountSlotDefinition(SeatingDieSlotId, new[] { "cap.die" }),
+                    new MountSlotDefinition(PrimerSlotId, new[] { "cap.prime" })
                 });
 
             _temporaryPressItem = ScriptableObject.CreateInstance<MountableItemDefinition>();
@@ -94,12 +97,16 @@ namespace Reloader.Reloading.World
             _temporarySeatingDieItem = ScriptableObject.CreateInstance<MountableItemDefinition>();
             _temporarySeatingDieItem.SetValuesForTests("die.seating", new[] { "cap.die", "cap.die.seat" }, childSlots: null);
 
+            _temporaryPrimerItem = ScriptableObject.CreateInstance<MountableItemDefinition>();
+            _temporaryPrimerItem.SetValuesForTests("tool.primer", new[] { "cap.prime" }, childSlots: null);
+
             _runtimeState = new WorkbenchRuntimeState(_temporaryWorkbenchDefinition);
             _loadoutController = new WorkbenchLoadoutController(_runtimeState, new WorkbenchCompatibilityEvaluator());
 
             _loadoutController.TryInstall(PressSlotId, _temporaryPressItem, out _);
             _loadoutController.TryInstall(ResizeDieSlotId, _temporaryResizeDieItem, out _);
             _loadoutController.TryInstall(SeatingDieSlotId, _temporarySeatingDieItem, out _);
+            _loadoutController.TryInstall(PrimerSlotId, _temporaryPrimerItem, out _);
         }
     }
 }
