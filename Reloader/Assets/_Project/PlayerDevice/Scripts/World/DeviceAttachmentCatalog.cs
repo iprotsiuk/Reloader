@@ -20,6 +20,18 @@ namespace Reloader.PlayerDevice.World
             public DeviceAttachmentType AttachmentType { get; }
         }
 
+        public readonly struct ItemIdMapping
+        {
+            public ItemIdMapping(string itemId, DeviceAttachmentType attachmentType)
+            {
+                ItemId = itemId;
+                AttachmentType = attachmentType;
+            }
+
+            public string ItemId { get; }
+            public DeviceAttachmentType AttachmentType { get; }
+        }
+
         private readonly Dictionary<string, DeviceAttachmentType> _attachmentByItemId;
         private readonly Dictionary<DeviceAttachmentType, string> _itemIdByAttachment;
 
@@ -55,6 +67,27 @@ namespace Reloader.PlayerDevice.World
 
                     attachmentByItemId[entry.ItemDefinition.DefinitionId] = entry.AttachmentType;
                     itemIdByAttachment[entry.AttachmentType] = entry.ItemDefinition.DefinitionId;
+                }
+            }
+
+            return new DeviceAttachmentCatalog(attachmentByItemId, itemIdByAttachment);
+        }
+
+        public static DeviceAttachmentCatalog FromItemIdMappings(IEnumerable<ItemIdMapping> mappings)
+        {
+            var attachmentByItemId = new Dictionary<string, DeviceAttachmentType>(StringComparer.Ordinal);
+            var itemIdByAttachment = new Dictionary<DeviceAttachmentType, string>();
+            if (mappings != null)
+            {
+                foreach (var mapping in mappings)
+                {
+                    if (string.IsNullOrWhiteSpace(mapping.ItemId) || mapping.AttachmentType == DeviceAttachmentType.None)
+                    {
+                        continue;
+                    }
+
+                    attachmentByItemId[mapping.ItemId] = mapping.AttachmentType;
+                    itemIdByAttachment[mapping.AttachmentType] = mapping.ItemId;
                 }
             }
 

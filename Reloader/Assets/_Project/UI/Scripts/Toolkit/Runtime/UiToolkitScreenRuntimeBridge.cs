@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Reloader.Core;
+using Reloader.Core.Items;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.PlayerDevice.Runtime;
@@ -51,6 +52,8 @@ namespace Reloader.UI.Toolkit.Runtime
         private readonly Dictionary<string, ScreenBindingState> _bindingStates = new(StringComparer.Ordinal);
         private PlayerDeviceRuntimeState _playerDeviceRuntimeState;
         private PlayerDeviceController _playerDeviceController;
+        private PlayerInventoryController _playerDeviceInventoryController;
+        private int _playerDeviceInputSourceHash;
         private float _nextSelfHealAt;
 
         public void Initialize(UiToolkitRuntimeRoot runtimeRoot)
@@ -238,10 +241,74 @@ namespace Reloader.UI.Toolkit.Runtime
             }
 
             _playerDeviceRuntimeState ??= new PlayerDeviceRuntimeState();
-            _playerDeviceController ??= new PlayerDeviceController(_playerDeviceRuntimeState, inventoryController, DeviceAttachmentCatalog.Empty);
+            var inputHash = GetReferenceIdentityHash(inputSource);
+            if (_playerDeviceController == null
+                || !ReferenceEquals(_playerDeviceInventoryController, inventoryController)
+                || _playerDeviceInputSourceHash != inputHash)
+            {
+                _playerDeviceInventoryController = inventoryController;
+                _playerDeviceInputSourceHash = inputHash;
+                var attachmentCatalog = BuildAttachmentCatalog(inventoryController);
+                _playerDeviceController = new PlayerDeviceController(_playerDeviceRuntimeState, inventoryController, attachmentCatalog);
+            }
+
             var targetSelectionController = ResolveOrCreateTargetSelectionController(inputSource);
 
             return new TabDeviceControllerAdapter(_playerDeviceController, targetSelectionController);
+        }
+
+        private static DeviceAttachmentCatalog BuildAttachmentCatalog(PlayerInventoryController inventoryController)
+        {
+            var mappings = new List<DeviceAttachmentCatalog.ItemIdMapping>
+            {
+                // Default fallback mapping for current v0.1 attachment item id.
+                new("attachment.rangefinder", DeviceAttachmentType.Rangefinder),
+            };
+
+            var definitions = inventoryController?.GetItemDefinitionRegistrySnapshot();
+            if (definitions != null)
+            {
+                for (var i = 0; i < definitions.Count; i++)
+                {
+                    var definition = definitions[i];
+                    if (definition == null || string.IsNullOrWhiteSpace(definition.DefinitionId))
+                    {
+                        continue;
+                    }
+
+                    var attachmentType = ResolveAttachmentType(definition);
+                    if (attachmentType == DeviceAttachmentType.None)
+                    {
+                        continue;
+                    }
+
+                    mappings.Add(new DeviceAttachmentCatalog.ItemIdMapping(definition.DefinitionId, attachmentType));
+                }
+            }
+
+            return DeviceAttachmentCatalog.FromItemIdMappings(mappings);
+        }
+
+        private static DeviceAttachmentType ResolveAttachmentType(ItemDefinition definition)
+        {
+            if (definition == null)
+            {
+                return DeviceAttachmentType.None;
+            }
+
+            if (!string.IsNullOrWhiteSpace(definition.DefinitionId)
+                && definition.DefinitionId.IndexOf("rangefinder", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return DeviceAttachmentType.Rangefinder;
+            }
+
+            if (!string.IsNullOrWhiteSpace(definition.DisplayName)
+                && definition.DisplayName.IndexOf("rangefinder", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return DeviceAttachmentType.Rangefinder;
+            }
+
+            return DeviceAttachmentType.None;
         }
 
         private PlayerDeviceTargetSelectionController ResolveOrCreateTargetSelectionController(IPlayerInputSource inputSource)

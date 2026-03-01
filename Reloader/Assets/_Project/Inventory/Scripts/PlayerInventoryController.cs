@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using Reloader.Core;
@@ -213,7 +214,7 @@ namespace Reloader.Inventory
             }
 
             var subjectText = ResolvePickupDisplayName(pickupTarget);
-            var targetInstanceId = pickupTarget is Object pickupTargetObject ? pickupTargetObject.GetInstanceID() : 0;
+            var targetInstanceId = pickupTarget is UnityEngine.Object pickupTargetObject ? pickupTargetObject.GetInstanceID() : 0;
             var stableTieBreaker = $"{resolvedItemId}:{targetInstanceId}";
             candidate = new PlayerInteractionCandidate(
                 PickupHintContextId,
@@ -296,6 +297,16 @@ namespace Reloader.Inventory
             }
 
             return Runtime.CanAcceptStackItem(itemId);
+        }
+
+        public IReadOnlyList<ItemDefinition> GetItemDefinitionRegistrySnapshot()
+        {
+            if (_itemDefinitionRegistry == null || _itemDefinitionRegistry.Count == 0)
+            {
+                return Array.Empty<ItemDefinition>();
+            }
+
+            return _itemDefinitionRegistry.ToArray();
         }
 
         private void HandleItemPickupRequested(string itemId)
