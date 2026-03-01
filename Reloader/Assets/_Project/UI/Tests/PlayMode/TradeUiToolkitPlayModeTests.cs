@@ -74,6 +74,34 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void Render_WithBuySlots_PopulatesGrid()
+        {
+            var root = BuildRoot(withBuySlots: true);
+            var binder = new TradeViewBinder();
+            binder.Initialize(root);
+
+            var slots = new[]
+            {
+                new TradeUiSlotViewModel("item-a", "Item A", true, false),
+                new TradeUiSlotViewModel("item-b", "Item B", true, true),
+                null,
+                null,
+                null,
+                null
+            };
+
+            binder.Render(new TradeUiState(TradeUiTab.Buy, false, "$0", true, false, slots));
+
+            var buyPanel = root.Q<VisualElement>("trade__buy-panel");
+            var renderedSlots = buyPanel.Query<VisualElement>(className: "trade__cell").ToList();
+            Assert.That(renderedSlots.Count, Is.EqualTo(6));
+
+            var firstLabel = renderedSlots[0].Q<Label>("trade__cell-label");
+            Assert.That(firstLabel, Is.Not.Null);
+            Assert.That(firstLabel.text, Is.EqualTo("Item A"));
+        }
+
+        [Test]
         public void HandleIntent_ConfirmBuy_WithoutPayload_DoesNotRaiseBuyCheckoutEvent()
         {
             var go = new GameObject("trade-controller");
@@ -212,6 +240,43 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void HandleIntent_ConfirmBuy_WithSelectedSlotWithoutPayload_RaisesBuyRequestedQuantityOne()
+        {
+            var go = new GameObject("trade-controller");
+            var controller = go.AddComponent<TradeController>();
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+            var raised = 0;
+            string capturedItemId = null;
+            var capturedQuantity = 0;
+
+            void Handler(string itemId, int quantity)
+            {
+                raised++;
+                capturedItemId = itemId;
+                capturedQuantity = quantity;
+            }
+
+            runtimeHub.OnShopBuyRequested += Handler;
+            try
+            {
+                controller.HandleIntent(new UiIntent("trade.buy.slot", "item-a"));
+                controller.HandleIntent(new UiIntent("trade.confirm.buy"));
+
+                Assert.That(raised, Is.EqualTo(1));
+                Assert.That(capturedItemId, Is.EqualTo("item-a"));
+                Assert.That(capturedQuantity, Is.EqualTo(1));
+            }
+            finally
+            {
+                runtimeHub.OnShopBuyRequested -= Handler;
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void OnDisable_UnsubscribesFromShopEvents()
         {
             var go = new GameObject("trade-controller");
@@ -237,10 +302,21 @@ namespace Reloader.UI.Tests.PlayMode
             }
         }
 
-        private static VisualElement BuildRoot()
+        private static VisualElement BuildRoot(bool withBuySlots = false)
         {
             var root = new VisualElement { name = "trade__root" };
-            root.Add(new VisualElement { name = "trade__buy-panel" });
+            var buyPanel = new VisualElement { name = "trade__buy-panel" };
+            if (withBuySlots)
+            {
+                for (var i = 0; i < 6; i++)
+                {
+                    var slot = new VisualElement { name = $"slot-{i}" };
+                    slot.AddToClassList("trade__cell");
+                    buyPanel.Add(slot);
+                }
+            }
+
+            root.Add(buyPanel);
             root.Add(new VisualElement { name = "trade__sell-panel" });
             root.Add(new VisualElement { name = "trade__order-panel" });
             root.Add(new Label { name = "trade__cart-total" });

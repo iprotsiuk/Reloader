@@ -1,6 +1,8 @@
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using Reloader.Economy;
 using Reloader.UI.Toolkit.Contracts;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Reloader.UI.Toolkit.Trade
@@ -13,6 +15,8 @@ namespace Reloader.UI.Toolkit.Trade
         private bool _useRuntimeKernelShopEvents = true;
         private bool _isOpen;
         private TradeUiTab _activeTab = TradeUiTab.Buy;
+        private string _selectedBuyItemId;
+        private EconomyController _economyController;
 
         private void OnEnable()
         {
@@ -60,6 +64,10 @@ namespace Reloader.UI.Toolkit.Trade
                 {
                     ResolveShopEvents()?.RaiseShopBuyCheckoutRequested(request);
                 }
+                else if (!string.IsNullOrWhiteSpace(_selectedBuyItemId))
+                {
+                    ResolveShopEvents()?.RaiseShopBuyRequested(_selectedBuyItemId, 1);
+                }
             }
             else if (intent.Key == "trade.confirm.sell")
             {
@@ -68,6 +76,10 @@ namespace Reloader.UI.Toolkit.Trade
                 {
                     ResolveShopEvents()?.RaiseShopSellCheckoutRequested(request);
                 }
+            }
+            else if (intent.Key == "trade.buy.slot")
+            {
+                _selectedBuyItemId = intent.Payload as string;
             }
 
             Refresh();
@@ -81,12 +93,14 @@ namespace Reloader.UI.Toolkit.Trade
         private void HandleTradeOpened(string _)
         {
             _isOpen = true;
+            _selectedBuyItemId = null;
             Refresh();
         }
 
         private void HandleTradeClosed()
         {
             _isOpen = false;
+            _selectedBuyItemId = null;
             Refresh();
         }
 
@@ -114,7 +128,14 @@ namespace Reloader.UI.Toolkit.Trade
                 return;
             }
 
-            Render(new TradeUiState(_activeTab, false, "$245", true, true));
+            var buySlots = BuildBuySlots();
+            Render(new TradeUiState(
+                _activeTab,
+                false,
+                "$0",
+                canConfirmBuy: CanConfirmSelectedBuyItem(buySlots),
+                canConfirmSell: false,
+                buySlots: buySlots));
         }
 
         private void ReconcileVisibilityAfterRuntimeHubSwap()
@@ -172,6 +193,7 @@ namespace Reloader.UI.Toolkit.Trade
             _subscribedShopEvents = shopEvents;
             _subscribedShopEvents.OnShopTradeOpened += HandleTradeOpened;
             _subscribedShopEvents.OnShopTradeClosed += HandleTradeClosed;
+            _subscribedShopEvents.OnShopTradeResult += HandleTradeResult;
         }
 
         private void UnsubscribeFromShopEvents()
@@ -183,7 +205,83 @@ namespace Reloader.UI.Toolkit.Trade
 
             _subscribedShopEvents.OnShopTradeOpened -= HandleTradeOpened;
             _subscribedShopEvents.OnShopTradeClosed -= HandleTradeClosed;
+            _subscribedShopEvents.OnShopTradeResult -= HandleTradeResult;
             _subscribedShopEvents = null;
+        }
+
+        private void HandleTradeResult(string itemId, int quantity, bool isBuy, bool success, string failureReason)
+        {
+            if (_isOpen && success && isBuy)
+            {
+                Refresh();
+            }
+        }
+
+        private IReadOnlyList<TradeUiSlotViewModel> BuildBuySlots()
+        {
+            var slots = new List<TradeUiSlotViewModel>(6);
+            var economy = ResolveEconomyController();
+            var runtime = economy?.Runtime;
+            var catalogItems = runtime?.GetActiveCatalogItems();
+            if (catalogItems != null)
+            {
+                for (var i = 0; i < catalogItems.Count && slots.Count < 6; i++)
+                {
+                    var item = catalogItems[i];
+                    if (item == null || string.IsNullOrWhiteSpace(item.ItemId))
+                    {
+                        continue;
+                    }
+
+                    runtime.TryGetStock(item.ItemId, out var stock);
+                    var isEnabled = stock > 0;
+                    var isSelected = !string.IsNullOrWhiteSpace(_selectedBuyItemId)
+                                     && string.Equals(_selectedBuyItemId, item.ItemId, System.StringComparison.Ordinal);
+                    var label = $"{item.DisplayName}\n${item.UnitPrice} | x{stock}";
+                    slots.Add(new TradeUiSlotViewModel(item.ItemId, label, isEnabled, isSelected));
+                }
+            }
+
+            while (slots.Count < 6)
+            {
+                slots.Add(null);
+            }
+
+            return slots;
+        }
+
+        private bool CanConfirmSelectedBuyItem(IReadOnlyList<TradeUiSlotViewModel> buySlots)
+        {
+            if (string.IsNullOrWhiteSpace(_selectedBuyItemId) || buySlots == null)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < buySlots.Count; i++)
+            {
+                var slot = buySlots[i];
+                if (slot == null)
+                {
+                    continue;
+                }
+
+                if (string.Equals(slot.ItemId, _selectedBuyItemId, System.StringComparison.Ordinal))
+                {
+                    return slot.IsEnabled;
+                }
+            }
+
+            return false;
+        }
+
+        private EconomyController ResolveEconomyController()
+        {
+            if (_economyController == null)
+            {
+                _economyController = FindFirstObjectByType<EconomyController>(FindObjectsInactive.Include);
+            }
+
+            return _economyController;
         }
 
         private void SubscribeToRuntimeHubReconfigure()

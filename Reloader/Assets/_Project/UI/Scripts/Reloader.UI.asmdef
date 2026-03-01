@@ -3,6 +3,7 @@
   "rootNamespace": "Reloader.UI",
   "references": [
     "Reloader.Core",
+    "Reloader.Economy",
     "Reloader.Inventory",
     "Reloader.NPCs",
     "Reloader.PlayerDevice",

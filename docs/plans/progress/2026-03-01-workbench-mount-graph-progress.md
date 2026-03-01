@@ -129,3 +129,13 @@
   - prefab instance named `ReloadingVendor_House`,
   - `_vendorId` override set to `vendor-reloading-store`,
   - positioned for quick reloading-loop access from house/workbench.
+
+## Follow-Up Progress (Vendor UI Buy Grid)
+
+- Replaced trade buy flow mock behavior with runtime-driven vendor stock slots:
+  - `TradeController` now builds buy-slot view models from `EconomyController.Runtime.GetActiveCatalogItems()` and current stock.
+  - `TradeViewBinder` now renders text into buy grid slots and handles slot-click intents (`trade.buy.slot`).
+  - `trade.confirm.buy` now issues `OnShopBuyRequested(itemId, 1)` when a slot is selected and no checkout payload is provided.
+- Removed hardcoded static placeholder buy lines from `TradeUi.uxml` so UI reflects actual vendor data only.
+- Added runtime API:
+  - `EconomyRuntime.GetActiveCatalogItems()`.

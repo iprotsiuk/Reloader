@@ -99,6 +99,30 @@
 .trade__cell {
     margin-right: 4px;
     margin-bottom: 4px;
+    justify-content: center;
+    align-items: center;
+    padding-top: 4px;
+    padding-right: 4px;
+    padding-bottom: 4px;
+    padding-left: 4px;
+}
+
+.trade__cell-label {
+    white-space: normal;
+    color: rgba(238, 242, 248, 0.92);
+    font-size: 9px;
+    -unity-text-align: middle-center;
+}
+
+.trade__cell.is-active {
+    border-top-color: rgba(111, 176, 255, 0.95);
+    border-right-color: rgba(111, 176, 255, 0.95);
+    border-bottom-color: rgba(111, 176, 255, 0.95);
+    border-left-color: rgba(111, 176, 255, 0.95);
+}
+
+.trade__cell:disabled .trade__cell-label {
+    color: rgba(182, 188, 197, 0.55);
 }
 
 .trade__line {

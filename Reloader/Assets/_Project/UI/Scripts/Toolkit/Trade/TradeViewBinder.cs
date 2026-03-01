@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine.UIElements;
 
@@ -15,6 +16,8 @@ namespace Reloader.UI.Toolkit.Trade
         private Button _tabSellButton;
         private Button _confirmBuyButton;
         private Button _confirmSellButton;
+        private readonly List<VisualElement> _buySlots = new();
+        private readonly Dictionary<VisualElement, EventCallback<ClickEvent>> _buySlotCallbacks = new();
 
         public event Action<UiIntent> IntentRaised;
 
@@ -31,6 +34,7 @@ namespace Reloader.UI.Toolkit.Trade
             _confirmBuyButton = root?.Q<Button>("trade__confirm-buy");
             _confirmSellButton = root?.Q<Button>("trade__confirm-sell");
             BindButtons();
+            BindBuySlots();
         }
 
         public void Render(UiRenderState state)
@@ -65,6 +69,7 @@ namespace Reloader.UI.Toolkit.Trade
 
             SetTabActive(_tabBuyButton, tradeState.ActiveTab == TradeUiTab.Buy);
             SetTabActive(_tabSellButton, tradeState.ActiveTab == TradeUiTab.Sell);
+            RenderBuySlots(tradeState.BuySlots);
         }
 
         public bool TryRaiseConfirmBuyIntent()
@@ -123,6 +128,8 @@ namespace Reloader.UI.Toolkit.Trade
             {
                 _confirmSellButton.clicked -= OnConfirmSellClicked;
             }
+
+            UnbindBuySlots();
         }
 
         private void OnTabBuyClicked()
@@ -148,6 +155,84 @@ namespace Reloader.UI.Toolkit.Trade
         private static void SetTabActive(VisualElement tabButton, bool isActive)
         {
             tabButton?.EnableInClassList("is-active", isActive);
+        }
+
+        private void BindBuySlots()
+        {
+            UnbindBuySlots();
+            if (_buyPanel == null)
+            {
+                return;
+            }
+
+            var slotQuery = _buyPanel.Query<VisualElement>(className: "trade__cell");
+            var slots = slotQuery.ToList();
+            for (var i = 0; i < slots.Count; i++)
+            {
+                var slot = slots[i];
+                _buySlots.Add(slot);
+                var slotIndex = i;
+                EventCallback<ClickEvent> callback = _ =>
+                {
+                    var itemId = slot.userData as string;
+                    if (!string.IsNullOrWhiteSpace(itemId))
+                    {
+                        IntentRaised?.Invoke(new UiIntent("trade.buy.slot", itemId));
+                    }
+                };
+
+                _buySlotCallbacks[slot] = callback;
+                slot.RegisterCallback<ClickEvent>(callback);
+            }
+        }
+
+        private void UnbindBuySlots()
+        {
+            foreach (var kv in _buySlotCallbacks)
+            {
+                kv.Key.UnregisterCallback<ClickEvent>(kv.Value);
+            }
+
+            _buySlotCallbacks.Clear();
+            _buySlots.Clear();
+        }
+
+        private void RenderBuySlots(IReadOnlyList<TradeUiSlotViewModel> slots)
+        {
+            for (var i = 0; i < _buySlots.Count; i++)
+            {
+                var slot = _buySlots[i];
+                var vm = slots != null && i < slots.Count ? slots[i] : null;
+                slot.userData = vm?.ItemId;
+                slot.SetEnabled(vm?.IsEnabled ?? false);
+                slot.EnableInClassList("is-active", vm?.IsSelected ?? false);
+                slot.EnableInClassList("trade__cell--empty", vm == null);
+
+                var label = EnsureSlotLabel(slot);
+                label.text = vm?.DisplayText ?? string.Empty;
+            }
+        }
+
+        private static Label EnsureSlotLabel(VisualElement slot)
+        {
+            if (slot == null)
+            {
+                return null;
+            }
+
+            var label = slot.Q<Label>("trade__cell-label");
+            if (label != null)
+            {
+                return label;
+            }
+
+            label = new Label
+            {
+                name = "trade__cell-label"
+            };
+            label.AddToClassList("trade__cell-label");
+            slot.Add(label);
+            return label;
         }
 
         public void SetVisible(bool isVisible)

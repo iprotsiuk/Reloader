@@ -81,6 +81,27 @@ namespace Reloader.Economy
             return vendorStock.TryGetValue(itemId, out stock);
         }
 
+        public IReadOnlyList<ShopCatalogItemDefinition> GetActiveCatalogItems()
+        {
+            if (_activeCatalogItems.Count == 0)
+            {
+                return Array.Empty<ShopCatalogItemDefinition>();
+            }
+
+            var items = new List<ShopCatalogItemDefinition>(_activeCatalogItems.Count);
+            foreach (var item in _activeCatalogItems.Values)
+            {
+                if (item == null)
+                {
+                    continue;
+                }
+
+                items.Add(item);
+            }
+
+            return items;
+        }
+
         public bool TryBuy(string itemId, int quantity, out int totalPrice, out TradeFailureReason reason)
         {
             totalPrice = 0;

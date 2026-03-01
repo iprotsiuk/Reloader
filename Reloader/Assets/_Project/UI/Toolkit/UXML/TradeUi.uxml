@@ -23,8 +23,6 @@
                         <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
                         <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
                     </ui:VisualElement>
-                    <ui:Label text="- Match bullets x100" class="trade__line" />
-                    <ui:Label text="- Rifle powder 1lb" class="trade__line" />
                     <ui:Button name="trade__confirm-buy" text="Confirm Buy" class="trade__action" />
                 </ui:VisualElement>
 
