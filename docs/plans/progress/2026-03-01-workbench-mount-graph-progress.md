@@ -97,13 +97,19 @@
   - `3ab73d4` (`feat(reloading): gate operations from mounted workbench graph`)
   - `fd97e00` (`fix(save): finalize runtime bridges only after successful validation`)
   - `9867e64` (`fix(reloading): clear omitted benches and rediscover dynamic targets`)
-- Focused/broader MCP verification reruns remain blocked by Unity test-runner lock state.
-- Baseline triage from latest MCP full-suite runs:
-  - EditMode: 252 executed, failures include pre-existing schema expectation drift in active Unity checkout.
-  - PlayMode: 263 executed, broad unrelated baseline failures across Economy/NPCs/Player/PlayerDevice/UI.
+- Focused MCP reruns passed on 2026-03-01 after `main` compile fix and MCP restart:
+  - `d4576f61f3294550b43352a025bf5510`: `ReloadingWorkbenchUiToolkitPlayModeTests` -> passed `6/6`.
+  - `57608a8565894da89feffb3b22c80cf8`: `WorkbenchLoadoutControllerPlayModeTests` -> passed `5/5`.
+  - `1399ddc3ee8f4711b6ce72b76be0508b`: `WorkbenchMountFlowAcceptancePlayModeTests` -> passed `2/2`.
+  - `5ddc30c992a94eb59c7c1d3c989717c4`: `PlayerDeviceAttachmentInstallEditModeTests` -> passed `5/5`.
+- Broader regression reruns passed on 2026-03-01:
+  - `ed8bab3ab8cb4c2a98d83588a4801b3c`: `ReloadingBenchInteractionPlayModeTests` -> passed `10/10`.
+  - `ad8571d4ea3448ed96533fdd44c28a2b`: `PlayerInventoryControllerPlayModeTests` -> passed `23/23`.
+  - `df185c3cd5e04786b8e4b6ec75005400`: `TabInventoryDeviceSectionPlayModeTests` -> passed `16/16`.
+- Historical note: stale runner lock job `3a79c36cff4945a6bbe06bd535b78abb` is resolved after restart and compile fix.
 
 ## Notes
 
 - Commits stay small and review-friendly to keep automated review cadence high.
 - Scope authority delegated by user for modular/extensible implementation decisions.
-- Latest MCP blocker: editor state reports stale running PlayMode job `3a79c36cff4945a6bbe06bd535b78abb` and rejects new test jobs as `tests_running`.
+- No active MCP blocker for focused/broader verification suites in this slice after restart on port `6402`.

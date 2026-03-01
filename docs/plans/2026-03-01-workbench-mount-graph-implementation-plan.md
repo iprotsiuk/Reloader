@@ -371,12 +371,12 @@ Run via Unity MCP:
 - `PlayerInventoryControllerPlayModeTests`
 - `TabInventoryDeviceSectionPlayModeTests`
 
-Expected: all pass when Unity test execution is unlocked.
+Expected: all pass.
 
 If `run_tests` returns `tests_running`:
 - Record the blocking MCP job id and timestamp in progress docs.
 - Treat this as an infrastructure blocker (not feature regression) and stop launching additional test jobs until lock is cleared.
-- Keep the latest blocker snapshot in docs (current snapshot: job `3a79c36cff4945a6bbe06bd535b78abb`).
+- Keep the latest blocker snapshot in docs with job id and timestamp if this recurs.
 
 **Step 3: Update docs evidence, integration status, and blocker notes**
 
