@@ -223,6 +223,53 @@ namespace Reloader.Core.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator SceneLoad_RuntimeSpawnedRecord_ConsumedTrue_TrackConsumedFalse_StillRestores()
+        {
+            yield return LoadScene(MainTownSceneName);
+            var activeScene = SceneManager.GetActiveScene();
+            var objectId = "qa.persistence.spawned.consumed-ignored";
+            var expectedPosition = new Vector3(3f, 1f, -2f);
+            var expectedRotation = Quaternion.Euler(0f, 15f, 0f);
+
+            WorldObjectPersistenceRuntimeBridge.RegisterScenePolicy(new WorldScenePersistencePolicy
+            {
+                ScenePath = activeScene.path,
+                Mode = WorldObjectPersistenceMode.Persistent,
+                TrackTransforms = true,
+                TrackConsumed = false,
+                TrackDestroyed = true,
+                TrackSpawnedObjects = true
+            });
+
+            WorldObjectPersistenceRuntimeBridge.StateStore.Upsert(activeScene.path, new WorldObjectStateRecord
+            {
+                ObjectId = objectId,
+                Consumed = true,
+                HasTransformOverride = true,
+                Position = expectedPosition,
+                Rotation = expectedRotation,
+                ItemInstanceId = "drop:qa:consumed-ignored",
+                ItemDefinitionId = "weapon-rifle-01",
+                StackQuantity = 1
+            });
+
+            WorldObjectPersistenceRuntimeBridge.RegisterRuntimeSpawnRestorer((scene, record) =>
+            {
+                var restored = CreateIdentityInScene(scene, record.ObjectId);
+                restored.transform.SetPositionAndRotation(record.Position, record.Rotation);
+                return true;
+            });
+
+            WorldObjectPersistenceRuntimeBridge.EnsureInitialized();
+            InvokeSceneLoaded(activeScene, LoadSceneMode.Single);
+
+            var restoredIdentity = FindIdentityInSceneByObjectId(activeScene, objectId);
+            Assert.That(restoredIdentity, Is.Not.Null);
+            Assert.That(restoredIdentity.transform.position, Is.EqualTo(expectedPosition));
+            Assert.That(Quaternion.Angle(restoredIdentity.transform.rotation, expectedRotation), Is.LessThan(0.001f));
+        }
+
+        [UnityTest]
         public IEnumerator SceneLoad_DailyResetMode_StillAppliesObjectState()
         {
             yield return LoadScene(MainTownSceneName);

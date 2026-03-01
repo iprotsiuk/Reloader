@@ -73,7 +73,7 @@ namespace Reloader.Core.Persistence
                     }
 
                     var savedRecord = snapshot[i].Value;
-                    if (!CanRestoreRuntimeSpawnedRecord(savedRecord))
+                    if (!CanRestoreRuntimeSpawnedRecord(savedRecord, policy))
                     {
                         continue;
                     }
@@ -94,19 +94,19 @@ namespace Reloader.Core.Persistence
             return appliedCount;
         }
 
-        private static bool CanRestoreRuntimeSpawnedRecord(WorldObjectStateRecord savedRecord)
+        private static bool CanRestoreRuntimeSpawnedRecord(WorldObjectStateRecord savedRecord, WorldScenePersistencePolicy policy)
         {
             if (savedRecord == null)
             {
                 return false;
             }
 
-            if (savedRecord.Consumed)
+            if (savedRecord.Consumed && policy.TrackConsumed)
             {
                 return false;
             }
 
-            if (savedRecord.Destroyed)
+            if (savedRecord.Destroyed && policy.TrackDestroyed)
             {
                 return false;
             }
