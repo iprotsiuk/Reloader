@@ -409,6 +409,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             switch (intent.Key)
             {
                 case "tab.inventory.device.choose-target":
+                    SetMenuOpen(false);
                     deviceController.ChooseTarget();
                     Refresh();
                     return true;

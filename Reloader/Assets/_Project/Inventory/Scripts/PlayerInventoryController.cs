@@ -254,12 +254,13 @@ namespace Reloader.Inventory
         public bool TryConsumeSelectedBeltItem(out string consumedItemId)
         {
             consumedItemId = null;
-            if (!TryGetSelectedInventoryItemId(out var selectedItemId))
+            if (Runtime == null)
             {
                 return false;
             }
 
-            if (!Runtime.TryRemoveStackItem(selectedItemId, 1))
+            var selectedBeltIndex = Runtime.SelectedBeltIndex;
+            if (!Runtime.TryRemoveFromBeltSlot(selectedBeltIndex, 1, out var selectedItemId))
             {
                 return false;
             }

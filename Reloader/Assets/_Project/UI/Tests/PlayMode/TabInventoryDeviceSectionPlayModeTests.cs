@@ -87,6 +87,58 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void Controller_ChooseTargetIntent_ClosesTabInventoryPanel()
+        {
+            var go = new GameObject("TabInventoryControllerChooseTargetClosesPanel");
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(0);
+            inventoryController.Configure(null, null, runtime);
+
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 0, backpackSlotCount: 0);
+
+            var inputSource = go.AddComponent<TestInputSource>();
+            var controller = go.AddComponent<TabInventoryController>();
+            var deviceController = go.AddComponent<TestDeviceController>();
+            deviceController.Status = new TabInventoryController.DeviceStatus(
+                hasTarget: false,
+                targetDisplayName: string.Empty,
+                targetDistanceMeters: 0f,
+                shotCount: 0,
+                isMoaAvailable: false,
+                moa: 0d,
+                spreadMeters: 0d,
+                savedGroupCount: 0,
+                canSaveGroup: false,
+                canClearGroup: false,
+                canInstallHooks: false,
+                canUninstallHooks: false,
+                attachmentFeedbackText: "Ready.",
+                savedGroups: Array.Empty<TabInventoryController.DeviceSavedGroupEntry>());
+
+            controller.SetInventoryController(inventoryController);
+            controller.SetInputSource(inputSource);
+            controller.SetDeviceController(deviceController);
+            controller.Configure(binder, new TabInventoryDragController());
+
+            inputSource.MenuTogglePressedThisFrame = true;
+            controller.Tick();
+
+            var panel = root.Q<VisualElement>("inventory__panel");
+            Assert.That(panel, Is.Not.Null);
+            Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+
+            controller.HandleIntent(new UiIntent("tab.inventory.device.choose-target"));
+
+            Assert.That(deviceController.ChooseTargetCalls, Is.EqualTo(1));
+            Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.None));
+
+            UnityEngine.Object.DestroyImmediate(go);
+        }
+
+        [Test]
         public void Controller_Refresh_PopulatesDeviceNotesFromDeviceStatus()
         {
             var go = new GameObject("TabInventoryControllerDeviceNotes");

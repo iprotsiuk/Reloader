@@ -416,6 +416,34 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void TryConsumeSelectedBeltItem_WithDuplicateItemIds_ConsumesSelectedBeltSlot()
+        {
+            var root = new GameObject("InventoryControllerConsumeSelectedSlot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(0);
+            controller.Configure(null, null, runtime);
+
+            Assert.That(runtime.TryStoreItem("attachment.rangefinder", out _, out var firstRangefinderIndex, out _), Is.True);
+            Assert.That(runtime.TryStoreItem("filler-1", out _, out _, out _), Is.True);
+            Assert.That(runtime.TryStoreItem("filler-2", out _, out _, out _), Is.True);
+            Assert.That(runtime.TryStoreItem("attachment.rangefinder", out _, out var secondRangefinderIndex, out _), Is.True);
+            Assert.That(firstRangefinderIndex, Is.EqualTo(0));
+            Assert.That(secondRangefinderIndex, Is.EqualTo(3));
+
+            runtime.SelectBeltSlot(secondRangefinderIndex);
+
+            var consumed = controller.TryConsumeSelectedBeltItem(out var consumedItemId);
+
+            Assert.That(consumed, Is.True);
+            Assert.That(consumedItemId, Is.EqualTo("attachment.rangefinder"));
+            Assert.That(runtime.BeltSlotItemIds[firstRangefinderIndex], Is.EqualTo("attachment.rangefinder"));
+            Assert.That(runtime.BeltSlotItemIds[secondRangefinderIndex], Is.Null);
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void Tick_PickupPress_StoresStackPickupQuantity()
         {
             var root = new GameObject("InventoryControllerRoot");
