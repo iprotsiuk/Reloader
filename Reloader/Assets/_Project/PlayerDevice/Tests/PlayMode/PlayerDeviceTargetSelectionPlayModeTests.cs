@@ -154,6 +154,81 @@ namespace Reloader.PlayerDevice.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void BeginTargetSelection_PrefersDedicatedRangeMetrics_WhenMultipleProvidersExist()
+        {
+            var controllerType = System.Type.GetType("Reloader.PlayerDevice.World.PlayerDeviceTargetSelectionController, Reloader.PlayerDevice");
+            Assert.That(controllerType, Is.Not.Null, "PlayerDeviceTargetSelectionController type should exist.");
+
+            var metricsType = System.Type.GetType("Reloader.Weapons.World.DummyTargetRangeMetrics, Reloader.Weapons");
+            Assert.That(metricsType, Is.Not.Null, "DummyTargetRangeMetrics type should exist.");
+
+            var damageableType = System.Type.GetType("Reloader.Weapons.World.DummyTargetDamageable, Reloader.Weapons");
+            Assert.That(damageableType, Is.Not.Null, "DummyTargetDamageable type should exist.");
+
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+            GameObject root = null;
+            GameObject cameraGo = null;
+            GameObject targetParent = null;
+
+            try
+            {
+                root = new GameObject("PlayerDeviceSelectionRoot_PreferMetrics");
+                var input = root.AddComponent<TestInputSource>();
+                var controller = root.AddComponent(controllerType);
+
+                cameraGo = new GameObject("SelectionCamera");
+                cameraGo.transform.position = Vector3.zero;
+                cameraGo.transform.forward = Vector3.forward;
+                var camera = cameraGo.AddComponent<Camera>();
+
+                targetParent = new GameObject("Lane04");
+                var target = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                target.name = "RoundDummyTarget";
+                target.transform.SetParent(targetParent.transform, worldPositionStays: false);
+                target.transform.position = new Vector3(0f, 0f, 7f);
+
+                var damageable = target.AddComponent(damageableType);
+                SetPrivateField(damageableType, damageable, "_targetId", "wrong.damageable.id");
+                SetPrivateField(damageableType, damageable, "_displayName", "Wrong Damageable");
+                SetPrivateField(damageableType, damageable, "_authoritativeDistanceMeters", 9f);
+
+                var metrics = target.AddComponent(metricsType);
+                InvokeMethod(metricsType, metrics, "Configure", "target.lane04.preferred", "Lane 04 Preferred", 177.7f);
+
+                var runtimeState = new PlayerDeviceRuntimeState();
+                InvokeMethod(controllerType, controller, "Configure", input, camera, runtimeState);
+                InvokeMethod(controllerType, controller, "BeginTargetSelection");
+
+                input.PickupPressedThisFrame = true;
+                InvokeMethod(controllerType, controller, "Tick");
+
+                Assert.That(runtimeState.HasSelectedTargetBinding, Is.True);
+                Assert.That(runtimeState.SelectedTargetBinding.TargetId, Is.EqualTo("target.lane04.preferred"));
+                Assert.That(runtimeState.SelectedTargetBinding.DisplayName, Is.EqualTo("Lane 04 Preferred"));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                if (root != null)
+                {
+                    Object.DestroyImmediate(root);
+                }
+
+                if (cameraGo != null)
+                {
+                    Object.DestroyImmediate(cameraGo);
+                }
+
+                if (targetParent != null)
+                {
+                    Object.DestroyImmediate(targetParent);
+                }
+            }
+        }
+
         [UnityTest]
         public IEnumerator BeginTargetSelection_ConfirmedHint_AutoClearsAfterTwoSeconds()
         {
@@ -229,6 +304,13 @@ namespace Reloader.PlayerDevice.Tests.PlayMode
             var method = type.GetMethod(methodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             Assert.That(method, Is.Not.Null, $"Expected method '{methodName}' on {type?.FullName}.");
             method.Invoke(instance, args);
+        }
+
+        private static void SetPrivateField(System.Type type, object instance, string fieldName, object value)
+        {
+            var field = type.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {type?.FullName}.");
+            field.SetValue(instance, value);
         }
 
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource

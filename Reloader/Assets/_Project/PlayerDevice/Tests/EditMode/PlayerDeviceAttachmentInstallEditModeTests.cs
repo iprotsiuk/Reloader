@@ -54,6 +54,7 @@ namespace Reloader.PlayerDevice.Tests.EditMode
             {
                 var inventoryController = inventoryOwner.AddComponent<PlayerInventoryController>();
                 inventoryController.Configure(null, null, runtime, null);
+                runtime.SetBackpackCapacity(1);
 
                 var deviceState = new PlayerDeviceRuntimeState();
                 deviceState.InstallAttachment(DeviceAttachmentType.Rangefinder);
@@ -100,6 +101,37 @@ namespace Reloader.PlayerDevice.Tests.EditMode
                 Assert.That(deviceState.IsAttachmentInstalled(DeviceAttachmentType.Rangefinder), Is.False);
                 Assert.That(runtime.BeltSlotItemIds, Has.None.EqualTo(RangefinderItemId));
                 Assert.That(runtime.BackpackItemIds, Has.Member(RangefinderItemId));
+            }
+            finally
+            {
+                Object.DestroyImmediate(inventoryOwner);
+            }
+        }
+
+        [Test]
+        public void CanUninstallAttachment_IsFalse_WhenInventoryHasNoCapacity()
+        {
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(0);
+            for (var i = 0; i < PlayerInventoryRuntime.BeltSlotCount; i++)
+            {
+                runtime.TryStoreItem(FillerItemIdPrefix + i, out _, out _, out _);
+            }
+
+            var inventoryOwner = new GameObject("InventoryOwner");
+            try
+            {
+                var inventoryController = inventoryOwner.AddComponent<PlayerInventoryController>();
+                inventoryController.Configure(null, null, runtime, null);
+                runtime.SetBackpackCapacity(0);
+
+                var deviceState = new PlayerDeviceRuntimeState();
+                deviceState.InstallAttachment(DeviceAttachmentType.Rangefinder);
+                var catalog = BuildCatalog();
+                var controller = new PlayerDeviceController(deviceState, inventoryController, catalog);
+
+                Assert.That(controller.CanUninstallAttachment(DeviceAttachmentType.Rangefinder), Is.False);
+                Assert.That(controller.TryUninstallAttachment(DeviceAttachmentType.Rangefinder), Is.False);
             }
             finally
             {

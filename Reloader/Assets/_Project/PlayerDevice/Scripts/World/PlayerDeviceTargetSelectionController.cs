@@ -2,6 +2,8 @@ using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Player;
 using Reloader.PlayerDevice.Runtime;
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -123,10 +125,96 @@ namespace Reloader.PlayerDevice.World
                 return false;
             }
 
-            metrics = hit.collider.GetComponent<IRangeTargetMetrics>()
-                      ?? hit.collider.GetComponentInParent<IRangeTargetMetrics>();
+            if (!TryResolvePreferredMetrics(hit.collider, out metrics))
+            {
+                return false;
+            }
+
             selectionDistanceMeters = Mathf.Max(0f, hit.distance);
             return metrics != null;
+        }
+
+        private static bool TryResolvePreferredMetrics(Component hitComponent, out IRangeTargetMetrics metrics)
+        {
+            metrics = null;
+            if (hitComponent == null)
+            {
+                return false;
+            }
+
+            var candidates = new List<IRangeTargetMetrics>();
+            AppendCandidates(hitComponent.GetComponents<IRangeTargetMetrics>(), candidates);
+            AppendCandidates(hitComponent.GetComponentsInParent<IRangeTargetMetrics>(), candidates);
+            if (candidates.Count == 0)
+            {
+                return false;
+            }
+
+            metrics = SelectPreferredMetrics(candidates);
+            return metrics != null;
+        }
+
+        private static void AppendCandidates(IReadOnlyList<IRangeTargetMetrics> source, List<IRangeTargetMetrics> target)
+        {
+            if (source == null || target == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < source.Count; i++)
+            {
+                var candidate = source[i];
+                if (candidate == null || target.Contains(candidate))
+                {
+                    continue;
+                }
+
+                target.Add(candidate);
+            }
+        }
+
+        private static IRangeTargetMetrics SelectPreferredMetrics(IReadOnlyList<IRangeTargetMetrics> candidates)
+        {
+            IRangeTargetMetrics best = null;
+            var bestScore = int.MinValue;
+
+            for (var i = 0; i < candidates.Count; i++)
+            {
+                var candidate = candidates[i];
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                var score = 0;
+                if (!string.IsNullOrWhiteSpace(candidate.TargetId))
+                {
+                    score += 100;
+                }
+
+                if (candidate is Component component)
+                {
+                    var typeName = component.GetType().Name;
+                    // Prefer dedicated metrics components over dual-role damageable components.
+                    if (typeName.IndexOf("RangeMetrics", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        score += 50;
+                    }
+
+                    if (typeName.IndexOf("Damageable", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        score -= 10;
+                    }
+                }
+
+                if (best == null || score > bestScore)
+                {
+                    best = candidate;
+                    bestScore = score;
+                }
+            }
+
+            return best;
         }
 
         private bool ConsumeSelectionClickThisFrame()

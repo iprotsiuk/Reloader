@@ -288,6 +288,16 @@ namespace Reloader.Inventory
             return true;
         }
 
+        public bool CanStoreItemWithBeltPriority(string itemId)
+        {
+            if (Runtime == null || string.IsNullOrWhiteSpace(itemId))
+            {
+                return false;
+            }
+
+            return Runtime.CanAcceptStackItem(itemId);
+        }
+
         private void HandleItemPickupRequested(string itemId)
         {
             if (Runtime == null)

@@ -202,7 +202,7 @@ namespace Reloader.PlayerDevice.World
                 return false;
             }
 
-            return true;
+            return _inventoryController.CanStoreItemWithBeltPriority(attachmentItemId);
         }
 
         public IReadOnlyList<SavedGroupSummary> BuildSavedGroupSummaries()
