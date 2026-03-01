@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Reloader.Core.Runtime;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine;
@@ -33,6 +35,14 @@ namespace Reloader.UI.Toolkit.Reloading
         private string _operateDiagnosticsText = string.Empty;
         private ReloadingWorkbenchMode _mode = ReloadingWorkbenchMode.Setup;
         private bool _isVisible;
+        private static MethodInfo s_tryGetLatestMethod;
+        private static Type s_snapshotType;
+        private static Type s_operationSnapshotType;
+        private static PropertyInfo s_setupSlotsProperty;
+        private static PropertyInfo s_operationStatusesProperty;
+        private static PropertyInfo s_operationLabelProperty;
+        private static PropertyInfo s_operationEnabledProperty;
+        private static PropertyInfo s_operationDiagnosticProperty;
 
         private void OnEnable()
         {
@@ -78,17 +88,19 @@ namespace Reloader.UI.Toolkit.Reloading
             {
                 _mode = ReloadingWorkbenchMode.Operate;
                 _setupDiagnosticsText = string.Empty;
-                _operateDiagnosticsText = GetSelectedOperationDiagnostic();
+                var snapshotData = ResolveSnapshotData();
+                _operateDiagnosticsText = GetSelectedOperationDiagnostic(snapshotData);
                 Refresh();
                 return;
             }
 
             if (intent.Key == "reloading.operation.select" && intent.Payload is int index)
             {
-                _selectedOperation = Mathf.Clamp(index, 0, Mathf.Max(0, _operationLabels.Length - 1));
+                var snapshotData = ResolveSnapshotData();
+                _selectedOperation = Mathf.Clamp(index, 0, Mathf.Max(0, GetOperationCount(snapshotData) - 1));
                 if (_mode == ReloadingWorkbenchMode.Operate)
                 {
-                    _operateDiagnosticsText = GetSelectedOperationDiagnostic();
+                    _operateDiagnosticsText = GetSelectedOperationDiagnostic(snapshotData);
                 }
 
                 Refresh();
@@ -97,6 +109,7 @@ namespace Reloader.UI.Toolkit.Reloading
 
             if (intent.Key == "reloading.operation.execute")
             {
+                var snapshotData = ResolveSnapshotData();
                 if (_mode == ReloadingWorkbenchMode.Setup)
                 {
                     _setupDiagnosticsText = _setupExecuteDiagnostics;
@@ -105,18 +118,18 @@ namespace Reloader.UI.Toolkit.Reloading
                     return;
                 }
 
-                if (!IsOperationEnabled(_selectedOperation))
+                if (!IsOperationEnabled(_selectedOperation, snapshotData))
                 {
                     _resultText = "Operation blocked";
-                    _operateDiagnosticsText = GetSelectedOperationDiagnostic();
+                    _operateDiagnosticsText = GetSelectedOperationDiagnostic(snapshotData);
                     Refresh();
                     return;
                 }
 
                 _operateDiagnosticsText = string.Empty;
-                _resultText = _operationLabels.Length == 0
+                _resultText = GetOperationCount(snapshotData) == 0
                     ? "No operations configured"
-                    : $"Executed {_operationLabels[_selectedOperation]}";
+                    : $"Executed {GetOperationLabel(_selectedOperation, snapshotData)}";
                 Refresh();
             }
         }
@@ -134,15 +147,19 @@ namespace Reloader.UI.Toolkit.Reloading
                 return;
             }
 
-            var operations = new List<ReloadingWorkbenchUiState.OperationState>(_operationLabels.Length);
-            for (var i = 0; i < _operationLabels.Length; i++)
+            var snapshotData = ResolveSnapshotData();
+            var operationCount = GetOperationCount(snapshotData);
+            _selectedOperation = Mathf.Clamp(_selectedOperation, 0, Mathf.Max(0, operationCount - 1));
+
+            var operations = new List<ReloadingWorkbenchUiState.OperationState>(operationCount);
+            for (var i = 0; i < operationCount; i++)
             {
                 operations.Add(new ReloadingWorkbenchUiState.OperationState(
                     i,
-                    _operationLabels[i],
+                    GetOperationLabel(i, snapshotData),
                     i == _selectedOperation,
-                    IsOperationEnabled(i),
-                    GetOperationDiagnostic(i)));
+                    IsOperationEnabled(i, snapshotData),
+                    GetOperationDiagnostic(i, snapshotData)));
             }
 
             if (string.IsNullOrEmpty(_setupDiagnosticsText) && _mode == ReloadingWorkbenchMode.Setup)
@@ -153,7 +170,7 @@ namespace Reloader.UI.Toolkit.Reloading
             _viewBinder.Render(ReloadingWorkbenchUiState.Create(
                 mode: _mode,
                 operations: operations,
-                setupSlotsText: BuildSetupSlotsText(),
+                setupSlotsText: BuildSetupSlotsText(snapshotData),
                 setupDiagnosticsText: _setupDiagnosticsText,
                 operateDiagnosticsText: _operateDiagnosticsText,
                 resultText: _resultText));
@@ -165,8 +182,13 @@ namespace Reloader.UI.Toolkit.Reloading
             Refresh();
         }
 
-        private string BuildSetupSlotsText()
+        private string BuildSetupSlotsText(SnapshotData snapshotData)
         {
+            if (snapshotData.HasSnapshot && snapshotData.SetupSlots.Length > 0)
+            {
+                return string.Join("\n", snapshotData.SetupSlots);
+            }
+
             if (_setupSlots == null || _setupSlots.Length == 0)
             {
                 return "No setup slots configured.";
@@ -175,16 +197,57 @@ namespace Reloader.UI.Toolkit.Reloading
             return string.Join("\n", _setupSlots);
         }
 
-        private bool IsOperationEnabled(int index)
+        private int GetOperationCount(SnapshotData snapshotData)
         {
+            if (snapshotData.HasSnapshot)
+            {
+                return snapshotData.Operations.Length;
+            }
+
+            return _operationLabels?.Length ?? 0;
+        }
+
+        private string GetOperationLabel(int index, SnapshotData snapshotData)
+        {
+            if (snapshotData.HasSnapshot
+                && index >= 0
+                && index < snapshotData.Operations.Length)
+            {
+                return snapshotData.Operations[index].Label;
+            }
+
+            if (_operationLabels == null || index < 0 || index >= _operationLabels.Length)
+            {
+                return string.Empty;
+            }
+
+            return _operationLabels[index] ?? string.Empty;
+        }
+
+        private bool IsOperationEnabled(int index, SnapshotData snapshotData)
+        {
+            if (snapshotData.HasSnapshot
+                && index >= 0
+                && index < snapshotData.Operations.Length)
+            {
+                return snapshotData.Operations[index].IsEnabled;
+            }
+
             return _operationEnabled != null
                    && index >= 0
                    && index < _operationEnabled.Length
                    && _operationEnabled[index];
         }
 
-        private string GetOperationDiagnostic(int index)
+        private string GetOperationDiagnostic(int index, SnapshotData snapshotData)
         {
+            if (snapshotData.HasSnapshot
+                && index >= 0
+                && index < snapshotData.Operations.Length)
+            {
+                return snapshotData.Operations[index].Diagnostic;
+            }
+
             if (_operationBlockedDiagnostics == null
                 || index < 0
                 || index >= _operationBlockedDiagnostics.Length)
@@ -195,14 +258,14 @@ namespace Reloader.UI.Toolkit.Reloading
             return _operationBlockedDiagnostics[index] ?? string.Empty;
         }
 
-        private string GetSelectedOperationDiagnostic()
+        private string GetSelectedOperationDiagnostic(SnapshotData snapshotData)
         {
-            if (IsOperationEnabled(_selectedOperation))
+            if (IsOperationEnabled(_selectedOperation, snapshotData))
             {
                 return string.Empty;
             }
 
-            var configured = GetOperationDiagnostic(_selectedOperation);
+            var configured = GetOperationDiagnostic(_selectedOperation, snapshotData);
             if (!string.IsNullOrEmpty(configured))
             {
                 return configured;
@@ -289,6 +352,141 @@ namespace Reloader.UI.Toolkit.Reloading
         private void UnsubscribeFromRuntimeHubReconfigure()
         {
             RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
+        }
+
+        private SnapshotData ResolveSnapshotData()
+        {
+            if (!TryReadSnapshot(out var snapshot))
+            {
+                return SnapshotData.Empty;
+            }
+
+            return snapshot;
+        }
+
+        private static bool TryReadSnapshot(out SnapshotData snapshot)
+        {
+            snapshot = SnapshotData.Empty;
+            if (!TryResolveSnapshotReflection())
+            {
+                return false;
+            }
+
+            var args = new object[] { null };
+            if (!(s_tryGetLatestMethod.Invoke(null, args) is bool hasSnapshot) || !hasSnapshot || args[0] == null)
+            {
+                return false;
+            }
+
+            var setupSlots = ReadSetupSlots(args[0]);
+            var operations = ReadOperationSnapshots(args[0]);
+            snapshot = new SnapshotData(true, setupSlots, operations);
+            return true;
+        }
+
+        private static bool TryResolveSnapshotReflection()
+        {
+            if (s_tryGetLatestMethod != null
+                && s_setupSlotsProperty != null
+                && s_operationStatusesProperty != null
+                && s_operationLabelProperty != null
+                && s_operationEnabledProperty != null
+                && s_operationDiagnosticProperty != null)
+            {
+                return true;
+            }
+
+            var storeType = Type.GetType("Reloader.Reloading.Runtime.ReloadingWorkbenchUiContextStore, Assembly-CSharp");
+            s_snapshotType = Type.GetType("Reloader.Reloading.Runtime.ReloadingWorkbenchUiSnapshot, Assembly-CSharp");
+            s_operationSnapshotType = Type.GetType("Reloader.Reloading.Runtime.ReloadingWorkbenchUiSnapshot+OperationGateSnapshot, Assembly-CSharp");
+            if (storeType == null || s_snapshotType == null || s_operationSnapshotType == null)
+            {
+                return false;
+            }
+
+            s_tryGetLatestMethod = storeType.GetMethod("TryGetLatest", BindingFlags.Public | BindingFlags.Static);
+            s_setupSlotsProperty = s_snapshotType.GetProperty("SetupSlots", BindingFlags.Public | BindingFlags.Instance);
+            s_operationStatusesProperty = s_snapshotType.GetProperty("OperationStatuses", BindingFlags.Public | BindingFlags.Instance);
+            s_operationLabelProperty = s_operationSnapshotType.GetProperty("Label", BindingFlags.Public | BindingFlags.Instance);
+            s_operationEnabledProperty = s_operationSnapshotType.GetProperty("IsEnabled", BindingFlags.Public | BindingFlags.Instance);
+            s_operationDiagnosticProperty = s_operationSnapshotType.GetProperty("Diagnostic", BindingFlags.Public | BindingFlags.Instance);
+
+            return s_tryGetLatestMethod != null
+                   && s_setupSlotsProperty != null
+                   && s_operationStatusesProperty != null
+                   && s_operationLabelProperty != null
+                   && s_operationEnabledProperty != null
+                   && s_operationDiagnosticProperty != null;
+        }
+
+        private static string[] ReadSetupSlots(object snapshot)
+        {
+            if (!(s_setupSlotsProperty.GetValue(snapshot) is string[] slots) || slots.Length == 0)
+            {
+                return Array.Empty<string>();
+            }
+
+            var copy = new string[slots.Length];
+            for (var i = 0; i < slots.Length; i++)
+            {
+                copy[i] = slots[i] ?? string.Empty;
+            }
+
+            return copy;
+        }
+
+        private static OperationSnapshotData[] ReadOperationSnapshots(object snapshot)
+        {
+            if (!(s_operationStatusesProperty.GetValue(snapshot) is Array operations) || operations.Length == 0)
+            {
+                return Array.Empty<OperationSnapshotData>();
+            }
+
+            var copy = new OperationSnapshotData[operations.Length];
+            for (var i = 0; i < operations.Length; i++)
+            {
+                var operation = operations.GetValue(i);
+                var label = s_operationLabelProperty.GetValue(operation) as string ?? string.Empty;
+                var isEnabled = s_operationEnabledProperty.GetValue(operation) is bool enabled && enabled;
+                var diagnostic = s_operationDiagnosticProperty.GetValue(operation) as string ?? string.Empty;
+                copy[i] = new OperationSnapshotData(label, isEnabled, diagnostic);
+            }
+
+            return copy;
+        }
+
+        private readonly struct SnapshotData
+        {
+            public static readonly SnapshotData Empty = new SnapshotData(false, Array.Empty<string>(), Array.Empty<OperationSnapshotData>());
+
+            public SnapshotData(bool hasSnapshot, string[] setupSlots, OperationSnapshotData[] operations)
+            {
+                HasSnapshot = hasSnapshot;
+                SetupSlots = setupSlots ?? Array.Empty<string>();
+                Operations = operations ?? Array.Empty<OperationSnapshotData>();
+            }
+
+            public bool HasSnapshot { get; }
+
+            public string[] SetupSlots { get; }
+
+            public OperationSnapshotData[] Operations { get; }
+        }
+
+        private readonly struct OperationSnapshotData
+        {
+            public OperationSnapshotData(string label, bool isEnabled, string diagnostic)
+            {
+                Label = label ?? string.Empty;
+                IsEnabled = isEnabled;
+                Diagnostic = diagnostic ?? string.Empty;
+            }
+
+            public string Label { get; }
+
+            public bool IsEnabled { get; }
+
+            public string Diagnostic { get; }
         }
     }
 }
