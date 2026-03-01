@@ -784,6 +784,71 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void ReloadingWorkbenchController_WhenSnapshotAvailable_UsesSnapshotDataInsteadOfSerializedDefaults()
+        {
+            ClearReloadingWorkbenchSnapshot();
+            PublishReloadingWorkbenchSnapshot(
+                setupSlots: new[] { "snapshot-slot-a: installed", "snapshot-slot-b: missing" },
+                operationLabels: new[] { "Resize (Live)", "Prime (Live)", "Seat (Live)" },
+                operationEnabled: new[] { true, false, true },
+                operationDiagnostics: new[] { string.Empty, "Prime blocked by gate.", string.Empty });
+
+            var go = new GameObject("ReloadingWorkbenchSnapshotConsumption");
+            var root = BuildReloadingWorkbenchRoot();
+            var binder = new ReloadingWorkbenchViewBinder();
+            binder.Initialize(root, operationCount: 3);
+
+            var controller = go.AddComponent<ReloadingWorkbenchController>();
+            controller.SetViewBinder(binder);
+            RuntimeKernelBootstrapper.UiStateEvents.RaiseWorkbenchMenuVisibilityChanged(true);
+
+            var setupSlots = root.Q<Label>("reloading__setup-slots");
+            var operation0 = root.Q<Label>("reloading__operation-label-0");
+            var operation1 = root.Q<Label>("reloading__operation-label-1");
+            var op1Element = root.Q<VisualElement>("reloading__operation-1");
+            Assert.That(setupSlots, Is.Not.Null);
+            Assert.That(operation0, Is.Not.Null);
+            Assert.That(operation1, Is.Not.Null);
+            Assert.That(op1Element, Is.Not.Null);
+
+            Assert.That(setupSlots.text, Is.EqualTo("snapshot-slot-a: installed\nsnapshot-slot-b: missing"));
+            Assert.That(operation0.text, Is.EqualTo("Resize (Live)"));
+            Assert.That(operation1.text, Is.EqualTo("Prime (Live)"));
+            Assert.That(op1Element.ClassListContains("is-disabled"), Is.True);
+
+            UnityEngine.Object.DestroyImmediate(go);
+            ClearReloadingWorkbenchSnapshot();
+        }
+
+        [Test]
+        public void ReloadingWorkbenchController_WhenSnapshotMissing_UsesSerializedFallbackData()
+        {
+            ClearReloadingWorkbenchSnapshot();
+
+            var go = new GameObject("ReloadingWorkbenchSnapshotFallback");
+            var root = BuildReloadingWorkbenchRoot();
+            var binder = new ReloadingWorkbenchViewBinder();
+            binder.Initialize(root, operationCount: 3);
+
+            var controller = go.AddComponent<ReloadingWorkbenchController>();
+            controller.SetViewBinder(binder);
+            RuntimeKernelBootstrapper.UiStateEvents.RaiseWorkbenchMenuVisibilityChanged(true);
+
+            var setupSlots = root.Q<Label>("reloading__setup-slots");
+            var operation0 = root.Q<Label>("reloading__operation-label-0");
+            var operation1 = root.Q<Label>("reloading__operation-label-1");
+            Assert.That(setupSlots, Is.Not.Null);
+            Assert.That(operation0, Is.Not.Null);
+            Assert.That(operation1, Is.Not.Null);
+
+            Assert.That(setupSlots.text, Is.EqualTo("press-slot: installed\ndie-slot: missing"));
+            Assert.That(operation0.text, Is.EqualTo("Resize"));
+            Assert.That(operation1.text, Is.EqualTo("Prime"));
+
+            UnityEngine.Object.DestroyImmediate(go);
+        }
+
+        [Test]
         public void ReloadingWorkbenchController_WithoutInjectedEvents_RebindsWhenRuntimeKernelHubIsReconfigured()
         {
             var originalHub = RuntimeKernelBootstrapper.Events;
@@ -923,6 +988,72 @@ namespace Reloader.UI.Tests.PlayMode
             }
 
             return root;
+        }
+
+        private static VisualElement BuildReloadingWorkbenchRoot()
+        {
+            var root = new VisualElement { name = "reloading__root" };
+            root.Add(new Button { name = "reloading__mode-setup" });
+            root.Add(new Button { name = "reloading__mode-operate" });
+
+            var setupPanel = new VisualElement { name = "reloading__setup-panel" };
+            setupPanel.Add(new Label { name = "reloading__setup-slots" });
+            setupPanel.Add(new Label { name = "reloading__setup-diagnostics" });
+            root.Add(setupPanel);
+
+            var operatePanel = new VisualElement { name = "reloading__operate-panel" };
+            operatePanel.Add(new Label { name = "reloading__operate-diagnostics" });
+            root.Add(operatePanel);
+
+            for (var i = 0; i < 3; i++)
+            {
+                var op = new VisualElement { name = $"reloading__operation-{i}" };
+                op.Add(new Label { name = $"reloading__operation-label-{i}" });
+                root.Add(op);
+            }
+
+            root.Add(new Button { name = "reloading__execute" });
+            root.Add(new Label { name = "reloading__result-label" });
+            return root;
+        }
+
+        private static void PublishReloadingWorkbenchSnapshot(
+            string[] setupSlots,
+            string[] operationLabels,
+            bool[] operationEnabled,
+            string[] operationDiagnostics)
+        {
+            var snapshotType = Type.GetType("Reloader.Reloading.Runtime.ReloadingWorkbenchUiSnapshot, Assembly-CSharp");
+            var operationType = Type.GetType("Reloader.Reloading.Runtime.ReloadingWorkbenchUiSnapshot+OperationGateSnapshot, Assembly-CSharp");
+            var storeType = Type.GetType("Reloader.Reloading.Runtime.ReloadingWorkbenchUiContextStore, Assembly-CSharp");
+            Assert.That(snapshotType, Is.Not.Null);
+            Assert.That(operationType, Is.Not.Null);
+            Assert.That(storeType, Is.Not.Null);
+
+            var operations = Array.CreateInstance(operationType, operationLabels.Length);
+            var operationCtor = operationType.GetConstructor(new[] { typeof(string), typeof(bool), typeof(string) });
+            Assert.That(operationCtor, Is.Not.Null);
+            for (var i = 0; i < operationLabels.Length; i++)
+            {
+                operations.SetValue(operationCtor.Invoke(new object[] { operationLabels[i], operationEnabled[i], operationDiagnostics[i] }), i);
+            }
+
+            var snapshotCtor = snapshotType.GetConstructor(new[] { typeof(string[]), operations.GetType() });
+            Assert.That(snapshotCtor, Is.Not.Null);
+            var snapshot = snapshotCtor.Invoke(new object[] { setupSlots, operations });
+
+            var publish = storeType.GetMethod("Publish", BindingFlags.Public | BindingFlags.Static);
+            Assert.That(publish, Is.Not.Null);
+            publish.Invoke(null, new[] { snapshot });
+        }
+
+        private static void ClearReloadingWorkbenchSnapshot()
+        {
+            var storeType = Type.GetType("Reloader.Reloading.Runtime.ReloadingWorkbenchUiContextStore, Assembly-CSharp");
+            Assert.That(storeType, Is.Not.Null);
+            var clear = storeType.GetMethod("Clear", BindingFlags.Public | BindingFlags.Static);
+            Assert.That(clear, Is.Not.Null);
+            clear.Invoke(null, null);
         }
 
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
