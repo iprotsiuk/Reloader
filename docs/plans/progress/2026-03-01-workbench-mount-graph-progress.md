@@ -31,6 +31,9 @@
   - `ReloadingWorkbenchController` mode switching + operation diagnostics.
 - Added acceptance coverage:
   - `WorkbenchMountFlowAcceptancePlayModeTests` for mount flow/gating/save behavior surface.
+- Aligned existing core save tests to v5 bootstrap schema:
+  - `ContainerStorageSaveModuleTests`
+  - `WorldObjectStateSaveModuleTests`
 
 ## Save Payload Contract Notes
 
@@ -63,3 +66,4 @@
 
 - Commits stay small and review-friendly to keep automated review cadence high.
 - Scope authority delegated by user for modular/extensible implementation decisions.
+- Current MCP blocker: editor state reports stale running PlayMode job `d492cb809bc44b17adac38ec28c8bc89` and rejects new test jobs as `tests_running`.
