@@ -15,6 +15,11 @@
   - `WorkbenchRuntimeState`, `MountNode`, `MountSlotState`.
 - Implemented strict compatibility evaluation:
   - `WorkbenchCompatibilityEvaluator`, `WorkbenchCompatibilityResult`.
+- Implemented runtime integration slice (tasks 4-5):
+  - `WorkbenchLoadoutController` install/uninstall API + diagnostics.
+  - `ReloadingOperationGate` capability-based operation gating.
+  - `ReloadingFlowController` operation gate hook.
+  - `ReloadingBenchTarget` loadout/runtime-state exposure.
 - Implemented save/load persistence slice:
   - `WorkbenchLoadoutModule` with recursive payload graph.
   - `SchemaV4ToV5AddWorkbenchLoadoutMigration`.
@@ -44,14 +49,15 @@
 - `WorkbenchRuntimeStateEditModeTests`
 - `WorkbenchCompatibilityEvaluatorEditModeTests`
 - `WorkbenchLoadoutModuleTests`
+- `WorkbenchLoadoutControllerPlayModeTests`
+- `ReloadingOperationGateEditModeTests`
 - `ReloadingWorkbenchUiToolkitPlayModeTests` (expanded)
 - `WorkbenchMountFlowAcceptancePlayModeTests`
 
 ## In Progress
 
-- Workbench loadout install/uninstall API wiring into bench runtime.
-- Operation gating from mounted capabilities.
-- Focused/broader MCP verification pass after Unity test runner clears busy state.
+- Focused/broader MCP verification pass once Unity test runner is no longer busy.
+- Final docs sync in design milestone pages after verification evidence is collected.
 
 ## Notes
 
