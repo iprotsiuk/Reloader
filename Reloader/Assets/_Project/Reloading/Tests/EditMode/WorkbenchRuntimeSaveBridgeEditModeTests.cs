@@ -224,6 +224,91 @@ namespace Reloader.Reloading.Tests.EditMode
             UnityEngine.Object.DestroyImmediate(benchDefinition);
         }
 
+        [Test]
+        public void RestoreFromModule_ClearsLiveBenchState_WhenBenchHasNoSaveRecord()
+        {
+            var benchDefinitionA = CreateWorkbenchDefinition("bench.a", new MountSlotDefinition("press-slot", new[] { "cap.press" }));
+            var benchDefinitionB = CreateWorkbenchDefinition("bench.b", new MountSlotDefinition("press-slot", new[] { "cap.press" }));
+            var pressItem = CreateItem("press.single", new[] { "cap.press" }, childSlots: null);
+
+            var benchGoA = new GameObject("BenchA");
+            var benchA = benchGoA.AddComponent<ReloadingBenchTarget>();
+            benchA.SetWorkbenchDefinitionForTests(benchDefinitionA);
+            Assert.That(benchA.LoadoutController.TryInstall("press-slot", pressItem, out _), Is.True);
+
+            var benchGoB = new GameObject("BenchB");
+            var benchB = benchGoB.AddComponent<ReloadingBenchTarget>();
+            benchB.SetWorkbenchDefinitionForTests(benchDefinitionB);
+            Assert.That(benchB.LoadoutController.TryInstall("press-slot", pressItem, out _), Is.True);
+
+            var module = new WorkbenchLoadoutModule();
+            module.Workbenches.Add(new WorkbenchLoadoutModule.WorkbenchRecord
+            {
+                WorkbenchId = "bench.a",
+                SlotNodes = new List<WorkbenchLoadoutModule.SlotNodeRecord>()
+            });
+
+            var bridgeGo = new GameObject("WorkbenchRuntimeSaveBridge");
+            var bridge = bridgeGo.AddComponent<WorkbenchRuntimeSaveBridge>();
+            SetPrivateField(typeof(WorkbenchRuntimeSaveBridge), bridge, "_benchTargets", new List<ReloadingBenchTarget> { benchA, benchB });
+            SetPrivateField(typeof(WorkbenchRuntimeSaveBridge), bridge, "_mountableItemCatalog", new List<MountableItemDefinition> { pressItem });
+
+            bridge.SetWorkbenchLoadoutModuleForRuntime(module);
+            bridge.RestoreFromModule();
+
+            Assert.That(benchA.RuntimeState.TryGetSlotState("press-slot", out var slotA), Is.True);
+            Assert.That(slotA.IsOccupied, Is.False);
+            Assert.That(benchB.RuntimeState.TryGetSlotState("press-slot", out var slotB), Is.True);
+            Assert.That(slotB.IsOccupied, Is.False);
+
+            UnityEngine.Object.DestroyImmediate(bridgeGo);
+            UnityEngine.Object.DestroyImmediate(benchGoA);
+            UnityEngine.Object.DestroyImmediate(benchGoB);
+            UnityEngine.Object.DestroyImmediate(pressItem);
+            UnityEngine.Object.DestroyImmediate(benchDefinitionA);
+            UnityEngine.Object.DestroyImmediate(benchDefinitionB);
+        }
+
+        [Test]
+        public void CaptureToModule_Rediscovery_IncludesBenchTargetsSpawnedAfterInitialCapture()
+        {
+            var benchDefinitionA = CreateWorkbenchDefinition("bench.a", new MountSlotDefinition("press-slot", new[] { "cap.press" }));
+            var benchDefinitionB = CreateWorkbenchDefinition("bench.b", new MountSlotDefinition("press-slot", new[] { "cap.press" }));
+            var pressItem = CreateItem("press.single", new[] { "cap.press" }, childSlots: null);
+
+            var benchGoA = new GameObject("BenchA");
+            var benchA = benchGoA.AddComponent<ReloadingBenchTarget>();
+            benchA.SetWorkbenchDefinitionForTests(benchDefinitionA);
+            Assert.That(benchA.LoadoutController.TryInstall("press-slot", pressItem, out _), Is.True);
+
+            var module = new WorkbenchLoadoutModule();
+            var bridgeGo = new GameObject("WorkbenchRuntimeSaveBridge");
+            var bridge = bridgeGo.AddComponent<WorkbenchRuntimeSaveBridge>();
+            SetPrivateField(typeof(WorkbenchRuntimeSaveBridge), bridge, "_benchTargets", new List<ReloadingBenchTarget> { benchA });
+            SetPrivateField(typeof(WorkbenchRuntimeSaveBridge), bridge, "_mountableItemCatalog", new List<MountableItemDefinition> { pressItem });
+            bridge.SetWorkbenchLoadoutModuleForRuntime(module);
+
+            bridge.CaptureToModule();
+            Assert.That(module.Workbenches.Count, Is.EqualTo(1));
+
+            var benchGoB = new GameObject("BenchB");
+            var benchB = benchGoB.AddComponent<ReloadingBenchTarget>();
+            benchB.SetWorkbenchDefinitionForTests(benchDefinitionB);
+            Assert.That(benchB.LoadoutController.TryInstall("press-slot", pressItem, out _), Is.True);
+
+            bridge.CaptureToModule();
+            Assert.That(module.Workbenches.Count, Is.EqualTo(2));
+            Assert.That(module.Workbenches.Exists(x => x.WorkbenchId == "bench.a"), Is.True);
+            Assert.That(module.Workbenches.Exists(x => x.WorkbenchId == "bench.b"), Is.True);
+
+            UnityEngine.Object.DestroyImmediate(bridgeGo);
+            UnityEngine.Object.DestroyImmediate(benchGoA);
+            UnityEngine.Object.DestroyImmediate(benchGoB);
+            UnityEngine.Object.DestroyImmediate(pressItem);
+            UnityEngine.Object.DestroyImmediate(benchDefinitionA);
+            UnityEngine.Object.DestroyImmediate(benchDefinitionB);
+        }
+
         private static WorkbenchDefinition CreateWorkbenchDefinition(string workbenchId, params MountSlotDefinition[] topSlots)
         {
             var definition = ScriptableObject.CreateInstance<WorkbenchDefinition>();

@@ -91,6 +91,7 @@ namespace Reloader.Reloading.Runtime
 
             var targetsByWorkbenchId = BuildTargetIndexByWorkbenchId(ResolveBenchTargets());
             var itemIndex = BuildMountableItemIndex(targetsByWorkbenchId);
+            ClearAllResolvedWorkbenches(targetsByWorkbenchId);
 
             for (var i = 0; i < _workbenchLoadoutModule.Workbenches.Count; i++)
             {
@@ -112,8 +113,6 @@ namespace Reloader.Reloading.Runtime
                 {
                     continue;
                 }
-
-                ClearTopLevelSlots(loadoutController, runtimeState, definition);
 
                 if (workbench.SlotNodes == null)
                 {
@@ -164,14 +163,37 @@ namespace Reloader.Reloading.Runtime
             }
 
             _benchTargets.RemoveAll(target => target == null);
-            if (_benchTargets.Count > 0)
-            {
-                return _benchTargets;
-            }
 
             var discovered = FindObjectsByType<ReloadingBenchTarget>(FindObjectsInactive.Include, FindObjectsSortMode.InstanceID);
-            _benchTargets.AddRange(discovered);
+            for (var i = 0; i < discovered.Length; i++)
+            {
+                var target = discovered[i];
+                if (target == null || _benchTargets.Contains(target))
+                {
+                    continue;
+                }
+
+                _benchTargets.Add(target);
+            }
+
             return _benchTargets;
+        }
+
+        private static void ClearAllResolvedWorkbenches(IReadOnlyDictionary<string, ReloadingBenchTarget> targetsByWorkbenchId)
+        {
+            foreach (var kvp in targetsByWorkbenchId)
+            {
+                var target = kvp.Value;
+                var loadoutController = target?.LoadoutController;
+                var runtimeState = target?.RuntimeState;
+                var definition = runtimeState?.WorkbenchDefinition;
+                if (loadoutController == null || runtimeState == null || definition == null)
+                {
+                    continue;
+                }
+
+                ClearTopLevelSlots(loadoutController, runtimeState, definition);
+            }
         }
 
         private static List<WorkbenchLoadoutModule.SlotNodeRecord> CaptureTopLevelSlots(WorkbenchRuntimeState runtimeState, WorkbenchDefinition definition)

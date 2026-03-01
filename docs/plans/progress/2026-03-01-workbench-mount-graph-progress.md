@@ -82,6 +82,10 @@
 - Resolved Codex P1 on save transaction ordering:
   - `SaveCoordinator.Load` now validates restored module state before invoking `SaveRuntimeBridgeRegistry.FinalizeAfterLoad`.
   - runtime bridge side effects no longer run when restored state fails validation and is rolled back.
+- Resolved Codex P1/P2 on runtime restore target handling:
+  - `WorkbenchRuntimeSaveBridge.RestoreFromModule` now clears all resolved live benches before applying saved records, so benches omitted from payload are reset instead of left stale.
+  - `WorkbenchRuntimeSaveBridge.ResolveBenchTargets` now re-discovers bench targets on each pass and merges new scene targets while pruning destroyed references.
+  - Added regression coverage for empty/missing bench records and dynamic bench discovery during repeated capture.
 
 ## In Progress
 
