@@ -139,3 +139,11 @@
 - Removed hardcoded static placeholder buy lines from `TradeUi.uxml` so UI reflects actual vendor data only.
 - Added runtime API:
   - `EconomyRuntime.GetActiveCatalogItems()`.
+
+## Follow-Up Progress (Vendor UI Sell Grid)
+
+- Added sell-side slot flow in trade UI:
+  - `TradeController` now builds sell slots from player inventory runtime state and filters to vendor-priced items.
+  - `TradeViewBinder` now supports clickable sell slots (`trade.sell.slot`) with selected state rendering.
+  - `trade.confirm.sell` now submits `OnShopSellRequested(itemId, 1)` when a sell slot is selected and no checkout payload is provided.
+- Removed static sell placeholder line from `TradeUi.uxml` so sell panel displays runtime-backed slot content only.

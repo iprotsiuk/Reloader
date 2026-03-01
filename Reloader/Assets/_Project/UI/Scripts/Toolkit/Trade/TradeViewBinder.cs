@@ -17,7 +17,9 @@ namespace Reloader.UI.Toolkit.Trade
         private Button _confirmBuyButton;
         private Button _confirmSellButton;
         private readonly List<VisualElement> _buySlots = new();
+        private readonly List<VisualElement> _sellSlots = new();
         private readonly Dictionary<VisualElement, EventCallback<ClickEvent>> _buySlotCallbacks = new();
+        private readonly Dictionary<VisualElement, EventCallback<ClickEvent>> _sellSlotCallbacks = new();
 
         public event Action<UiIntent> IntentRaised;
 
@@ -35,6 +37,7 @@ namespace Reloader.UI.Toolkit.Trade
             _confirmSellButton = root?.Q<Button>("trade__confirm-sell");
             BindButtons();
             BindBuySlots();
+            BindSellSlots();
         }
 
         public void Render(UiRenderState state)
@@ -70,6 +73,7 @@ namespace Reloader.UI.Toolkit.Trade
             SetTabActive(_tabBuyButton, tradeState.ActiveTab == TradeUiTab.Buy);
             SetTabActive(_tabSellButton, tradeState.ActiveTab == TradeUiTab.Sell);
             RenderBuySlots(tradeState.BuySlots);
+            RenderSellSlots(tradeState.SellSlots);
         }
 
         public bool TryRaiseConfirmBuyIntent()
@@ -130,6 +134,7 @@ namespace Reloader.UI.Toolkit.Trade
             }
 
             UnbindBuySlots();
+            UnbindSellSlots();
         }
 
         private void OnTabBuyClicked()
@@ -171,7 +176,6 @@ namespace Reloader.UI.Toolkit.Trade
             {
                 var slot = slots[i];
                 _buySlots.Add(slot);
-                var slotIndex = i;
                 EventCallback<ClickEvent> callback = _ =>
                 {
                     var itemId = slot.userData as string;
@@ -197,11 +201,65 @@ namespace Reloader.UI.Toolkit.Trade
             _buySlots.Clear();
         }
 
+        private void BindSellSlots()
+        {
+            UnbindSellSlots();
+            if (_sellPanel == null)
+            {
+                return;
+            }
+
+            var slotQuery = _sellPanel.Query<VisualElement>(className: "trade__cell");
+            var slots = slotQuery.ToList();
+            for (var i = 0; i < slots.Count; i++)
+            {
+                var slot = slots[i];
+                _sellSlots.Add(slot);
+                EventCallback<ClickEvent> callback = _ =>
+                {
+                    var itemId = slot.userData as string;
+                    if (!string.IsNullOrWhiteSpace(itemId))
+                    {
+                        IntentRaised?.Invoke(new UiIntent("trade.sell.slot", itemId));
+                    }
+                };
+
+                _sellSlotCallbacks[slot] = callback;
+                slot.RegisterCallback<ClickEvent>(callback);
+            }
+        }
+
+        private void UnbindSellSlots()
+        {
+            foreach (var kv in _sellSlotCallbacks)
+            {
+                kv.Key.UnregisterCallback<ClickEvent>(kv.Value);
+            }
+
+            _sellSlotCallbacks.Clear();
+            _sellSlots.Clear();
+        }
+
         private void RenderBuySlots(IReadOnlyList<TradeUiSlotViewModel> slots)
         {
-            for (var i = 0; i < _buySlots.Count; i++)
+            RenderSlots(_buySlots, slots);
+        }
+
+        private void RenderSellSlots(IReadOnlyList<TradeUiSlotViewModel> slots)
+        {
+            RenderSlots(_sellSlots, slots);
+        }
+
+        private static void RenderSlots(IReadOnlyList<VisualElement> slotElements, IReadOnlyList<TradeUiSlotViewModel> slots)
+        {
+            if (slotElements == null)
             {
-                var slot = _buySlots[i];
+                return;
+            }
+
+            for (var i = 0; i < slotElements.Count; i++)
+            {
+                var slot = slotElements[i];
                 var vm = slots != null && i < slots.Count ? slots[i] : null;
                 slot.userData = vm?.ItemId;
                 slot.SetEnabled(vm?.IsEnabled ?? false);
@@ -209,7 +267,10 @@ namespace Reloader.UI.Toolkit.Trade
                 slot.EnableInClassList("trade__cell--empty", vm == null);
 
                 var label = EnsureSlotLabel(slot);
-                label.text = vm?.DisplayText ?? string.Empty;
+                if (label != null)
+                {
+                    label.text = vm?.DisplayText ?? string.Empty;
+                }
             }
         }
 

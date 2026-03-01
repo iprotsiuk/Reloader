@@ -18,7 +18,8 @@ namespace Reloader.UI.Toolkit.Trade
             string cartTotalText,
             bool canConfirmBuy,
             bool canConfirmSell,
-            IReadOnlyList<TradeUiSlotViewModel> buySlots = null)
+            IReadOnlyList<TradeUiSlotViewModel> buySlots = null,
+            IReadOnlyList<TradeUiSlotViewModel> sellSlots = null)
             : base("trade-ui")
         {
             ActiveTab = activeTab;
@@ -27,6 +28,7 @@ namespace Reloader.UI.Toolkit.Trade
             CanConfirmBuy = canConfirmBuy;
             CanConfirmSell = canConfirmSell;
             BuySlots = buySlots ?? Array.Empty<TradeUiSlotViewModel>();
+            SellSlots = sellSlots ?? Array.Empty<TradeUiSlotViewModel>();
         }
 
         public TradeUiTab ActiveTab { get; }
@@ -35,6 +37,7 @@ namespace Reloader.UI.Toolkit.Trade
         public bool CanConfirmBuy { get; }
         public bool CanConfirmSell { get; }
         public IReadOnlyList<TradeUiSlotViewModel> BuySlots { get; }
+        public IReadOnlyList<TradeUiSlotViewModel> SellSlots { get; }
     }
 
     public sealed class TradeUiSlotViewModel

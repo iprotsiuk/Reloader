@@ -36,7 +36,6 @@
                         <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
                         <ui:VisualElement class="trade__cell ui-kit__slot ui-kit__menu-cell" />
                     </ui:VisualElement>
-                    <ui:Label text="- Sell spare brass (mock)" class="trade__line" />
                     <ui:Button name="trade__confirm-sell" text="Confirm Sell" class="trade__action" />
                 </ui:VisualElement>
 
