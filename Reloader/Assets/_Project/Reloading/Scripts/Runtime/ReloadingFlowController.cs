@@ -11,9 +11,15 @@ namespace Reloader.Reloading.Runtime
         private readonly MockReloadSessionState _state = new MockReloadSessionState();
 
         public MockReloadSessionState SessionState => _state;
+        public ReloadingOperationGate OperationGate { get; set; }
 
         public MockOperationResult TryApply(ReloadingOperationType operation)
         {
+            if (OperationGate != null && !OperationGate.IsOperationAllowed(operation, out var gateStatus))
+            {
+                return Failure(operation, gateStatus.DiagnosticCode);
+            }
+
             switch (operation)
             {
                 case ReloadingOperationType.InspectCase:

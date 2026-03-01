@@ -23,6 +23,33 @@ namespace Reloader.Reloading.Runtime
 
         public IReadOnlyDictionary<string, MountSlotState> SlotsById => _runtimeState.SlotsById;
 
+        public IReadOnlyCollection<string> BuildCapabilitySet()
+        {
+            var capabilities = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var kvp in _slotIndex)
+            {
+                var slotState = kvp.Value;
+                var mountedItem = slotState?.MountedNode?.ItemDefinition;
+                var tags = mountedItem?.Tags;
+                if (tags == null)
+                {
+                    continue;
+                }
+
+                for (var i = 0; i < tags.Count; i++)
+                {
+                    var tag = tags[i];
+                    if (!string.IsNullOrWhiteSpace(tag))
+                    {
+                        capabilities.Add(tag);
+                    }
+                }
+            }
+
+            return capabilities;
+        }
+
         public bool TryInstall(string slotId, MountableItemDefinition item, out WorkbenchCompatibilityResult diagnostic)
         {
             if (string.IsNullOrWhiteSpace(slotId))

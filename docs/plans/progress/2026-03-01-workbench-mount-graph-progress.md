@@ -1,5 +1,14 @@
 # 2026-03-01 Workbench Mount Graph Progress
 
+## Runtime Integration Slice Completed (Tasks 4-5)
+- Added `WorkbenchLoadoutController` runtime API for install/uninstall with explicit diagnostics (`slot.invalid`, `slot.not-found`, `slot.occupied`, `slot.empty`, compatibility tag failures).
+- Integrated loadout runtime into `ReloadingBenchTarget` with lazy `WorkbenchRuntimeState`/`WorkbenchLoadoutController` initialization from a bench definition.
+- Added `ReloadingOperationGate` to evaluate operation availability from mounted capability tags on the current loadout graph.
+- Integrated operation gate checks into `ReloadingFlowController` via optional `OperationGate` hook; blocked operations fail fast with gate diagnostic code.
+- Added tests:
+  - `WorkbenchLoadoutControllerPlayModeTests`
+  - `ReloadingOperationGateEditModeTests`
+
 ## Save/Load Slice Completed
 - Added `WorkbenchLoadoutModule` under core save modules to persist nested per-workbench mount slot graphs.
 - Added schema migration `SchemaV4ToV5AddWorkbenchLoadoutMigration` to insert default `WorkbenchLoadout` block for legacy schema v4 saves.
@@ -25,6 +34,8 @@
   - nested graph roundtrip,
   - empty payload tolerance,
   - validation failure for invalid nested slot IDs.
+- Runtime integration verification note:
+  - Unity MCP test runner is currently returning persistent `tests_running` busy status, so targeted execution of the new task 4/5 tests is currently blocked in this workspace.
 
 ## UI Setup/Operate Slice Completed
 - Expanded reloading workbench UI Toolkit markup/styles with explicit mode split:
