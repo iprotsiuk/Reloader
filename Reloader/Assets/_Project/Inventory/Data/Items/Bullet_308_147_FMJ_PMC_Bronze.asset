@@ -17,4 +17,4 @@ MonoBehaviour:
   _displayName: 'Bullet_308_147_FMJ_PMC_Bronze'
   _stackPolicy: 1
   _maxStack: 500
-  _iconSourcePrefab: {fileID: 0}
+  _iconSourcePrefab: {fileID: 100001, guid: 077a774471444daaa9746994b5ed8359, type: 3}

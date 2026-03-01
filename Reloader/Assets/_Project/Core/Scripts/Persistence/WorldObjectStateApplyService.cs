@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -6,7 +7,11 @@ namespace Reloader.Core.Persistence
 {
     public sealed class WorldObjectStateApplyService
     {
-        public int ApplyForScene(Scene scene, WorldObjectStateStore stateStore, WorldScenePolicyRegistry policyRegistry)
+        public int ApplyForScene(
+            Scene scene,
+            WorldObjectStateStore stateStore,
+            WorldScenePolicyRegistry policyRegistry,
+            Func<Scene, WorldObjectStateRecord, bool> runtimeSpawnRestorer = null)
         {
             if (stateStore == null)
             {
@@ -25,6 +30,7 @@ namespace Reloader.Core.Persistence
 
             var policy = policyRegistry.ResolvePolicy(scene.path);
             var appliedCount = 0;
+            var existingObjectIds = new HashSet<string>(StringComparer.Ordinal);
             var roots = scene.GetRootGameObjects();
             for (var rootIndex = 0; rootIndex < roots.Length; rootIndex++)
             {
@@ -43,6 +49,8 @@ namespace Reloader.Core.Persistence
                         continue;
                     }
 
+                    existingObjectIds.Add(identity.ObjectId);
+
                     if (!stateStore.TryGet(scene.path, identity.ObjectId, out var savedRecord))
                     {
                         continue;
@@ -53,7 +61,60 @@ namespace Reloader.Core.Persistence
                 }
             }
 
+            if (runtimeSpawnRestorer != null && policy.TrackSpawnedObjects)
+            {
+                var snapshot = stateStore.Snapshot();
+                for (var i = 0; i < snapshot.Count; i++)
+                {
+                    var key = snapshot[i].Key;
+                    if (!string.Equals(key.scenePath, scene.path, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    var savedRecord = snapshot[i].Value;
+                    if (!CanRestoreRuntimeSpawnedRecord(savedRecord))
+                    {
+                        continue;
+                    }
+
+                    if (existingObjectIds.Contains(savedRecord.ObjectId))
+                    {
+                        continue;
+                    }
+
+                    if (runtimeSpawnRestorer(scene, savedRecord))
+                    {
+                        existingObjectIds.Add(savedRecord.ObjectId);
+                        appliedCount++;
+                    }
+                }
+            }
+
             return appliedCount;
+        }
+
+        private static bool CanRestoreRuntimeSpawnedRecord(WorldObjectStateRecord savedRecord)
+        {
+            if (savedRecord == null)
+            {
+                return false;
+            }
+
+            if (savedRecord.Consumed)
+            {
+                return false;
+            }
+
+            if (savedRecord.Destroyed)
+            {
+                return false;
+            }
+
+            var itemDefinitionId = !string.IsNullOrWhiteSpace(savedRecord.ItemDefinitionId)
+                ? savedRecord.ItemDefinitionId
+                : savedRecord.ItemInstanceId;
+            return !string.IsNullOrWhiteSpace(itemDefinitionId);
         }
 
         private static void ApplySavedState(WorldObjectIdentity identity, WorldObjectStateRecord savedRecord, WorldScenePersistencePolicy policy)

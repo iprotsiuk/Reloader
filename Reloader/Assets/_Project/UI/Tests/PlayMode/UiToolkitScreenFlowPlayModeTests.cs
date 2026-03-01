@@ -450,6 +450,35 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void TabInventoryController_Tick_MenuToggleInput_OpensInventorySectionByDefault()
+        {
+            var go = new GameObject("TabInventoryControllerDefaultSection");
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(2);
+            inventoryController.Configure(null, null, runtime);
+
+            var root = BuildTabRoot();
+            var viewBinder = new TabInventoryViewBinder();
+            viewBinder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+
+            var input = go.AddComponent<TestInputSource>();
+            var controller = go.AddComponent<TabInventoryController>();
+            controller.SetInventoryController(inventoryController);
+            controller.SetInputSource(input);
+            controller.Configure(viewBinder, new TabInventoryDragController());
+
+            input.MenuTogglePressedThisFrame = true;
+            controller.Tick();
+
+            var activeSectionField = typeof(TabInventoryController).GetField("_activeSection", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(activeSectionField, Is.Not.Null);
+            Assert.That(activeSectionField.GetValue(controller) as string, Is.EqualTo("inventory"));
+
+            UnityEngine.Object.DestroyImmediate(go);
+        }
+
+        [Test]
         public void TabInventoryController_Tick_UsesInjectedUiStateEvents()
         {
             var originalHub = RuntimeKernelBootstrapper.Events;

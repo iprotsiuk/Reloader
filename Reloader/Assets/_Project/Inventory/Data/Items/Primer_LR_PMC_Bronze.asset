@@ -17,4 +17,4 @@ MonoBehaviour:
   _displayName: 'Primer_LR_PMC_Bronze'
   _stackPolicy: 1
   _maxStack: 1000
-  _iconSourcePrefab: {fileID: 0}
+  _iconSourcePrefab: {fileID: 100001, guid: 799112b1dadb414f9c14e80c04f43dbc, type: 3}

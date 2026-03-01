@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -11,6 +12,7 @@ namespace Reloader.Core.Persistence
         private static ReclaimStorageService _reclaimStorage = new ReclaimStorageService();
         private static WorldCleanupService _cleanupService = new WorldCleanupService();
         private static WorldObjectStateApplyService _applyService = new WorldObjectStateApplyService();
+        private static Func<Scene, WorldObjectStateRecord, bool> _runtimeSpawnRestorer;
 
         public static WorldObjectStateStore StateStore => _stateStore;
         public static ReclaimStorageService ReclaimStorage => _reclaimStorage;
@@ -54,6 +56,7 @@ namespace Reloader.Core.Persistence
             _reclaimStorage = new ReclaimStorageService();
             _cleanupService = new WorldCleanupService();
             _applyService = new WorldObjectStateApplyService();
+            _runtimeSpawnRestorer = null;
         }
 
         public static void RegisterScenePolicy(WorldScenePersistencePolicy policy)
@@ -87,6 +90,34 @@ namespace Reloader.Core.Persistence
             return _cleanupService.CleanupDailyResetForDayChange(previousDay, currentDay, _stateStore, _policyRegistry, _reclaimStorage);
         }
 
+        public static void RegisterRuntimeSpawnRestorer(Func<Scene, WorldObjectStateRecord, bool> restorer)
+        {
+            _runtimeSpawnRestorer = restorer;
+        }
+
+        public static void MarkRuntimeSpawned(string scenePath, string objectId, string itemDefinitionId, int quantity, Vector3 position, Quaternion rotation)
+        {
+            if (string.IsNullOrWhiteSpace(scenePath)
+                || string.IsNullOrWhiteSpace(objectId)
+                || string.IsNullOrWhiteSpace(itemDefinitionId))
+            {
+                return;
+            }
+
+            _stateStore.Upsert(scenePath, new WorldObjectStateRecord
+            {
+                ObjectId = objectId,
+                Consumed = false,
+                Destroyed = false,
+                HasTransformOverride = true,
+                Position = position,
+                Rotation = rotation,
+                ItemInstanceId = itemDefinitionId,
+                ItemDefinitionId = itemDefinitionId,
+                StackQuantity = Mathf.Max(1, quantity)
+            });
+        }
+
         private static void OnSceneLoaded(Scene loadedScene, LoadSceneMode mode)
         {
             if (!loadedScene.IsValid() || !loadedScene.isLoaded)
@@ -104,7 +135,7 @@ namespace Reloader.Core.Persistence
                 return;
             }
 
-            _applyService.ApplyForScene(scene, _stateStore, _policyRegistry);
+            _applyService.ApplyForScene(scene, _stateStore, _policyRegistry, _runtimeSpawnRestorer);
         }
     }
 }

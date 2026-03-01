@@ -30,7 +30,7 @@ namespace Reloader.UI.Toolkit.TabInventory
         private IUiStateEvents _uiStateEvents;
         private bool _useRuntimeKernelUiStateEvents = true;
         private bool _isOpen;
-        private string _activeSection = "device";
+        private string _activeSection = "inventory";
 
         public interface IDeviceController
         {
@@ -195,7 +195,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 }
 
                 SetMenuOpen(true);
-                _activeSection = "device";
+                _activeSection = "inventory";
                 Refresh();
             }
         }

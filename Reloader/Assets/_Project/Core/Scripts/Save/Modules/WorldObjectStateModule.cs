@@ -47,6 +47,12 @@ namespace Reloader.Core.Save.Modules
 
             [JsonProperty("itemInstanceId")]
             public string ItemInstanceId { get; set; } = string.Empty;
+
+            [JsonProperty("itemDefinitionId")]
+            public string ItemDefinitionId { get; set; } = string.Empty;
+
+            [JsonProperty("stackQuantity")]
+            public int StackQuantity { get; set; } = 1;
         }
 
         [Serializable]
@@ -284,7 +290,9 @@ namespace Reloader.Core.Save.Modules
                 RotationZ = source.RotationZ,
                 RotationW = source.RotationW,
                 LastUpdatedDay = source.LastUpdatedDay,
-                ItemInstanceId = source.ItemInstanceId
+                ItemInstanceId = source.ItemInstanceId,
+                ItemDefinitionId = source.ItemDefinitionId,
+                StackQuantity = source.StackQuantity
             };
         }
 
