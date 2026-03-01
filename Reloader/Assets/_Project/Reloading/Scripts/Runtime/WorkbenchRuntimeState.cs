@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Reloader.Reloading.Runtime
 {
@@ -19,7 +20,30 @@ namespace Reloader.Reloading.Runtime
 
         public bool TryGetSlotState(string slotId, out MountSlotState slotState)
         {
-            return _slotsById.TryGetValue(slotId, out slotState);
+            if (_slotsById.TryGetValue(slotId, out slotState))
+            {
+                return true;
+            }
+
+            if (string.IsNullOrWhiteSpace(slotId))
+            {
+                slotState = null;
+                return false;
+            }
+
+            // Backward-compatible lookup for callers that still pass raw definition slot IDs.
+            var matches = _slotsById.Values
+                .Where(state => string.Equals(state.Definition?.SlotId, slotId, StringComparison.Ordinal))
+                .ToArray();
+
+            if (matches.Length == 1)
+            {
+                slotState = matches[0];
+                return true;
+            }
+
+            slotState = null;
+            return false;
         }
 
         public bool TryInstall(string slotId, MountableItemDefinition item)
@@ -60,10 +84,8 @@ namespace Reloader.Reloading.Runtime
                     continue;
                 }
 
-                if (!_slotsById.ContainsKey(definition.SlotId))
-                {
-                    _slotsById[definition.SlotId] = new MountSlotState(definition, ownerNode: null);
-                }
+                var graphSlotId = BuildTopLevelGraphSlotId(definition.SlotId);
+                _slotsById[graphSlotId] = new MountSlotState(definition, ownerNode: null, graphSlotId);
             }
         }
 
@@ -83,14 +105,32 @@ namespace Reloader.Reloading.Runtime
                     continue;
                 }
 
-                var childState = new MountSlotState(childDefinition, mountedNode);
+                var graphSlotId = BuildChildGraphSlotId(mountedNode, childDefinition.SlotId);
+                var childState = new MountSlotState(childDefinition, mountedNode, graphSlotId);
                 mountedNode.AddChildSlot(childState);
-
-                if (!_slotsById.ContainsKey(childDefinition.SlotId))
-                {
-                    _slotsById.Add(childDefinition.SlotId, childState);
-                }
+                _slotsById[graphSlotId] = childState;
             }
+        }
+
+        private static string BuildTopLevelGraphSlotId(string slotId)
+        {
+            return slotId ?? string.Empty;
+        }
+
+        private static string BuildChildGraphSlotId(MountNode ownerNode, string slotId)
+        {
+            if (ownerNode == null)
+            {
+                return slotId ?? string.Empty;
+            }
+
+            var parentGraphSlotId = ownerNode.ParentSlot?.GraphSlotId;
+            if (string.IsNullOrWhiteSpace(parentGraphSlotId))
+            {
+                return slotId ?? string.Empty;
+            }
+
+            return $"{parentGraphSlotId}/{slotId}";
         }
     }
 }
