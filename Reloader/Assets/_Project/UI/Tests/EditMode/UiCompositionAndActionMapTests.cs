@@ -24,6 +24,7 @@ namespace Reloader.UI.Tests.EditMode
         [TestCase("belt.slot.select")]
         [TestCase("inventory.drag.merge")]
         [TestCase("inventory.drag.swap")]
+        [TestCase("inventory.drag.drop")]
         [TestCase("trade.confirm.buy")]
         [TestCase("trade.confirm.sell")]
         [TestCase("reloading.operation.select")]
