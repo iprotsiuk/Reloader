@@ -195,6 +195,24 @@ namespace Reloader.Inventory
             return CanAcceptStackQuantity(itemId, 1);
         }
 
+        public bool CanStoreItem(string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return false;
+            }
+
+            for (var i = 0; i < BeltSlotCount; i++)
+            {
+                if (string.IsNullOrWhiteSpace(BeltSlotItemIds[i]))
+                {
+                    return true;
+                }
+            }
+
+            return BackpackItemIds.Count < BackpackCapacity;
+        }
+
         public bool CanAcceptStackQuantity(string itemId, int quantity)
         {
             if (string.IsNullOrWhiteSpace(itemId) || quantity <= 0)

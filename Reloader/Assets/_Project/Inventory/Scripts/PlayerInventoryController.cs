@@ -297,7 +297,7 @@ namespace Reloader.Inventory
                 return false;
             }
 
-            return Runtime.CanAcceptStackItem(itemId);
+            return Runtime.CanStoreItem(itemId);
         }
 
         public IReadOnlyList<ItemDefinition> GetItemDefinitionRegistrySnapshot()
