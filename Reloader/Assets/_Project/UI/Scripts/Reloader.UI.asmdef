@@ -5,6 +5,7 @@
     "Reloader.Core",
     "Reloader.Inventory",
     "Reloader.NPCs",
+    "Reloader.PlayerDevice",
     "Reloader.Player",
     "Reloader.Weapons",
     "Unity.TextMeshPro",

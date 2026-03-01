@@ -1,0 +1,23 @@
+{
+  "name": "Reloader.PlayerDevice.Tests.PlayMode",
+  "rootNamespace": "Reloader.PlayerDevice.Tests.PlayMode",
+  "references": [
+    "Reloader.PlayerDevice",
+    "Reloader.Weapons",
+    "Reloader.Core",
+    "Reloader.Player",
+    "Reloader.Inventory"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

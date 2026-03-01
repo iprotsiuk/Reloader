@@ -261,3 +261,87 @@
     white-space: normal;
     margin-bottom: 6px;
 }
+
+.inventory__device-content {
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 6px;
+    padding-right: 2px;
+    padding-bottom: 6px;
+    padding-left: 2px;
+}
+
+.inventory__device-notes {
+    flex-direction: column;
+    padding-top: 8px;
+    padding-right: 10px;
+    padding-bottom: 8px;
+    padding-left: 10px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+
+.inventory__device-field-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+    gap: 8px;
+}
+
+.inventory__device-field-label {
+    color: rgba(196, 206, 220, 0.9);
+    font-size: 10px;
+    -unity-font-style: bold;
+}
+
+.inventory__device-field-value {
+    color: rgba(236, 242, 250, 0.95);
+    font-size: 11px;
+    unity-text-align: middle-right;
+}
+
+.inventory__device-button-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.inventory__tab:disabled {
+    opacity: 0.45;
+}
+
+.inventory__device-feedback {
+    color: rgba(193, 211, 233, 0.88);
+    font-size: 10px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+.inventory__device-history {
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 8px;
+    padding-right: 10px;
+    padding-bottom: 8px;
+    padding-left: 10px;
+    background-color: rgba(255, 255, 255, 0.035);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+
+.inventory__device-session-history {
+    flex-direction: column;
+    gap: 2px;
+}
+
+.inventory__device-session-row {
+    color: rgba(227, 233, 240, 0.9);
+    font-size: 10px;
+    white-space: normal;
+}

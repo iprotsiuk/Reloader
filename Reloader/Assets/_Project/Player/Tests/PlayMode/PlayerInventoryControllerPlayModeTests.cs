@@ -416,6 +416,64 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void TryConsumeSelectedBeltItem_WithDuplicateItemIds_ConsumesSelectedBeltSlot()
+        {
+            var root = new GameObject("InventoryControllerConsumeSelectedSlot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            controller.Configure(null, null, runtime);
+            runtime.SetBackpackCapacity(0);
+
+            Assert.That(runtime.TryStoreItem("attachment.rangefinder", out _, out var firstRangefinderIndex, out _), Is.True);
+            Assert.That(runtime.TryStoreItem("filler-1", out _, out _, out _), Is.True);
+            Assert.That(runtime.TryStoreItem("filler-2", out _, out _, out _), Is.True);
+            Assert.That(runtime.TryStoreItem("attachment.rangefinder", out _, out var secondRangefinderIndex, out _), Is.True);
+            Assert.That(firstRangefinderIndex, Is.EqualTo(0));
+            Assert.That(secondRangefinderIndex, Is.EqualTo(3));
+
+            runtime.SelectBeltSlot(secondRangefinderIndex);
+
+            var consumed = controller.TryConsumeSelectedBeltItem(out var consumedItemId);
+
+            Assert.That(consumed, Is.True);
+            Assert.That(consumedItemId, Is.EqualTo("attachment.rangefinder"));
+            Assert.That(runtime.BeltSlotItemIds[firstRangefinderIndex], Is.EqualTo("attachment.rangefinder"));
+            Assert.That(runtime.BeltSlotItemIds[secondRangefinderIndex], Is.Null);
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void CanStoreItemWithBeltPriority_WhenOnlyStackMergeSpaceExists_ReturnsFalse()
+        {
+            var root = new GameObject("InventoryControllerCanStoreEmptySlotOnly");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            controller.Configure(null, null, runtime);
+            runtime.SetBackpackCapacity(0);
+
+            runtime.SetItemMaxStack("stack-item", 10);
+            Assert.That(runtime.TryAddStackItem("stack-item", 1, out _, out _, out _), Is.True);
+            Assert.That(runtime.TryStoreItem("filler-1", out _, out _, out _), Is.True);
+            Assert.That(runtime.TryStoreItem("filler-2", out _, out _, out _), Is.True);
+            Assert.That(runtime.TryStoreItem("filler-3", out _, out _, out _), Is.True);
+            Assert.That(runtime.TryStoreItem("filler-4", out _, out _, out _), Is.True);
+            Assert.That(runtime.BeltSlotItemIds, Has.None.Null);
+            for (var i = 0; i < PlayerInventoryRuntime.BeltSlotCount; i++)
+            {
+                Assert.That(string.IsNullOrWhiteSpace(runtime.BeltSlotItemIds[i]), Is.False);
+            }
+            Assert.That(ReferenceEquals(controller.Runtime, runtime), Is.True);
+            Assert.That(runtime.BackpackCapacity, Is.EqualTo(0));
+            Assert.That(runtime.CanAcceptStackItem("stack-item"), Is.True);
+            Assert.That(runtime.CanStoreItem("stack-item"), Is.False);
+
+            Assert.That(controller.CanStoreItemWithBeltPriority("stack-item"), Is.False);
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void Tick_PickupPress_StoresStackPickupQuantity()
         {
             var root = new GameObject("InventoryControllerRoot");

@@ -101,6 +101,7 @@ GameObject:
   - component: {fileID: 3990402071937500800}
   - component: {fileID: 5664004740266866200}
   - component: {fileID: 3597657690799968774}
+  - component: {fileID: 6501949132017834520}
   m_Layer: 0
   m_Name: RoundDummyTarget
   m_TagString: Untagged
@@ -161,6 +162,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.World.DummyTargetDamageable
   _impactMarkerPrefab: {fileID: 6632907437681650192, guid: 83eb340b29bc8425583d8dce6e9637b5, type: 3}
   _markersRoot: {fileID: 8828152230125072014}
+--- !u!114 &6501949132017834520
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 501538388337340825}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b045c0cc870f4be6b364bdae942ff4f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.World.DummyTargetRangeMetrics
+  _targetId: 
+  _displayName: 
+  _authoritativeDistanceMeters: 100
 --- !u!1 &5499086924468056657
 GameObject:
   m_ObjectHideFlags: 0

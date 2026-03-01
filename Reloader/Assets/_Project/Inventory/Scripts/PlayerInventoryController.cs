@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using Reloader.Core;
@@ -213,7 +214,7 @@ namespace Reloader.Inventory
             }
 
             var subjectText = ResolvePickupDisplayName(pickupTarget);
-            var targetInstanceId = pickupTarget is Object pickupTargetObject ? pickupTargetObject.GetInstanceID() : 0;
+            var targetInstanceId = pickupTarget is UnityEngine.Object pickupTargetObject ? pickupTargetObject.GetInstanceID() : 0;
             var stableTieBreaker = $"{resolvedItemId}:{targetInstanceId}";
             candidate = new PlayerInteractionCandidate(
                 PickupHintContextId,
@@ -242,6 +243,71 @@ namespace Reloader.Inventory
             ResolveInventoryEvents().RaiseInventoryChanged();
             UpdateDebugFields();
             return true;
+        }
+
+        public bool TryGetSelectedInventoryItemId(out string itemId)
+        {
+            itemId = Runtime?.SelectedBeltItemId;
+            return !string.IsNullOrWhiteSpace(itemId);
+        }
+
+        public bool TryConsumeSelectedBeltItem(out string consumedItemId)
+        {
+            consumedItemId = null;
+            if (Runtime == null)
+            {
+                return false;
+            }
+
+            var selectedBeltIndex = Runtime.SelectedBeltIndex;
+            if (!Runtime.TryRemoveFromBeltSlot(selectedBeltIndex, 1, out var selectedItemId))
+            {
+                return false;
+            }
+
+            ResolveInventoryEvents()?.RaiseInventoryChanged();
+            UpdateDebugFields();
+            consumedItemId = selectedItemId;
+            return true;
+        }
+
+        public bool TryStoreItemWithBeltPriority(string itemId)
+        {
+            if (Runtime == null)
+            {
+                return false;
+            }
+
+            if (!Runtime.TryStoreItem(itemId, out var area, out var index, out _))
+            {
+                return false;
+            }
+
+            var inventoryEvents = ResolveInventoryEvents();
+            inventoryEvents?.RaiseItemStored(itemId, area, index);
+            inventoryEvents?.RaiseInventoryChanged();
+            UpdateDebugFields();
+            return true;
+        }
+
+        public bool CanStoreItemWithBeltPriority(string itemId)
+        {
+            if (Runtime == null || string.IsNullOrWhiteSpace(itemId))
+            {
+                return false;
+            }
+
+            return Runtime.CanStoreItem(itemId);
+        }
+
+        public IReadOnlyList<ItemDefinition> GetItemDefinitionRegistrySnapshot()
+        {
+            if (_itemDefinitionRegistry == null || _itemDefinitionRegistry.Count == 0)
+            {
+                return Array.Empty<ItemDefinition>();
+            }
+
+            return _itemDefinitionRegistry.ToArray();
         }
 
         private void HandleItemPickupRequested(string itemId)

@@ -24,10 +24,26 @@ namespace Reloader.UI.Toolkit.TabInventory
         private VisualElement _questsSection;
         private VisualElement _journalSection;
         private VisualElement _calendarSection;
+        private VisualElement _deviceSection;
+        private VisualElement _deviceNotes;
+        private Label _deviceSelectedTargetValue;
+        private Label _deviceShotCountValue;
+        private Label _deviceSpreadValue;
+        private Label _deviceMoaValue;
+        private Label _deviceSavedGroupsValue;
+        private Label _deviceInstallFeedbackText;
+        private VisualElement _deviceSessionHistory;
         private Button _tabInventory;
         private Button _tabQuests;
         private Button _tabJournal;
         private Button _tabCalendar;
+        private Button _tabDevice;
+        private Button _deviceChooseTargetButton;
+        private Button _deviceSaveGroupButton;
+        private Button _deviceClearGroupButton;
+        private Button _deviceInstallHooksButton;
+        private Button _deviceUninstallHooksButton;
+        private readonly Dictionary<string, Action> _intentInvokeByTestId = new Dictionary<string, Action>();
         private string[] _beltSlotItemIds = Array.Empty<string>();
         private string[] _backpackSlotItemIds = Array.Empty<string>();
         private string _dragSourceContainer;
@@ -58,17 +74,35 @@ namespace Reloader.UI.Toolkit.TabInventory
             _questsSection = root?.Q<VisualElement>("inventory__section-quests");
             _journalSection = root?.Q<VisualElement>("inventory__section-journal");
             _calendarSection = root?.Q<VisualElement>("inventory__section-calendar");
+            _deviceSection = root?.Q<VisualElement>("inventory__section-device");
+            _deviceNotes = root?.Q<VisualElement>("inventory__device-notes");
+            _deviceSelectedTargetValue = root?.Q<Label>("inventory__device-selected-target-value");
+            _deviceShotCountValue = root?.Q<Label>("inventory__device-shot-count-value");
+            _deviceSpreadValue = root?.Q<Label>("inventory__device-spread-value");
+            _deviceMoaValue = root?.Q<Label>("inventory__device-moa-value");
+            _deviceSavedGroupsValue = root?.Q<Label>("inventory__device-saved-groups-value");
+            _deviceInstallFeedbackText = root?.Q<Label>("inventory__device-install-feedback-text");
+            _deviceSessionHistory = root?.Q<VisualElement>("inventory__device-session-history");
             _tabInventory = root?.Q<Button>("inventory__tab-inventory");
             _tabQuests = root?.Q<Button>("inventory__tab-quests");
             _tabJournal = root?.Q<Button>("inventory__tab-journal");
             _tabCalendar = root?.Q<Button>("inventory__tab-calendar");
+            _tabDevice = root?.Q<Button>("inventory__tab-device");
+            _deviceChooseTargetButton = root?.Q<Button>("inventory__device-choose-target");
+            _deviceSaveGroupButton = root?.Q<Button>("inventory__device-save-group");
+            _deviceClearGroupButton = root?.Q<Button>("inventory__device-clear-group");
+            _deviceInstallHooksButton = root?.Q<Button>("inventory__device-install-hooks");
+            _deviceUninstallHooksButton = root?.Q<Button>("inventory__device-uninstall-hooks");
+            _intentInvokeByTestId.Clear();
             _tabs.Clear();
             AddTab(_tabInventory);
             AddTab(_tabQuests);
             AddTab(_tabJournal);
             AddTab(_tabCalendar);
+            AddTab(_tabDevice);
 
             RegisterTabIntents();
+            RegisterDeviceActionIntents();
 
             _beltSlots = new VisualElement[Math.Max(0, beltSlotCount)];
             _beltSlotItemIds = new string[_beltSlots.Length];
@@ -126,6 +160,45 @@ namespace Reloader.UI.Toolkit.TabInventory
             CacheSlotItemIds(_beltSlotItemIds, inventoryState.BeltSlots);
             CacheSlotItemIds(_backpackSlotItemIds, inventoryState.BackpackSlots);
             ApplySectionVisibility(inventoryState.ActiveSection);
+            if (_deviceNotes != null)
+            {
+                _deviceNotes.style.display = inventoryState.DeviceNotesVisible ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+            if (_deviceSelectedTargetValue != null)
+            {
+                _deviceSelectedTargetValue.text = inventoryState.DeviceSelectedTargetText;
+            }
+
+            if (_deviceShotCountValue != null)
+            {
+                _deviceShotCountValue.text = inventoryState.DeviceShotCountText;
+            }
+
+            if (_deviceSpreadValue != null)
+            {
+                _deviceSpreadValue.text = inventoryState.DeviceSpreadText;
+            }
+
+            if (_deviceMoaValue != null)
+            {
+                _deviceMoaValue.text = inventoryState.DeviceMoaText;
+            }
+
+            if (_deviceSavedGroupsValue != null)
+            {
+                _deviceSavedGroupsValue.text = inventoryState.DeviceSavedGroupsText;
+            }
+
+            if (_deviceInstallFeedbackText != null)
+            {
+                _deviceInstallFeedbackText.text = inventoryState.DeviceInstallFeedbackText;
+            }
+
+            _deviceSaveGroupButton?.SetEnabled(inventoryState.DeviceCanSaveGroup);
+            _deviceClearGroupButton?.SetEnabled(inventoryState.DeviceCanClearGroup);
+            _deviceInstallHooksButton?.SetEnabled(inventoryState.DeviceCanInstallHooks);
+            _deviceUninstallHooksButton?.SetEnabled(inventoryState.DeviceCanUninstallHooks);
+            RenderDeviceSessionHistory(inventoryState.DeviceSessionHistoryEntries);
 
             if (_tooltip != null)
             {
@@ -140,25 +213,32 @@ namespace Reloader.UI.Toolkit.TabInventory
 
         private void RegisterTabIntents()
         {
-            if (_tabInventory != null)
+            RegisterIntent(_tabInventory, "test.tab.inventory", "tab.menu.select", "inventory");
+            RegisterIntent(_tabQuests, "test.tab.quests", "tab.menu.select", "quests");
+            RegisterIntent(_tabCalendar, "test.tab.calendar", "tab.menu.select", "calendar");
+            RegisterIntent(_tabJournal, "test.tab.journal", "tab.menu.select", "journal");
+            RegisterIntent(_tabDevice, "test.tab.device", "tab.menu.select", "device");
+        }
+
+        private void RegisterDeviceActionIntents()
+        {
+            RegisterIntent(_deviceChooseTargetButton, "test.device.choose-target", "tab.inventory.device.choose-target", null);
+            RegisterIntent(_deviceSaveGroupButton, "test.device.save-group", "tab.inventory.device.save-group", null);
+            RegisterIntent(_deviceClearGroupButton, "test.device.clear-group", "tab.inventory.device.clear-group", null);
+            RegisterIntent(_deviceInstallHooksButton, "test.device.install-hooks", "tab.inventory.device.install-hooks", null);
+            RegisterIntent(_deviceUninstallHooksButton, "test.device.uninstall-hooks", "tab.inventory.device.uninstall-hooks", null);
+        }
+
+        private void RegisterIntent(Button button, string testId, string key, object payload)
+        {
+            if (button == null)
             {
-                _tabInventory.clicked += () => IntentRaised?.Invoke(new UiIntent("tab.menu.select", "inventory"));
+                return;
             }
 
-            if (_tabQuests != null)
-            {
-                _tabQuests.clicked += () => IntentRaised?.Invoke(new UiIntent("tab.menu.select", "quests"));
-            }
-
-            if (_tabCalendar != null)
-            {
-                _tabCalendar.clicked += () => IntentRaised?.Invoke(new UiIntent("tab.menu.select", "calendar"));
-            }
-
-            if (_tabJournal != null)
-            {
-                _tabJournal.clicked += () => IntentRaised?.Invoke(new UiIntent("tab.menu.select", "journal"));
-            }
+            Action invoke = () => IntentRaised?.Invoke(new UiIntent(key, payload));
+            button.clicked += () => invoke();
+            _intentInvokeByTestId[testId] = invoke;
         }
 
         private void RegisterResponsiveCallbacks()
@@ -293,11 +373,13 @@ namespace Reloader.UI.Toolkit.TabInventory
             SetSectionVisibility(_questsSection, section == "quests");
             SetSectionVisibility(_journalSection, section == "journal");
             SetSectionVisibility(_calendarSection, section == "calendar");
+            SetSectionVisibility(_deviceSection, section == "device");
 
             _tabInventory?.EnableInClassList("is-active", section == "inventory");
             _tabQuests?.EnableInClassList("is-active", section == "quests");
             _tabJournal?.EnableInClassList("is-active", section == "journal");
             _tabCalendar?.EnableInClassList("is-active", section == "calendar");
+            _tabDevice?.EnableInClassList("is-active", section == "device");
         }
 
         private static void SetSectionVisibility(VisualElement section, bool isVisible)
@@ -442,6 +524,74 @@ namespace Reloader.UI.Toolkit.TabInventory
         public bool TryPointerUpForTests(string container, int slotIndex)
         {
             return TryPointerUp(container, slotIndex);
+        }
+
+        public bool TryInvokeTabSelectionForTests(string section)
+        {
+            var testId = section switch
+            {
+                "inventory" => "test.tab.inventory",
+                "quests" => "test.tab.quests",
+                "journal" => "test.tab.journal",
+                "calendar" => "test.tab.calendar",
+                "device" => "test.tab.device",
+                _ => null
+            };
+
+            return TryInvokeIntentForTests(testId);
+        }
+
+        public bool TryInvokeDeviceActionForTests(string action)
+        {
+            var testId = action switch
+            {
+                "choose-target" => "test.device.choose-target",
+                "save-group" => "test.device.save-group",
+                "clear-group" => "test.device.clear-group",
+                "install-hooks" => "test.device.install-hooks",
+                "uninstall-hooks" => "test.device.uninstall-hooks",
+                _ => null
+            };
+
+            return TryInvokeIntentForTests(testId);
+        }
+
+        private bool TryInvokeIntentForTests(string testId)
+        {
+            if (string.IsNullOrWhiteSpace(testId) || !_intentInvokeByTestId.TryGetValue(testId, out var invoke))
+            {
+                return false;
+            }
+
+            invoke?.Invoke();
+            return true;
+        }
+
+        private void RenderDeviceSessionHistory(IReadOnlyList<string> entries)
+        {
+            if (_deviceSessionHistory == null)
+            {
+                return;
+            }
+
+            _deviceSessionHistory.Clear();
+            if (entries == null || entries.Count == 0)
+            {
+                var empty = new Label("No saved groups yet.") { name = "inventory__device-session-empty" };
+                empty.AddToClassList("inventory__device-session-row");
+                _deviceSessionHistory.Add(empty);
+                return;
+            }
+
+            for (var i = 0; i < entries.Count; i++)
+            {
+                var row = new Label(entries[i] ?? string.Empty)
+                {
+                    name = $"inventory__device-session-row-{i}"
+                };
+                row.AddToClassList("inventory__device-session-row");
+                _deviceSessionHistory.Add(row);
+            }
         }
 
         private void HandleSlotClick(string container, int slotIndex)

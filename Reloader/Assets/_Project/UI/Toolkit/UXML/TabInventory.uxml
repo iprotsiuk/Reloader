@@ -7,12 +7,13 @@
                 <ui:Label text="Inventory" class="inventory__header-hint ui-kit__hint"/>
             </ui:VisualElement>
             <ui:VisualElement name="inventory__tabbar" class="inventory__tabbar">
-                <ui:Button name="inventory__tab-inventory" text="Inventory" class="inventory__tab ui-kit__tab is-active"/>
+                <ui:Button name="inventory__tab-inventory" text="Inventory" class="inventory__tab ui-kit__tab"/>
                 <ui:Button name="inventory__tab-quests" text="Quests" class="inventory__tab ui-kit__tab"/>
                 <ui:Button name="inventory__tab-journal" text="Journal" class="inventory__tab ui-kit__tab"/>
                 <ui:Button name="inventory__tab-calendar" text="Calendar" class="inventory__tab ui-kit__tab"/>
+                <ui:Button name="inventory__tab-device" text="Device" class="inventory__tab ui-kit__tab is-active"/>
             </ui:VisualElement>
-            <ui:VisualElement name="inventory__section-inventory" class="inventory__section">
+            <ui:VisualElement name="inventory__section-inventory" class="inventory__section inventory__section--hidden">
                 <ui:VisualElement class="inventory__content">
                     <ui:VisualElement class="inventory__grid-area">
                         <ui:VisualElement class="inventory__section-title-row">
@@ -73,6 +74,48 @@
                 <ui:Label text="Calendar" class="inventory__section-title ui-kit__hint"/>
                 <ui:Label text="- Thu: Range practice 18:00" class="inventory__mock-line"/>
                 <ui:Label text="- Sat: Local competition 11:00" class="inventory__mock-line"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="inventory__section-device" class="inventory__section">
+                <ui:VisualElement class="inventory__device-content">
+                    <ui:Label text="TAB Device" class="inventory__section-title ui-kit__hint"/>
+                    <ui:VisualElement name="inventory__device-notes" class="inventory__device-notes">
+                        <ui:Label text="Current Session" class="inventory__details-title"/>
+                        <ui:VisualElement class="inventory__device-field-row">
+                            <ui:Label text="Target" class="inventory__device-field-label"/>
+                            <ui:Label name="inventory__device-selected-target-value" text="No target selected" class="inventory__device-field-value"/>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="inventory__device-field-row">
+                            <ui:Label text="Shot Count" class="inventory__device-field-label"/>
+                            <ui:Label name="inventory__device-shot-count-value" text="0 shots" class="inventory__device-field-value"/>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="inventory__device-field-row">
+                            <ui:Label text="Spread" class="inventory__device-field-label"/>
+                            <ui:Label name="inventory__device-spread-value" text="--" class="inventory__device-field-value"/>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="inventory__device-field-row">
+                            <ui:Label text="MOA" class="inventory__device-field-label"/>
+                            <ui:Label name="inventory__device-moa-value" text="--" class="inventory__device-field-value"/>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="inventory__device-field-row">
+                            <ui:Label text="Saved Groups" class="inventory__device-field-label"/>
+                            <ui:Label name="inventory__device-saved-groups-value" text="0" class="inventory__device-field-value"/>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="inventory__device-button-row">
+                        <ui:Button name="inventory__device-choose-target" text="Choose Target" class="inventory__tab ui-kit__tab"/>
+                        <ui:Button name="inventory__device-save-group" text="Save Group" class="inventory__tab ui-kit__tab"/>
+                        <ui:Button name="inventory__device-clear-group" text="Clear Group" class="inventory__tab ui-kit__tab"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="inventory__device-button-row">
+                        <ui:Button name="inventory__device-install-hooks" text="Install Hooks" class="inventory__tab ui-kit__tab"/>
+                        <ui:Button name="inventory__device-uninstall-hooks" text="Uninstall Hooks" class="inventory__tab ui-kit__tab"/>
+                    </ui:VisualElement>
+                    <ui:Label name="inventory__device-install-feedback-text" text="Hooks are not installed." class="inventory__device-feedback"/>
+                    <ui:VisualElement class="inventory__device-history">
+                        <ui:Label text="Session History" class="inventory__details-title"/>
+                        <ui:VisualElement name="inventory__device-session-history" class="inventory__device-session-history"/>
+                    </ui:VisualElement>
+                </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>

@@ -195,6 +195,24 @@ namespace Reloader.Inventory
             return CanAcceptStackQuantity(itemId, 1);
         }
 
+        public bool CanStoreItem(string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return false;
+            }
+
+            for (var i = 0; i < BeltSlotCount; i++)
+            {
+                if (string.IsNullOrWhiteSpace(BeltSlotItemIds[i]))
+                {
+                    return true;
+                }
+            }
+
+            return BackpackItemIds.Count < BackpackCapacity;
+        }
+
         public bool CanAcceptStackQuantity(string itemId, int quantity)
         {
             if (string.IsNullOrWhiteSpace(itemId) || quantity <= 0)
@@ -246,6 +264,38 @@ namespace Reloader.Inventory
 
             RebuildItemQuantities();
             return remaining == 0;
+        }
+
+        public bool TryRemoveFromBeltSlot(int beltIndex, int quantity, out string removedItemId)
+        {
+            removedItemId = null;
+            if (!IsValidBeltIndex(beltIndex) || quantity <= 0)
+            {
+                return false;
+            }
+
+            var itemId = BeltSlotItemIds[beltIndex];
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return false;
+            }
+
+            var slotQuantity = GetSlotQuantity(InventoryArea.Belt, beltIndex);
+            if (slotQuantity < quantity)
+            {
+                return false;
+            }
+
+            var remaining = quantity;
+            RemoveQuantityFromSlot(InventoryArea.Belt, beltIndex, ref remaining);
+            RebuildItemQuantities();
+            if (remaining != 0)
+            {
+                return false;
+            }
+
+            removedItemId = itemId;
+            return true;
         }
 
         public void SelectBeltSlot(int beltIndex)
