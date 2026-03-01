@@ -4,6 +4,7 @@ using System.Reflection;
 using NUnit.Framework;
 using Reloader.PlayerDevice.Runtime;
 using Reloader.PlayerDevice.World;
+using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.World;
 using UnityEngine;
 
@@ -93,6 +94,31 @@ namespace Reloader.PlayerDevice.Tests.PlayMode
             Assert.That(firstSample.DistanceMeters, Is.Not.EqualTo(999f).Within(1e-3f));
 
             UnityEngine.Object.DestroyImmediate(target);
+        }
+
+        [Test]
+        public void ApplyDamage_WithoutSourcePoint_FallsBackToAuthoritativeTargetDistance()
+        {
+            var state = new PlayerDeviceRuntimeState();
+            state.SetSelectedTargetBinding(new DeviceTargetBinding(SelectedTargetId, "Session Target", 100f));
+            var controller = new PlayerDeviceController(state, null, DeviceAttachmentCatalog.Empty);
+
+            var target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            var damageable = target.AddComponent<DummyTargetDamageable>();
+            var metrics = target.AddComponent<DummyTargetRangeMetrics>();
+            metrics.Configure(SelectedTargetId, "Session Target", 275f);
+
+            var impactPoint = new Vector3(0f, 0f, 8.25f);
+            var payloadWithoutSource = new ProjectileImpactPayload("weapon-rifle-01", impactPoint, Vector3.forward, 20f, target);
+            Assert.That(payloadWithoutSource.SourcePoint.HasValue, Is.False);
+            damageable.ApplyDamage(payloadWithoutSource);
+
+            Assert.That(state.ActiveGroupSession.ShotCount, Is.EqualTo(1));
+            var firstSample = state.ActiveGroupSession.ShotSamples[0];
+            Assert.That(firstSample.DistanceMeters, Is.EqualTo(275f).Within(1e-4f));
+
+            UnityEngine.Object.DestroyImmediate(target);
+            controller.UnregisterAsActiveInstance();
         }
 
         [Test]

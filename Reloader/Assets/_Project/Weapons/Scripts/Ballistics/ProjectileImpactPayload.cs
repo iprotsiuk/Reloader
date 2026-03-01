@@ -10,7 +10,7 @@ namespace Reloader.Weapons.Ballistics
             Vector3 normal,
             float damage,
             GameObject hitObject,
-            Vector3 sourcePoint = default)
+            Vector3? sourcePoint = null)
         {
             ItemId = itemId;
             Point = point;
@@ -25,6 +25,6 @@ namespace Reloader.Weapons.Ballistics
         public Vector3 Normal { get; }
         public float Damage { get; }
         public GameObject HitObject { get; }
-        public Vector3 SourcePoint { get; }
+        public Vector3? SourcePoint { get; }
     }
 }
