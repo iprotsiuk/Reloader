@@ -43,6 +43,8 @@ namespace Reloader.Core.Save
 
         public SaveEnvelope CaptureEnvelope(string buildVersion, SaveFeatureFlags featureFlags)
         {
+            SaveRuntimeBridgeRegistry.PrepareForSave(_moduleRegistrations);
+
             var envelope = new SaveEnvelope
             {
                 SchemaVersion = _currentSchemaVersion,
@@ -83,6 +85,7 @@ namespace Reloader.Core.Save
             try
             {
                 RestoreModules(envelope);
+                SaveRuntimeBridgeRegistry.FinalizeAfterLoad(_moduleRegistrations);
                 ValidateRestoredState();
             }
             catch (Exception restoreEx)

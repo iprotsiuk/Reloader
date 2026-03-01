@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using Reloader.Core.Save;
 using Reloader.Core.Save.Modules;
 using Reloader.Reloading.World;
 using UnityEngine;
 
 namespace Reloader.Reloading.Runtime
 {
-    public sealed class WorkbenchRuntimeSaveBridge : MonoBehaviour
+    public sealed class WorkbenchRuntimeSaveBridge : MonoBehaviour, ISaveRuntimeBridge
     {
         [SerializeField] private List<ReloadingBenchTarget> _benchTargets = new List<ReloadingBenchTarget>();
         [SerializeField] private List<MountableItemDefinition> _mountableItemCatalog = new List<MountableItemDefinition>();
@@ -14,9 +15,31 @@ namespace Reloader.Reloading.Runtime
 
         private WorkbenchLoadoutModule _workbenchLoadoutModule;
 
+        private void OnEnable()
+        {
+            SaveRuntimeBridgeRegistry.Register(this);
+        }
+
+        private void OnDisable()
+        {
+            SaveRuntimeBridgeRegistry.Unregister(this);
+        }
+
         public void SetWorkbenchLoadoutModuleForRuntime(WorkbenchLoadoutModule workbenchLoadoutModule)
         {
             _workbenchLoadoutModule = workbenchLoadoutModule;
+        }
+
+        public void PrepareForSave(IReadOnlyList<SaveModuleRegistration> moduleRegistrations)
+        {
+            SetWorkbenchLoadoutModuleForRuntime(ResolveWorkbenchLoadoutModule(moduleRegistrations));
+            CaptureToModule();
+        }
+
+        public void FinalizeAfterLoad(IReadOnlyList<SaveModuleRegistration> moduleRegistrations)
+        {
+            SetWorkbenchLoadoutModuleForRuntime(ResolveWorkbenchLoadoutModule(moduleRegistrations));
+            RestoreFromModule();
         }
 
         public void CaptureToModule()
@@ -113,6 +136,24 @@ namespace Reloader.Reloading.Runtime
             }
 
             return ready;
+        }
+
+        private static WorkbenchLoadoutModule ResolveWorkbenchLoadoutModule(IReadOnlyList<SaveModuleRegistration> moduleRegistrations)
+        {
+            if (moduleRegistrations == null)
+            {
+                return null;
+            }
+
+            for (var i = 0; i < moduleRegistrations.Count; i++)
+            {
+                if (moduleRegistrations[i]?.Module is WorkbenchLoadoutModule module)
+                {
+                    return module;
+                }
+            }
+
+            return null;
         }
 
         private List<ReloadingBenchTarget> ResolveBenchTargets()
