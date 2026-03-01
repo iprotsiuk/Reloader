@@ -52,6 +52,7 @@ namespace Reloader.UI.Toolkit.TabInventory
         private string _dragTargetContainer;
         private int _dragTargetIndex = -1;
         private bool _suppressNextClick;
+        private int _activePointerId = -1;
         private float _resolvedSlotSize = 46f;
 
         private const float MinSlotSize = 16f;
@@ -113,7 +114,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 if (slot != null)
                 {
                     var capturedIndex = i;
-                    slot.RegisterCallback<PointerDownEvent>(_ => TryPointerDown("belt", capturedIndex));
+                    slot.RegisterCallback<PointerDownEvent>(evt => TryPointerDown("belt", capturedIndex, evt.pointerId));
                     slot.RegisterCallback<PointerEnterEvent>(_ => TryPointerEnter("belt", capturedIndex));
                     slot.RegisterCallback<PointerUpEvent>(_ => TryPointerUp("belt", capturedIndex));
                     slot.RegisterCallback<ClickEvent>(_ => HandleSlotClick("belt", capturedIndex));
@@ -129,7 +130,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 if (slot != null)
                 {
                     var capturedIndex = i;
-                    slot.RegisterCallback<PointerDownEvent>(_ => TryPointerDown("backpack", capturedIndex));
+                    slot.RegisterCallback<PointerDownEvent>(evt => TryPointerDown("backpack", capturedIndex, evt.pointerId));
                     slot.RegisterCallback<PointerEnterEvent>(_ => TryPointerEnter("backpack", capturedIndex));
                     slot.RegisterCallback<PointerUpEvent>(_ => TryPointerUp("backpack", capturedIndex));
                     slot.RegisterCallback<ClickEvent>(_ => HandleSlotClick("backpack", capturedIndex));
@@ -514,7 +515,7 @@ namespace Reloader.UI.Toolkit.TabInventory
 
         public bool TryPointerDownForTests(string container, int slotIndex)
         {
-            return TryPointerDown(container, slotIndex);
+            return TryPointerDown(container, slotIndex, pointerId: -1);
         }
 
         public bool TryPointerEnterForTests(string container, int slotIndex)
@@ -611,7 +612,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             TryInteractSlot(container, slotIndex);
         }
 
-        private bool TryPointerDown(string container, int slotIndex)
+        private bool TryPointerDown(string container, int slotIndex, int pointerId)
         {
             if (slotIndex < 0)
             {
@@ -629,6 +630,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             _dragSourceItemId = sourceItemId;
             _dragTargetContainer = null;
             _dragTargetIndex = -1;
+            _activePointerId = pointerId;
             ApplyDragVisuals();
             return true;
         }
@@ -777,12 +779,18 @@ namespace Reloader.UI.Toolkit.TabInventory
 
         private void ClearDragSource()
         {
+            ReleaseCapturedPointer();
             _dragSourceContainer = null;
             _dragSourceIndex = -1;
             _dragSourceItemId = null;
             _dragTargetContainer = null;
             _dragTargetIndex = -1;
             ApplyDragVisuals();
+        }
+
+        private void ReleaseCapturedPointer()
+        {
+            _activePointerId = -1;
         }
 
         private void ApplyDragVisuals()

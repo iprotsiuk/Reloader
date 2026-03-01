@@ -700,6 +700,268 @@ namespace Reloader.Player.Tests.PlayMode
             Object.DestroyImmediate(root);
         }
 
+        [Test]
+        public void TryDropSelectedBeltItem_WhenNoSelection_DropsFirstOccupiedBeltSlot()
+        {
+            var root = new GameObject("InventoryControllerDropFallback");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            controller.Configure(null, null, runtime);
+
+            var itemDefinition = ScriptableObject.CreateInstance<ItemDefinition>();
+            itemDefinition.SetValuesForTests("item-drop-fallback", ItemCategory.Tool, "Drop Fallback");
+            SetPrivateField(
+                typeof(PlayerInventoryController),
+                controller,
+                "_itemDefinitionRegistry",
+                new System.Collections.Generic.List<ItemDefinition> { itemDefinition });
+
+            runtime.SetBackpackCapacity(0);
+            Assert.That(runtime.TryStoreItem("item-drop-fallback", out var storedArea, out var storedIndex, out _), Is.True);
+            Assert.That(storedArea, Is.EqualTo(InventoryArea.Belt));
+            Assert.That(storedIndex, Is.EqualTo(0));
+            Assert.That(runtime.SelectedBeltIndex, Is.EqualTo(-1));
+
+            var dropped = controller.TryDropSelectedBeltItem();
+
+            Assert.That(dropped, Is.True);
+            Assert.That(runtime.BeltSlotItemIds[0], Is.Null);
+            var dropRoot = GameObject.Find("drop-item-drop-fallback");
+            Assert.That(dropRoot, Is.Not.Null);
+            Assert.That(dropRoot.GetComponent<Rigidbody>(), Is.Not.Null);
+            Assert.That(dropRoot.GetComponent<DefinitionPickupTarget>(), Is.Not.Null);
+
+            if (dropRoot != null)
+            {
+                Object.DestroyImmediate(dropRoot);
+            }
+
+            Object.DestroyImmediate(itemDefinition);
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void TryDropItemFromSlot_WhenDefinitionRegistryMissing_StillDropsPickupablePhysicsProp()
+        {
+            var root = new GameObject("InventoryControllerDropWithoutDefinition");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            controller.Configure(null, null, runtime);
+
+            runtime.SetBackpackCapacity(0);
+            Assert.That(runtime.TryStoreItem("item-drop-missing-def", out _, out var slotIndex, out _), Is.True);
+
+            var dropped = controller.TryDropItemFromSlot(InventoryArea.Belt, slotIndex);
+
+            Assert.That(dropped, Is.True);
+            Assert.That(runtime.BeltSlotItemIds[slotIndex], Is.Null);
+
+            var dropRoot = GameObject.Find("drop-item-drop-missing-def");
+            Assert.That(dropRoot, Is.Not.Null);
+            Assert.That(dropRoot.GetComponent<Rigidbody>(), Is.Not.Null);
+
+            var pickupBehaviours = dropRoot.GetComponents<MonoBehaviour>();
+            var hasStackPickupTarget = false;
+            for (var i = 0; i < pickupBehaviours.Length; i++)
+            {
+                if (pickupBehaviours[i] is IInventoryStackPickupTarget)
+                {
+                    hasStackPickupTarget = true;
+                    break;
+                }
+            }
+
+            Assert.That(hasStackPickupTarget, Is.True);
+
+            if (dropRoot != null)
+            {
+                Object.DestroyImmediate(dropRoot);
+            }
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void TryDropItemFromSlot_WhenRegistryMissesButDefinitionIsLoaded_UsesDefinitionVisualDropPath()
+        {
+            var root = new GameObject("InventoryControllerDropGlobalDefinition");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            controller.Configure(null, null, runtime);
+
+            var iconTemplate = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            iconTemplate.name = "DropIconTemplate";
+            var itemDefinition = ScriptableObject.CreateInstance<ItemDefinition>();
+            itemDefinition.SetValuesForTests(
+                "item-drop-global-def",
+                ItemCategory.Weapon,
+                "Global Def Item",
+                ItemStackPolicy.NonStackable,
+                1,
+                iconTemplate);
+
+            runtime.SetBackpackCapacity(0);
+            Assert.That(runtime.TryStoreItem("item-drop-global-def", out _, out var slotIndex, out _), Is.True);
+
+            var dropped = controller.TryDropItemFromSlot(InventoryArea.Belt, slotIndex);
+
+            Assert.That(dropped, Is.True);
+
+            var dropRoot = GameObject.Find("drop-item-drop-global-def");
+            Assert.That(dropRoot, Is.Not.Null);
+            Assert.That(dropRoot.GetComponent<DefinitionPickupTarget>(), Is.Not.Null);
+            Assert.That(dropRoot.GetComponent<RuntimeStackPickupTarget>(), Is.Null);
+
+            if (dropRoot != null)
+            {
+                Object.DestroyImmediate(dropRoot);
+            }
+
+            Object.DestroyImmediate(itemDefinition);
+            Object.DestroyImmediate(iconTemplate);
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void TryDropItemFromSlot_RecordsSpawnedWorldObjectState_ForPersistence()
+        {
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+
+            var root = new GameObject("InventoryControllerDropPersistence");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            controller.Configure(null, null, runtime);
+
+            runtime.SetBackpackCapacity(0);
+            Assert.That(runtime.TryStoreItem("item-drop-persistent", out _, out var slotIndex, out _), Is.True);
+
+            var dropped = controller.TryDropItemFromSlot(InventoryArea.Belt, slotIndex);
+
+            Assert.That(dropped, Is.True);
+
+            var dropRoot = GameObject.Find("drop-item-drop-persistent");
+            Assert.That(dropRoot, Is.Not.Null);
+            var identity = dropRoot.GetComponent<WorldObjectIdentity>();
+            Assert.That(identity, Is.Not.Null);
+
+            var scenePath = dropRoot.scene.path;
+            Assert.That(string.IsNullOrWhiteSpace(scenePath), Is.False);
+            Assert.That(
+                WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath, identity.ObjectId, out var record),
+                Is.True,
+                "Dropped runtime world objects should be persisted so they can be restored after travel.");
+            Assert.That(record.HasTransformOverride, Is.True);
+            Assert.That(record.ItemDefinitionId, Is.EqualTo("item-drop-persistent"));
+            Assert.That(string.IsNullOrWhiteSpace(record.ItemInstanceId), Is.False);
+
+            if (dropRoot != null)
+            {
+                Object.DestroyImmediate(dropRoot);
+            }
+
+            Object.DestroyImmediate(root);
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+        }
+
+        [UnityTest]
+        public System.Collections.IEnumerator TryDropItemFromSlot_PersistsRuntimeDropTransformAfterPhysicsMotion()
+        {
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+
+            var root = new GameObject("InventoryControllerDropTransformPersistence");
+            root.transform.position = Vector3.zero;
+            root.transform.rotation = Quaternion.identity;
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            var input = root.AddComponent<TestInputSource>();
+            controller.Configure(input, null, runtime);
+
+            runtime.SetBackpackCapacity(0);
+            Assert.That(runtime.TryStoreItem("item-drop-transform", out _, out var slotIndex, out _), Is.True);
+            Assert.That(controller.TryDropItemFromSlot(InventoryArea.Belt, slotIndex), Is.True);
+
+            var dropRoot = GameObject.Find("drop-item-drop-transform");
+            Assert.That(dropRoot, Is.Not.Null);
+            var identity = dropRoot.GetComponent<WorldObjectIdentity>();
+            Assert.That(identity, Is.Not.Null);
+
+            yield return new WaitForSeconds(0.75f);
+
+            var scenePath = dropRoot.scene.path;
+            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath, identity.ObjectId, out var record), Is.True);
+            Assert.That(Vector3.Distance(record.Position, dropRoot.transform.position), Is.LessThan(0.2f));
+
+            if (dropRoot != null)
+            {
+                Object.DestroyImmediate(dropRoot);
+            }
+
+            Object.DestroyImmediate(root);
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+        }
+
+        [Test]
+        public void TryDropItemFromSlot_TwoDropsWithSameItemId_UseDistinctRuntimeInstanceIds()
+        {
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+
+            var root = new GameObject("InventoryControllerDropInstanceIds");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            controller.Configure(null, null, runtime);
+
+            runtime.SetBackpackCapacity(2);
+            Assert.That(runtime.TryStoreItem("item-drop-instance-id", out _, out var slotA, out _), Is.True);
+            Assert.That(runtime.TryStoreItem("item-drop-instance-id", out _, out var slotB, out _), Is.True);
+            Assert.That(slotA, Is.Not.EqualTo(slotB));
+
+            Assert.That(controller.TryDropItemFromSlot(InventoryArea.Belt, slotA), Is.True);
+            Assert.That(controller.TryDropItemFromSlot(InventoryArea.Belt, slotB), Is.True);
+
+            var dropA = GameObject.Find("drop-item-drop-instance-id");
+            Assert.That(dropA, Is.Not.Null);
+            var identityA = dropA.GetComponent<WorldObjectIdentity>();
+            Assert.That(identityA, Is.Not.Null);
+            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(dropA.scene.path, identityA.ObjectId, out var recordA), Is.True);
+
+            // Find second drop by identity scan because names are identical.
+            var allIdentities = Object.FindObjectsByType<WorldObjectIdentity>(FindObjectsSortMode.None);
+            WorldObjectIdentity identityB = null;
+            for (var i = 0; i < allIdentities.Length; i++)
+            {
+                if (allIdentities[i] == null || allIdentities[i] == identityA)
+                {
+                    continue;
+                }
+
+                if (allIdentities[i].gameObject.name == "drop-item-drop-instance-id")
+                {
+                    identityB = allIdentities[i];
+                    break;
+                }
+            }
+
+            Assert.That(identityB, Is.Not.Null);
+            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(identityB.gameObject.scene.path, identityB.ObjectId, out var recordB), Is.True);
+
+            Assert.That(recordA.ItemDefinitionId, Is.EqualTo("item-drop-instance-id"));
+            Assert.That(recordB.ItemDefinitionId, Is.EqualTo("item-drop-instance-id"));
+            Assert.That(recordA.ItemInstanceId, Is.Not.EqualTo(recordB.ItemInstanceId));
+
+            if (dropA != null)
+            {
+                Object.DestroyImmediate(dropA);
+            }
+
+            if (identityB != null)
+            {
+                Object.DestroyImmediate(identityB.gameObject);
+            }
+
+            Object.DestroyImmediate(root);
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public bool PickupPressedThisFrame;
@@ -853,6 +1115,13 @@ namespace Reloader.Player.Tests.PlayMode
             Assert.That(objectIdField, Is.Not.Null, "Expected private _objectId field on WorldObjectIdentity.");
             objectIdField.SetValue(identity, objectId);
             Assert.That(identity.ObjectId, Is.EqualTo(objectId));
+        }
+
+        private static void SetPrivateField(System.Type ownerType, object instance, string fieldName, object value)
+        {
+            var field = ownerType.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected private field '{fieldName}' on {ownerType.Name}.");
+            field.SetValue(instance, value);
         }
 
         private sealed class FakeInventoryEvents : IInventoryEvents

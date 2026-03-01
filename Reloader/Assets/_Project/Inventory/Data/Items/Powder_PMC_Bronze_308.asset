@@ -17,4 +17,4 @@ MonoBehaviour:
   _displayName: 'Powder_PMC_Bronze_308'
   _stackPolicy: 1
   _maxStack: 8
-  _iconSourcePrefab: {fileID: 0}
+  _iconSourcePrefab: {fileID: 100001, guid: b5ffe2656b4d4282bf566ccc170a83c5, type: 3}

@@ -17,4 +17,4 @@ MonoBehaviour:
   _displayName: 'Cartridge_308_147_FMJ_PMC_Bronze'
   _stackPolicy: 1
   _maxStack: 500
-  _iconSourcePrefab: {fileID: 0}
+  _iconSourcePrefab: {fileID: 100001, guid: 03ec13c6338948e1a9e799962f2a9eea, type: 3}

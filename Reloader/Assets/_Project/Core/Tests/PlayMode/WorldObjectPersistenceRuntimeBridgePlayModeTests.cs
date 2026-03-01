@@ -223,6 +223,53 @@ namespace Reloader.Core.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator SceneLoad_RuntimeSpawnedRecord_ConsumedTrue_TrackConsumedFalse_StillRestores()
+        {
+            yield return LoadScene(MainTownSceneName);
+            var activeScene = SceneManager.GetActiveScene();
+            var objectId = "qa.persistence.spawned.consumed-ignored";
+            var expectedPosition = new Vector3(3f, 1f, -2f);
+            var expectedRotation = Quaternion.Euler(0f, 15f, 0f);
+
+            WorldObjectPersistenceRuntimeBridge.RegisterScenePolicy(new WorldScenePersistencePolicy
+            {
+                ScenePath = activeScene.path,
+                Mode = WorldObjectPersistenceMode.Persistent,
+                TrackTransforms = true,
+                TrackConsumed = false,
+                TrackDestroyed = true,
+                TrackSpawnedObjects = true
+            });
+
+            WorldObjectPersistenceRuntimeBridge.StateStore.Upsert(activeScene.path, new WorldObjectStateRecord
+            {
+                ObjectId = objectId,
+                Consumed = true,
+                HasTransformOverride = true,
+                Position = expectedPosition,
+                Rotation = expectedRotation,
+                ItemInstanceId = "drop:qa:consumed-ignored",
+                ItemDefinitionId = "weapon-rifle-01",
+                StackQuantity = 1
+            });
+
+            WorldObjectPersistenceRuntimeBridge.RegisterRuntimeSpawnRestorer((scene, record) =>
+            {
+                var restored = CreateIdentityInScene(scene, record.ObjectId);
+                restored.transform.SetPositionAndRotation(record.Position, record.Rotation);
+                return true;
+            });
+
+            WorldObjectPersistenceRuntimeBridge.EnsureInitialized();
+            InvokeSceneLoaded(activeScene, LoadSceneMode.Single);
+
+            var restoredIdentity = FindIdentityInSceneByObjectId(activeScene, objectId);
+            Assert.That(restoredIdentity, Is.Not.Null);
+            Assert.That(restoredIdentity.transform.position, Is.EqualTo(expectedPosition));
+            Assert.That(Quaternion.Angle(restoredIdentity.transform.rotation, expectedRotation), Is.LessThan(0.001f));
+        }
+
+        [UnityTest]
         public IEnumerator SceneLoad_DailyResetMode_StillAppliesObjectState()
         {
             yield return LoadScene(MainTownSceneName);
@@ -249,6 +296,51 @@ namespace Reloader.Core.Tests.PlayMode
             InvokeSceneLoaded(activeScene, LoadSceneMode.Single);
 
             Assert.That(targetIdentity.gameObject.activeSelf, Is.False, "DailyReset policy should still apply per-scene state.");
+        }
+
+        [UnityTest]
+        public IEnumerator SceneLoad_RestoresMissingRuntimeSpawnedObject_WhenTrackedSpawnRecordExists()
+        {
+            yield return LoadScene(MainTownSceneName);
+            var activeScene = SceneManager.GetActiveScene();
+            var objectId = "qa.persistence.spawned.restore";
+            var expectedPosition = new Vector3(9f, 1.5f, -4f);
+            var expectedRotation = Quaternion.Euler(0f, 80f, 0f);
+
+            WorldObjectPersistenceRuntimeBridge.RegisterScenePolicy(new WorldScenePersistencePolicy
+            {
+                ScenePath = activeScene.path,
+                Mode = WorldObjectPersistenceMode.Persistent,
+                TrackTransforms = true,
+                TrackConsumed = true,
+                TrackDestroyed = true,
+                TrackSpawnedObjects = true
+            });
+
+            WorldObjectPersistenceRuntimeBridge.StateStore.Upsert(activeScene.path, new WorldObjectStateRecord
+            {
+                ObjectId = objectId,
+                HasTransformOverride = true,
+                Position = expectedPosition,
+                Rotation = expectedRotation,
+                ItemInstanceId = "item.spawned.restore"
+            });
+
+            WorldObjectPersistenceRuntimeBridge.RegisterRuntimeSpawnRestorer((scene, record) =>
+            {
+                var restored = CreateIdentityInScene(scene, record.ObjectId);
+                restored.transform.SetPositionAndRotation(record.Position, record.Rotation);
+                return true;
+            });
+
+            WorldObjectPersistenceRuntimeBridge.EnsureInitialized();
+            InvokeSceneLoaded(activeScene, LoadSceneMode.Single);
+
+            var restoredIdentity = FindIdentityInSceneByObjectId(activeScene, objectId);
+            Assert.That(restoredIdentity, Is.Not.Null, "Missing runtime-spawned object should be re-instantiated from saved state.");
+            Assert.That(restoredIdentity.transform.position, Is.EqualTo(expectedPosition));
+            Assert.That(Quaternion.Angle(restoredIdentity.transform.rotation, expectedRotation), Is.LessThan(0.001f));
+            Assert.That(restoredIdentity.gameObject.activeSelf, Is.True);
         }
 
         [UnityTest]
@@ -377,6 +469,36 @@ namespace Reloader.Core.Tests.PlayMode
             // Re-run identity reservation with deterministic test id.
             Assert.That(identity.ObjectId, Is.EqualTo(objectId));
             return identity;
+        }
+
+        private static WorldObjectIdentity FindIdentityInSceneByObjectId(Scene scene, string objectId)
+        {
+            var roots = scene.GetRootGameObjects();
+            for (var rootIndex = 0; rootIndex < roots.Length; rootIndex++)
+            {
+                var root = roots[rootIndex];
+                if (root == null)
+                {
+                    continue;
+                }
+
+                var identities = root.GetComponentsInChildren<WorldObjectIdentity>(true);
+                for (var identityIndex = 0; identityIndex < identities.Length; identityIndex++)
+                {
+                    var identity = identities[identityIndex];
+                    if (identity == null)
+                    {
+                        continue;
+                    }
+
+                    if (identity.ObjectId == objectId)
+                    {
+                        return identity;
+                    }
+                }
+            }
+
+            return null;
         }
 
         private static void InvokeSceneLoaded(Scene scene, LoadSceneMode mode)

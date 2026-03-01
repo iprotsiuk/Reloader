@@ -17,4 +17,4 @@ MonoBehaviour:
   _displayName: 'Rifle_308_Starter'
   _stackPolicy: 0
   _maxStack: 1
-  _iconSourcePrefab: {fileID: 0}
+  _iconSourcePrefab: {fileID: 100001, guid: 3143fdcf524e4248995fde24ef7ac203, type: 3}

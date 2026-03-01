@@ -31,5 +31,11 @@ namespace Reloader.Core.Persistence
         [JsonProperty("itemInstanceId")]
         public string ItemInstanceId { get; set; } = string.Empty;
 
+        [JsonProperty("itemDefinitionId")]
+        public string ItemDefinitionId { get; set; } = string.Empty;
+
+        [JsonProperty("stackQuantity")]
+        public int StackQuantity { get; set; } = 1;
+
     }
 }

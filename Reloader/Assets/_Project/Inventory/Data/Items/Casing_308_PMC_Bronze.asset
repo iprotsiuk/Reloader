@@ -17,4 +17,4 @@ MonoBehaviour:
   _displayName: 'Casing_308_PMC_Bronze'
   _stackPolicy: 1
   _maxStack: 500
-  _iconSourcePrefab: {fileID: 0}
+  _iconSourcePrefab: {fileID: 100001, guid: e9413b687bb84dbaa1ca4786587a1681, type: 3}

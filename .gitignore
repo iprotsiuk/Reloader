@@ -71,3 +71,7 @@ Reloader/Assets/**/LightingData.asset.meta
 
 # Keep OS junk ignored after whitelist re-includes
 **/.DS_Store
+
+# Accidental local duplicate root npm files (for example: "package 2.json")
+/package [0-9]*.json
+/package-lock [0-9]*.json

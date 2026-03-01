@@ -291,7 +291,26 @@ namespace Reloader.Inventory
                 return false;
             }
 
-            return TryDropItemFromSlot(InventoryArea.Belt, Runtime.SelectedBeltIndex);
+            if (Runtime.SelectedBeltIndex >= 0
+                && TryDropItemFromSlot(InventoryArea.Belt, Runtime.SelectedBeltIndex))
+            {
+                return true;
+            }
+
+            for (var i = 0; i < PlayerInventoryRuntime.BeltSlotCount; i++)
+            {
+                if (string.IsNullOrWhiteSpace(Runtime.BeltSlotItemIds[i]))
+                {
+                    continue;
+                }
+
+                if (TryDropItemFromSlot(InventoryArea.Belt, i))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public bool TryDropItemFromSlot(InventoryArea area, int slotIndex)
@@ -364,6 +383,7 @@ namespace Reloader.Inventory
                 && definitionTarget.SpawnDefinition != null
                 && definitionTarget.SpawnDefinition.ItemDefinition != null)
             {
+                EnsureItemDefinitionRegistered(definitionTarget.SpawnDefinition.ItemDefinition);
                 var maxStack = definitionTarget.SpawnDefinition.ItemDefinition.MaxStack;
                 Runtime.SetItemMaxStack(itemId, maxStack);
             }
@@ -692,10 +712,7 @@ namespace Reloader.Inventory
                 return false;
             }
 
-            if (!TryResolveItemDefinition(itemId, out var definition))
-            {
-                return false;
-            }
+            TryResolveItemDefinition(itemId, out var definition);
 
             var dropRoot = new GameObject($"drop-{itemId}");
             dropRoot.transform.position = ResolveDropSpawnPosition();
@@ -716,16 +733,27 @@ namespace Reloader.Inventory
             rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
             rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
-            var spawnDefinition = ScriptableObject.CreateInstance<ItemSpawnDefinition>();
-            spawnDefinition.SetValuesForTests(definition, quantity);
+            if (definition != null)
+            {
+                var spawnDefinition = ScriptableObject.CreateInstance<ItemSpawnDefinition>();
+                spawnDefinition.SetValuesForTests(definition, quantity);
 
-            var pickup = dropRoot.AddComponent<DefinitionPickupTarget>();
-            pickup.SetSpawnDefinitionForTests(spawnDefinition);
+                var pickup = dropRoot.AddComponent<DefinitionPickupTarget>();
+                pickup.SetSpawnDefinitionForTests(spawnDefinition);
 
-            var lifetime = dropRoot.AddComponent<RuntimeDropSpawnLifetime>();
-            lifetime.Assign(spawnDefinition);
+                var lifetime = dropRoot.AddComponent<RuntimeDropSpawnLifetime>();
+                lifetime.Assign(spawnDefinition);
+            }
+            else
+            {
+                var fallbackPickup = dropRoot.AddComponent<RuntimeStackPickupTarget>();
+                fallbackPickup.SetValuesForTests(itemId, quantity);
+            }
 
             CreateDropVisual(definition, dropRoot.transform);
+
+            var persistenceTracker = dropRoot.AddComponent<RuntimeDroppedObjectPersistenceTracker>();
+            persistenceTracker.Configure(itemId, quantity);
 
             var push = transform.forward * Mathf.Max(0f, _dropImpulse);
             rigidbody.AddForce(push, ForceMode.Impulse);
@@ -812,7 +840,29 @@ namespace Reloader.Inventory
         private bool TryResolveItemDefinition(string itemId, out ItemDefinition definition)
         {
             definition = null;
-            if (string.IsNullOrWhiteSpace(itemId) || _itemDefinitionRegistry == null)
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return false;
+            }
+
+            if (TryResolveItemDefinitionFromRegistry(itemId, out definition))
+            {
+                return true;
+            }
+
+            if (!TryResolveItemDefinitionFromLoadedObjects(itemId, out definition))
+            {
+                return false;
+            }
+
+            EnsureItemDefinitionRegistered(definition);
+            return true;
+        }
+
+        private bool TryResolveItemDefinitionFromRegistry(string itemId, out ItemDefinition definition)
+        {
+            definition = null;
+            if (_itemDefinitionRegistry == null)
             {
                 return false;
             }
@@ -834,7 +884,56 @@ namespace Reloader.Inventory
                 return true;
             }
 
+            definition = null;
             return false;
+        }
+
+        private static bool TryResolveItemDefinitionFromLoadedObjects(string itemId, out ItemDefinition definition)
+        {
+            definition = null;
+            var loadedDefinitions = Resources.FindObjectsOfTypeAll<ItemDefinition>();
+            for (var i = 0; i < loadedDefinitions.Length; i++)
+            {
+                var candidate = loadedDefinitions[i];
+                if (candidate == null || string.IsNullOrWhiteSpace(candidate.DefinitionId))
+                {
+                    continue;
+                }
+
+                if (!string.Equals(candidate.DefinitionId, itemId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                definition = candidate;
+                return true;
+            }
+
+            return false;
+        }
+
+        private void EnsureItemDefinitionRegistered(ItemDefinition definition)
+        {
+            if (definition == null || string.IsNullOrWhiteSpace(definition.DefinitionId))
+            {
+                return;
+            }
+
+            for (var i = 0; i < _itemDefinitionRegistry.Count; i++)
+            {
+                var existing = _itemDefinitionRegistry[i];
+                if (existing == null || string.IsNullOrWhiteSpace(existing.DefinitionId))
+                {
+                    continue;
+                }
+
+                if (string.Equals(existing.DefinitionId, definition.DefinitionId, StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
+
+            _itemDefinitionRegistry.Add(definition);
         }
 
         private static float ResolveDropMass(ItemDefinition definition, int quantity)
