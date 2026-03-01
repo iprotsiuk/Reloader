@@ -56,6 +56,11 @@ Each step is a physical interaction at the workbench:
 - Reloading bench runtime UI is implemented in UI Toolkit.
 - Workbench view binder is render/intent only; operation authority remains in reloading runtime controllers.
 - Operation select/execute actions flow through intent keys (`reloading.operation.select`, `reloading.operation.execute`) mapped by runtime UI action config.
+- Workbench UI supports explicit setup/operate modes (`reloading.mode.setup`, `reloading.mode.operate`).
+- Setup mode surfaces mount-slot/loadout diagnostics; operate mode surfaces per-operation gate diagnostics.
+- Runtime mount graph is data-driven (`WorkbenchDefinition`, `MountSlotDefinition`, `MountableItemDefinition`) and supports nested slot topology.
+- Slot addressing supports unique graph keys for nested slots (`<ownerNodeId>/<slotId>`) to prevent child-slot collisions across parallel mounted branches.
+- Save/load persistence now includes `WorkbenchLoadout` module payload (schema v5) for recursive mounted-slot state restoration.
 
 ---
 
