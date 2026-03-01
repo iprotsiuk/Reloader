@@ -34,6 +34,9 @@
 - Aligned existing core save tests to v5 bootstrap schema:
   - `ContainerStorageSaveModuleTests`
   - `WorldObjectStateSaveModuleTests`
+- Addressed PR review P1 on mount graph indexing:
+  - child slots are now indexed by unique graph keys (`<ownerNodeId>/<slotId>`) to avoid collisions across parallel mounted branches.
+  - added duplicate-child-slot regression coverage in `WorkbenchRuntimeStateEditModeTests`.
 
 ## Save Payload Contract Notes
 
@@ -61,6 +64,9 @@
 
 - Focused/broader MCP verification pass once Unity test runner is no longer busy.
 - Final docs sync in design milestone pages after verification evidence is collected.
+- Baseline triage from latest MCP full-suite runs:
+  - EditMode: 252 executed, failures include pre-existing schema expectation drift in active Unity checkout.
+  - PlayMode: 263 executed, broad unrelated baseline failures across Economy/NPCs/Player/PlayerDevice/UI.
 
 ## Notes
 
