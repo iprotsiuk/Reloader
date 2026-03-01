@@ -37,7 +37,7 @@ namespace Reloader.Core.Tests.EditMode
             var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
             var envelope = coordinator.CaptureEnvelope("0.2.0-dev", new SaveFeatureFlags());
 
-            Assert.That(envelope.SchemaVersion, Is.EqualTo(4));
+            Assert.That(envelope.SchemaVersion, Is.EqualTo(5));
             Assert.That(envelope.Modules.ContainsKey("WorldObjectState"), Is.True);
             Assert.That(envelope.Modules["WorldObjectState"].ModuleVersion, Is.EqualTo(1));
         }
