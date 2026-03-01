@@ -1,22 +1,56 @@
-# 2026-03-01 Workbench Mount Graph Progress
+# Workbench Mount Graph Progress
 
-## Runtime Integration Slice Completed (Tasks 4-5)
-- Added `WorkbenchLoadoutController` runtime API for install/uninstall with explicit diagnostics (`slot.invalid`, `slot.not-found`, `slot.occupied`, `slot.empty`, compatibility tag failures).
-- Integrated loadout runtime into `ReloadingBenchTarget` with lazy `WorkbenchRuntimeState`/`WorkbenchLoadoutController` initialization from a bench definition.
-- Added `ReloadingOperationGate` to evaluate operation availability from mounted capability tags on the current loadout graph.
-- Integrated operation gate checks into `ReloadingFlowController` via optional `OperationGate` hook; blocked operations fail fast with gate diagnostic code.
-- Added tests:
-  - `WorkbenchLoadoutControllerPlayModeTests`
-  - `ReloadingOperationGateEditModeTests`
+**Date:** 2026-03-01
+**Branch:** feature/workbench-mount-graph-v1
+**PR:** https://github.com/iprotsiuk/Reloader/pull/15
 
-## Save/Load Slice Completed
-- Added `WorkbenchLoadoutModule` under core save modules to persist nested per-workbench mount slot graphs.
-- Added schema migration `SchemaV4ToV5AddWorkbenchLoadoutMigration` to insert default `WorkbenchLoadout` block for legacy schema v4 saves.
-- Wired `SaveBootstrapper` deterministic default pipeline registration order to include `WorkbenchLoadout` after `PlayerDevice`.
-- Bumped default save schema version from `4` to `5` in `SaveBootstrapper.CreateDefaultCoordinator`.
-- Updated `PlayerDeviceSaveModuleTests` schema assertion to `5` for bootstrap capture compatibility.
+## Completed
+
+- Initialized implementation branch/worktree.
+- Imported approved design + implementation plan docs.
+- Opened PR early for iterative review cycle.
+- Implemented core mount contracts:
+  - `WorkbenchDefinition`, `MountSlotDefinition`, `MountableItemDefinition`, `CompatibilityRuleSet`.
+- Implemented nested runtime graph:
+  - `WorkbenchRuntimeState`, `MountNode`, `MountSlotState`.
+- Implemented strict compatibility evaluation:
+  - `WorkbenchCompatibilityEvaluator`, `WorkbenchCompatibilityResult`.
+- Implemented runtime integration slice (tasks 4-5):
+  - `WorkbenchLoadoutController` install/uninstall API + diagnostics.
+  - `ReloadingOperationGate` capability-based operation gating.
+  - `ReloadingFlowController` operation gate hook.
+  - `ReloadingBenchTarget` loadout/runtime-state exposure.
+- Added runtime save bridge slice:
+  - `WorkbenchRuntimeSaveBridge` with `SetWorkbenchLoadoutModuleForRuntime`, `CaptureToModule`, `RestoreFromModule`.
+  - recursive nested-slot capture/restore by `workbenchId`.
+  - regression coverage in `WorkbenchRuntimeSaveBridgeEditModeTests`.
+- Added save-runtime orchestration hooks:
+  - `ISaveRuntimeBridge` contract + `SaveRuntimeBridgeRegistry`.
+  - `SaveCoordinator` now invokes runtime bridge hooks before capture and after restore.
+- Implemented save/load persistence slice:
+  - `WorkbenchLoadoutModule` with recursive payload graph.
+  - `SchemaV4ToV5AddWorkbenchLoadoutMigration`.
+  - `SaveBootstrapper` registration + schema bump to v5.
+- Expanded UI setup/operate slice:
+  - `ReloadingWorkbench.uxml/.uss` for setup + operate sections.
+  - `ReloadingWorkbenchUiState` mode-aware render state.
+  - `ReloadingWorkbenchViewBinder` mode intents + diagnostics rendering.
+  - `ReloadingWorkbenchController` mode switching + operation diagnostics.
+- Added live bench-context UI slice:
+  - `ReloadingWorkbenchUiSnapshot` + `ReloadingWorkbenchUiContextStore`.
+  - `PlayerReloadingBenchController` now publishes/clears bench snapshots on lifecycle transitions.
+  - `ReloadingWorkbenchController` now consumes live snapshot data with fallback to serialized defaults.
+- Added acceptance coverage:
+  - `WorkbenchMountFlowAcceptancePlayModeTests` for mount flow/gating/save behavior surface.
+- Aligned existing core save tests to v5 bootstrap schema:
+  - `ContainerStorageSaveModuleTests`
+  - `WorldObjectStateSaveModuleTests`
+- Addressed PR review P1 on mount graph indexing:
+  - child slots are now indexed by unique graph keys (`<ownerNodeId>/<slotId>`) to avoid collisions across parallel mounted branches.
+  - added duplicate-child-slot regression coverage in `WorkbenchRuntimeStateEditModeTests`.
 
 ## Save Payload Contract Notes
+
 - Module key: `WorkbenchLoadout`
 - Module version: `1`
 - Payload root: `workbenches[]`
@@ -26,37 +60,39 @@
   - recursive `childSlots[]` with `slotId` and optional `mountedItemId`
 - Restore path normalizes malformed/null nodes and keeps payload JSON-first/migration-friendly.
 
-## Tests
-- Added `WorkbenchLoadoutModuleTests` covering:
-  - bootstrap capture includes new module + schema v5,
-  - schema v4 load path migrates missing module,
-  - v4 -> v5 migration insert/preserve behavior,
-  - nested graph roundtrip,
-  - empty payload tolerance,
-  - validation failure for invalid nested slot IDs.
-- Runtime integration verification note:
-  - Unity MCP test runner is currently returning persistent `tests_running` busy status, so targeted execution of the new task 4/5 tests is currently blocked in this workspace.
+## Tests Added
 
-## UI Setup/Operate Slice Completed
-- Expanded reloading workbench UI Toolkit markup/styles with explicit mode split:
-  - setup mode section for mounted slot summary + setup diagnostics,
-  - operate mode section for operation list + execute + operation diagnostics.
-- Extended `ReloadingWorkbenchUiState` to carry deterministic setup/operate render state:
-  - explicit `ReloadingWorkbenchMode`,
-  - per-operation enabled/disabled + diagnostic metadata,
-  - dedicated setup/operate diagnostics text fields.
-- Updated binder/controller wiring for explicit mode intents and deterministic rendering:
-  - `reloading.mode.setup`,
-  - `reloading.mode.operate`,
-  - disabled operation styling and execute-button gating from selected operation state.
-- Updated `ReloadingWorkbenchUiToolkitPlayModeTests` to cover setup mode rendering, operate-mode diagnostic rendering, and mode intent emission helpers.
+- `WorkbenchMountDefinitionsEditModeTests`
+- `WorkbenchRuntimeStateEditModeTests`
+- `WorkbenchCompatibilityEvaluatorEditModeTests`
+- `WorkbenchLoadoutModuleTests`
+- `WorkbenchLoadoutControllerPlayModeTests`
+- `ReloadingOperationGateEditModeTests`
+- `ReloadingWorkbenchUiToolkitPlayModeTests` (expanded)
+- `WorkbenchMountFlowAcceptancePlayModeTests`
+- `WorkbenchRuntimeSaveBridgeEditModeTests`
+- `ReloadingBenchInteractionPlayModeTests` (snapshot lifecycle coverage)
+- `UiToolkitScreenFlowPlayModeTests` (snapshot fallback/consumption coverage)
 
-## Acceptance Coverage Added
-- Added `WorkbenchMountFlowAcceptancePlayModeTests` covering a minimal end-to-end mount flow with available runtime APIs:
-  - incompatible candidate diagnostic capture (`WorkbenchCompatibilityEvaluator`) and install rejection,
-  - compatible press install creating nested child slot availability,
-  - child die install completing the minimal operate-readiness requirement contract used by acceptance helper assertions.
+## Recent Review Fixes
 
-## Verification Status / Blocker
-- Focused PlayMode verification is currently blocked in this workspace because Unity reports active in-progress test execution (`tests_running`) and compile state includes unrelated missing runtime classes from parallel worker-owned files (for example `WorkbenchLoadoutControllerPlayModeTests` references types not present yet).
-- UI and acceptance test commands should be re-run after parallel runtime slice lands and Unity test queue is idle.
+- Resolved Codex P1 on nested save/load collisions:
+  - `WorkbenchRuntimeSaveBridge` now persists graph-qualified slot IDs (`GraphSlotId`).
+  - `WorkbenchRuntimeState` now builds deterministic/path-based graph keys for child slots (stable across restore), replacing GUID-based child key generation.
+- Resolved Codex P1 on save transaction ordering:
+  - `SaveCoordinator.Load` now validates restored module state before invoking `SaveRuntimeBridgeRegistry.FinalizeAfterLoad`.
+  - runtime bridge side effects no longer run when restored state fails validation and is rolled back.
+
+## In Progress
+
+- Focused/broader MCP verification pass once Unity test runner is no longer busy.
+- Final docs sync in design milestone pages after verification evidence is collected.
+- Baseline triage from latest MCP full-suite runs:
+  - EditMode: 252 executed, failures include pre-existing schema expectation drift in active Unity checkout.
+  - PlayMode: 263 executed, broad unrelated baseline failures across Economy/NPCs/Player/PlayerDevice/UI.
+
+## Notes
+
+- Commits stay small and review-friendly to keep automated review cadence high.
+- Scope authority delegated by user for modular/extensible implementation decisions.
+- Current MCP blocker: editor state reports stale running PlayMode job `d492cb809bc44b17adac38ec28c8bc89` and rejects new test jobs as `tests_running`.

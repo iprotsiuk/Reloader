@@ -85,8 +85,8 @@ namespace Reloader.Core.Save
             try
             {
                 RestoreModules(envelope);
-                SaveRuntimeBridgeRegistry.FinalizeAfterLoad(_moduleRegistrations);
                 ValidateRestoredState();
+                SaveRuntimeBridgeRegistry.FinalizeAfterLoad(_moduleRegistrations);
             }
             catch (Exception restoreEx)
             {
