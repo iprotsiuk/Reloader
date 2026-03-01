@@ -1,7 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.Core.Save;
+using Reloader.Core.Save.IO;
+using Reloader.Core.Save.Migrations;
 using Reloader.Core.Save.Modules;
 using Reloader.Reloading.Runtime;
 using Reloader.Reloading.World;
@@ -111,6 +115,115 @@ namespace Reloader.Reloading.Tests.EditMode
             UnityEngine.Object.DestroyImmediate(benchDefinition);
         }
 
+        [Test]
+        public void SaveCoordinator_CaptureEnvelope_InvokesWorkbenchBridge_CapturesWorkbenchLoadoutModule()
+        {
+            var benchDefinition = CreateWorkbenchDefinition("bench.main", new MountSlotDefinition("press-slot", new[] { "cap.press" }));
+            var pressItem = CreateItem("press.single", new[] { "cap.press" }, childSlots: null);
+
+            var benchGo = new GameObject("Bench");
+            var benchTarget = benchGo.AddComponent<ReloadingBenchTarget>();
+            benchTarget.SetWorkbenchDefinitionForTests(benchDefinition);
+            Assert.That(benchTarget.LoadoutController.TryInstall("press-slot", pressItem, out _), Is.True);
+
+            var bridgeGo = new GameObject("WorkbenchRuntimeSaveBridge");
+            var bridge = bridgeGo.AddComponent<WorkbenchRuntimeSaveBridge>();
+            SetPrivateField(typeof(WorkbenchRuntimeSaveBridge), bridge, "_benchTargets", new List<ReloadingBenchTarget> { benchTarget });
+
+            var module = new WorkbenchLoadoutModule();
+            var coordinator = CreateCoordinator(module);
+
+            var envelope = coordinator.CaptureEnvelope("0.5.0-dev", new SaveFeatureFlags());
+            module.RestoreModuleStateFromJson(envelope.Modules["WorkbenchLoadout"].PayloadJson);
+
+            Assert.That(module.Workbenches.Count, Is.EqualTo(1));
+            Assert.That(module.Workbenches[0].WorkbenchId, Is.EqualTo("bench.main"));
+            Assert.That(module.Workbenches[0].SlotNodes.Count, Is.EqualTo(1));
+            Assert.That(module.Workbenches[0].SlotNodes[0].MountedItemId, Is.EqualTo("press.single"));
+
+            UnityEngine.Object.DestroyImmediate(bridgeGo);
+            UnityEngine.Object.DestroyImmediate(benchGo);
+            UnityEngine.Object.DestroyImmediate(pressItem);
+            UnityEngine.Object.DestroyImmediate(benchDefinition);
+        }
+
+        [Test]
+        public void SaveCoordinator_Load_InvokesWorkbenchBridge_RestoresRuntimeFromWorkbenchLoadoutModule()
+        {
+            var benchDefinition = CreateWorkbenchDefinition("bench.main", new MountSlotDefinition("press-slot", new[] { "cap.press" }));
+            var pressItem = CreateItem("press.single", new[] { "cap.press" }, childSlots: null);
+
+            var benchGo = new GameObject("Bench");
+            var benchTarget = benchGo.AddComponent<ReloadingBenchTarget>();
+            benchTarget.SetWorkbenchDefinitionForTests(benchDefinition);
+
+            var bridgeGo = new GameObject("WorkbenchRuntimeSaveBridge");
+            var bridge = bridgeGo.AddComponent<WorkbenchRuntimeSaveBridge>();
+            SetPrivateField(typeof(WorkbenchRuntimeSaveBridge), bridge, "_benchTargets", new List<ReloadingBenchTarget> { benchTarget });
+            SetPrivateField(typeof(WorkbenchRuntimeSaveBridge), bridge, "_mountableItemCatalog", new List<MountableItemDefinition> { pressItem });
+
+            var saveModule = new WorkbenchLoadoutModule();
+            saveModule.Workbenches.Add(new WorkbenchLoadoutModule.WorkbenchRecord
+            {
+                WorkbenchId = "bench.main",
+                SlotNodes = new List<WorkbenchLoadoutModule.SlotNodeRecord>
+                {
+                    new WorkbenchLoadoutModule.SlotNodeRecord
+                    {
+                        SlotId = "press-slot",
+                        MountedItemId = "press.single"
+                    }
+                }
+            });
+
+            var tempDir = Path.Combine(Path.GetTempPath(), "reloader-workbench-orchestration-tests-" + Guid.NewGuid().ToString("N"));
+            var savePath = Path.Combine(tempDir, "slot01.json");
+            Directory.CreateDirectory(tempDir);
+
+            try
+            {
+                var repository = new SaveFileRepository();
+                repository.WriteEnvelope(savePath, new SaveEnvelope
+                {
+                    SchemaVersion = 1,
+                    BuildVersion = "0.5.0-dev",
+                    CreatedAtUtc = "2026-03-01T00:00:00Z",
+                    FeatureFlags = new SaveFeatureFlags(),
+                    Modules = new Dictionary<string, ModuleSaveBlock>
+                    {
+                        {
+                            "WorkbenchLoadout",
+                            new ModuleSaveBlock
+                            {
+                                ModuleVersion = 1,
+                                PayloadJson = saveModule.CaptureModuleStateJson()
+                            }
+                        }
+                    }
+                });
+
+                var loadModule = new WorkbenchLoadoutModule();
+                var coordinator = CreateCoordinator(loadModule);
+                coordinator.Load(savePath);
+
+                Assert.That(benchTarget.RuntimeState.TryGetSlotState("press-slot", out var slotState), Is.True);
+                Assert.That(slotState.IsOccupied, Is.True);
+                Assert.That(slotState.MountedNode.ItemDefinition, Is.SameAs(pressItem));
+            }
+            finally
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                }
+            }
+
+            UnityEngine.Object.DestroyImmediate(bridgeGo);
+            UnityEngine.Object.DestroyImmediate(benchGo);
+            UnityEngine.Object.DestroyImmediate(pressItem);
+            UnityEngine.Object.DestroyImmediate(benchDefinition);
+        }
+
         private static WorkbenchDefinition CreateWorkbenchDefinition(string workbenchId, params MountSlotDefinition[] topSlots)
         {
             var definition = ScriptableObject.CreateInstance<WorkbenchDefinition>();
@@ -137,6 +250,18 @@ namespace Reloader.Reloading.Tests.EditMode
             var method = type.GetMethod(methodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             Assert.That(method, Is.Not.Null, $"Expected method '{methodName}' on {type?.Name}.");
             method.Invoke(target, arguments);
+        }
+
+        private static SaveCoordinator CreateCoordinator(WorkbenchLoadoutModule module)
+        {
+            return new SaveCoordinator(
+                new SaveFileRepository(),
+                new MigrationRunner(new ISaveMigration[] { new SchemaV1ToV1NoOpMigration() }),
+                new[]
+                {
+                    new SaveModuleRegistration(0, module)
+                },
+                currentSchemaVersion: 1);
         }
     }
 }
