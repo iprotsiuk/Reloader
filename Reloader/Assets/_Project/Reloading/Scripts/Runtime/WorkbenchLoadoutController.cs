@@ -137,7 +137,7 @@ namespace Reloader.Reloading.Runtime
                 }
 
                 childSlot.SetMountedNode(null);
-                var childSlotId = childSlot.Definition?.SlotId;
+                var childSlotId = childSlot.GraphSlotId;
                 if (!string.IsNullOrWhiteSpace(childSlotId)
                     && _slotIndex.TryGetValue(childSlotId, out var existing)
                     && ReferenceEquals(existing, childSlot))

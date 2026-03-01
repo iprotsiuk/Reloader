@@ -55,6 +55,30 @@ namespace Reloader.Reloading.Tests.EditMode
         }
 
         [Test]
+        public void TryInstall_UsesRawChildSlotId_WhenSingleMatchExists()
+        {
+            var topSlot = new MountSlotDefinition("top-slot", new[] { "press" });
+            var bench = ScriptableObject.CreateInstance<WorkbenchDefinition>();
+            bench.SetValuesForTests("bench.main", new[] { topSlot });
+
+            var press = ScriptableObject.CreateInstance<MountableItemDefinition>();
+            press.SetValuesForTests(
+                "press.turret",
+                new[] { "press" },
+                new[] { new MountSlotDefinition("die-slot", new[] { "die" }) });
+
+            var die = ScriptableObject.CreateInstance<MountableItemDefinition>();
+            die.SetValuesForTests("die.full-length", new[] { "die" }, null);
+
+            var state = new WorkbenchRuntimeState(bench);
+
+            Assert.That(state.TryInstall("top-slot", press), Is.True);
+            Assert.That(state.TryInstall("die-slot", die), Is.True);
+            Assert.That(state.TryGetSlotState("die-slot", out var dieSlotState), Is.True);
+            Assert.That(dieSlotState.IsOccupied, Is.True);
+        }
+
+        [Test]
         public void InstallItem_WithDuplicateChildSlotDefinitions_IndexesEachChildSlotUniquely()
         {
             var bench = ScriptableObject.CreateInstance<WorkbenchDefinition>();
