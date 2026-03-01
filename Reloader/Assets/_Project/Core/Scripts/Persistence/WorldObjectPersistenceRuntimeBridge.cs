@@ -112,15 +112,19 @@ namespace Reloader.Core.Persistence
                 return;
             }
 
+            _stateStore.TryGet(scenePath, objectId, out var existingRecord);
+
             var resolvedInstanceId = !string.IsNullOrWhiteSpace(runtimeDropInstanceId)
                 ? runtimeDropInstanceId
-                : BuildFallbackRuntimeDropInstanceId(scenePath, objectId, itemDefinitionId);
+                : !string.IsNullOrWhiteSpace(existingRecord?.ItemInstanceId)
+                    ? existingRecord.ItemInstanceId
+                    : BuildFallbackRuntimeDropInstanceId(scenePath, objectId, itemDefinitionId);
 
             _stateStore.Upsert(scenePath, new WorldObjectStateRecord
             {
                 ObjectId = objectId,
-                Consumed = false,
-                Destroyed = false,
+                Consumed = existingRecord != null && existingRecord.Consumed,
+                Destroyed = existingRecord != null && existingRecord.Destroyed,
                 HasTransformOverride = true,
                 Position = position,
                 Rotation = rotation,

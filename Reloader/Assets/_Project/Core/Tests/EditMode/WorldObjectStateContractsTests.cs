@@ -183,5 +183,39 @@ namespace Reloader.Core.Tests.EditMode
 
             WorldObjectPersistenceRuntimeBridge.ResetForTests();
         }
+
+        [Test]
+        public void WorldObjectPersistenceRuntimeBridge_MarkRuntimeSpawned_DoesNotClearConsumedOrDestroyedFlags()
+        {
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+            var scenePath = "Assets/Scenes/MainWorld.unity";
+            var objectId = "drop-merge-001";
+
+            WorldObjectPersistenceRuntimeBridge.StateStore.Upsert(scenePath, new WorldObjectStateRecord
+            {
+                ObjectId = objectId,
+                Consumed = true,
+                Destroyed = true,
+                ItemInstanceId = "drop-instance-001",
+                ItemDefinitionId = "weapon-rifle-01",
+                StackQuantity = 1
+            });
+
+            WorldObjectPersistenceRuntimeBridge.MarkRuntimeSpawned(
+                scenePath,
+                objectId,
+                "weapon-rifle-01",
+                1,
+                new UnityEngine.Vector3(2f, 0.5f, -1f),
+                UnityEngine.Quaternion.Euler(0f, 40f, 0f),
+                runtimeDropInstanceId: null);
+
+            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath, objectId, out var record), Is.True);
+            Assert.That(record.Consumed, Is.True);
+            Assert.That(record.Destroyed, Is.True);
+            Assert.That(record.ItemInstanceId, Is.EqualTo("drop-instance-001"));
+
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+        }
     }
 }
