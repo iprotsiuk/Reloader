@@ -43,18 +43,6 @@ MonoBehaviour:
     _unitPrice: 1
     _startingStock: 10000
     _iconSourcePrefab: {fileID: 0}
-  - _itemId: ammo-factory-308-147-fmj
-    _displayName: PMC Bronze .308 147gr FMJ Cartridge
-    _category: ammo
-    _unitPrice: 2
-    _startingStock: 10000
-    _iconSourcePrefab: {fileID: 0}
-  - _itemId: weapon-rifle-01
-    _displayName: Starter .308 Rifle
-    _category: weapon
-    _unitPrice: 900
-    _startingStock: 10000
-    _iconSourcePrefab: {fileID: 0}
   - _itemId: dies-308-set
     _displayName: .308 Die Set
     _category: dies

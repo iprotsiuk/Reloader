@@ -47,6 +47,10 @@ MonoBehaviour:
   _inventoryControllerBehaviour: {fileID: 0}
   _startingMoney: 500
   _vendors:
+  - _vendorId: vendor-weapon-store
+    _catalog: {fileID: 11400000, guid: e20969f5efc349928716f75194d9ffcc, type: 2}
+  - _vendorId: vendor-ammo-store
+    _catalog: {fileID: 11400000, guid: 266015871b6f416db27be06ab669763b, type: 2}
   - _vendorId: vendor-reloading-store
     _catalog: {fileID: 11400000, guid: 9813cb0def68f476c964570aa69a51b4, type: 2}
   _defaultVendorId: vendor-reloading-store

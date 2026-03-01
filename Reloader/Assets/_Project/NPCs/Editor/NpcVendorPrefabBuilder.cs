@@ -17,7 +17,9 @@ namespace Reloader.NPCs.Editor
         private const string NpcFoundationPrefabPath = "Assets/_Project/NPCs/Prefabs/NpcFoundation.prefab";
         private const string RolePrefabFolderPath = "Assets/_Project/NPCs/Prefabs/Roles";
         private const string VendorModelPath = "Assets/ThirdParty/Lowpoly Animated Men Pack/Man in Long Sleeves/Male_LongSleeve.fbx";
-        private const string DefaultCatalogPath = "Assets/_Project/Economy/Data/ReloadingStore_DefaultCatalog.asset";
+        private const string ReloadingCatalogPath = "Assets/_Project/Economy/Data/ReloadingStore_DefaultCatalog.asset";
+        private const string AmmoCatalogPath = "Assets/_Project/Economy/Data/AmmoStore_DefaultCatalog.asset";
+        private const string WeaponCatalogPath = "Assets/_Project/Economy/Data/WeaponStore_DefaultCatalog.asset";
 
         private static readonly RolePrefabConfig[] RolePrefabConfigs =
         {
@@ -674,8 +676,10 @@ namespace Reloader.NPCs.Editor
                 return false;
             }
 
-            var catalog = AssetDatabase.LoadAssetAtPath<Reloader.Economy.ShopCatalogDefinition>(DefaultCatalogPath);
-            if (catalog == null)
+            var reloadingCatalog = AssetDatabase.LoadAssetAtPath<Reloader.Economy.ShopCatalogDefinition>(ReloadingCatalogPath);
+            var ammoCatalog = AssetDatabase.LoadAssetAtPath<Reloader.Economy.ShopCatalogDefinition>(AmmoCatalogPath);
+            var weaponCatalog = AssetDatabase.LoadAssetAtPath<Reloader.Economy.ShopCatalogDefinition>(WeaponCatalogPath);
+            if (reloadingCatalog == null || ammoCatalog == null || weaponCatalog == null)
             {
                 return false;
             }
@@ -689,23 +693,27 @@ namespace Reloader.NPCs.Editor
                 changed = true;
             }
 
-            if (defaultVendorCatalogProp != null && defaultVendorCatalogProp.objectReferenceValue != catalog)
+            if (defaultVendorCatalogProp != null && defaultVendorCatalogProp.objectReferenceValue != reloadingCatalog)
             {
-                defaultVendorCatalogProp.objectReferenceValue = catalog;
+                defaultVendorCatalogProp.objectReferenceValue = reloadingCatalog;
                 changed = true;
             }
 
             var vendorsProp = serialized.FindProperty("_vendors");
             if (vendorsProp != null)
             {
-                changed |= EnsureRoleVendorCatalogMappings(vendorsProp, catalog);
+                changed |= EnsureRoleVendorCatalogMappings(vendorsProp, reloadingCatalog, ammoCatalog, weaponCatalog);
             }
 
             serialized.ApplyModifiedPropertiesWithoutUndo();
             return changed;
         }
 
-        private static bool EnsureRoleVendorCatalogMappings(SerializedProperty vendorsProp, Reloader.Economy.ShopCatalogDefinition catalog)
+        private static bool EnsureRoleVendorCatalogMappings(
+            SerializedProperty vendorsProp,
+            Reloader.Economy.ShopCatalogDefinition reloadingCatalog,
+            Reloader.Economy.ShopCatalogDefinition ammoCatalog,
+            Reloader.Economy.ShopCatalogDefinition weaponCatalog)
         {
             var changed = false;
 
@@ -718,27 +726,47 @@ namespace Reloader.NPCs.Editor
                 }
 
                 var index = FindVendorEntryIndex(vendorsProp, config.VendorId);
+                var expectedCatalog = ResolveCatalogForVendor(config.VendorId, reloadingCatalog, ammoCatalog, weaponCatalog);
                 if (index < 0)
                 {
                     index = vendorsProp.arraySize;
                     vendorsProp.arraySize += 1;
                     var created = vendorsProp.GetArrayElementAtIndex(index);
                     created.FindPropertyRelative("_vendorId").stringValue = config.VendorId;
-                    created.FindPropertyRelative("_catalog").objectReferenceValue = catalog;
+                    created.FindPropertyRelative("_catalog").objectReferenceValue = expectedCatalog;
                     changed = true;
                     continue;
                 }
 
                 var existing = vendorsProp.GetArrayElementAtIndex(index);
                 var existingCatalog = existing.FindPropertyRelative("_catalog");
-                if (existingCatalog != null && existingCatalog.objectReferenceValue == null)
+                if (existingCatalog != null && existingCatalog.objectReferenceValue != expectedCatalog)
                 {
-                    existingCatalog.objectReferenceValue = catalog;
+                    existingCatalog.objectReferenceValue = expectedCatalog;
                     changed = true;
                 }
             }
 
             return changed;
+        }
+
+        private static Reloader.Economy.ShopCatalogDefinition ResolveCatalogForVendor(
+            string vendorId,
+            Reloader.Economy.ShopCatalogDefinition reloadingCatalog,
+            Reloader.Economy.ShopCatalogDefinition ammoCatalog,
+            Reloader.Economy.ShopCatalogDefinition weaponCatalog)
+        {
+            if (string.Equals(vendorId, "vendor-ammo-store", global::System.StringComparison.Ordinal))
+            {
+                return ammoCatalog;
+            }
+
+            if (string.Equals(vendorId, "vendor-weapon-store", global::System.StringComparison.Ordinal))
+            {
+                return weaponCatalog;
+            }
+
+            return reloadingCatalog;
         }
 
         private static int FindVendorEntryIndex(SerializedProperty vendorsProp, string vendorId)

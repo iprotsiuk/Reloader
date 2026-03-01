@@ -113,3 +113,19 @@
 - Commits stay small and review-friendly to keep automated review cadence high.
 - Scope authority delegated by user for modular/extensible implementation decisions.
 - No active MCP blocker for focused/broader verification suites in this slice after restart on port `6402`.
+
+## Follow-Up Progress (Vendor Routing + Reloading Access)
+
+- Split vendor catalog data so storefronts now map to role-specific stock:
+  - `AmmoStore_DefaultCatalog.asset` (ammo-only stock).
+  - `WeaponStore_DefaultCatalog.asset` (weapon-only stock).
+  - `ReloadingStore_DefaultCatalog.asset` reduced to reloading components/tools.
+- Updated `EconomyController.prefab` vendor bindings so:
+  - `vendor-ammo-store` -> ammo catalog.
+  - `vendor-weapon-store` -> weapon catalog.
+  - `vendor-reloading-store` -> reloading catalog.
+- Updated `NpcVendorPrefabBuilder.WireEconomyInScene()` to preserve role-specific catalog mapping during future auto-wire runs.
+- Added a scene-level reloading vendor near the player house/workbench area in `MainTown.unity`:
+  - prefab instance named `ReloadingVendor_House`,
+  - `_vendorId` override set to `vendor-reloading-store`,
+  - positioned for quick reloading-loop access from house/workbench.
