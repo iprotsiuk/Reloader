@@ -3,25 +3,39 @@
     <ui:VisualElement name="reloading__root" class="reloading ui-kit__panel">
         <ui:VisualElement class="reloading__header-row">
             <ui:Label text="Workbench" class="ui-kit__title" />
-            <ui:Label text="Operation Menu" class="reloading__header-hint ui-kit__hint" />
+            <ui:Label text="Setup / Operate" class="reloading__header-hint ui-kit__hint" />
         </ui:VisualElement>
 
-        <ui:VisualElement class="reloading__menu">
-            <ui:VisualElement name="reloading__operation-0" class="reloading__operation ui-kit__tab">
-                <ui:VisualElement class="reloading__operation-slot ui-kit__slot ui-kit__menu-cell" />
-                <ui:Label text="Resize (mock)" class="reloading__op-label" />
-            </ui:VisualElement>
-            <ui:VisualElement name="reloading__operation-1" class="reloading__operation ui-kit__tab">
-                <ui:VisualElement class="reloading__operation-slot ui-kit__slot ui-kit__menu-cell" />
-                <ui:Label text="Prime (mock)" class="reloading__op-label" />
-            </ui:VisualElement>
-            <ui:VisualElement name="reloading__operation-2" class="reloading__operation ui-kit__tab">
-                <ui:VisualElement class="reloading__operation-slot ui-kit__slot ui-kit__menu-cell" />
-                <ui:Label text="Seat (mock)" class="reloading__op-label" />
-            </ui:VisualElement>
+        <ui:VisualElement class="reloading__mode-row">
+            <ui:Button name="reloading__mode-setup" text="Setup" class="reloading__mode-button ui-kit__tab is-selected" />
+            <ui:Button name="reloading__mode-operate" text="Operate" class="reloading__mode-button ui-kit__tab" />
         </ui:VisualElement>
 
-        <ui:Button name="reloading__execute" text="Execute" class="reloading__execute ui-kit__tab" />
-        <ui:Label name="reloading__result-label" text="" class="reloading__result ui-kit__hint" />
+        <ui:VisualElement name="reloading__setup-panel" class="reloading__panel">
+            <ui:Label text="Mounted Slots" class="reloading__section-title ui-kit__hint" />
+            <ui:Label name="reloading__setup-slots" text="" class="reloading__setup-slots ui-kit__hint" />
+            <ui:Label name="reloading__setup-diagnostics" text="" class="reloading__diagnostics reloading__diagnostics--setup ui-kit__hint" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="reloading__operate-panel" class="reloading__panel">
+            <ui:VisualElement class="reloading__menu">
+                <ui:VisualElement name="reloading__operation-0" class="reloading__operation ui-kit__tab">
+                    <ui:VisualElement class="reloading__operation-slot ui-kit__slot ui-kit__menu-cell" />
+                    <ui:Label name="reloading__operation-label-0" text="Resize (mock)" class="reloading__op-label" />
+                </ui:VisualElement>
+                <ui:VisualElement name="reloading__operation-1" class="reloading__operation ui-kit__tab">
+                    <ui:VisualElement class="reloading__operation-slot ui-kit__slot ui-kit__menu-cell" />
+                    <ui:Label name="reloading__operation-label-1" text="Prime (mock)" class="reloading__op-label" />
+                </ui:VisualElement>
+                <ui:VisualElement name="reloading__operation-2" class="reloading__operation ui-kit__tab">
+                    <ui:VisualElement class="reloading__operation-slot ui-kit__slot ui-kit__menu-cell" />
+                    <ui:Label name="reloading__operation-label-2" text="Seat (mock)" class="reloading__op-label" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:Button name="reloading__execute" text="Execute" class="reloading__execute ui-kit__tab" />
+            <ui:Label name="reloading__result-label" text="" class="reloading__result ui-kit__hint" />
+            <ui:Label name="reloading__operate-diagnostics" text="" class="reloading__diagnostics reloading__diagnostics--operate ui-kit__hint" />
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>
