@@ -752,14 +752,8 @@ namespace Reloader.Inventory
 
             CreateDropVisual(definition, dropRoot.transform);
 
-            var scenePath = dropRoot.scene.path;
-            WorldObjectPersistenceRuntimeBridge.MarkRuntimeSpawned(
-                scenePath,
-                identity.ObjectId,
-                itemId,
-                quantity,
-                dropRoot.transform.position,
-                dropRoot.transform.rotation);
+            var persistenceTracker = dropRoot.AddComponent<RuntimeDroppedObjectPersistenceTracker>();
+            persistenceTracker.Configure(itemId, quantity);
 
             var push = transform.forward * Mathf.Max(0f, _dropImpulse);
             rigidbody.AddForce(push, ForceMode.Impulse);

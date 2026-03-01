@@ -78,6 +78,9 @@ namespace Reloader.Inventory
                 pickupTarget.SetValuesForTests(itemId, quantity);
             }
 
+            var persistenceTracker = dropRoot.AddComponent<RuntimeDroppedObjectPersistenceTracker>();
+            persistenceTracker.Configure(itemId, quantity, record.ItemInstanceId);
+
             CreateVisual(definition, dropRoot.transform);
             return true;
         }

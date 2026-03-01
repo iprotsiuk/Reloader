@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -95,7 +96,14 @@ namespace Reloader.Core.Persistence
             _runtimeSpawnRestorer = restorer;
         }
 
-        public static void MarkRuntimeSpawned(string scenePath, string objectId, string itemDefinitionId, int quantity, Vector3 position, Quaternion rotation)
+        public static void MarkRuntimeSpawned(
+            string scenePath,
+            string objectId,
+            string itemDefinitionId,
+            int quantity,
+            Vector3 position,
+            Quaternion rotation,
+            string runtimeDropInstanceId = null)
         {
             if (string.IsNullOrWhiteSpace(scenePath)
                 || string.IsNullOrWhiteSpace(objectId)
@@ -103,6 +111,10 @@ namespace Reloader.Core.Persistence
             {
                 return;
             }
+
+            var resolvedInstanceId = !string.IsNullOrWhiteSpace(runtimeDropInstanceId)
+                ? runtimeDropInstanceId
+                : BuildFallbackRuntimeDropInstanceId(scenePath, objectId, itemDefinitionId);
 
             _stateStore.Upsert(scenePath, new WorldObjectStateRecord
             {
@@ -112,10 +124,20 @@ namespace Reloader.Core.Persistence
                 HasTransformOverride = true,
                 Position = position,
                 Rotation = rotation,
-                ItemInstanceId = itemDefinitionId,
+                ItemInstanceId = resolvedInstanceId,
                 ItemDefinitionId = itemDefinitionId,
                 StackQuantity = Mathf.Max(1, quantity)
             });
+        }
+
+        private static string BuildFallbackRuntimeDropInstanceId(string scenePath, string objectId, string itemDefinitionId)
+        {
+            return string.Format(
+                CultureInfo.InvariantCulture,
+                "drop:{0}:{1}:{2}",
+                scenePath.Trim(),
+                objectId.Trim(),
+                itemDefinitionId.Trim());
         }
 
         private static void OnSceneLoaded(Scene loadedScene, LoadSceneMode mode)

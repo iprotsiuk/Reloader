@@ -851,11 +851,111 @@ namespace Reloader.Player.Tests.PlayMode
                 Is.True,
                 "Dropped runtime world objects should be persisted so they can be restored after travel.");
             Assert.That(record.HasTransformOverride, Is.True);
-            Assert.That(record.ItemInstanceId, Is.EqualTo("item-drop-persistent"));
+            Assert.That(record.ItemDefinitionId, Is.EqualTo("item-drop-persistent"));
+            Assert.That(string.IsNullOrWhiteSpace(record.ItemInstanceId), Is.False);
 
             if (dropRoot != null)
             {
                 Object.DestroyImmediate(dropRoot);
+            }
+
+            Object.DestroyImmediate(root);
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+        }
+
+        [UnityTest]
+        public System.Collections.IEnumerator TryDropItemFromSlot_PersistsRuntimeDropTransformAfterPhysicsMotion()
+        {
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+
+            var root = new GameObject("InventoryControllerDropTransformPersistence");
+            root.transform.position = Vector3.zero;
+            root.transform.rotation = Quaternion.identity;
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            var input = root.AddComponent<TestInputSource>();
+            controller.Configure(input, null, runtime);
+
+            runtime.SetBackpackCapacity(0);
+            Assert.That(runtime.TryStoreItem("item-drop-transform", out _, out var slotIndex, out _), Is.True);
+            Assert.That(controller.TryDropItemFromSlot(InventoryArea.Belt, slotIndex), Is.True);
+
+            var dropRoot = GameObject.Find("drop-item-drop-transform");
+            Assert.That(dropRoot, Is.Not.Null);
+            var identity = dropRoot.GetComponent<WorldObjectIdentity>();
+            Assert.That(identity, Is.Not.Null);
+
+            yield return new WaitForSeconds(0.75f);
+
+            var scenePath = dropRoot.scene.path;
+            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(scenePath, identity.ObjectId, out var record), Is.True);
+            Assert.That(Vector3.Distance(record.Position, dropRoot.transform.position), Is.LessThan(0.2f));
+
+            if (dropRoot != null)
+            {
+                Object.DestroyImmediate(dropRoot);
+            }
+
+            Object.DestroyImmediate(root);
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+        }
+
+        [Test]
+        public void TryDropItemFromSlot_TwoDropsWithSameItemId_UseDistinctRuntimeInstanceIds()
+        {
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+
+            var root = new GameObject("InventoryControllerDropInstanceIds");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            controller.Configure(null, null, runtime);
+
+            runtime.SetBackpackCapacity(2);
+            Assert.That(runtime.TryStoreItem("item-drop-instance-id", out _, out var slotA, out _), Is.True);
+            Assert.That(runtime.TryStoreItem("item-drop-instance-id", out _, out var slotB, out _), Is.True);
+            Assert.That(slotA, Is.Not.EqualTo(slotB));
+
+            Assert.That(controller.TryDropItemFromSlot(InventoryArea.Belt, slotA), Is.True);
+            Assert.That(controller.TryDropItemFromSlot(InventoryArea.Belt, slotB), Is.True);
+
+            var dropA = GameObject.Find("drop-item-drop-instance-id");
+            Assert.That(dropA, Is.Not.Null);
+            var identityA = dropA.GetComponent<WorldObjectIdentity>();
+            Assert.That(identityA, Is.Not.Null);
+            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(dropA.scene.path, identityA.ObjectId, out var recordA), Is.True);
+
+            // Find second drop by identity scan because names are identical.
+            var allIdentities = Object.FindObjectsByType<WorldObjectIdentity>(FindObjectsSortMode.None);
+            WorldObjectIdentity identityB = null;
+            for (var i = 0; i < allIdentities.Length; i++)
+            {
+                if (allIdentities[i] == null || allIdentities[i] == identityA)
+                {
+                    continue;
+                }
+
+                if (allIdentities[i].gameObject.name == "drop-item-drop-instance-id")
+                {
+                    identityB = allIdentities[i];
+                    break;
+                }
+            }
+
+            Assert.That(identityB, Is.Not.Null);
+            Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(identityB.gameObject.scene.path, identityB.ObjectId, out var recordB), Is.True);
+
+            Assert.That(recordA.ItemDefinitionId, Is.EqualTo("item-drop-instance-id"));
+            Assert.That(recordB.ItemDefinitionId, Is.EqualTo("item-drop-instance-id"));
+            Assert.That(recordA.ItemInstanceId, Is.Not.EqualTo(recordB.ItemInstanceId));
+
+            if (dropA != null)
+            {
+                Object.DestroyImmediate(dropA);
+            }
+
+            if (identityB != null)
+            {
+                Object.DestroyImmediate(identityB.gameObject);
             }
 
             Object.DestroyImmediate(root);
