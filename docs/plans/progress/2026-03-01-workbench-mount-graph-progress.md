@@ -20,6 +20,10 @@
   - `ReloadingOperationGate` capability-based operation gating.
   - `ReloadingFlowController` operation gate hook.
   - `ReloadingBenchTarget` loadout/runtime-state exposure.
+- Added runtime save bridge slice:
+  - `WorkbenchRuntimeSaveBridge` with `SetWorkbenchLoadoutModuleForRuntime`, `CaptureToModule`, `RestoreFromModule`.
+  - recursive nested-slot capture/restore by `workbenchId`.
+  - regression coverage in `WorkbenchRuntimeSaveBridgeEditModeTests`.
 - Implemented save/load persistence slice:
   - `WorkbenchLoadoutModule` with recursive payload graph.
   - `SchemaV4ToV5AddWorkbenchLoadoutMigration`.
@@ -29,6 +33,10 @@
   - `ReloadingWorkbenchUiState` mode-aware render state.
   - `ReloadingWorkbenchViewBinder` mode intents + diagnostics rendering.
   - `ReloadingWorkbenchController` mode switching + operation diagnostics.
+- Added live bench-context UI slice:
+  - `ReloadingWorkbenchUiSnapshot` + `ReloadingWorkbenchUiContextStore`.
+  - `PlayerReloadingBenchController` now publishes/clears bench snapshots on lifecycle transitions.
+  - `ReloadingWorkbenchController` now consumes live snapshot data with fallback to serialized defaults.
 - Added acceptance coverage:
   - `WorkbenchMountFlowAcceptancePlayModeTests` for mount flow/gating/save behavior surface.
 - Aligned existing core save tests to v5 bootstrap schema:
@@ -59,6 +67,9 @@
 - `ReloadingOperationGateEditModeTests`
 - `ReloadingWorkbenchUiToolkitPlayModeTests` (expanded)
 - `WorkbenchMountFlowAcceptancePlayModeTests`
+- `WorkbenchRuntimeSaveBridgeEditModeTests`
+- `ReloadingBenchInteractionPlayModeTests` (snapshot lifecycle coverage)
+- `UiToolkitScreenFlowPlayModeTests` (snapshot fallback/consumption coverage)
 
 ## In Progress
 
