@@ -79,6 +79,9 @@
 - Resolved Codex P1 on nested save/load collisions:
   - `WorkbenchRuntimeSaveBridge` now persists graph-qualified slot IDs (`GraphSlotId`).
   - `WorkbenchRuntimeState` now builds deterministic/path-based graph keys for child slots (stable across restore), replacing GUID-based child key generation.
+- Resolved Codex P1 on save transaction ordering:
+  - `SaveCoordinator.Load` now validates restored module state before invoking `SaveRuntimeBridgeRegistry.FinalizeAfterLoad`.
+  - runtime bridge side effects no longer run when restored state fails validation and is rolled back.
 
 ## In Progress
 

@@ -221,6 +221,40 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(inventory.CurrentPayload, Is.EqualTo("{\"name\":\"inventory-before\"}"));
         }
 
+        [Test]
+        public void SaveCoordinator_Load_WhenValidationFails_DoesNotFinalizeRuntimeBridges()
+        {
+            var coreWorld = new RecordingModule("CoreWorld");
+            var inventory = new RecordingModule("Inventory") { ThrowOnValidate = true };
+            var coordinator = CreateCoordinator(coreWorld, inventory);
+            var repository = new SaveFileRepository();
+            var envelope = new SaveEnvelope
+            {
+                SchemaVersion = 1,
+                BuildVersion = "0.1.0-dev",
+                CreatedAtUtc = "2026-02-23T18:00:00Z",
+                FeatureFlags = new SaveFeatureFlags(),
+                Modules = new Dictionary<string, ModuleSaveBlock>
+                {
+                    { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{\"name\":\"core-after\"}" } },
+                    { "Inventory", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{\"name\":\"inventory-after\"}" } }
+                }
+            };
+            repository.WriteEnvelope(_savePath, envelope);
+
+            var probeBridge = new ProbeRuntimeBridge();
+            SaveRuntimeBridgeRegistry.Register(probeBridge);
+            try
+            {
+                Assert.Throws<InvalidOperationException>(() => coordinator.Load(_savePath));
+                Assert.That(probeBridge.FinalizeAfterLoadCallCount, Is.EqualTo(0));
+            }
+            finally
+            {
+                SaveRuntimeBridgeRegistry.Unregister(probeBridge);
+            }
+        }
+
         private SaveCoordinator CreateCoordinator(RecordingModule coreWorld, RecordingModule inventory)
         {
             return new SaveCoordinator(
@@ -311,6 +345,20 @@ namespace Reloader.Core.Tests.EditMode
                 {
                     throw new InvalidOperationException($"Validation failed for module {ModuleKey}.");
                 }
+            }
+        }
+
+        private sealed class ProbeRuntimeBridge : ISaveRuntimeBridge
+        {
+            public int FinalizeAfterLoadCallCount { get; private set; }
+
+            public void PrepareForSave(IReadOnlyList<SaveModuleRegistration> moduleRegistrations)
+            {
+            }
+
+            public void FinalizeAfterLoad(IReadOnlyList<SaveModuleRegistration> moduleRegistrations)
+            {
+                FinalizeAfterLoadCallCount++;
             }
         }
     }
