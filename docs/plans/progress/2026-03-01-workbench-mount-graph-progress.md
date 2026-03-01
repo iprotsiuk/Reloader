@@ -25,3 +25,27 @@
   - nested graph roundtrip,
   - empty payload tolerance,
   - validation failure for invalid nested slot IDs.
+
+## UI Setup/Operate Slice Completed
+- Expanded reloading workbench UI Toolkit markup/styles with explicit mode split:
+  - setup mode section for mounted slot summary + setup diagnostics,
+  - operate mode section for operation list + execute + operation diagnostics.
+- Extended `ReloadingWorkbenchUiState` to carry deterministic setup/operate render state:
+  - explicit `ReloadingWorkbenchMode`,
+  - per-operation enabled/disabled + diagnostic metadata,
+  - dedicated setup/operate diagnostics text fields.
+- Updated binder/controller wiring for explicit mode intents and deterministic rendering:
+  - `reloading.mode.setup`,
+  - `reloading.mode.operate`,
+  - disabled operation styling and execute-button gating from selected operation state.
+- Updated `ReloadingWorkbenchUiToolkitPlayModeTests` to cover setup mode rendering, operate-mode diagnostic rendering, and mode intent emission helpers.
+
+## Acceptance Coverage Added
+- Added `WorkbenchMountFlowAcceptancePlayModeTests` covering a minimal end-to-end mount flow with available runtime APIs:
+  - incompatible candidate diagnostic capture (`WorkbenchCompatibilityEvaluator`) and install rejection,
+  - compatible press install creating nested child slot availability,
+  - child die install completing the minimal operate-readiness requirement contract used by acceptance helper assertions.
+
+## Verification Status / Blocker
+- Focused PlayMode verification is currently blocked in this workspace because Unity reports active in-progress test execution (`tests_running`) and compile state includes unrelated missing runtime classes from parallel worker-owned files (for example `WorkbenchLoadoutControllerPlayModeTests` references types not present yet).
+- UI and acceptance test commands should be re-run after parallel runtime slice lands and Unity test queue is idle.
