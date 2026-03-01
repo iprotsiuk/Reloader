@@ -138,6 +138,7 @@ namespace Reloader.UI.Toolkit.TabInventory
 
             CacheSlotElements();
             RegisterResponsiveCallbacks();
+            RegisterDragDropOutsideCallbacks();
             ApplyResponsiveLayout();
         }
 
@@ -526,6 +527,11 @@ namespace Reloader.UI.Toolkit.TabInventory
             return TryPointerUp(container, slotIndex);
         }
 
+        public bool TryPointerUpOutsideForTests()
+        {
+            return TryPointerUpOutsideSlots();
+        }
+
         public bool TryInvokeTabSelectionForTests(string section)
         {
             var testId = section switch
@@ -666,6 +672,38 @@ namespace Reloader.UI.Toolkit.TabInventory
             return true;
         }
 
+        private void RegisterDragDropOutsideCallbacks()
+        {
+            _panel?.RegisterCallback<PointerUpEvent>(evt =>
+            {
+                if (_dragSourceIndex < 0)
+                {
+                    return;
+                }
+
+                if (IsPointerOverAnySlot(evt.position))
+                {
+                    return;
+                }
+
+                _suppressNextClick = true;
+                TryPointerUpOutsideSlots();
+            }, TrickleDown.TrickleDown);
+        }
+
+        private bool TryPointerUpOutsideSlots()
+        {
+            if (_dragSourceIndex < 0)
+            {
+                return false;
+            }
+
+            var payload = new TabInventoryDragController.DragIntentPayload(_dragSourceContainer, _dragSourceIndex, _dragSourceContainer, -1);
+            IntentRaised?.Invoke(new UiIntent("inventory.drag.drop", payload));
+            ClearDragSource();
+            return true;
+        }
+
         private bool TryInteractSlot(string container, int slotIndex)
         {
             if (slotIndex < 0)
@@ -712,6 +750,29 @@ namespace Reloader.UI.Toolkit.TabInventory
         private static string NormalizeContainer(string container)
         {
             return container == "backpack" ? "backpack" : "belt";
+        }
+
+        private bool IsPointerOverAnySlot(Vector2 panelSpacePosition)
+        {
+            for (var i = 0; i < _beltSlots.Length; i++)
+            {
+                var slot = _beltSlots[i];
+                if (slot != null && slot.worldBound.Contains(panelSpacePosition))
+                {
+                    return true;
+                }
+            }
+
+            for (var i = 0; i < _backpackSlots.Length; i++)
+            {
+                var slot = _backpackSlots[i];
+                if (slot != null && slot.worldBound.Contains(panelSpacePosition))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void ClearDragSource()

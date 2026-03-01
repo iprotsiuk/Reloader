@@ -235,6 +235,19 @@ namespace Reloader.UI.Toolkit.TabInventory
                 {
                     Refresh();
                 }
+
+                return;
+            }
+
+            if (intent.Key == "inventory.drag.drop"
+                && intent.Payload is TabInventoryDragController.DragIntentPayload dropPayload)
+            {
+                var sourceArea = ResolveArea(dropPayload.SourceContainer);
+                var dropped = _inventoryController.TryDropItemFromSlot(sourceArea, dropPayload.SourceIndex);
+                if (dropped)
+                {
+                    Refresh();
+                }
             }
         }
 

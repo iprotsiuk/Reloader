@@ -126,6 +126,52 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void TabInventoryController_HandleDropIntent_RemovesSourceSlotItem()
+        {
+            var go = new GameObject("TabInventoryControllerDropIntent");
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(null, null, runtime);
+            runtime.SetBackpackCapacity(2);
+            runtime.BeltSlotItemIds[0] = "item-belt";
+            runtime.BeltSlotItemIds[1] = "slot-1";
+            runtime.BeltSlotItemIds[2] = "slot-2";
+            runtime.BeltSlotItemIds[3] = "slot-3";
+            runtime.BeltSlotItemIds[4] = "slot-4";
+
+            var itemDefinition = ScriptableObject.CreateInstance<Reloader.Core.Items.ItemDefinition>();
+            itemDefinition.SetValuesForTests("item-belt", Reloader.Core.Items.ItemCategory.Misc, "Item Belt", Reloader.Core.Items.ItemStackPolicy.NonStackable, 1);
+            var registryField = typeof(PlayerInventoryController).GetField("_itemDefinitionRegistry", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(registryField, Is.Not.Null);
+            registryField.SetValue(inventoryController, new System.Collections.Generic.List<Reloader.Core.Items.ItemDefinition> { itemDefinition });
+
+            var root = BuildTabRoot();
+            var viewBinder = new TabInventoryViewBinder();
+            viewBinder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+
+            var controller = go.AddComponent<TabInventoryController>();
+            controller.SetInventoryController(inventoryController);
+            controller.Configure(viewBinder, new TabInventoryDragController());
+
+            var payload = new TabInventoryDragController.DragIntentPayload("belt", 0, "belt", -1);
+            controller.HandleIntent(new UiIntent("inventory.drag.drop", payload));
+
+            Assert.That(runtime.BeltSlotItemIds[0], Is.Null);
+
+            var droppedObjects = UnityEngine.Object.FindObjectsByType<Reloader.Inventory.DefinitionPickupTarget>(FindObjectsSortMode.None);
+            for (var i = 0; i < droppedObjects.Length; i++)
+            {
+                if (droppedObjects[i] != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(droppedObjects[i].gameObject);
+                }
+            }
+
+            UnityEngine.Object.DestroyImmediate(itemDefinition);
+            UnityEngine.Object.DestroyImmediate(go);
+        }
+
+        [Test]
         public void UiToolkitScreenRuntimeBridge_BindTabInventory_UsesRuntimeBackpackCapacityWithoutFloor()
         {
             var bridgeGo = new GameObject("UiBridge");

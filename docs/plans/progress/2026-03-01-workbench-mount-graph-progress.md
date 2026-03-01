@@ -147,3 +147,21 @@
   - `TradeViewBinder` now supports clickable sell slots (`trade.sell.slot`) with selected state rendering.
   - `trade.confirm.sell` now submits `OnShopSellRequested(itemId, 1)` when a sell slot is selected and no checkout payload is provided.
 - Removed static sell placeholder line from `TradeUi.uxml` so sell panel displays runtime-backed slot content only.
+
+## Follow-Up Progress (Inventory Item Drop Flow)
+
+- Added runtime inventory drop support for deterministic slot removal:
+  - `PlayerInventoryRuntime.TryRemoveFromSlot(InventoryArea area, int index, out string itemId, out int quantity)`.
+- Added world-drop behavior in `PlayerInventoryController`:
+  - pressing `G` (when menus are closed) drops the selected belt slot stack,
+  - explicit API `TryDropItemFromSlot(area, slotIndex)` for UI-driven drop,
+  - dropped stacks spawn in front of player as physical props (`Rigidbody`, `BoxCollider`, impulse + spin),
+  - dropped props are pickup-compatible (`WorldObjectIdentity` + `DefinitionPickupTarget`) with runtime `ItemSpawnDefinition`.
+- Added Tab inventory drag-outside intent path:
+  - `TabInventoryViewBinder` now emits `inventory.drag.drop` when pointer-up occurs outside inventory/belt slots while dragging.
+  - `TabInventoryController` handles `inventory.drag.drop` by dropping the source slot item through `PlayerInventoryController`.
+- Extended default action map and tests for the new intent key `inventory.drag.drop`.
+- Added/updated coverage:
+  - `PlayerInventoryRuntimeTests` for full-slot removal API,
+  - `TabInventoryUiToolkitPlayModeTests` for drag-outside -> drop intent emission,
+  - `UiToolkitScreenFlowPlayModeTests` for drop intent controller handling.

@@ -298,6 +298,34 @@ namespace Reloader.Inventory
             return true;
         }
 
+        public bool TryRemoveFromSlot(InventoryArea area, int index, out string removedItemId, out int removedQuantity)
+        {
+            removedItemId = null;
+            removedQuantity = 0;
+            if (!TryGetSlotItem(area, index, out var itemId) || string.IsNullOrWhiteSpace(itemId))
+            {
+                return false;
+            }
+
+            var quantity = GetSlotQuantity(area, index);
+            if (quantity <= 0)
+            {
+                return false;
+            }
+
+            var remaining = quantity;
+            RemoveQuantityFromSlot(area, index, ref remaining);
+            RebuildItemQuantities();
+            if (remaining != 0)
+            {
+                return false;
+            }
+
+            removedItemId = itemId;
+            removedQuantity = quantity;
+            return true;
+        }
+
         public void SelectBeltSlot(int beltIndex)
         {
             if (beltIndex < 0 || beltIndex >= BeltSlotCount)

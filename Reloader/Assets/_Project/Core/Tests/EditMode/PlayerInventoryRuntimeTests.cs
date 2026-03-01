@@ -205,5 +205,22 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(runtime.GetSlotQuantity(InventoryArea.Belt, 0), Is.EqualTo(20));
             Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(120));
         }
+
+        [Test]
+        public void TryRemoveFromSlot_BackpackSlot_RemovesFullStackAndReturnsMetadata()
+        {
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(2);
+            runtime.TryAddStackItem("case-lapua-308", 75, out _, out _, out _);
+            runtime.TryAddStackItem("tool-trimmer", 1, out _, out _, out _);
+            Assert.That(runtime.TryMoveItem(InventoryArea.Belt, 1, InventoryArea.Backpack, 0), Is.True);
+
+            var removed = runtime.TryRemoveFromSlot(InventoryArea.Backpack, 0, out var removedItemId, out var removedQuantity);
+
+            Assert.That(removed, Is.True);
+            Assert.That(removedItemId, Is.EqualTo("tool-trimmer"));
+            Assert.That(removedQuantity, Is.EqualTo(1));
+            Assert.That(runtime.BackpackItemIds.Count, Is.EqualTo(0));
+        }
     }
 }
