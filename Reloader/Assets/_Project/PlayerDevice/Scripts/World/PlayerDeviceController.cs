@@ -227,6 +227,14 @@ namespace Reloader.PlayerDevice.World
             return summaries;
         }
 
+        public void UnregisterAsActiveInstance()
+        {
+            if (ReferenceEquals(ActiveInstance, this))
+            {
+                ActiveInstance = null;
+            }
+        }
+
         private void RecomputeActiveGroupMetrics()
         {
             _activeGroupMetrics = CalculateGroupMetrics(_runtimeState?.ActiveGroupSession);

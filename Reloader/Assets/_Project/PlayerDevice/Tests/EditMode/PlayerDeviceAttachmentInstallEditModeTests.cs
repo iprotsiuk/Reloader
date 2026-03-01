@@ -139,6 +139,21 @@ namespace Reloader.PlayerDevice.Tests.EditMode
             }
         }
 
+        [Test]
+        public void UnregisterAsActiveInstance_ClearsSingletonOnlyForOwningController()
+        {
+            var firstController = new PlayerDeviceController(new PlayerDeviceRuntimeState(), null, DeviceAttachmentCatalog.Empty);
+            var secondController = new PlayerDeviceController(new PlayerDeviceRuntimeState(), null, DeviceAttachmentCatalog.Empty);
+
+            Assert.That(PlayerDeviceController.ActiveInstance, Is.SameAs(secondController));
+
+            firstController.UnregisterAsActiveInstance();
+            Assert.That(PlayerDeviceController.ActiveInstance, Is.SameAs(secondController));
+
+            secondController.UnregisterAsActiveInstance();
+            Assert.That(PlayerDeviceController.ActiveInstance, Is.Null);
+        }
+
         private static DeviceAttachmentCatalog BuildCatalog()
         {
             var rangefinderItem = ScriptableObject.CreateInstance<ItemDefinition>();

@@ -70,6 +70,7 @@ namespace Reloader.UI.Toolkit.Runtime
         private void OnDisable()
         {
             DisposeSubscriptions();
+            ReleasePlayerDeviceController();
         }
 
         private void Update()
@@ -237,6 +238,7 @@ namespace Reloader.UI.Toolkit.Runtime
                 FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
             if (existing != null)
             {
+                ReleasePlayerDeviceController();
                 return existing;
             }
 
@@ -246,6 +248,7 @@ namespace Reloader.UI.Toolkit.Runtime
                 || !ReferenceEquals(_playerDeviceInventoryController, inventoryController)
                 || _playerDeviceInputSourceHash != inputHash)
             {
+                _playerDeviceController?.UnregisterAsActiveInstance();
                 _playerDeviceInventoryController = inventoryController;
                 _playerDeviceInputSourceHash = inputHash;
                 var attachmentCatalog = BuildAttachmentCatalog(inventoryController);
@@ -504,6 +507,14 @@ namespace Reloader.UI.Toolkit.Runtime
             }
         }
 
+        private void ReleasePlayerDeviceController()
+        {
+            _playerDeviceController?.UnregisterAsActiveInstance();
+            _playerDeviceController = null;
+            _playerDeviceInventoryController = null;
+            _playerDeviceInputSourceHash = 0;
+        }
+
         private void UnbindScreen(string screenId)
         {
             if (!_bindingStates.TryGetValue(screenId, out var state))
@@ -515,6 +526,10 @@ namespace Reloader.UI.Toolkit.Runtime
             state.Subscription = null;
             state.Root = null;
             state.DependencyHash = 0;
+            if (string.Equals(screenId, TabInventoryScreenId, StringComparison.Ordinal))
+            {
+                ReleasePlayerDeviceController();
+            }
         }
 
         private sealed class ScreenBindingState

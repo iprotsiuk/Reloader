@@ -494,6 +494,43 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void RuntimeBridge_OnDisable_ClearsPlayerDeviceActiveInstance()
+        {
+            var go = new GameObject("UiToolkitBridgeClearsActiveDeviceController");
+            var bridge = go.AddComponent<UiToolkitScreenRuntimeBridge>();
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(0);
+            inventoryController.Configure(null, null, runtime);
+
+            var resolveMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
+                "ResolveTabDeviceControllerAdapter",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(resolveMethod, Is.Not.Null);
+            var playerDeviceControllerType = Type.GetType("Reloader.PlayerDevice.World.PlayerDeviceController, Reloader.PlayerDevice");
+            Assert.That(playerDeviceControllerType, Is.Not.Null);
+            var activeInstanceProperty = playerDeviceControllerType.GetProperty("ActiveInstance", BindingFlags.Static | BindingFlags.Public);
+            Assert.That(activeInstanceProperty, Is.Not.Null);
+
+            try
+            {
+                resolveMethod.Invoke(bridge, new object[] { inventoryController, null });
+                Assert.That(activeInstanceProperty.GetValue(null), Is.Not.Null);
+
+                go.SetActive(false);
+
+                Assert.That(activeInstanceProperty.GetValue(null), Is.Null);
+            }
+            finally
+            {
+                if (go != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(go);
+                }
+            }
+        }
+
+        [Test]
         public void Acceptance_DeviceFullLoop_ChooseTargetFireSaveClearReopenTab_PreservesSavedSessionAndClearsMarkers()
         {
             var targetSelectionControllerType = Type.GetType(
