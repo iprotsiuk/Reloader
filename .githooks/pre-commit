@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+violations=()
+
+while IFS= read -r -d '' path; do
+  # Skip deleted paths.
+  if ! git cat-file -e ":$path" 2>/dev/null; then
+    continue
+  fi
+
+  # Match copy-suffix patterns like "Foo 2.meta", "Bar 3.asset".
+  base_path="$(printf '%s' "$path" | sed -E 's/ ([0-9]+)(\.[^./]+)$/\2/')"
+  if [[ "$base_path" == "$path" ]]; then
+    continue
+  fi
+
+  # Block only when the base sibling exists (tracked or on disk).
+  if git ls-files --error-unmatch "$base_path" >/dev/null 2>&1 || [[ -e "$base_path" ]]; then
+    violations+=("$path -> $base_path")
+  fi
+done < <(git diff --cached --name-only -z)
+
+if (( ${#violations[@]} > 0 )); then
+  echo "ERROR: duplicate copy-suffix files detected in staged changes:" >&2
+  for v in "${violations[@]}"; do
+    echo "  - $v" >&2
+  done
+  echo >&2
+  echo "These usually come from Finder/Unity duplicate artifacts (e.g., 'File 2.meta')." >&2
+  echo "Remove them or rename correctly before committing." >&2
+  exit 1
+fi
