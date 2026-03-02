@@ -30,6 +30,9 @@ namespace Reloader.PlayerDevice.World
         private readonly PlayerInventoryController _inventoryController;
         private readonly DeviceAttachmentCatalog _attachmentCatalog;
         private DeviceGroupMetrics _activeGroupMetrics;
+        private int _lastIngestFrame = -1;
+        private int _lastIngestTargetInstanceId;
+        private Vector3 _lastIngestImpactPoint;
 
         public PlayerDeviceController(
             PlayerDeviceRuntimeState runtimeState,
@@ -86,6 +89,12 @@ namespace Reloader.PlayerDevice.World
 
             var localImpact = targetComponent.transform.InverseTransformPoint(impactPoint);
             var impactDistanceMeters = ResolveImpactDistanceMeters(impactPoint, sourcePoint, targetMetrics);
+            if (IsDuplicateImpactEvent(targetComponent, impactPoint))
+            {
+                return;
+            }
+
+            RememberImpactEvent(targetComponent, impactPoint);
             _runtimeState.AddShotSampleToActiveGroup(new DeviceShotSample(
                 new Vector2(localImpact.x, localImpact.y),
                 impactDistanceMeters));
@@ -302,6 +311,33 @@ namespace Reloader.PlayerDevice.World
             }
 
             return targetMetrics != null ? Mathf.Max(0f, targetMetrics.DistanceMeters) : 0f;
+        }
+
+        private bool IsDuplicateImpactEvent(Component targetComponent, Vector3 impactPoint)
+        {
+            if (targetComponent == null)
+            {
+                return false;
+            }
+
+            if (_lastIngestFrame != Time.frameCount)
+            {
+                return false;
+            }
+
+            if (_lastIngestTargetInstanceId != targetComponent.gameObject.GetInstanceID())
+            {
+                return false;
+            }
+
+            return (impactPoint - _lastIngestImpactPoint).sqrMagnitude <= 1e-6f;
+        }
+
+        private void RememberImpactEvent(Component targetComponent, Vector3 impactPoint)
+        {
+            _lastIngestFrame = Time.frameCount;
+            _lastIngestTargetInstanceId = targetComponent.gameObject.GetInstanceID();
+            _lastIngestImpactPoint = impactPoint;
         }
 
         private static bool TryResolveMarkerClearable(string targetId, out IDeviceTargetMarkerClearable clearable)

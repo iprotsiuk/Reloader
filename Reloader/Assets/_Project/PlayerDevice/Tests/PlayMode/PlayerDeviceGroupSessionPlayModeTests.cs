@@ -122,6 +122,31 @@ namespace Reloader.PlayerDevice.Tests.PlayMode
         }
 
         [Test]
+        public void ApplyDamage_DuplicateImpactPayload_SameTargetAndPoint_CountsSingleShot()
+        {
+            var state = new PlayerDeviceRuntimeState();
+            state.SetSelectedTargetBinding(new DeviceTargetBinding(SelectedTargetId, "Session Target", 100f));
+            var controller = new PlayerDeviceController(state, null, DeviceAttachmentCatalog.Empty);
+
+            var target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            var damageable = target.AddComponent<DummyTargetDamageable>();
+            var metrics = target.AddComponent<DummyTargetRangeMetrics>();
+            metrics.Configure(SelectedTargetId, "Session Target", 120f);
+
+            var impactPoint = target.transform.position + new Vector3(0.04f, -0.02f, 0.5f);
+            var sourcePoint = impactPoint + (Vector3.back * 25f);
+            var payload = new ProjectileImpactPayload("weapon-rifle-01", impactPoint, Vector3.forward, 20f, target, sourcePoint);
+
+            damageable.ApplyDamage(payload);
+            damageable.ApplyDamage(payload);
+
+            Assert.That(state.ActiveGroupSession.ShotCount, Is.EqualTo(1), "Duplicate callbacks for one physical impact must not double-count MOA shots.");
+
+            UnityEngine.Object.DestroyImmediate(target);
+            controller.UnregisterAsActiveInstance();
+        }
+
+        [Test]
         public void IngestProjectileImpact_NonSelectedTarget_DoesNotAppendSample()
         {
             var state = new PlayerDeviceRuntimeState();
