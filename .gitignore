@@ -30,6 +30,11 @@ Reloader/[Mm]emoryCaptures/
 Reloader/[Rr]ecordings/
 Reloader/mono_crash.*
 
+# Unity Version Control (Plastic SCM) local metadata
+Reloader/.plastic/
+Reloader/.plastic*
+Reloader/ignore.conf
+
 # Unity/IDE generated project files
 .vs/
 .idea/
