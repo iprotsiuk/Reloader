@@ -1,5 +1,6 @@
 using System;
 using Reloader.Core.UI;
+using Reloader.UI;
 using UnityEngine;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine.UIElements;
@@ -11,6 +12,13 @@ namespace Reloader.UI.Toolkit.BeltHud
         private VisualElement _root;
         private VisualElement[] _slotElements = Array.Empty<VisualElement>();
         private Label[] _slotLabels = Array.Empty<Label>();
+        private float _resolvedSlotSize = 46f;
+
+        private const float SlotGap = 8f;
+        private const float MinSlotSize = 22.5f;
+        private const float MaxSlotSize = 40.5f;
+        private const float MinHudWidth = 220f;
+        private const float MaxHudWidth = 420f;
 
         public event Action<UiIntent> IntentRaised;
 
@@ -34,6 +42,9 @@ namespace Reloader.UI.Toolkit.BeltHud
                     slot.RegisterCallback<ClickEvent>(_ => TryRaiseSlotSelectIntent(capturedIndex));
                 }
             }
+
+            RegisterResponsiveCallbacks();
+            ApplyResponsiveLayout();
         }
 
         public void Render(UiRenderState state)
@@ -62,13 +73,81 @@ namespace Reloader.UI.Toolkit.BeltHud
                     _slotLabels[i].text = (i + 1).ToString();
                 }
             }
+
+            ApplyResponsiveLayout();
+        }
+
+        private void RegisterResponsiveCallbacks()
+        {
+            _root?.RegisterCallback<AttachToPanelEvent>(_ => ApplyResponsiveLayout());
+            _root?.RegisterCallback<GeometryChangedEvent>(_ => ApplyResponsiveLayout());
+            _root?.schedule.Execute(ApplyResponsiveLayout).Every(250);
+        }
+
+        private void ApplyResponsiveLayout()
+        {
+            if (_root == null || _slotElements.Length == 0)
+            {
+                return;
+            }
+
+            var viewportWidth = _root.panel?.visualTree?.contentRect.width ?? 0f;
+            var viewportHeight = _root.panel?.visualTree?.contentRect.height ?? 0f;
+            if (viewportWidth <= 0f || viewportHeight <= 0f)
+            {
+                viewportWidth = Screen.width;
+                viewportHeight = Screen.height;
+            }
+
+            if (viewportWidth <= 0f || viewportHeight <= 0f)
+            {
+                return;
+            }
+
+            var targetHudWidth = Mathf.Clamp(
+                Mathf.Min(viewportWidth * 0.26f, viewportHeight * 0.56f),
+                MinHudWidth,
+                MaxHudWidth);
+            var available = Mathf.Max(0f, targetHudWidth - 16f - ((_slotElements.Length - 1) * SlotGap));
+            _resolvedSlotSize = Mathf.Clamp(available / Mathf.Max(1, _slotElements.Length), MinSlotSize, MaxSlotSize);
+
+            var hudPadding = Mathf.Clamp(_resolvedSlotSize * 0.18f, 6f, 10f);
+            var hudGap = Mathf.Clamp(_resolvedSlotSize * 0.15f, 4f, SlotGap);
+            var hudOffset = Mathf.Clamp(viewportWidth * 0.015f, 12f, 28f);
+            _root.style.left = hudOffset;
+            _root.style.bottom = hudOffset;
+            _root.style.paddingLeft = hudPadding;
+            _root.style.paddingRight = hudPadding;
+            _root.style.paddingTop = hudPadding;
+            _root.style.paddingBottom = hudPadding;
+            _root.style.width = (_resolvedSlotSize * _slotElements.Length) + ((_slotElements.Length - 1) * hudGap) + (hudPadding * 2f);
+            for (var i = 0; i < _slotElements.Length; i++)
+            {
+                var slot = _slotElements[i];
+                if (slot == null)
+                {
+                    continue;
+                }
+
+                slot.style.width = _resolvedSlotSize;
+                slot.style.height = _resolvedSlotSize;
+                slot.style.marginRight = i < _slotElements.Length - 1 ? hudGap : 0f;
+            }
+
+            var labelSize = Mathf.Clamp(_resolvedSlotSize * 0.3f, 10f, 14f);
+            for (var i = 0; i < _slotLabels.Length; i++)
+            {
+                if (_slotLabels[i] != null)
+                {
+                    _slotLabels[i].style.fontSize = labelSize;
+                }
+            }
         }
 
         private static void RenderSlotItemVisual(VisualElement slotElement, BeltHudUiState.SlotState slot, int slotIndex)
         {
             var contentName = $"belt-hud__slot-item-{slotIndex}";
             var iconName = $"belt-hud__slot-item-icon-{slotIndex}";
-            var labelName = $"belt-hud__slot-item-name-{slotIndex}";
             var quantityName = $"belt-hud__slot-item-quantity-{slotIndex}";
             var hasVisual = slot.IsOccupied && !string.IsNullOrWhiteSpace(slot.ItemId);
             var content = slotElement.Q<VisualElement>(contentName);
@@ -102,18 +181,6 @@ namespace Reloader.UI.Toolkit.BeltHud
                 content.Add(icon);
             }
 
-            var label = content.Q<Label>(labelName);
-            if (label == null)
-            {
-                label = new Label
-                {
-                    name = labelName,
-                    pickingMode = PickingMode.Ignore
-                };
-                label.AddToClassList("belt-hud__slot-item-name");
-                content.Add(label);
-            }
-
             var quantityLabel = content.Q<Label>(quantityName);
             if (quantityLabel == null)
             {
@@ -126,18 +193,8 @@ namespace Reloader.UI.Toolkit.BeltHud
                 content.Add(quantityLabel);
             }
 
-            if (ItemIconCatalogProvider.Catalog != null && ItemIconCatalogProvider.Catalog.TryGetIcon(slot.ItemId, out var iconSprite))
-            {
-                icon.style.backgroundImage = new StyleBackground(iconSprite);
-                icon.EnableInClassList("is-missing", false);
-            }
-            else
-            {
-                icon.style.backgroundImage = new StyleBackground((Texture2D)null);
-                icon.EnableInClassList("is-missing", true);
-            }
-
-            label.text = ItemDisplayNameFormatter.Format(slot.ItemId);
+            icon.style.backgroundImage = ItemIconResolver.ResolveBackground(slot.ItemId);
+            icon.EnableInClassList("is-missing", false);
             var showQuantity = slot.Quantity > 1;
             quantityLabel.style.display = showQuantity ? DisplayStyle.Flex : DisplayStyle.None;
             quantityLabel.text = showQuantity ? slot.Quantity.ToString() : string.Empty;

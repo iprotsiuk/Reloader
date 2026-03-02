@@ -97,8 +97,9 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(renderedSlots.Count, Is.EqualTo(6));
 
             var firstLabel = renderedSlots[0].Q<Label>("trade__cell-label");
-            Assert.That(firstLabel, Is.Not.Null);
-            Assert.That(firstLabel.text, Is.EqualTo("Item A"));
+            var firstIcon = renderedSlots[0].Q<VisualElement>("trade__cell-icon");
+            Assert.That(firstLabel, Is.Null);
+            Assert.That(firstIcon, Is.Not.Null);
         }
 
         [Test]

@@ -305,7 +305,8 @@ namespace Reloader.UI.Toolkit.TabInventory
                 var itemId = runtime.BeltSlotItemIds[i];
                 var occupied = !string.IsNullOrWhiteSpace(itemId);
                 var quantity = occupied ? runtime.GetSlotQuantity(InventoryArea.Belt, i) : 0;
-                belt.Add(new TabInventoryUiState.SlotState(i, itemId, occupied, quantity));
+                var maxStack = occupied ? runtime.GetSlotMaxStack(InventoryArea.Belt, i) : 1;
+                belt.Add(new TabInventoryUiState.SlotState(i, itemId, occupied, quantity, maxStack));
             }
 
             var backpackSlots = Mathf.Max(MinimumBackpackUiSlots, runtime.BackpackCapacity);
@@ -315,7 +316,8 @@ namespace Reloader.UI.Toolkit.TabInventory
                 var itemId = i < runtime.BackpackItemIds.Count ? runtime.BackpackItemIds[i] : null;
                 var occupied = !string.IsNullOrWhiteSpace(itemId);
                 var quantity = occupied ? runtime.GetSlotQuantity(InventoryArea.Backpack, i) : 0;
-                backpack.Add(new TabInventoryUiState.SlotState(i, itemId, occupied, quantity));
+                var maxStack = occupied ? runtime.GetSlotMaxStack(InventoryArea.Backpack, i) : 1;
+                backpack.Add(new TabInventoryUiState.SlotState(i, itemId, occupied, quantity, maxStack));
             }
 
             BuildDevicePanelFields(out var panelFields);

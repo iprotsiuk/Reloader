@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using Reloader.Core.UI;
+using Reloader.UI;
+using Reloader.UI.Toolkit;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -11,6 +13,7 @@ namespace Reloader.UI.Toolkit.TabInventory
     {
         private VisualElement _panel;
         private VisualElement _tabBar;
+        private VisualElement _gridArea;
         private VisualElement _backpackGrid;
         private VisualElement _beltGrid;
         private VisualElement[] _beltSlots = Array.Empty<VisualElement>();
@@ -18,8 +21,10 @@ namespace Reloader.UI.Toolkit.TabInventory
         private readonly List<VisualElement> _backpackSlotElements = new List<VisualElement>();
         private readonly List<VisualElement> _beltSlotElements = new List<VisualElement>();
         private readonly List<Button> _tabs = new List<Button>(4);
+        private readonly List<VisualElement> _deviceButtonRows = new List<VisualElement>(2);
         private VisualElement _tooltip;
         private Label _tooltipTitle;
+        private Label _tooltipSpecs;
         private VisualElement _inventorySection;
         private VisualElement _questsSection;
         private VisualElement _journalSection;
@@ -45,7 +50,11 @@ namespace Reloader.UI.Toolkit.TabInventory
         private Button _deviceUninstallHooksButton;
         private readonly Dictionary<string, Action> _intentInvokeByTestId = new Dictionary<string, Action>();
         private string[] _beltSlotItemIds = Array.Empty<string>();
+        private int[] _beltSlotMaxStacks = Array.Empty<int>();
+        private int[] _beltSlotQuantities = Array.Empty<int>();
         private string[] _backpackSlotItemIds = Array.Empty<string>();
+        private int[] _backpackSlotMaxStacks = Array.Empty<int>();
+        private int[] _backpackSlotQuantities = Array.Empty<int>();
         private string _dragSourceContainer;
         private int _dragSourceIndex = -1;
         private string _dragSourceItemId;
@@ -54,12 +63,17 @@ namespace Reloader.UI.Toolkit.TabInventory
         private bool _suppressNextClick;
         private int _activePointerId = -1;
         private float _resolvedSlotSize = 46f;
+        private InventoryItemTooltipPresenter _tooltipPresenter;
 
-        private const float MinSlotSize = 16f;
-        private const float MaxSlotSize = 46f;
+        private const float MinSlotSize = 16.5f;
+        private const float MaxSlotSize = 42f;
         private const float SlotGap = 4f;
         private const float MinTabWidth = 56f;
         private const float MaxTabWidth = 180f;
+        private const float DeviceButtonGap = 6f;
+        private const float MinDeviceButtonWidth = 82f;
+        private const float MaxDeviceButtonWidth = 220f;
+        private const float InventoryVerticalChrome = 56f;
 
         public event Action<UiIntent> IntentRaised;
 
@@ -67,10 +81,24 @@ namespace Reloader.UI.Toolkit.TabInventory
         {
             _panel = root?.Q<VisualElement>("inventory__panel");
             _tabBar = root?.Q<VisualElement>("inventory__tabbar");
+            _gridArea = root?.Q<VisualElement>(className: "inventory__grid-area");
             _backpackGrid = root?.Q<VisualElement>("inventory__backpack-grid");
-            _beltGrid = root?.Q<VisualElement>("inventory__grid-row--belt");
+            _beltGrid = root?.Q<VisualElement>("inventory__grid-row--belt")
+                ?? root?.Q<VisualElement>(className: "inventory__grid-row--belt");
             _tooltip = root?.Q<VisualElement>("inventory__tooltip");
             _tooltipTitle = root?.Q<Label>("inventory__tooltip-title");
+            _tooltipSpecs = root?.Q<Label>("inventory__tooltip-specs");
+            if (_tooltip != null)
+            {
+                _tooltip.pickingMode = PickingMode.Ignore;
+            }
+            if (_tooltip != null && _tooltipSpecs == null)
+            {
+                _tooltipSpecs = new Label { name = "inventory__tooltip-specs" };
+                _tooltipSpecs.AddToClassList("inventory__tooltip-specs");
+                _tooltip.Add(_tooltipSpecs);
+            }
+            _tooltipPresenter = InventoryItemTooltipPresenter.CreateOrBind(root, _panel ?? root, "inventory");
             _inventorySection = root?.Q<VisualElement>("inventory__section-inventory");
             _questsSection = root?.Q<VisualElement>("inventory__section-quests");
             _journalSection = root?.Q<VisualElement>("inventory__section-journal");
@@ -96,17 +124,32 @@ namespace Reloader.UI.Toolkit.TabInventory
             _deviceUninstallHooksButton = root?.Q<Button>("inventory__device-uninstall-hooks");
             _intentInvokeByTestId.Clear();
             _tabs.Clear();
+            _deviceButtonRows.Clear();
             AddTab(_tabInventory);
             AddTab(_tabQuests);
             AddTab(_tabJournal);
             AddTab(_tabCalendar);
             AddTab(_tabDevice);
 
+            if (_deviceSection != null)
+            {
+                var buttonRows = _deviceSection.Query<VisualElement>(className: "inventory__device-button-row").ToList();
+                for (var i = 0; i < buttonRows.Count; i++)
+                {
+                    if (buttonRows[i] != null)
+                    {
+                        _deviceButtonRows.Add(buttonRows[i]);
+                    }
+                }
+            }
+
             RegisterTabIntents();
             RegisterDeviceActionIntents();
 
             _beltSlots = new VisualElement[Math.Max(0, beltSlotCount)];
             _beltSlotItemIds = new string[_beltSlots.Length];
+            _beltSlotMaxStacks = new int[_beltSlots.Length];
+            _beltSlotQuantities = new int[_beltSlots.Length];
             for (var i = 0; i < _beltSlots.Length; i++)
             {
                 var slot = root?.Q<VisualElement>($"inventory__belt-slot-{i}");
@@ -115,7 +158,9 @@ namespace Reloader.UI.Toolkit.TabInventory
                 {
                     var capturedIndex = i;
                     slot.RegisterCallback<PointerDownEvent>(evt => TryPointerDown("belt", capturedIndex, evt.pointerId));
-                    slot.RegisterCallback<PointerEnterEvent>(_ => TryPointerEnter("belt", capturedIndex));
+                    slot.RegisterCallback<PointerEnterEvent>(evt => TryPointerEnter("belt", capturedIndex, evt.position));
+                    slot.RegisterCallback<PointerMoveEvent>(evt => TryPointerMove("belt", capturedIndex, evt.position));
+                    slot.RegisterCallback<PointerLeaveEvent>(_ => HideTooltip());
                     slot.RegisterCallback<PointerUpEvent>(_ => TryPointerUp("belt", capturedIndex));
                     slot.RegisterCallback<ClickEvent>(_ => HandleSlotClick("belt", capturedIndex));
                 }
@@ -123,6 +168,8 @@ namespace Reloader.UI.Toolkit.TabInventory
 
             _backpackSlots = new VisualElement[Math.Max(0, backpackSlotCount)];
             _backpackSlotItemIds = new string[_backpackSlots.Length];
+            _backpackSlotMaxStacks = new int[_backpackSlots.Length];
+            _backpackSlotQuantities = new int[_backpackSlots.Length];
             for (var i = 0; i < _backpackSlots.Length; i++)
             {
                 var slot = root?.Q<VisualElement>($"inventory__backpack-slot-{i}");
@@ -131,7 +178,9 @@ namespace Reloader.UI.Toolkit.TabInventory
                 {
                     var capturedIndex = i;
                     slot.RegisterCallback<PointerDownEvent>(evt => TryPointerDown("backpack", capturedIndex, evt.pointerId));
-                    slot.RegisterCallback<PointerEnterEvent>(_ => TryPointerEnter("backpack", capturedIndex));
+                    slot.RegisterCallback<PointerEnterEvent>(evt => TryPointerEnter("backpack", capturedIndex, evt.position));
+                    slot.RegisterCallback<PointerMoveEvent>(evt => TryPointerMove("backpack", capturedIndex, evt.position));
+                    slot.RegisterCallback<PointerLeaveEvent>(_ => HideTooltip());
                     slot.RegisterCallback<PointerUpEvent>(_ => TryPointerUp("backpack", capturedIndex));
                     slot.RegisterCallback<ClickEvent>(_ => HandleSlotClick("backpack", capturedIndex));
                 }
@@ -160,7 +209,9 @@ namespace Reloader.UI.Toolkit.TabInventory
             RenderSlotVisuals(_beltSlots, inventoryState.BeltSlots, "belt");
             RenderSlotVisuals(_backpackSlots, inventoryState.BackpackSlots, "backpack");
             CacheSlotItemIds(_beltSlotItemIds, inventoryState.BeltSlots);
+            CacheSlotStackData(_beltSlotMaxStacks, _beltSlotQuantities, inventoryState.BeltSlots);
             CacheSlotItemIds(_backpackSlotItemIds, inventoryState.BackpackSlots);
+            CacheSlotStackData(_backpackSlotMaxStacks, _backpackSlotQuantities, inventoryState.BackpackSlots);
             ApplySectionVisibility(inventoryState.ActiveSection);
             if (_deviceNotes != null)
             {
@@ -211,6 +262,11 @@ namespace Reloader.UI.Toolkit.TabInventory
             {
                 _tooltipTitle.text = inventoryState.TooltipTitle;
             }
+
+            if (_tooltipSpecs != null && !inventoryState.TooltipVisible)
+            {
+                _tooltipSpecs.text = string.Empty;
+            }
         }
 
         private void RegisterTabIntents()
@@ -247,8 +303,10 @@ namespace Reloader.UI.Toolkit.TabInventory
         {
             _panel?.RegisterCallback<GeometryChangedEvent>(_ => ApplyResponsiveLayout());
             _tabBar?.RegisterCallback<GeometryChangedEvent>(_ => ApplyResponsiveLayout());
+            _gridArea?.RegisterCallback<GeometryChangedEvent>(_ => ApplyResponsiveLayout());
             _backpackGrid?.RegisterCallback<GeometryChangedEvent>(_ => ApplyResponsiveLayout());
             _beltGrid?.RegisterCallback<GeometryChangedEvent>(_ => ApplyResponsiveLayout());
+            _deviceSection?.RegisterCallback<GeometryChangedEvent>(_ => ApplyResponsiveLayout());
         }
 
         private void CacheSlotElements()
@@ -261,9 +319,10 @@ namespace Reloader.UI.Toolkit.TabInventory
 
         private void ApplyResponsiveLayout()
         {
-            ApplyResponsiveSlots(_backpackGrid, _backpackSlotElements, preferredColumns: 8);
+            ApplyResponsiveSlots(_backpackGrid, _backpackSlotElements, preferredColumns: 8, verticalRowsInLayout: 3);
             ApplyResponsiveBeltSlots();
             ApplyResponsiveTabs();
+            ApplyResponsiveDeviceButtons();
         }
 
         private void ApplyResponsiveBeltSlots()
@@ -290,7 +349,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
         }
 
-        private void ApplyResponsiveSlots(VisualElement container, List<VisualElement> slots, int preferredColumns)
+        private void ApplyResponsiveSlots(VisualElement container, List<VisualElement> slots, int preferredColumns, int verticalRowsInLayout)
         {
             if (container == null || slots.Count == 0)
             {
@@ -305,13 +364,40 @@ namespace Reloader.UI.Toolkit.TabInventory
 
             var cappedColumns = Mathf.Max(1, preferredColumns);
             var maxWidthPerSlot = (width - ((cappedColumns - 1) * SlotGap)) / cappedColumns;
-            _resolvedSlotSize = Mathf.Clamp(maxWidthPerSlot, MinSlotSize, MaxSlotSize);
+            var resolvedByWidth = Mathf.Clamp(maxWidthPerSlot, MinSlotSize, MaxSlotSize);
+            var resolvedByHeight = ResolveSlotSizeByHeight(verticalRowsInLayout);
+            _resolvedSlotSize = Mathf.Clamp(Mathf.Min(resolvedByWidth, resolvedByHeight), MinSlotSize, MaxSlotSize);
             for (var i = 0; i < slots.Count; i++)
             {
                 var slot = slots[i];
                 slot.style.width = _resolvedSlotSize;
                 slot.style.height = _resolvedSlotSize;
             }
+        }
+
+        private float ResolveSlotSizeByHeight(int verticalRowsInLayout)
+        {
+            var rows = Mathf.Max(1, verticalRowsInLayout);
+            var gridHeight = _gridArea?.contentRect.height ?? 0f;
+            if (gridHeight <= 0f)
+            {
+                return MaxSlotSize;
+            }
+
+            if (gridHeight < 200f)
+            {
+                return MaxSlotSize;
+            }
+
+            var availableHeight = Mathf.Max(0f, gridHeight - InventoryVerticalChrome);
+            var gapBudget = Mathf.Max(0f, (rows - 1) * SlotGap);
+            var perRow = (availableHeight - gapBudget) / rows;
+            if (perRow <= 0f)
+            {
+                return MinSlotSize;
+            }
+
+            return Mathf.Clamp(perRow, MinSlotSize, MaxSlotSize);
         }
 
         private void ApplyResponsiveTabs()
@@ -342,6 +428,59 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
         }
 
+        private void ApplyResponsiveDeviceButtons()
+        {
+            if (_deviceButtonRows.Count == 0)
+            {
+                return;
+            }
+
+            var resolvedHeight = Mathf.Clamp(_resolvedSlotSize * 0.56f, 22f, 30f);
+            var resolvedFontSize = Mathf.Clamp(_resolvedSlotSize * 0.24f, 9f, 12f);
+
+            for (var rowIndex = 0; rowIndex < _deviceButtonRows.Count; rowIndex++)
+            {
+                var row = _deviceButtonRows[rowIndex];
+                if (row == null)
+                {
+                    continue;
+                }
+
+                var rowButtons = row.Query<Button>().ToList();
+                if (rowButtons.Count == 0)
+                {
+                    continue;
+                }
+
+                var rowWidth = row.contentRect.width;
+                if (rowWidth <= 0f)
+                {
+                    rowWidth = _deviceSection?.contentRect.width ?? 0f;
+                }
+
+                if (rowWidth <= 0f)
+                {
+                    continue;
+                }
+
+                var totalGap = (rowButtons.Count - 1) * DeviceButtonGap;
+                var perButtonWidth = (rowWidth - totalGap) / rowButtons.Count;
+                var resolvedWidth = Mathf.Clamp(perButtonWidth, MinDeviceButtonWidth, MaxDeviceButtonWidth);
+                for (var buttonIndex = 0; buttonIndex < rowButtons.Count; buttonIndex++)
+                {
+                    var button = rowButtons[buttonIndex];
+                    if (button == null)
+                    {
+                        continue;
+                    }
+
+                    button.style.width = resolvedWidth;
+                    button.style.height = resolvedHeight;
+                    button.style.fontSize = resolvedFontSize;
+                }
+            }
+        }
+
         private static void CollectSlotElements(VisualElement container, List<VisualElement> target)
         {
             if (container == null)
@@ -367,6 +506,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 _tabs.Add(tab);
             }
         }
+
 
         private void ApplySectionVisibility(string activeSection)
         {
@@ -418,6 +558,16 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
         }
 
+        private static void CacheSlotStackData(int[] maxStacks, int[] quantities, System.Collections.Generic.IReadOnlyList<TabInventoryUiState.SlotState> slots)
+        {
+            var limit = Math.Min(Math.Min(maxStacks.Length, quantities.Length), slots.Count);
+            for (var i = 0; i < limit; i++)
+            {
+                quantities[i] = Math.Max(0, slots[i].Quantity);
+                maxStacks[i] = Math.Max(1, slots[i].MaxStack);
+            }
+        }
+
         private static void RenderSlotVisuals(VisualElement[] slotElements, System.Collections.Generic.IReadOnlyList<TabInventoryUiState.SlotState> slots, string container)
         {
             var limit = Math.Min(slotElements.Length, slots.Count);
@@ -432,7 +582,6 @@ namespace Reloader.UI.Toolkit.TabInventory
                 var slotState = slots[i];
                 var contentName = $"inventory__slot-item-{container}-{i}";
                 var iconName = $"inventory__slot-item-icon-{container}-{i}";
-                var labelName = $"inventory__slot-item-name-{container}-{i}";
                 var quantityName = $"inventory__slot-item-quantity-{container}-{i}";
                 var hasVisual = slotState.IsOccupied && !string.IsNullOrWhiteSpace(slotState.ItemId);
                 var content = slotElement.Q<VisualElement>(contentName);
@@ -466,18 +615,6 @@ namespace Reloader.UI.Toolkit.TabInventory
                     content.Add(icon);
                 }
 
-                var label = content.Q<Label>(labelName);
-                if (label == null)
-                {
-                    label = new Label
-                    {
-                        name = labelName,
-                        pickingMode = PickingMode.Ignore
-                    };
-                    label.AddToClassList("inventory__slot-item-name");
-                    content.Add(label);
-                }
-
                 var quantity = content.Q<Label>(quantityName);
                 if (quantity == null)
                 {
@@ -490,18 +627,8 @@ namespace Reloader.UI.Toolkit.TabInventory
                     content.Add(quantity);
                 }
 
-                if (ItemIconCatalogProvider.Catalog != null && ItemIconCatalogProvider.Catalog.TryGetIcon(slotState.ItemId, out var iconSprite))
-                {
-                    icon.style.backgroundImage = new StyleBackground(iconSprite);
-                    icon.EnableInClassList("is-missing", false);
-                }
-                else
-                {
-                    icon.style.backgroundImage = new StyleBackground((Texture2D)null);
-                    icon.EnableInClassList("is-missing", true);
-                }
-
-                label.text = ItemDisplayNameFormatter.Format(slotState.ItemId);
+                icon.style.backgroundImage = ItemIconResolver.ResolveBackground(slotState.ItemId);
+                icon.EnableInClassList("is-missing", false);
                 var showQuantity = slotState.Quantity > 1;
                 quantity.style.display = showQuantity ? DisplayStyle.Flex : DisplayStyle.None;
                 quantity.text = showQuantity ? slotState.Quantity.ToString() : string.Empty;
@@ -520,7 +647,7 @@ namespace Reloader.UI.Toolkit.TabInventory
 
         public bool TryPointerEnterForTests(string container, int slotIndex)
         {
-            return TryPointerEnter(container, slotIndex);
+            return TryPointerEnter(container, slotIndex, Vector2.zero);
         }
 
         public bool TryPointerUpForTests(string container, int slotIndex)
@@ -635,16 +762,34 @@ namespace Reloader.UI.Toolkit.TabInventory
             return true;
         }
 
-        private bool TryPointerEnter(string container, int slotIndex)
+        private bool TryPointerEnter(string container, int slotIndex, Vector2 pointerPanelPosition)
         {
-            if (_dragSourceIndex < 0 || slotIndex < 0)
+            if (slotIndex < 0)
             {
                 return false;
+            }
+
+            ShowTooltipForSlot(container, slotIndex, pointerPanelPosition);
+
+            if (_dragSourceIndex < 0)
+            {
+                return true;
             }
 
             _dragTargetContainer = NormalizeContainer(container);
             _dragTargetIndex = slotIndex;
             ApplyDragVisuals();
+            return true;
+        }
+
+        private bool TryPointerMove(string container, int slotIndex, Vector2 pointerPanelPosition)
+        {
+            if (slotIndex < 0)
+            {
+                return false;
+            }
+
+            ShowTooltipForSlot(container, slotIndex, pointerPanelPosition);
             return true;
         }
 
@@ -749,6 +894,20 @@ namespace Reloader.UI.Toolkit.TabInventory
             return slotIndex >= 0 && slotIndex < source.Length ? source[slotIndex] : null;
         }
 
+        private int ResolveSlotQuantity(string container, int slotIndex)
+        {
+            var normalized = NormalizeContainer(container);
+            var source = normalized == "backpack" ? _backpackSlotQuantities : _beltSlotQuantities;
+            return slotIndex >= 0 && slotIndex < source.Length ? source[slotIndex] : 0;
+        }
+
+        private int ResolveSlotMaxStack(string container, int slotIndex)
+        {
+            var normalized = NormalizeContainer(container);
+            var source = normalized == "backpack" ? _backpackSlotMaxStacks : _beltSlotMaxStacks;
+            return slotIndex >= 0 && slotIndex < source.Length ? source[slotIndex] : 1;
+        }
+
         private static string NormalizeContainer(string container)
         {
             return container == "backpack" ? "backpack" : "belt";
@@ -786,6 +945,36 @@ namespace Reloader.UI.Toolkit.TabInventory
             _dragTargetContainer = null;
             _dragTargetIndex = -1;
             ApplyDragVisuals();
+            HideTooltip();
+        }
+
+        private void ShowTooltipForSlot(string container, int slotIndex, Vector2 panelPosition)
+        {
+            var itemId = ResolveSlotItemId(container, slotIndex);
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                HideTooltip();
+                return;
+            }
+
+            var quantity = ResolveSlotQuantity(container, slotIndex);
+            var maxStack = ResolveSlotMaxStack(container, slotIndex);
+            if (_tooltipPresenter != null)
+            {
+                _tooltipPresenter.TryShowItem(itemId, quantity, maxStack, panelPosition);
+            }
+        }
+
+        private void HideTooltip()
+        {
+            if (_tooltipPresenter != null)
+            {
+                _tooltipPresenter.Hide();
+            }
+            if (_tooltip != null)
+            {
+                _tooltip.style.display = DisplayStyle.None;
+            }
         }
 
         private void ReleaseCapturedPointer()

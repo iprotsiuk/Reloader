@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using Reloader.Core.UI;
+using Reloader.UI;
+using Reloader.UI.Toolkit;
 using Reloader.UI.Toolkit.Contracts;
 using Reloader.UI.Toolkit.TabInventory;
 using UnityEngine;
@@ -13,8 +15,14 @@ namespace Reloader.UI.Toolkit.ChestInventory
         private VisualElement _panel;
         private VisualElement _chestGrid;
         private VisualElement _playerGrid;
+        private VisualElement _tooltip;
+        private Label _tooltipTitle;
+        private Label _tooltipSpecs;
+        private InventoryItemTooltipPresenter _tooltipPresenter;
         private readonly List<VisualElement> _chestSlots = new List<VisualElement>();
         private readonly List<VisualElement> _playerSlots = new List<VisualElement>();
+        private string[] _chestItemIds = Array.Empty<string>();
+        private string[] _playerItemIds = Array.Empty<string>();
 
         private string _dragSourceContainer;
         private int _dragSourceIndex = -1;
@@ -29,9 +37,28 @@ namespace Reloader.UI.Toolkit.ChestInventory
             _panel = root?.Q<VisualElement>("chest__panel");
             _chestGrid = root?.Q<VisualElement>("chest__left-grid");
             _playerGrid = root?.Q<VisualElement>("chest__right-grid");
+            _tooltip = root?.Q<VisualElement>("chest__tooltip");
+            _tooltipTitle = root?.Q<Label>("chest__tooltip-title");
+            _tooltipSpecs = root?.Q<Label>("chest__tooltip-specs");
+            if (_tooltip == null && _panel != null)
+            {
+                _tooltip = new VisualElement { name = "chest__tooltip" };
+                _tooltip.AddToClassList("chest__tooltip");
+                _tooltip.pickingMode = PickingMode.Ignore;
+                _tooltipTitle = new Label { name = "chest__tooltip-title" };
+                _tooltipTitle.AddToClassList("chest__tooltip-title");
+                _tooltipSpecs = new Label { name = "chest__tooltip-specs" };
+                _tooltipSpecs.AddToClassList("chest__tooltip-specs");
+                _tooltip.Add(_tooltipTitle);
+                _tooltip.Add(_tooltipSpecs);
+                _panel.Add(_tooltip);
+            }
+            _tooltipPresenter = InventoryItemTooltipPresenter.CreateOrBind(root, _panel ?? root, "chest");
 
             BuildSlots(_chestGrid, _chestSlots, chestSlotCount, "container");
             BuildSlots(_playerGrid, _playerSlots, playerSlotCount, "backpack");
+            _chestItemIds = new string[Math.Max(0, chestSlotCount)];
+            _playerItemIds = new string[Math.Max(0, playerSlotCount)];
         }
 
         public void Render(UiRenderState state)
@@ -48,6 +75,10 @@ namespace Reloader.UI.Toolkit.ChestInventory
 
             ApplySlots(_chestSlots, chestState.ChestSlots, "container");
             ApplySlots(_playerSlots, chestState.PlayerSlots, "backpack");
+            if (!chestState.IsOpen)
+            {
+                HideTooltip();
+            }
         }
 
         private void BuildSlots(VisualElement grid, List<VisualElement> target, int count, string container)
@@ -68,7 +99,9 @@ namespace Reloader.UI.Toolkit.ChestInventory
                 var capturedIndex = i;
                 var capturedContainer = container;
                 slot.RegisterCallback<PointerDownEvent>(_ => TryPointerDown(capturedContainer, capturedIndex));
-                slot.RegisterCallback<PointerEnterEvent>(_ => TryPointerEnter(capturedContainer, capturedIndex));
+                slot.RegisterCallback<PointerEnterEvent>(evt => TryPointerEnter(capturedContainer, capturedIndex, evt.position));
+                slot.RegisterCallback<PointerMoveEvent>(evt => TryPointerMove(capturedContainer, capturedIndex, evt.position));
+                slot.RegisterCallback<PointerLeaveEvent>(_ => HideTooltip());
                 slot.RegisterCallback<PointerUpEvent>(_ => TryPointerUp(capturedContainer, capturedIndex));
 
                 grid.Add(slot);
@@ -90,7 +123,7 @@ namespace Reloader.UI.Toolkit.ChestInventory
                 var occupied = i < limit && states[i].Occupied;
                 var itemId = occupied ? states[i].ItemId : string.Empty;
                 slot.EnableInClassList("is-occupied", occupied);
-                slot.tooltip = itemId;
+                SetItemId(container, i, itemId);
 
                 ApplySlotVisual(slot, itemId, occupied, container, i);
 
@@ -137,29 +170,13 @@ namespace Reloader.UI.Toolkit.ChestInventory
             }
 
             var label = content.Q<Label>(labelName);
-            if (label == null)
+            if (label != null)
             {
-                label = new Label
-                {
-                    name = labelName,
-                    pickingMode = PickingMode.Ignore
-                };
-                label.AddToClassList("chest__slot-label");
-                content.Add(label);
+                label.RemoveFromHierarchy();
             }
 
-            if (ItemIconCatalogProvider.Catalog != null && ItemIconCatalogProvider.Catalog.TryGetIcon(itemId, out var iconSprite))
-            {
-                icon.style.backgroundImage = new StyleBackground(iconSprite);
-                icon.EnableInClassList("is-missing", false);
-            }
-            else
-            {
-                icon.style.backgroundImage = new StyleBackground((Texture2D)null);
-                icon.EnableInClassList("is-missing", true);
-            }
-
-            label.text = ItemDisplayNameFormatter.Format(itemId);
+            icon.style.backgroundImage = ItemIconResolver.ResolveBackground(itemId);
+            icon.EnableInClassList("is-missing", false);
         }
 
         private void TryPointerDown(string container, int index)
@@ -177,8 +194,10 @@ namespace Reloader.UI.Toolkit.ChestInventory
             _dragTargetIndex = -1;
         }
 
-        private void TryPointerEnter(string container, int index)
+        private void TryPointerEnter(string container, int index, Vector2 panelPosition)
         {
+            ShowTooltip(container, index, panelPosition);
+
             if (string.IsNullOrWhiteSpace(_dragSourceItemId))
             {
                 return;
@@ -186,6 +205,11 @@ namespace Reloader.UI.Toolkit.ChestInventory
 
             _dragTargetContainer = container;
             _dragTargetIndex = index;
+        }
+
+        private void TryPointerMove(string container, int index, Vector2 panelPosition)
+        {
+            ShowTooltip(container, index, panelPosition);
         }
 
         private void TryPointerUp(string container, int index)
@@ -212,15 +236,28 @@ namespace Reloader.UI.Toolkit.ChestInventory
 
         private string ResolveItemId(string container, int index)
         {
-            List<VisualElement> slots = string.Equals(container, "container", StringComparison.Ordinal)
-                ? _chestSlots
-                : _playerSlots;
-            if (index < 0 || index >= slots.Count)
+            var source = string.Equals(container, "container", StringComparison.Ordinal)
+                ? _chestItemIds
+                : _playerItemIds;
+            if (index < 0 || index >= source.Length)
             {
                 return null;
             }
 
-            return slots[index]?.tooltip;
+            return source[index];
+        }
+
+        private void SetItemId(string container, int index, string itemId)
+        {
+            var source = string.Equals(container, "container", StringComparison.Ordinal)
+                ? _chestItemIds
+                : _playerItemIds;
+            if (index < 0 || index >= source.Length)
+            {
+                return;
+            }
+
+            source[index] = itemId ?? string.Empty;
         }
 
         private bool IsDragSource(string container, int index)
@@ -240,6 +277,34 @@ namespace Reloader.UI.Toolkit.ChestInventory
             _dragSourceItemId = null;
             _dragTargetContainer = null;
             _dragTargetIndex = -1;
+            HideTooltip();
+        }
+
+        private void ShowTooltip(string container, int index, Vector2 panelPosition)
+        {
+            var itemId = ResolveItemId(container, index);
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                HideTooltip();
+                return;
+            }
+
+            if (_tooltipPresenter != null)
+            {
+                _tooltipPresenter.TryShowItem(itemId, 1, 1, panelPosition);
+            }
+        }
+
+        private void HideTooltip()
+        {
+            if (_tooltipPresenter != null)
+            {
+                _tooltipPresenter.Hide();
+            }
+            if (_tooltip != null)
+            {
+                _tooltip.style.display = DisplayStyle.None;
+            }
         }
     }
 }

@@ -36,7 +36,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(chestIcon, Is.Not.Null);
             Assert.That(chestIcon?.ClassListContains("is-missing"), Is.False);
             Assert.That(backpackIcon, Is.Not.Null);
-            Assert.That(backpackIcon?.ClassListContains("is-missing"), Is.True);
+            Assert.That(backpackIcon?.ClassListContains("is-missing"), Is.False);
 
             Object.DestroyImmediate(sprite);
             Object.DestroyImmediate(texture);

@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using Reloader.UI;
+using Reloader.UI.Toolkit;
 using Reloader.UI.Toolkit.Contracts;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Reloader.UI.Toolkit.Trade
@@ -12,6 +15,9 @@ namespace Reloader.UI.Toolkit.Trade
         private VisualElement _sellPanel;
         private VisualElement _orderPanel;
         private Label _cartTotal;
+        private VisualElement _tooltip;
+        private Label _tooltipTitle;
+        private Label _tooltipSpecs;
         private Button _tabBuyButton;
         private Button _tabSellButton;
         private Button _confirmBuyButton;
@@ -20,6 +26,13 @@ namespace Reloader.UI.Toolkit.Trade
         private readonly List<VisualElement> _sellSlots = new();
         private readonly Dictionary<VisualElement, EventCallback<ClickEvent>> _buySlotCallbacks = new();
         private readonly Dictionary<VisualElement, EventCallback<ClickEvent>> _sellSlotCallbacks = new();
+        private readonly Dictionary<VisualElement, EventCallback<PointerEnterEvent>> _buySlotEnterCallbacks = new();
+        private readonly Dictionary<VisualElement, EventCallback<PointerMoveEvent>> _buySlotMoveCallbacks = new();
+        private readonly Dictionary<VisualElement, EventCallback<PointerLeaveEvent>> _buySlotLeaveCallbacks = new();
+        private readonly Dictionary<VisualElement, EventCallback<PointerEnterEvent>> _sellSlotEnterCallbacks = new();
+        private readonly Dictionary<VisualElement, EventCallback<PointerMoveEvent>> _sellSlotMoveCallbacks = new();
+        private readonly Dictionary<VisualElement, EventCallback<PointerLeaveEvent>> _sellSlotLeaveCallbacks = new();
+        private InventoryItemTooltipPresenter _tooltipPresenter;
 
         public event Action<UiIntent> IntentRaised;
 
@@ -31,6 +44,23 @@ namespace Reloader.UI.Toolkit.Trade
             _sellPanel = root?.Q<VisualElement>("trade__sell-panel");
             _orderPanel = root?.Q<VisualElement>("trade__order-panel");
             _cartTotal = root?.Q<Label>("trade__cart-total");
+            _tooltip = root?.Q<VisualElement>("trade__tooltip");
+            _tooltipTitle = root?.Q<Label>("trade__tooltip-title");
+            _tooltipSpecs = root?.Q<Label>("trade__tooltip-specs");
+            if (_tooltip == null && _root != null)
+            {
+                _tooltip = new VisualElement { name = "trade__tooltip" };
+                _tooltip.AddToClassList("trade__tooltip");
+                _tooltip.pickingMode = PickingMode.Ignore;
+                _tooltipTitle = new Label { name = "trade__tooltip-title" };
+                _tooltipTitle.AddToClassList("trade__tooltip-title");
+                _tooltipSpecs = new Label { name = "trade__tooltip-specs" };
+                _tooltipSpecs.AddToClassList("trade__tooltip-specs");
+                _tooltip.Add(_tooltipTitle);
+                _tooltip.Add(_tooltipSpecs);
+                _root.Add(_tooltip);
+            }
+            _tooltipPresenter = InventoryItemTooltipPresenter.CreateOrBind(root, root, "trade");
             _tabBuyButton = root?.Q<Button>("trade__tab-buy");
             _tabSellButton = root?.Q<Button>("trade__tab-sell");
             _confirmBuyButton = root?.Q<Button>("trade__confirm-buy");
@@ -74,6 +104,10 @@ namespace Reloader.UI.Toolkit.Trade
             SetTabActive(_tabSellButton, tradeState.ActiveTab == TradeUiTab.Sell);
             RenderBuySlots(tradeState.BuySlots);
             RenderSellSlots(tradeState.SellSlots);
+            if (!_root.visible)
+            {
+                HideTooltip();
+            }
         }
 
         public bool TryRaiseConfirmBuyIntent()
@@ -187,6 +221,16 @@ namespace Reloader.UI.Toolkit.Trade
 
                 _buySlotCallbacks[slot] = callback;
                 slot.RegisterCallback<ClickEvent>(callback);
+
+                EventCallback<PointerEnterEvent> enter = evt => ShowTooltipForSlot(slot, evt.position);
+                EventCallback<PointerMoveEvent> move = evt => ShowTooltipForSlot(slot, evt.position);
+                EventCallback<PointerLeaveEvent> leave = _ => HideTooltip();
+                _buySlotEnterCallbacks[slot] = enter;
+                _buySlotMoveCallbacks[slot] = move;
+                _buySlotLeaveCallbacks[slot] = leave;
+                slot.RegisterCallback<PointerEnterEvent>(enter);
+                slot.RegisterCallback<PointerMoveEvent>(move);
+                slot.RegisterCallback<PointerLeaveEvent>(leave);
             }
         }
 
@@ -196,8 +240,23 @@ namespace Reloader.UI.Toolkit.Trade
             {
                 kv.Key.UnregisterCallback<ClickEvent>(kv.Value);
             }
+            foreach (var kv in _buySlotEnterCallbacks)
+            {
+                kv.Key.UnregisterCallback<PointerEnterEvent>(kv.Value);
+            }
+            foreach (var kv in _buySlotMoveCallbacks)
+            {
+                kv.Key.UnregisterCallback<PointerMoveEvent>(kv.Value);
+            }
+            foreach (var kv in _buySlotLeaveCallbacks)
+            {
+                kv.Key.UnregisterCallback<PointerLeaveEvent>(kv.Value);
+            }
 
             _buySlotCallbacks.Clear();
+            _buySlotEnterCallbacks.Clear();
+            _buySlotMoveCallbacks.Clear();
+            _buySlotLeaveCallbacks.Clear();
             _buySlots.Clear();
         }
 
@@ -226,6 +285,16 @@ namespace Reloader.UI.Toolkit.Trade
 
                 _sellSlotCallbacks[slot] = callback;
                 slot.RegisterCallback<ClickEvent>(callback);
+
+                EventCallback<PointerEnterEvent> enter = evt => ShowTooltipForSlot(slot, evt.position);
+                EventCallback<PointerMoveEvent> move = evt => ShowTooltipForSlot(slot, evt.position);
+                EventCallback<PointerLeaveEvent> leave = _ => HideTooltip();
+                _sellSlotEnterCallbacks[slot] = enter;
+                _sellSlotMoveCallbacks[slot] = move;
+                _sellSlotLeaveCallbacks[slot] = leave;
+                slot.RegisterCallback<PointerEnterEvent>(enter);
+                slot.RegisterCallback<PointerMoveEvent>(move);
+                slot.RegisterCallback<PointerLeaveEvent>(leave);
             }
         }
 
@@ -235,8 +304,23 @@ namespace Reloader.UI.Toolkit.Trade
             {
                 kv.Key.UnregisterCallback<ClickEvent>(kv.Value);
             }
+            foreach (var kv in _sellSlotEnterCallbacks)
+            {
+                kv.Key.UnregisterCallback<PointerEnterEvent>(kv.Value);
+            }
+            foreach (var kv in _sellSlotMoveCallbacks)
+            {
+                kv.Key.UnregisterCallback<PointerMoveEvent>(kv.Value);
+            }
+            foreach (var kv in _sellSlotLeaveCallbacks)
+            {
+                kv.Key.UnregisterCallback<PointerLeaveEvent>(kv.Value);
+            }
 
             _sellSlotCallbacks.Clear();
+            _sellSlotEnterCallbacks.Clear();
+            _sellSlotMoveCallbacks.Clear();
+            _sellSlotLeaveCallbacks.Clear();
             _sellSlots.Clear();
         }
 
@@ -262,38 +346,39 @@ namespace Reloader.UI.Toolkit.Trade
                 var slot = slotElements[i];
                 var vm = slots != null && i < slots.Count ? slots[i] : null;
                 slot.userData = vm?.ItemId;
+                slot.tooltip = vm?.DisplayText ?? string.Empty;
                 slot.SetEnabled(vm?.IsEnabled ?? false);
                 slot.EnableInClassList("is-active", vm?.IsSelected ?? false);
                 slot.EnableInClassList("trade__cell--empty", vm == null);
-
-                var label = EnsureSlotLabel(slot);
-                if (label != null)
-                {
-                    label.text = vm?.DisplayText ?? string.Empty;
-                }
+                EnsureSlotVisual(slot, vm);
             }
         }
 
-        private static Label EnsureSlotLabel(VisualElement slot)
+        private static void EnsureSlotVisual(VisualElement slot, TradeUiSlotViewModel vm)
         {
             if (slot == null)
             {
-                return null;
+                return;
             }
 
-            var label = slot.Q<Label>("trade__cell-label");
-            if (label != null)
+            var icon = slot.Q<VisualElement>("trade__cell-icon");
+            if (vm == null || string.IsNullOrWhiteSpace(vm.ItemId))
             {
-                return label;
+                icon?.RemoveFromHierarchy();
+                var staleLabel = slot.Q<Label>("trade__cell-label");
+                staleLabel?.RemoveFromHierarchy();
+                return;
             }
 
-            label = new Label
+            if (icon == null)
             {
-                name = "trade__cell-label"
-            };
-            label.AddToClassList("trade__cell-label");
-            slot.Add(label);
-            return label;
+                icon = new VisualElement { name = "trade__cell-icon", pickingMode = PickingMode.Ignore };
+                icon.AddToClassList("trade__cell-icon");
+                slot.Add(icon);
+            }
+
+            icon.style.backgroundImage = ItemIconResolver.ResolveBackground(vm.ItemId);
+            icon.EnableInClassList("is-missing", false);
         }
 
         public void SetVisible(bool isVisible)
@@ -304,6 +389,43 @@ namespace Reloader.UI.Toolkit.Trade
             }
 
             _root.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!isVisible)
+            {
+                HideTooltip();
+            }
+        }
+
+        private void ShowTooltipForSlot(VisualElement slot, Vector2 panelPosition)
+        {
+            if (slot == null)
+            {
+                return;
+            }
+
+            var itemId = slot.userData as string;
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                HideTooltip();
+                return;
+            }
+
+            var displayText = slot.tooltip;
+            if (_tooltipPresenter != null)
+            {
+                _tooltipPresenter.TryShowItem(itemId, 1, 1, panelPosition, displayText);
+            }
+        }
+
+        private void HideTooltip()
+        {
+            if (_tooltipPresenter != null)
+            {
+                _tooltipPresenter.Hide();
+            }
+            if (_tooltip != null)
+            {
+                _tooltip.style.display = DisplayStyle.None;
+            }
         }
     }
 }

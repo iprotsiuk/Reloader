@@ -16,6 +16,8 @@
     width: 92%;
     max-width: 980px;
     min-width: 320px;
+    height: 88%;
+    min-height: 460px;
     max-height: 92%;
     flex-shrink: 1;
 }
@@ -32,11 +34,12 @@
 
 .inventory__tabbar {
     flex-direction: row;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     justify-content: flex-start;
     margin-top: 6px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 .inventory__tab {
@@ -56,6 +59,8 @@
     flex-direction: column;
     min-height: 0;
     flex-grow: 1;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .inventory__section--hidden {
@@ -67,6 +72,8 @@
     flex-wrap: wrap;
     min-height: 0;
     flex-grow: 1;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .inventory__grid-area {
@@ -74,6 +81,8 @@
     flex-grow: 1;
     min-width: 0;
     min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .inventory__details {
@@ -244,15 +253,41 @@
 }
 
 .inventory__tooltip {
+    position: absolute;
+    max-width: 260px;
+    min-width: 140px;
+    flex-direction: column;
+    gap: 2px;
     padding-top: 4px;
     padding-right: 6px;
     padding-bottom: 4px;
     padding-left: 6px;
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: rgba(8, 10, 14, 0.8);
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
     border-bottom-right-radius: 6px;
     border-bottom-left-radius: 6px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(222, 231, 244, 0.25);
+    border-right-color: rgba(222, 231, 244, 0.25);
+    border-bottom-color: rgba(222, 231, 244, 0.25);
+    border-left-color: rgba(222, 231, 244, 0.25);
+    z-index: 99;
+}
+
+#inventory__tooltip-title {
+    color: rgba(242, 247, 255, 0.98);
+    font-size: 11px;
+    -unity-font-style: bold;
+}
+
+.inventory__tooltip-specs {
+    color: rgba(209, 220, 235, 0.95);
+    font-size: 10px;
+    white-space: normal;
 }
 
 .inventory__mock-line {
@@ -269,6 +304,9 @@
     padding-right: 2px;
     padding-bottom: 6px;
     padding-left: 2px;
+    min-height: 0;
+    flex-grow: 1;
+    overflow-y: auto;
 }
 
 .inventory__device-notes {
@@ -306,8 +344,17 @@
 
 .inventory__device-button-row {
     flex-direction: row;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    width: 100%;
     gap: 6px;
+    min-height: 0;
+}
+
+.inventory__device-button-row > .inventory__tab {
+    margin-right: 0;
+    margin-bottom: 0;
+    min-width: 0;
+    flex-shrink: 1;
 }
 
 .inventory__tab:disabled {
