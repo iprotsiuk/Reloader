@@ -33,6 +33,12 @@ namespace Reloader.PlayerDevice.World
         private int _lastIngestFrame = -1;
         private int _lastIngestTargetInstanceId;
         private Vector3 _lastIngestImpactPoint;
+        private bool _lastIngestHasSourcePoint;
+        private Vector3 _lastIngestSourcePoint;
+
+        private const float DuplicateImpactPointEpsilonSqr = 0.0009f; // 3cm
+        private const float DuplicateSourcePointEpsilonSqr = 0.0009f; // 3cm
+        private const int DuplicateImpactFrameWindow = 1;
 
         public PlayerDeviceController(
             PlayerDeviceRuntimeState runtimeState,
@@ -89,12 +95,12 @@ namespace Reloader.PlayerDevice.World
 
             var localImpact = targetComponent.transform.InverseTransformPoint(impactPoint);
             var impactDistanceMeters = ResolveImpactDistanceMeters(impactPoint, sourcePoint, targetMetrics);
-            if (IsDuplicateImpactEvent(targetComponent, impactPoint))
+            if (IsDuplicateImpactEvent(targetComponent, impactPoint, sourcePoint))
             {
                 return;
             }
 
-            RememberImpactEvent(targetComponent, impactPoint);
+            RememberImpactEvent(targetComponent, impactPoint, sourcePoint);
             _runtimeState.AddShotSampleToActiveGroup(new DeviceShotSample(
                 new Vector2(localImpact.x, localImpact.y),
                 impactDistanceMeters));
@@ -313,14 +319,9 @@ namespace Reloader.PlayerDevice.World
             return targetMetrics != null ? Mathf.Max(0f, targetMetrics.DistanceMeters) : 0f;
         }
 
-        private bool IsDuplicateImpactEvent(Component targetComponent, Vector3 impactPoint)
+        private bool IsDuplicateImpactEvent(Component targetComponent, Vector3 impactPoint, Vector3? sourcePoint)
         {
             if (targetComponent == null)
-            {
-                return false;
-            }
-
-            if (_lastIngestFrame != Time.frameCount)
             {
                 return false;
             }
@@ -330,14 +331,38 @@ namespace Reloader.PlayerDevice.World
                 return false;
             }
 
-            return (impactPoint - _lastIngestImpactPoint).sqrMagnitude <= 1e-6f;
+            var frameDelta = Time.frameCount - _lastIngestFrame;
+            if (frameDelta < 0 || frameDelta > DuplicateImpactFrameWindow)
+            {
+                return false;
+            }
+
+            var isNearSameImpactPoint = (impactPoint - _lastIngestImpactPoint).sqrMagnitude <= DuplicateImpactPointEpsilonSqr;
+            if (!isNearSameImpactPoint)
+            {
+                return false;
+            }
+
+            if (frameDelta == 0)
+            {
+                return true;
+            }
+
+            if (!sourcePoint.HasValue || !_lastIngestHasSourcePoint)
+            {
+                return false;
+            }
+
+            return (sourcePoint.Value - _lastIngestSourcePoint).sqrMagnitude <= DuplicateSourcePointEpsilonSqr;
         }
 
-        private void RememberImpactEvent(Component targetComponent, Vector3 impactPoint)
+        private void RememberImpactEvent(Component targetComponent, Vector3 impactPoint, Vector3? sourcePoint)
         {
             _lastIngestFrame = Time.frameCount;
             _lastIngestTargetInstanceId = targetComponent.gameObject.GetInstanceID();
             _lastIngestImpactPoint = impactPoint;
+            _lastIngestHasSourcePoint = sourcePoint.HasValue;
+            _lastIngestSourcePoint = sourcePoint ?? default;
         }
 
         private static bool TryResolveMarkerClearable(string targetId, out IDeviceTargetMarkerClearable clearable)
