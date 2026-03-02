@@ -8,6 +8,11 @@ generatedImages/
 node_modules/
 unity-*.log
 unity-*.xml
+_quarantine_*/
+*.stale-*
+.plastic.hardreset-*
+Library_stale_*
+Temp.stale-*
 
 # Only version Unity source folders from Reloader/
 Reloader/*
