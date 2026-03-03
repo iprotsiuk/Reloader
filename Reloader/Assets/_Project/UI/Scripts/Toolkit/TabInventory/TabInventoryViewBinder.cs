@@ -254,6 +254,11 @@ namespace Reloader.UI.Toolkit.TabInventory
             _deviceUninstallHooksButton?.SetEnabled(inventoryState.DeviceCanUninstallHooks);
             RenderDeviceSessionHistory(inventoryState.DeviceSessionHistoryEntries);
 
+            if (!inventoryState.TooltipVisible && _isHoverTooltipActive)
+            {
+                HideTooltip();
+            }
+
             if (_tooltip != null && (!_isHoverTooltipActive || inventoryState.TooltipVisible))
             {
                 _tooltip.style.display = inventoryState.TooltipVisible ? DisplayStyle.Flex : DisplayStyle.None;
