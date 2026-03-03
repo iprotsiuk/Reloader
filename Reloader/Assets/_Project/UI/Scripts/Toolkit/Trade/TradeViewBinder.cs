@@ -428,12 +428,36 @@ namespace Reloader.UI.Toolkit.Trade
                 return;
             }
 
+            if (!IsElementEffectivelyVisibleAndEnabled(_hoveredTooltipSlot))
+            {
+                HideTooltip();
+                return;
+            }
+
             var currentItemId = _hoveredTooltipSlot.userData as string;
             if (string.IsNullOrWhiteSpace(currentItemId)
                 || !string.Equals(currentItemId, _hoveredTooltipItemId, StringComparison.Ordinal))
             {
                 HideTooltip();
             }
+        }
+
+        private static bool IsElementEffectivelyVisibleAndEnabled(VisualElement element)
+        {
+            if (element == null || element.panel == null || !element.enabledInHierarchy)
+            {
+                return false;
+            }
+
+            for (var current = element; current != null; current = current.parent)
+            {
+                if (!current.visible || current.resolvedStyle.display == DisplayStyle.None)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private void HideTooltip()

@@ -68,6 +68,9 @@ namespace Reloader.UI.Toolkit.TabInventory
         private string _hoverTooltipContainer;
         private int _hoverTooltipSlotIndex = -1;
         private string _hoverTooltipItemId;
+        private int _hoverTooltipQuantity;
+        private int _hoverTooltipMaxStack = 1;
+        private Vector2 _hoverTooltipPanelPosition;
 
         private const float MinSlotSize = 16.5f;
         private const float MaxSlotSize = 42f;
@@ -973,8 +976,11 @@ namespace Reloader.UI.Toolkit.TabInventory
             _hoverTooltipContainer = NormalizeContainer(container);
             _hoverTooltipSlotIndex = slotIndex;
             _hoverTooltipItemId = itemId;
+            _hoverTooltipPanelPosition = panelPosition;
             var quantity = ResolveSlotQuantity(container, slotIndex);
             var maxStack = ResolveSlotMaxStack(container, slotIndex);
+            _hoverTooltipQuantity = quantity;
+            _hoverTooltipMaxStack = maxStack;
             if (_tooltipPresenter != null)
             {
                 _isHoverTooltipActive = _tooltipPresenter.TryShowItem(itemId, quantity, maxStack, panelPosition);
@@ -999,7 +1005,35 @@ namespace Reloader.UI.Toolkit.TabInventory
                 || !string.Equals(currentItemId, _hoverTooltipItemId, StringComparison.Ordinal))
             {
                 HideTooltip();
+                return;
             }
+
+            var currentQuantity = ResolveSlotQuantity(_hoverTooltipContainer, _hoverTooltipSlotIndex);
+            var currentMaxStack = ResolveSlotMaxStack(_hoverTooltipContainer, _hoverTooltipSlotIndex);
+            if (currentQuantity == _hoverTooltipQuantity && currentMaxStack == _hoverTooltipMaxStack)
+            {
+                return;
+            }
+
+            if (_tooltipPresenter == null)
+            {
+                HideTooltip();
+                return;
+            }
+
+            _isHoverTooltipActive = _tooltipPresenter.TryShowItem(
+                currentItemId,
+                currentQuantity,
+                currentMaxStack,
+                _hoverTooltipPanelPosition);
+            if (!_isHoverTooltipActive)
+            {
+                HideTooltip();
+                return;
+            }
+
+            _hoverTooltipQuantity = currentQuantity;
+            _hoverTooltipMaxStack = currentMaxStack;
         }
 
         private void HideTooltip()
@@ -1008,6 +1042,9 @@ namespace Reloader.UI.Toolkit.TabInventory
             _hoverTooltipContainer = null;
             _hoverTooltipSlotIndex = -1;
             _hoverTooltipItemId = null;
+            _hoverTooltipQuantity = 0;
+            _hoverTooltipMaxStack = 1;
+            _hoverTooltipPanelPosition = Vector2.zero;
             if (_tooltipPresenter != null)
             {
                 _tooltipPresenter.Hide();
