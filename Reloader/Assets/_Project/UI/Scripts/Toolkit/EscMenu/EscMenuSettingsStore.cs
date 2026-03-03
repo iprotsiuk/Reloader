@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Audio;
 
 namespace Reloader.UI.Toolkit.EscMenu
 {
@@ -249,6 +250,9 @@ namespace Reloader.UI.Toolkit.EscMenu
     {
         private static float s_musicVolume = 1f;
         private static float s_soundsVolume = 1f;
+        private static readonly Dictionary<int, float> s_baseSourceVolumes = new Dictionary<int, float>();
+        private static readonly string[] s_musicTokens = { "music", "bgm", "theme", "ambientmusic", "soundtrack" };
+        private static readonly string[] s_soundsTokens = { "sfx", "sound", "sounds", "ui", "voice", "vo", "fx", "effect", "effects", "gun", "shot" };
 
         public IReadOnlyList<EscMenuResolutionOption> GetAvailableResolutionOptions()
         {
@@ -319,11 +323,140 @@ namespace Reloader.UI.Toolkit.EscMenu
         public void ApplyMusicVolume(float volume)
         {
             s_musicVolume = Mathf.Clamp01(volume);
+            ApplyRuntimeSourceVolumes();
         }
 
         public void ApplySoundsVolume(float volume)
         {
             s_soundsVolume = Mathf.Clamp01(volume);
+            ApplyRuntimeSourceVolumes();
+        }
+
+        private static void ApplyRuntimeSourceVolumes()
+        {
+            var sources = FindAllAudioSources();
+            if (sources == null || sources.Length == 0)
+            {
+                return;
+            }
+
+            var activeIds = new HashSet<int>();
+            for (var i = 0; i < sources.Length; i++)
+            {
+                var source = sources[i];
+                if (source == null)
+                {
+                    continue;
+                }
+
+                var sourceId = source.GetInstanceID();
+                activeIds.Add(sourceId);
+
+                var channel = ResolveChannel(source);
+                var channelVolume = channel == AudioChannel.Music ? s_musicVolume : s_soundsVolume;
+
+                if (!s_baseSourceVolumes.TryGetValue(sourceId, out var baseVolume))
+                {
+                    baseVolume = Mathf.Clamp01(source.volume);
+                    s_baseSourceVolumes[sourceId] = baseVolume;
+                }
+
+                source.volume = Mathf.Clamp01(baseVolume * channelVolume);
+            }
+
+            if (s_baseSourceVolumes.Count == 0)
+            {
+                return;
+            }
+
+            var staleIds = new List<int>();
+            foreach (var key in s_baseSourceVolumes.Keys)
+            {
+                if (!activeIds.Contains(key))
+                {
+                    staleIds.Add(key);
+                }
+            }
+
+            for (var i = 0; i < staleIds.Count; i++)
+            {
+                s_baseSourceVolumes.Remove(staleIds[i]);
+            }
+        }
+
+        private static AudioSource[] FindAllAudioSources()
+        {
+#if UNITY_2023_1_OR_NEWER || UNITY_6000_0_OR_NEWER
+            return UnityEngine.Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+            return UnityEngine.Object.FindObjectsOfType<AudioSource>(true);
+#endif
+        }
+
+        private static AudioChannel ResolveChannel(AudioSource source)
+        {
+            if (source == null)
+            {
+                return AudioChannel.Sounds;
+            }
+
+            var mixerName = GetMixerGroupName(source.outputAudioMixerGroup);
+            if (ContainsAnyToken(mixerName, s_musicTokens))
+            {
+                return AudioChannel.Music;
+            }
+
+            if (ContainsAnyToken(mixerName, s_soundsTokens))
+            {
+                return AudioChannel.Sounds;
+            }
+
+            if (ContainsAnyToken(source.name, s_musicTokens) || ContainsAnyToken(source.gameObject.name, s_musicTokens))
+            {
+                return AudioChannel.Music;
+            }
+
+            if (ContainsAnyToken(source.name, s_soundsTokens) || ContainsAnyToken(source.gameObject.name, s_soundsTokens))
+            {
+                return AudioChannel.Sounds;
+            }
+
+            return AudioChannel.Sounds;
+        }
+
+        private static bool ContainsAnyToken(string value, string[] tokens)
+        {
+            if (string.IsNullOrWhiteSpace(value) || tokens == null || tokens.Length == 0)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < tokens.Length; i++)
+            {
+                var token = tokens[i];
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    continue;
+                }
+
+                if (value.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string GetMixerGroupName(AudioMixerGroup mixerGroup)
+        {
+            return mixerGroup != null ? mixerGroup.name : string.Empty;
+        }
+
+        private enum AudioChannel
+        {
+            Music,
+            Sounds
         }
     }
 }

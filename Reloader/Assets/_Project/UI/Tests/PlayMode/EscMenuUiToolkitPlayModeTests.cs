@@ -244,6 +244,62 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(runtime.LastResolutionIndex, Is.EqualTo(1));
         }
 
+        [Test]
+        public void UnityEscMenuSettingsRuntime_ApplyMusicVolume_UpdatesLiveMusicChannelAudioSource()
+        {
+            var runtime = new UnityEscMenuSettingsRuntime();
+            runtime.ApplyMusicVolume(1f);
+            runtime.ApplySoundsVolume(1f);
+
+            var musicRoot = new GameObject("music-channel-root");
+            var soundsRoot = new GameObject("sounds-channel-root");
+            var musicSource = musicRoot.AddComponent<AudioSource>();
+            var soundsSource = soundsRoot.AddComponent<AudioSource>();
+            musicSource.volume = 0.91f;
+            soundsSource.volume = 0.73f;
+
+            try
+            {
+                runtime.ApplyMusicVolume(0.25f);
+
+                Assert.That(musicSource.volume, Is.EqualTo(0.25f).Within(0.001f));
+                Assert.That(soundsSource.volume, Is.EqualTo(0.73f).Within(0.001f));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(musicRoot);
+                UnityEngine.Object.DestroyImmediate(soundsRoot);
+            }
+        }
+
+        [Test]
+        public void UnityEscMenuSettingsRuntime_ApplySoundsVolume_UpdatesLiveSoundsChannelAudioSource()
+        {
+            var runtime = new UnityEscMenuSettingsRuntime();
+            runtime.ApplyMusicVolume(1f);
+            runtime.ApplySoundsVolume(1f);
+
+            var musicRoot = new GameObject("music-channel-root");
+            var soundsRoot = new GameObject("sounds-channel-root");
+            var musicSource = musicRoot.AddComponent<AudioSource>();
+            var soundsSource = soundsRoot.AddComponent<AudioSource>();
+            musicSource.volume = 0.66f;
+            soundsSource.volume = 0.88f;
+
+            try
+            {
+                runtime.ApplySoundsVolume(0.4f);
+
+                Assert.That(musicSource.volume, Is.EqualTo(0.66f).Within(0.001f));
+                Assert.That(soundsSource.volume, Is.EqualTo(0.4f).Within(0.001f));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(musicRoot);
+                UnityEngine.Object.DestroyImmediate(soundsRoot);
+            }
+        }
+
         private static VisualElement BuildEscRoot()
         {
             var root = new VisualElement { name = "esc-menu__root" };
