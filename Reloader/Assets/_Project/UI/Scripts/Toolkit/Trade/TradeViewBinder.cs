@@ -35,6 +35,8 @@ namespace Reloader.UI.Toolkit.Trade
         private InventoryItemTooltipPresenter _tooltipPresenter;
         private VisualElement _hoveredTooltipSlot;
         private string _hoveredTooltipItemId;
+        private string _hoveredTooltipDisplayText;
+        private Vector2 _hoveredTooltipPanelPosition;
 
         public event Action<UiIntent> IntentRaised;
 
@@ -415,6 +417,8 @@ namespace Reloader.UI.Toolkit.Trade
             _hoveredTooltipSlot = slot;
             _hoveredTooltipItemId = itemId;
             var displayText = slot.tooltip;
+            _hoveredTooltipDisplayText = displayText;
+            _hoveredTooltipPanelPosition = panelPosition;
             if (_tooltipPresenter != null)
             {
                 _tooltipPresenter.TryShowItem(itemId, 1, 1, panelPosition, displayText);
@@ -439,6 +443,14 @@ namespace Reloader.UI.Toolkit.Trade
                 || !string.Equals(currentItemId, _hoveredTooltipItemId, StringComparison.Ordinal))
             {
                 HideTooltip();
+                return;
+            }
+
+            var currentDisplayText = _hoveredTooltipSlot.tooltip;
+            if (!string.Equals(currentDisplayText, _hoveredTooltipDisplayText, StringComparison.Ordinal))
+            {
+                _hoveredTooltipDisplayText = currentDisplayText;
+                _tooltipPresenter?.TryShowItem(currentItemId, 1, 1, _hoveredTooltipPanelPosition, currentDisplayText);
             }
         }
 
@@ -464,6 +476,7 @@ namespace Reloader.UI.Toolkit.Trade
         {
             _hoveredTooltipSlot = null;
             _hoveredTooltipItemId = null;
+            _hoveredTooltipDisplayText = null;
             if (_tooltipPresenter != null)
             {
                 _tooltipPresenter.Hide();

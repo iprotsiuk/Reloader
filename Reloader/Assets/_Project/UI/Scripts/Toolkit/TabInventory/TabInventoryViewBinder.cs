@@ -274,7 +274,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 _tooltip.style.display = inventoryState.TooltipVisible ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
-            if (_tooltipTitle != null)
+            if (_tooltipTitle != null && (!_isHoverTooltipActive || inventoryState.TooltipVisible))
             {
                 _tooltipTitle.text = inventoryState.TooltipTitle;
             }
