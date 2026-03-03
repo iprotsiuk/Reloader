@@ -533,7 +533,10 @@ namespace Reloader.UI.Toolkit.EscMenu
                 var baseVolume = ResolveBaseVolume(sourceId, source, channelVolume);
                 var appliedVolume = Mathf.Clamp01(baseVolume * channelVolume);
                 source.volume = appliedVolume;
-                s_sourceVolumeStates[sourceId] = new SourceVolumeState(baseVolume, channelVolume);
+                s_sourceVolumeStates[sourceId] = new SourceVolumeState(
+                    unscaledBaseVolume: baseVolume,
+                    lastAppliedChannelVolume: channelVolume,
+                    lastAppliedOutputVolume: appliedVolume);
             }
 
             if (s_sourceVolumeStates.Count == 0)
@@ -560,6 +563,16 @@ namespace Reloader.UI.Toolkit.EscMenu
         {
             if (!s_sourceVolumeStates.TryGetValue(sourceId, out var state))
             {
+                return Mathf.Clamp01(source.volume);
+            }
+
+            if (Mathf.Abs(source.volume - state.LastAppliedOutputVolume) > 0.0001f)
+            {
+                if (state.LastAppliedChannelVolume > 0.0001f)
+                {
+                    return Mathf.Clamp01(source.volume / state.LastAppliedChannelVolume);
+                }
+
                 return Mathf.Clamp01(source.volume);
             }
 
@@ -688,14 +701,16 @@ namespace Reloader.UI.Toolkit.EscMenu
 
         private readonly struct SourceVolumeState
         {
-            public SourceVolumeState(float unscaledBaseVolume, float lastAppliedChannelVolume)
+            public SourceVolumeState(float unscaledBaseVolume, float lastAppliedChannelVolume, float lastAppliedOutputVolume)
             {
                 UnscaledBaseVolume = Mathf.Clamp01(unscaledBaseVolume);
                 LastAppliedChannelVolume = Mathf.Clamp01(lastAppliedChannelVolume);
+                LastAppliedOutputVolume = Mathf.Clamp01(lastAppliedOutputVolume);
             }
 
             public float UnscaledBaseVolume { get; }
             public float LastAppliedChannelVolume { get; }
+            public float LastAppliedOutputVolume { get; }
         }
 
         private sealed class AudioScalingUpdater : MonoBehaviour

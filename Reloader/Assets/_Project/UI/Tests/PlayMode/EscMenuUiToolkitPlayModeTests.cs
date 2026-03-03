@@ -142,8 +142,8 @@ namespace Reloader.UI.Tests.PlayMode
         [Test]
         public void EscMenuController_Tick_EscapeClose_DoesNotLetCursorLockProcessSamePress()
         {
-            var previousLockState = Cursor.lockState;
-            var previousVisible = Cursor.visible;
+            var previousLockState = UnityEngine.Cursor.lockState;
+            var previousVisible = UnityEngine.Cursor.visible;
             var escMenuGo = new GameObject("esc-menu-controller-close-guard");
             var cursorGo = new GameObject("cursor-lock-controller-close-guard");
             var root = BuildEscRoot();
@@ -179,8 +179,8 @@ namespace Reloader.UI.Tests.PlayMode
 
             UnityEngine.Object.DestroyImmediate(cursorGo);
             UnityEngine.Object.DestroyImmediate(escMenuGo);
-            Cursor.lockState = previousLockState;
-            Cursor.visible = previousVisible;
+            UnityEngine.Cursor.lockState = previousLockState;
+            UnityEngine.Cursor.visible = previousVisible;
         }
 
         [Test]
@@ -424,6 +424,38 @@ namespace Reloader.UI.Tests.PlayMode
                 yield return new WaitForSecondsRealtime(0.35f);
 
                 Assert.That(soundsSource.volume, Is.EqualTo(0.2f).Within(0.02f));
+            }
+            finally
+            {
+                runtime.ApplyMusicVolume(1f);
+                runtime.ApplySoundsVolume(1f);
+                UnityEngine.Object.DestroyImmediate(soundsRoot);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator UnityEscMenuSettingsRuntime_MutedChannel_PreservesRuntimeVolumeChangesForUnmute()
+        {
+            var runtime = new UnityEscMenuSettingsRuntime();
+            runtime.ApplyMusicVolume(1f);
+            runtime.ApplySoundsVolume(0f);
+
+            var soundsRoot = new GameObject("muted-sounds-channel-root");
+            var soundsSource = soundsRoot.AddComponent<AudioSource>();
+            soundsSource.volume = 1f;
+
+            try
+            {
+                yield return new WaitForSecondsRealtime(0.35f);
+                Assert.That(soundsSource.volume, Is.EqualTo(0f).Within(0.02f));
+
+                soundsSource.volume = 0.3f;
+                yield return new WaitForSecondsRealtime(0.35f);
+                Assert.That(soundsSource.volume, Is.EqualTo(0f).Within(0.02f));
+
+                runtime.ApplySoundsVolume(1f);
+                yield return null;
+                Assert.That(soundsSource.volume, Is.EqualTo(0.3f).Within(0.02f));
             }
             finally
             {
