@@ -224,6 +224,26 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(snapshot.SoundsVolume, Is.EqualTo(0.55f).Within(0.001f));
         }
 
+        [Test]
+        public void EscMenuSettingsStore_NoStoredResolution_UsesCurrentResolutionIndex()
+        {
+            var runtime = new TestSettingsRuntime
+            {
+                CurrentResolutionIndex = 1
+            };
+            var prefsKeyPrefix = "esc-menu-tests-current-resolution";
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".resolution");
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".fov");
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".global");
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".music");
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".sounds");
+
+            var store = new EscMenuSettingsStore(runtime, prefsKeyPrefix);
+            var snapshot = store.CreateSnapshot();
+            Assert.That(snapshot.SelectedResolutionIndex, Is.EqualTo(1));
+            Assert.That(runtime.LastResolutionIndex, Is.EqualTo(1));
+        }
+
         private static VisualElement BuildEscRoot()
         {
             var root = new VisualElement { name = "esc-menu__root" };
@@ -317,12 +337,14 @@ namespace Reloader.UI.Tests.PlayMode
             };
 
             public int LastResolutionIndex { get; private set; }
+            public int CurrentResolutionIndex { get; set; }
             public float Fov { get; private set; } = 70f;
             public float GlobalVolume { get; private set; } = 1f;
             public float MusicVolume { get; private set; } = 1f;
             public float SoundsVolume { get; private set; } = 1f;
 
             public IReadOnlyList<EscMenuResolutionOption> GetAvailableResolutionOptions() => _resolutions;
+            public EscMenuResolutionOption GetCurrentResolutionOption() => _resolutions[Mathf.Clamp(CurrentResolutionIndex, 0, _resolutions.Length - 1)];
             public float GetCurrentFov() => Fov;
             public float GetCurrentGlobalVolume() => GlobalVolume;
             public float GetCurrentMusicVolume() => MusicVolume;

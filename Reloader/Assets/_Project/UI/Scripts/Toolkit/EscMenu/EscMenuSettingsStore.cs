@@ -26,6 +26,7 @@ namespace Reloader.UI.Toolkit.EscMenu
     public interface IEscMenuSettingsRuntime
     {
         IReadOnlyList<EscMenuResolutionOption> GetAvailableResolutionOptions();
+        EscMenuResolutionOption GetCurrentResolutionOption();
         float GetCurrentFov();
         float GetCurrentGlobalVolume();
         float GetCurrentMusicVolume();
@@ -181,10 +182,17 @@ namespace Reloader.UI.Toolkit.EscMenu
 
         private void LoadPersistedValues()
         {
-            _selectedResolutionIndex = Mathf.Clamp(
-                PlayerPrefs.GetInt(_resolutionKey, 0),
-                0,
-                Mathf.Max(0, _resolutionOptions.Count - 1));
+            if (PlayerPrefs.HasKey(_resolutionKey))
+            {
+                _selectedResolutionIndex = Mathf.Clamp(
+                    PlayerPrefs.GetInt(_resolutionKey, 0),
+                    0,
+                    Mathf.Max(0, _resolutionOptions.Count - 1));
+            }
+            else
+            {
+                _selectedResolutionIndex = ResolveCurrentResolutionIndex();
+            }
 
             _fov = Mathf.Clamp(PlayerPrefs.GetFloat(_fovKey, _runtime.GetCurrentFov()), MinFov, MaxFov);
             _globalVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(_globalVolumeKey, _runtime.GetCurrentGlobalVolume()));
@@ -203,6 +211,37 @@ namespace Reloader.UI.Toolkit.EscMenu
             _runtime.ApplyGlobalVolume(_globalVolume);
             _runtime.ApplyMusicVolume(_musicVolume);
             _runtime.ApplySoundsVolume(_soundsVolume);
+        }
+
+        private int ResolveCurrentResolutionIndex()
+        {
+            if (_resolutionOptions.Count == 0)
+            {
+                return 0;
+            }
+
+            var current = _runtime.GetCurrentResolutionOption();
+            for (var i = 0; i < _resolutionOptions.Count; i++)
+            {
+                var option = _resolutionOptions[i];
+                if (option.Width == current.Width
+                    && option.Height == current.Height
+                    && option.RefreshRate == current.RefreshRate)
+                {
+                    return i;
+                }
+            }
+
+            for (var i = 0; i < _resolutionOptions.Count; i++)
+            {
+                var option = _resolutionOptions[i];
+                if (option.Width == current.Width && option.Height == current.Height)
+                {
+                    return i;
+                }
+            }
+
+            return 0;
         }
     }
 
@@ -237,6 +276,13 @@ namespace Reloader.UI.Toolkit.EscMenu
             return Camera.main != null ? Camera.main.fieldOfView : 70f;
         }
 
+        public EscMenuResolutionOption GetCurrentResolutionOption()
+        {
+            var current = Screen.currentResolution;
+            var refreshRate = Mathf.RoundToInt((float)current.refreshRateRatio.value);
+            return new EscMenuResolutionOption(current.width, current.height, refreshRate);
+        }
+
         public float GetCurrentGlobalVolume()
         {
             return AudioListener.volume;
@@ -254,7 +300,7 @@ namespace Reloader.UI.Toolkit.EscMenu
 
         public void ApplyResolution(EscMenuResolutionOption option, int selectedIndex)
         {
-            Screen.SetResolution(option.Width, option.Height, Screen.fullScreenMode);
+            Screen.SetResolution(option.Width, option.Height, Screen.fullScreenMode, option.RefreshRate);
         }
 
         public void ApplyFov(float fov)
