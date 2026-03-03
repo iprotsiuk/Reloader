@@ -1,4 +1,5 @@
 using UnityEngine;
+using Reloader.Weapons.PackRuntime;
 
 namespace Reloader.Weapons.Data
 {
@@ -55,6 +56,38 @@ namespace Reloader.Weapons.Data
         }
     }
 
+    [System.Serializable]
+    public struct WeaponPackPresentationConfiguration
+    {
+        [SerializeField] private bool _useCustomConfig;
+        [SerializeField] private PackWeaponPresentationConfig _customConfig;
+
+        public bool UseCustomConfig => _useCustomConfig;
+        public PackWeaponPresentationConfig CustomConfig => _customConfig;
+
+        public PackWeaponPresentationConfig ResolveOrDefault(PackWeaponPresentationConfig fallback)
+        {
+            var safeFallback = fallback ?? new PackWeaponPresentationConfig();
+            if (!_useCustomConfig)
+            {
+                return safeFallback;
+            }
+
+            return _customConfig ?? safeFallback;
+        }
+
+        public static WeaponPackPresentationConfiguration Create(
+            bool useCustomConfig,
+            PackWeaponPresentationConfig customConfig = null)
+        {
+            return new WeaponPackPresentationConfiguration
+            {
+                _useCustomConfig = useCustomConfig,
+                _customConfig = customConfig
+            };
+        }
+    }
+
     [CreateAssetMenu(fileName = "WeaponDefinition", menuName = "Reloader/Weapons/Weapon Definition")]
     public sealed class WeaponDefinition : ScriptableObject
     {
@@ -72,6 +105,7 @@ namespace Reloader.Weapons.Data
         [SerializeField] private int _startingReserveCount = 24;
         [SerializeField] private bool _startingChamberLoaded = true;
         [SerializeField] private WeaponScopeConfiguration _scopeConfiguration;
+        [SerializeField] private WeaponPackPresentationConfiguration _packPresentationConfiguration;
 
         public string ItemId => _itemId;
         public string DisplayName => _displayName;
@@ -87,6 +121,12 @@ namespace Reloader.Weapons.Data
         public int StartingReserveCount => Mathf.Max(0, _startingReserveCount);
         public bool StartingChamberLoaded => _startingChamberLoaded;
         public WeaponScopeConfiguration ScopeConfiguration => _scopeConfiguration;
+        public WeaponPackPresentationConfiguration PackPresentationConfiguration => _packPresentationConfiguration;
+
+        public PackWeaponPresentationConfig ResolvePackPresentationConfig(PackWeaponPresentationConfig fallbackConfig)
+        {
+            return _packPresentationConfiguration.ResolveOrDefault(fallbackConfig);
+        }
 
         public void SetRuntimeValuesForTests(
             string itemId,
@@ -101,7 +141,8 @@ namespace Reloader.Weapons.Data
             int startingReserveCount = 24,
             bool startingChamberLoaded = true,
             float adsSpeedMultiplier = 0.7f,
-            WeaponScopeConfiguration? scopeConfiguration = null)
+            WeaponScopeConfiguration? scopeConfiguration = null,
+            WeaponPackPresentationConfiguration? packPresentationConfiguration = null)
         {
             _itemId = itemId;
             _displayName = displayName;
@@ -117,6 +158,7 @@ namespace Reloader.Weapons.Data
             _startingReserveCount = startingReserveCount;
             _startingChamberLoaded = startingChamberLoaded;
             _scopeConfiguration = scopeConfiguration ?? default;
+            _packPresentationConfiguration = packPresentationConfiguration ?? default;
         }
     }
 }

@@ -384,7 +384,7 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
-            var presentationConfig = _packPresentationConfig ?? new PackWeaponPresentationConfig();
+            var presentationConfig = packDriver.PresentationConfig ?? ResolvePackPresentationConfig(_equippedItemId, _equippedDefinition);
             if (!packDriver.TryStartReload(Time.time, presentationConfig.ReloadDurationSeconds))
             {
                 return;
@@ -658,15 +658,18 @@ namespace Reloader.Weapons.Controllers
                 return null;
             }
 
+            var definition = itemId == _equippedItemId ? _equippedDefinition : ResolveWeaponDefinition(itemId);
+            var presentationConfig = ResolvePackPresentationConfig(itemId, definition);
+
             if (_packDriversByItemId.TryGetValue(itemId, out var cachedDriver))
             {
                 cachedDriver.SetAnimator(_packAnimator);
-                cachedDriver.SetPresentationConfig(_packPresentationConfig);
+                cachedDriver.SetPresentationConfig(presentationConfig);
                 return cachedDriver;
             }
 
             var runtimeState = new PackWeaponRuntimeState(itemId);
-            var driver = new PackWeaponRuntimeDriver(runtimeState, _packPresentationConfig, _packAnimator);
+            var driver = new PackWeaponRuntimeDriver(runtimeState, presentationConfig, _packAnimator);
             driver.AimStateChanged += isAiming =>
             {
                 _isAiming = !string.IsNullOrWhiteSpace(_equippedItemId) && _equippedItemId == itemId && isAiming;
@@ -674,6 +677,20 @@ namespace Reloader.Weapons.Controllers
             };
             _packDriversByItemId[itemId] = driver;
             return driver;
+        }
+
+        private PackWeaponPresentationConfig ResolvePackPresentationConfig(string itemId, WeaponDefinition definition = null)
+        {
+            var fallbackConfig = _packPresentationConfig ?? new PackWeaponPresentationConfig();
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return fallbackConfig;
+            }
+
+            var resolvedDefinition = definition ?? ResolveWeaponDefinition(itemId);
+            return resolvedDefinition != null
+                ? resolvedDefinition.ResolvePackPresentationConfig(fallbackConfig)
+                : fallbackConfig;
         }
 
         private Camera ResolveAdsCamera()

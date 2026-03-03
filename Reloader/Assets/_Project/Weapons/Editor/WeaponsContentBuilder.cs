@@ -14,8 +14,9 @@ namespace Reloader.Weapons.Editor
         private const string PrefabsDir = WeaponsRoot + "/Prefabs";
         private const string DataDir = WeaponsRoot + "/Data/Weapons";
         private const string SourceRiflePrefabPath = "Assets/ThirdParty/Polygon-Mega Weapone Kit/Prefabs/SM_Army_Sniper_Rifle.prefab";
+        private const string SourcePistolPrefabPath = "Assets/ThirdParty/Polygon-Mega Weapone Kit/Prefabs/SM_Army_Pistol.prefab";
 
-        [MenuItem("Reloader/Weapons/Build Starter Rifle Content")]
+        [MenuItem("Reloader/Weapons/Build Starter Weapon Content")]
         public static void BuildStarterRifleContent()
         {
             EnsureDir(PrefabsDir);
@@ -28,14 +29,53 @@ namespace Reloader.Weapons.Editor
                 return;
             }
 
+            var sourcePistolPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SourcePistolPrefabPath);
+            if (sourcePistolPrefab == null)
+            {
+                Debug.LogWarning($"Source pistol prefab not found, building rifle-only starter content: {SourcePistolPrefabPath}");
+            }
+
             BuildProjectilePrefab();
-            BuildRifleViewPrefab(sourceRiflePrefab);
-            BuildRiflePickupPrefab(sourceRiflePrefab);
-            BuildRifleDefinitionAsset();
+            BuildViewPrefab("RifleView", sourceRiflePrefab, new Vector3(0f, 0.1f, 1f));
+            BuildPickupPrefab("RiflePickup", "weapon-rifle-01", sourceRiflePrefab, new Vector3(1.2f, 0.4f, 0.3f));
+            BuildDefinitionAsset(
+                "StarterRifle.asset",
+                "weapon-rifle-01",
+                "Starter Rifle",
+                5,
+                0.2f,
+                120f,
+                1f,
+                35f,
+                220f,
+                0,
+                0,
+                false);
+
+            if (sourcePistolPrefab != null)
+            {
+                BuildViewPrefab("PistolView", sourcePistolPrefab, new Vector3(0f, 0.08f, 0.55f));
+                BuildPickupPrefab("PistolPickup", "weapon-pistol-01", sourcePistolPrefab, new Vector3(0.7f, 0.3f, 0.25f));
+                BuildDefinitionAsset(
+                    "StarterPistol.asset",
+                    "weapon-pistol-01",
+                    "Starter Pistol",
+                    12,
+                    0.13f,
+                    95f,
+                    1f,
+                    22f,
+                    90f,
+                    1,
+                    24,
+                    true);
+            }
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("Starter rifle content built under Assets/_Project/Weapons.");
+            Debug.Log(sourcePistolPrefab != null
+                ? "Starter rifle + pistol content built under Assets/_Project/Weapons."
+                : "Starter rifle content built under Assets/_Project/Weapons (pistol skipped).");
         }
 
         private static void BuildProjectilePrefab()
@@ -49,43 +89,55 @@ namespace Reloader.Weapons.Editor
             Object.DestroyImmediate(go);
         }
 
-        private static void BuildRifleViewPrefab(GameObject sourceRiflePrefab)
+        private static void BuildViewPrefab(string prefabName, GameObject sourceWeaponPrefab, Vector3 muzzleLocalPosition)
         {
-            var root = new GameObject("RifleView");
-            var model = (GameObject)PrefabUtility.InstantiatePrefab(sourceRiflePrefab);
+            var root = new GameObject(prefabName);
+            var model = (GameObject)PrefabUtility.InstantiatePrefab(sourceWeaponPrefab);
             model.name = "Model";
             model.transform.SetParent(root.transform, false);
 
             var muzzle = new GameObject("Muzzle");
             muzzle.transform.SetParent(root.transform, false);
-            muzzle.transform.localPosition = new Vector3(0f, 0.1f, 1f);
+            muzzle.transform.localPosition = muzzleLocalPosition;
 
-            var prefabPath = PrefabsDir + "/RifleView.prefab";
+            var prefabPath = PrefabsDir + "/" + prefabName + ".prefab";
             PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             Object.DestroyImmediate(root);
         }
 
-        private static void BuildRiflePickupPrefab(GameObject sourceRiflePrefab)
+        private static void BuildPickupPrefab(string prefabName, string itemId, GameObject sourceWeaponPrefab, Vector3 colliderSize)
         {
-            var root = new GameObject("RiflePickup");
+            var root = new GameObject(prefabName);
             var pickup = root.AddComponent<WeaponPickupTarget>();
-            pickup.SetItemIdForTests("weapon-rifle-01");
+            pickup.SetItemIdForTests(itemId);
 
             var collider = root.AddComponent<BoxCollider>();
-            collider.size = new Vector3(1.2f, 0.4f, 0.3f);
+            collider.size = colliderSize;
 
-            var model = (GameObject)PrefabUtility.InstantiatePrefab(sourceRiflePrefab);
+            var model = (GameObject)PrefabUtility.InstantiatePrefab(sourceWeaponPrefab);
             model.name = "Visual";
             model.transform.SetParent(root.transform, false);
 
-            var prefabPath = PrefabsDir + "/RiflePickup.prefab";
+            var prefabPath = PrefabsDir + "/" + prefabName + ".prefab";
             PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             Object.DestroyImmediate(root);
         }
 
-        private static void BuildRifleDefinitionAsset()
+        private static void BuildDefinitionAsset(
+            string fileName,
+            string itemId,
+            string displayName,
+            int magazineCapacity,
+            float fireIntervalSeconds,
+            float projectileSpeed,
+            float projectileGravityMultiplier,
+            float baseDamage,
+            float maxRangeMeters,
+            int startingMagazineCount,
+            int startingReserveCount,
+            bool startingChamberLoaded)
         {
-            var assetPath = DataDir + "/StarterRifle.asset";
+            var assetPath = DataDir + "/" + fileName;
             var definition = AssetDatabase.LoadAssetAtPath<WeaponDefinition>(assetPath);
             if (definition == null)
             {
@@ -94,17 +146,17 @@ namespace Reloader.Weapons.Editor
             }
 
             definition.SetRuntimeValuesForTests(
-                "weapon-rifle-01",
-                "Starter Rifle",
-                5,
-                0.2f,
-                120f,
-                1f,
-                35f,
-                220f,
-                0,
-                0,
-                false);
+                itemId,
+                displayName,
+                magazineCapacity,
+                fireIntervalSeconds,
+                projectileSpeed,
+                projectileGravityMultiplier,
+                baseDamage,
+                maxRangeMeters,
+                startingMagazineCount,
+                startingReserveCount,
+                startingChamberLoaded);
 
             EditorUtility.SetDirty(definition);
         }
