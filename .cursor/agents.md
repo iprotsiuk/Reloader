@@ -50,6 +50,10 @@ This file is the canonical local guidance entrypoint for agents working in this 
 - Follow `docs/design/core-architecture.md` as the shared contract before domain docs.
 - Keep changes data-driven and consistent with ScriptableObject + runtime-instance patterns.
 - Keep docs and skills synchronized when contracts or naming conventions change.
+- MCP endpoints (Codex runtime defaults):
+  - Unity MCP server is configured in `~/.codex/config.toml` under `[mcp_servers.unityMCP]`.
+  - Blender MCP server is configured in `~/.codex/config.toml` under `[mcp_servers.blender]` and is expected at `localhost:9876` by default.
+  - For Blender MCP smoke checks, call `get_polyhaven_status` or `get_scene_info`.
 - For cross-domain extension work, load `docs/design/extensible-development-contracts.md` in addition to domain docs.
 - Do not load generated Unity directories for context (`Reloader/Library/**`, `Reloader/Temp/**`, `Reloader/Logs/**`) unless a task explicitly targets build/runtime diagnostics.
 - For Unity discovery, start with code/docs filters (for example `rg --files -g '*.cs' -g '*.asmdef' -g '*.md' Reloader/Assets/_Project docs .cursor .agent`) before broad file scans.
