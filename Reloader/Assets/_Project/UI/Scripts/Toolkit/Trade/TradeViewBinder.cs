@@ -33,6 +33,8 @@ namespace Reloader.UI.Toolkit.Trade
         private readonly Dictionary<VisualElement, EventCallback<PointerMoveEvent>> _sellSlotMoveCallbacks = new();
         private readonly Dictionary<VisualElement, EventCallback<PointerLeaveEvent>> _sellSlotLeaveCallbacks = new();
         private InventoryItemTooltipPresenter _tooltipPresenter;
+        private VisualElement _hoveredTooltipSlot;
+        private string _hoveredTooltipItemId;
 
         public event Action<UiIntent> IntentRaised;
 
@@ -104,6 +106,7 @@ namespace Reloader.UI.Toolkit.Trade
             SetTabActive(_tabSellButton, tradeState.ActiveTab == TradeUiTab.Sell);
             RenderBuySlots(tradeState.BuySlots);
             RenderSellSlots(tradeState.SellSlots);
+            RevalidateHoveredTooltip();
             if (_root == null || !_root.visible)
             {
                 HideTooltip();
@@ -409,6 +412,8 @@ namespace Reloader.UI.Toolkit.Trade
                 return;
             }
 
+            _hoveredTooltipSlot = slot;
+            _hoveredTooltipItemId = itemId;
             var displayText = slot.tooltip;
             if (_tooltipPresenter != null)
             {
@@ -416,8 +421,25 @@ namespace Reloader.UI.Toolkit.Trade
             }
         }
 
+        private void RevalidateHoveredTooltip()
+        {
+            if (_hoveredTooltipSlot == null)
+            {
+                return;
+            }
+
+            var currentItemId = _hoveredTooltipSlot.userData as string;
+            if (string.IsNullOrWhiteSpace(currentItemId)
+                || !string.Equals(currentItemId, _hoveredTooltipItemId, StringComparison.Ordinal))
+            {
+                HideTooltip();
+            }
+        }
+
         private void HideTooltip()
         {
+            _hoveredTooltipSlot = null;
+            _hoveredTooltipItemId = null;
             if (_tooltipPresenter != null)
             {
                 _tooltipPresenter.Hide();

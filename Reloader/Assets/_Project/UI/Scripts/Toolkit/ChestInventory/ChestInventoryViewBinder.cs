@@ -29,6 +29,9 @@ namespace Reloader.UI.Toolkit.ChestInventory
         private string _dragSourceItemId;
         private string _dragTargetContainer;
         private int _dragTargetIndex = -1;
+        private string _hoverContainer;
+        private int _hoverIndex = -1;
+        private string _hoveredTooltipItemId;
 
         public event Action<UiIntent> IntentRaised;
 
@@ -78,7 +81,10 @@ namespace Reloader.UI.Toolkit.ChestInventory
             if (!chestState.IsOpen)
             {
                 HideTooltip();
+                return;
             }
+
+            RevalidateHoveredTooltip();
         }
 
         private void BuildSlots(VisualElement grid, List<VisualElement> target, int count, string container)
@@ -101,7 +107,7 @@ namespace Reloader.UI.Toolkit.ChestInventory
                 slot.RegisterCallback<PointerDownEvent>(_ => TryPointerDown(capturedContainer, capturedIndex));
                 slot.RegisterCallback<PointerEnterEvent>(evt => TryPointerEnter(capturedContainer, capturedIndex, evt.position));
                 slot.RegisterCallback<PointerMoveEvent>(evt => TryPointerMove(capturedContainer, capturedIndex, evt.position));
-                slot.RegisterCallback<PointerLeaveEvent>(_ => HideTooltip());
+                slot.RegisterCallback<PointerLeaveEvent>(_ => TryPointerLeave());
                 slot.RegisterCallback<PointerUpEvent>(_ => TryPointerUp(capturedContainer, capturedIndex));
 
                 grid.Add(slot);
@@ -196,6 +202,8 @@ namespace Reloader.UI.Toolkit.ChestInventory
 
         private void TryPointerEnter(string container, int index, Vector2 panelPosition)
         {
+            _hoverContainer = container;
+            _hoverIndex = index;
             ShowTooltip(container, index, panelPosition);
 
             if (string.IsNullOrWhiteSpace(_dragSourceItemId))
@@ -209,6 +217,8 @@ namespace Reloader.UI.Toolkit.ChestInventory
 
         private void TryPointerMove(string container, int index, Vector2 panelPosition)
         {
+            _hoverContainer = container;
+            _hoverIndex = index;
             ShowTooltip(container, index, panelPosition);
         }
 
@@ -232,6 +242,14 @@ namespace Reloader.UI.Toolkit.ChestInventory
                 : "inventory.drag.swap";
             IntentRaised?.Invoke(new UiIntent(key, payload));
             ClearDrag();
+        }
+
+        private void TryPointerLeave()
+        {
+            _hoverContainer = null;
+            _hoverIndex = -1;
+            _hoveredTooltipItemId = null;
+            HideTooltip();
         }
 
         private string ResolveItemId(string container, int index)
@@ -285,14 +303,37 @@ namespace Reloader.UI.Toolkit.ChestInventory
             var itemId = ResolveItemId(container, index);
             if (string.IsNullOrWhiteSpace(itemId))
             {
+                _hoveredTooltipItemId = null;
                 HideTooltip();
                 return;
             }
 
             if (_tooltipPresenter != null)
             {
-                _tooltipPresenter.TryShowItem(itemId, 1, 1, panelPosition);
+                _hoveredTooltipItemId = _tooltipPresenter.TryShowItem(itemId, 1, 1, panelPosition)
+                    ? itemId
+                    : null;
+                return;
             }
+
+            _hoveredTooltipItemId = null;
+        }
+
+        private void RevalidateHoveredTooltip()
+        {
+            if (string.IsNullOrWhiteSpace(_hoveredTooltipItemId))
+            {
+                return;
+            }
+
+            var currentItemId = ResolveItemId(_hoverContainer, _hoverIndex);
+            if (string.Equals(currentItemId, _hoveredTooltipItemId, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _hoveredTooltipItemId = null;
+            HideTooltip();
         }
 
         private void HideTooltip()
