@@ -43,10 +43,6 @@ namespace Reloader.UI.Toolkit.EscMenu
         {
             UnsubscribeFromRuntimeHubReconfigure();
             SetMenuOpen(false);
-            if (_viewBinder != null)
-            {
-                _viewBinder.IntentRaised -= HandleIntent;
-            }
         }
 
         private void Update()
@@ -73,17 +69,7 @@ namespace Reloader.UI.Toolkit.EscMenu
 
         public void SetViewBinder(EscMenuViewBinder viewBinder)
         {
-            if (_viewBinder != null)
-            {
-                _viewBinder.IntentRaised -= HandleIntent;
-            }
-
             _viewBinder = viewBinder;
-            if (_viewBinder != null)
-            {
-                _viewBinder.IntentRaised += HandleIntent;
-            }
-
             Refresh();
         }
 

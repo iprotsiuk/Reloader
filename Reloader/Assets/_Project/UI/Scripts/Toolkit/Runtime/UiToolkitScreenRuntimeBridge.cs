@@ -350,7 +350,7 @@ namespace Reloader.UI.Toolkit.Runtime
             viewBinder.Initialize(root);
 
             var controller = GetOrAddController<EscMenuController>(controllerName);
-            controller.Configure(RuntimeKernelBootstrapper.UiStateEvents);
+            controller.Configure();
             controller.SetViewBinder(viewBinder);
             return UiContractGuard.Bind(controller, viewBinder);
         }
