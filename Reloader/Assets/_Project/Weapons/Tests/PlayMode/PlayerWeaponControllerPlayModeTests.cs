@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Events;
@@ -238,7 +237,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
                 definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 120f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 120f, 0f, 20f, 10000f, 1, 0, true);
                 registry.SetDefinitionsForTests(new[] { definition });
 
                 target = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -359,7 +358,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator ScopedAiming_WithSmallScrollDelta_AppliesNoticeableZoomChange()
+        public IEnumerator Aiming_LerpsFieldOfViewToPackAdsFovAndBack()
         {
             var root = new GameObject("PlayerRoot");
             var input = root.AddComponent<TestInputSource>();
@@ -390,20 +389,31 @@ namespace Reloader.Weapons.Tests.PlayMode
                 WeaponScopeConfiguration.Create(true, 4f, 20f, 8f, "ebr-7c", 100, 25));
             registry.SetDefinitionsForTests(new[] { definition });
 
+            var adsCameraGo = new GameObject("AdsCamera");
+            var adsCamera = adsCameraGo.AddComponent<Camera>();
+            const float baseFieldOfView = 60f;
+            adsCamera.fieldOfView = baseFieldOfView;
             var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_adsCamera", adsCamera);
             yield return null;
 
+            const float expectedAdsFieldOfView = 45f;
             input.AimHeldValue = true;
-            input.ZoomQueued = 0.05f;
             yield return null;
+            yield return new WaitForSeconds(0.45f);
 
-            var scopeState = GetScopeState(controller, "weapon-rifle-01");
-            Assert.That(scopeState, Is.Not.Null);
-            Assert.That(scopeState.CurrentZoom, Is.GreaterThanOrEqualTo(8.1f));
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(expectedAdsFieldOfView).Within(0.6f));
+
+            input.AimHeldValue = false;
+            yield return null;
+            yield return new WaitForSeconds(0.45f);
+
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(baseFieldOfView).Within(0.6f));
 
             Object.Destroy(root);
             Object.Destroy(registryGo);
             Object.Destroy(definition);
+            Object.Destroy(adsCameraGo);
         }
 
         [UnityTest]
@@ -582,7 +592,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator ReloadCompletion_ConsumesAmmoAndRaisesInventoryChanged()
+        public IEnumerator ReloadCompletion_FromRuntimeAppliedLoadout_ConsumesAmmoAndRaisesEvents()
         {
             var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
             var runtimeEvents = new DefaultRuntimeEvents();
@@ -606,14 +616,41 @@ namespace Reloader.Weapons.Tests.PlayMode
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
-            var quantityBeforeReload = runtime.GetItemQuantity("ammo-factory-308-147-fmj");
-
             var inventoryChangedCount = 0;
+            var reloadEventCount = 0;
+            string reloadedItemId = null;
             runtimeEvents.OnInventoryChanged += OnInventoryChanged;
+            runtimeEvents.OnWeaponReloaded += OnWeaponReloaded;
             void OnInventoryChanged() => inventoryChangedCount++;
+            void OnWeaponReloaded(string itemId, int _, int __)
+            {
+                reloadEventCount++;
+                reloadedItemId = itemId;
+            }
 
             yield return null;
 
+            Assert.That(controller.ApplyRuntimeState("weapon-rifle-01", 0, 0, false), Is.True);
+            Assert.That(
+                controller.ApplyRuntimeBallistics(
+                    "weapon-rifle-01",
+                    null,
+                    new[]
+                    {
+                        new AmmoBallisticSnapshot(
+                            AmmoSourceType.Factory,
+                            2780f,
+                            55f,
+                            147f,
+                            0.398f,
+                            4.5f,
+                            "Factory .308 147gr FMJ",
+                            "runtime-pack-round",
+                            "ammo-factory-308-147-fmj")
+                    }),
+                Is.True);
+
+            var quantityBeforeReload = runtime.GetItemQuantity("ammo-factory-308-147-fmj");
             input.ReloadPressedThisFrame = true;
             yield return null;
             yield return new WaitForSeconds(0.36f);
@@ -623,8 +660,11 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(stateAfterReload.MagazineCount, Is.GreaterThan(0));
             Assert.That(runtime.GetItemQuantity("ammo-factory-308-147-fmj"), Is.LessThan(quantityBeforeReload));
             Assert.That(inventoryChangedCount, Is.EqualTo(1));
+            Assert.That(reloadEventCount, Is.EqualTo(1));
+            Assert.That(reloadedItemId, Is.EqualTo("weapon-rifle-01"));
 
             runtimeEvents.OnInventoryChanged -= OnInventoryChanged;
+            runtimeEvents.OnWeaponReloaded -= OnWeaponReloaded;
             RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
             Object.Destroy(root);
             Object.Destroy(registryGo);
@@ -1024,17 +1064,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
-        private static WeaponScopeRuntimeState GetScopeState(PlayerWeaponController controller, string itemId)
+        private static float MagnificationToFieldOfView(float referenceFieldOfView, float magnification)
         {
-            var field = typeof(PlayerWeaponController).GetField("_scopeStatesByItemId", BindingFlags.Instance | BindingFlags.NonPublic);
-            var statesByItemId = field?.GetValue(controller) as Dictionary<string, WeaponScopeRuntimeState>;
-            if (statesByItemId == null)
-            {
-                return null;
-            }
-
-            statesByItemId.TryGetValue(itemId, out var state);
-            return state;
+            var safeReferenceFov = Mathf.Clamp(referenceFieldOfView, 1f, 179f);
+            var safeMagnification = Mathf.Max(1f, magnification);
+            var referenceHalfAngle = safeReferenceFov * 0.5f * Mathf.Deg2Rad;
+            var zoomedHalfAngle = Mathf.Atan(Mathf.Tan(referenceHalfAngle) / safeMagnification);
+            return Mathf.Clamp(zoomedHalfAngle * 2f * Mathf.Rad2Deg, 5f, safeReferenceFov);
         }
 
         private static void SetControllerField(PlayerWeaponController controller, string fieldName, object value)
