@@ -424,11 +424,13 @@ namespace Reloader.Reloading.Tests.PlayMode
             public bool IsShopTradeMenuOpen => false;
             public bool IsWorkbenchMenuVisible { get; private set; }
             public bool IsTabInventoryVisible => false;
+            public bool IsEscMenuVisible => false;
             public bool IsAnyMenuOpen => IsWorkbenchMenuVisible;
             public int WorkbenchVisibilityRaiseCount { get; private set; }
 
             public event System.Action<bool> OnWorkbenchMenuVisibilityChanged;
             public event System.Action<bool> OnTabInventoryVisibilityChanged;
+            public event System.Action<bool> OnEscMenuVisibilityChanged;
 
             public void RaiseWorkbenchMenuVisibilityChanged(bool isVisible)
             {
@@ -440,6 +442,11 @@ namespace Reloader.Reloading.Tests.PlayMode
             public void RaiseTabInventoryVisibilityChanged(bool isVisible)
             {
                 OnTabInventoryVisibilityChanged?.Invoke(isVisible);
+            }
+
+            public void RaiseEscMenuVisibilityChanged(bool isVisible)
+            {
+                OnEscMenuVisibilityChanged?.Invoke(isVisible);
             }
         }
     }

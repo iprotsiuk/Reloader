@@ -5,6 +5,11 @@ using Reloader.Core.Runtime;
 
 namespace Reloader.Player
 {
+    public interface IPlayerCursorEscapeKeySource
+    {
+        bool WasEscapePressedThisFrame();
+    }
+
     public sealed class PlayerCursorLockController : MonoBehaviour
     {
         [SerializeField] private bool _lockOnStart;
@@ -16,6 +21,7 @@ namespace Reloader.Player
         private bool _isTradeMenuOpen;
         private bool _isWorkbenchMenuOpen;
         private bool _isTabInventoryOpen;
+        private bool _isEscMenuOpen;
         private bool _isStorageMenuOpen;
         private IUiStateEvents _uiStateEvents;
         private IUiStateEvents _subscribedUiStateEvents;
@@ -23,9 +29,16 @@ namespace Reloader.Player
         private IShopEvents _subscribedShopEvents;
         private bool _useRuntimeKernelUiStateEvents = true;
         private bool _useRuntimeKernelShopEvents = true;
+        private IPlayerCursorEscapeKeySource _escapeKeySource;
+        private static int _escapeConsumedFrame = -1;
 
         public static bool IsAnyMenuOpen { get; private set; }
         public bool IsCursorLockRequested { get; private set; }
+
+        private void Awake()
+        {
+            _escapeKeySource ??= new KeyboardCursorEscapeKeySource();
+        }
 
         private void Start()
         {
@@ -66,8 +79,24 @@ namespace Reloader.Player
             }
         }
 
+        public void SetEscapeKeySource(IPlayerCursorEscapeKeySource escapeKeySource)
+        {
+            _escapeKeySource = escapeKeySource ?? new KeyboardCursorEscapeKeySource();
+        }
+
+        public static void MarkEscapeConsumedThisFrame()
+        {
+            _escapeConsumedFrame = Time.frameCount;
+        }
+
+        public static bool WasEscapeConsumedThisFrame()
+        {
+            return _escapeConsumedFrame == Time.frameCount;
+        }
+
         private void Update()
         {
+            _escapeKeySource ??= new KeyboardCursorEscapeKeySource();
             var storageMenuOpen = IsStorageUiOpen();
             if (_isStorageMenuOpen != storageMenuOpen)
             {
@@ -86,7 +115,9 @@ namespace Reloader.Player
                 LockCursor();
             }
 
-            if (_unlockOnEscape && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            if (_unlockOnEscape
+                && _escapeKeySource.WasEscapePressedThisFrame()
+                && !WasEscapeConsumedThisFrame())
             {
                 UnlockCursor();
             }
@@ -138,6 +169,12 @@ namespace Reloader.Player
             ApplyCursorState();
         }
 
+        private void HandleEscMenuVisibilityChanged(bool isVisible)
+        {
+            _isEscMenuOpen = isVisible;
+            ApplyCursorState();
+        }
+
         private void HandleRuntimeEventsReconfigured()
         {
             if (!isActiveAndEnabled)
@@ -161,7 +198,7 @@ namespace Reloader.Player
 
         private void ApplyCursorState()
         {
-            IsAnyMenuOpen = _isTradeMenuOpen || _isWorkbenchMenuOpen || _isTabInventoryOpen || _isStorageMenuOpen;
+            IsAnyMenuOpen = _isTradeMenuOpen || _isWorkbenchMenuOpen || _isTabInventoryOpen || _isEscMenuOpen || _isStorageMenuOpen;
             if (IsAnyMenuOpen)
             {
                 Cursor.lockState = CursorLockMode.None;
@@ -194,12 +231,14 @@ namespace Reloader.Player
             {
                 _isWorkbenchMenuOpen = uiStateEvents.IsWorkbenchMenuVisible;
                 _isTabInventoryOpen = uiStateEvents.IsTabInventoryVisible;
+                _isEscMenuOpen = uiStateEvents.IsEscMenuVisible;
                 _isStorageMenuOpen = IsStorageUiOpen();
             }
             else if (_useRuntimeKernelUiStateEvents)
             {
                 _isWorkbenchMenuOpen = false;
                 _isTabInventoryOpen = false;
+                _isEscMenuOpen = false;
                 _isStorageMenuOpen = IsStorageUiOpen();
             }
         }
@@ -267,6 +306,7 @@ namespace Reloader.Player
             _subscribedUiStateEvents = uiStateEvents;
             _subscribedUiStateEvents.OnWorkbenchMenuVisibilityChanged += HandleWorkbenchMenuVisibilityChanged;
             _subscribedUiStateEvents.OnTabInventoryVisibilityChanged += HandleTabInventoryVisibilityChanged;
+            _subscribedUiStateEvents.OnEscMenuVisibilityChanged += HandleEscMenuVisibilityChanged;
         }
 
         private void UnsubscribeFromUiStateEvents()
@@ -278,6 +318,7 @@ namespace Reloader.Player
 
             _subscribedUiStateEvents.OnWorkbenchMenuVisibilityChanged -= HandleWorkbenchMenuVisibilityChanged;
             _subscribedUiStateEvents.OnTabInventoryVisibilityChanged -= HandleTabInventoryVisibilityChanged;
+            _subscribedUiStateEvents.OnEscMenuVisibilityChanged -= HandleEscMenuVisibilityChanged;
             _subscribedUiStateEvents = null;
         }
 
@@ -336,6 +377,14 @@ namespace Reloader.Player
                    && prop.PropertyType == typeof(bool)
                    && prop.GetValue(null) is bool isOpen
                    && isOpen;
+        }
+
+        private sealed class KeyboardCursorEscapeKeySource : IPlayerCursorEscapeKeySource
+        {
+            public bool WasEscapePressedThisFrame()
+            {
+                return Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame;
+            }
         }
     }
 }

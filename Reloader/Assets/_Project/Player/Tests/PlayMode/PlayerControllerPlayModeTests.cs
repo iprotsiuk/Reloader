@@ -169,6 +169,47 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerLookController_Tick_EscMenuOpen_DoesNotRotateCamera()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            GameObject root = null;
+
+            try
+            {
+                RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+                root = new GameObject("PlayerRoot");
+                var cameraPivot = new GameObject("CameraPivot");
+                cameraPivot.transform.SetParent(root.transform);
+
+                var input = root.AddComponent<TestInputSource>();
+                input.Look = new Vector2(12f, -8f);
+
+                var look = root.AddComponent<PlayerLookController>();
+                look.Configure(input, cameraPivot.transform);
+                look.LookSensitivity = Vector2.one;
+                look.Tick(1f);
+                var yawAfterFirstTick = root.transform.eulerAngles.y;
+
+                runtimeEvents.RaiseEscMenuVisibilityChanged(true);
+                look.Tick(1f);
+                var yawAfterMenuOpenTick = root.transform.eulerAngles.y;
+
+                Assert.That(yawAfterMenuOpenTick, Is.EqualTo(yawAfterFirstTick).Within(0.001f));
+            }
+            finally
+            {
+                runtimeEvents.RaiseEscMenuVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
+                if (root != null)
+                {
+                    Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void PlayerLookController_Tick_UsesInjectedUiStateEvents_InsteadOfRuntimeKernelUiStateEvents()
         {
             var originalHub = RuntimeKernelBootstrapper.Events;
@@ -504,6 +545,40 @@ namespace Reloader.Player.Tests.PlayMode
             finally
             {
                 runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(false);
+                RuntimeKernelBootstrapper.Events = originalHub;
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
+        }
+
+        [Test]
+        public void PlayerCursorLockController_EscMenuVisibility_UnlocksWhileOpen_AndRestoresLockOnClose()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeUiStateEvents = new DefaultRuntimeEvents();
+            try
+            {
+                RuntimeKernelBootstrapper.Events = runtimeUiStateEvents;
+                var go = new GameObject("CursorLockEscMenu");
+                var controller = go.AddComponent<PlayerCursorLockController>();
+
+                controller.LockCursor();
+                Assert.That(controller.IsCursorLockRequested, Is.True);
+
+                runtimeUiStateEvents.RaiseEscMenuVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+
+                runtimeUiStateEvents.RaiseEscMenuVisibilityChanged(false);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+                Assert.That(controller.IsCursorLockRequested, Is.True);
+
+                Object.DestroyImmediate(go);
+            }
+            finally
+            {
+                runtimeUiStateEvents.RaiseEscMenuVisibilityChanged(false);
                 RuntimeKernelBootstrapper.Events = originalHub;
                 Cursor.lockState = previousLockState;
                 Cursor.visible = previousVisible;
@@ -964,10 +1039,12 @@ namespace Reloader.Player.Tests.PlayMode
             public bool IsShopTradeMenuOpen { get; private set; }
             public bool IsWorkbenchMenuVisible { get; private set; }
             public bool IsTabInventoryVisible { get; private set; }
-            public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible;
+            public bool IsEscMenuVisible { get; private set; }
+            public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible || IsEscMenuVisible;
 
             public event System.Action<bool> OnWorkbenchMenuVisibilityChanged;
             public event System.Action<bool> OnTabInventoryVisibilityChanged;
+            public event System.Action<bool> OnEscMenuVisibilityChanged;
 
             public void RaiseWorkbenchMenuVisibilityChanged(bool isVisible)
             {
@@ -979,6 +1056,12 @@ namespace Reloader.Player.Tests.PlayMode
             {
                 IsTabInventoryVisible = isVisible;
                 OnTabInventoryVisibilityChanged?.Invoke(isVisible);
+            }
+
+            public void RaiseEscMenuVisibilityChanged(bool isVisible)
+            {
+                IsEscMenuVisible = isVisible;
+                OnEscMenuVisibilityChanged?.Invoke(isVisible);
             }
 
             public void SetShopTradeMenuOpen(bool isOpen)

@@ -8,6 +8,7 @@ namespace Reloader.UI.Tests.EditMode
         [TestCase("belt-hud")]
         [TestCase("ammo-hud")]
         [TestCase("tab-inventory")]
+        [TestCase("esc-menu")]
         [TestCase("trade-ui")]
         [TestCase("reloading-workbench")]
         public void CompositionConfig_DefaultsContainRequiredScreens(string screenId)
@@ -25,6 +26,10 @@ namespace Reloader.UI.Tests.EditMode
         [TestCase("inventory.drag.merge")]
         [TestCase("inventory.drag.swap")]
         [TestCase("inventory.drag.drop")]
+        [TestCase("esc.menu.resume")]
+        [TestCase("esc.menu.settings")]
+        [TestCase("esc.menu.keybindings")]
+        [TestCase("esc.menu.quit")]
         [TestCase("trade.confirm.buy")]
         [TestCase("trade.confirm.sell")]
         [TestCase("reloading.operation.select")]

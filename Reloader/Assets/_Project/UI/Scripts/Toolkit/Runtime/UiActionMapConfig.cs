@@ -40,6 +40,10 @@ namespace Reloader.UI.Toolkit.Runtime
             config.Set("inventory.drag.merge", "MergeStacks");
             config.Set("inventory.drag.swap", "SwapSlots");
             config.Set("inventory.drag.drop", "DropStack");
+            config.Set("esc.menu.resume", "ResumeGameplay");
+            config.Set("esc.menu.settings", "OpenEscSettings");
+            config.Set("esc.menu.keybindings", "OpenEscKeybindings");
+            config.Set("esc.menu.quit", "QuitToDesktop");
             config.Set("trade.confirm.buy", "ConfirmBuyOrder");
             config.Set("trade.confirm.sell", "ConfirmSellOrder");
             config.Set("reloading.operation.select", "SelectReloadingOperation");
