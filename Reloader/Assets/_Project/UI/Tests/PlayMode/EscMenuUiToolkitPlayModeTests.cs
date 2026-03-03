@@ -403,6 +403,36 @@ namespace Reloader.UI.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator UnityEscMenuSettingsRuntime_Rescan_DoesNotOverwriteRuntimeVolumeChanges()
+        {
+            var runtime = new UnityEscMenuSettingsRuntime();
+            runtime.ApplyMusicVolume(1f);
+            runtime.ApplySoundsVolume(0.5f);
+
+            var soundsRoot = new GameObject("rescan-sounds-channel-root");
+            var soundsSource = soundsRoot.AddComponent<AudioSource>();
+            soundsSource.volume = 1f;
+
+            try
+            {
+                yield return new WaitForSecondsRealtime(0.35f);
+                Assert.That(soundsSource.volume, Is.EqualTo(0.5f).Within(0.02f));
+
+                // Simulate runtime systems (fade/ducking) changing the source volume while channel scaling is active.
+                soundsSource.volume = 0.2f;
+                yield return new WaitForSecondsRealtime(0.35f);
+
+                Assert.That(soundsSource.volume, Is.EqualTo(0.2f).Within(0.02f));
+            }
+            finally
+            {
+                runtime.ApplyMusicVolume(1f);
+                runtime.ApplySoundsVolume(1f);
+                UnityEngine.Object.DestroyImmediate(soundsRoot);
+            }
+        }
+
         private static VisualElement BuildEscRoot()
         {
             var root = new VisualElement { name = "esc-menu__root" };

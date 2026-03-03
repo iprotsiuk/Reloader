@@ -423,7 +423,7 @@ namespace Reloader.UI.Toolkit.EscMenu
         private static float s_soundsVolume = 1f;
         private static float s_nextAudioRescanAtTime;
         private static AudioScalingUpdater s_audioScalingUpdater;
-        private static readonly Dictionary<int, float> s_baseSourceVolumes = new Dictionary<int, float>();
+        private static readonly Dictionary<int, SourceVolumeState> s_sourceVolumeStates = new Dictionary<int, SourceVolumeState>();
         private static readonly string[] s_musicTokens = { "music", "bgm", "theme", "ambientmusic", "soundtrack" };
         private static readonly string[] s_soundsTokens = { "sfx", "sound", "sounds", "ui", "voice", "vo", "fx", "effect", "effects", "gun", "shot" };
 
@@ -530,22 +530,19 @@ namespace Reloader.UI.Toolkit.EscMenu
                 var channel = ResolveChannel(source);
                 var channelVolume = channel == AudioChannel.Music ? s_musicVolume : s_soundsVolume;
 
-                if (!s_baseSourceVolumes.TryGetValue(sourceId, out var baseVolume))
-                {
-                    baseVolume = Mathf.Clamp01(source.volume);
-                    s_baseSourceVolumes[sourceId] = baseVolume;
-                }
-
-                source.volume = Mathf.Clamp01(baseVolume * channelVolume);
+                var baseVolume = ResolveBaseVolume(sourceId, source, channelVolume);
+                var appliedVolume = Mathf.Clamp01(baseVolume * channelVolume);
+                source.volume = appliedVolume;
+                s_sourceVolumeStates[sourceId] = new SourceVolumeState(baseVolume, channelVolume);
             }
 
-            if (s_baseSourceVolumes.Count == 0)
+            if (s_sourceVolumeStates.Count == 0)
             {
                 return;
             }
 
             var staleIds = new List<int>();
-            foreach (var key in s_baseSourceVolumes.Keys)
+            foreach (var key in s_sourceVolumeStates.Keys)
             {
                 if (!activeIds.Contains(key))
                 {
@@ -555,8 +552,23 @@ namespace Reloader.UI.Toolkit.EscMenu
 
             for (var i = 0; i < staleIds.Count; i++)
             {
-                s_baseSourceVolumes.Remove(staleIds[i]);
+                s_sourceVolumeStates.Remove(staleIds[i]);
             }
+        }
+
+        private static float ResolveBaseVolume(int sourceId, AudioSource source, float channelVolume)
+        {
+            if (!s_sourceVolumeStates.TryGetValue(sourceId, out var state))
+            {
+                return Mathf.Clamp01(source.volume);
+            }
+
+            if (state.LastAppliedChannelVolume > 0.0001f)
+            {
+                return Mathf.Clamp01(source.volume / state.LastAppliedChannelVolume);
+            }
+
+            return state.UnscaledBaseVolume;
         }
 
         private static void EnsureAudioScalingUpdater()
@@ -672,6 +684,18 @@ namespace Reloader.UI.Toolkit.EscMenu
         {
             Music,
             Sounds
+        }
+
+        private readonly struct SourceVolumeState
+        {
+            public SourceVolumeState(float unscaledBaseVolume, float lastAppliedChannelVolume)
+            {
+                UnscaledBaseVolume = Mathf.Clamp01(unscaledBaseVolume);
+                LastAppliedChannelVolume = Mathf.Clamp01(lastAppliedChannelVolume);
+            }
+
+            public float UnscaledBaseVolume { get; }
+            public float LastAppliedChannelVolume { get; }
         }
 
         private sealed class AudioScalingUpdater : MonoBehaviour
