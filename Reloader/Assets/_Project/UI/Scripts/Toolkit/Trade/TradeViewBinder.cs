@@ -104,7 +104,7 @@ namespace Reloader.UI.Toolkit.Trade
             SetTabActive(_tabSellButton, tradeState.ActiveTab == TradeUiTab.Sell);
             RenderBuySlots(tradeState.BuySlots);
             RenderSellSlots(tradeState.SellSlots);
-            if (!_root.visible)
+            if (_root == null || !_root.visible)
             {
                 HideTooltip();
             }

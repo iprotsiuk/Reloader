@@ -64,6 +64,7 @@ namespace Reloader.UI.Toolkit.TabInventory
         private int _activePointerId = -1;
         private float _resolvedSlotSize = 46f;
         private InventoryItemTooltipPresenter _tooltipPresenter;
+        private bool _isHoverTooltipActive;
 
         private const float MinSlotSize = 16.5f;
         private const float MaxSlotSize = 42f;
@@ -253,7 +254,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             _deviceUninstallHooksButton?.SetEnabled(inventoryState.DeviceCanUninstallHooks);
             RenderDeviceSessionHistory(inventoryState.DeviceSessionHistoryEntries);
 
-            if (_tooltip != null)
+            if (_tooltip != null && (!_isHoverTooltipActive || inventoryState.TooltipVisible))
             {
                 _tooltip.style.display = inventoryState.TooltipVisible ? DisplayStyle.Flex : DisplayStyle.None;
             }
@@ -263,7 +264,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 _tooltipTitle.text = inventoryState.TooltipTitle;
             }
 
-            if (_tooltipSpecs != null && !inventoryState.TooltipVisible)
+            if (_tooltipSpecs != null && !inventoryState.TooltipVisible && !_isHoverTooltipActive)
             {
                 _tooltipSpecs.text = string.Empty;
             }
@@ -961,12 +962,13 @@ namespace Reloader.UI.Toolkit.TabInventory
             var maxStack = ResolveSlotMaxStack(container, slotIndex);
             if (_tooltipPresenter != null)
             {
-                _tooltipPresenter.TryShowItem(itemId, quantity, maxStack, panelPosition);
+                _isHoverTooltipActive = _tooltipPresenter.TryShowItem(itemId, quantity, maxStack, panelPosition);
             }
         }
 
         private void HideTooltip()
         {
+            _isHoverTooltipActive = false;
             if (_tooltipPresenter != null)
             {
                 _tooltipPresenter.Hide();
