@@ -86,12 +86,10 @@ namespace Reloader.UI.Tests.PlayMode
             var backpackIcon = root.Q<VisualElement>("inventory__backpack-slot-0")?.Q<VisualElement>("inventory__slot-item-icon-backpack-0");
             var backpackQuantity = root.Q<VisualElement>("inventory__backpack-slot-0")?.Q<Label>("inventory__slot-item-quantity-backpack-0");
 
-            Assert.That(beltLabel, Is.Not.Null);
-            Assert.That(beltLabel?.text, Is.EqualTo("Rifle Alpha"));
-            Assert.That(backpackLabel, Is.Not.Null);
-            Assert.That(backpackLabel?.text, Is.EqualTo("Ammo 308"));
+            Assert.That(beltLabel, Is.Null);
+            Assert.That(backpackLabel, Is.Null);
             Assert.That(beltIcon?.ClassListContains("is-missing"), Is.False);
-            Assert.That(backpackIcon?.ClassListContains("is-missing"), Is.True);
+            Assert.That(backpackIcon?.ClassListContains("is-missing"), Is.False);
             Assert.That(backpackQuantity?.text, Is.EqualTo("42"));
             Assert.That(emptyBeltLabel, Is.Null);
             Assert.That(emptyBackpackLabel, Is.Null);

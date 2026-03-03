@@ -8,18 +8,20 @@ namespace Reloader.UI.Toolkit.TabInventory
     {
         public readonly struct SlotState
         {
-            public SlotState(int index, string itemId, bool isOccupied, int quantity = 1)
+            public SlotState(int index, string itemId, bool isOccupied, int quantity = 1, int maxStack = 1)
             {
                 Index = index;
                 ItemId = itemId;
                 IsOccupied = isOccupied;
                 Quantity = quantity;
+                MaxStack = maxStack;
             }
 
             public int Index { get; }
             public string ItemId { get; }
             public bool IsOccupied { get; }
             public int Quantity { get; }
+            public int MaxStack { get; }
         }
 
         private readonly SlotState[] _beltSlots;

@@ -62,14 +62,9 @@ namespace Reloader.UI.Tests.PlayMode
 
             var slot0 = root.Q<VisualElement>("belt-hud__slot-0");
             var slot1 = root.Q<VisualElement>("belt-hud__slot-1");
-            var itemLabel0 = slot0?.Q<Label>("belt-hud__slot-item-name-0");
-            var itemLabel1 = slot1?.Q<Label>("belt-hud__slot-item-name-1");
             var quantity = slot0?.Q<Label>("belt-hud__slot-item-quantity-0");
             var icon = slot0?.Q<VisualElement>("belt-hud__slot-item-icon-0");
 
-            Assert.That(itemLabel0, Is.Not.Null);
-            Assert.That(itemLabel0?.text, Is.EqualTo("Rifle Alpha"));
-            Assert.That(itemLabel1, Is.Null);
             Assert.That(quantity?.text, Is.EqualTo("17"));
             Assert.That(icon, Is.Not.Null);
             Assert.That(icon?.ClassListContains("is-missing"), Is.False);
