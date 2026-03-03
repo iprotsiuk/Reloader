@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Reloader.Core;
 using Reloader.Core.Items;
+using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.PlayerDevice.Runtime;
@@ -11,6 +12,7 @@ using Reloader.UI.Toolkit.AmmoHud;
 using Reloader.UI.Toolkit.BeltHud;
 using Reloader.UI.Toolkit.ChestInventory;
 using Reloader.UI.Toolkit.Contracts;
+using Reloader.UI.Toolkit.EscMenu;
 using Reloader.UI.Toolkit.InteractionHint;
 using Reloader.UI.Toolkit.Reloading;
 using Reloader.UI.Toolkit.TabInventory;
@@ -29,6 +31,7 @@ namespace Reloader.UI.Toolkit.Runtime
         private const string BeltHudScreenId = "belt-hud";
         private const string AmmoHudScreenId = "ammo-hud";
         private const string TabInventoryScreenId = "tab-inventory";
+        private const string EscMenuScreenId = "esc-menu";
         private const string ChestInventoryScreenId = "chest-inventory";
         private const string TradeScreenId = "trade-ui";
         private const string ReloadingScreenId = "reloading-workbench";
@@ -40,6 +43,7 @@ namespace Reloader.UI.Toolkit.Runtime
             new(BeltHudScreenId, "belt-hud-controller", ScreenBindingKind.BeltHud, DependencyRequirement.Inventory),
             new(AmmoHudScreenId, "ammo-hud-controller", ScreenBindingKind.AmmoHud, DependencyRequirement.Weapon),
             new(TabInventoryScreenId, "tab-menu-controller", ScreenBindingKind.TabInventory, DependencyRequirement.Inventory | DependencyRequirement.Input),
+            new(EscMenuScreenId, "esc-menu-controller", ScreenBindingKind.EscMenu, DependencyRequirement.None),
             new(ChestInventoryScreenId, "chest-inventory-controller", ScreenBindingKind.ChestInventory, DependencyRequirement.Inventory | DependencyRequirement.Input),
             new(TradeScreenId, "trade-menu-controller", ScreenBindingKind.Trade, DependencyRequirement.None),
             new(ReloadingScreenId, "reloading-menu-controller", ScreenBindingKind.ReloadingWorkbench, DependencyRequirement.None),
@@ -172,6 +176,7 @@ namespace Reloader.UI.Toolkit.Runtime
                 ScreenBindingKind.BeltHud => BindBeltHud(root, definition.ControllerObjectName, dependencies.InventoryController),
                 ScreenBindingKind.AmmoHud => BindAmmoHud(root, definition.ControllerObjectName, dependencies.WeaponController),
                 ScreenBindingKind.TabInventory => BindTabInventory(root, definition.ControllerObjectName, dependencies.InventoryController, dependencies.InputSource),
+                ScreenBindingKind.EscMenu => BindEscMenu(root, definition.ControllerObjectName),
                 ScreenBindingKind.ChestInventory => BindChestInventory(root, definition.ControllerObjectName, dependencies.InventoryController, dependencies.InputSource),
                 ScreenBindingKind.Trade => BindTrade(root, definition.ControllerObjectName),
                 ScreenBindingKind.ReloadingWorkbench => BindReloadingWorkbench(root, definition.ControllerObjectName),
@@ -337,6 +342,17 @@ namespace Reloader.UI.Toolkit.Runtime
             }
 
             return FindFirstObjectByType<Camera>(FindObjectsInactive.Exclude);
+        }
+
+        private IDisposable BindEscMenu(VisualElement root, string controllerName)
+        {
+            var viewBinder = new EscMenuViewBinder();
+            viewBinder.Initialize(root);
+
+            var controller = GetOrAddController<EscMenuController>(controllerName);
+            controller.Configure(RuntimeKernelBootstrapper.UiStateEvents);
+            controller.SetViewBinder(viewBinder);
+            return UiContractGuard.Bind(controller, viewBinder);
         }
 
         private IDisposable BindTrade(VisualElement root, string controllerName)
@@ -688,6 +704,7 @@ namespace Reloader.UI.Toolkit.Runtime
             BeltHud,
             AmmoHud,
             TabInventory,
+            EscMenu,
             ChestInventory,
             Trade,
             ReloadingWorkbench,
@@ -713,5 +730,6 @@ namespace Reloader.UI.Toolkit.Runtime
             public ScreenBindingKind Kind { get; }
             public DependencyRequirement Requirements { get; }
         }
+
     }
 }

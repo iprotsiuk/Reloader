@@ -46,6 +46,7 @@ namespace Reloader.UI.Toolkit.Runtime
             config.SetComponents("belt-hud", new[] { "belt.slots" });
             config.SetComponents("ammo-hud", new[] { "ammo.label" });
             config.SetComponents("tab-inventory", new[] { "inventory.slots", "inventory.tooltip", "inventory.drag" });
+            config.SetComponents("esc-menu", new[] { "esc.menu.panel", "esc.menu.actions", "esc.menu.settings" });
             config.SetComponents("trade-ui", new[] { "trade.tabs", "trade.cart", "trade.order" });
             config.SetComponents("reloading-workbench", new[] { "reloading.operations", "reloading.result" });
             config.SetComponents("interaction-hint", new[] { "interaction-hint.text" });

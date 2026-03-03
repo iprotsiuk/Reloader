@@ -15,7 +15,8 @@ namespace Reloader.Core.Runtime
         public bool IsShopTradeMenuOpen { get; private set; }
         public bool IsWorkbenchMenuVisible { get; private set; }
         public bool IsTabInventoryVisible { get; private set; }
-        public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible;
+        public bool IsEscMenuVisible { get; private set; }
+        public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible || IsEscMenuVisible;
         public bool HasInteractionHint { get; private set; }
         public InteractionHintPayload CurrentInteractionHint { get; private set; }
 
@@ -47,6 +48,7 @@ namespace Reloader.Core.Runtime
         public event Action<string, int, bool, bool, string> OnShopTradeResult;
         public event Action<bool> OnWorkbenchMenuVisibilityChanged;
         public event Action<bool> OnTabInventoryVisibilityChanged;
+        public event Action<bool> OnEscMenuVisibilityChanged;
         public event Action<int> OnMoneyChanged;
         public event Action<InteractionHintPayload> OnInteractionHintShown;
         public event Action OnInteractionHintCleared;
@@ -101,6 +103,12 @@ namespace Reloader.Core.Runtime
         {
             IsTabInventoryVisible = isVisible;
             OnTabInventoryVisibilityChanged?.Invoke(isVisible);
+        }
+
+        public void RaiseEscMenuVisibilityChanged(bool isVisible)
+        {
+            IsEscMenuVisible = isVisible;
+            OnEscMenuVisibilityChanged?.Invoke(isVisible);
         }
 
         public void RaiseMoneyChanged(int amount) => OnMoneyChanged?.Invoke(amount);

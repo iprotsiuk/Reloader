@@ -1,0 +1,64 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/_Project/UI/Toolkit/USS/EscMenu.uss#EscMenu"/>
+    <ui:VisualElement name="esc-menu__root" class="esc-menu">
+        <ui:VisualElement name="esc-menu__panel" class="esc-menu__panel ui-kit__panel">
+            <ui:VisualElement class="esc-menu__header-row">
+                <ui:Label text="Pause" class="ui-kit__title"/>
+                <ui:Label text="ESC Menu" class="ui-kit__hint"/>
+            </ui:VisualElement>
+
+            <ui:VisualElement name="esc-menu__screen-main" class="esc-menu__screen">
+                <ui:Button name="esc-menu__resume" text="Resume" class="esc-menu__button ui-kit__tab"/>
+                <ui:Button name="esc-menu__settings" text="Settings" class="esc-menu__button ui-kit__tab"/>
+                <ui:Button name="esc-menu__keybindings" text="Key Bindings" class="esc-menu__button ui-kit__tab"/>
+                <ui:Button name="esc-menu__quit" text="Quit" class="esc-menu__button ui-kit__tab"/>
+            </ui:VisualElement>
+
+            <ui:VisualElement name="esc-menu__screen-settings" class="esc-menu__screen">
+                <ui:VisualElement class="esc-menu__tabs-row">
+                    <ui:Button name="esc-menu__tab-game" text="Game" class="esc-menu__tab ui-kit__tab is-active"/>
+                    <ui:Button name="esc-menu__tab-video" text="Video" class="esc-menu__tab ui-kit__tab"/>
+                    <ui:Button name="esc-menu__tab-audio" text="Audio" class="esc-menu__tab ui-kit__tab"/>
+                </ui:VisualElement>
+
+                <ui:VisualElement name="esc-menu__tab-panel-game" class="esc-menu__tab-panel">
+                    <ui:Label text="Gameplay settings are coming soon." class="ui-kit__hint"/>
+                </ui:VisualElement>
+
+                <ui:VisualElement name="esc-menu__tab-panel-video" class="esc-menu__tab-panel">
+                    <ui:VisualElement class="esc-menu__field-row">
+                        <ui:Label text="Resolution" class="esc-menu__field-label"/>
+                        <ui:DropdownField name="esc-menu__resolution" class="esc-menu__field-control"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="esc-menu__field-row">
+                        <ui:Label text="FOV" class="esc-menu__field-label"/>
+                        <ui:Slider name="esc-menu__fov" low-value="50" high-value="110" class="esc-menu__field-control"/>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement name="esc-menu__tab-panel-audio" class="esc-menu__tab-panel">
+                    <ui:VisualElement class="esc-menu__field-row">
+                        <ui:Label text="Global Volume" class="esc-menu__field-label"/>
+                        <ui:Slider name="esc-menu__global-volume" low-value="0" high-value="1" class="esc-menu__field-control"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="esc-menu__field-row">
+                        <ui:Label text="Music Volume" class="esc-menu__field-label"/>
+                        <ui:Slider name="esc-menu__music-volume" low-value="0" high-value="1" class="esc-menu__field-control"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="esc-menu__field-row">
+                        <ui:Label text="Sounds Volume" class="esc-menu__field-label"/>
+                        <ui:Slider name="esc-menu__sounds-volume" low-value="0" high-value="1" class="esc-menu__field-control"/>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:Button name="esc-menu__settings-back" text="Back" class="esc-menu__button ui-kit__tab"/>
+            </ui:VisualElement>
+
+            <ui:VisualElement name="esc-menu__screen-keybindings" class="esc-menu__screen">
+                <ui:Label text="Key Bindings" class="esc-menu__section-title ui-kit__hint"/>
+                <ui:Label text="Movement, interaction, and combat bindings will be configurable here." class="ui-kit__hint"/>
+                <ui:Button name="esc-menu__keybindings-back" text="Back" class="esc-menu__button ui-kit__tab"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

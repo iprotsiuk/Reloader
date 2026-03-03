@@ -16,6 +16,7 @@ namespace Reloader.Player
         private bool _isTradeMenuOpen;
         private bool _isWorkbenchMenuOpen;
         private bool _isTabInventoryOpen;
+        private bool _isEscMenuOpen;
         private bool _isStorageMenuOpen;
         private IUiStateEvents _uiStateEvents;
         private IUiStateEvents _subscribedUiStateEvents;
@@ -138,6 +139,12 @@ namespace Reloader.Player
             ApplyCursorState();
         }
 
+        private void HandleEscMenuVisibilityChanged(bool isVisible)
+        {
+            _isEscMenuOpen = isVisible;
+            ApplyCursorState();
+        }
+
         private void HandleRuntimeEventsReconfigured()
         {
             if (!isActiveAndEnabled)
@@ -161,7 +168,7 @@ namespace Reloader.Player
 
         private void ApplyCursorState()
         {
-            IsAnyMenuOpen = _isTradeMenuOpen || _isWorkbenchMenuOpen || _isTabInventoryOpen || _isStorageMenuOpen;
+            IsAnyMenuOpen = _isTradeMenuOpen || _isWorkbenchMenuOpen || _isTabInventoryOpen || _isEscMenuOpen || _isStorageMenuOpen;
             if (IsAnyMenuOpen)
             {
                 Cursor.lockState = CursorLockMode.None;
@@ -194,12 +201,14 @@ namespace Reloader.Player
             {
                 _isWorkbenchMenuOpen = uiStateEvents.IsWorkbenchMenuVisible;
                 _isTabInventoryOpen = uiStateEvents.IsTabInventoryVisible;
+                _isEscMenuOpen = uiStateEvents.IsEscMenuVisible;
                 _isStorageMenuOpen = IsStorageUiOpen();
             }
             else if (_useRuntimeKernelUiStateEvents)
             {
                 _isWorkbenchMenuOpen = false;
                 _isTabInventoryOpen = false;
+                _isEscMenuOpen = false;
                 _isStorageMenuOpen = IsStorageUiOpen();
             }
         }
@@ -267,6 +276,7 @@ namespace Reloader.Player
             _subscribedUiStateEvents = uiStateEvents;
             _subscribedUiStateEvents.OnWorkbenchMenuVisibilityChanged += HandleWorkbenchMenuVisibilityChanged;
             _subscribedUiStateEvents.OnTabInventoryVisibilityChanged += HandleTabInventoryVisibilityChanged;
+            _subscribedUiStateEvents.OnEscMenuVisibilityChanged += HandleEscMenuVisibilityChanged;
         }
 
         private void UnsubscribeFromUiStateEvents()
@@ -278,6 +288,7 @@ namespace Reloader.Player
 
             _subscribedUiStateEvents.OnWorkbenchMenuVisibilityChanged -= HandleWorkbenchMenuVisibilityChanged;
             _subscribedUiStateEvents.OnTabInventoryVisibilityChanged -= HandleTabInventoryVisibilityChanged;
+            _subscribedUiStateEvents.OnEscMenuVisibilityChanged -= HandleEscMenuVisibilityChanged;
             _subscribedUiStateEvents = null;
         }
 
