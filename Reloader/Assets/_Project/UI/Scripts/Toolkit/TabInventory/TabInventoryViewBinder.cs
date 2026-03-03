@@ -65,6 +65,9 @@ namespace Reloader.UI.Toolkit.TabInventory
         private float _resolvedSlotSize = 46f;
         private InventoryItemTooltipPresenter _tooltipPresenter;
         private bool _isHoverTooltipActive;
+        private string _hoverTooltipContainer;
+        private int _hoverTooltipSlotIndex = -1;
+        private string _hoverTooltipItemId;
 
         private const float MinSlotSize = 16.5f;
         private const float MaxSlotSize = 42f;
@@ -254,9 +257,13 @@ namespace Reloader.UI.Toolkit.TabInventory
             _deviceUninstallHooksButton?.SetEnabled(inventoryState.DeviceCanUninstallHooks);
             RenderDeviceSessionHistory(inventoryState.DeviceSessionHistoryEntries);
 
-            if (!inventoryState.TooltipVisible && _isHoverTooltipActive)
+            if (!inventoryState.IsOpen)
             {
                 HideTooltip();
+            }
+            else
+            {
+                RevalidateHoverTooltip(inventoryState);
             }
 
             if (_tooltip != null && (!_isHoverTooltipActive || inventoryState.TooltipVisible))
@@ -963,6 +970,9 @@ namespace Reloader.UI.Toolkit.TabInventory
                 return;
             }
 
+            _hoverTooltipContainer = NormalizeContainer(container);
+            _hoverTooltipSlotIndex = slotIndex;
+            _hoverTooltipItemId = itemId;
             var quantity = ResolveSlotQuantity(container, slotIndex);
             var maxStack = ResolveSlotMaxStack(container, slotIndex);
             if (_tooltipPresenter != null)
@@ -971,9 +981,33 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
         }
 
+        private void RevalidateHoverTooltip(TabInventoryUiState inventoryState)
+        {
+            if (!_isHoverTooltipActive)
+            {
+                return;
+            }
+
+            if (!string.Equals(inventoryState.ActiveSection, "inventory", StringComparison.Ordinal))
+            {
+                HideTooltip();
+                return;
+            }
+
+            var currentItemId = ResolveSlotItemId(_hoverTooltipContainer, _hoverTooltipSlotIndex);
+            if (string.IsNullOrWhiteSpace(currentItemId)
+                || !string.Equals(currentItemId, _hoverTooltipItemId, StringComparison.Ordinal))
+            {
+                HideTooltip();
+            }
+        }
+
         private void HideTooltip()
         {
             _isHoverTooltipActive = false;
+            _hoverTooltipContainer = null;
+            _hoverTooltipSlotIndex = -1;
+            _hoverTooltipItemId = null;
             if (_tooltipPresenter != null)
             {
                 _tooltipPresenter.Hide();
