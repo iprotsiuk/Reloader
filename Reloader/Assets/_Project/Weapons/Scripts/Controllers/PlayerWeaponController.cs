@@ -489,6 +489,11 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
+            if (!_isAiming)
+            {
+                _baseCameraFieldOfView = Mathf.Clamp(currentFieldOfView, 1f, 179f);
+            }
+
             var targetFieldOfView = _baseCameraFieldOfView;
             var scopeState = GetEquippedScopeState();
             if (_isAiming && scopeState != null)

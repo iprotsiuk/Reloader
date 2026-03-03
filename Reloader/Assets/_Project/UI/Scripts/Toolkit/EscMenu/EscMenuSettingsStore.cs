@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Reloader.Player;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -450,6 +451,13 @@ namespace Reloader.UI.Toolkit.EscMenu
 
         public float GetCurrentFov()
         {
+            if (TryGetPlayerCameraDefaults(out var cameraDefaults)
+                && cameraDefaults != null
+                && cameraDefaults.TryGetEffectiveFieldOfView(out var effectiveFov))
+            {
+                return effectiveFov;
+            }
+
             return Camera.main != null ? Camera.main.fieldOfView : 70f;
         }
 
@@ -482,10 +490,28 @@ namespace Reloader.UI.Toolkit.EscMenu
 
         public void ApplyFov(float fov)
         {
+            if (TryGetPlayerCameraDefaults(out var cameraDefaults)
+                && cameraDefaults != null
+                && cameraDefaults.TrySetEffectiveFieldOfView(fov))
+            {
+                return;
+            }
+
             if (Camera.main != null)
             {
                 Camera.main.fieldOfView = fov;
             }
+        }
+
+        private static bool TryGetPlayerCameraDefaults(out PlayerCameraDefaults cameraDefaults)
+        {
+#if UNITY_2023_1_OR_NEWER || UNITY_6000_0_OR_NEWER
+            cameraDefaults = UnityEngine.Object.FindAnyObjectByType<PlayerCameraDefaults>(FindObjectsInactive.Exclude);
+#else
+            var matches = UnityEngine.Object.FindObjectsOfType<PlayerCameraDefaults>(false);
+            cameraDefaults = matches != null && matches.Length > 0 ? matches[0] : null;
+#endif
+            return cameraDefaults != null;
         }
 
         public void ApplyGlobalVolume(float volume)
