@@ -7,12 +7,16 @@ using UnityEngine.UIElements;
 
 namespace Reloader.UI.Toolkit.BeltHud
 {
-    public sealed class BeltHudViewBinder : IUiViewBinder
+    public sealed class BeltHudViewBinder : IUiViewBinder, IDisposable
     {
         private VisualElement _root;
         private VisualElement[] _slotElements = Array.Empty<VisualElement>();
         private Label[] _slotLabels = Array.Empty<Label>();
         private float _resolvedSlotSize = 46f;
+        private IVisualElementScheduledItem _responsiveLayoutScheduler;
+        private EventCallback<AttachToPanelEvent> _attachToPanelCallback;
+        private EventCallback<DetachFromPanelEvent> _detachFromPanelCallback;
+        private EventCallback<GeometryChangedEvent> _geometryChangedCallback;
 
         private const float SlotGap = 8f;
         private const float MinSlotSize = 22.5f;
@@ -24,6 +28,7 @@ namespace Reloader.UI.Toolkit.BeltHud
 
         public void Initialize(VisualElement root, int slotCount)
         {
+            TearDownResponsiveCallbacks();
             _root = root;
             var safeCount = Math.Max(0, slotCount);
             _slotElements = new VisualElement[safeCount];
@@ -79,9 +84,23 @@ namespace Reloader.UI.Toolkit.BeltHud
 
         private void RegisterResponsiveCallbacks()
         {
-            _root?.RegisterCallback<AttachToPanelEvent>(_ => ApplyResponsiveLayout());
-            _root?.RegisterCallback<GeometryChangedEvent>(_ => ApplyResponsiveLayout());
-            _root?.schedule.Execute(ApplyResponsiveLayout).Every(250);
+            if (_root == null)
+            {
+                return;
+            }
+
+            _attachToPanelCallback ??= HandleAttachToPanel;
+            _detachFromPanelCallback ??= HandleDetachFromPanel;
+            _geometryChangedCallback ??= HandleGeometryChanged;
+            _root.RegisterCallback(_attachToPanelCallback);
+            _root.RegisterCallback(_detachFromPanelCallback);
+            _root.RegisterCallback(_geometryChangedCallback);
+            EnsureResponsiveLayoutSchedulerRunning();
+        }
+
+        public void Dispose()
+        {
+            TearDownResponsiveCallbacks();
         }
 
         private void ApplyResponsiveLayout()
@@ -209,6 +228,62 @@ namespace Reloader.UI.Toolkit.BeltHud
 
             IntentRaised?.Invoke(new UiIntent("belt.slot.select", slotIndex));
             return true;
+        }
+
+        private void HandleAttachToPanel(AttachToPanelEvent _)
+        {
+            EnsureResponsiveLayoutSchedulerRunning();
+            ApplyResponsiveLayout();
+        }
+
+        private void HandleDetachFromPanel(DetachFromPanelEvent _)
+        {
+            _responsiveLayoutScheduler?.Pause();
+        }
+
+        private void HandleGeometryChanged(GeometryChangedEvent _)
+        {
+            ApplyResponsiveLayout();
+        }
+
+        private void EnsureResponsiveLayoutSchedulerRunning()
+        {
+            if (_root == null)
+            {
+                return;
+            }
+
+            if (_responsiveLayoutScheduler == null)
+            {
+                _responsiveLayoutScheduler = _root.schedule.Execute(ApplyResponsiveLayout).Every(250);
+                return;
+            }
+
+            _responsiveLayoutScheduler.Resume();
+        }
+
+        private void TearDownResponsiveCallbacks()
+        {
+            if (_root != null)
+            {
+                if (_attachToPanelCallback != null)
+                {
+                    _root.UnregisterCallback(_attachToPanelCallback);
+                }
+
+                if (_detachFromPanelCallback != null)
+                {
+                    _root.UnregisterCallback(_detachFromPanelCallback);
+                }
+
+                if (_geometryChangedCallback != null)
+                {
+                    _root.UnregisterCallback(_geometryChangedCallback);
+                }
+            }
+
+            _responsiveLayoutScheduler?.Pause();
+            _responsiveLayoutScheduler = null;
         }
     }
 }
