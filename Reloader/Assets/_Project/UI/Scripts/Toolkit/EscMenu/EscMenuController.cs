@@ -1,6 +1,7 @@
 using System;
 using Reloader.Inventory;
 using Reloader.Core.Runtime;
+using Reloader.Player;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -90,6 +91,7 @@ namespace Reloader.UI.Toolkit.EscMenu
                 _nonEscMenuWasOpenLastFrame = nonEscMenuOpenNow;
                 return;
             }
+            PlayerCursorLockController.MarkEscapeConsumedThisFrame();
 
             if (_isOpen)
             {
@@ -192,6 +194,7 @@ namespace Reloader.UI.Toolkit.EscMenu
 
         private void CloseMenu()
         {
+            ResolveSettingsStore().FlushPendingPersistence();
             SetMenuOpen(false);
             _screen = EscMenuScreen.Main;
             Refresh();

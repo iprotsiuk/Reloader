@@ -5,6 +5,11 @@ using Reloader.Core.Runtime;
 
 namespace Reloader.Player
 {
+    public interface IPlayerCursorEscapeKeySource
+    {
+        bool WasEscapePressedThisFrame();
+    }
+
     public sealed class PlayerCursorLockController : MonoBehaviour
     {
         [SerializeField] private bool _lockOnStart;
@@ -24,9 +29,16 @@ namespace Reloader.Player
         private IShopEvents _subscribedShopEvents;
         private bool _useRuntimeKernelUiStateEvents = true;
         private bool _useRuntimeKernelShopEvents = true;
+        private IPlayerCursorEscapeKeySource _escapeKeySource;
+        private static int _escapeConsumedFrame = -1;
 
         public static bool IsAnyMenuOpen { get; private set; }
         public bool IsCursorLockRequested { get; private set; }
+
+        private void Awake()
+        {
+            _escapeKeySource ??= new KeyboardCursorEscapeKeySource();
+        }
 
         private void Start()
         {
@@ -67,8 +79,24 @@ namespace Reloader.Player
             }
         }
 
+        public void SetEscapeKeySource(IPlayerCursorEscapeKeySource escapeKeySource)
+        {
+            _escapeKeySource = escapeKeySource ?? new KeyboardCursorEscapeKeySource();
+        }
+
+        public static void MarkEscapeConsumedThisFrame()
+        {
+            _escapeConsumedFrame = Time.frameCount;
+        }
+
+        public static bool WasEscapeConsumedThisFrame()
+        {
+            return _escapeConsumedFrame == Time.frameCount;
+        }
+
         private void Update()
         {
+            _escapeKeySource ??= new KeyboardCursorEscapeKeySource();
             var storageMenuOpen = IsStorageUiOpen();
             if (_isStorageMenuOpen != storageMenuOpen)
             {
@@ -87,7 +115,9 @@ namespace Reloader.Player
                 LockCursor();
             }
 
-            if (_unlockOnEscape && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            if (_unlockOnEscape
+                && _escapeKeySource.WasEscapePressedThisFrame()
+                && !WasEscapeConsumedThisFrame())
             {
                 UnlockCursor();
             }
@@ -347,6 +377,14 @@ namespace Reloader.Player
                    && prop.PropertyType == typeof(bool)
                    && prop.GetValue(null) is bool isOpen
                    && isOpen;
+        }
+
+        private sealed class KeyboardCursorEscapeKeySource : IPlayerCursorEscapeKeySource
+        {
+            public bool WasEscapePressedThisFrame()
+            {
+                return Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame;
+            }
         }
     }
 }

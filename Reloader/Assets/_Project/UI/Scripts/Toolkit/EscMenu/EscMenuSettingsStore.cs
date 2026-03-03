@@ -69,8 +69,11 @@ namespace Reloader.UI.Toolkit.EscMenu
     {
         private const float MinFov = 50f;
         private const float MaxFov = 110f;
+        private const float SaveDebounceSeconds = 0.35f;
+        private const string PersistenceUpdaterName = "__EscMenuSettingsStorePersistenceUpdater";
 
         private readonly IEscMenuSettingsRuntime _runtime;
+        private readonly Action _saveAction;
         private readonly string _resolutionKey;
         private readonly string _fovKey;
         private readonly string _globalVolumeKey;
@@ -85,10 +88,17 @@ namespace Reloader.UI.Toolkit.EscMenu
         private float _globalVolume;
         private float _musicVolume;
         private float _soundsVolume;
+        private bool _hasPendingSave;
+        private float _nextFlushAtTime;
 
-        public EscMenuSettingsStore(IEscMenuSettingsRuntime runtime = null, string playerPrefsKeyPrefix = "esc-menu")
+        private static readonly List<WeakReference<EscMenuSettingsStore>> s_storeRefs = new List<WeakReference<EscMenuSettingsStore>>();
+        private static PersistenceUpdater s_persistenceUpdater;
+        private static bool s_quitHookRegistered;
+
+        public EscMenuSettingsStore(IEscMenuSettingsRuntime runtime = null, string playerPrefsKeyPrefix = "esc-menu", Action saveAction = null)
         {
             _runtime = runtime ?? new UnityEscMenuSettingsRuntime();
+            _saveAction = saveAction ?? PlayerPrefs.Save;
             var prefix = string.IsNullOrWhiteSpace(playerPrefsKeyPrefix) ? "esc-menu" : playerPrefsKeyPrefix;
             _resolutionKey = prefix + ".resolution";
             _fovKey = prefix + ".fov";
@@ -96,6 +106,7 @@ namespace Reloader.UI.Toolkit.EscMenu
             _musicVolumeKey = prefix + ".music";
             _soundsVolumeKey = prefix + ".sounds";
 
+            RegisterStore(this);
             LoadOptions();
             LoadPersistedValues();
             ApplyAll();
@@ -123,7 +134,7 @@ namespace Reloader.UI.Toolkit.EscMenu
             _selectedResolutionIndex = Mathf.Clamp(index, 0, _resolutionOptions.Count - 1);
             _runtime.ApplyResolution(_resolutionOptions[_selectedResolutionIndex], _selectedResolutionIndex);
             PlayerPrefs.SetInt(_resolutionKey, _selectedResolutionIndex);
-            PlayerPrefs.Save();
+            MarkPersistenceDirty();
         }
 
         public void SetFov(float value)
@@ -131,7 +142,7 @@ namespace Reloader.UI.Toolkit.EscMenu
             _fov = Mathf.Clamp(value, MinFov, MaxFov);
             _runtime.ApplyFov(_fov);
             PlayerPrefs.SetFloat(_fovKey, _fov);
-            PlayerPrefs.Save();
+            MarkPersistenceDirty();
         }
 
         public void SetGlobalVolume(float value)
@@ -139,7 +150,7 @@ namespace Reloader.UI.Toolkit.EscMenu
             _globalVolume = Mathf.Clamp01(value);
             _runtime.ApplyGlobalVolume(_globalVolume);
             PlayerPrefs.SetFloat(_globalVolumeKey, _globalVolume);
-            PlayerPrefs.Save();
+            MarkPersistenceDirty();
         }
 
         public void SetMusicVolume(float value)
@@ -147,7 +158,7 @@ namespace Reloader.UI.Toolkit.EscMenu
             _musicVolume = Mathf.Clamp01(value);
             _runtime.ApplyMusicVolume(_musicVolume);
             PlayerPrefs.SetFloat(_musicVolumeKey, _musicVolume);
-            PlayerPrefs.Save();
+            MarkPersistenceDirty();
         }
 
         public void SetSoundsVolume(float value)
@@ -155,7 +166,12 @@ namespace Reloader.UI.Toolkit.EscMenu
             _soundsVolume = Mathf.Clamp01(value);
             _runtime.ApplySoundsVolume(_soundsVolume);
             PlayerPrefs.SetFloat(_soundsVolumeKey, _soundsVolume);
-            PlayerPrefs.Save();
+            MarkPersistenceDirty();
+        }
+
+        public void FlushPendingPersistence()
+        {
+            FlushPendingPersistenceInternal(ignoreDebounce: true);
         }
 
         private void LoadOptions()
@@ -244,12 +260,169 @@ namespace Reloader.UI.Toolkit.EscMenu
 
             return 0;
         }
+
+        private void MarkPersistenceDirty()
+        {
+            var now = Time.realtimeSinceStartup;
+            _nextFlushAtTime = now + SaveDebounceSeconds;
+            _hasPendingSave = true;
+            EnsurePersistenceUpdater();
+        }
+
+        private bool TryFlushPendingPersistence(float now)
+        {
+            if (!_hasPendingSave || now < _nextFlushAtTime)
+            {
+                return false;
+            }
+
+            return FlushPendingPersistenceInternal(ignoreDebounce: false);
+        }
+
+        private bool FlushPendingPersistenceInternal(bool ignoreDebounce)
+        {
+            if (!_hasPendingSave)
+            {
+                return false;
+            }
+
+            if (!ignoreDebounce && Time.realtimeSinceStartup < _nextFlushAtTime)
+            {
+                return false;
+            }
+
+            _saveAction?.Invoke();
+            _hasPendingSave = false;
+            return true;
+        }
+
+        private static void RegisterStore(EscMenuSettingsStore store)
+        {
+            if (store == null)
+            {
+                return;
+            }
+
+            PruneDeadStores();
+            s_storeRefs.Add(new WeakReference<EscMenuSettingsStore>(store));
+            EnsurePersistenceUpdater();
+            EnsureQuitHook();
+        }
+
+        private static void EnsurePersistenceUpdater()
+        {
+            if (s_persistenceUpdater != null)
+            {
+                return;
+            }
+
+            var existing = GameObject.Find(PersistenceUpdaterName);
+            if (existing != null)
+            {
+                s_persistenceUpdater = existing.GetComponent<PersistenceUpdater>();
+                if (s_persistenceUpdater != null)
+                {
+                    return;
+                }
+            }
+
+            var updaterGo = new GameObject(PersistenceUpdaterName);
+            updaterGo.hideFlags = HideFlags.HideAndDontSave;
+            UnityEngine.Object.DontDestroyOnLoad(updaterGo);
+            s_persistenceUpdater = updaterGo.AddComponent<PersistenceUpdater>();
+        }
+
+        private static void EnsureQuitHook()
+        {
+            if (s_quitHookRegistered)
+            {
+                return;
+            }
+
+            Application.quitting += FlushAllPendingPersistence;
+            s_quitHookRegistered = true;
+        }
+
+        private static void FlushDueStores()
+        {
+            if (s_storeRefs.Count == 0)
+            {
+                return;
+            }
+
+            var now = Time.realtimeSinceStartup;
+            for (var i = s_storeRefs.Count - 1; i >= 0; i--)
+            {
+                if (!s_storeRefs[i].TryGetTarget(out var store) || store == null)
+                {
+                    s_storeRefs.RemoveAt(i);
+                    continue;
+                }
+
+                store.TryFlushPendingPersistence(now);
+            }
+        }
+
+        private static void FlushAllPendingPersistence()
+        {
+            if (s_storeRefs.Count == 0)
+            {
+                return;
+            }
+
+            for (var i = s_storeRefs.Count - 1; i >= 0; i--)
+            {
+                if (!s_storeRefs[i].TryGetTarget(out var store) || store == null)
+                {
+                    s_storeRefs.RemoveAt(i);
+                    continue;
+                }
+
+                store.FlushPendingPersistenceInternal(ignoreDebounce: true);
+            }
+        }
+
+        private static void PruneDeadStores()
+        {
+            for (var i = s_storeRefs.Count - 1; i >= 0; i--)
+            {
+                if (!s_storeRefs[i].TryGetTarget(out _))
+                {
+                    s_storeRefs.RemoveAt(i);
+                }
+            }
+        }
+
+        private sealed class PersistenceUpdater : MonoBehaviour
+        {
+            private void LateUpdate()
+            {
+                FlushDueStores();
+            }
+
+            private void OnApplicationPause(bool pauseStatus)
+            {
+                if (pauseStatus)
+                {
+                    FlushAllPendingPersistence();
+                }
+            }
+
+            private void OnApplicationQuit()
+            {
+                FlushAllPendingPersistence();
+            }
+        }
     }
 
     public sealed class UnityEscMenuSettingsRuntime : IEscMenuSettingsRuntime
     {
+        private const string AudioUpdaterName = "__EscMenuAudioScalingUpdater";
+        private const float AudioRescanIntervalSeconds = 0.25f;
         private static float s_musicVolume = 1f;
         private static float s_soundsVolume = 1f;
+        private static float s_nextAudioRescanAtTime;
+        private static AudioScalingUpdater s_audioScalingUpdater;
         private static readonly Dictionary<int, float> s_baseSourceVolumes = new Dictionary<int, float>();
         private static readonly string[] s_musicTokens = { "music", "bgm", "theme", "ambientmusic", "soundtrack" };
         private static readonly string[] s_soundsTokens = { "sfx", "sound", "sounds", "ui", "voice", "vo", "fx", "effect", "effects", "gun", "shot" };
@@ -324,12 +497,14 @@ namespace Reloader.UI.Toolkit.EscMenu
         {
             s_musicVolume = Mathf.Clamp01(volume);
             ApplyRuntimeSourceVolumes();
+            EnsureAudioScalingUpdater();
         }
 
         public void ApplySoundsVolume(float volume)
         {
             s_soundsVolume = Mathf.Clamp01(volume);
             ApplyRuntimeSourceVolumes();
+            EnsureAudioScalingUpdater();
         }
 
         private static void ApplyRuntimeSourceVolumes()
@@ -382,6 +557,46 @@ namespace Reloader.UI.Toolkit.EscMenu
             {
                 s_baseSourceVolumes.Remove(staleIds[i]);
             }
+        }
+
+        private static void EnsureAudioScalingUpdater()
+        {
+            if (s_audioScalingUpdater != null)
+            {
+                return;
+            }
+
+            var existing = GameObject.Find(AudioUpdaterName);
+            if (existing != null)
+            {
+                s_audioScalingUpdater = existing.GetComponent<AudioScalingUpdater>();
+                if (s_audioScalingUpdater != null)
+                {
+                    return;
+                }
+            }
+
+            var updaterGo = new GameObject(AudioUpdaterName);
+            updaterGo.hideFlags = HideFlags.HideAndDontSave;
+            UnityEngine.Object.DontDestroyOnLoad(updaterGo);
+            s_audioScalingUpdater = updaterGo.AddComponent<AudioScalingUpdater>();
+        }
+
+        private static void RefreshRuntimeSourcesIfNeeded()
+        {
+            if (Mathf.Approximately(s_musicVolume, 1f) && Mathf.Approximately(s_soundsVolume, 1f))
+            {
+                return;
+            }
+
+            var now = Time.realtimeSinceStartup;
+            if (now < s_nextAudioRescanAtTime)
+            {
+                return;
+            }
+
+            s_nextAudioRescanAtTime = now + AudioRescanIntervalSeconds;
+            ApplyRuntimeSourceVolumes();
         }
 
         private static AudioSource[] FindAllAudioSources()
@@ -457,6 +672,14 @@ namespace Reloader.UI.Toolkit.EscMenu
         {
             Music,
             Sounds
+        }
+
+        private sealed class AudioScalingUpdater : MonoBehaviour
+        {
+            private void LateUpdate()
+            {
+                RefreshRuntimeSourcesIfNeeded();
+            }
         }
     }
 }

@@ -1,11 +1,14 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Reloader.Core.Runtime;
 using Reloader.Inventory;
+using Reloader.Player;
 using Reloader.UI.Toolkit.Contracts;
 using Reloader.UI.Toolkit.EscMenu;
 using UnityEngine;
+using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 
 namespace Reloader.UI.Tests.PlayMode
@@ -137,6 +140,50 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void EscMenuController_Tick_EscapeClose_DoesNotLetCursorLockProcessSamePress()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+            var escMenuGo = new GameObject("esc-menu-controller-close-guard");
+            var cursorGo = new GameObject("cursor-lock-controller-close-guard");
+            var root = BuildEscRoot();
+            var binder = new EscMenuViewBinder();
+            binder.Initialize(root);
+
+            var uiStateEvents = new TestUiStateEvents();
+            var escKeySource = new TestEscKeySource();
+            var cursorEscapeSource = new TestCursorEscapeKeySource();
+
+            var escController = escMenuGo.AddComponent<EscMenuController>();
+            escController.Configure(uiStateEvents);
+            escController.SetEscKeySource(escKeySource);
+            escController.SetViewBinder(binder);
+
+            var cursorController = cursorGo.AddComponent<PlayerCursorLockController>();
+            cursorController.Configure(uiStateEvents);
+            cursorController.SetEscapeKeySource(cursorEscapeSource);
+            cursorController.LockCursor();
+
+            escKeySource.PressedThisFrame = true;
+            escController.Tick();
+            Assert.That(uiStateEvents.IsEscMenuVisible, Is.True);
+
+            escKeySource.PressedThisFrame = true;
+            escController.Tick();
+            Assert.That(uiStateEvents.IsEscMenuVisible, Is.False);
+
+            cursorEscapeSource.PressedThisFrame = true;
+            cursorController.SendMessage("Update");
+
+            Assert.That(cursorController.IsCursorLockRequested, Is.True);
+
+            UnityEngine.Object.DestroyImmediate(cursorGo);
+            UnityEngine.Object.DestroyImmediate(escMenuGo);
+            Cursor.lockState = previousLockState;
+            Cursor.visible = previousVisible;
+        }
+
+        [Test]
         public void EscMenuController_HandleIntent_ResumeClosesMenu()
         {
             var go = new GameObject("esc-menu-controller-resume");
@@ -225,6 +272,32 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void EscMenuSettingsStore_SettingChanges_DoNotSaveSynchronouslyAndCanBeFlushedExplicitly()
+        {
+            var runtime = new TestSettingsRuntime();
+            var prefsKeyPrefix = "esc-menu-tests-deferred-save";
+            var saveCalls = 0;
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".resolution");
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".fov");
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".global");
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".music");
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".sounds");
+
+            var store = new EscMenuSettingsStore(runtime, prefsKeyPrefix, () => saveCalls++);
+            store.SetFov(92f);
+            store.SetMusicVolume(0.2f);
+            store.SetSoundsVolume(0.7f);
+
+            Assert.That(saveCalls, Is.EqualTo(0));
+
+            store.FlushPendingPersistence();
+            Assert.That(saveCalls, Is.EqualTo(1));
+
+            store.FlushPendingPersistence();
+            Assert.That(saveCalls, Is.EqualTo(1));
+        }
+
+        [Test]
         public void EscMenuSettingsStore_NoStoredResolution_UsesCurrentResolutionIndex()
         {
             var runtime = new TestSettingsRuntime
@@ -300,6 +373,36 @@ namespace Reloader.UI.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator UnityEscMenuSettingsRuntime_AppliesChannelScalingToAudioSourcesCreatedAfterSliderChange()
+        {
+            var runtime = new UnityEscMenuSettingsRuntime();
+            runtime.ApplyMusicVolume(0.25f);
+            runtime.ApplySoundsVolume(0.4f);
+
+            var lateMusicRoot = new GameObject("late-music-channel-root");
+            var lateSoundsRoot = new GameObject("late-sounds-channel-root");
+            var lateMusicSource = lateMusicRoot.AddComponent<AudioSource>();
+            var lateSoundsSource = lateSoundsRoot.AddComponent<AudioSource>();
+            lateMusicSource.volume = 0.8f;
+            lateSoundsSource.volume = 0.5f;
+
+            try
+            {
+                yield return new WaitForSecondsRealtime(0.35f);
+
+                Assert.That(lateMusicSource.volume, Is.EqualTo(0.2f).Within(0.02f));
+                Assert.That(lateSoundsSource.volume, Is.EqualTo(0.2f).Within(0.02f));
+            }
+            finally
+            {
+                runtime.ApplyMusicVolume(1f);
+                runtime.ApplySoundsVolume(1f);
+                UnityEngine.Object.DestroyImmediate(lateMusicRoot);
+                UnityEngine.Object.DestroyImmediate(lateSoundsRoot);
+            }
+        }
+
         private static VisualElement BuildEscRoot()
         {
             var root = new VisualElement { name = "esc-menu__root" };
@@ -342,6 +445,22 @@ namespace Reloader.UI.Tests.PlayMode
             public bool PressedThisFrame;
 
             public bool ConsumeEscapePressedThisFrame()
+            {
+                if (!PressedThisFrame)
+                {
+                    return false;
+                }
+
+                PressedThisFrame = false;
+                return true;
+            }
+        }
+
+        private sealed class TestCursorEscapeKeySource : IPlayerCursorEscapeKeySource
+        {
+            public bool PressedThisFrame;
+
+            public bool WasEscapePressedThisFrame()
             {
                 if (!PressedThisFrame)
                 {
