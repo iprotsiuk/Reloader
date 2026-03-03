@@ -489,7 +489,7 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
-            if (!_isAiming)
+            if (!_isAiming && Mathf.Abs(_cameraFovVelocity) < 0.01f)
             {
                 _baseCameraFieldOfView = Mathf.Clamp(currentFieldOfView, 1f, 179f);
             }
