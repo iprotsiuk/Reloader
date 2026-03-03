@@ -1,5 +1,6 @@
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using Reloader.Inventory;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine;
 
@@ -11,11 +12,13 @@ namespace Reloader.UI.Toolkit.InteractionHint
         private IInteractionHintEvents _interactionHintEvents;
         private IInteractionHintEvents _subscribedInteractionHintEvents;
         private bool _useRuntimeKernelInteractionHintEvents = true;
+        private bool _lastUiBlockedState;
 
         private void OnEnable()
         {
             SubscribeToRuntimeHubReconfigure();
             SubscribeToInteractionHintEvents(ResolveInteractionHintEvents());
+            _lastUiBlockedState = IsBlockedByActiveUi();
             Refresh();
         }
 
@@ -45,6 +48,18 @@ namespace Reloader.UI.Toolkit.InteractionHint
         {
         }
 
+        private void Update()
+        {
+            var blockedByUi = IsBlockedByActiveUi();
+            if (blockedByUi == _lastUiBlockedState)
+            {
+                return;
+            }
+
+            _lastUiBlockedState = blockedByUi;
+            Refresh();
+        }
+
         public void Refresh()
         {
             if (_viewBinder == null)
@@ -53,7 +68,7 @@ namespace Reloader.UI.Toolkit.InteractionHint
             }
 
             var interactionHintEvents = ResolveInteractionHintEvents();
-            if (interactionHintEvents == null || !interactionHintEvents.HasInteractionHint)
+            if (interactionHintEvents == null || !interactionHintEvents.HasInteractionHint || IsBlockedByActiveUi())
             {
                 _viewBinder.Render(new InteractionHintUiState(string.Empty, false));
                 return;
@@ -64,12 +79,12 @@ namespace Reloader.UI.Toolkit.InteractionHint
 
         private void HandleInteractionHintShown(InteractionHintPayload payload)
         {
-            _viewBinder?.Render(new InteractionHintUiState(BuildTooltipText(payload), true));
+            Refresh();
         }
 
         private void HandleInteractionHintCleared()
         {
-            _viewBinder?.Render(new InteractionHintUiState(string.Empty, false));
+            Refresh();
         }
 
         private void HandleRuntimeEventsReconfigured()
@@ -167,6 +182,12 @@ namespace Reloader.UI.Toolkit.InteractionHint
             }
 
             return $"{actionText} {subjectText}";
+        }
+
+        private static bool IsBlockedByActiveUi()
+        {
+            return (RuntimeKernelBootstrapper.UiStateEvents?.IsAnyMenuOpen ?? false)
+                   || StorageUiSession.IsOpen;
         }
     }
 }

@@ -260,6 +260,74 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void UiToolkitScreenRuntimeBridge_BindInteractionHint_HidesWhileAnyMenuOrStorageUiOpen()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), runtimeHub);
+
+            var bridgeGo = new GameObject("UiBridgeInteractionHintUiGate");
+            var bridge = bridgeGo.AddComponent<UiToolkitScreenRuntimeBridge>();
+            var root = BuildInteractionHintRoot();
+
+            var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
+                "BindInteractionHint",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(bindMethod, Is.Not.Null);
+
+            var subscription = bindMethod.Invoke(
+                bridge,
+                new object[] { root, "interaction-hint-controller" }) as IDisposable;
+            Assert.That(subscription, Is.Not.Null);
+
+            var controller = bridgeGo.transform.Find("interaction-hint-controller")?.GetComponent<InteractionHintController>();
+            Assert.That(controller, Is.Not.Null);
+
+            var controllerUpdate = typeof(InteractionHintController).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(controllerUpdate, Is.Not.Null);
+
+            var tooltipRoot = root.Q<VisualElement>("interaction-hint__root");
+            Assert.That(tooltipRoot, Is.Not.Null);
+
+            try
+            {
+                runtimeHub.RaiseInteractionHintShown(new InteractionHintPayload("pickup", "Pick up", "Hodgdon Varget"));
+                Assert.That(tooltipRoot.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+
+                runtimeHub.RaiseShopTradeOpened("vendor-1");
+                controllerUpdate.Invoke(controller, null);
+                Assert.That(tooltipRoot.style.display.value, Is.EqualTo(DisplayStyle.None));
+
+                runtimeHub.RaiseShopTradeClosed();
+                controllerUpdate.Invoke(controller, null);
+                Assert.That(tooltipRoot.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+
+                runtimeHub.RaiseWorkbenchMenuVisibilityChanged(true);
+                controllerUpdate.Invoke(controller, null);
+                Assert.That(tooltipRoot.style.display.value, Is.EqualTo(DisplayStyle.None));
+
+                runtimeHub.RaiseWorkbenchMenuVisibilityChanged(false);
+                controllerUpdate.Invoke(controller, null);
+                Assert.That(tooltipRoot.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+
+                StorageUiSession.Open("chest.mainTown.01");
+                controllerUpdate.Invoke(controller, null);
+                Assert.That(tooltipRoot.style.display.value, Is.EqualTo(DisplayStyle.None));
+
+                StorageUiSession.Close();
+                controllerUpdate.Invoke(controller, null);
+                Assert.That(tooltipRoot.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            }
+            finally
+            {
+                StorageUiSession.Close();
+                subscription.Dispose();
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
         public void TabInventoryViewBinder_Render_SwitchesActiveSection()
         {
             var root = BuildTabRoot();
