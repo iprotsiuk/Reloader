@@ -66,6 +66,8 @@ namespace Reloader.Game.Weapons
         private bool _externalZoomControlActive;
         private bool _hasLegacyAdsSample;
         private bool _lastLegacyAdsHeld;
+        private OpticDefinition _lastMaskOpticDefinition;
+        private AdsVisualMode _lastMaskPolicy = AdsVisualMode.Auto;
 
         public bool IsAdsActive => _isAdsHeld;
         public float AdsT { get; private set; }
@@ -117,6 +119,14 @@ namespace Reloader.Game.Weapons
             CurrentSensitivityScale = 1f;
             CurrentSwayScale = 1f;
             _maskLatch = false;
+            _externalAdsControlActive = false;
+            _externalZoomControlActive = false;
+            _externalAdsSetFrame = -1;
+            _externalMagnificationSetFrame = -1;
+            _hasLegacyAdsSample = false;
+            _lastLegacyAdsHeld = false;
+            _lastMaskOpticDefinition = null;
+            _lastMaskPolicy = AdsVisualMode.Auto;
 
             if (_worldCamera != null)
             {
@@ -302,6 +312,12 @@ namespace Reloader.Game.Weapons
         {
             var optic = _attachmentManager != null ? _attachmentManager.ActiveOpticDefinition : null;
             var policy = optic != null ? optic.VisualModePolicy : AdsVisualMode.Auto;
+            if (!ReferenceEquals(_lastMaskOpticDefinition, optic) || _lastMaskPolicy != policy)
+            {
+                ResetMaskLatchForContext(policy, CurrentMagnification);
+                _lastMaskOpticDefinition = optic;
+                _lastMaskPolicy = policy;
+            }
 
             var useMask = ResolveMaskMode(policy, CurrentMagnification);
             var adsVisible = AdsT > 0.01f;
@@ -325,6 +341,24 @@ namespace Reloader.Game.Weapons
                 Debug.Log($"[ADS] t={AdsT:F2} mag={CurrentMagnification:F2} sens={CurrentSensitivityScale:F2} sway={CurrentSwayScale:F2} mask={useMask}", this);
             }
 #endif
+        }
+
+        private void ResetMaskLatchForContext(AdsVisualMode policy, float magnification)
+        {
+            if (policy == AdsVisualMode.Mask)
+            {
+                _maskLatch = true;
+                return;
+            }
+
+            if (policy == AdsVisualMode.RenderTexturePiP)
+            {
+                _maskLatch = false;
+                return;
+            }
+
+            // Deterministic Auto initialization on optic/policy swap.
+            _maskLatch = magnification >= 4f;
         }
 
         private bool ResolveMaskMode(AdsVisualMode policy, float magnification)
