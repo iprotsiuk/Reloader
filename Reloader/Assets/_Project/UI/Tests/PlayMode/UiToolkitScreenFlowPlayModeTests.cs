@@ -214,6 +214,45 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void UiToolkitScreenRuntimeBridge_BindTabInventory_UsesDefaultBackpackCapacityWhenRuntimeIsUnavailable()
+        {
+            var bridgeGo = new GameObject("UiBridge");
+            var inventoryGo = new GameObject("InventoryController");
+            var bridge = bridgeGo.AddComponent<UiToolkitScreenRuntimeBridge>();
+            var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
+            var input = bridgeGo.AddComponent<TestInputSource>();
+            var root = BuildTabRoot(backpackSlotCount: 9);
+
+            var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
+                "BindTabInventory",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(bindMethod, Is.Not.Null);
+
+            var subscription = bindMethod.Invoke(
+                bridge,
+                new object[] { root, "tab-menu-controller", inventoryController, input }) as System.IDisposable;
+            Assert.That(subscription, Is.Not.Null);
+
+            var tabController = bridgeGo.transform.Find("tab-menu-controller")?.GetComponent<TabInventoryController>();
+            Assert.That(tabController, Is.Not.Null);
+
+            var binderField = typeof(TabInventoryController).GetField("_viewBinder", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(binderField, Is.Not.Null);
+            var viewBinder = binderField.GetValue(tabController) as TabInventoryViewBinder;
+            Assert.That(viewBinder, Is.Not.Null);
+
+            var backpackSlotsField = typeof(TabInventoryViewBinder).GetField("_backpackSlots", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(backpackSlotsField, Is.Not.Null);
+            var backpackSlots = backpackSlotsField.GetValue(viewBinder) as VisualElement[];
+            Assert.That(backpackSlots, Is.Not.Null);
+            Assert.That(backpackSlots.Length, Is.EqualTo(9));
+
+            subscription.Dispose();
+            UnityEngine.Object.DestroyImmediate(inventoryGo);
+            UnityEngine.Object.DestroyImmediate(bridgeGo);
+        }
+
+        [Test]
         public void UiToolkitScreenRuntimeBridge_BindInteractionHint_RendersRuntimePayloadAndClears()
         {
             var originalHub = RuntimeKernelBootstrapper.Events;
