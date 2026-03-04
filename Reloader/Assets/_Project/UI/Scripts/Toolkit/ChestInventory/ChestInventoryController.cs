@@ -31,6 +31,11 @@ namespace Reloader.UI.Toolkit.ChestInventory
 
         public void Configure(ChestInventoryViewBinder viewBinder)
         {
+            if (_viewBinder != null)
+            {
+                _viewBinder.IntentRaised -= HandleIntent;
+            }
+
             _viewBinder = viewBinder;
             if (_viewBinder != null)
             {

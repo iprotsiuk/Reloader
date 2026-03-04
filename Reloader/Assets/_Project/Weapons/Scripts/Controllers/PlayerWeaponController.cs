@@ -323,6 +323,13 @@ namespace Reloader.Weapons.Controllers
         {
             if (_equippedItemId == itemId)
             {
+                if (!string.IsNullOrWhiteSpace(_equippedItemId)
+                    && _equippedDefinition != null
+                    && _equippedWeaponView == null)
+                {
+                    SpawnEquippedWeaponView(_equippedItemId);
+                }
+
                 return;
             }
 

@@ -1271,6 +1271,101 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator SameItemSelection_AfterDisableEnable_RespawnsMissingViewWithoutRestartingEquipCycle()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var root = new GameObject("PlayerRoot");
+            var viewPrefab = new GameObject("ReenableWeaponViewPrefab");
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            var equipStartedCount = 0;
+            var unequipStartedCount = 0;
+            var handlersRegistered = false;
+            void HandleEquipStarted(string _) => equipStartedCount++;
+            void HandleUnequipStarted(string _) => unequipStartedCount++;
+
+            try
+            {
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+
+                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                runtimeEvents.OnWeaponEquipStarted += HandleEquipStarted;
+                runtimeEvents.OnWeaponUnequipStarted += HandleUnequipStarted;
+                handlersRegistered = true;
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_weaponViewParent", root.transform);
+                yield return null;
+
+                var viewName = "EquippedView_weapon-rifle-01";
+                Assert.That(root.transform.Find(viewName), Is.Not.Null);
+                Assert.That(equipStartedCount, Is.EqualTo(1));
+                Assert.That(unequipStartedCount, Is.EqualTo(0));
+
+                controller.enabled = false;
+                yield return null;
+                Assert.That(root.transform.Find(viewName), Is.Null, "Disabling should destroy the equipped view instance.");
+
+                controller.enabled = true;
+                yield return null;
+
+                Assert.That(root.transform.Find(viewName), Is.Not.Null, "Re-enabling with the same selected item should respawn a missing equipped view.");
+                Assert.That(equipStartedCount, Is.EqualTo(1), "View respawn should not restart equip flow for same item.");
+                Assert.That(unequipStartedCount, Is.EqualTo(0), "View respawn should not trigger unequip flow.");
+
+            }
+            finally
+            {
+                if (handlersRegistered)
+                {
+                    runtimeEvents.OnWeaponEquipStarted -= HandleEquipStarted;
+                    runtimeEvents.OnWeaponUnequipStarted -= HandleUnequipStarted;
+                }
+
+                RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator Equip_WithConfiguredWeaponViewParent_UsesConfiguredParentBeforeFallback()
         {
             var root = new GameObject("PlayerRoot");

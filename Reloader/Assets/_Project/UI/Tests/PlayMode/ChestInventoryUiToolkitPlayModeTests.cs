@@ -1,5 +1,7 @@
+using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.UI;
+using Reloader.UI.Toolkit.Contracts;
 using Reloader.UI.Toolkit.ChestInventory;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -8,6 +10,26 @@ namespace Reloader.UI.Tests.PlayMode
 {
     public class ChestInventoryUiToolkitPlayModeTests
     {
+        [Test]
+        public void ChestInventoryController_ConfigureTwice_DoesNotDuplicateIntentSubscription()
+        {
+            var go = new GameObject("ChestInventoryController");
+            var controller = go.AddComponent<ChestInventoryController>();
+            var binder = new ChestInventoryViewBinder();
+
+            controller.Configure(binder);
+            controller.Configure(binder);
+
+            var intentRaisedField = typeof(ChestInventoryViewBinder).GetField("IntentRaised", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(intentRaisedField, Is.Not.Null);
+
+            var subscribedHandlers = intentRaisedField.GetValue(binder) as System.Action<UiIntent>;
+            Assert.That(subscribedHandlers, Is.Not.Null);
+            Assert.That(subscribedHandlers.GetInvocationList().Length, Is.EqualTo(1));
+
+            Object.DestroyImmediate(go);
+        }
+
         [Test]
         public void Render_OccupiedSlots_RenderIconVisualsFromCatalog()
         {

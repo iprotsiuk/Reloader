@@ -171,6 +171,30 @@ namespace Reloader.UI.Tests.PlayMode
             UnityEngine.Object.DestroyImmediate(go);
         }
 
+        [Test]
+        public void TabInventoryController_Configure_ReplacesDragControllerSubscription()
+        {
+            var go = new GameObject("TabInventoryControllerDragSubscription");
+            var controller = go.AddComponent<TabInventoryController>();
+            var firstDragController = new TabInventoryDragController();
+            var secondDragController = new TabInventoryDragController();
+
+            controller.Configure(null, firstDragController);
+            controller.Configure(null, secondDragController);
+
+            var intentRaisedField = typeof(TabInventoryDragController).GetField("IntentRaised", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(intentRaisedField, Is.Not.Null);
+
+            var firstHandlers = intentRaisedField.GetValue(firstDragController) as Action<UiIntent>;
+            var secondHandlers = intentRaisedField.GetValue(secondDragController) as Action<UiIntent>;
+
+            Assert.That(firstHandlers, Is.Null, "Previous drag controller should not keep stale subscriptions.");
+            Assert.That(secondHandlers, Is.Not.Null);
+            Assert.That(secondHandlers.GetInvocationList().Length, Is.EqualTo(1));
+
+            UnityEngine.Object.DestroyImmediate(go);
+        }
+
         [TestCase(0)]
         [TestCase(2)]
         public void UiToolkitScreenRuntimeBridge_BindTabInventory_UsesRuntimeBackpackCapacity_WhenRuntimeIsAvailable(int backpackCapacity)
