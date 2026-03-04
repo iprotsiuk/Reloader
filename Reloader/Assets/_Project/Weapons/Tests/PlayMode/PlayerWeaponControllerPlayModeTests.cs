@@ -4,6 +4,7 @@ using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using Reloader.Audio;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.Weapons.Ballistics;
@@ -1507,6 +1508,55 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Fire_DiscoveredEmitterWithCustomCatalog_PreservesConfiguredCatalog()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var customCatalog = ScriptableObject.CreateInstance<CombatAudioCatalog>();
+            var emitterHost = new GameObject("EmitterHost");
+            emitterHost.transform.SetParent(root.transform, false);
+            var emitter = emitterHost.AddComponent<WeaponCombatAudioEmitter>();
+            emitter.SetCatalog(customCatalog);
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_weaponRegistry", registry);
+            SetControllerField(controller, "_combatAudioEmitter", null);
+
+            yield return null;
+
+            input.FirePressedThisFrame = true;
+            yield return null;
+
+            var emitterField = typeof(PlayerWeaponController).GetField("_combatAudioEmitter", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(emitterField, Is.Not.Null);
+            var resolvedEmitter = emitterField.GetValue(controller) as WeaponCombatAudioEmitter;
+            Assert.That(resolvedEmitter, Is.SameAs(emitter));
+
+            var catalogField = typeof(WeaponCombatAudioEmitter).GetField("_catalog", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(catalogField, Is.Not.Null);
+            Assert.That(catalogField.GetValue(resolvedEmitter), Is.SameAs(customCatalog));
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+            Object.Destroy(customCatalog);
+        }
+
+        [UnityTest]
         public IEnumerator Fire_WithViewMuzzleDefaultAttachment_BridgesAndUsesOverrideClip()
         {
             var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
@@ -1624,6 +1674,128 @@ namespace Reloader.Weapons.Tests.PlayMode
                 if (muzzlePrefab != null)
                 {
                     Object.Destroy(muzzlePrefab);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator EquipView_WithDetachableMagazineRuntimeDefaultAttachment_BridgesAndActivatesAttachment()
+        {
+            var runtimeType = ResolveType("Reloader.Game.Weapons.DetachableMagazineRuntime");
+            var definitionType = ResolveType("Reloader.Game.Weapons.MagazineAttachmentDefinition");
+            Assert.That(runtimeType, Is.Not.Null);
+            Assert.That(definitionType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            UnityEngine.Object magazineDefinition = null;
+            GameObject magazineVisualPrefab = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+
+                viewPrefab = new GameObject("ViewPrefabWithMagRuntime");
+                var muzzle = new GameObject("Muzzle").transform;
+                muzzle.SetParent(viewPrefab.transform, false);
+                var magazineSocket = new GameObject("MagazineSocket").transform;
+                magazineSocket.SetParent(viewPrefab.transform, false);
+                var dropSocket = new GameObject("MagazineDropSocket").transform;
+                dropSocket.SetParent(viewPrefab.transform, false);
+
+                var runtimeComponent = viewPrefab.AddComponent(runtimeType);
+                var magazineSocketField = runtimeType.GetField("_magazineSocket", BindingFlags.Instance | BindingFlags.NonPublic);
+                var dropSocketField = runtimeType.GetField("_magazineDropSocket", BindingFlags.Instance | BindingFlags.NonPublic);
+                var defaultAttachmentField = runtimeType.GetField("_defaultAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(magazineSocketField, Is.Not.Null);
+                Assert.That(dropSocketField, Is.Not.Null);
+                Assert.That(defaultAttachmentField, Is.Not.Null);
+
+                magazineDefinition = ScriptableObject.CreateInstance(definitionType);
+                magazineVisualPrefab = new GameObject("MagazineVisualPrefab");
+                var definitionVisualField = definitionType.GetField("_magazineVisualPrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                var spawnDroppedField = definitionType.GetField("_spawnDroppedMagazine", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(definitionVisualField, Is.Not.Null);
+                Assert.That(spawnDroppedField, Is.Not.Null);
+                definitionVisualField.SetValue(magazineDefinition, magazineVisualPrefab);
+                spawnDroppedField.SetValue(magazineDefinition, false);
+
+                magazineSocketField.SetValue(runtimeComponent, magazineSocket);
+                dropSocketField.SetValue(runtimeComponent, dropSocket);
+                defaultAttachmentField.SetValue(runtimeComponent, magazineDefinition);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                yield return null;
+
+                var equippedViewField = typeof(PlayerWeaponController).GetField("_equippedWeaponView", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(equippedViewField, Is.Not.Null);
+                var equippedView = equippedViewField.GetValue(controller) as GameObject;
+                Assert.That(equippedView, Is.Not.Null);
+
+                var bridgedRuntime = equippedView.GetComponent(runtimeType);
+                Assert.That(bridgedRuntime, Is.Not.Null);
+
+                var activeAttachmentField = runtimeType.GetField("_activeAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(activeAttachmentField, Is.Not.Null);
+                Assert.That(activeAttachmentField.GetValue(bridgedRuntime), Is.SameAs(magazineDefinition));
+
+                var bridgedMagSocketField = runtimeType.GetField("_magazineSocket", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(bridgedMagSocketField, Is.Not.Null);
+                var bridgedMagazineSocket = bridgedMagSocketField.GetValue(bridgedRuntime) as Transform;
+                Assert.That(bridgedMagazineSocket, Is.Not.Null);
+                Assert.That(bridgedMagazineSocket.childCount, Is.EqualTo(1), "Bridged magazine runtime should mount configured visual.");
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (magazineDefinition != null)
+                {
+                    Object.Destroy(magazineDefinition);
+                }
+
+                if (magazineVisualPrefab != null)
+                {
+                    Object.Destroy(magazineVisualPrefab);
                 }
             }
         }

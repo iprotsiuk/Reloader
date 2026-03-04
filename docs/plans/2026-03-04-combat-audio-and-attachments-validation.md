@@ -34,7 +34,7 @@ Plan source: `docs/plans/2026-03-04-combat-audio-and-attachments-implementation-
 - `41e2a61` fix(audio): remove gunshot clips from reload audio mappings
 - `43667f1` fix(audio): bootstrap footsteps runtime and stabilize one-shot playback
 - `09c86d1` fix(attachments): skip unsafe prefabs with missing scripts at runtime
-- `<pending>` fix(audio): prevent emitter host transform movement during one-shot playback (shoot jump regression)
+- `5e4127b` fix(audio): prevent emitter host transform movement during one-shot playback (shoot jump regression)
 
 ## Verification Evidence
 

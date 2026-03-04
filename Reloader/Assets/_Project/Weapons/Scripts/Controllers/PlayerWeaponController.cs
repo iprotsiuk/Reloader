@@ -795,7 +795,7 @@ namespace Reloader.Weapons.Controllers
                 _combatAudioEmitter = gameObject.AddComponent<WeaponCombatAudioEmitter>();
             }
 
-            _combatAudioEmitter.SetCatalog(CombatAudioCatalogResolver.Resolve(null));
+            _combatAudioEmitter.EnsureCatalog(CombatAudioCatalogResolver.Resolve(null));
             return _combatAudioEmitter;
         }
 
@@ -917,7 +917,7 @@ namespace Reloader.Weapons.Controllers
             equipMethod?.Invoke(runtimeComponent, new object[] { resolvedAttachment });
         }
 
-        private void EnsureDetachableMagazineRuntimeBridge(GameObject viewRoot)
+        private void EnsureDetachableMagazineRuntimeBridge(GameObject viewRoot, UObject preferredAttachmentDefinition)
         {
             if (viewRoot == null)
             {
@@ -941,6 +941,29 @@ namespace Reloader.Weapons.Controllers
 
             var dropSocketField = runtimeType.GetField("_magazineDropSocket", BindingFlags.Instance | BindingFlags.NonPublic);
             dropSocketField?.SetValue(runtimeComponent, dropSocket);
+
+            var definitionType = ResolveTypeByName("Reloader.Game.Weapons.MagazineAttachmentDefinition");
+            if (definitionType == null)
+            {
+                return;
+            }
+
+            var resolvedAttachment = preferredAttachmentDefinition;
+            if (resolvedAttachment == null || !definitionType.IsInstanceOfType(resolvedAttachment))
+            {
+                resolvedAttachment = ResolveDeterministicMagazineDefinitionFallback(definitionType);
+            }
+
+            if (resolvedAttachment == null)
+            {
+                return;
+            }
+
+            var defaultAttachmentField = runtimeType.GetField("_defaultAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
+            defaultAttachmentField?.SetValue(runtimeComponent, resolvedAttachment);
+
+            var setAttachmentMethod = runtimeType.GetMethod("SetAttachment", BindingFlags.Instance | BindingFlags.Public);
+            setAttachmentMethod?.Invoke(runtimeComponent, new object[] { resolvedAttachment });
         }
 
         private static Type ResolveTypeByName(string fullTypeName)
@@ -1181,6 +1204,7 @@ namespace Reloader.Weapons.Controllers
             _equippedWeaponView.transform.localRotation = Quaternion.identity;
             _equippedWeaponView.transform.localScale = Vector3.one;
             var preferredMuzzleAttachmentDefinition = ResolveViewMuzzleAttachmentDefinition(_equippedWeaponView);
+            var preferredMagazineAttachmentDefinition = ResolveViewMagazineAttachmentDefinition(_equippedWeaponView);
             StripViewPhysicsComponents(_equippedWeaponView);
             StripViewRuntimeComponents(_equippedWeaponView);
 
@@ -1192,7 +1216,7 @@ namespace Reloader.Weapons.Controllers
             }
 
             EnsureMuzzleRuntimeBridge(_equippedWeaponView, viewMuzzle, preferredMuzzleAttachmentDefinition);
-            EnsureDetachableMagazineRuntimeBridge(_equippedWeaponView);
+            EnsureDetachableMagazineRuntimeBridge(_equippedWeaponView, preferredMagazineAttachmentDefinition);
         }
 
         private void DestroyEquippedWeaponView()
@@ -1551,6 +1575,76 @@ namespace Reloader.Weapons.Controllers
             }
 
             return !HasMissingScriptsInPrefab(muzzlePrefab);
+        }
+
+        private static UObject ResolveViewMagazineAttachmentDefinition(GameObject viewRoot)
+        {
+            if (viewRoot == null)
+            {
+                return null;
+            }
+
+            var behaviours = viewRoot.GetComponentsInChildren<MonoBehaviour>(true);
+            for (var i = 0; i < behaviours.Length; i++)
+            {
+                var behaviour = behaviours[i];
+                if (behaviour == null || behaviour.GetType().Name != "DetachableMagazineRuntime")
+                {
+                    continue;
+                }
+
+                var defaultAttachmentField = behaviour.GetType().GetField("_defaultAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
+                if (defaultAttachmentField != null && defaultAttachmentField.GetValue(behaviour) is UObject defaultAttachment)
+                {
+                    return defaultAttachment;
+                }
+            }
+
+            return null;
+        }
+
+        private static UObject ResolveDeterministicMagazineDefinitionFallback(Type definitionType)
+        {
+            if (definitionType == null)
+            {
+                return null;
+            }
+
+            var definitions = Resources.FindObjectsOfTypeAll(definitionType);
+            if (definitions == null || definitions.Length == 0)
+            {
+                return null;
+            }
+
+            Array.Sort(definitions, CompareObjectsDeterministically);
+            for (var i = 0; i < definitions.Length; i++)
+            {
+                var candidate = definitions[i];
+                if (candidate == null || !IsSafeMagazineDefinition(candidate))
+                {
+                    continue;
+                }
+
+                return candidate;
+            }
+
+            return null;
+        }
+
+        private static bool IsSafeMagazineDefinition(UObject definition)
+        {
+            if (definition == null)
+            {
+                return false;
+            }
+
+            var visualPrefabField = definition.GetType().GetField("_magazineVisualPrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (visualPrefabField == null || !(visualPrefabField.GetValue(definition) is GameObject visualPrefab) || visualPrefab == null)
+            {
+                return false;
+            }
+
+            return !HasMissingScriptsInPrefab(visualPrefab);
         }
 
         private static bool HasMissingScriptsInPrefab(GameObject prefab)

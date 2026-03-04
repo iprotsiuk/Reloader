@@ -149,12 +149,14 @@ namespace Reloader.Game.Weapons
         {
             if (_muzzleRuntime == null || muzzle == null || muzzle.MuzzlePrefab == null)
             {
+                _muzzleRuntime?.Unequip();
                 return false;
             }
 
             var slot = ResolveRuntimeAttachmentSlot(_muzzleRuntime);
             if (slot == null)
             {
+                _muzzleRuntime.Unequip();
                 return false;
             }
 

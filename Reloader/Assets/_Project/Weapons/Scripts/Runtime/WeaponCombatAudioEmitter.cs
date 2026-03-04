@@ -43,6 +43,14 @@ namespace Reloader.Weapons.Runtime
             _catalog = catalog;
         }
 
+        public void EnsureCatalog(CombatAudioCatalog fallbackCatalog)
+        {
+            if (_catalog == null)
+            {
+                _catalog = CombatAudioCatalogResolver.Resolve(fallbackCatalog);
+            }
+        }
+
         private void Awake()
         {
             EnsureOneShotSource();
