@@ -50,6 +50,39 @@ namespace Reloader.Weapons.Tests.PlayMode
             UnityEngine.Object.DestroyImmediate(clip);
         }
 
+        [Test]
+        public void AttachmentManager_EquipMuzzle_WithRuntimeMissingSlot_ReportsFailure()
+        {
+            var managerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var runtimeType = ResolveType("Reloader.Game.Weapons.MuzzleAttachmentRuntime");
+            var definitionType = ResolveType("Reloader.Game.Weapons.MuzzleAttachmentDefinition");
+            Assert.That(managerType, Is.Not.Null);
+            Assert.That(runtimeType, Is.Not.Null);
+            Assert.That(definitionType, Is.Not.Null);
+
+            var root = new GameObject("AttachmentRoot");
+            var manager = root.AddComponent(managerType);
+            var runtime = root.AddComponent(runtimeType);
+
+            var managerRuntimeField = managerType.GetField("_muzzleRuntime", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(managerRuntimeField, Is.Not.Null);
+            managerRuntimeField.SetValue(manager, runtime);
+
+            // Intentionally do not set runtime _attachmentSlot so runtime.Equip cannot mount the prefab.
+            var definition = ScriptableObject.CreateInstance(definitionType);
+            var muzzlePrefab = new GameObject("MuzzleDevicePrefab");
+            var muzzlePrefabField = definitionType.GetField("_muzzlePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(muzzlePrefabField, Is.Not.Null);
+            muzzlePrefabField.SetValue(definition, muzzlePrefab);
+
+            var result = managerType.GetMethod("EquipMuzzle", BindingFlags.Instance | BindingFlags.Public)?.Invoke(manager, new object[] { definition });
+            Assert.That(result, Is.EqualTo(false));
+
+            UnityEngine.Object.DestroyImmediate(root);
+            UnityEngine.Object.DestroyImmediate(muzzlePrefab);
+            UnityEngine.Object.DestroyImmediate(definition);
+        }
+
         private static Type ResolveType(string fullName)
         {
             var direct = Type.GetType(fullName);

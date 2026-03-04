@@ -1,3 +1,4 @@
+using System.Reflection;
 using UnityEngine;
 
 namespace Reloader.Game.Weapons
@@ -87,15 +88,27 @@ namespace Reloader.Game.Weapons
 
         public bool EquipMuzzle(MuzzleAttachmentDefinition muzzle)
         {
-            _activeMuzzleDefinition = muzzle;
-            if (_muzzleRuntime != null)
+            if (muzzle == null)
             {
-                _muzzleRuntime.Equip(muzzle);
+                UnequipMuzzle();
                 return true;
             }
 
-            if (_muzzleSlot == null || muzzle == null || muzzle.MuzzlePrefab == null)
+            if (_muzzleRuntime != null)
             {
+                if (!TryEquipMuzzleWithRuntime(muzzle))
+                {
+                    _activeMuzzleDefinition = null;
+                    return false;
+                }
+
+                _activeMuzzleDefinition = muzzle;
+                return true;
+            }
+
+            if (_muzzleSlot == null || muzzle.MuzzlePrefab == null)
+            {
+                _activeMuzzleDefinition = null;
                 return false;
             }
 
@@ -105,6 +118,7 @@ namespace Reloader.Game.Weapons
             }
 
             Instantiate(muzzle.MuzzlePrefab, _muzzleSlot, false);
+            _activeMuzzleDefinition = muzzle;
             return true;
         }
 
@@ -125,6 +139,54 @@ namespace Reloader.Game.Weapons
             {
                 Destroy(_muzzleSlot.GetChild(i).gameObject);
             }
+        }
+
+        private bool TryEquipMuzzleWithRuntime(MuzzleAttachmentDefinition muzzle)
+        {
+            if (_muzzleRuntime == null || muzzle == null || muzzle.MuzzlePrefab == null)
+            {
+                return false;
+            }
+
+            var slot = ResolveRuntimeAttachmentSlot(_muzzleRuntime);
+            if (slot == null)
+            {
+                return false;
+            }
+
+            _muzzleRuntime.Equip(muzzle);
+            if (_muzzleRuntime.ActiveAttachment != muzzle)
+            {
+                return false;
+            }
+
+            if (slot.childCount == 0)
+            {
+                return false;
+            }
+
+            var expectedPrefix = muzzle.MuzzlePrefab.name;
+            for (var i = 0; i < slot.childCount; i++)
+            {
+                var child = slot.GetChild(i);
+                if (child != null && child.name.StartsWith(expectedPrefix))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static Transform ResolveRuntimeAttachmentSlot(MuzzleAttachmentRuntime runtime)
+        {
+            if (runtime == null)
+            {
+                return null;
+            }
+
+            var slotField = typeof(MuzzleAttachmentRuntime).GetField("_attachmentSlot", BindingFlags.Instance | BindingFlags.NonPublic);
+            return slotField?.GetValue(runtime) as Transform;
         }
 
         private void RefreshSightAnchor()

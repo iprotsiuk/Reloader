@@ -1,0 +1,169 @@
+using System;
+using System.Collections;
+using System.Reflection;
+using NUnit.Framework;
+using Reloader.Audio;
+using UnityEngine;
+using UnityEngine.TestTools;
+
+namespace Reloader.Audio.Tests.PlayMode
+{
+    public class FootstepAndImpactAudioPlayModeTests
+    {
+        [UnityTest]
+        public IEnumerator FootstepRouter_EmitsClip_ByLocomotionCadenceFromPlayerMover()
+        {
+            var footstepClip = AudioClip.Create("footstep", 128, 1, 44100, false);
+            var catalog = CreateCatalogWithFootsteps(footstepClip);
+
+            var go = new GameObject("PlayerWithFootstepAudio");
+            var characterController = go.AddComponent<CharacterController>();
+            Assert.That(characterController, Is.Not.Null);
+
+            var playerMoverType = Type.GetType("Reloader.Player.PlayerMover, Reloader.Player");
+            Assert.That(playerMoverType, Is.Not.Null, "PlayerMover type should resolve from Reloader.Player assembly.");
+            var playerMover = go.AddComponent(playerMoverType);
+            Assert.That(playerMover, Is.Not.Null);
+
+            var router = go.AddComponent<FootstepAudioRouter>();
+            SetPrivateField(router, "_catalog", catalog);
+            SetPrivateField(router, "_surfaceId", "Default");
+            SetPrivateField(router, "_metersPerStep", 1f);
+            SetPrivateField(router, "_minimumSpeed", 0.1f);
+
+            AudioClip playedClip = null;
+            router.ClipPlayed += (_, clip, _) => playedClip = clip;
+
+            var publishMethod = playerMoverType.GetMethod("PublishLocomotionFrame", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(publishMethod, Is.Not.Null, "PlayerMover should expose PublishLocomotionFrame for audio wiring.");
+
+            publishMethod.Invoke(playerMover, new object[] { go.transform.position, new Vector3(0f, 0f, 4f), true, 0.1f });
+            publishMethod.Invoke(playerMover, new object[] { go.transform.position, new Vector3(0f, 0f, 4f), true, 0.1f });
+            publishMethod.Invoke(playerMover, new object[] { go.transform.position, new Vector3(0f, 0f, 4f), true, 0.1f });
+            yield return null;
+
+            Assert.That(playedClip, Is.SameAs(footstepClip));
+
+            UnityEngine.Object.Destroy(go);
+            UnityEngine.Object.Destroy(catalog);
+            UnityEngine.Object.Destroy(footstepClip);
+        }
+
+        [UnityTest]
+        public IEnumerator ProjectileImpact_UsesImpactRouterSurfaceMapping()
+        {
+            var defaultClip = AudioClip.Create("impact-default", 128, 1, 44100, false);
+            var bodyClip = AudioClip.Create("impact-body", 128, 1, 44100, false);
+            var catalog = CreateCatalogWithImpacts(defaultClip, bodyClip);
+
+            var routerGo = new GameObject("ImpactAudioRouter");
+            var router = routerGo.AddComponent<ImpactAudioRouter>();
+            SetPrivateField(router, "_catalog", catalog);
+            SetPrivateField(router, "_defaultSurfaceId", "Default");
+            SetRouterTagSurfaceMappings(router, ("Player", "Body"));
+
+            AudioClip playedClip = null;
+            router.ClipPlayed += (_, clip, _) => playedClip = clip;
+
+            var target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            target.name = "ImpactTarget";
+            target.tag = "Player";
+            target.transform.position = new Vector3(0f, 0f, 4f);
+
+            var projectileType = Type.GetType("Reloader.Weapons.Ballistics.WeaponProjectile, Reloader.Weapons");
+            Assert.That(projectileType, Is.Not.Null, "WeaponProjectile type should resolve from Reloader.Weapons assembly.");
+
+            var projectileGo = new GameObject("Projectile");
+            projectileGo.transform.position = Vector3.zero;
+            projectileGo.transform.forward = Vector3.forward;
+            var projectile = projectileGo.AddComponent(projectileType);
+            Assert.That(projectile, Is.Not.Null);
+
+            var initializeMethod = projectileType.GetMethod("Initialize", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(initializeMethod, Is.Not.Null);
+            initializeMethod.Invoke(projectile, new object[]
+            {
+                "weapon-rifle-01",
+                Vector3.forward,
+                120f,
+                0f,
+                10f,
+                2f,
+                0.45f,
+                null
+            });
+
+            var elapsed = 0f;
+            while (playedClip == null && elapsed < 0.5f)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            Assert.That(playedClip, Is.SameAs(bodyClip));
+
+            UnityEngine.Object.Destroy(projectileGo);
+            UnityEngine.Object.Destroy(target);
+            UnityEngine.Object.Destroy(routerGo);
+            UnityEngine.Object.Destroy(catalog);
+            UnityEngine.Object.Destroy(defaultClip);
+            UnityEngine.Object.Destroy(bodyClip);
+        }
+
+        private static CombatAudioCatalog CreateCatalogWithFootsteps(AudioClip footstepClip)
+        {
+            var catalog = ScriptableObject.CreateInstance<CombatAudioCatalog>();
+            SetSurfaceGroups(catalog, "_footstepGroups", ("Default", new[] { footstepClip }));
+            return catalog;
+        }
+
+        private static CombatAudioCatalog CreateCatalogWithImpacts(AudioClip defaultClip, AudioClip bodyClip)
+        {
+            var catalog = ScriptableObject.CreateInstance<CombatAudioCatalog>();
+            SetSurfaceGroups(catalog, "_impactGroups", ("Default", new[] { defaultClip }), ("Body", new[] { bodyClip }));
+            return catalog;
+        }
+
+        private static void SetRouterTagSurfaceMappings(ImpactAudioRouter router, params (string tag, string surfaceId)[] mappings)
+        {
+            var mappingType = typeof(ImpactAudioRouter).GetNestedType("TagSurfaceMapping", BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(mappingType, Is.Not.Null, "ImpactAudioRouter.TagSurfaceMapping type should exist.");
+
+            var mappingArray = Array.CreateInstance(mappingType, mappings.Length);
+            for (var i = 0; i < mappings.Length; i++)
+            {
+                var mapping = Activator.CreateInstance(mappingType);
+                SetPrivateField(mapping, "_tag", mappings[i].tag);
+                SetPrivateField(mapping, "_surfaceId", mappings[i].surfaceId);
+                mappingArray.SetValue(mapping, i);
+            }
+
+            SetPrivateField(router, "_tagMappings", mappingArray);
+        }
+
+        private static void SetSurfaceGroups(CombatAudioCatalog catalog, string fieldName, params (string surfaceId, AudioClip[] clips)[] groups)
+        {
+            var groupType = typeof(CombatAudioCatalog).GetNestedType("SurfaceAudioGroup", BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(groupType, Is.Not.Null);
+
+            var values = Array.CreateInstance(groupType, groups.Length);
+            for (var i = 0; i < groups.Length; i++)
+            {
+                var entry = Activator.CreateInstance(groupType);
+                SetPrivateField(entry, "_surfaceId", groups[i].surfaceId);
+                SetPrivateField(entry, "_clips", groups[i].clips);
+                values.SetValue(entry, i);
+            }
+
+            SetPrivateField(catalog, fieldName, values);
+        }
+
+        private static void SetPrivateField(object target, string fieldName, object value)
+        {
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            var field = target.GetType().GetField(fieldName, flags);
+            Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found on {target.GetType().Name}.");
+            field.SetValue(target, value);
+        }
+    }
+}

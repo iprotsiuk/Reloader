@@ -11,6 +11,8 @@ using Reloader.Weapons.Runtime;
 using System;
 using System.Reflection;
 using UnityEngine;
+using URandom = UnityEngine.Random;
+using UObject = UnityEngine.Object;
 
 namespace Reloader.Weapons.Controllers
 {
@@ -544,7 +546,7 @@ namespace Reloader.Weapons.Controllers
             var ballisticSpec = ResolveBallisticSpec(fireData);
             var projectile = SpawnProjectile();
             projectile?.Configure(_useRuntimeKernelWeaponEvents ? null : _weaponEvents);
-            var firedDirection = ApplyDispersion(_muzzleTransform.forward, ballisticSpec.DispersionMoa, Random.value, Random.value);
+            var firedDirection = ApplyDispersion(_muzzleTransform.forward, ballisticSpec.DispersionMoa, URandom.value, URandom.value);
             projectile?.Initialize(
                 _equippedItemId,
                 firedDirection,
@@ -624,6 +626,7 @@ namespace Reloader.Weapons.Controllers
             state.IsReloading = true;
             ResolveWeaponEvents()?.RaiseWeaponReloadStarted(_equippedItemId);
             ResolveCombatAudioEmitter()?.EmitReloadStarted(_equippedItemId, _muzzleTransform.position);
+            NotifyViewReloadStarted(_equippedItemId);
         }
 
         private void TickReloadCancellation()
@@ -677,6 +680,7 @@ namespace Reloader.Weapons.Controllers
             state.SetReserveCount(_inventoryController.Runtime.GetItemQuantity(ammoItemId));
             ResolveWeaponEvents()?.RaiseWeaponReloaded(_equippedItemId, state.MagazineCount, state.ReserveCount);
             ResolveCombatAudioEmitter()?.EmitReloadCompleted(_equippedItemId, _muzzleTransform.position);
+            NotifyViewReloadCompleted(_equippedItemId);
         }
 
         private void TickPackPresentation()
@@ -733,10 +737,12 @@ namespace Reloader.Weapons.Controllers
 
         public void OnAmmunitionFill()
         {
+            NotifyViewMagazineInserted(_equippedItemId);
         }
 
         public void OnAnimationEndedReload()
         {
+            NotifyViewMagazineInserted(_equippedItemId);
         }
 
         private void CancelReload(string itemId, WeaponReloadCancelReason reason)
@@ -768,6 +774,16 @@ namespace Reloader.Weapons.Controllers
             }
 
             _combatAudioEmitter = GetComponentInChildren<WeaponCombatAudioEmitter>(true);
+            if (_combatAudioEmitter == null)
+            {
+                _combatAudioEmitter = gameObject.GetComponent<WeaponCombatAudioEmitter>();
+            }
+
+            if (_combatAudioEmitter == null)
+            {
+                _combatAudioEmitter = gameObject.AddComponent<WeaponCombatAudioEmitter>();
+            }
+
             return _combatAudioEmitter;
         }
 
@@ -779,6 +795,36 @@ namespace Reloader.Weapons.Controllers
             }
 
             _equippedWeaponView.SendMessage("HandleWeaponFired", itemId, SendMessageOptions.DontRequireReceiver);
+        }
+
+        private void NotifyViewReloadStarted(string itemId)
+        {
+            if (_equippedWeaponView == null)
+            {
+                return;
+            }
+
+            _equippedWeaponView.SendMessage("HandleReloadStarted", itemId, SendMessageOptions.DontRequireReceiver);
+        }
+
+        private void NotifyViewMagazineInserted(string itemId)
+        {
+            if (_equippedWeaponView == null)
+            {
+                return;
+            }
+
+            _equippedWeaponView.SendMessage("HandleMagazineInserted", itemId, SendMessageOptions.DontRequireReceiver);
+        }
+
+        private void NotifyViewReloadCompleted(string itemId)
+        {
+            if (_equippedWeaponView == null)
+            {
+                return;
+            }
+
+            _equippedWeaponView.SendMessage("HandleReloadCompleted", itemId, SendMessageOptions.DontRequireReceiver);
         }
 
         private AudioClip ResolveMuzzleAudioOverride()
@@ -813,7 +859,7 @@ namespace Reloader.Weapons.Controllers
             return null;
         }
 
-        private void EnsureMuzzleRuntimeBridge(GameObject viewRoot, Transform viewMuzzle)
+        private void EnsureMuzzleRuntimeBridge(GameObject viewRoot, Transform viewMuzzle, UObject preferredAttachmentDefinition)
         {
             if (viewRoot == null || viewMuzzle == null)
             {
@@ -834,6 +880,55 @@ namespace Reloader.Weapons.Controllers
 
             var attachmentSlotField = muzzleRuntimeType.GetField("_attachmentSlot", BindingFlags.Instance | BindingFlags.NonPublic);
             attachmentSlotField?.SetValue(runtimeComponent, attachmentSlot);
+
+            var attachmentDefinitionType = ResolveTypeByName("Reloader.Game.Weapons.MuzzleAttachmentDefinition");
+            if (attachmentDefinitionType == null)
+            {
+                return;
+            }
+
+            var resolvedAttachment = preferredAttachmentDefinition;
+            if (resolvedAttachment == null || !attachmentDefinitionType.IsInstanceOfType(resolvedAttachment))
+            {
+                resolvedAttachment = ResolveDeterministicMuzzleDefinitionFallback(attachmentDefinitionType);
+            }
+
+            if (resolvedAttachment == null)
+            {
+                return;
+            }
+
+            var defaultAttachmentField = muzzleRuntimeType.GetField("_defaultAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
+            defaultAttachmentField?.SetValue(runtimeComponent, resolvedAttachment);
+
+            var equipMethod = muzzleRuntimeType.GetMethod("Equip", BindingFlags.Instance | BindingFlags.Public);
+            equipMethod?.Invoke(runtimeComponent, new object[] { resolvedAttachment });
+        }
+
+        private void EnsureDetachableMagazineRuntimeBridge(GameObject viewRoot)
+        {
+            if (viewRoot == null)
+            {
+                return;
+            }
+
+            var runtimeType = ResolveTypeByName("Reloader.Game.Weapons.DetachableMagazineRuntime");
+            if (runtimeType == null)
+            {
+                return;
+            }
+
+            var runtimeComponent = viewRoot.GetComponent(runtimeType) ?? viewRoot.AddComponent(runtimeType);
+            var magazineSocket = FindDescendantByName(viewRoot.transform, "MagazineSocket")
+                ?? FindDescendantByName(viewRoot.transform, "SOCKET_Magazine")
+                ?? FindDescendantByName(viewRoot.transform, "Muzzle");
+            var dropSocket = FindDescendantByName(viewRoot.transform, "MagazineDropSocket") ?? magazineSocket;
+
+            var magazineSocketField = runtimeType.GetField("_magazineSocket", BindingFlags.Instance | BindingFlags.NonPublic);
+            magazineSocketField?.SetValue(runtimeComponent, magazineSocket);
+
+            var dropSocketField = runtimeType.GetField("_magazineDropSocket", BindingFlags.Instance | BindingFlags.NonPublic);
+            dropSocketField?.SetValue(runtimeComponent, dropSocket);
         }
 
         private static Type ResolveTypeByName(string fullTypeName)
@@ -935,11 +1030,11 @@ namespace Reloader.Weapons.Controllers
         {
             if (fireData.FiredRound.HasValue)
             {
-                return CartridgeBallisticSpecBuilder.Build(fireData.FiredRound.Value, Random.value);
+                return CartridgeBallisticSpecBuilder.Build(fireData.FiredRound.Value, URandom.value);
             }
 
             var fallbackRound = BuildDefinitionRound(_equippedDefinition);
-            return CartridgeBallisticSpecBuilder.Build(fallbackRound, Random.value);
+            return CartridgeBallisticSpecBuilder.Build(fallbackRound, URandom.value);
         }
 
         private static AmmoBallisticSnapshot BuildDefinitionRound(WeaponDefinition definition)
@@ -1073,6 +1168,7 @@ namespace Reloader.Weapons.Controllers
             _equippedWeaponView.transform.localPosition = Vector3.zero;
             _equippedWeaponView.transform.localRotation = Quaternion.identity;
             _equippedWeaponView.transform.localScale = Vector3.one;
+            var preferredMuzzleAttachmentDefinition = ResolveViewMuzzleAttachmentDefinition(_equippedWeaponView);
             StripViewPhysicsComponents(_equippedWeaponView);
             StripViewRuntimeComponents(_equippedWeaponView);
 
@@ -1083,7 +1179,8 @@ namespace Reloader.Weapons.Controllers
                 _muzzleTransform = viewMuzzle;
             }
 
-            EnsureMuzzleRuntimeBridge(_equippedWeaponView, viewMuzzle);
+            EnsureMuzzleRuntimeBridge(_equippedWeaponView, viewMuzzle, preferredMuzzleAttachmentDefinition);
+            EnsureDetachableMagazineRuntimeBridge(_equippedWeaponView);
         }
 
         private void DestroyEquippedWeaponView()
@@ -1104,10 +1201,10 @@ namespace Reloader.Weapons.Controllers
                 return null;
             }
 
-            Object instance;
+            UObject instance;
             try
             {
-                instance = Instantiate((Object)source, parent);
+                instance = Instantiate((UObject)source, parent);
             }
             catch (System.Exception)
             {
@@ -1342,6 +1439,79 @@ namespace Reloader.Weapons.Controllers
                 // Weapon view instances should be pure visual meshes/sockets.
                 Destroy(behaviour);
             }
+        }
+
+        private static UObject ResolveViewMuzzleAttachmentDefinition(GameObject viewRoot)
+        {
+            if (viewRoot == null)
+            {
+                return null;
+            }
+
+            var behaviours = viewRoot.GetComponentsInChildren<MonoBehaviour>(true);
+            for (var i = 0; i < behaviours.Length; i++)
+            {
+                var behaviour = behaviours[i];
+                if (behaviour == null || behaviour.GetType().Name != "MuzzleAttachmentRuntime")
+                {
+                    continue;
+                }
+
+                var behaviourType = behaviour.GetType();
+                var activeAttachmentProperty = behaviourType.GetProperty("ActiveAttachment", BindingFlags.Instance | BindingFlags.Public);
+                if (activeAttachmentProperty != null && activeAttachmentProperty.GetValue(behaviour) is UObject activeAttachment)
+                {
+                    return activeAttachment;
+                }
+
+                var defaultAttachmentField = behaviourType.GetField("_defaultAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
+                if (defaultAttachmentField != null && defaultAttachmentField.GetValue(behaviour) is UObject defaultAttachment)
+                {
+                    return defaultAttachment;
+                }
+            }
+
+            return null;
+        }
+
+        private static UObject ResolveDeterministicMuzzleDefinitionFallback(Type attachmentDefinitionType)
+        {
+            if (attachmentDefinitionType == null)
+            {
+                return null;
+            }
+
+            var definitions = Resources.FindObjectsOfTypeAll(attachmentDefinitionType);
+            if (definitions == null || definitions.Length == 0)
+            {
+                return null;
+            }
+
+            Array.Sort(definitions, CompareObjectsDeterministically);
+            return definitions[0];
+        }
+
+        private static int CompareObjectsDeterministically(UObject left, UObject right)
+        {
+            if (ReferenceEquals(left, right))
+            {
+                return 0;
+            }
+
+            if (left == null)
+            {
+                return 1;
+            }
+
+            if (right == null)
+            {
+                return -1;
+            }
+
+            var nameComparison = string.Compare(left.name, right.name, StringComparison.Ordinal);
+            return nameComparison != 0
+                ? nameComparison
+                : left.GetInstanceID().CompareTo(right.GetInstanceID());
         }
 
         private PackWeaponPresentationConfig ResolvePackPresentationConfig(string itemId, WeaponDefinition definition = null)

@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Reflection;
 using NUnit.Framework;
@@ -1461,6 +1462,167 @@ namespace Reloader.Weapons.Tests.PlayMode
             Object.Destroy(definitionC);
         }
 
+        [UnityTest]
+        public IEnumerator Fire_WithoutSerializedCombatEmitter_AutoResolvesRuntimeEmitter()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_weaponRegistry", registry);
+            SetControllerField(controller, "_combatAudioEmitter", null);
+
+            yield return null;
+
+            input.FirePressedThisFrame = true;
+            yield return null;
+
+            var emitterField = typeof(PlayerWeaponController).GetField("_combatAudioEmitter", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(emitterField, Is.Not.Null);
+            var resolvedEmitter = emitterField.GetValue(controller) as WeaponCombatAudioEmitter;
+            Assert.That(resolvedEmitter, Is.Not.Null);
+            Assert.That(root.GetComponentInChildren<WeaponCombatAudioEmitter>(true), Is.SameAs(resolvedEmitter));
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
+        public IEnumerator Fire_WithViewMuzzleDefaultAttachment_BridgesAndUsesOverrideClip()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            RuntimeKernelBootstrapper.Events = new DefaultRuntimeEvents();
+
+            var runtimeType = ResolveType("Reloader.Game.Weapons.MuzzleAttachmentRuntime");
+            var definitionType = ResolveType("Reloader.Game.Weapons.MuzzleAttachmentDefinition");
+            Assert.That(runtimeType, Is.Not.Null);
+            Assert.That(definitionType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            UnityEngine.Object muzzleDefinition = null;
+            AudioClip overrideClip = null;
+            GameObject muzzlePrefab = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+
+                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.SelectBeltSlot(0);
+
+                var emitterSpy = root.AddComponent<ClipCaptureWeaponCombatAudioEmitter>();
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+
+                viewPrefab = new GameObject("ViewPrefabWithMuzzleRuntime");
+                var muzzle = new GameObject("Muzzle").transform;
+                muzzle.SetParent(viewPrefab.transform, false);
+                var slot = new GameObject("MuzzleAttachmentSlot").transform;
+                slot.SetParent(viewPrefab.transform, false);
+                var runtimeComponent = viewPrefab.AddComponent(runtimeType);
+                var muzzleSocketField = runtimeType.GetField("_muzzleSocket", BindingFlags.Instance | BindingFlags.NonPublic);
+                var attachmentSlotField = runtimeType.GetField("_attachmentSlot", BindingFlags.Instance | BindingFlags.NonPublic);
+                var defaultAttachmentField = runtimeType.GetField("_defaultAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(muzzleSocketField, Is.Not.Null);
+                Assert.That(attachmentSlotField, Is.Not.Null);
+                Assert.That(defaultAttachmentField, Is.Not.Null);
+
+                muzzleDefinition = ScriptableObject.CreateInstance(definitionType);
+                overrideClip = AudioClip.Create("muzzle-override", 128, 1, 44100, false);
+                muzzlePrefab = new GameObject("MuzzleDevicePrefab");
+
+                var definitionMuzzlePrefabField = definitionType.GetField("_muzzlePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                var definitionClipField = definitionType.GetField("_fireClipOverride", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(definitionMuzzlePrefabField, Is.Not.Null);
+                Assert.That(definitionClipField, Is.Not.Null);
+                definitionMuzzlePrefabField.SetValue(muzzleDefinition, muzzlePrefab);
+                definitionClipField.SetValue(muzzleDefinition, overrideClip);
+
+                muzzleSocketField.SetValue(runtimeComponent, muzzle);
+                attachmentSlotField.SetValue(runtimeComponent, slot);
+                defaultAttachmentField.SetValue(runtimeComponent, muzzleDefinition);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_combatAudioEmitter", emitterSpy);
+                yield return null;
+
+                input.FirePressedThisFrame = true;
+                yield return null;
+
+                Assert.That(emitterSpy.LastFireOverrideClip, Is.SameAs(overrideClip));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (muzzleDefinition != null)
+                {
+                    Object.Destroy(muzzleDefinition);
+                }
+
+                if (overrideClip != null)
+                {
+                    Object.Destroy(overrideClip);
+                }
+
+                if (muzzlePrefab != null)
+                {
+                    Object.Destroy(muzzlePrefab);
+                }
+            }
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public bool FirePressedThisFrame;
@@ -1556,6 +1718,37 @@ namespace Reloader.Weapons.Tests.PlayMode
             var field = typeof(PlayerWeaponController).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
             return (T)field.GetValue(controller);
+        }
+
+        private static Type ResolveType(string fullName)
+        {
+            var direct = Type.GetType(fullName);
+            if (direct != null)
+            {
+                return direct;
+            }
+
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            for (var i = 0; i < assemblies.Length; i++)
+            {
+                var resolved = assemblies[i].GetType(fullName);
+                if (resolved != null)
+                {
+                    return resolved;
+                }
+            }
+
+            return null;
+        }
+
+        private sealed class ClipCaptureWeaponCombatAudioEmitter : WeaponCombatAudioEmitter
+        {
+            public AudioClip LastFireOverrideClip { get; private set; }
+
+            public override void EmitWeaponFire(string weaponId, Vector3 muzzlePosition, AudioClip overrideClip = null)
+            {
+                LastFireOverrideClip = overrideClip;
+            }
         }
     }
 }
