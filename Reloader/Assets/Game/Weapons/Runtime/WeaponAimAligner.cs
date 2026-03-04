@@ -23,10 +23,13 @@ namespace Reloader.Game.Weapons
         [SerializeField] private bool _drawDebugGizmos = true;
         [SerializeField, Min(0.01f)] private float _axisLength = 0.08f;
         [SerializeField] private bool _logMissingReferenceWarnings = true;
+        [SerializeField, Min(0.1f)] private float _mainCameraRefreshInterval = 1f;
 
         private Transform _pivotParent;
         private Vector3 _restLocalPosition;
         private Quaternion _restLocalRotation;
+        private Transform _cachedMainCameraTransform;
+        private float _nextMainCameraRefreshTime;
         private bool _loggedMissingPivot;
         private bool _loggedMissingAnchorSource;
 
@@ -36,11 +39,13 @@ namespace Reloader.Game.Weapons
         private void Awake()
         {
             CacheRestPose();
+            CacheMainCameraTransform();
         }
 
         private void OnEnable()
         {
             CacheRestPose();
+            CacheMainCameraTransform();
         }
 
         private void LateUpdate()
@@ -132,8 +137,19 @@ namespace Reloader.Game.Weapons
                 return _cameraTransform;
             }
 
+            if (_cachedMainCameraTransform == null || Time.unscaledTime >= _nextMainCameraRefreshTime)
+            {
+                CacheMainCameraTransform();
+                _nextMainCameraRefreshTime = Time.unscaledTime + Mathf.Max(0.1f, _mainCameraRefreshInterval);
+            }
+
+            return _cachedMainCameraTransform;
+        }
+
+        private void CacheMainCameraTransform()
+        {
             var main = Camera.main;
-            return main != null ? main.transform : null;
+            _cachedMainCameraTransform = main != null ? main.transform : null;
         }
 
         private void CacheRestPose()

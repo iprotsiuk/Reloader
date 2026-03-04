@@ -7,6 +7,9 @@ namespace Reloader.Game.Weapons
         [SerializeField] private Camera _scopeCamera;
         [SerializeField] private Behaviour[] _expensiveScopeBehaviours;
         private float _defaultScopeCameraFov = 20f;
+        private bool _lastIsActive;
+        private float _lastAppliedFov = -1f;
+        private bool _initialized;
 
         private void Awake()
         {
@@ -20,7 +23,21 @@ namespace Reloader.Game.Weapons
 
         public void SetScopeActive(bool isActive, OpticDefinition optic)
         {
+            var requestedFov = _defaultScopeCameraFov;
+            if (isActive && optic != null && optic.HasScopeRenderProfile)
+            {
+                requestedFov = optic.RenderProfile.ScopeCameraFov;
+            }
+
+            if (_initialized && _lastIsActive == isActive && Mathf.Approximately(_lastAppliedFov, requestedFov))
+            {
+                return;
+            }
+
             ApplyState(isActive, optic);
+            _lastIsActive = isActive;
+            _lastAppliedFov = requestedFov;
+            _initialized = true;
         }
 
         private void ApplyState(bool isActive, OpticDefinition optic)

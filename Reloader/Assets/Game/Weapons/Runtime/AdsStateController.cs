@@ -20,6 +20,7 @@ namespace Reloader.Game.Weapons
         [SerializeField] private string _adsButton = "Fire2";
         [SerializeField] private KeyCode _adsKey = KeyCode.Mouse1;
         [SerializeField] private bool _zoomOnlyWhileAds = true;
+        [SerializeField] private bool _useLegacyInput = true;
 
         [Header("Fallback Tuning")]
         [SerializeField, Min(0.01f)] private float _fallbackAdsInTime = 0.12f;
@@ -51,9 +52,12 @@ namespace Reloader.Game.Weapons
         private bool _isAdsHeld;
         private bool _maskLatch;
         private bool _loggedInputWarning;
+        private bool _legacyInputUnavailable;
+        private bool _adsButtonUnavailable;
         private float _baseWorldFov = 75f;
         private float _baseViewmodelFov = 60f;
         private float _targetMagnification = 1f;
+        private float _nextDebugLogTime;
 
         public bool IsAdsActive => _isAdsHeld;
         public float AdsT { get; private set; }
@@ -102,6 +106,8 @@ namespace Reloader.Game.Weapons
             AdsT = 0f;
             _targetMagnification = 1f;
             CurrentMagnification = 1f;
+            CurrentSensitivityScale = 1f;
+            CurrentSwayScale = 1f;
             _maskLatch = false;
 
             if (_worldCamera != null)
@@ -147,17 +153,15 @@ namespace Reloader.Game.Weapons
 
         private void TickInput()
         {
-            var held = SafeGetKey(_adsKey);
-            if (!string.IsNullOrWhiteSpace(_adsButton))
+            if (!_useLegacyInput || _legacyInputUnavailable)
             {
-                try
-                {
-                    held |= SafeGetButton(_adsButton);
-                }
-                catch (ArgumentException)
-                {
-                    // Input axis may not exist in all projects.
-                }
+                return;
+            }
+
+            var held = SafeGetKey(_adsKey);
+            if (!_adsButtonUnavailable && !string.IsNullOrWhiteSpace(_adsButton))
+            {
+                held |= SafeGetButton(_adsButton);
             }
 
             SetAdsHeld(held);
@@ -241,8 +245,10 @@ namespace Reloader.Game.Weapons
             var sensitivityCurve = Mathf.Max(0.01f, _sensitivityScaleByMagnification.Evaluate(CurrentMagnification));
             var swayCurve = Mathf.Max(0.01f, _swayScaleByMagnification.Evaluate(CurrentMagnification));
 
-            CurrentSensitivityScale = baseSensitivity * sensitivityCurve;
-            CurrentSwayScale = baseSway * swayCurve;
+            var targetAdsSensitivity = baseSensitivity * sensitivityCurve;
+            var targetAdsSway = baseSway * swayCurve;
+            CurrentSensitivityScale = Mathf.Lerp(1f, targetAdsSensitivity, AdsT);
+            CurrentSwayScale = Mathf.Lerp(1f, targetAdsSway, AdsT);
         }
 
         private void TickVisualMode()
@@ -265,17 +271,20 @@ namespace Reloader.Game.Weapons
                 _renderTextureScopeController.SetScopeActive(usePip, optic);
             }
 
-            if (_logDebugState)
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (_logDebugState && Time.unscaledTime >= _nextDebugLogTime)
             {
+                _nextDebugLogTime = Time.unscaledTime + 0.2f;
                 Debug.Log($"[ADS] t={AdsT:F2} mag={CurrentMagnification:F2} sens={CurrentSensitivityScale:F2} sway={CurrentSwayScale:F2} mask={useMask}", this);
             }
+#endif
         }
 
         private bool ResolveMaskMode(AdsVisualMode policy, float magnification)
         {
             if (policy == AdsVisualMode.Mask)
             {
-                return magnification >= 4f;
+                return true;
             }
 
             if (policy == AdsVisualMode.RenderTexturePiP)
@@ -297,12 +306,18 @@ namespace Reloader.Game.Weapons
 
         private bool SafeGetKey(KeyCode key)
         {
+            if (_legacyInputUnavailable)
+            {
+                return false;
+            }
+
             try
             {
                 return Input.GetKey(key);
             }
             catch (InvalidOperationException)
             {
+                _legacyInputUnavailable = true;
                 LogInputWarningOnce();
                 return false;
             }
@@ -310,29 +325,42 @@ namespace Reloader.Game.Weapons
 
         private bool SafeGetButton(string buttonName)
         {
+            if (_legacyInputUnavailable || _adsButtonUnavailable)
+            {
+                return false;
+            }
+
             try
             {
                 return Input.GetButton(buttonName);
             }
             catch (InvalidOperationException)
             {
+                _legacyInputUnavailable = true;
                 LogInputWarningOnce();
                 return false;
             }
             catch (ArgumentException)
             {
+                _adsButtonUnavailable = true;
                 return false;
             }
         }
 
         private float SafeGetMouseScrollY()
         {
+            if (_legacyInputUnavailable)
+            {
+                return 0f;
+            }
+
             try
             {
                 return Input.mouseScrollDelta.y;
             }
             catch (InvalidOperationException)
             {
+                _legacyInputUnavailable = true;
                 LogInputWarningOnce();
                 return 0f;
             }
