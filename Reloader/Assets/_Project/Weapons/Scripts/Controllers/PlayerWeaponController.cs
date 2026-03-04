@@ -12,6 +12,16 @@ using UnityEngine;
 
 namespace Reloader.Weapons.Controllers
 {
+    [System.Serializable]
+    public struct WeaponViewPrefabBinding
+    {
+        [SerializeField] private string _itemId;
+        [SerializeField] private GameObject _viewPrefab;
+
+        public string ItemId => _itemId;
+        public GameObject ViewPrefab => _viewPrefab;
+    }
+
     public readonly struct WeaponRuntimeSnapshot
     {
         public WeaponRuntimeSnapshot(
@@ -57,6 +67,10 @@ namespace Reloader.Weapons.Controllers
         [SerializeField] private Camera _adsCamera;
         [SerializeField] private Animator _packAnimator;
         [SerializeField] private PackWeaponPresentationConfig _packPresentationConfig = new PackWeaponPresentationConfig();
+        [SerializeField] private Transform _weaponViewParent;
+        [SerializeField] private WeaponViewPrefabBinding[] _weaponViewPrefabs = System.Array.Empty<WeaponViewPrefabBinding>();
+        [SerializeField] private bool _allowSceneWideDependencyLookup;
+        [SerializeField] private bool _useInventoryDefinitionViewFallback;
 
         private IPlayerInputSource _inputSource;
         private readonly Dictionary<string, WeaponRuntimeState> _statesByItemId = new Dictionary<string, WeaponRuntimeState>();
@@ -74,11 +88,27 @@ namespace Reloader.Weapons.Controllers
         private float _baseCameraFieldOfView = DefaultFov;
         private bool _baseCameraFieldOfViewCaptured;
         private Camera _cachedAdsCamera;
+        private Transform _defaultMuzzleTransform;
+        private GameObject _equippedWeaponView;
+        private string _pendingEquipItemId;
+        private WeaponDefinition _pendingEquipDefinition;
+        private float _pendingEquipApplyTime;
+        [SerializeField, Min(0f)] private float _holsterHideDelaySeconds = 0.2f;
+        private float _scheduledArmsHideTime = -1f;
+        private readonly List<Renderer> _packRenderers = new List<Renderer>();
         public string EquippedItemId => _equippedItemId;
 
         private void Awake()
         {
             ResolveReferences();
+            _defaultMuzzleTransform = _muzzleTransform;
+            RefreshPackRenderers();
+            SetArmsVisible(false);
+        }
+
+        private void OnDisable()
+        {
+            DestroyEquippedWeaponView();
         }
 
         private void Update()
@@ -94,14 +124,19 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
+            ProcessPendingEquip();
+            ProcessScheduledArmsHide();
             UpdateEquipFromSelection();
             SyncEquippedReserveFromInventory();
             if (_inputSource == null)
             {
-                DependencyResolutionGuard.ResolveOnce(
-                    ref _inputSource,
-                    ref _attemptedSceneInputResolution,
-                    () => DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None)));
+                if (_allowSceneWideDependencyLookup)
+                {
+                    DependencyResolutionGuard.ResolveOnce(
+                        ref _inputSource,
+                        ref _attemptedSceneInputResolution,
+                        () => DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.InstanceID)));
+                }
 
                 return;
             }
@@ -198,8 +233,11 @@ namespace Reloader.Weapons.Controllers
 
             if (_inputSource == null)
             {
-                _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
-                _attemptedSceneInputResolution = true;
+                if (_allowSceneWideDependencyLookup)
+                {
+                    _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.InstanceID));
+                    _attemptedSceneInputResolution = true;
+                }
             }
 
             if (_inventoryController == null)
@@ -217,19 +255,32 @@ namespace Reloader.Weapons.Controllers
                 _muzzleTransform = transform;
             }
 
+            _defaultMuzzleTransform ??= _muzzleTransform;
+
             if (_cameraDefaults == null)
             {
                 _cameraDefaults = GetComponent<PlayerCameraDefaults>();
             }
 
-            if (_packAnimator == null)
+            if (!IsReferenceOnPlayerHierarchy(_packAnimator != null ? _packAnimator.transform : null))
             {
-                _packAnimator = GetComponentInChildren<Animator>();
+                _packAnimator = ResolvePackAnimator();
+                RefreshPackRenderers();
+            }
+
+            if (!IsReferenceOnPlayerHierarchy(_weaponViewParent))
+            {
+                _weaponViewParent = ResolveDefaultWeaponViewParent();
             }
         }
 
         private void UpdateEquipFromSelection()
         {
+            if (HasPendingEquip())
+            {
+                return;
+            }
+
             var selectedItemId = _inventoryController.Runtime != null ? _inventoryController.Runtime.SelectedBeltItemId : null;
             if (string.IsNullOrWhiteSpace(selectedItemId))
             {
@@ -237,7 +288,7 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
-            if (_weaponRegistry.TryGetWeaponDefinition(selectedItemId, out var definition))
+            if (TryResolveWeaponDefinition(selectedItemId, out var definition))
             {
                 SetEquippedWeapon(selectedItemId, definition);
                 return;
@@ -248,8 +299,19 @@ namespace Reloader.Weapons.Controllers
 
         private void SetEquippedWeapon(string itemId, WeaponDefinition definition)
         {
-            if (_equippedItemId == itemId)
+            if (_equippedItemId == itemId
+                && (string.IsNullOrWhiteSpace(itemId)
+                    || (_equippedWeaponView != null && IsReferenceOnPlayerHierarchy(_equippedWeaponView.transform))))
             {
+                return;
+            }
+
+            // For weapon-to-weapon swaps, force a short holster phase first so animator
+            // evaluates transitions instead of seeing holster+unholster in same frame.
+            if (!string.IsNullOrWhiteSpace(_equippedItemId) && !string.IsNullOrWhiteSpace(itemId))
+            {
+                StartPendingEquip(itemId, definition);
+                SetEquippedWeapon(null, null);
                 return;
             }
 
@@ -264,13 +326,32 @@ namespace Reloader.Weapons.Controllers
                 }
             }
 
+            DestroyEquippedWeaponView();
+            if (_defaultMuzzleTransform != null)
+            {
+                _muzzleTransform = _defaultMuzzleTransform;
+            }
+
             _equippedItemId = itemId;
             _equippedDefinition = definition;
             if (string.IsNullOrWhiteSpace(_equippedItemId) || _equippedDefinition == null)
             {
+                if (HasPendingEquip())
+                {
+                    CancelScheduledArmsHide();
+                    SetArmsVisible(true);
+                }
+                else
+                {
+                    ScheduleArmsHide();
+                    SetArmsVisible(true);
+                }
+
                 return;
             }
 
+            CancelScheduledArmsHide();
+            SetArmsVisible(true);
             ResolveWeaponEvents()?.RaiseWeaponEquipStarted(_equippedItemId);
             var state = GetOrCreateState(_equippedItemId, _equippedDefinition, seedFromDefinition: true);
             if (state == null)
@@ -279,8 +360,100 @@ namespace Reloader.Weapons.Controllers
             }
 
             state.IsEquipped = true;
+            SpawnEquippedWeaponView(_equippedItemId);
             GetOrCreatePackDriver(_equippedItemId).SetEquipped(true);
             ResolveWeaponEvents()?.RaiseWeaponEquipped(_equippedItemId);
+        }
+
+        private void ProcessPendingEquip()
+        {
+            if (!HasPendingEquip() || Time.time < _pendingEquipApplyTime)
+            {
+                return;
+            }
+
+            var itemId = _pendingEquipItemId;
+            var definition = _pendingEquipDefinition;
+            ClearPendingEquip();
+            SetEquippedWeapon(itemId, definition);
+        }
+
+        private bool HasPendingEquip()
+        {
+            return !string.IsNullOrWhiteSpace(_pendingEquipItemId);
+        }
+
+        private void StartPendingEquip(string itemId, WeaponDefinition definition)
+        {
+            _pendingEquipItemId = itemId;
+            _pendingEquipDefinition = definition;
+            _pendingEquipApplyTime = Time.time + 0.08f;
+        }
+
+        private void ClearPendingEquip()
+        {
+            _pendingEquipItemId = null;
+            _pendingEquipDefinition = null;
+            _pendingEquipApplyTime = 0f;
+        }
+
+        private void ProcessScheduledArmsHide()
+        {
+            if (_scheduledArmsHideTime < 0f || Time.time < _scheduledArmsHideTime)
+            {
+                return;
+            }
+
+            _scheduledArmsHideTime = -1f;
+            if (string.IsNullOrWhiteSpace(_equippedItemId) && !HasPendingEquip())
+            {
+                SetArmsVisible(false);
+            }
+        }
+
+        private void ScheduleArmsHide()
+        {
+            _scheduledArmsHideTime = Time.time + _holsterHideDelaySeconds;
+        }
+
+        private void CancelScheduledArmsHide()
+        {
+            _scheduledArmsHideTime = -1f;
+        }
+
+        private void RefreshPackRenderers()
+        {
+            _packRenderers.Clear();
+            if (_packAnimator == null)
+            {
+                return;
+            }
+
+            _packAnimator.GetComponentsInChildren(true, _packRenderers);
+        }
+
+        private void SetArmsVisible(bool visible)
+        {
+            if (_packAnimator == null)
+            {
+                return;
+            }
+
+            if (_packRenderers.Count == 0)
+            {
+                RefreshPackRenderers();
+            }
+
+            for (var i = 0; i < _packRenderers.Count; i++)
+            {
+                var renderer = _packRenderers[i];
+                if (renderer == null || renderer.enabled == visible)
+                {
+                    continue;
+                }
+
+                renderer.enabled = visible;
+            }
         }
 
         private void TickFire()
@@ -454,7 +627,11 @@ namespace Reloader.Weapons.Controllers
             {
                 if (hasFieldOfView)
                 {
-                    _baseCameraFieldOfView = Mathf.Clamp(currentFieldOfView, 1f, 179f);
+                    var baselineFieldOfView = Mathf.Clamp(_baseCameraFieldOfView, 1f, 179f);
+                    if (Mathf.Abs(currentFieldOfView - baselineFieldOfView) > 0.01f)
+                    {
+                        TrySetCurrentFieldOfView(baselineFieldOfView);
+                    }
                 }
 
                 return;
@@ -582,6 +759,10 @@ namespace Reloader.Weapons.Controllers
 
         private static AmmoBallisticSnapshot BuildDefinitionRound(WeaponDefinition definition)
         {
+            var ammoItemId = definition != null && !string.IsNullOrWhiteSpace(definition.AmmoItemId)
+                ? definition.AmmoItemId
+                : DefaultAmmoItemId;
+
             return new AmmoBallisticSnapshot(
                 AmmoSourceType.Factory,
                 2780f,
@@ -591,7 +772,7 @@ namespace Reloader.Weapons.Controllers
                 4.5f,
                 DefaultAmmoDisplayName,
                 System.Guid.NewGuid().ToString("N"),
-                DefaultAmmoItemId);
+                ammoItemId);
         }
 
         private void SyncEquippedReserveFromInventory()
@@ -677,6 +858,307 @@ namespace Reloader.Weapons.Controllers
             };
             _packDriversByItemId[itemId] = driver;
             return driver;
+        }
+
+        private void SpawnEquippedWeaponView(string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return;
+            }
+
+            var viewPrefab = ResolveWeaponViewPrefab(itemId);
+            if (viewPrefab == null)
+            {
+                return;
+            }
+
+            // Re-resolve every spawn to avoid stale references after scene/prefab swaps.
+            var parent = ResolveDefaultWeaponViewParent();
+            if (parent == null)
+            {
+                return;
+            }
+
+            _weaponViewParent = parent;
+            _equippedWeaponView = InstantiateWeaponView(viewPrefab, parent);
+            if (_equippedWeaponView == null)
+            {
+                Debug.LogWarning($"Failed to spawn weapon view for '{itemId}'. Source '{viewPrefab.name}' is not a GameObject instance.", this);
+                return;
+            }
+
+            _equippedWeaponView.name = $"EquippedView_{itemId}";
+            _equippedWeaponView.transform.localPosition = Vector3.zero;
+            _equippedWeaponView.transform.localRotation = Quaternion.identity;
+            _equippedWeaponView.transform.localScale = Vector3.one;
+            StripViewPhysicsComponents(_equippedWeaponView);
+            StripViewRuntimeComponents(_equippedWeaponView);
+
+            var viewMuzzle = FindDescendantByName(_equippedWeaponView.transform, "Muzzle")
+                ?? FindDescendantByName(_equippedWeaponView.transform, "SOCKET_Muzzle");
+            if (viewMuzzle != null)
+            {
+                _muzzleTransform = viewMuzzle;
+            }
+        }
+
+        private void DestroyEquippedWeaponView()
+        {
+            if (_equippedWeaponView == null)
+            {
+                return;
+            }
+
+            Destroy(_equippedWeaponView);
+            _equippedWeaponView = null;
+        }
+
+        private static GameObject InstantiateWeaponView(GameObject source, Transform parent)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            Object instance;
+            try
+            {
+                instance = Instantiate((Object)source, parent);
+            }
+            catch (System.Exception)
+            {
+                return null;
+            }
+
+            if (instance is GameObject gameObjectInstance)
+            {
+                return gameObjectInstance;
+            }
+
+            if (instance is Component componentInstance)
+            {
+                return componentInstance.gameObject;
+            }
+
+            if (instance != null)
+            {
+                Destroy(instance);
+            }
+
+            return null;
+        }
+
+        private GameObject ResolveWeaponViewPrefab(string itemId)
+        {
+            for (var i = 0; i < _weaponViewPrefabs.Length; i++)
+            {
+                var binding = _weaponViewPrefabs[i];
+                if (!string.IsNullOrWhiteSpace(binding.ItemId) && binding.ItemId == itemId && binding.ViewPrefab != null)
+                {
+                    return binding.ViewPrefab;
+                }
+            }
+
+            if (_equippedDefinition != null
+                && _equippedDefinition.ItemId == itemId
+                && _equippedDefinition.IconSourcePrefab != null)
+            {
+                return _equippedDefinition.IconSourcePrefab;
+            }
+
+            if (!_useInventoryDefinitionViewFallback)
+            {
+                return null;
+            }
+
+            var itemDefinitions = _inventoryController != null
+                ? _inventoryController.GetItemDefinitionRegistrySnapshot()
+                : null;
+            if (itemDefinitions != null)
+            {
+                for (var i = 0; i < itemDefinitions.Count; i++)
+                {
+                    var definition = itemDefinitions[i];
+                    if (definition == null
+                        || string.IsNullOrWhiteSpace(definition.DefinitionId)
+                        || definition.IconSourcePrefab == null)
+                    {
+                        continue;
+                    }
+
+                    if (definition.DefinitionId == itemId)
+                    {
+                        return definition.IconSourcePrefab;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private bool TryResolveWeaponDefinition(string itemId, out WeaponDefinition definition)
+        {
+            definition = ResolveWeaponDefinition(itemId);
+            if (definition != null)
+            {
+                return true;
+            }
+
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return false;
+            }
+
+            var registries = FindObjectsByType<WeaponRegistry>(FindObjectsSortMode.InstanceID);
+            for (var i = 0; i < registries.Length; i++)
+            {
+                var candidate = registries[i];
+                if (candidate == null || !candidate.TryGetWeaponDefinition(itemId, out definition))
+                {
+                    continue;
+                }
+
+                _weaponRegistry = candidate;
+                return true;
+            }
+
+            definition = null;
+            return false;
+        }
+
+        private Transform ResolveDefaultWeaponViewParent()
+        {
+            if (_packAnimator == null)
+            {
+                _packAnimator = ResolvePackAnimator();
+                if (_packAnimator == null)
+                {
+                    return null;
+                }
+            }
+
+            var ikHandGun = FindDescendantByName(_packAnimator.transform, "ik_hand_gun");
+            return ikHandGun != null ? ikHandGun : _packAnimator.transform;
+        }
+
+        private Animator ResolvePackAnimator()
+        {
+            var explicitPath = transform.Find("CameraPivot/PlayerArms/PlayerArmsVisual");
+            if (explicitPath != null)
+            {
+                var explicitAnimator = explicitPath.GetComponent<Animator>() ?? explicitPath.GetComponentInChildren<Animator>(true);
+                if (explicitAnimator != null)
+                {
+                    return explicitAnimator;
+                }
+            }
+
+            var byName = FindDescendantByName(transform, "PlayerArmsVisual");
+            if (byName != null)
+            {
+                var namedAnimator = byName.GetComponent<Animator>() ?? byName.GetComponentInChildren<Animator>(true);
+                if (namedAnimator != null)
+                {
+                    return namedAnimator;
+                }
+            }
+
+            return GetComponentInChildren<Animator>(true);
+        }
+
+        private bool IsReferenceOnPlayerHierarchy(Transform candidate)
+        {
+            return candidate != null && (candidate == transform || candidate.IsChildOf(transform));
+        }
+
+        private static Transform FindDescendantByName(Transform root, string targetName)
+        {
+            if (root == null || string.IsNullOrWhiteSpace(targetName))
+            {
+                return null;
+            }
+
+            if (root.name == targetName)
+            {
+                return root;
+            }
+
+            for (var i = 0; i < root.childCount; i++)
+            {
+                var found = FindDescendantByName(root.GetChild(i), targetName);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
+        }
+
+        private static void StripViewPhysicsComponents(GameObject root)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            var colliders = root.GetComponentsInChildren<Collider>(true);
+            for (var i = 0; i < colliders.Length; i++)
+            {
+                if (colliders[i] != null)
+                {
+                    Destroy(colliders[i]);
+                }
+            }
+
+            var rigidbodies = root.GetComponentsInChildren<Rigidbody>(true);
+            for (var i = 0; i < rigidbodies.Length; i++)
+            {
+                if (rigidbodies[i] != null)
+                {
+                    Destroy(rigidbodies[i]);
+                }
+            }
+        }
+
+        private static void StripViewRuntimeComponents(GameObject root)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            var animators = root.GetComponentsInChildren<Animator>(true);
+            for (var i = 0; i < animators.Length; i++)
+            {
+                if (animators[i] != null)
+                {
+                    Destroy(animators[i]);
+                }
+            }
+
+            var animations = root.GetComponentsInChildren<Animation>(true);
+            for (var i = 0; i < animations.Length; i++)
+            {
+                if (animations[i] != null)
+                {
+                    Destroy(animations[i]);
+                }
+            }
+
+            var behaviours = root.GetComponentsInChildren<MonoBehaviour>(true);
+            for (var i = 0; i < behaviours.Length; i++)
+            {
+                var behaviour = behaviours[i];
+                if (behaviour == null)
+                {
+                    continue;
+                }
+
+                // Weapon view instances should be pure visual meshes/sockets.
+                Destroy(behaviour);
+            }
         }
 
         private PackWeaponPresentationConfig ResolvePackPresentationConfig(string itemId, WeaponDefinition definition = null)

@@ -417,6 +417,65 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator UnequipWhileAiming_RestoresBaselineFieldOfView()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[1] = null;
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests(
+                "weapon-rifle-01",
+                "Scoped Rifle",
+                5,
+                0.1f,
+                80f,
+                0f,
+                20f,
+                120f,
+                1,
+                10,
+                true,
+                0.7f,
+                WeaponScopeConfiguration.Create(true, 4f, 20f, 8f, "ebr-7c", 100, 25));
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var adsCameraGo = new GameObject("AdsCamera");
+            var adsCamera = adsCameraGo.AddComponent<Camera>();
+            const float baseFieldOfView = 60f;
+            adsCamera.fieldOfView = baseFieldOfView;
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_adsCamera", adsCamera);
+            yield return null;
+
+            input.AimHeldValue = true;
+            yield return null;
+            yield return new WaitForSeconds(0.25f);
+            Assert.That(adsCamera.fieldOfView, Is.LessThan(baseFieldOfView - 1f), "Expected ADS to lower FOV before unequip.");
+
+            runtime.SelectBeltSlot(1);
+            yield return null;
+            yield return new WaitForSeconds(0.15f);
+
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(baseFieldOfView).Within(0.6f), "Unequipping while ADS should restore baseline FOV.");
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+            Object.Destroy(adsCameraGo);
+        }
+
+        [UnityTest]
         public IEnumerator BeltSelectedWeapon_EquipsAndFiresAndReloads()
         {
             var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
@@ -988,6 +1047,71 @@ namespace Reloader.Weapons.Tests.PlayMode
             Object.Destroy(root);
             Object.Destroy(registryGo);
             Object.Destroy(definition);
+        }
+
+        [UnityTest]
+        public IEnumerator Equip_WithoutExplicitViewBindings_UsesWeaponDefinitionIconSourcePrefab()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var root = new GameObject("PlayerRoot");
+            var viewPrefab = new GameObject("FallbackWeaponViewPrefab");
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+
+            try
+            {
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+
+                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_weaponViewParent", root.transform);
+                yield return null;
+
+                var equippedView = root.transform.Find("EquippedView_weapon-rifle-01");
+                Assert.That(equippedView, Is.Not.Null, "Expected equipped view to spawn from WeaponDefinition icon prefab when explicit view bindings are missing.");
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
         }
 
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource

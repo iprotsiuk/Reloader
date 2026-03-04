@@ -19,9 +19,9 @@ namespace Reloader.Player.Editor
         private const string IdleClipPath = "Assets/_Project/Player/Resources/Viewmodels/Characters/ViewmodelIdle.anim";
         private const string WalkClipPath = "Assets/_Project/Player/Resources/Viewmodels/Characters/ViewmodelWalk.anim";
         private const string ViewmodelLayerName = "Viewmodel";
-        private static readonly Vector3 FpsArmsOffsetLocalPosition = new(0f, -0.24f, 1.56f);
-        private static readonly Vector3 FpsArmsOffsetLocalEuler = new(-90f, 180f, 180f);
-        private static readonly Vector3 FpsArmsOffsetLocalScale = new(0.4164074f, 0.4164074f, 0.4164074f);
+        private static readonly Vector3 FpsArmsOffsetLocalPosition = new(0f, -0.12f, 0.3f);
+        private static readonly Vector3 FpsArmsOffsetLocalEuler = Vector3.zero;
+        private static readonly Vector3 FpsArmsOffsetLocalScale = new(0.42f, 0.42f, 0.42f);
 
         [MenuItem("Reloader/Player/Create FPS Rig")]
         public static void CreateFpsRig()
@@ -30,9 +30,9 @@ namespace Reloader.Player.Editor
             Undo.RegisterCreatedObjectUndo(playerRoot, "Create FPS Rig");
 
             var controller = playerRoot.AddComponent<CharacterController>();
-            controller.height = 1.8f;
+            controller.height = 2f;
             controller.radius = 0.3f;
-            controller.center = new Vector3(0f, 0.9f, 0f);
+            controller.center = new Vector3(0f, 1f, 0f);
             controller.stepOffset = 0.3f;
             controller.slopeLimit = 45f;
 
@@ -48,7 +48,7 @@ namespace Reloader.Player.Editor
 
             var cameraPivot = new GameObject("CameraPivot");
             cameraPivot.transform.SetParent(playerRoot.transform, false);
-            cameraPivot.transform.localPosition = new Vector3(0f, 1.65f, 0f);
+            cameraPivot.transform.localPosition = new Vector3(0f, 1.8f, 0f);
             lookController.SetPitchTransform(cameraPivot.transform);
             var cameraLookTarget = CreateOrFindCameraLookTarget(cameraPivot.transform);
 
@@ -95,9 +95,9 @@ namespace Reloader.Player.Editor
             if (controller == null)
             {
                 controller = Undo.AddComponent<CharacterController>(root);
-                controller.height = 1.8f;
+                controller.height = 2f;
                 controller.radius = 0.3f;
-                controller.center = new Vector3(0f, 0.9f, 0f);
+                controller.center = new Vector3(0f, 1f, 0f);
                 controller.stepOffset = 0.3f;
                 controller.slopeLimit = 45f;
             }
@@ -138,7 +138,7 @@ namespace Reloader.Player.Editor
                 var pivotGo = new GameObject("CameraPivot");
                 Undo.RegisterCreatedObjectUndo(pivotGo, "Create Camera Pivot");
                 pivotGo.transform.SetParent(root.transform, false);
-                pivotGo.transform.localPosition = new Vector3(0f, 1.65f, 0f);
+                pivotGo.transform.localPosition = new Vector3(0f, 1.8f, 0f);
                 cameraPivot = pivotGo.transform;
             }
 
@@ -258,12 +258,17 @@ namespace Reloader.Player.Editor
             var existing = Camera.main;
             if (existing != null)
             {
+                existing.transform.SetParent(cameraPivot, false);
+                existing.transform.localPosition = Vector3.zero;
+                existing.transform.localRotation = Quaternion.identity;
                 return existing;
             }
 
             var mainCameraGo = new GameObject("Main Camera");
             Undo.RegisterCreatedObjectUndo(mainCameraGo, "Create Main Camera");
-            mainCameraGo.transform.SetPositionAndRotation(cameraPivot.position, cameraPivot.rotation);
+            mainCameraGo.transform.SetParent(cameraPivot, false);
+            mainCameraGo.transform.localPosition = Vector3.zero;
+            mainCameraGo.transform.localRotation = Quaternion.identity;
 
             var camera = mainCameraGo.AddComponent<Camera>();
             camera.tag = "MainCamera";

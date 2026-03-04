@@ -172,7 +172,7 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
-        public void UiToolkitScreenRuntimeBridge_BindTabInventory_UsesRuntimeBackpackCapacityWithoutFloor()
+        public void UiToolkitScreenRuntimeBridge_BindTabInventory_UsesMinimumBackpackUiSlotFloor()
         {
             var bridgeGo = new GameObject("UiBridge");
             var inventoryGo = new GameObject("InventoryController");
@@ -182,7 +182,7 @@ namespace Reloader.UI.Tests.PlayMode
             runtime.SetBackpackCapacity(9);
             inventoryController.Configure(null, null, runtime);
             var input = bridgeGo.AddComponent<TestInputSource>();
-            var root = BuildTabRoot(backpackSlotCount: 9);
+            var root = BuildTabRoot(backpackSlotCount: 16);
 
             var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
                 "BindTabInventory",
@@ -206,7 +206,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(backpackSlotsField, Is.Not.Null);
             var backpackSlots = backpackSlotsField.GetValue(viewBinder) as VisualElement[];
             Assert.That(backpackSlots, Is.Not.Null);
-            Assert.That(backpackSlots.Length, Is.EqualTo(9));
+            Assert.That(backpackSlots.Length, Is.EqualTo(16));
 
             subscription.Dispose();
             UnityEngine.Object.DestroyImmediate(inventoryGo);
@@ -214,14 +214,14 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
-        public void UiToolkitScreenRuntimeBridge_BindTabInventory_UsesDefaultBackpackCapacityWhenRuntimeIsUnavailable()
+        public void UiToolkitScreenRuntimeBridge_BindTabInventory_UsesMinimumBackpackUiSlotFloorWhenRuntimeIsUnavailable()
         {
             var bridgeGo = new GameObject("UiBridge");
             var inventoryGo = new GameObject("InventoryController");
             var bridge = bridgeGo.AddComponent<UiToolkitScreenRuntimeBridge>();
             var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
             var input = bridgeGo.AddComponent<TestInputSource>();
-            var root = BuildTabRoot(backpackSlotCount: 9);
+            var root = BuildTabRoot(backpackSlotCount: 16);
 
             var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
                 "BindTabInventory",
@@ -245,7 +245,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(backpackSlotsField, Is.Not.Null);
             var backpackSlots = backpackSlotsField.GetValue(viewBinder) as VisualElement[];
             Assert.That(backpackSlots, Is.Not.Null);
-            Assert.That(backpackSlots.Length, Is.EqualTo(9));
+            Assert.That(backpackSlots.Length, Is.EqualTo(16));
 
             subscription.Dispose();
             UnityEngine.Object.DestroyImmediate(inventoryGo);

@@ -170,9 +170,9 @@ namespace Reloader.World.Tests.PlayMode
             }
 
             Assert.That(playerArms.localPosition.x, Is.EqualTo(0f).Within(0.02f), "PlayerArms local X should be stabilized.");
-            Assert.That(playerArms.localPosition.y, Is.EqualTo(-0.24f).Within(0.02f), "PlayerArms local Y should be stabilized.");
-            Assert.That(playerArms.localPosition.z, Is.EqualTo(1.56f).Within(0.02f), "PlayerArms local Z should be stabilized.");
-            Assert.That(Quaternion.Angle(playerArms.localRotation, Quaternion.Euler(-90f, 0f, 0f)), Is.LessThanOrEqualTo(1f), "PlayerArms local rotation should be stabilized.");
+            Assert.That(playerArms.localPosition.y, Is.EqualTo(-0.12f).Within(0.02f), "PlayerArms local Y should be stabilized.");
+            Assert.That(playerArms.localPosition.z, Is.EqualTo(0.3f).Within(0.02f), "PlayerArms local Z should be stabilized.");
+            Assert.That(Quaternion.Angle(playerArms.localRotation, Quaternion.identity), Is.LessThanOrEqualTo(1f), "PlayerArms local rotation should be stabilized.");
         }
 
         [UnityTest]
