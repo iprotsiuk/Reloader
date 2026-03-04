@@ -47,7 +47,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
             finally
             {
-                Object.DestroyImmediate(root);
+                UnityEngine.Object.DestroyImmediate(root);
             }
         }
 
