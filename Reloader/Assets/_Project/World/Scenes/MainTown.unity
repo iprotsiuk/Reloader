@@ -561,11 +561,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!95 &151064343 stripped
-Animator:
-  m_CorrespondingSourceObject: {fileID: 8553512165781763298, guid: 525dc71d5d4a546bfbf9147758e47b49, type: 3}
-  m_PrefabInstance: {fileID: 982901831}
-  m_PrefabAsset: {fileID: 0}
 --- !u!134 &217402179
 PhysicsMaterial:
   m_ObjectHideFlags: 0
@@ -904,11 +899,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!4 &362819205 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 8210013370774987844, guid: 525dc71d5d4a546bfbf9147758e47b49, type: 3}
-  m_PrefabInstance: {fileID: 982901831}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &391379583
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1760,6 +1750,8 @@ MonoBehaviour:
     _viewPrefab: {fileID: 8695915813560968154, guid: 4af148b15f97d4845aabd2cb0d1b678c, type: 3}
   - _itemId: weapon-pistol-01
     _viewPrefab: {fileID: 850772559695530675, guid: 31f3c4bc3c25047b490da66a3c9a7a8e, type: 3}
+  _allowSceneWideDependencyLookup: 0
+  _useInventoryDefinitionViewFallback: 0
   _holsterHideDelaySeconds: 0.2
 --- !u!114 &573788849
 MonoBehaviour:
@@ -1780,6 +1772,8 @@ MonoBehaviour:
   _cinemachineCamera: {fileID: 0}
   _cameraFollowTarget: {fileID: 936686685}
   _cameraLookTarget: {fileID: 1353132413}
+  _nearClipPlane: 0.01
+  _farClipPlane: 1000
 --- !u!114 &573788850
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2276,11 +2270,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1215292963938111941, guid: 525dc71d5d4a546bfbf9147758e47b49, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 1
+      value: 0.7071068
       objectReference: {fileID: 0}
     - target: {fileID: 1215292963938111941, guid: 525dc71d5d4a546bfbf9147758e47b49, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: 0.7071068
       objectReference: {fileID: 0}
     - target: {fileID: 1215292963938111941, guid: 525dc71d5d4a546bfbf9147758e47b49, type: 3}
       propertyPath: m_LocalRotation.y
@@ -2292,7 +2286,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1215292963938111941, guid: 525dc71d5d4a546bfbf9147758e47b49, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
+      value: 90
       objectReference: {fileID: 0}
     - target: {fileID: 1215292963938111941, guid: 525dc71d5d4a546bfbf9147758e47b49, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
