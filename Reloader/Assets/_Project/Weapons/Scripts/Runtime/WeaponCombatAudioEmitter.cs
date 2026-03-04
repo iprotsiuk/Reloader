@@ -5,6 +5,8 @@ namespace Reloader.Weapons.Runtime
 {
     public class WeaponCombatAudioEmitter : MonoBehaviour
     {
+        private const string OneShotSourceNodeName = "WeaponAudioOneShotSource";
+
         [SerializeField] private CombatAudioCatalog _catalog;
         [SerializeField] private AudioSource _oneShotSource;
         [SerializeField, Range(0f, 1f)] private float _fireVolume = 0.95f;
@@ -66,21 +68,48 @@ namespace Reloader.Weapons.Runtime
 
         private AudioSource EnsureOneShotSource()
         {
-            if (_oneShotSource != null)
-            {
-                return _oneShotSource;
-            }
-
-            _oneShotSource = GetComponent<AudioSource>();
-            if (_oneShotSource == null)
-            {
-                _oneShotSource = gameObject.AddComponent<AudioSource>();
-            }
+            _oneShotSource = ResolveSafeOneShotSource(_oneShotSource);
 
             _oneShotSource.playOnAwake = false;
             _oneShotSource.spatialBlend = 1f;
             _oneShotSource.rolloffMode = AudioRolloffMode.Logarithmic;
             return _oneShotSource;
+        }
+
+        private AudioSource ResolveSafeOneShotSource(AudioSource current)
+        {
+            if (current != null && current.transform != transform)
+            {
+                return current;
+            }
+
+            if (current == null && TryGetComponent<AudioSource>(out var attachedOnHost) && attachedOnHost != null && attachedOnHost.transform != transform)
+            {
+                return attachedOnHost;
+            }
+
+            return GetOrCreateChildSource();
+        }
+
+        private AudioSource GetOrCreateChildSource()
+        {
+            var child = transform.Find(OneShotSourceNodeName);
+            if (child == null)
+            {
+                var childGo = new GameObject(OneShotSourceNodeName);
+                child = childGo.transform;
+                child.SetParent(transform, false);
+                child.localPosition = Vector3.zero;
+                child.localRotation = Quaternion.identity;
+            }
+
+            var source = child.GetComponent<AudioSource>();
+            if (source == null)
+            {
+                source = child.gameObject.AddComponent<AudioSource>();
+            }
+
+            return source;
         }
     }
 }

@@ -41,6 +41,26 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator EmitWeaponFire_DoesNotMoveEmitterHostTransform()
+        {
+            var go = new GameObject("EmitterHost");
+            go.transform.position = new Vector3(2f, 1f, -3f);
+            var initialPosition = go.transform.position;
+
+            var emitter = go.AddComponent<WeaponCombatAudioEmitter>();
+            var clip = AudioClip.Create("shot", 128, 1, 44100, false);
+            var muzzlePosition = initialPosition + new Vector3(0f, 0.5f, 1.25f);
+
+            emitter.EmitWeaponFire("weapon-rifle-01", muzzlePosition, clip);
+            yield return null;
+
+            Assert.That(Vector3.Distance(go.transform.position, initialPosition), Is.LessThan(0.0001f));
+
+            Object.Destroy(go);
+            Object.Destroy(clip);
+        }
+
+        [UnityTest]
         public IEnumerator PlayerController_FireAndReload_InvokesEmitterHooks()
         {
             var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
