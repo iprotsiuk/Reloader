@@ -33,12 +33,20 @@ namespace Reloader.Game.Weapons
 
             UnequipOptic();
 
-            _activeOpticDefinition = optic;
-            if (_activeOpticDefinition == null || _activeOpticDefinition.OpticPrefab == null)
+            if (optic == null)
             {
                 RefreshSightAnchor();
                 return _activeSightAnchor != null;
             }
+
+            if (optic.OpticPrefab == null)
+            {
+                Debug.LogWarning("AttachmentManager: OpticDefinition has no OpticPrefab. Equip rejected.", optic);
+                RefreshSightAnchor();
+                return false;
+            }
+
+            _activeOpticDefinition = optic;
 
             _equippedOpticInstance = Instantiate(_activeOpticDefinition.OpticPrefab, _scopeSlot, false);
             _activeSightAnchor = ResolveSightAnchor(_equippedOpticInstance.transform);

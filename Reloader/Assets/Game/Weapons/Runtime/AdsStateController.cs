@@ -21,6 +21,8 @@ namespace Reloader.Game.Weapons
         [SerializeField] private KeyCode _adsKey = KeyCode.Mouse1;
         [SerializeField] private bool _zoomOnlyWhileAds = true;
         [SerializeField] private bool _useLegacyInput = true;
+        [SerializeField] private bool _allowExternalAdsControl = true;
+        [SerializeField] private bool _allowExternalZoomControl = true;
 
         [Header("Fallback Tuning")]
         [SerializeField, Min(0.01f)] private float _fallbackAdsInTime = 0.12f;
@@ -60,6 +62,8 @@ namespace Reloader.Game.Weapons
         private float _nextDebugLogTime;
         private int _externalAdsSetFrame = -1;
         private int _externalMagnificationSetFrame = -1;
+        private bool _externalAdsControlActive;
+        private bool _externalZoomControlActive;
 
         public bool IsAdsActive => _isAdsHeld;
         public float AdsT { get; private set; }
@@ -137,12 +141,20 @@ namespace Reloader.Game.Weapons
         {
             _isAdsHeld = held;
             _externalAdsSetFrame = Time.frameCount;
+            if (_allowExternalAdsControl)
+            {
+                _externalAdsControlActive = true;
+            }
         }
 
         public void SetMagnification(float magnification)
         {
             _targetMagnification = ResolveClampedMagnification(magnification);
             _externalMagnificationSetFrame = Time.frameCount;
+            if (_allowExternalZoomControl)
+            {
+                _externalZoomControlActive = true;
+            }
         }
 
         public void SetWeaponDefinition(WeaponDefinition weaponDefinition)
@@ -165,7 +177,7 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
-            if (!externalAdsThisFrame)
+            if (!externalAdsThisFrame && !_externalAdsControlActive)
             {
                 var held = SafeGetKey(_adsKey);
                 if (!_adsButtonUnavailable && !string.IsNullOrWhiteSpace(_adsButton))
@@ -181,7 +193,7 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
-            if (externalMagThisFrame)
+            if (externalMagThisFrame || _externalZoomControlActive)
             {
                 return;
             }
