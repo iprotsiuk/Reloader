@@ -110,6 +110,35 @@ namespace Reloader.Economy.Tests.EditMode
             Assert.That(powderAfter, Is.EqualTo(powderBefore));
         }
 
+        [Test]
+        public void TryBuyBatch_WhenDeliveryFeeCannotBePaid_RollsBackAllMutations()
+        {
+            var runtime = new EconomyRuntime(130);
+            var catalog = BuildCatalog(new[]
+            {
+                ("ammo-22lr", 2, 300),
+                ("powder-varget", 40, 30)
+            });
+            runtime.OpenVendor("vendor-1", catalog);
+            runtime.TryGetStock("ammo-22lr", out var ammoBefore);
+            runtime.TryGetStock("powder-varget", out var powderBefore);
+
+            var lines = new List<(string itemId, int quantity)>
+            {
+                ("ammo-22lr", 50)
+            };
+
+            var bought = runtime.TryBuyBatch(lines, 50, out _, out var reason);
+            runtime.TryGetStock("ammo-22lr", out var ammoAfter);
+            runtime.TryGetStock("powder-varget", out var powderAfter);
+
+            Assert.That(bought, Is.False);
+            Assert.That(reason, Is.EqualTo(TradeFailureReason.InsufficientFunds));
+            Assert.That(runtime.Money, Is.EqualTo(130));
+            Assert.That(ammoAfter, Is.EqualTo(ammoBefore));
+            Assert.That(powderAfter, Is.EqualTo(powderBefore));
+        }
+
         private static ShopCatalogDefinition BuildCatalog(string itemId, int unitPrice, int stock)
         {
             return BuildCatalog(new[] { (itemId, unitPrice, stock) });

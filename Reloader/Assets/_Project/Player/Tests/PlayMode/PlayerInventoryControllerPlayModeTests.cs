@@ -7,6 +7,7 @@ using Reloader.Inventory;
 using Reloader.Player;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 
 namespace Reloader.Player.Tests.PlayMode
@@ -782,6 +783,85 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void TryDropFallbackAndRestoreFallback_ConfigureEquivalentPhysicsAndVisualSetup()
+        {
+            var root = new GameObject("InventoryControllerDropRestoreParity");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            controller.Configure(null, null, runtime);
+
+            runtime.SetBackpackCapacity(0);
+            Assert.That(runtime.TryStoreItem("item-drop-restore-parity", out _, out var slotIndex, out _), Is.True);
+            Assert.That(controller.TryDropItemFromSlot(InventoryArea.Belt, slotIndex), Is.True);
+
+            var liveDropRoot = GameObject.Find("drop-item-drop-restore-parity");
+            Assert.That(liveDropRoot, Is.Not.Null);
+
+            var restoreRecord = new WorldObjectStateRecord
+            {
+                ObjectId = "restore-parity-object-id",
+                ItemDefinitionId = "item-drop-restore-parity",
+                ItemInstanceId = "restore-parity-instance-id",
+                StackQuantity = 1,
+                Position = new Vector3(3f, 1f, -2f),
+                Rotation = Quaternion.Euler(0f, 35f, 0f)
+            };
+
+            Assert.That(TryInvokeRestore(SceneManager.GetActiveScene(), restoreRecord), Is.True);
+
+            var restoredDropRoot = FindDropByObjectId("restore-parity-object-id");
+            Assert.That(restoredDropRoot, Is.Not.Null);
+
+            AssertFallbackDropSetup(liveDropRoot);
+            AssertFallbackDropSetup(restoredDropRoot);
+
+            var liveBody = liveDropRoot.GetComponent<Rigidbody>();
+            var restoredBody = restoredDropRoot.GetComponent<Rigidbody>();
+            Assert.That(restoredBody.mass, Is.EqualTo(liveBody.mass).Within(0.0001f));
+            Assert.That(restoredBody.interpolation, Is.EqualTo(liveBody.interpolation));
+            Assert.That(restoredBody.collisionDetectionMode, Is.EqualTo(liveBody.collisionDetectionMode));
+
+            if (liveDropRoot != null)
+            {
+                Object.DestroyImmediate(liveDropRoot);
+            }
+
+            if (restoredDropRoot != null)
+            {
+                Object.DestroyImmediate(restoredDropRoot);
+            }
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void RuntimeDroppedItemFactory_DefaultFallbackColliderSize_MatchesLiveDropColliderSetup()
+        {
+            var root = new GameObject("InventoryControllerDropFactoryCollider");
+            var controller = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            controller.Configure(null, null, runtime);
+
+            runtime.SetBackpackCapacity(0);
+            Assert.That(runtime.TryStoreItem("item-drop-factory-collider", out _, out var slotIndex, out _), Is.True);
+            Assert.That(controller.TryDropItemFromSlot(InventoryArea.Belt, slotIndex), Is.True);
+
+            var dropRoot = GameObject.Find("drop-item-drop-factory-collider");
+            Assert.That(dropRoot, Is.Not.Null);
+
+            var collider = dropRoot.GetComponent<BoxCollider>();
+            Assert.That(collider, Is.Not.Null);
+            Assert.That(collider.size, Is.EqualTo(RuntimeDroppedItemFactory.DefaultFallbackColliderSize));
+
+            if (dropRoot != null)
+            {
+                Object.DestroyImmediate(dropRoot);
+            }
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void TryDropItemFromSlot_WhenRegistryMissesButDefinitionIsLoaded_UsesDefinitionVisualDropPath()
         {
             var root = new GameObject("InventoryControllerDropGlobalDefinition");
@@ -1122,6 +1202,58 @@ namespace Reloader.Player.Tests.PlayMode
             var field = ownerType.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Expected private field '{fieldName}' on {ownerType.Name}.");
             field.SetValue(instance, value);
+        }
+
+        private static void AssertFallbackDropSetup(GameObject dropRoot)
+        {
+            Assert.That(dropRoot, Is.Not.Null);
+
+            var collider = dropRoot.GetComponent<BoxCollider>();
+            Assert.That(collider, Is.Not.Null);
+            Assert.That(collider.size, Is.EqualTo(RuntimeDroppedItemFactory.DefaultFallbackColliderSize));
+
+            var body = dropRoot.GetComponent<Rigidbody>();
+            Assert.That(body, Is.Not.Null);
+            Assert.That(body.interpolation, Is.EqualTo(RigidbodyInterpolation.Interpolate));
+            Assert.That(body.collisionDetectionMode, Is.EqualTo(CollisionDetectionMode.ContinuousDynamic));
+
+            Assert.That(dropRoot.GetComponent<RuntimeStackPickupTarget>(), Is.Not.Null);
+            Assert.That(dropRoot.GetComponent<DefinitionPickupTarget>(), Is.Null);
+
+            var visual = dropRoot.transform.Find("visual");
+            Assert.That(visual, Is.Not.Null);
+            Assert.That(visual.GetComponent<Collider>(), Is.Null);
+        }
+
+        private static bool TryInvokeRestore(Scene scene, WorldObjectStateRecord record)
+        {
+            var restoreMethod = typeof(RuntimeDroppedItemSpawnRestorer).GetMethod(
+                "TryRestore",
+                BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.That(restoreMethod, Is.Not.Null, "Expected private RuntimeDroppedItemSpawnRestorer.TryRestore method.");
+
+            var result = restoreMethod.Invoke(null, new object[] { scene, record });
+            return result is bool restoreSucceeded && restoreSucceeded;
+        }
+
+        private static GameObject FindDropByObjectId(string objectId)
+        {
+            var identities = Object.FindObjectsByType<WorldObjectIdentity>(FindObjectsSortMode.None);
+            for (var i = 0; i < identities.Length; i++)
+            {
+                var identity = identities[i];
+                if (identity == null)
+                {
+                    continue;
+                }
+
+                if (identity.ObjectId == objectId)
+                {
+                    return identity.gameObject;
+                }
+            }
+
+            return null;
         }
 
         private sealed class FakeInventoryEvents : IInventoryEvents

@@ -36,18 +36,18 @@ namespace Reloader.UI.Toolkit.Runtime
         public static UiActionMapConfig CreateWithDefaults()
         {
             var config = new UiActionMapConfig();
-            config.Set("belt.slot.select", "SelectBeltSlot");
-            config.Set("inventory.drag.merge", "MergeStacks");
-            config.Set("inventory.drag.swap", "SwapSlots");
-            config.Set("inventory.drag.drop", "DropStack");
-            config.Set("esc.menu.resume", "ResumeGameplay");
-            config.Set("esc.menu.settings", "OpenEscSettings");
-            config.Set("esc.menu.keybindings", "OpenEscKeybindings");
-            config.Set("esc.menu.quit", "QuitToDesktop");
-            config.Set("trade.confirm.buy", "ConfirmBuyOrder");
-            config.Set("trade.confirm.sell", "ConfirmSellOrder");
-            config.Set("reloading.operation.select", "SelectReloadingOperation");
-            config.Set("reloading.operation.execute", "ExecuteReloadingOperation");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.BeltSlotSelect, "SelectBeltSlot");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.InventoryDragMerge, "MergeStacks");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.InventoryDragSwap, "SwapSlots");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.InventoryDragDrop, "DropStack");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.EscMenuResume, "ResumeGameplay");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.EscMenuSettings, "OpenEscSettings");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.EscMenuKeybindings, "OpenEscKeybindings");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.EscMenuQuit, "QuitToDesktop");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.TradeConfirmBuy, "ConfirmBuyOrder");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.TradeConfirmSell, "ConfirmSellOrder");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.ReloadingOperationSelect, "SelectReloadingOperation");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.ReloadingOperationExecute, "ExecuteReloadingOperation");
             return config;
         }
     }

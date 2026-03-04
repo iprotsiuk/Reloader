@@ -378,7 +378,11 @@ namespace Reloader.Inventory
                 return;
             }
 
-            _pendingPickupTargetsById.TryGetValue(itemId, out var pendingTarget);
+            if (!_pendingPickupTargetsById.TryGetValue(itemId, out var pendingTarget) || pendingTarget == null)
+            {
+                return;
+            }
+
             if (pendingTarget is IInventoryDefinitionPickupTarget definitionTarget
                 && definitionTarget.SpawnDefinition != null
                 && definitionTarget.SpawnDefinition.ItemDefinition != null)
@@ -713,47 +717,20 @@ namespace Reloader.Inventory
             }
 
             TryResolveItemDefinition(itemId, out var definition);
-
-            var dropRoot = new GameObject($"drop-{itemId}");
-            dropRoot.transform.position = ResolveDropSpawnPosition();
-            dropRoot.transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
-
-            var identity = dropRoot.AddComponent<WorldObjectIdentity>();
-            if (identity == null)
+            var spawnPosition = ResolveDropSpawnPosition();
+            var spawnRotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+            if (!RuntimeDroppedItemFactory.TryCreate(
+                    itemId,
+                    quantity,
+                    definition,
+                    spawnPosition,
+                    spawnRotation,
+                    out _,
+                    out var rigidbody,
+                    _dropColliderSize))
             {
-                Destroy(dropRoot);
                 return false;
             }
-
-            var collider = dropRoot.AddComponent<BoxCollider>();
-            collider.size = _dropColliderSize;
-
-            var rigidbody = dropRoot.AddComponent<Rigidbody>();
-            rigidbody.mass = ResolveDropMass(definition, quantity);
-            rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
-            rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-
-            if (definition != null)
-            {
-                var spawnDefinition = ScriptableObject.CreateInstance<ItemSpawnDefinition>();
-                spawnDefinition.SetValuesForTests(definition, quantity);
-
-                var pickup = dropRoot.AddComponent<DefinitionPickupTarget>();
-                pickup.SetSpawnDefinitionForTests(spawnDefinition);
-
-                var lifetime = dropRoot.AddComponent<RuntimeDropSpawnLifetime>();
-                lifetime.Assign(spawnDefinition);
-            }
-            else
-            {
-                var fallbackPickup = dropRoot.AddComponent<RuntimeStackPickupTarget>();
-                fallbackPickup.SetValuesForTests(itemId, quantity);
-            }
-
-            CreateDropVisual(definition, dropRoot.transform);
-
-            var persistenceTracker = dropRoot.AddComponent<RuntimeDroppedObjectPersistenceTracker>();
-            persistenceTracker.Configure(itemId, quantity);
 
             var push = transform.forward * Mathf.Max(0f, _dropImpulse);
             rigidbody.AddForce(push, ForceMode.Impulse);
@@ -773,68 +750,6 @@ namespace Reloader.Inventory
             return transform.position
                    + (horizontalForward * Mathf.Max(0.5f, _dropForwardDistance))
                    + (Vector3.up * Mathf.Max(0.2f, _dropVerticalOffset));
-        }
-
-        private static void CreateDropVisual(ItemDefinition definition, Transform parent)
-        {
-            if (parent == null)
-            {
-                return;
-            }
-
-            GameObject visualRoot = null;
-            if (definition != null && definition.IconSourcePrefab != null)
-            {
-                visualRoot = Instantiate(definition.IconSourcePrefab, parent);
-                visualRoot.name = "visual";
-                StripPhysicsAndGameplayComponents(visualRoot);
-            }
-            else
-            {
-                visualRoot = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                visualRoot.name = "visual";
-                visualRoot.transform.SetParent(parent, false);
-                visualRoot.transform.localScale = Vector3.one * 0.22f;
-                var visualCollider = visualRoot.GetComponent<Collider>();
-                if (visualCollider != null)
-                {
-                    UnityEngine.Object.Destroy(visualCollider);
-                }
-            }
-
-            if (visualRoot == null)
-            {
-                return;
-            }
-
-            visualRoot.transform.localPosition = Vector3.zero;
-            visualRoot.transform.localRotation = Quaternion.identity;
-        }
-
-        private static void StripPhysicsAndGameplayComponents(GameObject visualRoot)
-        {
-            if (visualRoot == null)
-            {
-                return;
-            }
-
-            var colliders = visualRoot.GetComponentsInChildren<Collider>(true);
-            for (var i = 0; i < colliders.Length; i++)
-            {
-                if (colliders[i] != null)
-                {
-                    UnityEngine.Object.Destroy(colliders[i]);
-                }
-            }
-
-            var rigidbodies = visualRoot.GetComponentsInChildren<Rigidbody>(true);
-            for (var i = 0; i < rigidbodies.Length; i++)
-            {
-                if (rigidbodies[i] != null)
-                {
-                    UnityEngine.Object.Destroy(rigidbodies[i]);
-                }
-            }
         }
 
         private bool TryResolveItemDefinition(string itemId, out ItemDefinition definition)
@@ -936,28 +851,6 @@ namespace Reloader.Inventory
             _itemDefinitionRegistry.Add(definition);
         }
 
-        private static float ResolveDropMass(ItemDefinition definition, int quantity)
-        {
-            var perItemMass = 0.25f;
-            if (definition != null)
-            {
-                perItemMass = definition.Category switch
-                {
-                    ItemCategory.Powder => 0.02f,
-                    ItemCategory.Bullet => 0.03f,
-                    ItemCategory.Case => 0.02f,
-                    ItemCategory.Primer => 0.01f,
-                    ItemCategory.Weapon => 2.8f,
-                    ItemCategory.Tool => 0.8f,
-                    ItemCategory.Consumable => 0.25f,
-                    _ => 0.2f
-                };
-            }
-
-            var total = Mathf.Max(0.05f, perItemMass * Mathf.Max(1, quantity));
-            return Mathf.Clamp(total, 0.05f, 20f);
-        }
-
         private void UpdateDebugFields()
         {
             _inputResolvedDebug = _inputSource != null;
@@ -977,23 +870,5 @@ namespace Reloader.Inventory
             return _startingBackpackCapacity > 0 ? _startingBackpackCapacity : DefaultBackpackCapacity;
         }
 
-        private sealed class RuntimeDropSpawnLifetime : MonoBehaviour
-        {
-            private ItemSpawnDefinition _runtimeSpawnDefinition;
-
-            public void Assign(ItemSpawnDefinition runtimeSpawnDefinition)
-            {
-                _runtimeSpawnDefinition = runtimeSpawnDefinition;
-            }
-
-            private void OnDestroy()
-            {
-                if (_runtimeSpawnDefinition != null)
-                {
-                    Destroy(_runtimeSpawnDefinition);
-                    _runtimeSpawnDefinition = null;
-                }
-            }
-        }
     }
 }

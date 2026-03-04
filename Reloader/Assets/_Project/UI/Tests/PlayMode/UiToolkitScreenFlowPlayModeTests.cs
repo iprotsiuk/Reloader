@@ -192,10 +192,10 @@ namespace Reloader.UI.Tests.PlayMode
 
             var subscription = bindMethod.Invoke(
                 bridge,
-                new object[] { root, "tab-menu-controller", inventoryController, input }) as System.IDisposable;
+                new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, input }) as System.IDisposable;
             Assert.That(subscription, Is.Not.Null);
 
-            var tabController = bridgeGo.transform.Find("tab-menu-controller")?.GetComponent<TabInventoryController>();
+            var tabController = bridgeGo.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
             Assert.That(tabController, Is.Not.Null);
 
             var binderField = typeof(TabInventoryController).GetField("_viewBinder", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -231,10 +231,10 @@ namespace Reloader.UI.Tests.PlayMode
 
             var subscription = bindMethod.Invoke(
                 bridge,
-                new object[] { root, "tab-menu-controller", inventoryController, input }) as System.IDisposable;
+                new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, input }) as System.IDisposable;
             Assert.That(subscription, Is.Not.Null);
 
-            var tabController = bridgeGo.transform.Find("tab-menu-controller")?.GetComponent<TabInventoryController>();
+            var tabController = bridgeGo.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
             Assert.That(tabController, Is.Not.Null);
 
             var binderField = typeof(TabInventoryController).GetField("_viewBinder", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -271,10 +271,10 @@ namespace Reloader.UI.Tests.PlayMode
 
             var subscription = bindMethod.Invoke(
                 bridge,
-                new object[] { root, "interaction-hint-controller" }) as IDisposable;
+                new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.InteractionHint }) as IDisposable;
             Assert.That(subscription, Is.Not.Null);
 
-            var controller = bridgeGo.transform.Find("interaction-hint-controller")?.GetComponent<InteractionHintController>();
+            var controller = bridgeGo.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.InteractionHint)?.GetComponent<InteractionHintController>();
             Assert.That(controller, Is.Not.Null);
 
             var label = root.Q<Label>("interaction-hint__text");
@@ -317,10 +317,10 @@ namespace Reloader.UI.Tests.PlayMode
 
             var subscription = bindMethod.Invoke(
                 bridge,
-                new object[] { root, "interaction-hint-controller" }) as IDisposable;
+                new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.InteractionHint }) as IDisposable;
             Assert.That(subscription, Is.Not.Null);
 
-            var controller = bridgeGo.transform.Find("interaction-hint-controller")?.GetComponent<InteractionHintController>();
+            var controller = bridgeGo.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.InteractionHint)?.GetComponent<InteractionHintController>();
             Assert.That(controller, Is.Not.Null);
 
             var controllerUpdate = typeof(InteractionHintController).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic);

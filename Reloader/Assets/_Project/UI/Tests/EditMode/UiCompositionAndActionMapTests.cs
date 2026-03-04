@@ -5,12 +5,12 @@ namespace Reloader.UI.Tests.EditMode
 {
     public class UiCompositionAndActionMapTests
     {
-        [TestCase("belt-hud")]
-        [TestCase("ammo-hud")]
-        [TestCase("tab-inventory")]
-        [TestCase("esc-menu")]
-        [TestCase("trade-ui")]
-        [TestCase("reloading-workbench")]
+        [TestCase(UiRuntimeCompositionIds.ScreenIds.BeltHud)]
+        [TestCase(UiRuntimeCompositionIds.ScreenIds.AmmoHud)]
+        [TestCase(UiRuntimeCompositionIds.ScreenIds.TabInventory)]
+        [TestCase(UiRuntimeCompositionIds.ScreenIds.EscMenu)]
+        [TestCase(UiRuntimeCompositionIds.ScreenIds.Trade)]
+        [TestCase(UiRuntimeCompositionIds.ScreenIds.ReloadingWorkbench)]
         public void CompositionConfig_DefaultsContainRequiredScreens(string screenId)
         {
             var config = UiScreenCompositionConfig.CreateWithDefaults();
@@ -22,18 +22,18 @@ namespace Reloader.UI.Tests.EditMode
             Assert.That(components.Count, Is.GreaterThan(0));
         }
 
-        [TestCase("belt.slot.select")]
-        [TestCase("inventory.drag.merge")]
-        [TestCase("inventory.drag.swap")]
-        [TestCase("inventory.drag.drop")]
-        [TestCase("esc.menu.resume")]
-        [TestCase("esc.menu.settings")]
-        [TestCase("esc.menu.keybindings")]
-        [TestCase("esc.menu.quit")]
-        [TestCase("trade.confirm.buy")]
-        [TestCase("trade.confirm.sell")]
-        [TestCase("reloading.operation.select")]
-        [TestCase("reloading.operation.execute")]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.BeltSlotSelect)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.InventoryDragMerge)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.InventoryDragSwap)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.InventoryDragDrop)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.EscMenuResume)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.EscMenuSettings)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.EscMenuKeybindings)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.EscMenuQuit)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.TradeConfirmBuy)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.TradeConfirmSell)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.ReloadingOperationSelect)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.ReloadingOperationExecute)]
         public void ActionMap_DefaultsContainRequiredIntentKeys(string intentKey)
         {
             var map = UiActionMapConfig.CreateWithDefaults();

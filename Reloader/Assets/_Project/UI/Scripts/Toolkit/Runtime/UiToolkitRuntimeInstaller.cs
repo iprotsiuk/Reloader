@@ -35,14 +35,14 @@ namespace Reloader.UI.Toolkit.Runtime
         {
             ResolveDefaultReferencesIfNeeded();
             _runtimeRoot = EnsureRuntimeRoot();
-            EnsureScreenDocument("belt-hud", _beltHudTree);
-            EnsureScreenDocument("ammo-hud", _ammoHudTree);
-            EnsureScreenDocument("tab-inventory", _tabInventoryTree);
-            EnsureScreenDocument("esc-menu", _escMenuTree);
-            EnsureScreenDocument("chest-inventory", _chestInventoryTree);
-            EnsureScreenDocument("trade-ui", _tradeTree);
-            EnsureScreenDocument("reloading-workbench", _reloadingTree);
-            EnsureScreenDocument("interaction-hint", _interactionHintTree);
+            EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.BeltHud, _beltHudTree);
+            EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.AmmoHud, _ammoHudTree);
+            EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.TabInventory, _tabInventoryTree);
+            EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.EscMenu, _escMenuTree);
+            EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.ChestInventory, _chestInventoryTree);
+            EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.Trade, _tradeTree);
+            EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.ReloadingWorkbench, _reloadingTree);
+            EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.InteractionHint, _interactionHintTree);
 
             if (_disableLegacyRuntimePresenters)
             {

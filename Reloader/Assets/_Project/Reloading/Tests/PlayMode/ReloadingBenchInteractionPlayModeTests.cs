@@ -190,6 +190,28 @@ namespace Reloader.Reloading.Tests.PlayMode
         }
 
         [Test]
+        public void PickupPress_WhenExternalMenuStateReportsOpen_DoesNotOpenWorkbench()
+        {
+            var root = new GameObject("PlayerRootExternalMenuOpen");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerReloadingBenchController>();
+            var resolver = root.AddComponent<TestBenchResolver>();
+            var target = root.AddComponent<TestBenchTarget>();
+            var uiStateEvents = new TestUiStateEvents();
+            var externalMenuStateReader = new TestExternalMenuStateReader { IsStorageUiOpen = true };
+            resolver.Target = target;
+            controller.Configure(input, resolver, uiStateEvents, externalMenuStateReader);
+
+            input.PickupPressedThisFrame = true;
+            controller.Tick();
+
+            Assert.That(target.OpenCalls, Is.EqualTo(0));
+            Assert.That(target.IsWorkbenchOpen, Is.False);
+
+            Object.Destroy(root);
+        }
+
+        [Test]
         public void Tick_TargetedBench_EmitsUseBenchHint()
         {
             var originalHub = RuntimeKernelBootstrapper.Events;
@@ -448,6 +470,11 @@ namespace Reloader.Reloading.Tests.PlayMode
             {
                 OnEscMenuVisibilityChanged?.Invoke(isVisible);
             }
+        }
+
+        private sealed class TestExternalMenuStateReader : IExternalMenuStateReader
+        {
+            public bool IsStorageUiOpen { get; set; }
         }
     }
 }

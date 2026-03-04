@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using Reloader.Core.UI;
 using Reloader.Inventory;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine;
@@ -12,30 +13,27 @@ namespace Reloader.UI.Toolkit.BeltHud
         [SerializeField] private PlayerInventoryController _inventoryController;
 
         private BeltHudViewBinder _viewBinder;
-        private IInventoryEvents _inventoryEvents;
-        private IInventoryEvents _subscribedInventoryEvents;
-        private bool _useRuntimeKernelInventoryEvents = true;
+        private RuntimeHubChannelBinder<IInventoryEvents> _inventoryEventsBinder;
 
         private void OnEnable()
         {
             SubscribeToRuntimeHubReconfigure();
-            SubscribeToInventoryEvents(ResolveInventoryEvents());
+            InventoryEventsBinder.ResolveAndBind();
             Refresh();
         }
 
         private void OnDisable()
         {
             UnsubscribeFromRuntimeHubReconfigure();
-            UnsubscribeFromInventoryEvents();
+            InventoryEventsBinder.Unbind();
         }
 
         public void Configure(IInventoryEvents inventoryEvents = null)
         {
-            _useRuntimeKernelInventoryEvents = inventoryEvents == null;
-            _inventoryEvents = inventoryEvents;
+            InventoryEventsBinder.Configure(inventoryEvents);
             if (isActiveAndEnabled)
             {
-                SubscribeToInventoryEvents(ResolveInventoryEvents());
+                InventoryEventsBinder.ResolveAndBind();
             }
         }
 
@@ -106,69 +104,29 @@ namespace Reloader.UI.Toolkit.BeltHud
 
         private void HandleRuntimeEventsReconfigured()
         {
-            if (!isActiveAndEnabled || !_useRuntimeKernelInventoryEvents)
+            if (!isActiveAndEnabled || !InventoryEventsBinder.UsesRuntimeChannel)
             {
                 return;
             }
 
-            SubscribeToInventoryEvents(ResolveInventoryEvents());
+            InventoryEventsBinder.ResolveAndBind();
         }
 
         private IInventoryEvents ResolveInventoryEvents()
         {
-            if (_useRuntimeKernelInventoryEvents)
-            {
-                var runtimeInventoryEvents = RuntimeKernelBootstrapper.InventoryEvents;
-                if (!ReferenceEquals(_inventoryEvents, runtimeInventoryEvents))
-                {
-                    _inventoryEvents = runtimeInventoryEvents;
-                    SubscribeToInventoryEvents(_inventoryEvents);
-                }
-                else if (!ReferenceEquals(_subscribedInventoryEvents, _inventoryEvents))
-                {
-                    SubscribeToInventoryEvents(_inventoryEvents);
-                }
-
-                return _inventoryEvents;
-            }
-
-            if (!ReferenceEquals(_subscribedInventoryEvents, _inventoryEvents))
-            {
-                SubscribeToInventoryEvents(_inventoryEvents);
-            }
-
-            return _inventoryEvents;
+            return InventoryEventsBinder.ResolveAndBind();
         }
 
         private void SubscribeToInventoryEvents(IInventoryEvents inventoryEvents)
         {
-            if (inventoryEvents == null)
-            {
-                UnsubscribeFromInventoryEvents();
-                return;
-            }
-
-            if (ReferenceEquals(_subscribedInventoryEvents, inventoryEvents))
-            {
-                return;
-            }
-
-            UnsubscribeFromInventoryEvents();
-            _subscribedInventoryEvents = inventoryEvents;
-            _subscribedInventoryEvents.OnInventoryChanged += HandleInventoryChanged;
-            _subscribedInventoryEvents.OnBeltSelectionChanged += HandleBeltSelectionChanged;
+            inventoryEvents.OnInventoryChanged += HandleInventoryChanged;
+            inventoryEvents.OnBeltSelectionChanged += HandleBeltSelectionChanged;
         }
 
-        private void UnsubscribeFromInventoryEvents()
+        private void UnsubscribeFromInventoryEvents(IInventoryEvents inventoryEvents)
         {
-            if (_subscribedInventoryEvents == null)
-            {
-                return;
-            }
-
-            _subscribedInventoryEvents.OnInventoryChanged -= HandleInventoryChanged;
-            _subscribedInventoryEvents.OnBeltSelectionChanged -= HandleBeltSelectionChanged;
-            _subscribedInventoryEvents = null;
+            inventoryEvents.OnInventoryChanged -= HandleInventoryChanged;
+            inventoryEvents.OnBeltSelectionChanged -= HandleBeltSelectionChanged;
         }
 
         private void SubscribeToRuntimeHubReconfigure()
@@ -181,5 +139,11 @@ namespace Reloader.UI.Toolkit.BeltHud
         {
             RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
         }
+
+        private RuntimeHubChannelBinder<IInventoryEvents> InventoryEventsBinder => _inventoryEventsBinder ??=
+            new RuntimeHubChannelBinder<IInventoryEvents>(
+                () => RuntimeKernelBootstrapper.InventoryEvents,
+                SubscribeToInventoryEvents,
+                UnsubscribeFromInventoryEvents);
     }
 }

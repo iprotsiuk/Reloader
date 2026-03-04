@@ -305,37 +305,89 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void RaiseShopTradeResult_InvokesEventWithPayload()
+        public void RaiseShopTradeResult_InvokesTypedEventWithPayload()
         {
-            string itemId = null;
-            var quantity = -1;
-            var isBuy = false;
-            var success = false;
-            string reason = null;
-            void Handler(string value, int amount, bool buy, bool wasSuccessful, string failureReason)
+            ShopTradeResultPayload? received = null;
+
+            void Handler(ShopTradeResultPayload payload) => received = payload;
+
+            RuntimeKernelBootstrapper.ShopEvents.OnShopTradeResultReceived += Handler;
+            try
             {
-                itemId = value;
-                quantity = amount;
-                isBuy = buy;
-                success = wasSuccessful;
-                reason = failureReason;
+                RuntimeKernelBootstrapper.ShopEvents.RaiseShopTradeResult(new ShopTradeResultPayload(
+                    "primer-cci",
+                    100,
+                    true,
+                    false,
+                    ShopTradeFailureReason.InsufficientFunds));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.ShopEvents.OnShopTradeResultReceived -= Handler;
+            }
+
+            Assert.That(received.HasValue, Is.True);
+            Assert.That(received.Value.ItemId, Is.EqualTo("primer-cci"));
+            Assert.That(received.Value.Quantity, Is.EqualTo(100));
+            Assert.That(received.Value.IsBuy, Is.True);
+            Assert.That(received.Value.Success, Is.False);
+            Assert.That(received.Value.FailureReason, Is.EqualTo(ShopTradeFailureReason.InsufficientFunds));
+        }
+
+        [Test]
+        public void RaiseShopTradeResult_TypedRaiseStillInvokesLegacyEventForCompatibility()
+        {
+            string failureReason = null;
+
+#pragma warning disable CS0618
+            void Handler(string _, int __, bool ___, bool success, string reason)
+            {
+                if (!success)
+                {
+                    failureReason = reason;
+                }
             }
 
             RuntimeKernelBootstrapper.ShopEvents.OnShopTradeResult += Handler;
             try
             {
-                RuntimeKernelBootstrapper.ShopEvents.RaiseShopTradeResult("primer-cci", 100, true, false, "InsufficientFunds");
+                RuntimeKernelBootstrapper.ShopEvents.RaiseShopTradeResult(new ShopTradeResultPayload(
+                    "primer-cci",
+                    100,
+                    true,
+                    false,
+                    ShopTradeFailureReason.InsufficientFunds));
             }
             finally
             {
                 RuntimeKernelBootstrapper.ShopEvents.OnShopTradeResult -= Handler;
             }
+#pragma warning restore CS0618
 
-            Assert.That(itemId, Is.EqualTo("primer-cci"));
-            Assert.That(quantity, Is.EqualTo(100));
-            Assert.That(isBuy, Is.True);
-            Assert.That(success, Is.False);
-            Assert.That(reason, Is.EqualTo("InsufficientFunds"));
+            Assert.That(failureReason, Is.EqualTo("InsufficientFunds"));
+        }
+
+        [Test]
+        public void RaiseShopTradeResult_LegacyRaiseStillInvokesTypedEventForCompatibility()
+        {
+            ShopTradeResultPayload? received = null;
+
+            void Handler(ShopTradeResultPayload payload) => received = payload;
+
+            RuntimeKernelBootstrapper.ShopEvents.OnShopTradeResultReceived += Handler;
+            try
+            {
+#pragma warning disable CS0618
+                RuntimeKernelBootstrapper.ShopEvents.RaiseShopTradeResult("primer-cci", 100, true, false, "InsufficientFunds");
+#pragma warning restore CS0618
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.ShopEvents.OnShopTradeResultReceived -= Handler;
+            }
+
+            Assert.That(received.HasValue, Is.True);
+            Assert.That(received.Value.FailureReason, Is.EqualTo(ShopTradeFailureReason.InsufficientFunds));
         }
 
         [Test]

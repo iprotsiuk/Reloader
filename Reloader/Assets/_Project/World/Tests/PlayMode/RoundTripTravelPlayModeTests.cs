@@ -563,6 +563,33 @@ namespace Reloader.World.Tests.PlayMode
             Object.DestroyImmediate(playerRoot);
         }
 
+        [Test]
+        public void EnsureViewmodelRigAfterTravel_BindsTypedViewmodelAdapter_WhenSimpleNameCollides()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(playerRoot.transform, false);
+            var playerArms = new GameObject("PlayerArms").transform;
+            playerArms.SetParent(cameraPivot, false);
+            var visuals = new GameObject("PlayerArmsVisual").transform;
+            visuals.SetParent(playerArms, false);
+
+            var animator = visuals.gameObject.AddComponent<Animator>();
+            animator.runtimeAnimatorController = null;
+
+            playerRoot.AddComponent<ViewmodelAnimationAdapter>();
+            var realAdapter = playerRoot.AddComponent<Reloader.Player.Viewmodel.ViewmodelAnimationAdapter>();
+            SetPrivateAnimatorField(realAdapter, null);
+
+            InvokeEnsureViewmodelRigAfterTravel(playerRoot.transform);
+
+            var boundAnimator = GetPrivateAnimatorField(realAdapter);
+            Assert.That(boundAnimator, Is.Not.Null, "Expected typed travel rebinding to set animator on real ViewmodelAnimationAdapter.");
+            Assert.That(boundAnimator, Is.EqualTo(animator), "Expected typed rebinding to target PlayerArms animator.");
+
+            Object.DestroyImmediate(playerRoot);
+        }
+
         private static GameObject CreatePlayerInteractor()
         {
             var interactor = new GameObject("TestPlayerInteractor");
@@ -575,6 +602,20 @@ namespace Reloader.World.Tests.PlayMode
             var method = typeof(WorldTravelCoordinator).GetMethod("EnsureViewmodelRigAfterTravel", BindingFlags.Static | BindingFlags.NonPublic);
             Assert.That(method, Is.Not.Null, "Expected travel rig healing method on WorldTravelCoordinator.");
             method.Invoke(null, new object[] { playerRootTransform });
+        }
+
+        private static Animator GetPrivateAnimatorField(object component)
+        {
+            var field = component.GetType().GetField("_animator", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected private _animator field on {component.GetType().Name}.");
+            return field.GetValue(component) as Animator;
+        }
+
+        private static void SetPrivateAnimatorField(object component, Animator animator)
+        {
+            var field = component.GetType().GetField("_animator", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected private _animator field on {component.GetType().Name}.");
+            field.SetValue(component, animator);
         }
 
         private static IEnumerator WaitForActiveScene(string expectedSceneName, float timeoutSeconds)
@@ -792,5 +833,9 @@ namespace Reloader.World.Tests.PlayMode
             ResolveReferencesCalled = true;
             SawControllerDuringResolve = TargetAnimator != null && TargetAnimator.runtimeAnimatorController != null;
         }
+    }
+
+    public sealed class ViewmodelAnimationAdapter : MonoBehaviour
+    {
     }
 }

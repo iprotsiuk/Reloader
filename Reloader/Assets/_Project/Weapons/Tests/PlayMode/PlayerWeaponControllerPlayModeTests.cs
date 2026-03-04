@@ -808,6 +808,53 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ApplyRuntimePayload_InvalidCountsAndLoadout_AreNormalized()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            inventoryController.Configure(input, resolver, new PlayerInventoryRuntime());
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 0, 0, false);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            yield return null;
+
+            Assert.That(controller.ApplyRuntimeState("weapon-rifle-01", 999, -5, true), Is.True);
+            Assert.That(
+                controller.ApplyRuntimeBallistics(
+                    "weapon-rifle-01",
+                    null,
+                    new[]
+                    {
+                        new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2780f, 55f, 147f, 0.398f, 4.5f, "Factory .308 147gr FMJ", "c1", "ammo-factory-308-147-fmj"),
+                        new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2780f, 55f, 147f, 0.398f, 4.5f, "Factory .308 147gr FMJ", "c2", "ammo-factory-308-147-fmj"),
+                        new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2780f, 55f, 147f, 0.398f, 4.5f, "Factory .308 147gr FMJ", "c3", "ammo-factory-308-147-fmj"),
+                        new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2780f, 55f, 147f, 0.398f, 4.5f, "Factory .308 147gr FMJ", "c4", "ammo-factory-308-147-fmj"),
+                        new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2780f, 55f, 147f, 0.398f, 4.5f, "Factory .308 147gr FMJ", "c5", "ammo-factory-308-147-fmj"),
+                        new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2780f, 55f, 147f, 0.398f, 4.5f, "Factory .308 147gr FMJ", "c6", "ammo-factory-308-147-fmj"),
+                        new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2780f, 55f, 147f, 0.398f, 4.5f, "Factory .308 147gr FMJ", "c7", "ammo-factory-308-147-fmj")
+                    }),
+                Is.True);
+
+            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var state), Is.True);
+            Assert.That(state.MagazineCount, Is.EqualTo(5));
+            Assert.That(state.GetMagazineRoundsSnapshot().Count, Is.EqualTo(5));
+            Assert.That(state.ReserveCount, Is.EqualTo(0));
+            Assert.That(state.ChamberLoaded, Is.True);
+            Assert.That(state.ChamberRound.HasValue, Is.True);
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
         public IEnumerator MissingProjectilePrefab_StillSpawnsRuntimeProjectile()
         {
             var root = new GameObject("PlayerRoot");

@@ -3,6 +3,7 @@
   "rootNamespace": "Reloader.UI.Tests.EditMode",
   "references": [
     "Reloader.UI",
+    "Reloader.UI.Editor",
     "Reloader.Core",
     "Reloader.Inventory",
     "Reloader.NPCs"

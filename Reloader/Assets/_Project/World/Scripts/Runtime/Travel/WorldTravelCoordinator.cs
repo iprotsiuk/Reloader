@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System;
 using System.Collections;
 using System.Reflection;
+using Reloader.Player;
+using Reloader.Player.Viewmodel;
 using Reloader.World.Runtime;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -606,11 +608,18 @@ namespace Reloader.World.Travel
 
             RestoreArmsAnimatorControllerIfMissing(cameraPivot, animator);
 
-            var viewmodelAdapter = playerRootTransform.GetComponent("ViewmodelAnimationAdapter");
-            SetComponentAnimatorField(viewmodelAdapter, animator);
+            var viewmodelAdapter = playerRootTransform.GetComponent<ViewmodelAnimationAdapter>();
+            if (viewmodelAdapter != null)
+            {
+                viewmodelAdapter.Configure(animator);
+            }
 
-            var fpsDriver = playerRootTransform.GetComponent("FpsViewmodelAnimatorDriver");
-            SetComponentAnimatorField(fpsDriver, animator);
+            var fpsDriver = playerRootTransform.GetComponent<FpsViewmodelAnimatorDriver>();
+            if (fpsDriver != null)
+            {
+                var characterController = playerRootTransform.GetComponent<CharacterController>();
+                fpsDriver.Configure(animator, characterController);
+            }
 
             RebindPlayerRigRuntimeReferences(playerRootTransform);
         }
@@ -662,28 +671,6 @@ namespace Reloader.World.Travel
             {
                 animator.runtimeAnimatorController = controller;
             }
-        }
-
-        private static void SetComponentAnimatorField(Component component, Animator animator)
-        {
-            if (component == null || animator == null)
-            {
-                return;
-            }
-
-            var field = component.GetType().GetField("_animator", BindingFlags.Instance | BindingFlags.NonPublic);
-            if (field == null)
-            {
-                return;
-            }
-
-            var current = field.GetValue(component) as Animator;
-            if (current == animator)
-            {
-                return;
-            }
-
-            field.SetValue(component, animator);
         }
 
         private static void RebindPlayerRigRuntimeReferences(Transform playerRootTransform)

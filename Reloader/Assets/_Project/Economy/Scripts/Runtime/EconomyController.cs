@@ -75,7 +75,7 @@ namespace Reloader.Economy
         {
             if (!TryGetCatalog(vendorId, out var catalog) || !_runtime.OpenVendor(vendorId, catalog))
             {
-                ResolveShopEvents()?.RaiseShopTradeResult(string.Empty, 0, true, false, TradeFailureReason.NoActiveVendor.ToString());
+                RaiseTradeResult(string.Empty, 0, true, false, TradeFailureReason.NoActiveVendor);
                 return;
             }
 
@@ -88,20 +88,20 @@ namespace Reloader.Economy
             ResolveReferences();
             if (_inventoryController?.Runtime == null)
             {
-                ResolveShopEvents()?.RaiseShopTradeResult(itemId, quantity, true, false, TradeFailureReason.InventoryFull.ToString());
+                RaiseTradeResult(itemId, quantity, true, false, TradeFailureReason.InventoryFull);
                 return;
             }
 
             if (!_inventoryController.Runtime.CanAcceptStackQuantity(itemId, quantity))
             {
-                ResolveShopEvents()?.RaiseShopTradeResult(itemId, quantity, true, false, TradeFailureReason.InventoryFull.ToString());
+                RaiseTradeResult(itemId, quantity, true, false, TradeFailureReason.InventoryFull);
                 return;
             }
 
             var purchased = _runtime.TryBuy(itemId, quantity, out _, out var reason);
             if (!purchased)
             {
-                ResolveShopEvents()?.RaiseShopTradeResult(itemId, quantity, true, false, reason.ToString());
+                RaiseTradeResult(itemId, quantity, true, false, reason);
                 return;
             }
 
@@ -109,13 +109,13 @@ namespace Reloader.Economy
             if (!stored)
             {
                 _runtime.TrySell(itemId, quantity, out _, out _);
-                ResolveShopEvents()?.RaiseShopTradeResult(itemId, quantity, true, false, TradeFailureReason.InventoryFull.ToString());
+                RaiseTradeResult(itemId, quantity, true, false, TradeFailureReason.InventoryFull);
                 return;
             }
 
             ResolveInventoryEvents()?.RaiseMoneyChanged(_runtime.Money);
             ResolveInventoryEvents()?.RaiseInventoryChanged();
-            ResolveShopEvents()?.RaiseShopTradeResult(itemId, quantity, true, true, string.Empty);
+            RaiseTradeResult(itemId, quantity, true, true, TradeFailureReason.None);
         }
 
         private void HandleSellRequested(string itemId, int quantity)
@@ -123,20 +123,20 @@ namespace Reloader.Economy
             ResolveReferences();
             if (_inventoryController?.Runtime == null)
             {
-                ResolveShopEvents()?.RaiseShopTradeResult(itemId, quantity, false, false, TradeFailureReason.InsufficientPlayerQuantity.ToString());
+                RaiseTradeResult(itemId, quantity, false, false, TradeFailureReason.InsufficientPlayerQuantity);
                 return;
             }
 
             if (_inventoryController.Runtime.GetItemQuantity(itemId) < quantity || quantity <= 0)
             {
-                ResolveShopEvents()?.RaiseShopTradeResult(itemId, quantity, false, false, TradeFailureReason.InsufficientPlayerQuantity.ToString());
+                RaiseTradeResult(itemId, quantity, false, false, TradeFailureReason.InsufficientPlayerQuantity);
                 return;
             }
 
             var sold = _runtime.TrySell(itemId, quantity, out _, out var reason);
             if (!sold)
             {
-                ResolveShopEvents()?.RaiseShopTradeResult(itemId, quantity, false, false, reason.ToString());
+                RaiseTradeResult(itemId, quantity, false, false, reason);
                 return;
             }
 
@@ -144,13 +144,13 @@ namespace Reloader.Economy
             if (!removed)
             {
                 _runtime.TryBuy(itemId, quantity, out _, out _);
-                ResolveShopEvents()?.RaiseShopTradeResult(itemId, quantity, false, false, TradeFailureReason.InsufficientPlayerQuantity.ToString());
+                RaiseTradeResult(itemId, quantity, false, false, TradeFailureReason.InsufficientPlayerQuantity);
                 return;
             }
 
             ResolveInventoryEvents()?.RaiseMoneyChanged(_runtime.Money);
             ResolveInventoryEvents()?.RaiseInventoryChanged();
-            ResolveShopEvents()?.RaiseShopTradeResult(itemId, quantity, false, true, string.Empty);
+            RaiseTradeResult(itemId, quantity, false, true, TradeFailureReason.None);
         }
 
         private void HandleBuyCheckoutRequested(ShopCheckoutRequest request)
@@ -158,7 +158,7 @@ namespace Reloader.Economy
             ResolveReferences();
             if (_inventoryController?.Runtime == null || request == null || request.Lines == null || request.Lines.Length == 0)
             {
-                ResolveShopEvents()?.RaiseShopTradeResult(string.Empty, 0, true, false, TradeFailureReason.InvalidQuantity.ToString());
+                RaiseTradeResult(string.Empty, 0, true, false, TradeFailureReason.InvalidQuantity);
                 return;
             }
 
@@ -168,22 +168,23 @@ namespace Reloader.Economy
                 var line = request.Lines[i];
                 if (line.Quantity <= 0 || string.IsNullOrWhiteSpace(line.ItemId))
                 {
-                    ResolveShopEvents()?.RaiseShopTradeResult(string.Empty, 0, true, false, TradeFailureReason.InvalidQuantity.ToString());
+                    RaiseTradeResult(string.Empty, 0, true, false, TradeFailureReason.InvalidQuantity);
                     return;
                 }
 
                 if (!_inventoryController.Runtime.CanAcceptStackQuantity(line.ItemId, line.Quantity))
                 {
-                    ResolveShopEvents()?.RaiseShopTradeResult(line.ItemId, line.Quantity, true, false, TradeFailureReason.InventoryFull.ToString());
+                    RaiseTradeResult(line.ItemId, line.Quantity, true, false, TradeFailureReason.InventoryFull);
                     return;
                 }
 
                 lines.Add((line.ItemId, line.Quantity));
             }
 
+            var economySnapshot = _runtime.CaptureStateSnapshot();
             if (!_runtime.TryBuyBatch(lines, request.DeliveryFee, out _, out var buyReason))
             {
-                ResolveShopEvents()?.RaiseShopTradeResult(string.Empty, 0, true, false, buyReason.ToString());
+                RaiseTradeResult(string.Empty, 0, true, false, buyReason);
                 return;
             }
 
@@ -204,14 +205,14 @@ namespace Reloader.Economy
                     _inventoryController.Runtime.TryRemoveStackItem(added.itemId, added.quantity);
                 }
 
-                _runtime.TrySellBatch(lines, out _, out _);
-                ResolveShopEvents()?.RaiseShopTradeResult(line.itemId, line.quantity, true, false, TradeFailureReason.InventoryFull.ToString());
+                _runtime.RestoreStateSnapshot(economySnapshot);
+                RaiseTradeResult(line.itemId, line.quantity, true, false, TradeFailureReason.InventoryFull);
                 return;
             }
 
             ResolveInventoryEvents()?.RaiseMoneyChanged(_runtime.Money);
             ResolveInventoryEvents()?.RaiseInventoryChanged();
-            ResolveShopEvents()?.RaiseShopTradeResult(string.Empty, 0, true, true, string.Empty);
+            RaiseTradeResult(string.Empty, 0, true, true, TradeFailureReason.None);
         }
 
         private void HandleSellCheckoutRequested(ShopCheckoutRequest request)
@@ -219,7 +220,7 @@ namespace Reloader.Economy
             ResolveReferences();
             if (_inventoryController?.Runtime == null || request == null || request.Lines == null || request.Lines.Length == 0)
             {
-                ResolveShopEvents()?.RaiseShopTradeResult(string.Empty, 0, false, false, TradeFailureReason.InvalidQuantity.ToString());
+                RaiseTradeResult(string.Empty, 0, false, false, TradeFailureReason.InvalidQuantity);
                 return;
             }
 
@@ -230,7 +231,7 @@ namespace Reloader.Economy
                 var line = request.Lines[i];
                 if (line.Quantity <= 0 || string.IsNullOrWhiteSpace(line.ItemId))
                 {
-                    ResolveShopEvents()?.RaiseShopTradeResult(string.Empty, 0, false, false, TradeFailureReason.InvalidQuantity.ToString());
+                    RaiseTradeResult(string.Empty, 0, false, false, TradeFailureReason.InvalidQuantity);
                     return;
                 }
 
@@ -242,7 +243,7 @@ namespace Reloader.Economy
                 var nextTotal = existing + line.Quantity;
                 if (_inventoryController.Runtime.GetItemQuantity(line.ItemId) < nextTotal)
                 {
-                    ResolveShopEvents()?.RaiseShopTradeResult(line.ItemId, line.Quantity, false, false, TradeFailureReason.InsufficientPlayerQuantity.ToString());
+                    RaiseTradeResult(line.ItemId, line.Quantity, false, false, TradeFailureReason.InsufficientPlayerQuantity);
                     return;
                 }
 
@@ -252,7 +253,7 @@ namespace Reloader.Economy
 
             if (!_runtime.TrySellBatch(lines, out _, out var sellReason))
             {
-                ResolveShopEvents()?.RaiseShopTradeResult(string.Empty, 0, false, false, sellReason.ToString());
+                RaiseTradeResult(string.Empty, 0, false, false, sellReason);
                 return;
             }
 
@@ -274,13 +275,39 @@ namespace Reloader.Economy
                 }
 
                 _runtime.TryBuyBatch(lines, 0, out _, out _);
-                ResolveShopEvents()?.RaiseShopTradeResult(line.itemId, line.quantity, false, false, TradeFailureReason.InsufficientPlayerQuantity.ToString());
+                RaiseTradeResult(line.itemId, line.quantity, false, false, TradeFailureReason.InsufficientPlayerQuantity);
                 return;
             }
 
             ResolveInventoryEvents()?.RaiseMoneyChanged(_runtime.Money);
             ResolveInventoryEvents()?.RaiseInventoryChanged();
-            ResolveShopEvents()?.RaiseShopTradeResult(string.Empty, 0, false, true, string.Empty);
+            RaiseTradeResult(string.Empty, 0, false, true, TradeFailureReason.None);
+        }
+
+        private void RaiseTradeResult(string itemId, int quantity, bool isBuy, bool success, TradeFailureReason failureReason)
+        {
+            ResolveShopEvents()?.RaiseShopTradeResult(new ShopTradeResultPayload(
+                itemId,
+                quantity,
+                isBuy,
+                success,
+                MapFailureReason(failureReason)));
+        }
+
+        private static ShopTradeFailureReason MapFailureReason(TradeFailureReason reason)
+        {
+            return reason switch
+            {
+                TradeFailureReason.None => ShopTradeFailureReason.None,
+                TradeFailureReason.NoActiveVendor => ShopTradeFailureReason.NoActiveVendor,
+                TradeFailureReason.UnknownItem => ShopTradeFailureReason.UnknownItem,
+                TradeFailureReason.InvalidQuantity => ShopTradeFailureReason.InvalidQuantity,
+                TradeFailureReason.InsufficientFunds => ShopTradeFailureReason.InsufficientFunds,
+                TradeFailureReason.InsufficientStock => ShopTradeFailureReason.InsufficientStock,
+                TradeFailureReason.InsufficientPlayerQuantity => ShopTradeFailureReason.InsufficientPlayerQuantity,
+                TradeFailureReason.InventoryFull => ShopTradeFailureReason.InventoryFull,
+                _ => ShopTradeFailureReason.Unrecognized
+            };
         }
 
         private bool TryGetCatalog(string vendorId, out ShopCatalogDefinition catalog)

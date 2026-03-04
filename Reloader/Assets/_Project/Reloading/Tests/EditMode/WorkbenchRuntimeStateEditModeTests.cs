@@ -107,5 +107,27 @@ namespace Reloader.Reloading.Tests.EditMode
             Assert.That(childSlotA, Is.Not.SameAs(childSlotB));
             Assert.That(state.TryGetSlotState("die-slot", out _), Is.False, "Raw slotId should be ambiguous when duplicate child slots exist.");
         }
+
+        [Test]
+        public void TryRemoveSlotFromIndex_RemovesOnlyMatchingSlotState()
+        {
+            var topSlot = new MountSlotDefinition("top-slot", new[] { "press" });
+            var bench = ScriptableObject.CreateInstance<WorkbenchDefinition>();
+            bench.SetValuesForTests("bench.main", new[] { topSlot });
+
+            var press = ScriptableObject.CreateInstance<MountableItemDefinition>();
+            press.SetValuesForTests(
+                "press.turret",
+                new[] { "press" },
+                new[] { new MountSlotDefinition("die-slot", new[] { "die" }) });
+
+            var state = new WorkbenchRuntimeState(bench);
+            Assert.That(state.TryInstall("top-slot", press), Is.True);
+            Assert.That(state.TryGetSlotState("top-slot/die-slot", out var childSlot), Is.True);
+
+            Assert.That(state.TryRemoveSlotFromIndex("top-slot/die-slot", childSlot), Is.True);
+            Assert.That(state.TryGetSlotState("top-slot/die-slot", out _), Is.False);
+            Assert.That(state.TryRemoveSlotFromIndex("top-slot/die-slot", childSlot), Is.False);
+        }
     }
 }

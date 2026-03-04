@@ -54,8 +54,6 @@ namespace Reloader.Weapons.Controllers
     public sealed class PlayerWeaponController : MonoBehaviour
     {
         private const float FeetToMeters = 0.3048f;
-        private const string DefaultAmmoDisplayName = "Factory .308 147gr FMJ";
-        private const string DefaultAmmoItemId = "ammo-factory-308-147-fmj";
         private const float DefaultFov = 60f;
 
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
@@ -213,7 +211,11 @@ namespace Reloader.Weapons.Controllers
                 return false;
             }
 
+            var normalizedMagazineCount = state.MagazineCount;
+            var normalizedReserveCount = state.ReserveCount;
+            var normalizedChamberLoaded = state.ChamberLoaded;
             state.SetAmmoLoadoutForTests(chamberRound, magazineRounds);
+            state.SetAmmoCounts(normalizedMagazineCount, normalizedReserveCount, normalizedChamberLoaded);
             return true;
         }
 
@@ -827,18 +829,9 @@ namespace Reloader.Weapons.Controllers
         {
             var ammoItemId = definition != null && !string.IsNullOrWhiteSpace(definition.AmmoItemId)
                 ? definition.AmmoItemId
-                : DefaultAmmoItemId;
+                : WeaponAmmoDefaults.DefaultAmmoItemId;
 
-            return new AmmoBallisticSnapshot(
-                AmmoSourceType.Factory,
-                2780f,
-                55f,
-                147f,
-                0.398f,
-                4.5f,
-                DefaultAmmoDisplayName,
-                System.Guid.NewGuid().ToString("N"),
-                ammoItemId);
+            return WeaponAmmoDefaults.BuildFactoryRound(ammoItemId);
         }
 
         private void SyncEquippedReserveFromInventory()
@@ -869,7 +862,7 @@ namespace Reloader.Weapons.Controllers
                 }
             }
 
-            return DefaultAmmoItemId;
+            return WeaponAmmoDefaults.DefaultAmmoItemId;
         }
 
         private static Vector3 ApplyDispersion(Vector3 direction, float dispersionMoa, float random01A, float random01B)
