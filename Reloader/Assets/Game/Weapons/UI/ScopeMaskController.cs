@@ -21,6 +21,8 @@ namespace Reloader.Game.Weapons
         private float _lastReticleScale = -1f;
         private Sprite _lastReticleSprite;
         private bool _hasAppliedState;
+        public bool IsMaskVisible { get; private set; }
+        public float CurrentAlpha { get; private set; }
 
         public void SetReticleSprite(Sprite reticleSprite)
         {
@@ -42,6 +44,8 @@ namespace Reloader.Game.Weapons
         public void SetState(bool enabled, float magnification, float adsT)
         {
             var alpha = enabled ? Mathf.Clamp01(adsT) : 0f;
+            CurrentAlpha = alpha;
+            IsMaskVisible = enabled;
             if (_canvasGroup != null)
             {
                 if (!Mathf.Approximately(_lastAlpha, alpha))

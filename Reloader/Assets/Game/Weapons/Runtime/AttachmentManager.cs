@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using UnityEngine;
 
@@ -20,6 +21,7 @@ namespace Reloader.Game.Weapons
         private OpticDefinition _activeOpticDefinition;
         private MuzzleAttachmentDefinition _activeMuzzleDefinition;
 
+        public event Action<OpticDefinition> ActiveOpticChanged;
         public OpticDefinition ActiveOpticDefinition => _activeOpticDefinition;
         public MuzzleAttachmentDefinition ActiveMuzzleDefinition => _activeMuzzleDefinition;
 
@@ -61,6 +63,7 @@ namespace Reloader.Game.Weapons
                 _activeSightAnchor = _equippedOpticInstance.transform;
             }
 
+            RaiseActiveOpticChanged();
             return true;
         }
 
@@ -74,6 +77,7 @@ namespace Reloader.Game.Weapons
 
             _activeOpticDefinition = null;
             RefreshSightAnchor();
+            RaiseActiveOpticChanged();
         }
 
         public Transform GetActiveSightAnchor()
@@ -211,6 +215,11 @@ namespace Reloader.Game.Weapons
             }
 
             return null;
+        }
+
+        private void RaiseActiveOpticChanged()
+        {
+            ActiveOpticChanged?.Invoke(_activeOpticDefinition);
         }
     }
 }

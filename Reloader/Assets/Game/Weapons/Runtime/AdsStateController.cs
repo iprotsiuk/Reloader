@@ -67,6 +67,7 @@ namespace Reloader.Game.Weapons
         private bool _hasLegacyAdsSample;
         private bool _lastLegacyAdsHeld;
         private OpticDefinition _lastMaskOpticDefinition;
+        private AttachmentManager _subscribedAttachmentManager;
         private AdsVisualMode _lastMaskPolicy = AdsVisualMode.Auto;
 
         public bool IsAdsActive => _isAdsHeld;
@@ -98,10 +99,12 @@ namespace Reloader.Game.Weapons
             CurrentMagnification = ResolveDefaultMagnification();
             _targetMagnification = CurrentMagnification;
             TargetWorldFov = _baseWorldFov;
+            SubscribeAttachmentManagerEvents();
         }
 
         private void Update()
         {
+            EnsureAttachmentManagerSubscription();
             TickInput();
             TickAdsBlend();
             TickMagnification();
@@ -112,6 +115,7 @@ namespace Reloader.Game.Weapons
 
         private void OnDisable()
         {
+            UnsubscribeAttachmentManagerEvents();
             _isAdsHeld = false;
             AdsT = 0f;
             _targetMagnification = 1f;
@@ -147,6 +151,11 @@ namespace Reloader.Game.Weapons
             {
                 _renderTextureScopeController.SetScopeActive(false, null);
             }
+        }
+
+        private void OnDestroy()
+        {
+            UnsubscribeAttachmentManagerEvents();
         }
 
         public void SetAdsHeld(bool held)
@@ -341,6 +350,69 @@ namespace Reloader.Game.Weapons
                 Debug.Log($"[ADS] t={AdsT:F2} mag={CurrentMagnification:F2} sens={CurrentSensitivityScale:F2} sway={CurrentSwayScale:F2} mask={useMask}", this);
             }
 #endif
+        }
+
+        private void SubscribeAttachmentManagerEvents()
+        {
+            if (_attachmentManager == null || ReferenceEquals(_subscribedAttachmentManager, _attachmentManager))
+            {
+                return;
+            }
+
+            UnsubscribeAttachmentManagerEvents();
+            _attachmentManager.ActiveOpticChanged += HandleActiveOpticChanged;
+            _subscribedAttachmentManager = _attachmentManager;
+            HandleActiveOpticChanged(_subscribedAttachmentManager.ActiveOpticDefinition);
+        }
+
+        private void UnsubscribeAttachmentManagerEvents()
+        {
+            if (_subscribedAttachmentManager == null)
+            {
+                return;
+            }
+
+            _subscribedAttachmentManager.ActiveOpticChanged -= HandleActiveOpticChanged;
+            _subscribedAttachmentManager = null;
+        }
+
+        private void EnsureAttachmentManagerSubscription()
+        {
+            if (ReferenceEquals(_subscribedAttachmentManager, _attachmentManager))
+            {
+                return;
+            }
+
+            SubscribeAttachmentManagerEvents();
+        }
+
+        private void HandleActiveOpticChanged(OpticDefinition optic)
+        {
+            if (optic == null)
+            {
+                _targetMagnification = 1f;
+            }
+            else if (!optic.IsVariableZoom)
+            {
+                _targetMagnification = optic.MagnificationMin;
+            }
+            else
+            {
+                _targetMagnification = optic.ClampMagnification(_targetMagnification);
+            }
+
+            CurrentMagnification = ResolveClampedMagnification(CurrentMagnification);
+            _targetMagnification = ResolveClampedMagnification(_targetMagnification);
+
+            var policy = optic != null ? optic.VisualModePolicy : AdsVisualMode.Auto;
+            ResetMaskLatchForContext(policy, CurrentMagnification);
+            _lastMaskOpticDefinition = optic;
+            _lastMaskPolicy = policy;
+
+            if (_scopeMaskController != null)
+            {
+                _scopeMaskController.SetReticleSprite(optic != null ? optic.ReticleUiSprite : null);
+            }
         }
 
         private void ResetMaskLatchForContext(AdsVisualMode policy, float magnification)
