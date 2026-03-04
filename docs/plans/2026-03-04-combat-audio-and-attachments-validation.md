@@ -36,6 +36,8 @@ Plan source: `docs/plans/2026-03-04-combat-audio-and-attachments-implementation-
 - `09c86d1` fix(attachments): skip unsafe prefabs with missing scripts at runtime
 - `5e4127b` fix(audio): prevent emitter host transform movement during one-shot playback (shoot jump regression)
 - `b54d15e` fix(weapons): resolve emitter catalog and attachment bridge review regressions
+- `a3473ae` fix(audio): stabilize clip selection and tighten combat catalog pools
+- `6f59041` chore(audio): prune unreferenced sfx and add curation script
 
 ## Verification Evidence
 
@@ -86,3 +88,6 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
 - Existing vendor-derived weapon visual prefabs still report missing script references in play mode; runtime attachment modules now skip unsafe prefab instantiation paths to reduce reload/fire crash risk from those assets.
 - Unity MCP test runner is currently reporting `tests_running` busy state and blocking new jobs; rerun the new emitter-regression playmode test after runner recovers:
   - `Reloader.Weapons.Tests.PlayMode.WeaponCombatAudioEmitterPlayModeTests.EmitWeaponFire_DoesNotMoveEmitterHostTransform`
+- Audio asset curation moved unused SFX out of project to external dump path:
+  - `/Users/ivanprotsiuk/Documents/SOUNDS/project-audio-dump/2026-03-04-153834`
+  - Curated by `scripts/audio/curate_project_audio_assets.sh` (dry-run default, `--apply` to move).
