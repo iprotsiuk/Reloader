@@ -9,9 +9,9 @@ namespace Reloader.UI.Tests.EditMode
         public void Registry_WhenScreenRegistered_TryGetReturnsTrue()
         {
             var registry = new UiScreenRegistry();
-            registry.Register("belt-hud", "Reloader.UI.Toolkit.BeltHud");
+            registry.Register(UiRuntimeCompositionIds.ScreenIds.BeltHud, "Reloader.UI.Toolkit.BeltHud");
 
-            var resolved = registry.TryGet("belt-hud", out var moduleTypeName);
+            var resolved = registry.TryGet(UiRuntimeCompositionIds.ScreenIds.BeltHud, out var moduleTypeName);
 
             Assert.That(resolved, Is.True);
             Assert.That(moduleTypeName, Is.EqualTo("Reloader.UI.Toolkit.BeltHud"));
@@ -21,14 +21,14 @@ namespace Reloader.UI.Tests.EditMode
         public void CompositionConfig_WhenScreenConfigured_ReturnsEnabledComponents()
         {
             var config = new UiScreenCompositionConfig();
-            config.SetComponents("tab-inventory", new[]
+            config.SetComponents(UiRuntimeCompositionIds.ScreenIds.TabInventory, new[]
             {
                 "inventory.grid",
                 "inventory.tooltip",
                 "inventory.quick-actions"
             });
 
-            var resolved = config.TryGetComponents("tab-inventory", out var components);
+            var resolved = config.TryGetComponents(UiRuntimeCompositionIds.ScreenIds.TabInventory, out var components);
 
             Assert.That(resolved, Is.True);
             Assert.That(components, Is.EquivalentTo(new[]

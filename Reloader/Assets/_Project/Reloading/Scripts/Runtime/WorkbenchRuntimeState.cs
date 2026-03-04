@@ -69,6 +69,26 @@ namespace Reloader.Reloading.Runtime
             return true;
         }
 
+        internal bool TryRemoveSlotFromIndex(string graphSlotId, MountSlotState expectedSlotState)
+        {
+            if (string.IsNullOrWhiteSpace(graphSlotId) || expectedSlotState == null)
+            {
+                return false;
+            }
+
+            if (!_slotsById.TryGetValue(graphSlotId, out var existing))
+            {
+                return false;
+            }
+
+            if (!ReferenceEquals(existing, expectedSlotState))
+            {
+                return false;
+            }
+
+            return _slotsById.Remove(graphSlotId);
+        }
+
         private void InitializeTopLevelSlots()
         {
             if (WorkbenchDefinition == null || WorkbenchDefinition.TopLevelSlots == null)

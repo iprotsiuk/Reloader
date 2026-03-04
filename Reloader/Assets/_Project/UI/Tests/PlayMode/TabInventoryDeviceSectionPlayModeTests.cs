@@ -282,12 +282,12 @@ namespace Reloader.UI.Tests.PlayMode
                 BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(bindMethod, Is.Not.Null);
 
-            var subscription = bindMethod.Invoke(bridge, new object[] { BuildRoot(), "tab-menu-controller", inventoryController, null }) as IDisposable;
+            var subscription = bindMethod.Invoke(bridge, new object[] { BuildRoot(), UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, null }) as IDisposable;
             Assert.That(subscription, Is.Not.Null);
 
             try
             {
-                var tabController = go.transform.Find("tab-menu-controller")?.GetComponent<TabInventoryController>();
+                var tabController = go.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
                 Assert.That(tabController, Is.Not.Null);
 
                 var deviceField = typeof(TabInventoryController).GetField("_deviceController", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -320,12 +320,12 @@ namespace Reloader.UI.Tests.PlayMode
                 BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(bindMethod, Is.Not.Null);
 
-            var subscription = bindMethod.Invoke(bridge, new object[] { BuildRoot(), "tab-menu-controller", inventoryController, null }) as IDisposable;
+            var subscription = bindMethod.Invoke(bridge, new object[] { BuildRoot(), UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, null }) as IDisposable;
             Assert.That(subscription, Is.Not.Null);
 
             try
             {
-                var tabController = go.transform.Find("tab-menu-controller")?.GetComponent<TabInventoryController>();
+                var tabController = go.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
                 Assert.That(tabController, Is.Not.Null);
 
                 var deviceControllerField = typeof(TabInventoryController).GetField("_deviceController", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -362,12 +362,12 @@ namespace Reloader.UI.Tests.PlayMode
                 BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(bindMethod, Is.Not.Null);
 
-            var subscription = bindMethod.Invoke(bridge, new object[] { BuildRoot(), "tab-menu-controller", inventoryController, null }) as IDisposable;
+            var subscription = bindMethod.Invoke(bridge, new object[] { BuildRoot(), UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, null }) as IDisposable;
             Assert.That(subscription, Is.Not.Null);
 
             try
             {
-                var tabController = go.transform.Find("tab-menu-controller")?.GetComponent<TabInventoryController>();
+                var tabController = go.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
                 Assert.That(tabController, Is.Not.Null);
 
                 var deviceControllerField = typeof(TabInventoryController).GetField("_deviceController", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -422,12 +422,12 @@ namespace Reloader.UI.Tests.PlayMode
                 BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(bindMethod, Is.Not.Null);
 
-            var subscription = bindMethod.Invoke(bridge, new object[] { BuildRoot(), "tab-menu-controller", inventoryController, null }) as IDisposable;
+            var subscription = bindMethod.Invoke(bridge, new object[] { BuildRoot(), UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, null }) as IDisposable;
             Assert.That(subscription, Is.Not.Null);
 
             try
             {
-                var tabController = go.transform.Find("tab-menu-controller")?.GetComponent<TabInventoryController>();
+                var tabController = go.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
                 Assert.That(tabController, Is.Not.Null);
 
                 var adapterField = typeof(TabInventoryController).GetField("_deviceController", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -478,12 +478,12 @@ namespace Reloader.UI.Tests.PlayMode
                 BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(bindMethod, Is.Not.Null);
 
-            var subscription = bindMethod.Invoke(bridge, new object[] { BuildRoot(), "tab-menu-controller", inventoryController, null }) as IDisposable;
+            var subscription = bindMethod.Invoke(bridge, new object[] { BuildRoot(), UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, null }) as IDisposable;
             Assert.That(subscription, Is.Not.Null);
 
             try
             {
-                var tabController = go.transform.Find("tab-menu-controller")?.GetComponent<TabInventoryController>();
+                var tabController = go.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
                 Assert.That(tabController, Is.Not.Null);
 
                 var adapterField = typeof(TabInventoryController).GetField("_deviceController", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -630,12 +630,12 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(bindMethod, Is.Not.Null);
 
             var root = BuildRoot();
-            var subscription = bindMethod.Invoke(bridge, new object[] { root, "tab-menu-controller", inventoryController, inputSource }) as IDisposable;
+            var subscription = bindMethod.Invoke(bridge, new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, inputSource }) as IDisposable;
             Assert.That(subscription, Is.Not.Null);
 
             try
             {
-                var tabController = go.transform.Find("tab-menu-controller")?.GetComponent<TabInventoryController>();
+                var tabController = go.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
                 Assert.That(tabController, Is.Not.Null);
 
                 inputSource.MenuTogglePressedThisFrame = true;

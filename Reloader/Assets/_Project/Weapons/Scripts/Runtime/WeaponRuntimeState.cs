@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Reloader.Weapons.Ballistics;
-using System;
+using UnityEngine;
 
 namespace Reloader.Weapons.Runtime
 {
@@ -18,8 +18,6 @@ namespace Reloader.Weapons.Runtime
 
     public sealed class WeaponRuntimeState
     {
-        private const string DefaultAmmoDisplayName = "Factory .308 147gr FMJ";
-        private const string DefaultAmmoItemId = "ammo-factory-308-147-fmj";
         private AmmoBallisticSnapshot? _chamberRound;
         private readonly Queue<AmmoBallisticSnapshot> _magazineRounds = new Queue<AmmoBallisticSnapshot>();
         private AmmoBallisticSnapshot? _reserveRoundTemplate;
@@ -35,9 +33,15 @@ namespace Reloader.Weapons.Runtime
             ItemId = itemId;
             MagazineCapacity = magazineCapacity < 0 ? 0 : magazineCapacity;
             FireIntervalSeconds = fireIntervalSeconds < 0.01f ? 0.01f : fireIntervalSeconds;
-            MagazineCount = magazineCount < 0 ? 0 : magazineCount;
+            MagazineCount = Mathf.Clamp(magazineCount, 0, MagazineCapacity);
             ReserveCount = reserveCount < 0 ? 0 : reserveCount;
             ChamberLoaded = chamberLoaded;
+            if (ChamberLoaded && !_chamberRound.HasValue)
+            {
+                _chamberRound = BuildRoundFromTemplate();
+            }
+
+            SyncMagazineSnapshotsToCount();
         }
 
         public string ItemId { get; }
@@ -132,10 +136,14 @@ namespace Reloader.Weapons.Runtime
 
         public void SetAmmoCounts(int magazineCount, int reserveCount, bool chamberLoaded)
         {
-            MagazineCount = magazineCount < 0 ? 0 : magazineCount;
+            MagazineCount = Mathf.Clamp(magazineCount, 0, MagazineCapacity);
             ReserveCount = reserveCount < 0 ? 0 : reserveCount;
             ChamberLoaded = chamberLoaded;
-            if (!ChamberLoaded)
+            if (ChamberLoaded && !_chamberRound.HasValue)
+            {
+                _chamberRound = BuildRoundFromTemplate();
+            }
+            else if (!ChamberLoaded)
             {
                 _chamberRound = null;
             }
@@ -154,7 +162,8 @@ namespace Reloader.Weapons.Runtime
             _magazineRounds.Clear();
             if (magazineRounds != null)
             {
-                for (var i = 0; i < magazineRounds.Count; i++)
+                var count = Mathf.Min(magazineRounds.Count, MagazineCapacity);
+                for (var i = 0; i < count; i++)
                 {
                     _magazineRounds.Enqueue(magazineRounds[i]);
                 }
@@ -195,33 +204,12 @@ namespace Reloader.Weapons.Runtime
                 _reserveRoundTemplate = _chamberRound ?? BuildDefaultRound();
             }
 
-            var template = _reserveRoundTemplate.Value;
-            var displayName = string.IsNullOrWhiteSpace(template.DisplayName) ? DefaultAmmoDisplayName : template.DisplayName;
-            var ammoItemId = string.IsNullOrWhiteSpace(template.AmmoItemId) ? DefaultAmmoItemId : template.AmmoItemId;
-            return new AmmoBallisticSnapshot(
-                template.AmmoSource,
-                template.MuzzleVelocityFps,
-                template.VelocityStdDevFps,
-                template.ProjectileMassGrains,
-                template.BallisticCoefficientG1,
-                template.DispersionMoa,
-                displayName,
-                Guid.NewGuid().ToString("N"),
-                ammoItemId);
+            return WeaponAmmoDefaults.BuildRoundFromTemplate(_reserveRoundTemplate.Value);
         }
 
         private static AmmoBallisticSnapshot BuildDefaultRound()
         {
-            return new AmmoBallisticSnapshot(
-                AmmoSourceType.Factory,
-                2780f,
-                55f,
-                147f,
-                0.398f,
-                4.5f,
-                DefaultAmmoDisplayName,
-                Guid.NewGuid().ToString("N"),
-                DefaultAmmoItemId);
+            return WeaponAmmoDefaults.BuildDefaultRound();
         }
     }
 }

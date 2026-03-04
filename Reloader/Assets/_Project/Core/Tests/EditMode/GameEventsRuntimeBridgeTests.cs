@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using NUnit.Framework;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
@@ -268,6 +269,31 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(hub.HasInteractionHint, Is.True);
             Assert.That(hub.CurrentInteractionHint.ContextId, Is.EqualTo("pickup"));
             Assert.That(hub.CurrentInteractionHint.SubjectText, Is.EqualTo("Hodgdon Varget"));
+        }
+
+        [Test]
+        public void LegacyGameEvents_AreMarkedObsoleteAsWarningOnly()
+        {
+            var typeAttribute = typeof(GameEvents).GetCustomAttributes(typeof(ObsoleteAttribute), false)
+                .OfType<ObsoleteAttribute>()
+                .SingleOrDefault();
+            Assert.That(typeAttribute, Is.Not.Null);
+            Assert.That(typeAttribute.IsError, Is.False);
+
+            var raiseMethods = typeof(GameEvents).GetMethods()
+                .Where(method => method.Name.StartsWith("Raise", StringComparison.Ordinal))
+                .ToArray();
+            Assert.That(raiseMethods.Length, Is.GreaterThan(0));
+
+            for (var i = 0; i < raiseMethods.Length; i++)
+            {
+                var methodAttribute = raiseMethods[i]
+                    .GetCustomAttributes(typeof(ObsoleteAttribute), false)
+                    .OfType<ObsoleteAttribute>()
+                    .SingleOrDefault();
+                Assert.That(methodAttribute, Is.Not.Null, $"{raiseMethods[i].Name} should be obsolete.");
+                Assert.That(methodAttribute.IsError, Is.False, $"{raiseMethods[i].Name} should be warning-only obsolete.");
+            }
         }
     }
 }

@@ -123,6 +123,11 @@ namespace Reloader.UI.Toolkit.TabInventory
         public void Configure(TabInventoryViewBinder viewBinder, TabInventoryDragController dragController)
         {
             _viewBinder = viewBinder;
+            if (_dragController != null)
+            {
+                _dragController.IntentRaised -= HandleIntent;
+            }
+
             _dragController = dragController;
             if (_dragController != null)
             {

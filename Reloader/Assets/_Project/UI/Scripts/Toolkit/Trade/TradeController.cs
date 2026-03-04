@@ -1,5 +1,6 @@
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using Reloader.Core.UI;
 using Reloader.Economy;
 using Reloader.Inventory;
 using Reloader.UI.Toolkit.Contracts;
@@ -12,9 +13,7 @@ namespace Reloader.UI.Toolkit.Trade
     public sealed class TradeController : MonoBehaviour, IUiController
     {
         private TradeViewBinder _viewBinder;
-        private IShopEvents _shopEvents;
-        private IShopEvents _subscribedShopEvents;
-        private bool _useRuntimeKernelShopEvents = true;
+        private RuntimeHubChannelBinder<IShopEvents> _shopEventsBinder;
         private bool _isOpen;
         private TradeUiTab _activeTab = TradeUiTab.Buy;
         private string _selectedBuyItemId;
@@ -26,23 +25,22 @@ namespace Reloader.UI.Toolkit.Trade
         private void OnEnable()
         {
             SubscribeToRuntimeHubReconfigure();
-            SubscribeToShopEvents(ResolveShopEvents());
+            ShopEventsBinder.ResolveAndBind();
             Refresh();
         }
 
         private void OnDisable()
         {
             UnsubscribeFromRuntimeHubReconfigure();
-            UnsubscribeFromShopEvents();
+            ShopEventsBinder.Unbind();
         }
 
         public void Configure(IShopEvents shopEvents = null)
         {
-            _useRuntimeKernelShopEvents = shopEvents == null;
-            _shopEvents = shopEvents;
+            ShopEventsBinder.Configure(shopEvents);
             if (isActiveAndEnabled)
             {
-                SubscribeToShopEvents(ResolveShopEvents());
+                ShopEventsBinder.ResolveAndBind();
             }
         }
 
@@ -121,12 +119,12 @@ namespace Reloader.UI.Toolkit.Trade
 
         private void HandleRuntimeEventsReconfigured()
         {
-            if (!isActiveAndEnabled || !_useRuntimeKernelShopEvents)
+            if (!isActiveAndEnabled || !ShopEventsBinder.UsesRuntimeChannel)
             {
                 return;
             }
 
-            SubscribeToShopEvents(ResolveShopEvents());
+            ShopEventsBinder.ResolveAndBind();
             ReconcileVisibilityAfterRuntimeHubSwap();
         }
 
@@ -169,66 +167,26 @@ namespace Reloader.UI.Toolkit.Trade
 
         private IShopEvents ResolveShopEvents()
         {
-            if (_useRuntimeKernelShopEvents)
-            {
-                var runtimeShopEvents = RuntimeKernelBootstrapper.ShopEvents;
-                if (!ReferenceEquals(_shopEvents, runtimeShopEvents))
-                {
-                    _shopEvents = runtimeShopEvents;
-                    SubscribeToShopEvents(_shopEvents);
-                }
-                else if (!ReferenceEquals(_subscribedShopEvents, _shopEvents))
-                {
-                    SubscribeToShopEvents(_shopEvents);
-                }
-
-                return _shopEvents;
-            }
-
-            if (!ReferenceEquals(_subscribedShopEvents, _shopEvents))
-            {
-                SubscribeToShopEvents(_shopEvents);
-            }
-
-            return _shopEvents;
+            return ShopEventsBinder.ResolveAndBind();
         }
 
         private void SubscribeToShopEvents(IShopEvents shopEvents)
         {
-            if (shopEvents == null)
-            {
-                UnsubscribeFromShopEvents();
-                return;
-            }
-
-            if (ReferenceEquals(_subscribedShopEvents, shopEvents))
-            {
-                return;
-            }
-
-            UnsubscribeFromShopEvents();
-            _subscribedShopEvents = shopEvents;
-            _subscribedShopEvents.OnShopTradeOpened += HandleTradeOpened;
-            _subscribedShopEvents.OnShopTradeClosed += HandleTradeClosed;
-            _subscribedShopEvents.OnShopTradeResult += HandleTradeResult;
+            shopEvents.OnShopTradeOpened += HandleTradeOpened;
+            shopEvents.OnShopTradeClosed += HandleTradeClosed;
+            shopEvents.OnShopTradeResultReceived += HandleTradeResult;
         }
 
-        private void UnsubscribeFromShopEvents()
+        private void UnsubscribeFromShopEvents(IShopEvents shopEvents)
         {
-            if (_subscribedShopEvents == null)
-            {
-                return;
-            }
-
-            _subscribedShopEvents.OnShopTradeOpened -= HandleTradeOpened;
-            _subscribedShopEvents.OnShopTradeClosed -= HandleTradeClosed;
-            _subscribedShopEvents.OnShopTradeResult -= HandleTradeResult;
-            _subscribedShopEvents = null;
+            shopEvents.OnShopTradeOpened -= HandleTradeOpened;
+            shopEvents.OnShopTradeClosed -= HandleTradeClosed;
+            shopEvents.OnShopTradeResultReceived -= HandleTradeResult;
         }
 
-        private void HandleTradeResult(string itemId, int quantity, bool isBuy, bool success, string failureReason)
+        private void HandleTradeResult(ShopTradeResultPayload payload)
         {
-            if (_isOpen && success)
+            if (_isOpen && payload.Success)
             {
                 Refresh();
             }
@@ -456,5 +414,11 @@ namespace Reloader.UI.Toolkit.Trade
         {
             RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
         }
+
+        private RuntimeHubChannelBinder<IShopEvents> ShopEventsBinder => _shopEventsBinder ??=
+            new RuntimeHubChannelBinder<IShopEvents>(
+                () => RuntimeKernelBootstrapper.ShopEvents,
+                SubscribeToShopEvents,
+                UnsubscribeFromShopEvents);
     }
 }

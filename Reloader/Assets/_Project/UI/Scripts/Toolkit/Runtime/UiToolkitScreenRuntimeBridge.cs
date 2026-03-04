@@ -28,26 +28,16 @@ namespace Reloader.UI.Toolkit.Runtime
         private const float MinSelfHealIntervalSeconds = 0.05f;
         private const float DefaultSelfHealIntervalSeconds = 0.2f;
 
-        private const string BeltHudScreenId = "belt-hud";
-        private const string AmmoHudScreenId = "ammo-hud";
-        private const string TabInventoryScreenId = "tab-inventory";
-        private const string EscMenuScreenId = "esc-menu";
-        private const string ChestInventoryScreenId = "chest-inventory";
-        private const string TradeScreenId = "trade-ui";
-        private const string ReloadingScreenId = "reloading-workbench";
-        private const string InteractionHintScreenId = "interaction-hint";
-        private const string DeviceTargetSelectionControllerObjectName = "player-device-target-selection-controller";
-
         private static readonly ScreenBindingDefinition[] ScreenBindings =
         {
-            new(BeltHudScreenId, "belt-hud-controller", ScreenBindingKind.BeltHud, DependencyRequirement.Inventory),
-            new(AmmoHudScreenId, "ammo-hud-controller", ScreenBindingKind.AmmoHud, DependencyRequirement.Weapon),
-            new(TabInventoryScreenId, "tab-menu-controller", ScreenBindingKind.TabInventory, DependencyRequirement.Inventory | DependencyRequirement.Input),
-            new(EscMenuScreenId, "esc-menu-controller", ScreenBindingKind.EscMenu, DependencyRequirement.None),
-            new(ChestInventoryScreenId, "chest-inventory-controller", ScreenBindingKind.ChestInventory, DependencyRequirement.Inventory | DependencyRequirement.Input),
-            new(TradeScreenId, "trade-menu-controller", ScreenBindingKind.Trade, DependencyRequirement.None),
-            new(ReloadingScreenId, "reloading-menu-controller", ScreenBindingKind.ReloadingWorkbench, DependencyRequirement.None),
-            new(InteractionHintScreenId, "interaction-hint-controller", ScreenBindingKind.InteractionHint, DependencyRequirement.None)
+            new(UiRuntimeCompositionIds.ScreenIds.BeltHud, UiRuntimeCompositionIds.ControllerObjectNames.BeltHud, ScreenBindingKind.BeltHud, DependencyRequirement.Inventory),
+            new(UiRuntimeCompositionIds.ScreenIds.AmmoHud, UiRuntimeCompositionIds.ControllerObjectNames.AmmoHud, ScreenBindingKind.AmmoHud, DependencyRequirement.Weapon),
+            new(UiRuntimeCompositionIds.ScreenIds.TabInventory, UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, ScreenBindingKind.TabInventory, DependencyRequirement.Inventory | DependencyRequirement.Input),
+            new(UiRuntimeCompositionIds.ScreenIds.EscMenu, UiRuntimeCompositionIds.ControllerObjectNames.EscMenu, ScreenBindingKind.EscMenu, DependencyRequirement.None),
+            new(UiRuntimeCompositionIds.ScreenIds.ChestInventory, UiRuntimeCompositionIds.ControllerObjectNames.ChestInventory, ScreenBindingKind.ChestInventory, DependencyRequirement.Inventory | DependencyRequirement.Input),
+            new(UiRuntimeCompositionIds.ScreenIds.Trade, UiRuntimeCompositionIds.ControllerObjectNames.Trade, ScreenBindingKind.Trade, DependencyRequirement.None),
+            new(UiRuntimeCompositionIds.ScreenIds.ReloadingWorkbench, UiRuntimeCompositionIds.ControllerObjectNames.ReloadingWorkbench, ScreenBindingKind.ReloadingWorkbench, DependencyRequirement.None),
+            new(UiRuntimeCompositionIds.ScreenIds.InteractionHint, UiRuntimeCompositionIds.ControllerObjectNames.InteractionHint, ScreenBindingKind.InteractionHint, DependencyRequirement.None)
         };
 
         [SerializeField] private float _selfHealIntervalSeconds = DefaultSelfHealIntervalSeconds;
@@ -223,7 +213,10 @@ namespace Reloader.UI.Toolkit.Runtime
             PlayerInventoryController inventoryController,
             IPlayerInputSource inputSource)
         {
-            var backpackSlotCount = Mathf.Max(0, inventoryController?.Runtime?.BackpackCapacity ?? 0);
+            var runtime = inventoryController != null ? inventoryController.Runtime : null;
+            var backpackSlotCount = runtime != null
+                ? Mathf.Max(0, runtime.BackpackCapacity)
+                : 16;
             var viewBinder = new TabInventoryViewBinder();
             viewBinder.Initialize(root, PlayerInventoryRuntime.BeltSlotCount, backpackSlotCount);
 
@@ -324,7 +317,7 @@ namespace Reloader.UI.Toolkit.Runtime
             var targetSelectionController = FindAnyObjectByType<PlayerDeviceTargetSelectionController>();
             if (targetSelectionController == null)
             {
-                var go = new GameObject(DeviceTargetSelectionControllerObjectName);
+                var go = new GameObject(UiRuntimeCompositionIds.ControllerObjectNames.DeviceTargetSelection);
                 go.transform.SetParent(transform, false);
                 targetSelectionController = go.AddComponent<PlayerDeviceTargetSelectionController>();
             }
@@ -542,7 +535,7 @@ namespace Reloader.UI.Toolkit.Runtime
             state.Subscription = null;
             state.Root = null;
             state.DependencyHash = 0;
-            if (string.Equals(screenId, TabInventoryScreenId, StringComparison.Ordinal))
+            if (string.Equals(screenId, UiRuntimeCompositionIds.ScreenIds.TabInventory, StringComparison.Ordinal))
             {
                 ReleasePlayerDeviceController();
             }

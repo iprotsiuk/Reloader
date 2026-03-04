@@ -14,13 +14,13 @@ namespace Reloader.UI.Tests.PlayMode
 {
     public class UiRuntimeCutoverPlayModeTests
     {
-        private const string BeltHudScreenId = "belt-hud";
-        private const string AmmoHudScreenId = "ammo-hud";
-        private const string TabInventoryScreenId = "tab-inventory";
-        private const string EscMenuScreenId = "esc-menu";
-        private const string TradeScreenId = "trade-ui";
-        private const string ReloadingScreenId = "reloading-workbench";
-        private const string InteractionHintScreenId = "interaction-hint";
+        private const string BeltHudScreenId = UiRuntimeCompositionIds.ScreenIds.BeltHud;
+        private const string AmmoHudScreenId = UiRuntimeCompositionIds.ScreenIds.AmmoHud;
+        private const string TabInventoryScreenId = UiRuntimeCompositionIds.ScreenIds.TabInventory;
+        private const string EscMenuScreenId = UiRuntimeCompositionIds.ScreenIds.EscMenu;
+        private const string TradeScreenId = UiRuntimeCompositionIds.ScreenIds.Trade;
+        private const string ReloadingScreenId = UiRuntimeCompositionIds.ScreenIds.ReloadingWorkbench;
+        private const string InteractionHintScreenId = UiRuntimeCompositionIds.ScreenIds.InteractionHint;
 
         [SetUp]
         public void SetUp()

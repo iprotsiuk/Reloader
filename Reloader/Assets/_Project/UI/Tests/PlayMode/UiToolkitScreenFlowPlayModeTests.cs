@@ -172,17 +172,42 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
-        public void UiToolkitScreenRuntimeBridge_BindTabInventory_UsesRuntimeBackpackCapacityWithoutFloor()
+        public void TabInventoryController_Configure_ReplacesDragControllerSubscription()
+        {
+            var go = new GameObject("TabInventoryControllerDragSubscription");
+            var controller = go.AddComponent<TabInventoryController>();
+            var firstDragController = new TabInventoryDragController();
+            var secondDragController = new TabInventoryDragController();
+
+            controller.Configure(null, firstDragController);
+            controller.Configure(null, secondDragController);
+
+            var intentRaisedField = typeof(TabInventoryDragController).GetField("IntentRaised", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(intentRaisedField, Is.Not.Null);
+
+            var firstHandlers = intentRaisedField.GetValue(firstDragController) as Action<UiIntent>;
+            var secondHandlers = intentRaisedField.GetValue(secondDragController) as Action<UiIntent>;
+
+            Assert.That(firstHandlers, Is.Null, "Previous drag controller should not keep stale subscriptions.");
+            Assert.That(secondHandlers, Is.Not.Null);
+            Assert.That(secondHandlers.GetInvocationList().Length, Is.EqualTo(1));
+
+            UnityEngine.Object.DestroyImmediate(go);
+        }
+
+        [TestCase(0)]
+        [TestCase(2)]
+        public void UiToolkitScreenRuntimeBridge_BindTabInventory_UsesRuntimeBackpackCapacity_WhenRuntimeIsAvailable(int backpackCapacity)
         {
             var bridgeGo = new GameObject("UiBridge");
             var inventoryGo = new GameObject("InventoryController");
             var bridge = bridgeGo.AddComponent<UiToolkitScreenRuntimeBridge>();
             var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
             var runtime = new PlayerInventoryRuntime();
-            runtime.SetBackpackCapacity(9);
+            runtime.SetBackpackCapacity(backpackCapacity);
             inventoryController.Configure(null, null, runtime);
             var input = bridgeGo.AddComponent<TestInputSource>();
-            var root = BuildTabRoot(backpackSlotCount: 9);
+            var root = BuildTabRoot(backpackSlotCount: backpackCapacity);
 
             var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
                 "BindTabInventory",
@@ -191,10 +216,10 @@ namespace Reloader.UI.Tests.PlayMode
 
             var subscription = bindMethod.Invoke(
                 bridge,
-                new object[] { root, "tab-menu-controller", inventoryController, input }) as System.IDisposable;
+                new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, input }) as System.IDisposable;
             Assert.That(subscription, Is.Not.Null);
 
-            var tabController = bridgeGo.transform.Find("tab-menu-controller")?.GetComponent<TabInventoryController>();
+            var tabController = bridgeGo.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
             Assert.That(tabController, Is.Not.Null);
 
             var binderField = typeof(TabInventoryController).GetField("_viewBinder", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -206,7 +231,46 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(backpackSlotsField, Is.Not.Null);
             var backpackSlots = backpackSlotsField.GetValue(viewBinder) as VisualElement[];
             Assert.That(backpackSlots, Is.Not.Null);
-            Assert.That(backpackSlots.Length, Is.EqualTo(9));
+            Assert.That(backpackSlots.Length, Is.EqualTo(backpackCapacity));
+
+            subscription.Dispose();
+            UnityEngine.Object.DestroyImmediate(inventoryGo);
+            UnityEngine.Object.DestroyImmediate(bridgeGo);
+        }
+
+        [Test]
+        public void UiToolkitScreenRuntimeBridge_BindTabInventory_FallsBackToMinimumBackpackUiSlotFloor_WhenRuntimeIsUnavailable()
+        {
+            var bridgeGo = new GameObject("UiBridge");
+            var inventoryGo = new GameObject("InventoryController");
+            var bridge = bridgeGo.AddComponent<UiToolkitScreenRuntimeBridge>();
+            var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
+            var input = bridgeGo.AddComponent<TestInputSource>();
+            var root = BuildTabRoot(backpackSlotCount: 16);
+
+            var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
+                "BindTabInventory",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(bindMethod, Is.Not.Null);
+
+            var subscription = bindMethod.Invoke(
+                bridge,
+                new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, input }) as System.IDisposable;
+            Assert.That(subscription, Is.Not.Null);
+
+            var tabController = bridgeGo.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
+            Assert.That(tabController, Is.Not.Null);
+
+            var binderField = typeof(TabInventoryController).GetField("_viewBinder", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(binderField, Is.Not.Null);
+            var viewBinder = binderField.GetValue(tabController) as TabInventoryViewBinder;
+            Assert.That(viewBinder, Is.Not.Null);
+
+            var backpackSlotsField = typeof(TabInventoryViewBinder).GetField("_backpackSlots", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(backpackSlotsField, Is.Not.Null);
+            var backpackSlots = backpackSlotsField.GetValue(viewBinder) as VisualElement[];
+            Assert.That(backpackSlots, Is.Not.Null);
+            Assert.That(backpackSlots.Length, Is.EqualTo(16));
 
             subscription.Dispose();
             UnityEngine.Object.DestroyImmediate(inventoryGo);
@@ -231,10 +295,10 @@ namespace Reloader.UI.Tests.PlayMode
 
             var subscription = bindMethod.Invoke(
                 bridge,
-                new object[] { root, "interaction-hint-controller" }) as IDisposable;
+                new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.InteractionHint }) as IDisposable;
             Assert.That(subscription, Is.Not.Null);
 
-            var controller = bridgeGo.transform.Find("interaction-hint-controller")?.GetComponent<InteractionHintController>();
+            var controller = bridgeGo.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.InteractionHint)?.GetComponent<InteractionHintController>();
             Assert.That(controller, Is.Not.Null);
 
             var label = root.Q<Label>("interaction-hint__text");
@@ -277,10 +341,10 @@ namespace Reloader.UI.Tests.PlayMode
 
             var subscription = bindMethod.Invoke(
                 bridge,
-                new object[] { root, "interaction-hint-controller" }) as IDisposable;
+                new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.InteractionHint }) as IDisposable;
             Assert.That(subscription, Is.Not.Null);
 
-            var controller = bridgeGo.transform.Find("interaction-hint-controller")?.GetComponent<InteractionHintController>();
+            var controller = bridgeGo.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.InteractionHint)?.GetComponent<InteractionHintController>();
             Assert.That(controller, Is.Not.Null);
 
             var controllerUpdate = typeof(InteractionHintController).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic);

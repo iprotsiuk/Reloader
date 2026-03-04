@@ -1,4 +1,5 @@
 using System;
+using Reloader.Core.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Reloader.Core.Runtime;
@@ -23,12 +24,8 @@ namespace Reloader.Player
         private bool _isTabInventoryOpen;
         private bool _isEscMenuOpen;
         private bool _isStorageMenuOpen;
-        private IUiStateEvents _uiStateEvents;
-        private IUiStateEvents _subscribedUiStateEvents;
-        private IShopEvents _shopEvents;
-        private IShopEvents _subscribedShopEvents;
-        private bool _useRuntimeKernelUiStateEvents = true;
-        private bool _useRuntimeKernelShopEvents = true;
+        private RuntimeHubChannelBinder<IUiStateEvents> _uiStateEventsBinder;
+        private RuntimeHubChannelBinder<IShopEvents> _shopEventsBinder;
         private IPlayerCursorEscapeKeySource _escapeKeySource;
         private static int _escapeConsumedFrame = -1;
 
@@ -51,8 +48,8 @@ namespace Reloader.Player
         private void OnEnable()
         {
             SubscribeToRuntimeHubReconfigure();
-            SubscribeToShopEvents(ResolveShopEvents());
-            SubscribeToUiStateEvents(ResolveUiStateEvents());
+            ShopEventsBinder.ResolveAndBind();
+            UiStateEventsBinder.ResolveAndBind();
             ReconcileMenuFlagsFromCurrentEventState();
             ApplyCursorState();
         }
@@ -60,22 +57,20 @@ namespace Reloader.Player
         private void OnDisable()
         {
             UnsubscribeFromRuntimeHubReconfigure();
-            UnsubscribeFromShopEvents();
-            UnsubscribeFromUiStateEvents();
+            ShopEventsBinder.Unbind();
+            UiStateEventsBinder.Unbind();
             IsAnyMenuOpen = false;
         }
 
         public void Configure(IUiStateEvents uiStateEvents = null, IShopEvents shopEvents = null)
         {
-            _useRuntimeKernelUiStateEvents = uiStateEvents == null;
-            _uiStateEvents = uiStateEvents;
-            _useRuntimeKernelShopEvents = shopEvents == null;
-            _shopEvents = shopEvents;
+            UiStateEventsBinder.Configure(uiStateEvents);
+            ShopEventsBinder.Configure(shopEvents);
 
             if (isActiveAndEnabled)
             {
-                SubscribeToShopEvents(ResolveShopEvents());
-                SubscribeToUiStateEvents(ResolveUiStateEvents());
+                ShopEventsBinder.ResolveAndBind();
+                UiStateEventsBinder.ResolveAndBind();
             }
         }
 
@@ -182,14 +177,14 @@ namespace Reloader.Player
                 return;
             }
 
-            if (_useRuntimeKernelShopEvents)
+            if (ShopEventsBinder.UsesRuntimeChannel)
             {
-                SubscribeToShopEvents(ResolveShopEvents());
+                ShopEventsBinder.ResolveAndBind();
             }
 
-            if (_useRuntimeKernelUiStateEvents)
+            if (UiStateEventsBinder.UsesRuntimeChannel)
             {
-                SubscribeToUiStateEvents(ResolveUiStateEvents());
+                UiStateEventsBinder.ResolveAndBind();
             }
 
             ReconcileMenuFlagsFromCurrentEventState();
@@ -212,8 +207,8 @@ namespace Reloader.Player
 
         private void ReconcileMenuFlagsFromCurrentEventState()
         {
-            var uiStateEvents = _uiStateEvents;
-            var shopUiStateEvents = _shopEvents as IUiStateEvents;
+            var uiStateEvents = ResolveUiStateEvents();
+            var shopUiStateEvents = ResolveShopEvents() as IUiStateEvents;
             if (shopUiStateEvents != null)
             {
                 _isTradeMenuOpen = shopUiStateEvents.IsShopTradeMenuOpen;
@@ -222,7 +217,7 @@ namespace Reloader.Player
             {
                 _isTradeMenuOpen = uiStateEvents.IsShopTradeMenuOpen;
             }
-            else if (_useRuntimeKernelShopEvents || _useRuntimeKernelUiStateEvents)
+            else if (ShopEventsBinder.UsesRuntimeChannel || UiStateEventsBinder.UsesRuntimeChannel)
             {
                 _isTradeMenuOpen = false;
             }
@@ -234,7 +229,7 @@ namespace Reloader.Player
                 _isEscMenuOpen = uiStateEvents.IsEscMenuVisible;
                 _isStorageMenuOpen = IsStorageUiOpen();
             }
-            else if (_useRuntimeKernelUiStateEvents)
+            else if (UiStateEventsBinder.UsesRuntimeChannel)
             {
                 _isWorkbenchMenuOpen = false;
                 _isTabInventoryOpen = false;
@@ -245,112 +240,38 @@ namespace Reloader.Player
 
         private IUiStateEvents ResolveUiStateEvents()
         {
-            if (_useRuntimeKernelUiStateEvents)
-            {
-                var runtimeUiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
-                if (!ReferenceEquals(_uiStateEvents, runtimeUiStateEvents))
-                {
-                    _uiStateEvents = runtimeUiStateEvents;
-                    SubscribeToUiStateEvents(_uiStateEvents);
-                }
-                else if (!ReferenceEquals(_subscribedUiStateEvents, _uiStateEvents))
-                {
-                    SubscribeToUiStateEvents(_uiStateEvents);
-                }
-            }
-            else if (!ReferenceEquals(_subscribedUiStateEvents, _uiStateEvents))
-            {
-                SubscribeToUiStateEvents(_uiStateEvents);
-            }
-
-            return _uiStateEvents;
+            return UiStateEventsBinder.ResolveAndBind();
         }
 
         private IShopEvents ResolveShopEvents()
         {
-            if (_useRuntimeKernelShopEvents)
-            {
-                var runtimeShopEvents = RuntimeKernelBootstrapper.ShopEvents;
-                if (!ReferenceEquals(_shopEvents, runtimeShopEvents))
-                {
-                    _shopEvents = runtimeShopEvents;
-                    SubscribeToShopEvents(_shopEvents);
-                }
-                else if (!ReferenceEquals(_subscribedShopEvents, _shopEvents))
-                {
-                    SubscribeToShopEvents(_shopEvents);
-                }
-            }
-            else if (!ReferenceEquals(_subscribedShopEvents, _shopEvents))
-            {
-                SubscribeToShopEvents(_shopEvents);
-            }
-
-            return _shopEvents;
+            return ShopEventsBinder.ResolveAndBind();
         }
 
         private void SubscribeToUiStateEvents(IUiStateEvents uiStateEvents)
         {
-            if (uiStateEvents == null)
-            {
-                UnsubscribeFromUiStateEvents();
-                return;
-            }
-
-            if (ReferenceEquals(_subscribedUiStateEvents, uiStateEvents))
-            {
-                return;
-            }
-
-            UnsubscribeFromUiStateEvents();
-            _subscribedUiStateEvents = uiStateEvents;
-            _subscribedUiStateEvents.OnWorkbenchMenuVisibilityChanged += HandleWorkbenchMenuVisibilityChanged;
-            _subscribedUiStateEvents.OnTabInventoryVisibilityChanged += HandleTabInventoryVisibilityChanged;
-            _subscribedUiStateEvents.OnEscMenuVisibilityChanged += HandleEscMenuVisibilityChanged;
+            uiStateEvents.OnWorkbenchMenuVisibilityChanged += HandleWorkbenchMenuVisibilityChanged;
+            uiStateEvents.OnTabInventoryVisibilityChanged += HandleTabInventoryVisibilityChanged;
+            uiStateEvents.OnEscMenuVisibilityChanged += HandleEscMenuVisibilityChanged;
         }
 
-        private void UnsubscribeFromUiStateEvents()
+        private void UnsubscribeFromUiStateEvents(IUiStateEvents uiStateEvents)
         {
-            if (_subscribedUiStateEvents == null)
-            {
-                return;
-            }
-
-            _subscribedUiStateEvents.OnWorkbenchMenuVisibilityChanged -= HandleWorkbenchMenuVisibilityChanged;
-            _subscribedUiStateEvents.OnTabInventoryVisibilityChanged -= HandleTabInventoryVisibilityChanged;
-            _subscribedUiStateEvents.OnEscMenuVisibilityChanged -= HandleEscMenuVisibilityChanged;
-            _subscribedUiStateEvents = null;
+            uiStateEvents.OnWorkbenchMenuVisibilityChanged -= HandleWorkbenchMenuVisibilityChanged;
+            uiStateEvents.OnTabInventoryVisibilityChanged -= HandleTabInventoryVisibilityChanged;
+            uiStateEvents.OnEscMenuVisibilityChanged -= HandleEscMenuVisibilityChanged;
         }
 
         private void SubscribeToShopEvents(IShopEvents shopEvents)
         {
-            if (shopEvents == null)
-            {
-                UnsubscribeFromShopEvents();
-                return;
-            }
-
-            if (ReferenceEquals(_subscribedShopEvents, shopEvents))
-            {
-                return;
-            }
-
-            UnsubscribeFromShopEvents();
-            _subscribedShopEvents = shopEvents;
-            _subscribedShopEvents.OnShopTradeOpened += HandleShopTradeOpened;
-            _subscribedShopEvents.OnShopTradeClosed += HandleShopTradeClosed;
+            shopEvents.OnShopTradeOpened += HandleShopTradeOpened;
+            shopEvents.OnShopTradeClosed += HandleShopTradeClosed;
         }
 
-        private void UnsubscribeFromShopEvents()
+        private void UnsubscribeFromShopEvents(IShopEvents shopEvents)
         {
-            if (_subscribedShopEvents == null)
-            {
-                return;
-            }
-
-            _subscribedShopEvents.OnShopTradeOpened -= HandleShopTradeOpened;
-            _subscribedShopEvents.OnShopTradeClosed -= HandleShopTradeClosed;
-            _subscribedShopEvents = null;
+            shopEvents.OnShopTradeOpened -= HandleShopTradeOpened;
+            shopEvents.OnShopTradeClosed -= HandleShopTradeClosed;
         }
 
         private void SubscribeToRuntimeHubReconfigure()
@@ -363,6 +284,18 @@ namespace Reloader.Player
         {
             RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
         }
+
+        private RuntimeHubChannelBinder<IUiStateEvents> UiStateEventsBinder => _uiStateEventsBinder ??=
+            new RuntimeHubChannelBinder<IUiStateEvents>(
+                () => RuntimeKernelBootstrapper.UiStateEvents,
+                SubscribeToUiStateEvents,
+                UnsubscribeFromUiStateEvents);
+
+        private RuntimeHubChannelBinder<IShopEvents> ShopEventsBinder => _shopEventsBinder ??=
+            new RuntimeHubChannelBinder<IShopEvents>(
+                () => RuntimeKernelBootstrapper.ShopEvents,
+                SubscribeToShopEvents,
+                UnsubscribeFromShopEvents);
 
         private static bool IsStorageUiOpen()
         {

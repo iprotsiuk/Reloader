@@ -27,12 +27,14 @@ namespace Reloader.Reloading.World
 
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private MonoBehaviour _resolverBehaviour;
+        [SerializeField] private MonoBehaviour _externalMenuStateReaderBehaviour;
         [Header("Interaction")]
         [SerializeField] private bool _interactionCoordinatorModeEnabled;
         [SerializeField] private int _interactionPriority = 50;
 
         private IPlayerInputSource _inputSource;
         private IPlayerReloadingBenchResolver _resolver;
+        private IExternalMenuStateReader _externalMenuStateReader;
         private IUiStateEvents _uiStateEvents;
         private IReloadingBenchTarget _activeTarget;
         private bool _useRuntimeKernelUiStateEvents = true;
@@ -74,10 +76,15 @@ namespace Reloader.Reloading.World
             }
         }
 
-        public void Configure(IPlayerInputSource inputSource, IPlayerReloadingBenchResolver resolver, IUiStateEvents uiStateEvents = null)
+        public void Configure(
+            IPlayerInputSource inputSource,
+            IPlayerReloadingBenchResolver resolver,
+            IUiStateEvents uiStateEvents = null,
+            IExternalMenuStateReader externalMenuStateReader = null)
         {
             _inputSource = inputSource;
             _resolver = resolver;
+            _externalMenuStateReader = externalMenuStateReader;
             _useRuntimeKernelUiStateEvents = uiStateEvents == null;
             _uiStateEvents = uiStateEvents;
         }
@@ -99,7 +106,7 @@ namespace Reloader.Reloading.World
             }
 
             var uiStateEvents = ResolveUiStateEvents();
-            var isAnyMenuOpen = (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen) || IsStorageUiOpen();
+            var isAnyMenuOpen = (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen) || IsExternalMenuOpen();
             if (!_interactionCoordinatorModeEnabled && isAnyMenuOpen)
             {
                 ClearInteractionHint();
@@ -229,6 +236,7 @@ namespace Reloader.Reloading.World
         {
             _inputSource ??= _inputSourceBehaviour as IPlayerInputSource;
             _resolver ??= _resolverBehaviour as IPlayerReloadingBenchResolver;
+            _externalMenuStateReader ??= _externalMenuStateReaderBehaviour as IExternalMenuStateReader;
 
             if (_inputSource == null)
             {
@@ -238,6 +246,11 @@ namespace Reloader.Reloading.World
             if (_resolver == null)
             {
                 _resolver = GetInterfaceFromBehaviours<IPlayerReloadingBenchResolver>(GetComponents<MonoBehaviour>());
+            }
+
+            if (_externalMenuStateReader == null)
+            {
+                _externalMenuStateReader = GetInterfaceFromBehaviours<IExternalMenuStateReader>(GetComponents<MonoBehaviour>());
             }
 
             ResolveUiStateEvents();
@@ -287,8 +300,13 @@ namespace Reloader.Reloading.World
             RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared(BenchHintContextId);
         }
 
-        private static bool IsStorageUiOpen()
+        private bool IsExternalMenuOpen()
         {
+            if (_externalMenuStateReader != null)
+            {
+                return _externalMenuStateReader.IsStorageUiOpen;
+            }
+
             var type = Type.GetType("Reloader.Inventory.StorageUiSession, Reloader.Inventory");
             if (type == null)
             {

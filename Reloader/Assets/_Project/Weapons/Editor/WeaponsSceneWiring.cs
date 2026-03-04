@@ -24,17 +24,23 @@ namespace Reloader.Weapons.Editor
         };
 
         private const string StarterRiflePath = "Assets/_Project/Weapons/Data/Weapons/StarterRifle.asset";
+        private const string StarterPistolPath = "Assets/_Project/Weapons/Data/Weapons/StarterPistol.asset";
         private const string ProjectilePrefabPath = "Assets/_Project/Weapons/Prefabs/WeaponProjectile.prefab";
 
         [MenuItem("Reloader/Weapons/Wire Weapons In MainWorld Scenes")]
         public static void WireWeaponsInMainWorldScenes()
         {
             var starterRifle = AssetDatabase.LoadAssetAtPath<WeaponDefinition>(StarterRiflePath);
+            var starterPistol = AssetDatabase.LoadAssetAtPath<WeaponDefinition>(StarterPistolPath);
             var projectilePrefab = AssetDatabase.LoadAssetAtPath<WeaponProjectile>(ProjectilePrefabPath);
             if (starterRifle == null || projectilePrefab == null)
             {
                 Debug.LogError("Missing StarterRifle asset or WeaponProjectile prefab. Build starter content first.");
                 return;
+            }
+            if (starterPistol == null)
+            {
+                Debug.LogWarning("StarterPistol asset not found. WeaponRegistry will be wired with rifle only.");
             }
 
             var changedCount = 0;
@@ -47,7 +53,7 @@ namespace Reloader.Weapons.Editor
                     continue;
                 }
 
-                if (WireScene(scenePath, starterRifle, projectilePrefab))
+                if (WireScene(scenePath, starterRifle, starterPistol, projectilePrefab))
                 {
                     EditorSceneManager.SaveScene(scene);
                     changedCount++;
@@ -64,7 +70,11 @@ namespace Reloader.Weapons.Editor
             Debug.Log($"Weapons scene wiring complete. Updated scenes: {changedCount}");
         }
 
-        private static bool WireScene(string scenePath, WeaponDefinition starterRifle, WeaponProjectile projectilePrefab)
+        private static bool WireScene(
+            string scenePath,
+            WeaponDefinition starterRifle,
+            WeaponDefinition starterPistol,
+            WeaponProjectile projectilePrefab)
         {
             var inventoryController = Object.FindFirstObjectByType<PlayerInventoryController>();
             var inputReader = Object.FindFirstObjectByType<PlayerInputReader>();
@@ -98,8 +108,12 @@ namespace Reloader.Weapons.Editor
 
             var registrySo = new SerializedObject(registry);
             var definitionsProp = registrySo.FindProperty("_definitions");
-            definitionsProp.arraySize = 1;
+            definitionsProp.arraySize = starterPistol != null ? 2 : 1;
             definitionsProp.GetArrayElementAtIndex(0).objectReferenceValue = starterRifle;
+            if (starterPistol != null)
+            {
+                definitionsProp.GetArrayElementAtIndex(1).objectReferenceValue = starterPistol;
+            }
             registrySo.ApplyModifiedPropertiesWithoutUndo();
 
             var weaponController = playerRoot.GetComponent<PlayerWeaponController>();

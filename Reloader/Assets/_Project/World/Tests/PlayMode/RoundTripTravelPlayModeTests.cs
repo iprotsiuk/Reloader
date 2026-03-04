@@ -170,9 +170,9 @@ namespace Reloader.World.Tests.PlayMode
             }
 
             Assert.That(playerArms.localPosition.x, Is.EqualTo(0f).Within(0.02f), "PlayerArms local X should be stabilized.");
-            Assert.That(playerArms.localPosition.y, Is.EqualTo(-0.24f).Within(0.02f), "PlayerArms local Y should be stabilized.");
-            Assert.That(playerArms.localPosition.z, Is.EqualTo(1.56f).Within(0.02f), "PlayerArms local Z should be stabilized.");
-            Assert.That(Quaternion.Angle(playerArms.localRotation, Quaternion.Euler(-90f, 0f, 0f)), Is.LessThanOrEqualTo(1f), "PlayerArms local rotation should be stabilized.");
+            Assert.That(playerArms.localPosition.y, Is.EqualTo(-0.027f).Within(0.02f), "PlayerArms local Y should be stabilized.");
+            Assert.That(playerArms.localPosition.z, Is.EqualTo(0.1f).Within(0.02f), "PlayerArms local Z should be stabilized.");
+            Assert.That(Quaternion.Angle(playerArms.localRotation, Quaternion.identity), Is.LessThanOrEqualTo(1f), "PlayerArms local rotation should be stabilized.");
         }
 
         [UnityTest]
@@ -515,11 +515,107 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(hit.point.y, Is.GreaterThan(-2f), "MainTown return entry should not resolve into void space.");
         }
 
+        [Test]
+        public void EnsureViewmodelRigAfterTravel_RecreatesPlayerArms_WhenMissing()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(playerRoot.transform, false);
+
+            InvokeEnsureViewmodelRigAfterTravel(playerRoot.transform);
+
+            var playerArms = cameraPivot.Find("PlayerArms");
+            Assert.That(playerArms, Is.Not.Null, "Expected fallback travel rig healing to recreate PlayerArms.");
+
+            var animator = playerArms.GetComponentInChildren<Animator>(true);
+            Assert.That(animator, Is.Not.Null, "Expected recreated PlayerArms to include an Animator.");
+            Assert.That(animator.runtimeAnimatorController, Is.Not.Null, "Expected recreated PlayerArms Animator to have a controller.");
+
+            Assert.That(playerArms.localPosition.x, Is.EqualTo(0f).Within(0.02f));
+            Assert.That(playerArms.localPosition.y, Is.EqualTo(-0.027f).Within(0.02f));
+            Assert.That(playerArms.localPosition.z, Is.EqualTo(0.1f).Within(0.02f));
+            Assert.That(Quaternion.Angle(playerArms.localRotation, Quaternion.identity), Is.LessThanOrEqualTo(1f));
+
+            Object.DestroyImmediate(playerRoot);
+        }
+
+        [Test]
+        public void EnsureViewmodelRigAfterTravel_ReappliesControllerBeforeRebind_WhenAnimatorControllerMissing()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(playerRoot.transform, false);
+            var playerArms = new GameObject("PlayerArms").transform;
+            playerArms.SetParent(cameraPivot, false);
+
+            var animator = playerArms.gameObject.AddComponent<Animator>();
+            animator.runtimeAnimatorController = null;
+
+            var probe = playerRoot.AddComponent<TravelRigRebindProbe>();
+            probe.TargetAnimator = animator;
+
+            InvokeEnsureViewmodelRigAfterTravel(playerRoot.transform);
+
+            Assert.That(animator.runtimeAnimatorController, Is.Not.Null, "Expected travel rig healing to reapply animator controller when missing.");
+            Assert.That(probe.ResolveReferencesCalled, Is.True, "Expected travel rig rebinding to run ResolveReferences.");
+            Assert.That(probe.SawControllerDuringResolve, Is.True, "Expected controller to be restored before ResolveReferences rebinding.");
+
+            Object.DestroyImmediate(playerRoot);
+        }
+
+        [Test]
+        public void EnsureViewmodelRigAfterTravel_BindsTypedViewmodelAdapter_WhenSimpleNameCollides()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(playerRoot.transform, false);
+            var playerArms = new GameObject("PlayerArms").transform;
+            playerArms.SetParent(cameraPivot, false);
+            var visuals = new GameObject("PlayerArmsVisual").transform;
+            visuals.SetParent(playerArms, false);
+
+            var animator = visuals.gameObject.AddComponent<Animator>();
+            animator.runtimeAnimatorController = null;
+
+            playerRoot.AddComponent<ViewmodelAnimationAdapter>();
+            var realAdapter = playerRoot.AddComponent<Reloader.Player.Viewmodel.ViewmodelAnimationAdapter>();
+            SetPrivateAnimatorField(realAdapter, null);
+
+            InvokeEnsureViewmodelRigAfterTravel(playerRoot.transform);
+
+            var boundAnimator = GetPrivateAnimatorField(realAdapter);
+            Assert.That(boundAnimator, Is.Not.Null, "Expected typed travel rebinding to set animator on real ViewmodelAnimationAdapter.");
+            Assert.That(boundAnimator, Is.EqualTo(animator), "Expected typed rebinding to target PlayerArms animator.");
+
+            Object.DestroyImmediate(playerRoot);
+        }
+
         private static GameObject CreatePlayerInteractor()
         {
             var interactor = new GameObject("TestPlayerInteractor");
             interactor.tag = "Player";
             return interactor;
+        }
+
+        private static void InvokeEnsureViewmodelRigAfterTravel(Transform playerRootTransform)
+        {
+            var method = typeof(WorldTravelCoordinator).GetMethod("EnsureViewmodelRigAfterTravel", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, "Expected travel rig healing method on WorldTravelCoordinator.");
+            method.Invoke(null, new object[] { playerRootTransform });
+        }
+
+        private static Animator GetPrivateAnimatorField(object component)
+        {
+            var field = component.GetType().GetField("_animator", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected private _animator field on {component.GetType().Name}.");
+            return field.GetValue(component) as Animator;
+        }
+
+        private static void SetPrivateAnimatorField(object component, Animator animator)
+        {
+            var field = component.GetType().GetField("_animator", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected private _animator field on {component.GetType().Name}.");
+            field.SetValue(component, animator);
         }
 
         private static IEnumerator WaitForActiveScene(string expectedSceneName, float timeoutSeconds)
@@ -724,5 +820,22 @@ namespace Reloader.World.Tests.PlayMode
             yield return WaitForResolvedEntryPoint(expectedEntryPointId, SceneSwitchTimeoutSeconds);
         }
 
+    }
+
+    public sealed class TravelRigRebindProbe : MonoBehaviour
+    {
+        public Animator TargetAnimator;
+        public bool ResolveReferencesCalled;
+        public bool SawControllerDuringResolve;
+
+        private void ResolveReferences()
+        {
+            ResolveReferencesCalled = true;
+            SawControllerDuringResolve = TargetAnimator != null && TargetAnimator.runtimeAnimatorController != null;
+        }
+    }
+
+    public sealed class ViewmodelAnimationAdapter : MonoBehaviour
+    {
     }
 }

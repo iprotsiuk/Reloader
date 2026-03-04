@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 
 namespace Reloader.Reloading.Runtime
 {
@@ -8,7 +7,6 @@ namespace Reloader.Reloading.Runtime
     {
         private readonly WorkbenchRuntimeState _runtimeState;
         private readonly WorkbenchCompatibilityEvaluator _compatibilityEvaluator;
-        private readonly Dictionary<string, MountSlotState> _slotIndex;
 
         public WorkbenchLoadoutController(
             WorkbenchRuntimeState runtimeState,
@@ -16,7 +14,6 @@ namespace Reloader.Reloading.Runtime
         {
             _runtimeState = runtimeState ?? throw new ArgumentNullException(nameof(runtimeState));
             _compatibilityEvaluator = compatibilityEvaluator ?? throw new ArgumentNullException(nameof(compatibilityEvaluator));
-            _slotIndex = ResolveSlotIndex(_runtimeState);
         }
 
         public WorkbenchRuntimeState RuntimeState => _runtimeState;
@@ -27,7 +24,7 @@ namespace Reloader.Reloading.Runtime
         {
             var capabilities = new HashSet<string>(StringComparer.Ordinal);
 
-            foreach (var kvp in _slotIndex)
+            foreach (var kvp in _runtimeState.SlotsById)
             {
                 var slotState = kvp.Value;
                 var mountedItem = slotState?.MountedNode?.ItemDefinition;
@@ -138,29 +135,8 @@ namespace Reloader.Reloading.Runtime
 
                 childSlot.SetMountedNode(null);
                 var childSlotId = childSlot.GraphSlotId;
-                if (!string.IsNullOrWhiteSpace(childSlotId)
-                    && _slotIndex.TryGetValue(childSlotId, out var existing)
-                    && ReferenceEquals(existing, childSlot))
-                {
-                    _slotIndex.Remove(childSlotId);
-                }
+                _runtimeState.TryRemoveSlotFromIndex(childSlotId, childSlot);
             }
-        }
-
-        private static Dictionary<string, MountSlotState> ResolveSlotIndex(WorkbenchRuntimeState state)
-        {
-            var field = typeof(WorkbenchRuntimeState).GetField("_slotsById", BindingFlags.Instance | BindingFlags.NonPublic);
-            if (field == null)
-            {
-                throw new InvalidOperationException("WorkbenchRuntimeState slot index field not found.");
-            }
-
-            if (field.GetValue(state) is Dictionary<string, MountSlotState> slotsById)
-            {
-                return slotsById;
-            }
-
-            throw new InvalidOperationException("WorkbenchRuntimeState slot index field has unexpected type.");
         }
     }
 }

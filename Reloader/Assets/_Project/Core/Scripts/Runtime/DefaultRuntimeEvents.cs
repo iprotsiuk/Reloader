@@ -45,6 +45,9 @@ namespace Reloader.Core.Runtime
         public event Action<string, int> OnShopSellRequested;
         public event Action<ShopCheckoutRequest> OnShopBuyCheckoutRequested;
         public event Action<ShopCheckoutRequest> OnShopSellCheckoutRequested;
+        public event Action<ShopTradeResultPayload> OnShopTradeResultReceived;
+
+        [Obsolete("Use OnShopTradeResultReceived with ShopTradeResultPayload.")]
         public event Action<string, int, bool, bool, string> OnShopTradeResult;
         public event Action<bool> OnWorkbenchMenuVisibilityChanged;
         public event Action<bool> OnTabInventoryVisibilityChanged;
@@ -90,8 +93,29 @@ namespace Reloader.Core.Runtime
         public void RaiseShopBuyCheckoutRequested(ShopCheckoutRequest request) => OnShopBuyCheckoutRequested?.Invoke(request);
         public void RaiseShopSellCheckoutRequested(ShopCheckoutRequest request) => OnShopSellCheckoutRequested?.Invoke(request);
 
+        public void RaiseShopTradeResult(ShopTradeResultPayload payload)
+        {
+            OnShopTradeResultReceived?.Invoke(payload);
+#pragma warning disable CS0618
+            OnShopTradeResult?.Invoke(
+                payload.ItemId,
+                payload.Quantity,
+                payload.IsBuy,
+                payload.Success,
+                payload.Success ? string.Empty : payload.FailureReason.ToString());
+#pragma warning restore CS0618
+        }
+
+        [Obsolete("Use RaiseShopTradeResult(ShopTradeResultPayload payload).")]
         public void RaiseShopTradeResult(string itemId, int quantity, bool isBuy, bool success, string failureReason)
-            => OnShopTradeResult?.Invoke(itemId, quantity, isBuy, success, failureReason);
+        {
+            RaiseShopTradeResult(new ShopTradeResultPayload(
+                itemId,
+                quantity,
+                isBuy,
+                success,
+                ShopTradeResultPayload.ParseLegacyFailureReason(failureReason, success)));
+        }
 
         public void RaiseWorkbenchMenuVisibilityChanged(bool isVisible)
         {

@@ -363,6 +363,80 @@ namespace Reloader.Economy.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator BuyCheckoutRequest_WhenLaterLineCannotStore_WithDeliveryFee_RollsBackMoneyAndStockToPreTransactionState()
+        {
+            var inventoryGo = new GameObject("InventoryController");
+            var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
+            var input = inventoryGo.AddComponent<TestInputSource>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, null, runtime);
+            runtime.SetBackpackCapacity(0);
+
+            var economyGo = new GameObject("EconomyController");
+            var controller = economyGo.AddComponent<EconomyController>();
+            SetPrivateField(controller, "_inventoryControllerBehaviour", inventoryController);
+            SetPrivateField(controller, "_startingMoney", 1000);
+            SetPrivateField(controller, "_runtime", new EconomyRuntime(1000));
+
+            var catalog = ScriptableObject.CreateInstance<ShopCatalogDefinition>();
+            JsonUtility.FromJsonOverwrite(
+                "{\"_items\":[" +
+                "{\"_itemId\":\"item-1\",\"_displayName\":\"Item 1\",\"_category\":\"misc\",\"_unitPrice\":1,\"_startingStock\":10}," +
+                "{\"_itemId\":\"item-2\",\"_displayName\":\"Item 2\",\"_category\":\"misc\",\"_unitPrice\":1,\"_startingStock\":10}," +
+                "{\"_itemId\":\"item-3\",\"_displayName\":\"Item 3\",\"_category\":\"misc\",\"_unitPrice\":1,\"_startingStock\":10}," +
+                "{\"_itemId\":\"item-4\",\"_displayName\":\"Item 4\",\"_category\":\"misc\",\"_unitPrice\":1,\"_startingStock\":10}," +
+                "{\"_itemId\":\"item-5\",\"_displayName\":\"Item 5\",\"_category\":\"misc\",\"_unitPrice\":1,\"_startingStock\":10}," +
+                "{\"_itemId\":\"item-6\",\"_displayName\":\"Item 6\",\"_category\":\"misc\",\"_unitPrice\":1,\"_startingStock\":10}" +
+                "]}",
+                catalog);
+            SetVendorBindings(controller, "vendor-1", catalog);
+
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+            try
+            {
+                yield return null;
+
+                runtimeHub.RaiseShopTradeOpenRequested("vendor-1");
+                var request = new ShopCheckoutRequest(
+                    new[]
+                    {
+                        new ShopCheckoutLine("item-1", 1),
+                        new ShopCheckoutLine("item-2", 1),
+                        new ShopCheckoutLine("item-3", 1),
+                        new ShopCheckoutLine("item-4", 1),
+                        new ShopCheckoutLine("item-5", 1),
+                        new ShopCheckoutLine("item-6", 1)
+                    },
+                    "delivery-standard",
+                    50);
+
+                runtimeHub.RaiseShopBuyCheckoutRequested(request);
+
+                Assert.That(runtime.GetItemQuantity("item-1"), Is.EqualTo(0));
+                Assert.That(runtime.GetItemQuantity("item-2"), Is.EqualTo(0));
+                Assert.That(runtime.GetItemQuantity("item-3"), Is.EqualTo(0));
+                Assert.That(runtime.GetItemQuantity("item-4"), Is.EqualTo(0));
+                Assert.That(runtime.GetItemQuantity("item-5"), Is.EqualTo(0));
+                Assert.That(runtime.GetItemQuantity("item-6"), Is.EqualTo(0));
+                Assert.That(controller.Runtime.Money, Is.EqualTo(1000));
+
+                Assert.That(controller.Runtime.TryGetStock("item-1", out var stock1), Is.True);
+                Assert.That(stock1, Is.EqualTo(10));
+                Assert.That(controller.Runtime.TryGetStock("item-6", out var stock6), Is.True);
+                Assert.That(stock6, Is.EqualTo(10));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(catalog);
+                UnityEngine.Object.DestroyImmediate(economyGo);
+                UnityEngine.Object.DestroyImmediate(inventoryGo);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator SellCheckoutRequest_WhenRemovalFailsMidBatch_RollsBackInventoryMoneyAndStock()
         {
             var inventoryGo = new GameObject("InventoryController");
@@ -423,30 +497,30 @@ namespace Reloader.Economy.Tests.PlayMode
             var economyGo = new GameObject("EconomyController");
             var controller = economyGo.AddComponent<EconomyController>();
 
-            string failureReason = null;
-            void Handler(string _, int __, bool ___, bool success, string reason)
+            var failureReason = ShopTradeFailureReason.None;
+            void Handler(ShopTradeResultPayload payload)
             {
-                if (!success)
+                if (!payload.Success)
                 {
-                    failureReason = reason;
+                    failureReason = payload.FailureReason;
                 }
             }
 
             var originalHub = RuntimeKernelBootstrapper.Events;
             var runtimeHub = new DefaultRuntimeEvents();
             RuntimeKernelBootstrapper.Events = runtimeHub;
-            runtimeHub.OnShopTradeResult += Handler;
+            runtimeHub.OnShopTradeResultReceived += Handler;
             try
             {
                 LogAssert.Expect(LogType.Error, "EconomyController requires a PlayerInventoryController reference.");
                 yield return null;
 
                 runtimeHub.RaiseShopBuyRequested("ammo-22lr", 1);
-                Assert.That(failureReason, Is.EqualTo(TradeFailureReason.InventoryFull.ToString()));
+                Assert.That(failureReason, Is.EqualTo(ShopTradeFailureReason.InventoryFull));
             }
             finally
             {
-                runtimeHub.OnShopTradeResult -= Handler;
+                runtimeHub.OnShopTradeResultReceived -= Handler;
                 RuntimeKernelBootstrapper.Events = originalHub;
                 UnityEngine.Object.DestroyImmediate(economyGo);
             }
@@ -596,7 +670,11 @@ namespace Reloader.Economy.Tests.PlayMode
             public event Action<string, int> OnShopSellRequested;
             public event Action<ShopCheckoutRequest> OnShopBuyCheckoutRequested;
             public event Action<ShopCheckoutRequest> OnShopSellCheckoutRequested;
+            public event Action<ShopTradeResultPayload> OnShopTradeResultReceived;
+
+#pragma warning disable CS0618
             public event Action<string, int, bool, bool, string> OnShopTradeResult;
+#pragma warning restore CS0618
 
             public void RaiseShopTradeOpenRequested(string vendorId) => OnShopTradeOpenRequested?.Invoke(vendorId);
             public void RaiseShopTradeOpened(string vendorId) => OnShopTradeOpened?.Invoke(vendorId);
@@ -605,8 +683,31 @@ namespace Reloader.Economy.Tests.PlayMode
             public void RaiseShopSellRequested(string itemId, int quantity) => OnShopSellRequested?.Invoke(itemId, quantity);
             public void RaiseShopBuyCheckoutRequested(ShopCheckoutRequest request) => OnShopBuyCheckoutRequested?.Invoke(request);
             public void RaiseShopSellCheckoutRequested(ShopCheckoutRequest request) => OnShopSellCheckoutRequested?.Invoke(request);
+
+            public void RaiseShopTradeResult(ShopTradeResultPayload payload)
+            {
+                OnShopTradeResultReceived?.Invoke(payload);
+#pragma warning disable CS0618
+                OnShopTradeResult?.Invoke(
+                    payload.ItemId,
+                    payload.Quantity,
+                    payload.IsBuy,
+                    payload.Success,
+                    payload.Success ? string.Empty : payload.FailureReason.ToString());
+#pragma warning restore CS0618
+            }
+
+#pragma warning disable CS0618
             public void RaiseShopTradeResult(string itemId, int quantity, bool isBuy, bool success, string failureReason)
-                => OnShopTradeResult?.Invoke(itemId, quantity, isBuy, success, failureReason);
+            {
+                RaiseShopTradeResult(new ShopTradeResultPayload(
+                    itemId,
+                    quantity,
+                    isBuy,
+                    success,
+                    ShopTradeResultPayload.ParseLegacyFailureReason(failureReason, success)));
+            }
+#pragma warning restore CS0618
         }
 
         private sealed class FakeInventoryEvents : IInventoryEvents

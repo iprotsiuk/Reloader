@@ -190,6 +190,60 @@ namespace Reloader.Reloading.Tests.PlayMode
         }
 
         [Test]
+        public void PickupPress_WhenExternalMenuStateReportsOpen_DoesNotOpenWorkbench()
+        {
+            var root = new GameObject("PlayerRootExternalMenuOpen");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerReloadingBenchController>();
+            var resolver = root.AddComponent<TestBenchResolver>();
+            var target = root.AddComponent<TestBenchTarget>();
+            var uiStateEvents = new TestUiStateEvents();
+            var externalMenuStateReader = new TestExternalMenuStateReader { IsStorageUiOpen = true };
+            resolver.Target = target;
+            controller.Configure(input, resolver, uiStateEvents, externalMenuStateReader);
+
+            input.PickupPressedThisFrame = true;
+            controller.Tick();
+
+            Assert.That(target.OpenCalls, Is.EqualTo(0));
+            Assert.That(target.IsWorkbenchOpen, Is.False);
+
+            Object.Destroy(root);
+        }
+
+        [Test]
+        public void PickupPress_WhenStorageSessionOpenAndExternalReaderMissing_DoesNotOpenWorkbench()
+        {
+            if (!TrySetStorageUiSessionOpenForTests(true))
+            {
+                Assert.Ignore("StorageUiSession is unavailable in this test runtime.");
+            }
+
+            var root = new GameObject("PlayerRootStorageSessionFallback");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerReloadingBenchController>();
+            var resolver = root.AddComponent<TestBenchResolver>();
+            var target = root.AddComponent<TestBenchTarget>();
+            var uiStateEvents = new TestUiStateEvents();
+            resolver.Target = target;
+            controller.Configure(input, resolver, uiStateEvents, null);
+
+            try
+            {
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
+
+                Assert.That(target.OpenCalls, Is.EqualTo(0));
+                Assert.That(target.IsWorkbenchOpen, Is.False);
+            }
+            finally
+            {
+                TrySetStorageUiSessionOpenForTests(false);
+                Object.Destroy(root);
+            }
+        }
+
+        [Test]
         public void Tick_TargetedBench_EmitsUseBenchHint()
         {
             var originalHub = RuntimeKernelBootstrapper.Events;
@@ -448,6 +502,38 @@ namespace Reloader.Reloading.Tests.PlayMode
             {
                 OnEscMenuVisibilityChanged?.Invoke(isVisible);
             }
+        }
+
+        private sealed class TestExternalMenuStateReader : IExternalMenuStateReader
+        {
+            public bool IsStorageUiOpen { get; set; }
+        }
+
+        private static bool TrySetStorageUiSessionOpenForTests(bool isOpen)
+        {
+            var type = System.Type.GetType("Reloader.Inventory.StorageUiSession, Reloader.Inventory");
+            if (type == null)
+            {
+                return false;
+            }
+
+            var methodName = isOpen ? "Open" : "Close";
+            var method = type.GetMethod(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            if (method == null)
+            {
+                return false;
+            }
+
+            if (isOpen)
+            {
+                method.Invoke(null, new object[] { "test-storage-container" });
+            }
+            else
+            {
+                method.Invoke(null, null);
+            }
+
+            return true;
         }
     }
 }

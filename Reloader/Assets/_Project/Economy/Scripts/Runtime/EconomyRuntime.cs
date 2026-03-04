@@ -5,6 +5,26 @@ namespace Reloader.Economy
 {
     public sealed class EconomyRuntime
     {
+        public sealed class StateSnapshot
+        {
+            internal StateSnapshot(
+                int money,
+                string activeVendorId,
+                Dictionary<string, Dictionary<string, int>> vendorStocks,
+                Dictionary<string, ShopCatalogItemDefinition> activeCatalogItems)
+            {
+                Money = money;
+                ActiveVendorId = activeVendorId;
+                VendorStocks = vendorStocks;
+                ActiveCatalogItems = activeCatalogItems;
+            }
+
+            internal int Money { get; }
+            internal string ActiveVendorId { get; }
+            internal Dictionary<string, Dictionary<string, int>> VendorStocks { get; }
+            internal Dictionary<string, ShopCatalogItemDefinition> ActiveCatalogItems { get; }
+        }
+
         private readonly Dictionary<string, Dictionary<string, int>> _vendorStocks = new Dictionary<string, Dictionary<string, int>>();
         private readonly Dictionary<string, ShopCatalogItemDefinition> _activeCatalogItems = new Dictionary<string, ShopCatalogItemDefinition>();
         private string _activeVendorId;
@@ -102,6 +122,38 @@ namespace Reloader.Economy
             return items;
         }
 
+        public StateSnapshot CaptureStateSnapshot()
+        {
+            return new StateSnapshot(
+                Money,
+                _activeVendorId,
+                CloneVendorStocks(_vendorStocks),
+                new Dictionary<string, ShopCatalogItemDefinition>(_activeCatalogItems));
+        }
+
+        public void RestoreStateSnapshot(StateSnapshot snapshot)
+        {
+            if (snapshot == null)
+            {
+                throw new ArgumentNullException(nameof(snapshot));
+            }
+
+            Money = Math.Max(0, snapshot.Money);
+            _activeVendorId = snapshot.ActiveVendorId;
+
+            _vendorStocks.Clear();
+            foreach (var vendorEntry in snapshot.VendorStocks)
+            {
+                _vendorStocks[vendorEntry.Key] = new Dictionary<string, int>(vendorEntry.Value);
+            }
+
+            _activeCatalogItems.Clear();
+            foreach (var activeItem in snapshot.ActiveCatalogItems)
+            {
+                _activeCatalogItems[activeItem.Key] = activeItem.Value;
+            }
+        }
+
         public bool TryBuy(string itemId, int quantity, out int totalPrice, out TradeFailureReason reason)
         {
             totalPrice = 0;
@@ -161,14 +213,13 @@ namespace Reloader.Economy
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(_activeVendorId) || !_vendorStocks.TryGetValue(_activeVendorId, out var vendorStock))
+            if (string.IsNullOrWhiteSpace(_activeVendorId) || !_vendorStocks.TryGetValue(_activeVendorId, out _))
             {
                 reason = TradeFailureReason.NoActiveVendor;
                 return false;
             }
 
-            var initialMoney = Money;
-            var stockSnapshot = new Dictionary<string, int>(vendorStock);
+            var stateSnapshot = CaptureStateSnapshot();
             var computedTotal = Math.Max(0, deliveryFee);
 
             for (var i = 0; i < lines.Count; i++)
@@ -177,8 +228,7 @@ namespace Reloader.Economy
                 var bought = TryBuy(line.itemId, line.quantity, out var lineCost, out reason);
                 if (!bought)
                 {
-                    RestoreSnapshot(vendorStock, stockSnapshot);
-                    Money = initialMoney;
+                    RestoreStateSnapshot(stateSnapshot);
                     totalPrice = 0;
                     return false;
                 }
@@ -190,8 +240,7 @@ namespace Reloader.Economy
             {
                 if (Money < deliveryFee)
                 {
-                    RestoreSnapshot(vendorStock, stockSnapshot);
-                    Money = initialMoney;
+                    RestoreStateSnapshot(stateSnapshot);
                     totalPrice = 0;
                     reason = TradeFailureReason.InsufficientFunds;
                     return false;
@@ -225,8 +274,7 @@ namespace Reloader.Economy
                 return false;
             }
 
-            var initialMoney = Money;
-            var stockSnapshot = new Dictionary<string, int>(vendorStock);
+            var stateSnapshot = CaptureStateSnapshot();
 
             for (var i = 0; i < lines.Count; i++)
             {
@@ -234,8 +282,7 @@ namespace Reloader.Economy
                 var sold = TrySell(line.itemId, line.quantity, out var linePrice, out reason);
                 if (!sold)
                 {
-                    RestoreSnapshot(vendorStock, stockSnapshot);
-                    Money = initialMoney;
+                    RestoreStateSnapshot(stateSnapshot);
                     totalPrice = 0;
                     return false;
                 }
@@ -285,13 +332,16 @@ namespace Reloader.Economy
             return true;
         }
 
-        private static void RestoreSnapshot(Dictionary<string, int> vendorStock, Dictionary<string, int> snapshot)
+        private static Dictionary<string, Dictionary<string, int>> CloneVendorStocks(
+            Dictionary<string, Dictionary<string, int>> source)
         {
-            vendorStock.Clear();
-            foreach (var kv in snapshot)
+            var clone = new Dictionary<string, Dictionary<string, int>>(source.Count);
+            foreach (var vendorEntry in source)
             {
-                vendorStock[kv.Key] = kv.Value;
+                clone[vendorEntry.Key] = new Dictionary<string, int>(vendorEntry.Value);
             }
+
+            return clone;
         }
     }
 }

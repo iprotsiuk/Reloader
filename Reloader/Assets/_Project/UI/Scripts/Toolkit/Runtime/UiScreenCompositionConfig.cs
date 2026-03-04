@@ -43,13 +43,13 @@ namespace Reloader.UI.Toolkit.Runtime
         public static UiScreenCompositionConfig CreateWithDefaults()
         {
             var config = new UiScreenCompositionConfig();
-            config.SetComponents("belt-hud", new[] { "belt.slots" });
-            config.SetComponents("ammo-hud", new[] { "ammo.label" });
-            config.SetComponents("tab-inventory", new[] { "inventory.slots", "inventory.tooltip", "inventory.drag" });
-            config.SetComponents("esc-menu", new[] { "esc.menu.panel", "esc.menu.actions", "esc.menu.settings" });
-            config.SetComponents("trade-ui", new[] { "trade.tabs", "trade.cart", "trade.order" });
-            config.SetComponents("reloading-workbench", new[] { "reloading.operations", "reloading.result" });
-            config.SetComponents("interaction-hint", new[] { "interaction-hint.text" });
+            config.SetComponents(UiRuntimeCompositionIds.ScreenIds.BeltHud, new[] { "belt.slots" });
+            config.SetComponents(UiRuntimeCompositionIds.ScreenIds.AmmoHud, new[] { "ammo.label" });
+            config.SetComponents(UiRuntimeCompositionIds.ScreenIds.TabInventory, new[] { "inventory.slots", "inventory.tooltip", "inventory.drag" });
+            config.SetComponents(UiRuntimeCompositionIds.ScreenIds.EscMenu, new[] { "esc.menu.panel", "esc.menu.actions", "esc.menu.settings" });
+            config.SetComponents(UiRuntimeCompositionIds.ScreenIds.Trade, new[] { "trade.tabs", "trade.cart", "trade.order" });
+            config.SetComponents(UiRuntimeCompositionIds.ScreenIds.ReloadingWorkbench, new[] { "reloading.operations", "reloading.result" });
+            config.SetComponents(UiRuntimeCompositionIds.ScreenIds.InteractionHint, new[] { "interaction-hint.text" });
             return config;
         }
     }

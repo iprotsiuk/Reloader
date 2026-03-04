@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Events;
@@ -238,7 +237,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
                 definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 120f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 120f, 0f, 20f, 10000f, 1, 0, true);
                 registry.SetDefinitionsForTests(new[] { definition });
 
                 target = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -359,7 +358,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator ScopedAiming_WithSmallScrollDelta_AppliesNoticeableZoomChange()
+        public IEnumerator Aiming_LerpsFieldOfViewToPackAdsFovAndBack()
         {
             var root = new GameObject("PlayerRoot");
             var input = root.AddComponent<TestInputSource>();
@@ -390,20 +389,154 @@ namespace Reloader.Weapons.Tests.PlayMode
                 WeaponScopeConfiguration.Create(true, 4f, 20f, 8f, "ebr-7c", 100, 25));
             registry.SetDefinitionsForTests(new[] { definition });
 
+            var adsCameraGo = new GameObject("AdsCamera");
+            var adsCamera = adsCameraGo.AddComponent<Camera>();
+            const float baseFieldOfView = 60f;
+            adsCamera.fieldOfView = baseFieldOfView;
             var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_adsCamera", adsCamera);
             yield return null;
 
+            const float expectedAdsFieldOfView = 45f;
             input.AimHeldValue = true;
-            input.ZoomQueued = 0.05f;
             yield return null;
+            yield return new WaitForSeconds(0.45f);
 
-            var scopeState = GetScopeState(controller, "weapon-rifle-01");
-            Assert.That(scopeState, Is.Not.Null);
-            Assert.That(scopeState.CurrentZoom, Is.GreaterThanOrEqualTo(8.1f));
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(expectedAdsFieldOfView).Within(0.6f));
+
+            input.AimHeldValue = false;
+            yield return null;
+            yield return new WaitForSeconds(0.45f);
+
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(baseFieldOfView).Within(0.6f));
 
             Object.Destroy(root);
             Object.Destroy(registryGo);
             Object.Destroy(definition);
+            Object.Destroy(adsCameraGo);
+        }
+
+        [UnityTest]
+        public IEnumerator UnequipWhileAiming_RestoresBaselineFieldOfView()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[1] = null;
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests(
+                "weapon-rifle-01",
+                "Scoped Rifle",
+                5,
+                0.1f,
+                80f,
+                0f,
+                20f,
+                120f,
+                1,
+                10,
+                true,
+                0.7f,
+                WeaponScopeConfiguration.Create(true, 4f, 20f, 8f, "ebr-7c", 100, 25));
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var adsCameraGo = new GameObject("AdsCamera");
+            var adsCamera = adsCameraGo.AddComponent<Camera>();
+            const float baseFieldOfView = 60f;
+            adsCamera.fieldOfView = baseFieldOfView;
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_adsCamera", adsCamera);
+            yield return null;
+
+            input.AimHeldValue = true;
+            yield return null;
+            yield return new WaitForSeconds(0.25f);
+            Assert.That(adsCamera.fieldOfView, Is.LessThan(baseFieldOfView - 1f), "Expected ADS to lower FOV before unequip.");
+
+            runtime.SelectBeltSlot(1);
+            yield return null;
+            yield return new WaitForSeconds(0.15f);
+
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(baseFieldOfView).Within(0.6f), "Unequipping while ADS should restore baseline FOV.");
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+            Object.Destroy(adsCameraGo);
+        }
+
+        [UnityTest]
+        public IEnumerator UnarmedState_PreservesExternalFieldOfViewChanges()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[1] = null;
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests(
+                "weapon-rifle-01",
+                "Scoped Rifle",
+                5,
+                0.1f,
+                80f,
+                0f,
+                20f,
+                120f,
+                1,
+                10,
+                true,
+                0.7f,
+                WeaponScopeConfiguration.Create(true, 4f, 20f, 8f, "ebr-7c", 100, 25));
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var adsCameraGo = new GameObject("AdsCamera");
+            var adsCamera = adsCameraGo.AddComponent<Camera>();
+            const float baseFieldOfView = 60f;
+            adsCamera.fieldOfView = baseFieldOfView;
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_adsCamera", adsCamera);
+            yield return null;
+
+            input.AimHeldValue = true;
+            yield return null;
+            yield return new WaitForSeconds(0.25f);
+
+            runtime.SelectBeltSlot(1);
+            yield return null;
+            yield return new WaitForSeconds(0.15f);
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(baseFieldOfView).Within(0.6f));
+
+            const float externalFov = 72f;
+            adsCamera.fieldOfView = externalFov;
+            yield return null;
+            yield return null;
+
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(externalFov).Within(0.2f), "Unarmed flow should not overwrite externally applied FOV.");
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+            Object.Destroy(adsCameraGo);
         }
 
         [UnityTest]
@@ -582,7 +715,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator ReloadCompletion_ConsumesAmmoAndRaisesInventoryChanged()
+        public IEnumerator ReloadCompletion_FromRuntimeAppliedLoadout_ConsumesAmmoAndRaisesEvents()
         {
             var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
             var runtimeEvents = new DefaultRuntimeEvents();
@@ -606,14 +739,41 @@ namespace Reloader.Weapons.Tests.PlayMode
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
-            var quantityBeforeReload = runtime.GetItemQuantity("ammo-factory-308-147-fmj");
-
             var inventoryChangedCount = 0;
+            var reloadEventCount = 0;
+            string reloadedItemId = null;
             runtimeEvents.OnInventoryChanged += OnInventoryChanged;
+            runtimeEvents.OnWeaponReloaded += OnWeaponReloaded;
             void OnInventoryChanged() => inventoryChangedCount++;
+            void OnWeaponReloaded(string itemId, int _, int __)
+            {
+                reloadEventCount++;
+                reloadedItemId = itemId;
+            }
 
             yield return null;
 
+            Assert.That(controller.ApplyRuntimeState("weapon-rifle-01", 0, 0, false), Is.True);
+            Assert.That(
+                controller.ApplyRuntimeBallistics(
+                    "weapon-rifle-01",
+                    null,
+                    new[]
+                    {
+                        new AmmoBallisticSnapshot(
+                            AmmoSourceType.Factory,
+                            2780f,
+                            55f,
+                            147f,
+                            0.398f,
+                            4.5f,
+                            "Factory .308 147gr FMJ",
+                            "runtime-pack-round",
+                            "ammo-factory-308-147-fmj")
+                    }),
+                Is.True);
+
+            var quantityBeforeReload = runtime.GetItemQuantity("ammo-factory-308-147-fmj");
             input.ReloadPressedThisFrame = true;
             yield return null;
             yield return new WaitForSeconds(0.36f);
@@ -623,8 +783,11 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(stateAfterReload.MagazineCount, Is.GreaterThan(0));
             Assert.That(runtime.GetItemQuantity("ammo-factory-308-147-fmj"), Is.LessThan(quantityBeforeReload));
             Assert.That(inventoryChangedCount, Is.EqualTo(1));
+            Assert.That(reloadEventCount, Is.EqualTo(1));
+            Assert.That(reloadedItemId, Is.EqualTo("weapon-rifle-01"));
 
             runtimeEvents.OnInventoryChanged -= OnInventoryChanged;
+            runtimeEvents.OnWeaponReloaded -= OnWeaponReloaded;
             RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
             Object.Destroy(root);
             Object.Destroy(registryGo);
@@ -642,6 +805,53 @@ namespace Reloader.Weapons.Tests.PlayMode
             yield return null;
 
             Object.Destroy(root);
+        }
+
+        [UnityTest]
+        public IEnumerator ApplyRuntimePayload_InvalidCountsAndLoadout_AreNormalized()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            inventoryController.Configure(input, resolver, new PlayerInventoryRuntime());
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 0, 0, false);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            yield return null;
+
+            Assert.That(controller.ApplyRuntimeState("weapon-rifle-01", 999, -5, true), Is.True);
+            Assert.That(
+                controller.ApplyRuntimeBallistics(
+                    "weapon-rifle-01",
+                    null,
+                    new[]
+                    {
+                        new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2780f, 55f, 147f, 0.398f, 4.5f, "Factory .308 147gr FMJ", "c1", "ammo-factory-308-147-fmj"),
+                        new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2780f, 55f, 147f, 0.398f, 4.5f, "Factory .308 147gr FMJ", "c2", "ammo-factory-308-147-fmj"),
+                        new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2780f, 55f, 147f, 0.398f, 4.5f, "Factory .308 147gr FMJ", "c3", "ammo-factory-308-147-fmj"),
+                        new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2780f, 55f, 147f, 0.398f, 4.5f, "Factory .308 147gr FMJ", "c4", "ammo-factory-308-147-fmj"),
+                        new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2780f, 55f, 147f, 0.398f, 4.5f, "Factory .308 147gr FMJ", "c5", "ammo-factory-308-147-fmj"),
+                        new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2780f, 55f, 147f, 0.398f, 4.5f, "Factory .308 147gr FMJ", "c6", "ammo-factory-308-147-fmj"),
+                        new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2780f, 55f, 147f, 0.398f, 4.5f, "Factory .308 147gr FMJ", "c7", "ammo-factory-308-147-fmj")
+                    }),
+                Is.True);
+
+            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var state), Is.True);
+            Assert.That(state.MagazineCount, Is.EqualTo(5));
+            Assert.That(state.GetMagazineRoundsSnapshot().Count, Is.EqualTo(5));
+            Assert.That(state.ReserveCount, Is.EqualTo(0));
+            Assert.That(state.ChamberLoaded, Is.True);
+            Assert.That(state.ChamberRound.HasValue, Is.True);
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
         }
 
         [UnityTest]
@@ -950,6 +1160,307 @@ namespace Reloader.Weapons.Tests.PlayMode
             Object.Destroy(definition);
         }
 
+        [UnityTest]
+        public IEnumerator Equip_WithoutExplicitViewBindings_UsesWeaponDefinitionIconSourcePrefab()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var root = new GameObject("PlayerRoot");
+            var viewPrefab = new GameObject("FallbackWeaponViewPrefab");
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+
+            try
+            {
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+
+                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_weaponViewParent", root.transform);
+                yield return null;
+
+                var equippedView = root.transform.Find("EquippedView_weapon-rifle-01");
+                Assert.That(equippedView, Is.Not.Null, "Expected equipped view to spawn from WeaponDefinition icon prefab when explicit view bindings are missing.");
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator SameItemSelection_WhenViewSpawnFails_DoesNotRestartEquipCycle()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var equipStartedCount = 0;
+            var unequipStartedCount = 0;
+            runtimeEvents.OnWeaponEquipStarted += HandleEquipStarted;
+            runtimeEvents.OnWeaponUnequipStarted += HandleUnequipStarted;
+            void HandleEquipStarted(string _) => equipStartedCount++;
+            void HandleUnequipStarted(string _) => unequipStartedCount++;
+
+            root.AddComponent<PlayerWeaponController>();
+            yield return null;
+            yield return new WaitForSeconds(0.2f);
+
+            Assert.That(equipStartedCount, Is.EqualTo(1), "Same-item selection with missing view should not restart equip flow.");
+            Assert.That(unequipStartedCount, Is.EqualTo(0), "Same-item selection with missing view should not trigger holster churn.");
+
+            runtimeEvents.OnWeaponEquipStarted -= HandleEquipStarted;
+            runtimeEvents.OnWeaponUnequipStarted -= HandleUnequipStarted;
+            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
+        public IEnumerator SameItemSelection_AfterDisableEnable_RespawnsMissingViewWithoutRestartingEquipCycle()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var root = new GameObject("PlayerRoot");
+            var viewPrefab = new GameObject("ReenableWeaponViewPrefab");
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            var equipStartedCount = 0;
+            var unequipStartedCount = 0;
+            var handlersRegistered = false;
+            void HandleEquipStarted(string _) => equipStartedCount++;
+            void HandleUnequipStarted(string _) => unequipStartedCount++;
+
+            try
+            {
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+
+                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                runtimeEvents.OnWeaponEquipStarted += HandleEquipStarted;
+                runtimeEvents.OnWeaponUnequipStarted += HandleUnequipStarted;
+                handlersRegistered = true;
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_weaponViewParent", root.transform);
+                yield return null;
+
+                var viewName = "EquippedView_weapon-rifle-01";
+                Assert.That(root.transform.Find(viewName), Is.Not.Null);
+                Assert.That(equipStartedCount, Is.EqualTo(1));
+                Assert.That(unequipStartedCount, Is.EqualTo(0));
+
+                controller.enabled = false;
+                yield return null;
+                Assert.That(root.transform.Find(viewName), Is.Null, "Disabling should destroy the equipped view instance.");
+
+                controller.enabled = true;
+                yield return null;
+
+                Assert.That(root.transform.Find(viewName), Is.Not.Null, "Re-enabling with the same selected item should respawn a missing equipped view.");
+                Assert.That(equipStartedCount, Is.EqualTo(1), "View respawn should not restart equip flow for same item.");
+                Assert.That(unequipStartedCount, Is.EqualTo(0), "View respawn should not trigger unequip flow.");
+
+            }
+            finally
+            {
+                if (handlersRegistered)
+                {
+                    runtimeEvents.OnWeaponEquipStarted -= HandleEquipStarted;
+                    runtimeEvents.OnWeaponUnequipStarted -= HandleUnequipStarted;
+                }
+
+                RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Equip_WithConfiguredWeaponViewParent_UsesConfiguredParentBeforeFallback()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.SelectBeltSlot(0);
+
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(root.transform, false);
+            var playerArms = new GameObject("PlayerArms").transform;
+            playerArms.SetParent(cameraPivot, false);
+            var playerArmsVisual = new GameObject("PlayerArmsVisual").transform;
+            playerArmsVisual.SetParent(playerArms, false);
+            playerArmsVisual.gameObject.AddComponent<Animator>();
+            var fallbackParent = new GameObject("ik_hand_gun").transform;
+            fallbackParent.SetParent(playerArmsVisual, false);
+
+            var configuredParent = new GameObject("ConfiguredWeaponViewParent").transform;
+            configuredParent.SetParent(root.transform, false);
+
+            var viewPrefab = new GameObject("ConfiguredParentViewPrefab");
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(iconPrefabField, Is.Not.Null);
+            iconPrefabField.SetValue(definition, viewPrefab);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_weaponRegistry", registry);
+            SetControllerField(controller, "_weaponViewParent", configuredParent);
+            yield return null;
+
+            Assert.That(configuredParent.Find("EquippedView_weapon-rifle-01"), Is.Not.Null);
+            Assert.That(fallbackParent.Find("EquippedView_weapon-rifle-01"), Is.Null);
+
+            Object.Destroy(root);
+            Object.Destroy(viewPrefab);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
+        public IEnumerator BeltSelectionChange_DuringHolsterDelay_UpdatesPendingEquipToLatestSelection()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[1] = "weapon-rifle-02";
+            runtime.BeltSlotItemIds[2] = "weapon-rifle-03";
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definitionA = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definitionA.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle 01", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            var definitionB = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definitionB.SetRuntimeValuesForTests("weapon-rifle-02", "Rifle 02", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            var definitionC = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definitionC.SetRuntimeValuesForTests("weapon-rifle-03", "Rifle 03", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            registry.SetDefinitionsForTests(new[] { definitionA, definitionB, definitionC });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            yield return null;
+
+            runtime.SelectBeltSlot(1);
+            yield return null;
+            Assert.That(GetControllerField<string>(controller, "_pendingEquipItemId"), Is.EqualTo("weapon-rifle-02"));
+
+            runtime.SelectBeltSlot(2);
+            yield return null;
+            Assert.That(GetControllerField<string>(controller, "_pendingEquipItemId"), Is.EqualTo("weapon-rifle-03"));
+
+            yield return new WaitForSeconds(0.12f);
+            Assert.That(controller.EquippedItemId, Is.EqualTo("weapon-rifle-03"));
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definitionA);
+            Object.Destroy(definitionB);
+            Object.Destroy(definitionC);
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public bool FirePressedThisFrame;
@@ -1024,17 +1535,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
-        private static WeaponScopeRuntimeState GetScopeState(PlayerWeaponController controller, string itemId)
+        private static float MagnificationToFieldOfView(float referenceFieldOfView, float magnification)
         {
-            var field = typeof(PlayerWeaponController).GetField("_scopeStatesByItemId", BindingFlags.Instance | BindingFlags.NonPublic);
-            var statesByItemId = field?.GetValue(controller) as Dictionary<string, WeaponScopeRuntimeState>;
-            if (statesByItemId == null)
-            {
-                return null;
-            }
-
-            statesByItemId.TryGetValue(itemId, out var state);
-            return state;
+            var safeReferenceFov = Mathf.Clamp(referenceFieldOfView, 1f, 179f);
+            var safeMagnification = Mathf.Max(1f, magnification);
+            var referenceHalfAngle = safeReferenceFov * 0.5f * Mathf.Deg2Rad;
+            var zoomedHalfAngle = Mathf.Atan(Mathf.Tan(referenceHalfAngle) / safeMagnification);
+            return Mathf.Clamp(zoomedHalfAngle * 2f * Mathf.Rad2Deg, 5f, safeReferenceFov);
         }
 
         private static void SetControllerField(PlayerWeaponController controller, string fieldName, object value)
@@ -1042,6 +1549,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             var field = typeof(PlayerWeaponController).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
             field.SetValue(controller, value);
+        }
+
+        private static T GetControllerField<T>(PlayerWeaponController controller, string fieldName)
+        {
+            var field = typeof(PlayerWeaponController).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
+            return (T)field.GetValue(controller);
         }
     }
 }

@@ -1,4 +1,5 @@
 using Reloader.Core.Runtime;
+using Reloader.Core.UI;
 using Reloader.UI.Toolkit.Contracts;
 using Reloader.Weapons.Controllers;
 using UnityEngine;
@@ -11,30 +12,27 @@ namespace Reloader.UI.Toolkit.AmmoHud
 
         private AmmoHudViewBinder _viewBinder;
         private string _currentItemId;
-        private IWeaponEvents _weaponEvents;
-        private IWeaponEvents _subscribedWeaponEvents;
-        private bool _useRuntimeKernelWeaponEvents = true;
+        private RuntimeHubChannelBinder<IWeaponEvents> _weaponEventsBinder;
 
         private void OnEnable()
         {
             SubscribeToRuntimeHubReconfigure();
-            SubscribeToWeaponEvents(ResolveWeaponEvents());
+            WeaponEventsBinder.ResolveAndBind();
             Refresh();
         }
 
         private void OnDisable()
         {
             UnsubscribeFromRuntimeHubReconfigure();
-            UnsubscribeFromWeaponEvents();
+            WeaponEventsBinder.Unbind();
         }
 
         public void Configure(IWeaponEvents weaponEvents = null)
         {
-            _useRuntimeKernelWeaponEvents = weaponEvents == null;
-            _weaponEvents = weaponEvents;
+            WeaponEventsBinder.Configure(weaponEvents);
             if (isActiveAndEnabled)
             {
-                SubscribeToWeaponEvents(ResolveWeaponEvents());
+                WeaponEventsBinder.ResolveAndBind();
             }
         }
 
@@ -120,68 +118,31 @@ namespace Reloader.UI.Toolkit.AmmoHud
 
         private void HandleRuntimeEventsReconfigured()
         {
-            if (!isActiveAndEnabled || !_useRuntimeKernelWeaponEvents)
+            if (!isActiveAndEnabled || !WeaponEventsBinder.UsesRuntimeChannel)
             {
                 return;
             }
 
-            SubscribeToWeaponEvents(ResolveWeaponEvents());
+            WeaponEventsBinder.ResolveAndBind();
         }
 
         private IWeaponEvents ResolveWeaponEvents()
         {
-            if (_useRuntimeKernelWeaponEvents)
-            {
-                var runtimeWeaponEvents = RuntimeKernelBootstrapper.WeaponEvents;
-                if (!ReferenceEquals(_weaponEvents, runtimeWeaponEvents))
-                {
-                    _weaponEvents = runtimeWeaponEvents;
-                    SubscribeToWeaponEvents(_weaponEvents);
-                }
-                else if (!ReferenceEquals(_subscribedWeaponEvents, _weaponEvents))
-                {
-                    SubscribeToWeaponEvents(_weaponEvents);
-                }
-            }
-            else if (!ReferenceEquals(_subscribedWeaponEvents, _weaponEvents))
-            {
-                SubscribeToWeaponEvents(_weaponEvents);
-            }
-
-            return _weaponEvents;
+            return WeaponEventsBinder.ResolveAndBind();
         }
 
         private void SubscribeToWeaponEvents(IWeaponEvents weaponEvents)
         {
-            if (weaponEvents == null)
-            {
-                UnsubscribeFromWeaponEvents();
-                return;
-            }
-
-            if (ReferenceEquals(_subscribedWeaponEvents, weaponEvents))
-            {
-                return;
-            }
-
-            UnsubscribeFromWeaponEvents();
-            _subscribedWeaponEvents = weaponEvents;
-            _subscribedWeaponEvents.OnWeaponEquipped += HandleWeaponEquipped;
-            _subscribedWeaponEvents.OnWeaponFired += HandleWeaponFired;
-            _subscribedWeaponEvents.OnWeaponReloaded += HandleWeaponReloaded;
+            weaponEvents.OnWeaponEquipped += HandleWeaponEquipped;
+            weaponEvents.OnWeaponFired += HandleWeaponFired;
+            weaponEvents.OnWeaponReloaded += HandleWeaponReloaded;
         }
 
-        private void UnsubscribeFromWeaponEvents()
+        private void UnsubscribeFromWeaponEvents(IWeaponEvents weaponEvents)
         {
-            if (_subscribedWeaponEvents == null)
-            {
-                return;
-            }
-
-            _subscribedWeaponEvents.OnWeaponEquipped -= HandleWeaponEquipped;
-            _subscribedWeaponEvents.OnWeaponFired -= HandleWeaponFired;
-            _subscribedWeaponEvents.OnWeaponReloaded -= HandleWeaponReloaded;
-            _subscribedWeaponEvents = null;
+            weaponEvents.OnWeaponEquipped -= HandleWeaponEquipped;
+            weaponEvents.OnWeaponFired -= HandleWeaponFired;
+            weaponEvents.OnWeaponReloaded -= HandleWeaponReloaded;
         }
 
         private void SubscribeToRuntimeHubReconfigure()
@@ -194,5 +155,11 @@ namespace Reloader.UI.Toolkit.AmmoHud
         {
             RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
         }
+
+        private RuntimeHubChannelBinder<IWeaponEvents> WeaponEventsBinder => _weaponEventsBinder ??=
+            new RuntimeHubChannelBinder<IWeaponEvents>(
+                () => RuntimeKernelBootstrapper.WeaponEvents,
+                SubscribeToWeaponEvents,
+                UnsubscribeFromWeaponEvents);
     }
 }
