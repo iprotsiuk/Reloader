@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00fe5b4d07ab045459437b6920dc2c46, type: 3}
+  m_Name: StarterPistol
+  m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Data.WeaponDefinition
+  _itemId: weapon-pistol-01
+  _displayName: Starter Pistol
+  _iconSourcePrefab: {fileID: 100100000, guid: 31f3c4bc3c25047b490da66a3c9a7a8e, type: 3}
+  _magazineCapacity: 12
+  _fireIntervalSeconds: 0.13
+  _projectileSpeed: 95
+  _projectileGravityMultiplier: 1
+  _baseDamage: 22
+  _maxRangeMeters: 90
+  _adsSpeedMultiplier: 0.7
+  _startingMagazineCount: 1
+  _startingReserveCount: 24
+  _startingChamberLoaded: 1
+  _ammoItemId: ammo-factory-9x19-124-fmj
+  _scopeConfiguration:
+    _isScopedWeapon: 0
+    _minZoom: 0
+    _maxZoom: 0
+    _defaultZoom: 0
+    _reticleId: 
+    _defaultZeroMeters: 0
+    _zeroStepMeters: 0
+  _packPresentationConfiguration:
+    _useCustomConfig: 0
+    _customConfig:
+      _adsFieldOfView: 45
+      _adsFovLerpTime: 0.08
+      _reloadDurationSeconds: 0.35
+      _useAnimatorHooks: 1
+      _equippedBoolParameter: IsEquipped
+      _aimBoolParameter: IsAiming
+      _reloadBoolParameter: IsReloading
+      _reloadTriggerParameter: Reload
+      _fireTriggerParameter: Fire
+      _reloadStateName: Layer Actions.Reload
+      _fireStateName: Layer Actions.Fire

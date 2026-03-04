@@ -17,6 +17,17 @@ namespace Reloader.Core.Persistence
             }
         }
 
+        public bool AssignObjectIdForRestore(string objectId)
+        {
+            if (string.IsNullOrWhiteSpace(objectId))
+            {
+                return false;
+            }
+
+            _objectId = objectId.Trim();
+            return true;
+        }
+
         private void Awake()
         {
             EnsureObjectId();

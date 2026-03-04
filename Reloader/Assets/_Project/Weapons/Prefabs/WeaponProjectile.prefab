@@ -26,13 +26,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4325874661637332357}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
 --- !u!135 &3924716953469709240
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -70,6 +70,13 @@ MonoBehaviour:
   _gravityMultiplier: 1
   _damage: 20
   _lifetimeSeconds: 5
+  _ballisticCoefficientG1: 0.45
+  _dragCoefficient: 0.00012
   _hitMask:
     serializedVersion: 2
     m_Bits: 4294967295
+  _spawnImpactVfx: 1
+  _impactVfxColor: {r: 1, g: 0.92, b: 0.45, a: 1}
+  _impactVfxLifetimeSeconds: 5
+  _spawnInFlightVisual: 1
+  _projectileVisualColor: {r: 1, g: 0.75, b: 0.2, a: 1}

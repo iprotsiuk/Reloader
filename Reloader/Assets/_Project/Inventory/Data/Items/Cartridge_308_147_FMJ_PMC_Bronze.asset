@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Cartridge_308_147_FMJ_PMC_Bronze
   m_EditorClassIdentifier: Reloader.Core::Reloader.Core.Items.ItemDefinition
   _definitionId: ammo-factory-308-147-fmj
-  _category: 6
-  _displayName: 'Cartridge_308_147_FMJ_PMC_Bronze'
+  _category: 1
+  _displayName: Cartridge_308_147_FMJ_PMC_Bronze
   _stackPolicy: 1
-  _maxStack: 500
-  _iconSourcePrefab: {fileID: 100001, guid: 03ec13c6338948e1a9e799962f2a9eea, type: 3}
+  _maxStack: 999
+  _iconSourcePrefab: {fileID: 8445401694592989334, guid: 8c7ba79f8ec05794aba7ffdd3d8aba93, type: 3}

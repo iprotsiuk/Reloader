@@ -1,5 +1,7 @@
 #if UNITY_EDITOR
 using System.IO;
+using Reloader.Core.Items;
+using Reloader.Inventory;
 using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.Data;
 using Reloader.Weapons.World;
@@ -13,14 +15,30 @@ namespace Reloader.Weapons.Editor
         private const string WeaponsRoot = "Assets/_Project/Weapons";
         private const string PrefabsDir = WeaponsRoot + "/Prefabs";
         private const string DataDir = WeaponsRoot + "/Data/Weapons";
-        private const string SourceRiflePrefabPath = "Assets/ThirdParty/Polygon-Mega Weapone Kit/Prefabs/SM_Army_Sniper_Rifle.prefab";
-        private const string SourcePistolPrefabPath = "Assets/ThirdParty/Polygon-Mega Weapone Kit/Prefabs/SM_Army_Pistol.prefab";
+        private const string InventoryItemsDir = "Assets/_Project/Inventory/Data/Items";
+        private const string InventorySpawnsDir = "Assets/_Project/Inventory/Data/Spawns";
+        private const string SourceRiflePrefabPath = "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Prefabs/Weapons/P_LPSP_WEP_AR_01.prefab";
+        private const string SourcePistolPrefabPath = "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Prefabs/Weapons/P_LPSP_WEP_Handgun_03.prefab";
+        private static readonly string[] PackWeaponMaterialPaths =
+        {
+            "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Art/Materials/Weapons/M_WEP_Basic_039.mat",
+            "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Art/Materials/Weapons/M_WEP_Camo_001.mat",
+            "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Art/Materials/Weapons/M_WEP_CarbonFibre_001.mat",
+            "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Art/Materials/Weapons/M_WEP_Steel_Brushed_01.mat",
+            "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Art/Materials/Weapons/M_WEP_Basic_006.mat",
+            "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Art/Materials/Weapons/M_WEP_Basic_008.mat",
+            "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Art/Materials/Weapons/M_WEP_Basic_043.mat",
+            "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Art/Materials/Weapons/M_WEP_Basic_005.mat"
+        };
 
         [MenuItem("Reloader/Weapons/Build Starter Weapon Content")]
         public static void BuildStarterRifleContent()
         {
             EnsureDir(PrefabsDir);
             EnsureDir(DataDir);
+            EnsureDir(InventoryItemsDir);
+            EnsureDir(InventorySpawnsDir);
+            EnsurePackWeaponMaterialsCompatible();
 
             var sourceRiflePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SourceRiflePrefabPath);
             if (sourceRiflePrefab == null)
@@ -36,8 +54,8 @@ namespace Reloader.Weapons.Editor
             }
 
             BuildProjectilePrefab();
-            BuildViewPrefab("RifleView", sourceRiflePrefab, new Vector3(0f, 0.1f, 1f));
-            BuildPickupPrefab("RiflePickup", "weapon-rifle-01", sourceRiflePrefab, new Vector3(1.2f, 0.4f, 0.3f));
+            BuildViewPrefab("RifleView", sourceRiflePrefab, new Vector3(0f, 0.08f, 0.72f));
+            BuildPickupPrefab("RiflePickup", "weapon-rifle-01", sourceRiflePrefab, new Vector3(0.9f, 0.35f, 0.24f));
             BuildDefinitionAsset(
                 "StarterRifle.asset",
                 "weapon-rifle-01",
@@ -50,12 +68,21 @@ namespace Reloader.Weapons.Editor
                 220f,
                 0,
                 0,
-                false);
+                false,
+                "ammo-factory-308-147-fmj");
+            EnsureInventoryItemAndSpawn(
+                "Rifle_308_Starter",
+                "weapon-rifle-01",
+                ItemCategory.Weapon,
+                ItemStackPolicy.NonStackable,
+                1,
+                sourceRiflePrefab,
+                1);
 
             if (sourcePistolPrefab != null)
             {
-                BuildViewPrefab("PistolView", sourcePistolPrefab, new Vector3(0f, 0.08f, 0.55f));
-                BuildPickupPrefab("PistolPickup", "weapon-pistol-01", sourcePistolPrefab, new Vector3(0.7f, 0.3f, 0.25f));
+                BuildViewPrefab("PistolView", sourcePistolPrefab, new Vector3(0f, 0.07f, 0.42f));
+                BuildPickupPrefab("PistolPickup", "weapon-pistol-01", sourcePistolPrefab, new Vector3(0.5f, 0.26f, 0.2f));
                 BuildDefinitionAsset(
                     "StarterPistol.asset",
                     "weapon-pistol-01",
@@ -68,14 +95,90 @@ namespace Reloader.Weapons.Editor
                     90f,
                     1,
                     24,
-                    true);
+                    true,
+                    "ammo-factory-9x19-124-fmj");
+                EnsureInventoryItemAndSpawn(
+                    "Pistol_9x19_Starter",
+                    "weapon-pistol-01",
+                    ItemCategory.Weapon,
+                    ItemStackPolicy.NonStackable,
+                    1,
+                    sourcePistolPrefab,
+                    1);
             }
+
+            EnsureInventoryItemAndSpawn(
+                "Cartridge_308_147_FMJ_PMC_Bronze",
+                "ammo-factory-308-147-fmj",
+                ItemCategory.Bullet,
+                ItemStackPolicy.StackByDefinition,
+                999,
+                sourceRiflePrefab,
+                120);
+            EnsureInventoryItemAndSpawn(
+                "Ammo_Factory_9x19_124_FMJ",
+                "ammo-factory-9x19-124-fmj",
+                ItemCategory.Bullet,
+                ItemStackPolicy.StackByDefinition,
+                999,
+                sourcePistolPrefab != null ? sourcePistolPrefab : sourceRiflePrefab,
+                90);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log(sourcePistolPrefab != null
                 ? "Starter rifle + pistol content built under Assets/_Project/Weapons."
                 : "Starter rifle content built under Assets/_Project/Weapons (pistol skipped).");
+        }
+
+        private static void EnsurePackWeaponMaterialsCompatible()
+        {
+            var urpLit = Shader.Find("Universal Render Pipeline/Lit");
+            if (urpLit == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < PackWeaponMaterialPaths.Length; i++)
+            {
+                var material = AssetDatabase.LoadAssetAtPath<Material>(PackWeaponMaterialPaths[i]);
+                if (material == null)
+                {
+                    continue;
+                }
+
+                if (material.shader == urpLit)
+                {
+                    continue;
+                }
+
+                var mainTex = material.HasProperty("_MainTex") ? material.GetTexture("_MainTex") : null;
+                var color = material.HasProperty("_Color") ? material.GetColor("_Color") : Color.white;
+                var bumpMap = material.HasProperty("_BumpMap") ? material.GetTexture("_BumpMap") : null;
+
+                material.shader = urpLit;
+
+                if (material.HasProperty("_BaseMap") && mainTex != null)
+                {
+                    material.SetTexture("_BaseMap", mainTex);
+                }
+
+                if (material.HasProperty("_BaseColor"))
+                {
+                    material.SetColor("_BaseColor", color);
+                }
+
+                if (material.HasProperty("_BumpMap") && bumpMap != null)
+                {
+                    material.SetTexture("_BumpMap", bumpMap);
+                    if (material.HasProperty("_BumpScale"))
+                    {
+                        material.SetFloat("_BumpScale", 1f);
+                    }
+                }
+
+                EditorUtility.SetDirty(material);
+            }
         }
 
         private static void BuildProjectilePrefab()
@@ -135,7 +238,8 @@ namespace Reloader.Weapons.Editor
             float maxRangeMeters,
             int startingMagazineCount,
             int startingReserveCount,
-            bool startingChamberLoaded)
+            bool startingChamberLoaded,
+            string ammoItemId)
         {
             var assetPath = DataDir + "/" + fileName;
             var definition = AssetDatabase.LoadAssetAtPath<WeaponDefinition>(assetPath);
@@ -156,9 +260,48 @@ namespace Reloader.Weapons.Editor
                 maxRangeMeters,
                 startingMagazineCount,
                 startingReserveCount,
-                startingChamberLoaded);
+                startingChamberLoaded,
+                ammoItemId: ammoItemId);
 
             EditorUtility.SetDirty(definition);
+        }
+
+        private static void EnsureInventoryItemAndSpawn(
+            string baseName,
+            string itemId,
+            ItemCategory category,
+            ItemStackPolicy stackPolicy,
+            int maxStack,
+            GameObject iconSourcePrefab,
+            int spawnQuantity)
+        {
+            var itemPath = InventoryItemsDir + "/" + baseName + ".asset";
+            var item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(itemPath);
+            if (item == null)
+            {
+                item = ScriptableObject.CreateInstance<ItemDefinition>();
+                AssetDatabase.CreateAsset(item, itemPath);
+            }
+
+            item.SetValuesForTests(
+                itemId,
+                category,
+                baseName,
+                stackPolicy,
+                maxStack,
+                iconSourcePrefab);
+            EditorUtility.SetDirty(item);
+
+            var spawnPath = InventorySpawnsDir + "/" + baseName + "_Spawn.asset";
+            var spawn = AssetDatabase.LoadAssetAtPath<ItemSpawnDefinition>(spawnPath);
+            if (spawn == null)
+            {
+                spawn = ScriptableObject.CreateInstance<ItemSpawnDefinition>();
+                AssetDatabase.CreateAsset(spawn, spawnPath);
+            }
+
+            spawn.SetValuesForTests(item, spawnQuantity, 1f, 0, "{}");
+            EditorUtility.SetDirty(spawn);
         }
 
         private static void EnsureDir(string path)

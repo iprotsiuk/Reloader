@@ -42,10 +42,10 @@ namespace Reloader.World.Editor
             var createdCount = 0;
 
             var playerRoot = EnsureRootObject(scene, "PlayerRoot", ref changed, ref createdCount);
-            var cameraPivot = EnsureChild(playerRoot.transform, "CameraPivot", new Vector3(0f, 1.65f, 0f), ref changed, ref createdCount);
-            if (cameraPivot.localPosition != new Vector3(0f, 1.65f, 0f))
+            var cameraPivot = EnsureChild(playerRoot.transform, "CameraPivot", new Vector3(0f, 1.8f, 0f), ref changed, ref createdCount);
+            if (cameraPivot.localPosition != new Vector3(0f, 1.8f, 0f))
             {
-                cameraPivot.localPosition = new Vector3(0f, 1.65f, 0f);
+                cameraPivot.localPosition = new Vector3(0f, 1.8f, 0f);
                 changed = true;
             }
             var lookTarget = EnsureChild(cameraPivot, "CameraLookTarget", new Vector3(0f, 0f, 10f), ref changed, ref createdCount);
@@ -170,6 +170,13 @@ namespace Reloader.World.Editor
             var weaponController = GetOrAddComponent<PlayerWeaponController>(playerRoot, ref changed, ref createdCount);
 
             var camera = cameraPivot != null ? cameraPivot.GetComponentInChildren<Camera>(true) : null;
+            if (camera != null)
+            {
+                var cameraTransform = camera.transform;
+                cameraTransform.SetParent(cameraPivot, false);
+                cameraTransform.localPosition = Vector3.zero;
+                cameraTransform.localRotation = Quaternion.identity;
+            }
 
             var cameraDefaultsSo = new SerializedObject(cameraDefaults);
             cameraDefaultsSo.FindProperty("_mainCamera").objectReferenceValue = camera;

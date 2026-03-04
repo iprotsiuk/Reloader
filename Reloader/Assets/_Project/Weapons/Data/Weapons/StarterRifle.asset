@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Data.WeaponDefinition
   _itemId: weapon-rifle-01
   _displayName: Starter Rifle
-  _iconSourcePrefab: {fileID: 3370524904192748333, guid: a7111cb72b644402e83565473f10670b, type: 3}
+  _iconSourcePrefab: {fileID: 100100000, guid: 4af148b15f97d4845aabd2cb0d1b678c, type: 3}
   _magazineCapacity: 5
   _fireIntervalSeconds: 0.2
   _projectileSpeed: 120
@@ -25,11 +25,26 @@ MonoBehaviour:
   _startingMagazineCount: 0
   _startingReserveCount: 0
   _startingChamberLoaded: 0
+  _ammoItemId: ammo-factory-308-147-fmj
   _scopeConfiguration:
-    _isScopedWeapon: 1
-    _minZoom: 5
-    _maxZoom: 25
-    _defaultZoom: 5
-    _reticleId: ebr-7c
-    _defaultZeroMeters: 100
-    _zeroStepMeters: 25
+    _isScopedWeapon: 0
+    _minZoom: 0
+    _maxZoom: 0
+    _defaultZoom: 0
+    _reticleId: 
+    _defaultZeroMeters: 0
+    _zeroStepMeters: 0
+  _packPresentationConfiguration:
+    _useCustomConfig: 0
+    _customConfig:
+      _adsFieldOfView: 45
+      _adsFovLerpTime: 0.08
+      _reloadDurationSeconds: 0.35
+      _useAnimatorHooks: 1
+      _equippedBoolParameter: IsEquipped
+      _aimBoolParameter: IsAiming
+      _reloadBoolParameter: IsReloading
+      _reloadTriggerParameter: Reload
+      _fireTriggerParameter: Fire
+      _reloadStateName: Layer Actions.Reload
+      _fireStateName: Layer Actions.Fire

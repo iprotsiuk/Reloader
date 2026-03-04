@@ -40,7 +40,13 @@ namespace Reloader.Weapons.PackRuntime
             var wasReloading = State.IsReloading;
             State.SetEquipped(isEquipped);
             SetAnimatorBool(PresentationConfig.EquippedBoolParameter, isEquipped);
+            SetAnimatorBool(PresentationConfig.HolsteredBoolParameter, !isEquipped);
+            SetAnimatorFloat(
+                isEquipped ? PresentationConfig.UnholsterPlayRateFloatParameter : PresentationConfig.HolsterPlayRateFloatParameter,
+                isEquipped ? PresentationConfig.UnholsterPlayRate : PresentationConfig.HolsterPlayRate);
             SetAnimatorBool(PresentationConfig.AimBoolParameter, State.IsAiming);
+            SetAnimatorFloat(PresentationConfig.AimFloatParameter, State.IsAiming ? PresentationConfig.AimOnValue : PresentationConfig.AimOffValue);
+            SetAnimatorFloat(PresentationConfig.AimingSpeedMultiplierFloatParameter, PresentationConfig.AimingSpeedMultiplier);
             SetAnimatorBool(PresentationConfig.ReloadBoolParameter, State.IsReloading);
 
             if (wasAiming != State.IsAiming)
@@ -60,6 +66,8 @@ namespace Reloader.Weapons.PackRuntime
             if (changed)
             {
                 SetAnimatorBool(PresentationConfig.AimBoolParameter, State.IsAiming);
+                SetAnimatorFloat(PresentationConfig.AimFloatParameter, State.IsAiming ? PresentationConfig.AimOnValue : PresentationConfig.AimOffValue);
+                SetAnimatorFloat(PresentationConfig.AimingSpeedMultiplierFloatParameter, PresentationConfig.AimingSpeedMultiplier);
                 AimStateChanged?.Invoke(State.IsAiming);
             }
 
@@ -89,11 +97,16 @@ namespace Reloader.Weapons.PackRuntime
             if (wasAiming != State.IsAiming)
             {
                 SetAnimatorBool(PresentationConfig.AimBoolParameter, State.IsAiming);
+                SetAnimatorFloat(PresentationConfig.AimFloatParameter, State.IsAiming ? PresentationConfig.AimOnValue : PresentationConfig.AimOffValue);
                 AimStateChanged?.Invoke(State.IsAiming);
             }
 
             SetAnimatorBool(PresentationConfig.ReloadBoolParameter, true);
-            SetAnimatorTrigger(PresentationConfig.ReloadTriggerParameter);
+            SetAnimatorBool("Reloading", true);
+            if (!SetAnimatorTrigger(PresentationConfig.ReloadTriggerParameter))
+            {
+                PlayAnimatorState(PresentationConfig.ReloadStateName, "Layer Actions.Reload", "Reload");
+            }
             ReloadStateChanged?.Invoke(true);
             return true;
         }
@@ -106,6 +119,7 @@ namespace Reloader.Weapons.PackRuntime
             }
 
             SetAnimatorBool(PresentationConfig.ReloadBoolParameter, false);
+            SetAnimatorBool("Reloading", false);
             ReloadStateChanged?.Invoke(false);
             return true;
         }
@@ -118,6 +132,7 @@ namespace Reloader.Weapons.PackRuntime
             }
 
             SetAnimatorBool(PresentationConfig.ReloadBoolParameter, false);
+            SetAnimatorBool("Reloading", false);
             ReloadStateChanged?.Invoke(false);
             return true;
         }
@@ -130,7 +145,10 @@ namespace Reloader.Weapons.PackRuntime
         public void NotifyFire(float now, float fireIntervalSeconds)
         {
             State.MarkFired(now, fireIntervalSeconds);
-            SetAnimatorTrigger(PresentationConfig.FireTriggerParameter);
+            if (!SetAnimatorTrigger(PresentationConfig.FireTriggerParameter))
+            {
+                PlayAnimatorState(PresentationConfig.FireStateName, "Layer Actions.Fire", "Fire");
+            }
             FirePresented?.Invoke();
         }
 
@@ -141,17 +159,116 @@ namespace Reloader.Weapons.PackRuntime
                 return;
             }
 
-            _animator.SetBool(parameterName, value);
+            if (HasBoolParameter(parameterName))
+            {
+                _animator.SetBool(parameterName, value);
+            }
         }
 
-        private void SetAnimatorTrigger(string parameterName)
+        private bool SetAnimatorTrigger(string parameterName)
+        {
+            if (!CanDriveAnimator() || string.IsNullOrWhiteSpace(parameterName))
+            {
+                return false;
+            }
+
+            if (!HasTriggerParameter(parameterName))
+            {
+                return false;
+            }
+
+            _animator.SetTrigger(parameterName);
+            return true;
+        }
+
+        private void SetAnimatorFloat(string parameterName, float value)
         {
             if (!CanDriveAnimator() || string.IsNullOrWhiteSpace(parameterName))
             {
                 return;
             }
 
-            _animator.SetTrigger(parameterName);
+            if (HasFloatParameter(parameterName))
+            {
+                _animator.SetFloat(parameterName, value);
+            }
+        }
+
+        private void PlayAnimatorState(string preferred, string fallbackA, string fallbackB)
+        {
+            if (!CanDriveAnimator())
+            {
+                return;
+            }
+
+            if (!TryPlay(preferred) && !TryPlay(fallbackA))
+            {
+                TryPlay(fallbackB);
+            }
+        }
+
+        private bool TryPlay(string stateName)
+        {
+            if (string.IsNullOrWhiteSpace(stateName))
+            {
+                return false;
+            }
+
+            var stateHash = Animator.StringToHash(stateName);
+            for (var layer = 0; layer < _animator.layerCount; layer++)
+            {
+                if (!_animator.HasState(layer, stateHash))
+                {
+                    continue;
+                }
+
+                _animator.Play(stateName, layer, 0f);
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool HasBoolParameter(string parameterName)
+        {
+            var parameters = _animator.parameters;
+            for (var i = 0; i < parameters.Length; i++)
+            {
+                if (parameters[i].name == parameterName && parameters[i].type == AnimatorControllerParameterType.Bool)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool HasTriggerParameter(string parameterName)
+        {
+            var parameters = _animator.parameters;
+            for (var i = 0; i < parameters.Length; i++)
+            {
+                if (parameters[i].name == parameterName && parameters[i].type == AnimatorControllerParameterType.Trigger)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool HasFloatParameter(string parameterName)
+        {
+            var parameters = _animator.parameters;
+            for (var i = 0; i < parameters.Length; i++)
+            {
+                if (parameters[i].name == parameterName && parameters[i].type == AnimatorControllerParameterType.Float)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool CanDriveAnimator()

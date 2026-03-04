@@ -221,7 +221,66 @@ namespace Reloader.Player.Viewmodel
 
         private void ResolveAnimator()
         {
-            _animator ??= GetComponentInChildren<Animator>(true);
+            if (!IsAnimatorOnPlayerHierarchy(_animator))
+            {
+                _animator = ResolveViewmodelAnimator();
+            }
+        }
+
+        private Animator ResolveViewmodelAnimator()
+        {
+            var explicitPath = transform.Find("CameraPivot/PlayerArms/PlayerArmsVisual");
+            if (explicitPath != null)
+            {
+                var explicitAnimator = explicitPath.GetComponent<Animator>() ?? explicitPath.GetComponentInChildren<Animator>(true);
+                if (explicitAnimator != null)
+                {
+                    return explicitAnimator;
+                }
+            }
+
+            var byName = FindDescendantByName(transform, "PlayerArmsVisual");
+            if (byName != null)
+            {
+                var namedAnimator = byName.GetComponent<Animator>() ?? byName.GetComponentInChildren<Animator>(true);
+                if (namedAnimator != null)
+                {
+                    return namedAnimator;
+                }
+            }
+
+            return GetComponentInChildren<Animator>(true);
+        }
+
+        private static Transform FindDescendantByName(Transform root, string targetName)
+        {
+            if (root == null || string.IsNullOrWhiteSpace(targetName))
+            {
+                return null;
+            }
+
+            if (root.name == targetName)
+            {
+                return root;
+            }
+
+            for (var i = 0; i < root.childCount; i++)
+            {
+                var found = FindDescendantByName(root.GetChild(i), targetName);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
+        }
+
+        private bool IsAnimatorOnPlayerHierarchy(Animator animator)
+        {
+            return animator != null
+                && animator.transform != null
+                && (animator.transform == transform || animator.transform.IsChildOf(transform));
         }
 
         private void CacheHashes()

@@ -104,6 +104,7 @@ namespace Reloader.Weapons.Data
         [SerializeField] private int _startingMagazineCount = 4;
         [SerializeField] private int _startingReserveCount = 24;
         [SerializeField] private bool _startingChamberLoaded = true;
+        [SerializeField] private string _ammoItemId = "ammo-factory-308-147-fmj";
         [SerializeField] private WeaponScopeConfiguration _scopeConfiguration;
         [SerializeField] private WeaponPackPresentationConfiguration _packPresentationConfiguration;
 
@@ -120,6 +121,7 @@ namespace Reloader.Weapons.Data
         public int StartingMagazineCount => Mathf.Clamp(_startingMagazineCount, 0, MagazineCapacity);
         public int StartingReserveCount => Mathf.Max(0, _startingReserveCount);
         public bool StartingChamberLoaded => _startingChamberLoaded;
+        public string AmmoItemId => string.IsNullOrWhiteSpace(_ammoItemId) ? "ammo-factory-308-147-fmj" : _ammoItemId;
         public WeaponScopeConfiguration ScopeConfiguration => _scopeConfiguration;
         public WeaponPackPresentationConfiguration PackPresentationConfiguration => _packPresentationConfiguration;
 
@@ -142,7 +144,8 @@ namespace Reloader.Weapons.Data
             bool startingChamberLoaded = true,
             float adsSpeedMultiplier = 0.7f,
             WeaponScopeConfiguration? scopeConfiguration = null,
-            WeaponPackPresentationConfiguration? packPresentationConfiguration = null)
+            WeaponPackPresentationConfiguration? packPresentationConfiguration = null,
+            string ammoItemId = "ammo-factory-308-147-fmj")
         {
             _itemId = itemId;
             _displayName = displayName;
@@ -157,6 +160,7 @@ namespace Reloader.Weapons.Data
             _startingMagazineCount = startingMagazineCount;
             _startingReserveCount = startingReserveCount;
             _startingChamberLoaded = startingChamberLoaded;
+            _ammoItemId = ammoItemId;
             _scopeConfiguration = scopeConfiguration ?? default;
             _packPresentationConfiguration = packPresentationConfiguration ?? default;
         }
