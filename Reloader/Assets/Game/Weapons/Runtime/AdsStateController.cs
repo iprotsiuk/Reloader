@@ -58,6 +58,8 @@ namespace Reloader.Game.Weapons
         private float _baseViewmodelFov = 60f;
         private float _targetMagnification = 1f;
         private float _nextDebugLogTime;
+        private int _externalAdsSetFrame = -1;
+        private int _externalMagnificationSetFrame = -1;
 
         public bool IsAdsActive => _isAdsHeld;
         public float AdsT { get; private set; }
@@ -134,11 +136,13 @@ namespace Reloader.Game.Weapons
         public void SetAdsHeld(bool held)
         {
             _isAdsHeld = held;
+            _externalAdsSetFrame = Time.frameCount;
         }
 
         public void SetMagnification(float magnification)
         {
             _targetMagnification = ResolveClampedMagnification(magnification);
+            _externalMagnificationSetFrame = Time.frameCount;
         }
 
         public void SetWeaponDefinition(WeaponDefinition weaponDefinition)
@@ -153,20 +157,31 @@ namespace Reloader.Game.Weapons
 
         private void TickInput()
         {
+            var externalAdsThisFrame = _externalAdsSetFrame == Time.frameCount;
+            var externalMagThisFrame = _externalMagnificationSetFrame == Time.frameCount;
+
             if (!_useLegacyInput || _legacyInputUnavailable)
             {
                 return;
             }
 
-            var held = SafeGetKey(_adsKey);
-            if (!_adsButtonUnavailable && !string.IsNullOrWhiteSpace(_adsButton))
+            if (!externalAdsThisFrame)
             {
-                held |= SafeGetButton(_adsButton);
+                var held = SafeGetKey(_adsKey);
+                if (!_adsButtonUnavailable && !string.IsNullOrWhiteSpace(_adsButton))
+                {
+                    held |= SafeGetButton(_adsButton);
+                }
+
+                _isAdsHeld = held;
             }
 
-            SetAdsHeld(held);
-
             if (_zoomOnlyWhileAds && !_isAdsHeld)
+            {
+                return;
+            }
+
+            if (externalMagThisFrame)
             {
                 return;
             }
@@ -257,7 +272,7 @@ namespace Reloader.Game.Weapons
             var policy = optic != null ? optic.VisualModePolicy : AdsVisualMode.Auto;
 
             var useMask = ResolveMaskMode(policy, CurrentMagnification);
-            var adsVisible = _isAdsHeld && AdsT > 0.01f;
+            var adsVisible = AdsT > 0.01f;
 
             if (_scopeMaskController != null)
             {
