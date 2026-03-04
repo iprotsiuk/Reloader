@@ -2,6 +2,8 @@
 
 > Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
 
+> Migration Update (2026-03-04): This plan references the `_Project/Weapons` framework bootstrap. For FPS ADS + optics/scope behavior, use the implemented framework in `Reloader/Assets/Game/Weapons/**` and the canonical design doc `docs/design/ads-optics-framework.md`.
+
 
 **Date:** 2026-02-24  
 **Scope:** Future-proof weapon framework first, with one rifle as the first implemented content item.

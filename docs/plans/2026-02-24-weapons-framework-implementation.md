@@ -2,6 +2,8 @@
 
 > Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
 
+> Migration Update (2026-03-04): ADS + optics + variable zoom alignment is implemented under `Reloader/Assets/Game/Weapons/**`. Treat this plan as historical for `_Project/Weapons` implementation sequencing and follow `docs/design/ads-optics-framework.md` for current aiming/scope runtime contracts.
+
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 

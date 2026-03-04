@@ -18,7 +18,8 @@ Read these docs first (in order):
 1. `docs/design/core-architecture.md` — shared patterns, SO system, project structure
 2. `docs/design/reloading-system.md` — reloading data models and mechanics (if adding reloading components)
 3. `docs/design/weapons-and-ballistics.md` — weapon data models (if adding weapons/parts)
-4. `.agent/skills/unity-project-conventions/SKILL.md` — coding standards
+4. `docs/design/ads-optics-framework.md` — implemented ADS/optics runtime + data contract (if adding optics/sights/ADS content)
+5. `.agent/skills/unity-project-conventions/SKILL.md` — coding standards
 
 See `docs/design/README.md` for the full routing index.
 
@@ -202,7 +203,7 @@ WeaponPartDefinition is an abstract base. Each slot type has specific fields:
 - `type` — Milspec / Match / Adjustable
 - `price`, `customProperties`
 
-**OpticDefinition:**
+**Legacy modular-part optic metadata (`WeaponPartDefinition` path):**
 - `name`, `slotType` (Optic)
 - `magnification` — e.g., "4-16x" or fixed
 - `quality` — 0.0-1.0 (affects tracking, parallax, clarity)
@@ -222,6 +223,69 @@ WeaponPartDefinition is an abstract base. Each slot type has specific fields:
 - Additional fields as needed via customProperties
 
 Corresponding runtime instances (e.g., `BarrelPartInstance`) track per-instance state: `roundCount`, `throatErosion`, `condition`, etc.
+
+### Adding a New ADS Weapon Definition (Implemented FPS Framework)
+
+Use this when authoring first-person ADS/viewmodel weapon behavior.
+
+**File:** `Reloader/Assets/Game/Weapons/WeaponDefinitions/<WeaponId>.asset`  
+**Class:** `Reloader/Assets/Game/Weapons/WeaponDefinitions/WeaponDefinition.cs`
+
+Required fields:
+- `weaponId`
+- `viewModelPrefab`
+- `adsInTime`
+- `adsOutTime`
+- `baseAdsSensitivityScale`
+- `baseAdsSwayScale`
+- `defaultWorldFov`
+- `defaultViewmodelFov`
+
+Viewmodel prefab contract:
+
+```text
+ViewModelRoot
+ |- AdsPivot
+ |- Attachments/ScopeSlot
+ |- Defaults/IronSightAnchor
+ |- Muzzle
+ |- Eject
+```
+
+### Adding a New ADS Optic / Sight Definition (Implemented FPS Framework)
+
+Use this for red dots, holos, prisms, LPVOs, and high-mag scopes used by the camera-aligned ADS runtime.
+
+**File:** `Reloader/Assets/Game/Weapons/WeaponDefinitions/<OpticId>.asset`  
+**Class:** `Reloader/Assets/Game/Weapons/WeaponDefinitions/OpticDefinition.cs`
+
+Required fields:
+- `opticId`
+- `category` (`Irons`, `RedDot`, `Holo`, `Prism`, `LPVO`, `ScopeHighMag`)
+- `opticPrefab`
+- `isVariableZoom`
+- `magnificationMin` / `magnificationMax` / `magnificationStep`
+- `visualModePolicy` (`Auto`, `Mask`, `RenderTexturePiP`)
+- `eyeReliefBackOffset`
+
+Optional fields:
+- reticle sprite
+- scope render profile (`renderTextureResolution`, `scopeCameraFov`)
+
+Rules:
+- Magnification contract is clamped to `1x..40x`.
+- `Auto` visual mode: `<=2x` no mask, `>=4x` mask.
+- Optic prefab must include `SightAnchor` child at eye position behind optic.
+
+```text
+OpticPrefab
+ |- SightAnchor
+```
+
+Runtime integration for authored content:
+- `AttachmentManager.EquipOptic(OpticDefinition)`
+- `AdsStateController` consumes magnification/visual policy
+- `WeaponAimAligner` aligns active `SightAnchor` to camera in `LateUpdate`
 
 ### Factory Ammo
 

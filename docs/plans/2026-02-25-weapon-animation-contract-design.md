@@ -2,6 +2,8 @@
 
 > Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
 
+> Migration Update (2026-03-04): FPS ADS/optic alignment is implemented via `Reloader/Assets/Game/Weapons/**` (code-driven camera-authoritative model). Keep this document as historical contract-design context and use `docs/design/ads-optics-framework.md` for active ADS/scope implementation behavior.
+
 
 **Date:** 2026-02-25  
 **Scope:** Reusable FPS-viewmodel weapon animation architecture that scales to multiple weapons now and world-character adapters later.

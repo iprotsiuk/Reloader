@@ -46,9 +46,6 @@
                             <ui:VisualElement name="inventory__belt-slot-2" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
                             <ui:VisualElement name="inventory__belt-slot-3" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
                             <ui:VisualElement name="inventory__belt-slot-4" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
-                            <ui:VisualElement class="inventory__slot ui-kit__slot inventory__slot--belt"/>
-                            <ui:VisualElement class="inventory__slot ui-kit__slot inventory__slot--belt"/>
-                            <ui:VisualElement class="inventory__slot ui-kit__slot inventory__slot--belt"/>
                         </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement class="inventory__details" style="min-width: auto; width: auto;">

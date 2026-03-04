@@ -33,6 +33,7 @@ Reloader/Assets/_Project/<Feature>/
 - NEVER put custom code in `Reloader/Assets/ThirdParty/`
 - NEVER put scripts in the root `Reloader/Assets/` folder
 - NEVER create a new top-level folder under `Reloader/Assets/_Project/` without checking the design doc first
+- Implemented exception: FPS ADS/optics framework currently lives in `Reloader/Assets/Game/Weapons/**` and should be extended in-place for optics/sights/aiming work.
 
 ## Naming Conventions
 

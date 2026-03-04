@@ -2,6 +2,8 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
+> **Migration Update (2026-03-04):** ADS/optics aiming is now implemented under `Reloader/Assets/Game/Weapons/**` with a camera-authoritative `SightAnchor` alignment contract. Treat this plan as historical for `_Project/Weapons` runtime migration and prefer `docs/design/ads-optics-framework.md` for current ADS/scope behavior.
+
 **Goal:** Replace old ADS/reload weapon behavior with pack-driven behavior while keeping inventory as the only gameplay dependency.
 
 **Architecture:** Keep `PlayerWeaponController` as runtime entrypoint to avoid scene/wiring churn, but move ADS/reload/fire timing/presentation to a new pack-runtime subsystem. Inventory remains source of equipped item and ammo consumption. Existing runtime events continue to be raised from the new flow.

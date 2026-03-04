@@ -134,6 +134,38 @@ Each round in the magazine is a specific `AmmoInstance`. Match-grade loads carry
 
 - ADS is gameplay-authoritative in v0.1: movement speed is multiplied by weapon/profile ADS multiplier (default `0.7`) while aiming.
 
+### ADS + Optics Runtime Contract [v0.1 Implemented]
+
+Implemented FPS ADS/optics framework lives under `Reloader/Assets/Game/Weapons/**` and uses camera-authoritative alignment:
+
+- `AttachmentManager` mounts optics and exposes active `SightAnchor`.
+- `AdsStateController` drives ADS blend (`AdsT`), variable zoom (`1x-40x`), FOV mapping, and visual mode state.
+- `WeaponAimAligner` runs in `LateUpdate`, solving alignment from camera to sight anchor:
+  - `delta = Camera_world * inverse(SightAnchor_world)`
+  - apply delta to `AdsPivot` with position/rotation smoothing.
+- `ScopeMaskController` handles mask + reticle UI for high-magnification ADS.
+- `RenderTextureScopeController` is a lightweight PiP stub path for opt-in scope rendering.
+
+Visual policy (`AdsVisualMode.Auto`):
+- magnification `<= 2x` -> no mask
+- magnification `>= 4x` -> mask
+
+Prefab contract:
+
+```text
+ViewModelRoot
+ |- AdsPivot
+ |- Attachments/ScopeSlot
+ |- Defaults/IronSightAnchor
+```
+
+```text
+OpticPrefab
+ |- SightAnchor
+```
+
+Authoring details and setup are defined in [ads-optics-framework.md](ads-optics-framework.md).
+
 ---
 
 ## Competition Spectrum [v0.2]

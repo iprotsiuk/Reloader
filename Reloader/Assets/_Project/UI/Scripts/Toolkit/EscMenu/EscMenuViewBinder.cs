@@ -7,6 +7,7 @@ namespace Reloader.UI.Toolkit.EscMenu
 {
     public sealed class EscMenuViewBinder : IUiViewBinder
     {
+        private VisualElement _escRoot;
         private VisualElement _panel;
         private VisualElement _mainScreen;
         private VisualElement _settingsScreen;
@@ -40,6 +41,7 @@ namespace Reloader.UI.Toolkit.EscMenu
         {
             UnregisterCallbacks();
 
+            _escRoot = root?.Q<VisualElement>("esc-menu__root");
             _panel = root?.Q<VisualElement>("esc-menu__panel");
             _mainScreen = root?.Q<VisualElement>("esc-menu__screen-main");
             _settingsScreen = root?.Q<VisualElement>("esc-menu__screen-settings");
@@ -65,6 +67,13 @@ namespace Reloader.UI.Toolkit.EscMenu
             _musicVolumeSlider = root?.Q<Slider>("esc-menu__music-volume");
             _soundsVolumeSlider = root?.Q<Slider>("esc-menu__sounds-volume");
 
+            if (_escRoot != null)
+            {
+                // Default to fully non-interactive until first render sync.
+                _escRoot.style.display = DisplayStyle.None;
+                _escRoot.pickingMode = PickingMode.Ignore;
+            }
+
             RegisterCallbacks();
         }
 
@@ -73,6 +82,12 @@ namespace Reloader.UI.Toolkit.EscMenu
             if (state is not EscMenuUiState escState)
             {
                 return;
+            }
+
+            if (_escRoot != null)
+            {
+                _escRoot.style.display = escState.IsOpen ? DisplayStyle.Flex : DisplayStyle.None;
+                _escRoot.pickingMode = escState.IsOpen ? PickingMode.Position : PickingMode.Ignore;
             }
 
             if (_panel != null)

@@ -43,6 +43,13 @@ Feature-based folder organization. Each feature is self-contained so an AI agent
 
 ```
 Reloader/Assets/
+├── Game/                        # Implemented FPS ADS/optics module (camera-aligned viewmodel aiming)
+│   └── Weapons/
+│       ├── Common/
+│       ├── WeaponDefinitions/
+│       ├── Runtime/
+│       ├── UI/
+│       └── Docs/
 ├── _Project/                    # All custom code and assets
 │   ├── Core/                    # Shared utilities, singletons, events, save system
 │   ├── Player/                  # FPS controller, camera, interaction system
@@ -75,6 +82,7 @@ Each feature folder contains: `Scripts/`, `Data/` (SO assets), `Prefabs/`, optio
 - `ThirdParty/` is never modified. Custom code imports from it but never changes it.
 - Each feature folder is self-contained by default. Cross-feature changes are allowed only when the task explicitly spans domains, and should be limited to event contracts/shared interfaces rather than direct system coupling.
 - ScriptableObject data assets live in `Data/` subfolders alongside their scripts.
+- Implemented exception: FPS ADS/optics runtime currently lives in `Reloader/Assets/Game/Weapons/**` with its own SO/runtime contracts (see `docs/design/ads-optics-framework.md`).
 
 ---
 
@@ -89,7 +97,7 @@ ItemDefinition (abstract base SO — physical items the player can carry/own)
 │   ├── BarrelDefinition   → caliber, twistRate, freeBore, quality, profile, length, isFreefloated
 │   ├── ActionDefinition   → quality, beddingType, ratedPressure
 │   ├── TriggerDefinition  → pullWeight, creep, type
-│   ├── OpticDefinition    → magnification, quality, mountQuality, reticleType
+│   ├── OpticDefinition    → legacy modular-part optic metadata (quality/mount/reticle)
 │   ├── MuzzleDeviceDefinition → type, quality, suppressionRating
 │   └── GenericPartDefinition  → bolt, stock, grip, bipod, cosmetics, etc.
 ├── ComponentDefinition    → type (powder/primer/case/bullet), properties
@@ -108,6 +116,10 @@ CaliberDefinition (standalone SO — reference data, not a physical item)
 FactoryAmmoTemplate (standalone SO — spawning template, not a physical item)
 → brand, SKU, quality tier, component references, factory consistency profile, SAAMI compliance flag
 → Used by shops to spawn pre-built AmmoInstance batches from component definitions with factory-process variance targets
+
+FPS ADS/optics definitions (implemented under `Reloader/Assets/Game/Weapons/WeaponDefinitions/`)
+├── WeaponDefinition       → viewmodel prefab, ADS in/out time, ADS sensitivity/sway scales, world/viewmodel FOV defaults
+└── OpticDefinition        → optic prefab, variable zoom (1x-40x), visual mode policy (Auto/Mask/RenderTexturePiP), eye relief, optional scope render profile
 ```
 
 To add a new item: create one `.asset` file with stats. No code changes required.

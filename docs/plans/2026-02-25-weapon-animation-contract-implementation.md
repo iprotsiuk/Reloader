@@ -2,6 +2,8 @@
 
 > Status Pointer (2026-02-28): This is a planning/execution artifact. For live implemented-vs-planned status, use `docs/design/v0.1-demo-status-and-milestones.md`.
 
+> Migration Update (2026-03-04): ADS optics behavior is now implemented in `Reloader/Assets/Game/Weapons/**` (`AttachmentManager`, `AdsStateController`, `WeaponAimAligner`, `ScopeMaskController`). This plan remains a historical implementation record; current ADS/scope contract lives in `docs/design/ads-optics-framework.md`.
+
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 

@@ -168,7 +168,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                     slot.RegisterCallback<PointerEnterEvent>(evt => TryPointerEnter("belt", capturedIndex, evt.position));
                     slot.RegisterCallback<PointerMoveEvent>(evt => TryPointerMove("belt", capturedIndex, evt.position));
                     slot.RegisterCallback<PointerLeaveEvent>(_ => HideTooltip());
-                    slot.RegisterCallback<PointerUpEvent>(_ => TryPointerUp("belt", capturedIndex));
+                    slot.RegisterCallback<PointerUpEvent>(evt => TryPointerUp("belt", capturedIndex, evt.pointerId));
                     slot.RegisterCallback<ClickEvent>(_ => HandleSlotClick("belt", capturedIndex));
                 }
             }
@@ -188,7 +188,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                     slot.RegisterCallback<PointerEnterEvent>(evt => TryPointerEnter("backpack", capturedIndex, evt.position));
                     slot.RegisterCallback<PointerMoveEvent>(evt => TryPointerMove("backpack", capturedIndex, evt.position));
                     slot.RegisterCallback<PointerLeaveEvent>(_ => HideTooltip());
-                    slot.RegisterCallback<PointerUpEvent>(_ => TryPointerUp("backpack", capturedIndex));
+                    slot.RegisterCallback<PointerUpEvent>(evt => TryPointerUp("backpack", capturedIndex, evt.pointerId));
                     slot.RegisterCallback<ClickEvent>(_ => HandleSlotClick("backpack", capturedIndex));
                 }
             }
@@ -809,9 +809,14 @@ namespace Reloader.UI.Toolkit.TabInventory
             return true;
         }
 
-        private bool TryPointerUp(string container, int slotIndex)
+        private bool TryPointerUp(string container, int slotIndex, int pointerId = -1)
         {
             if (_dragSourceIndex < 0 || slotIndex < 0)
+            {
+                return false;
+            }
+
+            if (!IsMatchingActivePointer(pointerId))
             {
                 return false;
             }
@@ -844,19 +849,29 @@ namespace Reloader.UI.Toolkit.TabInventory
                     return;
                 }
 
+                if (!IsMatchingActivePointer(evt.pointerId))
+                {
+                    return;
+                }
+
                 if (IsPointerOverAnySlot(evt.position))
                 {
                     return;
                 }
 
                 _suppressNextClick = true;
-                TryPointerUpOutsideSlots();
+                TryPointerUpOutsideSlots(evt.pointerId);
             }, TrickleDown.TrickleDown);
         }
 
-        private bool TryPointerUpOutsideSlots()
+        private bool TryPointerUpOutsideSlots(int pointerId = -1)
         {
             if (_dragSourceIndex < 0)
+            {
+                return false;
+            }
+
+            if (!IsMatchingActivePointer(pointerId))
             {
                 return false;
             }
@@ -1058,6 +1073,11 @@ namespace Reloader.UI.Toolkit.TabInventory
         private void ReleaseCapturedPointer()
         {
             _activePointerId = -1;
+        }
+
+        private bool IsMatchingActivePointer(int pointerId)
+        {
+            return pointerId < 0 || _activePointerId < 0 || pointerId == _activePointerId;
         }
 
         private void ApplyDragVisuals()

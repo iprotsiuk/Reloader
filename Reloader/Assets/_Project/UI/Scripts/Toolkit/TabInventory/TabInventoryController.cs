@@ -240,6 +240,11 @@ namespace Reloader.UI.Toolkit.TabInventory
                 {
                     Refresh();
                 }
+                else
+                {
+                    Debug.LogWarning(
+                        $"TabInventory drag failed ({intent.Key}) src={dragPayload.SourceContainer}[{dragPayload.SourceIndex}] -> dst={dragPayload.TargetContainer}[{dragPayload.TargetIndex}]");
+                }
 
                 return;
             }
@@ -252,6 +257,11 @@ namespace Reloader.UI.Toolkit.TabInventory
                 if (dropped)
                 {
                     Refresh();
+                }
+                else
+                {
+                    Debug.LogWarning(
+                        $"TabInventory drag drop failed src={dropPayload.SourceContainer}[{dropPayload.SourceIndex}]");
                 }
             }
         }
