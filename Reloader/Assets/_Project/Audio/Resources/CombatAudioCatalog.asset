@@ -25,16 +25,8 @@ MonoBehaviour:
   - {fileID: 8300000, guid: 9bcd1a9caa7e64c80acbae0876635e94, type: 3}
   - {fileID: 8300000, guid: 0283d9c941e2a4d7b99c651bcac61fc3, type: 3}
   - {fileID: 8300000, guid: cc5d427cef6a541a9a46eecd196fc7ce, type: 3}
-  _defaultReloadStartClips:
-  - {fileID: 8300000, guid: 64cc69f377c7345edb9a65456ffc19e7, type: 3}
-  - {fileID: 8300000, guid: 8bf84bf48356341cda897629a2c2a0f8, type: 3}
-  - {fileID: 8300000, guid: 5f59d322fd6c04feca5d082c463ea321, type: 3}
-  - {fileID: 8300000, guid: 8d9d2f4ede94b4954a785e1cadd66a3e, type: 3}
-  _defaultReloadCompleteClips:
-  - {fileID: 8300000, guid: 178bf7e58282c4340b089a42e0cbfce3, type: 3}
-  - {fileID: 8300000, guid: 9bcd1a9caa7e64c80acbae0876635e94, type: 3}
-  - {fileID: 8300000, guid: 0283d9c941e2a4d7b99c651bcac61fc3, type: 3}
-  - {fileID: 8300000, guid: cc5d427cef6a541a9a46eecd196fc7ce, type: 3}
+  _defaultReloadStartClips: []
+  _defaultReloadCompleteClips: []
   _weaponShotGroups:
   - _weaponId: weapon-rifle-01
     _fireClips:
@@ -44,12 +36,8 @@ MonoBehaviour:
     - {fileID: 8300000, guid: 8d9d2f4ede94b4954a785e1cadd66a3e, type: 3}
     - {fileID: 8300000, guid: dfd60e7dfcb3447e6b230766cc923d1b, type: 3}
     - {fileID: 8300000, guid: 12a5118f01f7e483790758337cbece4b, type: 3}
-    _reloadStartClips:
-    - {fileID: 8300000, guid: 64cc69f377c7345edb9a65456ffc19e7, type: 3}
-    - {fileID: 8300000, guid: 8bf84bf48356341cda897629a2c2a0f8, type: 3}
-    _reloadCompleteClips:
-    - {fileID: 8300000, guid: 0283d9c941e2a4d7b99c651bcac61fc3, type: 3}
-    - {fileID: 8300000, guid: cc5d427cef6a541a9a46eecd196fc7ce, type: 3}
+    _reloadStartClips: []
+    _reloadCompleteClips: []
   _impactGroups:
   - _surfaceId: Default
     _clips:
