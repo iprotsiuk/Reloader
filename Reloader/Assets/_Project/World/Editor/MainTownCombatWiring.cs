@@ -20,7 +20,7 @@ namespace Reloader.World.Editor
     public static class MainTownCombatWiring
     {
         private static readonly Vector3 ArmsLocalPosition = new Vector3(0f, -0.12f, 0.3f);
-        private static readonly Vector3 ArmsLocalRotation = Vector3.zero;
+        private static readonly Vector3 ArmsLocalRotation = new Vector3(-90f, 0f, 0f);
         private static readonly Vector3 ArmsLocalScale = new Vector3(0.42f, 0.42f, 0.42f);
         private static readonly Vector3 CameraPivotLocalPosition = new Vector3(0f, 1.8f, 0f);
         private const string TargetScenePath = "Assets/_Project/World/Scenes/MainTown.unity";
@@ -140,26 +140,33 @@ namespace Reloader.World.Editor
             var animatorDriver = GetOrAddComponent<FpsViewmodelAnimatorDriver>(playerRoot);
             var viewmodelAdapter = GetOrAddComponent<ViewmodelAnimationAdapter>(playerRoot);
 
-            var inventorySo = new SerializedObject(inventoryController);
-            var itemDefinitions = inventorySo.FindProperty("_itemDefinitionRegistry");
-            if (itemDefinitions != null)
+            if (inventoryController != null)
             {
-                var rifleItem = AssetDatabase.LoadAssetAtPath<ItemDefinition>(RifleItemDefinitionPath);
-                var pistolItem = AssetDatabase.LoadAssetAtPath<ItemDefinition>(PistolItemDefinitionPath);
-                var ammo308Item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(Ammo308ItemDefinitionPath);
-                var ammo9x19Item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(Ammo9x19ItemDefinitionPath);
-                var values = new List<ItemDefinition>();
-                if (rifleItem != null) values.Add(rifleItem);
-                if (pistolItem != null) values.Add(pistolItem);
-                if (ammo308Item != null) values.Add(ammo308Item);
-                if (ammo9x19Item != null) values.Add(ammo9x19Item);
-                itemDefinitions.arraySize = values.Count;
-                for (var i = 0; i < values.Count; i++)
+                var inventorySo = new SerializedObject(inventoryController);
+                var itemDefinitions = inventorySo.FindProperty("_itemDefinitionRegistry");
+                if (itemDefinitions != null)
                 {
-                    itemDefinitions.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
-                }
+                    var rifleItem = AssetDatabase.LoadAssetAtPath<ItemDefinition>(RifleItemDefinitionPath);
+                    var pistolItem = AssetDatabase.LoadAssetAtPath<ItemDefinition>(PistolItemDefinitionPath);
+                    var ammo308Item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(Ammo308ItemDefinitionPath);
+                    var ammo9x19Item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(Ammo9x19ItemDefinitionPath);
+                    var values = new List<ItemDefinition>();
+                    if (rifleItem != null) values.Add(rifleItem);
+                    if (pistolItem != null) values.Add(pistolItem);
+                    if (ammo308Item != null) values.Add(ammo308Item);
+                    if (ammo9x19Item != null) values.Add(ammo9x19Item);
+                    itemDefinitions.arraySize = values.Count;
+                    for (var i = 0; i < values.Count; i++)
+                    {
+                        itemDefinitions.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
+                    }
 
-                inventorySo.ApplyModifiedPropertiesWithoutUndo();
+                    inventorySo.ApplyModifiedPropertiesWithoutUndo();
+                }
+            }
+            else
+            {
+                Debug.LogWarning("MainTown combat wiring: PlayerInventoryController missing on PlayerRoot; skipped inventory registry wiring.");
             }
 
             var mainCamera =

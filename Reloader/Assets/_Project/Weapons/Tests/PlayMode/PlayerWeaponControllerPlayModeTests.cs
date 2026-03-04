@@ -476,6 +476,70 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator UnarmedState_PreservesExternalFieldOfViewChanges()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[1] = null;
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests(
+                "weapon-rifle-01",
+                "Scoped Rifle",
+                5,
+                0.1f,
+                80f,
+                0f,
+                20f,
+                120f,
+                1,
+                10,
+                true,
+                0.7f,
+                WeaponScopeConfiguration.Create(true, 4f, 20f, 8f, "ebr-7c", 100, 25));
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var adsCameraGo = new GameObject("AdsCamera");
+            var adsCamera = adsCameraGo.AddComponent<Camera>();
+            const float baseFieldOfView = 60f;
+            adsCamera.fieldOfView = baseFieldOfView;
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_adsCamera", adsCamera);
+            yield return null;
+
+            input.AimHeldValue = true;
+            yield return null;
+            yield return new WaitForSeconds(0.25f);
+
+            runtime.SelectBeltSlot(1);
+            yield return null;
+            yield return new WaitForSeconds(0.15f);
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(baseFieldOfView).Within(0.6f));
+
+            const float externalFov = 72f;
+            adsCamera.fieldOfView = externalFov;
+            yield return null;
+            yield return null;
+
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(externalFov).Within(0.2f), "Unarmed flow should not overwrite externally applied FOV.");
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+            Object.Destroy(adsCameraGo);
+        }
+
+        [UnityTest]
         public IEnumerator BeltSelectedWeapon_EquipsAndFiresAndReloads()
         {
             var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;

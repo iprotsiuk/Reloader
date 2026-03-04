@@ -88,6 +88,7 @@ namespace Reloader.Weapons.Controllers
         private float _baseCameraFieldOfView = DefaultFov;
         private bool _baseCameraFieldOfViewCaptured;
         private Camera _cachedAdsCamera;
+        private bool _pendingUnequipFovBaselineRestore;
         private Transform _defaultMuzzleTransform;
         private GameObject _equippedWeaponView;
         private string _pendingEquipItemId;
@@ -268,6 +269,7 @@ namespace Reloader.Weapons.Controllers
                 RefreshPackRenderers();
             }
 
+
             if (!IsReferenceOnPlayerHierarchy(_weaponViewParent))
             {
                 _weaponViewParent = ResolveDefaultWeaponViewParent();
@@ -322,6 +324,8 @@ namespace Reloader.Weapons.Controllers
                 CancelReload(previousItemId, WeaponReloadCancelReason.Unequip);
                 if (_packDriversByItemId.TryGetValue(previousItemId, out var previousDriver) && previousDriver != null)
                 {
+                    _pendingUnequipFovBaselineRestore =
+                        previousDriver.State.IsAiming || Mathf.Abs(previousDriver.State.AimFovVelocity) > 0.01f;
                     previousDriver.SetEquipped(false);
                 }
             }
@@ -628,9 +632,19 @@ namespace Reloader.Weapons.Controllers
                 if (hasFieldOfView)
                 {
                     var baselineFieldOfView = Mathf.Clamp(_baseCameraFieldOfView, 1f, 179f);
-                    if (Mathf.Abs(currentFieldOfView - baselineFieldOfView) > 0.01f)
+                    if (_pendingUnequipFovBaselineRestore)
                     {
-                        TrySetCurrentFieldOfView(baselineFieldOfView);
+                        if (Mathf.Abs(currentFieldOfView - baselineFieldOfView) > 0.01f)
+                        {
+                            TrySetCurrentFieldOfView(baselineFieldOfView);
+                        }
+
+                        _pendingUnequipFovBaselineRestore = false;
+                    }
+                    else
+                    {
+                        // Preserve external FOV changes (e.g. settings menu) while unarmed.
+                        _baseCameraFieldOfView = baselineFieldOfView = Mathf.Clamp(currentFieldOfView, 1f, 179f);
                     }
                 }
 
@@ -654,6 +668,19 @@ namespace Reloader.Weapons.Controllers
             {
                 TrySetCurrentFieldOfView(nextFieldOfView);
             }
+        }
+
+        // Forwarded from PackAnimationEventRelay attached to the animator GameObject.
+        public void OnAnimationEndedHolster()
+        {
+        }
+
+        public void OnAmmunitionFill()
+        {
+        }
+
+        public void OnAnimationEndedReload()
+        {
         }
 
         private void CancelReload(string itemId, WeaponReloadCancelReason reason)
