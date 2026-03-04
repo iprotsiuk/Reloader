@@ -373,17 +373,20 @@ namespace Reloader.Inventory
 
         private void HandleItemPickupRequested(string itemId)
         {
-            if (Runtime == null)
+            if (Runtime == null || string.IsNullOrWhiteSpace(itemId))
             {
                 return;
             }
 
-            if (!_pendingPickupTargetsById.TryGetValue(itemId, out var pendingTarget) || pendingTarget == null)
+            var hasPendingTarget = _pendingPickupTargetsById.TryGetValue(itemId, out var pendingTarget);
+            if (hasPendingTarget && pendingTarget == null)
             {
-                return;
+                _pendingPickupTargetsById.Remove(itemId);
+                hasPendingTarget = false;
             }
 
-            if (pendingTarget is IInventoryDefinitionPickupTarget definitionTarget
+            if (hasPendingTarget
+                && pendingTarget is IInventoryDefinitionPickupTarget definitionTarget
                 && definitionTarget.SpawnDefinition != null
                 && definitionTarget.SpawnDefinition.ItemDefinition != null)
             {
@@ -393,7 +396,7 @@ namespace Reloader.Inventory
             }
 
             var stackTarget = pendingTarget as IInventoryStackPickupTarget;
-            var isStackPickup = stackTarget != null;
+            var isStackPickup = hasPendingTarget && stackTarget != null;
             var quantity = isStackPickup ? Mathf.Max(1, stackTarget.Quantity) : 1;
             var area = InventoryArea.Belt;
             var index = -1;
@@ -404,19 +407,22 @@ namespace Reloader.Inventory
             if (!stored)
             {
                 ResolveInventoryEvents().RaiseItemPickupRejected(itemId, rejectReason);
-                _pendingPickupTargetsById.Remove(itemId);
+                if (hasPendingTarget)
+                {
+                    _pendingPickupTargetsById.Remove(itemId);
+                }
+
                 return;
             }
 
             ResolveInventoryEvents().RaiseItemStored(itemId, area, index);
             ResolveInventoryEvents().RaiseInventoryChanged();
-            if (_pendingPickupTargetsById.TryGetValue(itemId, out var target) && target != null)
+            if (hasPendingTarget && _pendingPickupTargetsById.TryGetValue(itemId, out var target) && target != null)
             {
                 CapturePickupConsumedMutation(target);
                 target.OnPickedUp();
+                _pendingPickupTargetsById.Remove(itemId);
             }
-
-            _pendingPickupTargetsById.Remove(itemId);
         }
 
         private void ResolveReferences()

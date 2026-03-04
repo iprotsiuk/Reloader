@@ -300,7 +300,25 @@ namespace Reloader.Reloading.World
             RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared(BenchHintContextId);
         }
 
-        private bool IsExternalMenuOpen() => _externalMenuStateReader != null && _externalMenuStateReader.IsStorageUiOpen;
+        private bool IsExternalMenuOpen()
+        {
+            if (_externalMenuStateReader != null)
+            {
+                return _externalMenuStateReader.IsStorageUiOpen;
+            }
+
+            var type = Type.GetType("Reloader.Inventory.StorageUiSession, Reloader.Inventory");
+            if (type == null)
+            {
+                return false;
+            }
+
+            var prop = type.GetProperty("IsOpen");
+            return prop != null
+                   && prop.PropertyType == typeof(bool)
+                   && prop.GetValue(null) is bool isOpen
+                   && isOpen;
+        }
 
         private static void PublishWorkbenchSnapshot(IReloadingBenchTarget target)
         {
