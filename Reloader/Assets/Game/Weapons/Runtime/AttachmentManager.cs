@@ -8,6 +8,8 @@ namespace Reloader.Game.Weapons
 
         [Header("Weapon Mounts")]
         [SerializeField] private Transform _scopeSlot;
+        [SerializeField] private Transform _muzzleSlot;
+        [SerializeField] private MuzzleAttachmentRuntime _muzzleRuntime;
 
         [Header("Fallback")]
         [SerializeField] private Transform _ironSightAnchor;
@@ -15,8 +17,10 @@ namespace Reloader.Game.Weapons
         private GameObject _equippedOpticInstance;
         private Transform _activeSightAnchor;
         private OpticDefinition _activeOpticDefinition;
+        private MuzzleAttachmentDefinition _activeMuzzleDefinition;
 
         public OpticDefinition ActiveOpticDefinition => _activeOpticDefinition;
+        public MuzzleAttachmentDefinition ActiveMuzzleDefinition => _activeMuzzleDefinition;
 
         private void Awake()
         {
@@ -79,6 +83,48 @@ namespace Reloader.Game.Weapons
             }
 
             return _activeSightAnchor;
+        }
+
+        public bool EquipMuzzle(MuzzleAttachmentDefinition muzzle)
+        {
+            _activeMuzzleDefinition = muzzle;
+            if (_muzzleRuntime != null)
+            {
+                _muzzleRuntime.Equip(muzzle);
+                return true;
+            }
+
+            if (_muzzleSlot == null || muzzle == null || muzzle.MuzzlePrefab == null)
+            {
+                return false;
+            }
+
+            for (var i = _muzzleSlot.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_muzzleSlot.GetChild(i).gameObject);
+            }
+
+            Instantiate(muzzle.MuzzlePrefab, _muzzleSlot, false);
+            return true;
+        }
+
+        public void UnequipMuzzle()
+        {
+            _activeMuzzleDefinition = null;
+            if (_muzzleRuntime != null)
+            {
+                _muzzleRuntime.Unequip();
+            }
+
+            if (_muzzleSlot == null)
+            {
+                return;
+            }
+
+            for (var i = _muzzleSlot.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_muzzleSlot.GetChild(i).gameObject);
+            }
         }
 
         private void RefreshSightAnchor()

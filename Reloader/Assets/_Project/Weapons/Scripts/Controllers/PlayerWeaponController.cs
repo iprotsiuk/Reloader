@@ -8,6 +8,8 @@ using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.Data;
 using Reloader.Weapons.PackRuntime;
 using Reloader.Weapons.Runtime;
+using System;
+using System.Reflection;
 using UnityEngine;
 
 namespace Reloader.Weapons.Controllers
@@ -553,8 +555,10 @@ namespace Reloader.Weapons.Controllers
                 ballisticSpec.BallisticCoefficientG1,
                 transform);
 
+            NotifyViewWeaponFired(_equippedItemId);
+            var muzzleAudioOverride = ResolveMuzzleAudioOverride();
             ResolveWeaponEvents()?.RaiseWeaponFired(_equippedItemId, _muzzleTransform.position, firedDirection);
-            ResolveCombatAudioEmitter()?.EmitWeaponFire(_equippedItemId, _muzzleTransform.position);
+            ResolveCombatAudioEmitter()?.EmitWeaponFire(_equippedItemId, _muzzleTransform.position, muzzleAudioOverride);
         }
 
         private WeaponProjectile SpawnProjectile()
@@ -765,6 +769,97 @@ namespace Reloader.Weapons.Controllers
 
             _combatAudioEmitter = GetComponentInChildren<WeaponCombatAudioEmitter>(true);
             return _combatAudioEmitter;
+        }
+
+        private void NotifyViewWeaponFired(string itemId)
+        {
+            if (_equippedWeaponView == null)
+            {
+                return;
+            }
+
+            _equippedWeaponView.SendMessage("HandleWeaponFired", itemId, SendMessageOptions.DontRequireReceiver);
+        }
+
+        private AudioClip ResolveMuzzleAudioOverride()
+        {
+            if (_equippedWeaponView == null)
+            {
+                return null;
+            }
+
+            var behaviors = _equippedWeaponView.GetComponentsInChildren<MonoBehaviour>(true);
+            for (var i = 0; i < behaviors.Length; i++)
+            {
+                var behavior = behaviors[i];
+                if (behavior == null || behavior.GetType().Name != "MuzzleAttachmentRuntime")
+                {
+                    continue;
+                }
+
+                var method = behavior.GetType().GetMethod("TryGetFireClipOverride", BindingFlags.Instance | BindingFlags.Public);
+                if (method == null)
+                {
+                    continue;
+                }
+
+                var result = method.Invoke(behavior, null);
+                if (result is AudioClip clip)
+                {
+                    return clip;
+                }
+            }
+
+            return null;
+        }
+
+        private void EnsureMuzzleRuntimeBridge(GameObject viewRoot, Transform viewMuzzle)
+        {
+            if (viewRoot == null || viewMuzzle == null)
+            {
+                return;
+            }
+
+            var muzzleRuntimeType = ResolveTypeByName("Reloader.Game.Weapons.MuzzleAttachmentRuntime");
+            if (muzzleRuntimeType == null)
+            {
+                return;
+            }
+
+            var runtimeComponent = viewRoot.GetComponent(muzzleRuntimeType) ?? viewRoot.AddComponent(muzzleRuntimeType);
+            var attachmentSlot = FindDescendantByName(viewRoot.transform, "MuzzleAttachmentSlot") ?? viewMuzzle;
+
+            var muzzleSocketField = muzzleRuntimeType.GetField("_muzzleSocket", BindingFlags.Instance | BindingFlags.NonPublic);
+            muzzleSocketField?.SetValue(runtimeComponent, viewMuzzle);
+
+            var attachmentSlotField = muzzleRuntimeType.GetField("_attachmentSlot", BindingFlags.Instance | BindingFlags.NonPublic);
+            attachmentSlotField?.SetValue(runtimeComponent, attachmentSlot);
+        }
+
+        private static Type ResolveTypeByName(string fullTypeName)
+        {
+            if (string.IsNullOrWhiteSpace(fullTypeName))
+            {
+                return null;
+            }
+
+            var direct = Type.GetType(fullTypeName);
+            if (direct != null)
+            {
+                return direct;
+            }
+
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            for (var i = 0; i < assemblies.Length; i++)
+            {
+                var resolved = assemblies[i].GetType(fullTypeName);
+                if (resolved != null)
+                {
+                    return resolved;
+                }
+            }
+
+            return null;
         }
 
         private IWeaponEvents ResolveWeaponEvents()
@@ -987,6 +1082,8 @@ namespace Reloader.Weapons.Controllers
             {
                 _muzzleTransform = viewMuzzle;
             }
+
+            EnsureMuzzleRuntimeBridge(_equippedWeaponView, viewMuzzle);
         }
 
         private void DestroyEquippedWeaponView()
