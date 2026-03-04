@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using URandom = UnityEngine.Random;
 
 namespace Reloader.Audio
 {
@@ -41,30 +42,31 @@ namespace Reloader.Audio
 
         [Header("Footsteps")]
         [SerializeField] private SurfaceAudioGroup[] _footstepGroups = System.Array.Empty<SurfaceAudioGroup>();
+        private readonly Dictionary<string, int> _lastClipIndexByChannel = new Dictionary<string, int>();
 
         public AudioClip GetRandomFireClip(string weaponId)
         {
-            return PickClip(ResolveWeaponGroup(weaponId)?.FireClips, _defaultGunshotClips);
+            return PickClip($"fire::{weaponId}", ResolveWeaponGroup(weaponId)?.FireClips, _defaultGunshotClips);
         }
 
         public AudioClip GetRandomReloadStartClip(string weaponId)
         {
-            return PickClip(ResolveWeaponGroup(weaponId)?.ReloadStartClips, _defaultReloadStartClips);
+            return PickClip($"reload_start::{weaponId}", ResolveWeaponGroup(weaponId)?.ReloadStartClips, _defaultReloadStartClips);
         }
 
         public AudioClip GetRandomReloadCompleteClip(string weaponId)
         {
-            return PickClip(ResolveWeaponGroup(weaponId)?.ReloadCompleteClips, _defaultReloadCompleteClips);
+            return PickClip($"reload_end::{weaponId}", ResolveWeaponGroup(weaponId)?.ReloadCompleteClips, _defaultReloadCompleteClips);
         }
 
         public AudioClip GetRandomImpactClip(string surfaceId)
         {
-            return PickClip(ResolveSurfaceGroup(_impactGroups, surfaceId)?.Clips, null);
+            return PickClip($"impact::{surfaceId}", ResolveSurfaceGroup(_impactGroups, surfaceId)?.Clips, null);
         }
 
         public AudioClip GetRandomFootstepClip(string surfaceId)
         {
-            return PickClip(ResolveSurfaceGroup(_footstepGroups, surfaceId)?.Clips, null);
+            return PickClip($"footstep::{surfaceId}", ResolveSurfaceGroup(_footstepGroups, surfaceId)?.Clips, null);
         }
 
         private WeaponShotGroup ResolveWeaponGroup(string weaponId)
@@ -117,16 +119,43 @@ namespace Reloader.Audio
             return fallback;
         }
 
-        private static AudioClip PickClip(AudioClip[] primary, AudioClip[] fallback)
+        private AudioClip PickClip(string channelKey, AudioClip[] primary, AudioClip[] fallback)
         {
-            var source = HasEntries(primary) ? primary : fallback;
-            if (!HasEntries(source))
+            var source = BuildValidClipList(primary, fallback);
+            if (source.Count == 0)
             {
                 return null;
             }
 
-            var index = Random.Range(0, source.Length);
+            var index = URandom.Range(0, source.Count);
+            var resolvedKey = string.IsNullOrWhiteSpace(channelKey) ? "default" : channelKey;
+            if (source.Count > 1 && _lastClipIndexByChannel.TryGetValue(resolvedKey, out var previousIndex) && previousIndex == index)
+            {
+                index = (index + 1) % source.Count;
+            }
+
+            _lastClipIndexByChannel[resolvedKey] = index;
             return source[index];
+        }
+
+        private static List<AudioClip> BuildValidClipList(AudioClip[] primary, AudioClip[] fallback)
+        {
+            var source = HasEntries(primary) ? primary : fallback;
+            var valid = new List<AudioClip>();
+            if (!HasEntries(source))
+            {
+                return valid;
+            }
+
+            for (var i = 0; i < source.Length; i++)
+            {
+                if (source[i] != null)
+                {
+                    valid.Add(source[i]);
+                }
+            }
+
+            return valid;
         }
 
         private static bool HasEntries(AudioClip[] clips)

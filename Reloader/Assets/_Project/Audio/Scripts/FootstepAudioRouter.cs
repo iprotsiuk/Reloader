@@ -84,34 +84,32 @@ namespace Reloader.Audio
             _catalog = CombatAudioCatalogResolver.Resolve(_catalog);
             if (_catalog == null || !isGrounded || deltaTime <= 0f)
             {
-                _distanceAccumulator = 0f;
+                _distanceAccumulator *= 0.5f;
                 return;
             }
 
             var speed = horizontalVelocity.magnitude;
             if (speed < _minimumSpeed)
             {
-                _distanceAccumulator = 0f;
+                _distanceAccumulator *= 0.5f;
                 return;
             }
 
             _distanceAccumulator += speed * deltaTime;
             var stepDistance = Mathf.Max(0.1f, _metersPerStep);
-            if (_distanceAccumulator < stepDistance)
+            while (_distanceAccumulator >= stepDistance)
             {
-                return;
-            }
+                _distanceAccumulator -= stepDistance;
+                var surface = ResolveSurfaceId(worldPosition);
+                var clip = _catalog.GetRandomFootstepClip(surface);
+                if (clip == null)
+                {
+                    continue;
+                }
 
-            _distanceAccumulator -= stepDistance;
-            var surface = ResolveSurfaceId(worldPosition);
-            var clip = _catalog.GetRandomFootstepClip(surface);
-            if (clip == null)
-            {
-                return;
+                ClipPlayed?.Invoke(surface, clip, worldPosition);
+                AudioSource.PlayClipAtPoint(clip, worldPosition, Mathf.Clamp01(_volume));
             }
-
-            ClipPlayed?.Invoke(surface, clip, worldPosition);
-            AudioSource.PlayClipAtPoint(clip, worldPosition, Mathf.Clamp01(_volume));
         }
 
         private string ResolveSurfaceId(Vector3 worldPosition)
