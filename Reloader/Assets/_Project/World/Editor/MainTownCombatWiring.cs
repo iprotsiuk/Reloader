@@ -221,10 +221,10 @@ namespace Reloader.World.Editor
             var packConfig = weaponSo.FindProperty("_packPresentationConfig");
             if (packConfig != null)
             {
-                packConfig.FindPropertyRelative("_aimBoolParameter").stringValue = "Aim";
-                packConfig.FindPropertyRelative("_reloadBoolParameter").stringValue = "Reloading";
-                packConfig.FindPropertyRelative("_reloadStateName").stringValue = "Layer Actions.Reload";
-                packConfig.FindPropertyRelative("_fireStateName").stringValue = "Layer Actions.Fire";
+                SetStringPropertyIfPresent(packConfig, "_aimBoolParameter", "Aim");
+                SetStringPropertyIfPresent(packConfig, "_reloadBoolParameter", "Reloading");
+                SetStringPropertyIfPresent(packConfig, "_reloadStateName", "Layer Actions.Reload");
+                SetStringPropertyIfPresent(packConfig, "_fireStateName", "Layer Actions.Fire");
             }
             weaponSo.ApplyModifiedPropertiesWithoutUndo();
 
@@ -303,6 +303,20 @@ namespace Reloader.World.Editor
             profileSo.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(profile);
             return profile;
+        }
+
+        private static void SetStringPropertyIfPresent(SerializedProperty parent, string propertyName, string value)
+        {
+            if (parent == null || string.IsNullOrWhiteSpace(propertyName))
+            {
+                return;
+            }
+
+            var property = parent.FindPropertyRelative(propertyName);
+            if (property != null)
+            {
+                property.stringValue = value ?? string.Empty;
+            }
         }
 
         private static void EnsureAssetFolder(string folderPath)
