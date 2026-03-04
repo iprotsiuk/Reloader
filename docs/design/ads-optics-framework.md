@@ -70,6 +70,8 @@ Enums:
   - `EquipOptic(OpticDefinition)`
   - `UnequipOptic()`
   - `GetActiveSightAnchor()`
+  - `EquipMuzzle(MuzzleAttachmentDefinition)` / `UnequipMuzzle()`
+  - exposes `ActiveOpticDefinition` and `ActiveMuzzleDefinition`
   - fallback to `IronSightAnchor`
 
 - `AdsStateController`
