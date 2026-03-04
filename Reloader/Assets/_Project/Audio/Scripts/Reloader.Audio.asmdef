@@ -1,0 +1,17 @@
+{
+  "name": "Reloader.Audio",
+  "rootNamespace": "Reloader.Audio",
+  "references": [
+    "Reloader.Core",
+    "Reloader.Player"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
