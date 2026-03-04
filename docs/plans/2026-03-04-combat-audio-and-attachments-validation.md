@@ -35,6 +35,7 @@ Plan source: `docs/plans/2026-03-04-combat-audio-and-attachments-implementation-
 - `43667f1` fix(audio): bootstrap footsteps runtime and stabilize one-shot playback
 - `09c86d1` fix(attachments): skip unsafe prefabs with missing scripts at runtime
 - `5e4127b` fix(audio): prevent emitter host transform movement during one-shot playback (shoot jump regression)
+- `b54d15e` fix(weapons): resolve emitter catalog and attachment bridge review regressions
 
 ## Verification Evidence
 
@@ -74,6 +75,9 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
 | https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886450571 | Resolved | `AttachmentManager.EquipMuzzle` runtime failure reporting corrected (`6f2555f`) |
 | https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886519681 | Resolved | Default catalog bootstrap for runtime-created emitters (`6159b0f`) |
 | https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886519682 | Resolved | Runtime `ImpactAudioRouter` source guaranteed from `WeaponProjectile` (`6159b0f`) |
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886627784 | Resolved | Preserve custom emitter catalog when controller discovers emitter dynamically (`b54d15e`) |
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886627788 | Resolved | Initialize bridged detachable magazine runtime with transferred/default attachment (`b54d15e`) |
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886627792 | Resolved | Keep runtime muzzle state synchronized on rejected equip by clearing mounted runtime attachment (`b54d15e`) |
 
 ## Known Residual Risks
 
