@@ -18,6 +18,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             AssertHasReceiverMethod(receiverType, "OnAnimationEndedHolster");
             AssertHasReceiverMethod(receiverType, "OnAmmunitionFill");
             AssertHasReceiverMethod(receiverType, "OnAnimationEndedReload");
+            AssertHasReceiverMethod(receiverType, "OnEjectCasing");
         }
 
         [Test]

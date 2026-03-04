@@ -70,5 +70,9 @@ namespace Reloader.Weapons.Animations
         public void OnAnimationEndedReload()
         {
         }
+
+        public void OnEjectCasing()
+        {
+        }
     }
 }
