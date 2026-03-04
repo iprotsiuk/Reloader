@@ -16,6 +16,8 @@ namespace Reloader.World.Travel
         private static float _travelSuppressedUntilRealtime;
         private static Dictionary<string, int> _pendingInventoryQuantities = new();
         private static readonly List<WeaponRuntimeSnapshotCapture> _pendingWeaponSnapshots = new();
+        private const string FpsArmsPrefabResourcePath = "Viewmodels/Characters/FPS_Arms";
+        private const string FpsArmsControllerResourcePath = "Viewmodels/Characters/ViewmodelArms";
         private static readonly Vector3 FpsArmsLocalPosition = new Vector3(0f, -0.027f, 0.1f);
         private static readonly Quaternion FpsArmsLocalRotation = Quaternion.identity;
         private static readonly Vector3 FpsArmsLocalScale = new Vector3(0.42f, 0.42f, 0.42f);
@@ -564,6 +566,18 @@ namespace Reloader.World.Travel
             var animator = playerArms != null ? playerArms.GetComponentInChildren<Animator>(true) : null;
             if (animator == null)
             {
+                var armsPrefab = Resources.Load<GameObject>(FpsArmsPrefabResourcePath);
+                if (armsPrefab != null)
+                {
+                    var instance = UnityEngine.Object.Instantiate(armsPrefab, cameraPivot);
+                    instance.name = "PlayerArms";
+                    playerArms = instance.transform;
+                    animator = playerArms.GetComponentInChildren<Animator>(true);
+                }
+            }
+
+            if (animator == null)
+            {
                 animator = cameraPivot.GetComponentInChildren<Animator>(true);
                 if (animator != null && playerArms == null)
                 {
@@ -590,6 +604,8 @@ namespace Reloader.World.Travel
                 }
             }
 
+            RestoreArmsAnimatorControllerIfMissing(cameraPivot, animator);
+
             var viewmodelAdapter = playerRootTransform.GetComponent("ViewmodelAnimationAdapter");
             SetComponentAnimatorField(viewmodelAdapter, animator);
 
@@ -613,6 +629,39 @@ namespace Reloader.World.Travel
             }
 
             return current ?? candidate;
+        }
+
+        private static void RestoreArmsAnimatorControllerIfMissing(Transform cameraPivot, Animator animator)
+        {
+            if (animator == null || animator.runtimeAnimatorController != null)
+            {
+                return;
+            }
+
+            if (cameraPivot != null)
+            {
+                var animators = cameraPivot.GetComponentsInChildren<Animator>(true);
+                for (var i = 0; i < animators.Length; i++)
+                {
+                    var candidate = animators[i];
+                    if (candidate == null || candidate == animator || candidate.runtimeAnimatorController == null)
+                    {
+                        continue;
+                    }
+
+                    animator.runtimeAnimatorController = candidate.runtimeAnimatorController;
+                    if (animator.runtimeAnimatorController != null)
+                    {
+                        return;
+                    }
+                }
+            }
+
+            var controller = Resources.Load<RuntimeAnimatorController>(FpsArmsControllerResourcePath);
+            if (controller != null)
+            {
+                animator.runtimeAnimatorController = controller;
+            }
         }
 
         private static void SetComponentAnimatorField(Component component, Animator animator)

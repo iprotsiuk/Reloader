@@ -225,7 +225,7 @@ namespace Reloader.UI.Toolkit.Runtime
         {
             var runtime = inventoryController != null ? inventoryController.Runtime : null;
             var backpackSlotCount = runtime != null
-                ? Mathf.Max(16, runtime.BackpackCapacity)
+                ? Mathf.Max(0, runtime.BackpackCapacity)
                 : 16;
             var viewBinder = new TabInventoryViewBinder();
             viewBinder.Initialize(root, PlayerInventoryRuntime.BeltSlotCount, backpackSlotCount);

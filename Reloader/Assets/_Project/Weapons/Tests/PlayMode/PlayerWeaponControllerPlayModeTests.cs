@@ -1178,6 +1178,147 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator SameItemSelection_WhenViewSpawnFails_DoesNotRestartEquipCycle()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var equipStartedCount = 0;
+            var unequipStartedCount = 0;
+            runtimeEvents.OnWeaponEquipStarted += HandleEquipStarted;
+            runtimeEvents.OnWeaponUnequipStarted += HandleUnequipStarted;
+            void HandleEquipStarted(string _) => equipStartedCount++;
+            void HandleUnequipStarted(string _) => unequipStartedCount++;
+
+            root.AddComponent<PlayerWeaponController>();
+            yield return null;
+            yield return new WaitForSeconds(0.2f);
+
+            Assert.That(equipStartedCount, Is.EqualTo(1), "Same-item selection with missing view should not restart equip flow.");
+            Assert.That(unequipStartedCount, Is.EqualTo(0), "Same-item selection with missing view should not trigger holster churn.");
+
+            runtimeEvents.OnWeaponEquipStarted -= HandleEquipStarted;
+            runtimeEvents.OnWeaponUnequipStarted -= HandleUnequipStarted;
+            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
+        public IEnumerator Equip_WithConfiguredWeaponViewParent_UsesConfiguredParentBeforeFallback()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.SelectBeltSlot(0);
+
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(root.transform, false);
+            var playerArms = new GameObject("PlayerArms").transform;
+            playerArms.SetParent(cameraPivot, false);
+            var playerArmsVisual = new GameObject("PlayerArmsVisual").transform;
+            playerArmsVisual.SetParent(playerArms, false);
+            playerArmsVisual.gameObject.AddComponent<Animator>();
+            var fallbackParent = new GameObject("ik_hand_gun").transform;
+            fallbackParent.SetParent(playerArmsVisual, false);
+
+            var configuredParent = new GameObject("ConfiguredWeaponViewParent").transform;
+            configuredParent.SetParent(root.transform, false);
+
+            var viewPrefab = new GameObject("ConfiguredParentViewPrefab");
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(iconPrefabField, Is.Not.Null);
+            iconPrefabField.SetValue(definition, viewPrefab);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_weaponRegistry", registry);
+            SetControllerField(controller, "_weaponViewParent", configuredParent);
+            yield return null;
+
+            Assert.That(configuredParent.Find("EquippedView_weapon-rifle-01"), Is.Not.Null);
+            Assert.That(fallbackParent.Find("EquippedView_weapon-rifle-01"), Is.Null);
+
+            Object.Destroy(root);
+            Object.Destroy(viewPrefab);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
+        public IEnumerator BeltSelectionChange_DuringHolsterDelay_UpdatesPendingEquipToLatestSelection()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[1] = "weapon-rifle-02";
+            runtime.BeltSlotItemIds[2] = "weapon-rifle-03";
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definitionA = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definitionA.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle 01", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            var definitionB = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definitionB.SetRuntimeValuesForTests("weapon-rifle-02", "Rifle 02", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            var definitionC = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definitionC.SetRuntimeValuesForTests("weapon-rifle-03", "Rifle 03", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            registry.SetDefinitionsForTests(new[] { definitionA, definitionB, definitionC });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            yield return null;
+
+            runtime.SelectBeltSlot(1);
+            yield return null;
+            Assert.That(GetControllerField<string>(controller, "_pendingEquipItemId"), Is.EqualTo("weapon-rifle-02"));
+
+            runtime.SelectBeltSlot(2);
+            yield return null;
+            Assert.That(GetControllerField<string>(controller, "_pendingEquipItemId"), Is.EqualTo("weapon-rifle-03"));
+
+            yield return new WaitForSeconds(0.12f);
+            Assert.That(controller.EquippedItemId, Is.EqualTo("weapon-rifle-03"));
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definitionA);
+            Object.Destroy(definitionB);
+            Object.Destroy(definitionC);
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public bool FirePressedThisFrame;
@@ -1266,6 +1407,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             var field = typeof(PlayerWeaponController).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
             field.SetValue(controller, value);
+        }
+
+        private static T GetControllerField<T>(PlayerWeaponController controller, string fieldName)
+        {
+            var field = typeof(PlayerWeaponController).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
+            return (T)field.GetValue(controller);
         }
     }
 }

@@ -171,18 +171,19 @@ namespace Reloader.UI.Tests.PlayMode
             UnityEngine.Object.DestroyImmediate(go);
         }
 
-        [Test]
-        public void UiToolkitScreenRuntimeBridge_BindTabInventory_UsesMinimumBackpackUiSlotFloor()
+        [TestCase(0)]
+        [TestCase(2)]
+        public void UiToolkitScreenRuntimeBridge_BindTabInventory_UsesRuntimeBackpackCapacity_WhenRuntimeIsAvailable(int backpackCapacity)
         {
             var bridgeGo = new GameObject("UiBridge");
             var inventoryGo = new GameObject("InventoryController");
             var bridge = bridgeGo.AddComponent<UiToolkitScreenRuntimeBridge>();
             var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
             var runtime = new PlayerInventoryRuntime();
-            runtime.SetBackpackCapacity(9);
+            runtime.SetBackpackCapacity(backpackCapacity);
             inventoryController.Configure(null, null, runtime);
             var input = bridgeGo.AddComponent<TestInputSource>();
-            var root = BuildTabRoot(backpackSlotCount: 16);
+            var root = BuildTabRoot(backpackSlotCount: backpackCapacity);
 
             var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
                 "BindTabInventory",
@@ -206,7 +207,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(backpackSlotsField, Is.Not.Null);
             var backpackSlots = backpackSlotsField.GetValue(viewBinder) as VisualElement[];
             Assert.That(backpackSlots, Is.Not.Null);
-            Assert.That(backpackSlots.Length, Is.EqualTo(16));
+            Assert.That(backpackSlots.Length, Is.EqualTo(backpackCapacity));
 
             subscription.Dispose();
             UnityEngine.Object.DestroyImmediate(inventoryGo);
@@ -214,7 +215,7 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
-        public void UiToolkitScreenRuntimeBridge_BindTabInventory_UsesMinimumBackpackUiSlotFloorWhenRuntimeIsUnavailable()
+        public void UiToolkitScreenRuntimeBridge_BindTabInventory_FallsBackToMinimumBackpackUiSlotFloor_WhenRuntimeIsUnavailable()
         {
             var bridgeGo = new GameObject("UiBridge");
             var inventoryGo = new GameObject("InventoryController");

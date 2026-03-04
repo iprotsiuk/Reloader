@@ -515,11 +515,66 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(hit.point.y, Is.GreaterThan(-2f), "MainTown return entry should not resolve into void space.");
         }
 
+        [Test]
+        public void EnsureViewmodelRigAfterTravel_RecreatesPlayerArms_WhenMissing()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(playerRoot.transform, false);
+
+            InvokeEnsureViewmodelRigAfterTravel(playerRoot.transform);
+
+            var playerArms = cameraPivot.Find("PlayerArms");
+            Assert.That(playerArms, Is.Not.Null, "Expected fallback travel rig healing to recreate PlayerArms.");
+
+            var animator = playerArms.GetComponentInChildren<Animator>(true);
+            Assert.That(animator, Is.Not.Null, "Expected recreated PlayerArms to include an Animator.");
+            Assert.That(animator.runtimeAnimatorController, Is.Not.Null, "Expected recreated PlayerArms Animator to have a controller.");
+
+            Assert.That(playerArms.localPosition.x, Is.EqualTo(0f).Within(0.02f));
+            Assert.That(playerArms.localPosition.y, Is.EqualTo(-0.027f).Within(0.02f));
+            Assert.That(playerArms.localPosition.z, Is.EqualTo(0.1f).Within(0.02f));
+            Assert.That(Quaternion.Angle(playerArms.localRotation, Quaternion.identity), Is.LessThanOrEqualTo(1f));
+
+            Object.DestroyImmediate(playerRoot);
+        }
+
+        [Test]
+        public void EnsureViewmodelRigAfterTravel_ReappliesControllerBeforeRebind_WhenAnimatorControllerMissing()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(playerRoot.transform, false);
+            var playerArms = new GameObject("PlayerArms").transform;
+            playerArms.SetParent(cameraPivot, false);
+
+            var animator = playerArms.gameObject.AddComponent<Animator>();
+            animator.runtimeAnimatorController = null;
+
+            var probe = playerRoot.AddComponent<TravelRigRebindProbe>();
+            probe.TargetAnimator = animator;
+
+            InvokeEnsureViewmodelRigAfterTravel(playerRoot.transform);
+
+            Assert.That(animator.runtimeAnimatorController, Is.Not.Null, "Expected travel rig healing to reapply animator controller when missing.");
+            Assert.That(probe.ResolveReferencesCalled, Is.True, "Expected travel rig rebinding to run ResolveReferences.");
+            Assert.That(probe.SawControllerDuringResolve, Is.True, "Expected controller to be restored before ResolveReferences rebinding.");
+
+            Object.DestroyImmediate(playerRoot);
+        }
+
         private static GameObject CreatePlayerInteractor()
         {
             var interactor = new GameObject("TestPlayerInteractor");
             interactor.tag = "Player";
             return interactor;
+        }
+
+        private static void InvokeEnsureViewmodelRigAfterTravel(Transform playerRootTransform)
+        {
+            var method = typeof(WorldTravelCoordinator).GetMethod("EnsureViewmodelRigAfterTravel", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, "Expected travel rig healing method on WorldTravelCoordinator.");
+            method.Invoke(null, new object[] { playerRootTransform });
         }
 
         private static IEnumerator WaitForActiveScene(string expectedSceneName, float timeoutSeconds)
@@ -724,5 +779,18 @@ namespace Reloader.World.Tests.PlayMode
             yield return WaitForResolvedEntryPoint(expectedEntryPointId, SceneSwitchTimeoutSeconds);
         }
 
+    }
+
+    public sealed class TravelRigRebindProbe : MonoBehaviour
+    {
+        public Animator TargetAnimator;
+        public bool ResolveReferencesCalled;
+        public bool SawControllerDuringResolve;
+
+        private void ResolveReferences()
+        {
+            ResolveReferencesCalled = true;
+            SawControllerDuringResolve = TargetAnimator != null && TargetAnimator.runtimeAnimatorController != null;
+        }
     }
 }

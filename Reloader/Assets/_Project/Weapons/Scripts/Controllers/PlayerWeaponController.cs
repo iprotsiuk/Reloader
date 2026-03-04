@@ -279,12 +279,29 @@ namespace Reloader.Weapons.Controllers
 
         private void UpdateEquipFromSelection()
         {
+            var selectedItemId = _inventoryController.Runtime != null ? _inventoryController.Runtime.SelectedBeltItemId : null;
             if (HasPendingEquip())
             {
+                if (!string.IsNullOrWhiteSpace(selectedItemId) && TryResolveWeaponDefinition(selectedItemId, out var pendingDefinition))
+                {
+                    if (_pendingEquipItemId != selectedItemId || _pendingEquipDefinition != pendingDefinition)
+                    {
+                        StartPendingEquip(selectedItemId, pendingDefinition);
+                    }
+
+                    return;
+                }
+
+                ClearPendingEquip();
+                if (string.IsNullOrWhiteSpace(_equippedItemId))
+                {
+                    ScheduleArmsHide();
+                    SetArmsVisible(true);
+                }
+
                 return;
             }
 
-            var selectedItemId = _inventoryController.Runtime != null ? _inventoryController.Runtime.SelectedBeltItemId : null;
             if (string.IsNullOrWhiteSpace(selectedItemId))
             {
                 SetEquippedWeapon(null, null);
@@ -302,9 +319,7 @@ namespace Reloader.Weapons.Controllers
 
         private void SetEquippedWeapon(string itemId, WeaponDefinition definition)
         {
-            if (_equippedItemId == itemId
-                && (string.IsNullOrWhiteSpace(itemId)
-                    || (_equippedWeaponView != null && IsReferenceOnPlayerHierarchy(_equippedWeaponView.transform))))
+            if (_equippedItemId == itemId)
             {
                 return;
             }
@@ -925,7 +940,12 @@ namespace Reloader.Weapons.Controllers
             }
 
             // Re-resolve every spawn to avoid stale references after scene/prefab swaps.
-            var parent = ResolveDefaultWeaponViewParent();
+            var parent = IsReferenceOnPlayerHierarchy(_weaponViewParent) ? _weaponViewParent : null;
+            if (parent == null)
+            {
+                parent = ResolveDefaultWeaponViewParent();
+            }
+
             if (parent == null)
             {
                 return;
