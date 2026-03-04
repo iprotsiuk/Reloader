@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Reloader.Core;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using Reloader.Audio;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.Weapons.Ballistics;
@@ -784,6 +785,7 @@ namespace Reloader.Weapons.Controllers
                 _combatAudioEmitter = gameObject.AddComponent<WeaponCombatAudioEmitter>();
             }
 
+            _combatAudioEmitter.SetCatalog(CombatAudioCatalogResolver.Resolve(null));
             return _combatAudioEmitter;
         }
 

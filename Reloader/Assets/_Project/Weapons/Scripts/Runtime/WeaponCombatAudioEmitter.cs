@@ -13,20 +13,31 @@ namespace Reloader.Weapons.Runtime
 
         public virtual void EmitWeaponFire(string weaponId, Vector3 muzzlePosition, AudioClip overrideClip = null)
         {
-            var clip = overrideClip != null ? overrideClip : _catalog != null ? _catalog.GetRandomFireClip(weaponId) : null;
+            var catalog = CombatAudioCatalogResolver.Resolve(_catalog);
+            _catalog = catalog;
+            var clip = overrideClip != null ? overrideClip : catalog != null ? catalog.GetRandomFireClip(weaponId) : null;
             TryPlay(weaponId, clip, muzzlePosition, _fireVolume);
         }
 
         public virtual void EmitReloadStarted(string weaponId, Vector3 position)
         {
-            var clip = _catalog != null ? _catalog.GetRandomReloadStartClip(weaponId) : null;
+            var catalog = CombatAudioCatalogResolver.Resolve(_catalog);
+            _catalog = catalog;
+            var clip = catalog != null ? catalog.GetRandomReloadStartClip(weaponId) : null;
             TryPlay(weaponId, clip, position, _reloadVolume);
         }
 
         public virtual void EmitReloadCompleted(string weaponId, Vector3 position)
         {
-            var clip = _catalog != null ? _catalog.GetRandomReloadCompleteClip(weaponId) : null;
+            var catalog = CombatAudioCatalogResolver.Resolve(_catalog);
+            _catalog = catalog;
+            var clip = catalog != null ? catalog.GetRandomReloadCompleteClip(weaponId) : null;
             TryPlay(weaponId, clip, position, _reloadVolume);
+        }
+
+        public void SetCatalog(CombatAudioCatalog catalog)
+        {
+            _catalog = catalog;
         }
 
         private void TryPlay(string weaponId, AudioClip clip, Vector3 position, float volume)

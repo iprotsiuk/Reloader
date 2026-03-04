@@ -1495,6 +1495,9 @@ namespace Reloader.Weapons.Tests.PlayMode
             var resolvedEmitter = emitterField.GetValue(controller) as WeaponCombatAudioEmitter;
             Assert.That(resolvedEmitter, Is.Not.Null);
             Assert.That(root.GetComponentInChildren<WeaponCombatAudioEmitter>(true), Is.SameAs(resolvedEmitter));
+            var catalogField = typeof(WeaponCombatAudioEmitter).GetField("_catalog", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(catalogField, Is.Not.Null);
+            Assert.That(catalogField.GetValue(resolvedEmitter), Is.Not.Null, "Auto-resolved emitter should bind a default combat audio catalog.");
 
             Object.Destroy(root);
             Object.Destroy(registryGo);

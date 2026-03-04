@@ -58,6 +58,7 @@ namespace Reloader.Audio
 
         private void HandleLocomotionFrame(Vector3 worldPosition, Vector3 horizontalVelocity, bool isGrounded, float deltaTime)
         {
+            _catalog = CombatAudioCatalogResolver.Resolve(_catalog);
             if (_catalog == null || !isGrounded || deltaTime <= 0f)
             {
                 _distanceAccumulator = 0f;

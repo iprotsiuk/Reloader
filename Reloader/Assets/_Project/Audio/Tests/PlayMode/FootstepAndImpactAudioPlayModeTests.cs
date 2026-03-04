@@ -110,6 +110,37 @@ namespace Reloader.Audio.Tests.PlayMode
             UnityEngine.Object.Destroy(bodyClip);
         }
 
+        [UnityTest]
+        public IEnumerator Projectile_Awake_CreatesRuntimeImpactRouter_WhenNoneExists()
+        {
+            var existingRouters = UnityEngine.Object.FindObjectsByType<ImpactAudioRouter>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < existingRouters.Length; i++)
+            {
+                if (existingRouters[i] != null)
+                {
+                    UnityEngine.Object.Destroy(existingRouters[i].gameObject);
+                }
+            }
+
+            yield return null;
+
+            var projectileType = Type.GetType("Reloader.Weapons.Ballistics.WeaponProjectile, Reloader.Weapons");
+            Assert.That(projectileType, Is.Not.Null, "WeaponProjectile type should resolve from Reloader.Weapons assembly.");
+
+            var projectileGo = new GameObject("ProjectileNoRouter");
+            projectileGo.AddComponent(projectileType);
+            yield return null;
+
+            var createdRouter = UnityEngine.Object.FindFirstObjectByType<ImpactAudioRouter>();
+            Assert.That(createdRouter, Is.Not.Null, "Projectile should create a runtime impact router when none is present.");
+
+            UnityEngine.Object.Destroy(projectileGo);
+            if (createdRouter != null)
+            {
+                UnityEngine.Object.Destroy(createdRouter.gameObject);
+            }
+        }
+
         private static CombatAudioCatalog CreateCatalogWithFootsteps(AudioClip footstepClip)
         {
             var catalog = ScriptableObject.CreateInstance<CombatAudioCatalog>();

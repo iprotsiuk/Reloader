@@ -4,6 +4,8 @@ namespace Reloader.Audio
 {
     public sealed class ImpactAudioRouter : MonoBehaviour
     {
+        private const string RuntimeRouterObjectName = "RuntimeImpactAudioRouter";
+
         [System.Serializable]
         private sealed class TagSurfaceMapping
         {
@@ -32,8 +34,22 @@ namespace Reloader.Audio
 
         public System.Action<string, AudioClip, Vector3> ClipPlayed;
 
+        public static ImpactAudioRouter ResolveOrCreateRuntimeRouter()
+        {
+            var existing = FindFirstObjectByType<ImpactAudioRouter>();
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            var go = new GameObject(RuntimeRouterObjectName);
+            DontDestroyOnLoad(go);
+            return go.AddComponent<ImpactAudioRouter>();
+        }
+
         public void EmitImpact(Vector3 position, Collider hitCollider)
         {
+            _catalog = CombatAudioCatalogResolver.Resolve(_catalog);
             if (_catalog == null)
             {
                 return;

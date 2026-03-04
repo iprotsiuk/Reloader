@@ -34,7 +34,7 @@ namespace Reloader.Weapons.Ballistics
 
         private void Awake()
         {
-            _impactAudioRouter ??= FindFirstObjectByType<ImpactAudioRouter>();
+            _impactAudioRouter ??= ImpactAudioRouter.ResolveOrCreateRuntimeRouter();
             EnsureInFlightVisual();
             _remainingLifetime = _lifetimeSeconds;
             _velocity = transform.forward * _speed;
