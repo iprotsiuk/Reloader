@@ -65,10 +65,12 @@ namespace Reloader.Weapons.Animations
 
         public void OnAmmunitionFill()
         {
+            SendMessageUpwards("OnAmmunitionFill", SendMessageOptions.DontRequireReceiver);
         }
 
         public void OnAnimationEndedReload()
         {
+            SendMessageUpwards("OnAnimationEndedReload", SendMessageOptions.DontRequireReceiver);
         }
 
         public void OnEjectCasing()
