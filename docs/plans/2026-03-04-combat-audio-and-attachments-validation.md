@@ -31,6 +31,9 @@ Plan source: `docs/plans/2026-03-04-combat-audio-and-attachments-implementation-
 - `215b3b5` chore(weapons): wire combat audio and attachment demo prefabs
 - `03ed9c5` test(weapons): decouple combat emitter test from catalog dependency
 - `6159b0f` fix(audio): bootstrap default catalog and runtime impact router
+- `41e2a61` fix(audio): remove gunshot clips from reload audio mappings
+- `43667f1` fix(audio): bootstrap footsteps runtime and stabilize one-shot playback
+- `09c86d1` fix(attachments): skip unsafe prefabs with missing scripts at runtime
 
 ## Verification Evidence
 
@@ -75,3 +78,4 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
 
 - Batchmode test XML evidence is still missing for this branch due Unity-instance lock; rerun required after closing the active editor project.
 - `scripts/verify-docs-and-context.sh` currently fails because of a pre-existing persistence script location issue not introduced by this feature branch.
+- Existing vendor-derived weapon visual prefabs still report missing script references in play mode; runtime attachment modules now skip unsafe prefab instantiation paths to reduce reload/fire crash risk from those assets.
