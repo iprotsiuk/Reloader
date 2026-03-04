@@ -177,15 +177,20 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
+            var legacyHeld = SafeGetKey(_adsKey);
+            if (!_adsButtonUnavailable && !string.IsNullOrWhiteSpace(_adsButton))
+            {
+                legacyHeld |= SafeGetButton(_adsButton);
+            }
+
+            if (!externalAdsThisFrame && _externalAdsControlActive && legacyHeld != _isAdsHeld)
+            {
+                _externalAdsControlActive = false;
+            }
+
             if (!externalAdsThisFrame && !_externalAdsControlActive)
             {
-                var held = SafeGetKey(_adsKey);
-                if (!_adsButtonUnavailable && !string.IsNullOrWhiteSpace(_adsButton))
-                {
-                    held |= SafeGetButton(_adsButton);
-                }
-
-                _isAdsHeld = held;
+                _isAdsHeld = legacyHeld;
             }
 
             if (_zoomOnlyWhileAds && !_isAdsHeld)
@@ -193,12 +198,17 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
+            var scroll = SafeGetMouseScrollY();
+            if (!externalMagThisFrame && _externalZoomControlActive && Mathf.Abs(scroll) > 0.001f)
+            {
+                _externalZoomControlActive = false;
+            }
+
             if (externalMagThisFrame || _externalZoomControlActive)
             {
                 return;
             }
 
-            var scroll = SafeGetMouseScrollY();
             if (Mathf.Abs(scroll) <= 0.001f)
             {
                 return;
