@@ -44,7 +44,6 @@ namespace Reloader.Game.Weapons
 
         private void OnEnable()
         {
-            CacheRestPose();
             CacheMainCameraTransform();
         }
 
