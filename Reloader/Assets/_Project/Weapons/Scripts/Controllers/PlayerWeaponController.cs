@@ -64,6 +64,7 @@ namespace Reloader.Weapons.Controllers
         [SerializeField] private PlayerCameraDefaults _cameraDefaults;
         [SerializeField] private Camera _adsCamera;
         [SerializeField] private Animator _packAnimator;
+        [SerializeField] private WeaponCombatAudioEmitter _combatAudioEmitter;
         [SerializeField] private PackWeaponPresentationConfig _packPresentationConfig = new PackWeaponPresentationConfig();
         [SerializeField] private Transform _weaponViewParent;
         [SerializeField] private WeaponViewPrefabBinding[] _weaponViewPrefabs = System.Array.Empty<WeaponViewPrefabBinding>();
@@ -553,6 +554,7 @@ namespace Reloader.Weapons.Controllers
                 transform);
 
             ResolveWeaponEvents()?.RaiseWeaponFired(_equippedItemId, _muzzleTransform.position, firedDirection);
+            ResolveCombatAudioEmitter()?.EmitWeaponFire(_equippedItemId, _muzzleTransform.position);
         }
 
         private WeaponProjectile SpawnProjectile()
@@ -617,6 +619,7 @@ namespace Reloader.Weapons.Controllers
 
             state.IsReloading = true;
             ResolveWeaponEvents()?.RaiseWeaponReloadStarted(_equippedItemId);
+            ResolveCombatAudioEmitter()?.EmitReloadStarted(_equippedItemId, _muzzleTransform.position);
         }
 
         private void TickReloadCancellation()
@@ -669,6 +672,7 @@ namespace Reloader.Weapons.Controllers
 
             state.SetReserveCount(_inventoryController.Runtime.GetItemQuantity(ammoItemId));
             ResolveWeaponEvents()?.RaiseWeaponReloaded(_equippedItemId, state.MagazineCount, state.ReserveCount);
+            ResolveCombatAudioEmitter()?.EmitReloadCompleted(_equippedItemId, _muzzleTransform.position);
         }
 
         private void TickPackPresentation()
@@ -750,6 +754,17 @@ namespace Reloader.Weapons.Controllers
 
             state.IsReloading = false;
             ResolveWeaponEvents()?.RaiseWeaponReloadCancelled(itemId, reason);
+        }
+
+        private WeaponCombatAudioEmitter ResolveCombatAudioEmitter()
+        {
+            if (_combatAudioEmitter != null)
+            {
+                return _combatAudioEmitter;
+            }
+
+            _combatAudioEmitter = GetComponentInChildren<WeaponCombatAudioEmitter>(true);
+            return _combatAudioEmitter;
         }
 
         private IWeaponEvents ResolveWeaponEvents()

@@ -3,6 +3,7 @@
   "rootNamespace": "Reloader.Weapons.Tests",
   "references": [
     "Reloader.Weapons",
+    "Reloader.Audio",
     "Reloader.Core",
     "Reloader.Inventory",
     "Reloader.Player"
