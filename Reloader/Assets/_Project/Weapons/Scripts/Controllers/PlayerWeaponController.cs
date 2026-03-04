@@ -1490,7 +1490,18 @@ namespace Reloader.Weapons.Controllers
             }
 
             Array.Sort(definitions, CompareObjectsDeterministically);
-            return definitions[0];
+            for (var i = 0; i < definitions.Length; i++)
+            {
+                var candidate = definitions[i];
+                if (candidate == null || !IsSafeMuzzleDefinition(candidate))
+                {
+                    continue;
+                }
+
+                return candidate;
+            }
+
+            return null;
         }
 
         private static int CompareObjectsDeterministically(UObject left, UObject right)
@@ -1514,6 +1525,41 @@ namespace Reloader.Weapons.Controllers
             return nameComparison != 0
                 ? nameComparison
                 : left.GetInstanceID().CompareTo(right.GetInstanceID());
+        }
+
+        private static bool IsSafeMuzzleDefinition(UObject definition)
+        {
+            if (definition == null)
+            {
+                return false;
+            }
+
+            var muzzlePrefabField = definition.GetType().GetField("_muzzlePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (muzzlePrefabField == null || !(muzzlePrefabField.GetValue(definition) is GameObject muzzlePrefab) || muzzlePrefab == null)
+            {
+                return false;
+            }
+
+            return !HasMissingScriptsInPrefab(muzzlePrefab);
+        }
+
+        private static bool HasMissingScriptsInPrefab(GameObject prefab)
+        {
+            if (prefab == null)
+            {
+                return true;
+            }
+
+            var components = prefab.GetComponentsInChildren<Component>(true);
+            for (var i = 0; i < components.Length; i++)
+            {
+                if (components[i] == null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private PackWeaponPresentationConfig ResolvePackPresentationConfig(string itemId, WeaponDefinition definition = null)

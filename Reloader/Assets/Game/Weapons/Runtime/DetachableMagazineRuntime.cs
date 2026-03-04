@@ -10,6 +10,8 @@ namespace Reloader.Game.Weapons
 
         private MagazineAttachmentDefinition _activeAttachment;
         private GameObject _attachedMagazineVisual;
+        private bool _loggedUnsafeMagazinePrefab;
+        private bool _loggedUnsafeDroppedMagazinePrefab;
 
         private void Awake()
         {
@@ -39,6 +41,17 @@ namespace Reloader.Game.Weapons
 
             if (!_activeAttachment.SpawnDroppedMagazine || _activeAttachment.DroppedMagazinePrefab == null)
             {
+                return;
+            }
+
+            if (HasMissingScriptsInPrefab(_activeAttachment.DroppedMagazinePrefab))
+            {
+                if (!_loggedUnsafeDroppedMagazinePrefab)
+                {
+                    Debug.LogWarning("DetachableMagazineRuntime: Skipping dropped magazine instantiate because prefab has missing scripts.", _activeAttachment.DroppedMagazinePrefab);
+                    _loggedUnsafeDroppedMagazinePrefab = true;
+                }
+
                 return;
             }
 
@@ -86,7 +99,37 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
+            if (HasMissingScriptsInPrefab(_activeAttachment.MagazineVisualPrefab))
+            {
+                if (!_loggedUnsafeMagazinePrefab)
+                {
+                    Debug.LogWarning("DetachableMagazineRuntime: Skipping magazine visual instantiate because prefab has missing scripts.", _activeAttachment.MagazineVisualPrefab);
+                    _loggedUnsafeMagazinePrefab = true;
+                }
+
+                return;
+            }
+
             _attachedMagazineVisual = Instantiate(_activeAttachment.MagazineVisualPrefab, _magazineSocket, false);
+        }
+
+        private static bool HasMissingScriptsInPrefab(GameObject prefab)
+        {
+            if (prefab == null)
+            {
+                return true;
+            }
+
+            var components = prefab.GetComponentsInChildren<Component>(true);
+            for (var i = 0; i < components.Length; i++)
+            {
+                if (components[i] == null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

@@ -10,6 +10,8 @@ namespace Reloader.Game.Weapons
 
         private MuzzleAttachmentDefinition _activeAttachment;
         private GameObject _equippedMuzzleInstance;
+        private bool _loggedUnsafeMuzzlePrefab;
+        private bool _loggedUnsafeFlashPrefab;
 
         public MuzzleAttachmentDefinition ActiveAttachment => _activeAttachment;
 
@@ -24,13 +26,23 @@ namespace Reloader.Game.Weapons
         public void Equip(MuzzleAttachmentDefinition definition)
         {
             Unequip();
-            _activeAttachment = definition;
-
-            if (_activeAttachment == null || _activeAttachment.MuzzlePrefab == null || _attachmentSlot == null)
+            if (definition == null || definition.MuzzlePrefab == null || _attachmentSlot == null)
             {
                 return;
             }
 
+            if (HasMissingScriptsInPrefab(definition.MuzzlePrefab))
+            {
+                if (!_loggedUnsafeMuzzlePrefab)
+                {
+                    Debug.LogWarning("MuzzleAttachmentRuntime: Skipping muzzle attachment instantiate because prefab has missing scripts.", definition.MuzzlePrefab);
+                    _loggedUnsafeMuzzlePrefab = true;
+                }
+
+                return;
+            }
+
+            _activeAttachment = definition;
             _equippedMuzzleInstance = Instantiate(_activeAttachment.MuzzlePrefab, _attachmentSlot, false);
         }
 
@@ -55,8 +67,16 @@ namespace Reloader.Game.Weapons
             var socket = _muzzleSocket != null ? _muzzleSocket : transform;
             if (_activeAttachment != null && _activeAttachment.FlashPrefab != null)
             {
-                var flash = Instantiate(_activeAttachment.FlashPrefab, socket.position, socket.rotation, socket);
-                Destroy(flash, 0.25f);
+                if (!HasMissingScriptsInPrefab(_activeAttachment.FlashPrefab))
+                {
+                    var flash = Instantiate(_activeAttachment.FlashPrefab, socket.position, socket.rotation, socket);
+                    Destroy(flash, 0.25f);
+                }
+                else if (!_loggedUnsafeFlashPrefab)
+                {
+                    Debug.LogWarning("MuzzleAttachmentRuntime: Skipping flash instantiate because prefab has missing scripts.", _activeAttachment.FlashPrefab);
+                    _loggedUnsafeFlashPrefab = true;
+                }
             }
 
             if (_activeAttachment != null && _activeAttachment.FlashLightDurationSeconds > 0f)
@@ -71,6 +91,25 @@ namespace Reloader.Game.Weapons
                 light.color = _activeAttachment.FlashLightColor;
                 Destroy(lightGo, _activeAttachment.FlashLightDurationSeconds);
             }
+        }
+
+        private static bool HasMissingScriptsInPrefab(GameObject prefab)
+        {
+            if (prefab == null)
+            {
+                return true;
+            }
+
+            var components = prefab.GetComponentsInChildren<Component>(true);
+            for (var i = 0; i < components.Length; i++)
+            {
+                if (components[i] == null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
