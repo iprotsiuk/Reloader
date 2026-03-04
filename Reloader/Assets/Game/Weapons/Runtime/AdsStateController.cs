@@ -64,6 +64,8 @@ namespace Reloader.Game.Weapons
         private int _externalMagnificationSetFrame = -1;
         private bool _externalAdsControlActive;
         private bool _externalZoomControlActive;
+        private bool _hasLegacyAdsSample;
+        private bool _lastLegacyAdsHeld;
 
         public bool IsAdsActive => _isAdsHeld;
         public float AdsT { get; private set; }
@@ -183,7 +185,11 @@ namespace Reloader.Game.Weapons
                 legacyHeld |= SafeGetButton(_adsButton);
             }
 
-            if (!externalAdsThisFrame && _externalAdsControlActive && legacyHeld != _isAdsHeld)
+            var legacyAdsEdgeChanged = _hasLegacyAdsSample && legacyHeld != _lastLegacyAdsHeld;
+            _hasLegacyAdsSample = true;
+            _lastLegacyAdsHeld = legacyHeld;
+
+            if (!externalAdsThisFrame && _externalAdsControlActive && legacyAdsEdgeChanged)
             {
                 _externalAdsControlActive = false;
             }
