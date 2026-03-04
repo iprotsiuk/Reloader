@@ -20,7 +20,7 @@ namespace Reloader.World.Editor
     public static class MainTownCombatWiring
     {
         private static readonly Vector3 ArmsLocalPosition = new Vector3(0f, -0.12f, 0.3f);
-        private static readonly Vector3 ArmsLocalRotation = new Vector3(-90f, 0f, 0f);
+        private static readonly Vector3 ArmsLocalRotation = Vector3.zero;
         private static readonly Vector3 ArmsLocalScale = new Vector3(0.42f, 0.42f, 0.42f);
         private static readonly Vector3 CameraPivotLocalPosition = new Vector3(0f, 1.8f, 0f);
         private const string TargetScenePath = "Assets/_Project/World/Scenes/MainTown.unity";
