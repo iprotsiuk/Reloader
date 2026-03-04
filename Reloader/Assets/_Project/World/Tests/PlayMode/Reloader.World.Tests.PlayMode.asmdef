@@ -3,7 +3,8 @@
   "rootNamespace": "Reloader.World.Tests.PlayMode",
   "references": [
     "Reloader.World",
-    "Reloader.Core"
+    "Reloader.Core",
+    "Reloader.Player"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

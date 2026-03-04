@@ -3,7 +3,8 @@
   "rootNamespace": "Reloader.Inventory.Tests.PlayMode",
   "references": [
     "Reloader.Inventory",
-    "Reloader.Core"
+    "Reloader.Core",
+    "Reloader.Player"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

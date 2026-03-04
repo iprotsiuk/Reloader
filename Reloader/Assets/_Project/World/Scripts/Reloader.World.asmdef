@@ -1,7 +1,9 @@
 {
   "name": "Reloader.World",
   "rootNamespace": "Reloader.World",
-  "references": [],
+  "references": [
+    "Reloader.Player"
+  ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
