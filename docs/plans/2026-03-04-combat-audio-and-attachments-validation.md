@@ -1,62 +1,77 @@
 # Combat Audio + Attachments Validation
 
-Status: In progress (docs synchronized through branch state as of 2026-03-04 14:28 PST)
+Status: Implemented on branch `feat/combat-audio-attachments-2026-03-04` as of 2026-03-04 (America/Los_Angeles).
 
-This document tracks implementation/verification status for tasks in `docs/plans/2026-03-04-combat-audio-and-attachments-implementation-plan.md`.
+Plan source: `docs/plans/2026-03-04-combat-audio-and-attachments-implementation-plan.md`
 
-## Completed Tasks Snapshot
+## Task Status
 
 | Task | Status | Evidence |
 |---|---|---|
-| Task 1 - Import + catalog external combat audio assets | Completed | Commit `40b7b5b` (`feat(audio): import and catalog combat sfx assets`) |
-| Task 2 - Weapon combat audio runtime emitter | Completed (with additional in-progress test/bridge refinements in working tree) | Commit `e837df7` (`feat(weapons): add combat audio emitter for fire and reload`), plus current modifications in `PlayerWeaponController` and `WeaponCombatAudioEmitterPlayModeTests` |
-| Task 3 - Muzzle attachment definition + runtime hooks | Completed | Commit `f082ba3` (`feat(attachments): add data-driven muzzle attachment runtime`) |
-| Task 4 - Detachable magazine runtime visuals | In progress (implemented in working tree, not committed yet) | Added `DetachableMagazineRuntime`, `MagazineAttachmentDefinition`, test `DetachableMagazineRuntimePlayModeTests`, and controller/animation relay updates |
-| Task 5 - Scope attachment integration with ADS framework | Not started in this branch snapshot | No branch commit for Task 5 yet |
-| Task 6 - Footstep + impact audio routing | Not started in this branch snapshot | No branch commit for Task 6 yet |
-| Task 7 - Prefab + scene wiring for demo validation | Not started in this branch snapshot | No branch commit for Task 7 yet |
-| Task 8 - Final verification + docs sync | In progress | This doc and design docs updated in current working tree |
+| Task 1 - Import + catalog external combat audio assets | Completed | `40b7b5b` |
+| Task 2 - Weapon combat audio runtime emitter | Completed | `e837df7`, follow-up hardening `6f2555f`, `6159b0f` |
+| Task 3 - Muzzle attachment definition + runtime hooks | Completed | `f082ba3`, follow-up correctness `6f2555f` |
+| Task 4 - Detachable magazine runtime visuals | Completed | `504759e` |
+| Task 5 - Scope attachment ADS hot-swap integration | Completed | `478ff05` |
+| Task 6 - Footstep + impact audio routing | Completed | `6b634ad`, runtime-source hardening `6159b0f` |
+| Task 7 - Prefab + scene demo wiring | Completed (prefab wiring landed; scene-level runtime already consumes prefab updates) | `215b3b5` |
+| Task 8 - Final verification + docs sync | Completed with known external blocker | `78fdb6c`, `6159b0f`, this docs update |
+
+## Commit Log (this feature)
+
+- `40b7b5b` feat(audio): import and catalog combat sfx assets
+- `e837df7` feat(weapons): add combat audio emitter for fire and reload
+- `f082ba3` feat(attachments): add data-driven muzzle attachment runtime
+- `78fdb6c` docs: sync combat audio and attachment runtime contracts
+- `6f2555f` Fix weapon runtime bridges and accurate muzzle equip failures
+- `b1516c9` Remove unrelated staged changes from weapon runtime fix commit
+- `6b634ad` feat(audio): add footstep and impact audio routing
+- `504759e` feat(attachments): add detachable magazine reload visuals
+- `478ff05` feat(ads): integrate scope attachment hot-swap with mask/zoom
+- `215b3b5` chore(weapons): wire combat audio and attachment demo prefabs
+- `03ed9c5` test(weapons): decouple combat emitter test from catalog dependency
+- `6159b0f` fix(audio): bootstrap default catalog and runtime impact router
 
 ## Verification Evidence
 
-### Branch Evidence
+### Guardrails
 
-| Command | Timestamp | Result |
+| Command | Result | Evidence |
 |---|---|---|
-| `git log --oneline --reverse main..HEAD` | 2026-03-04 14:28 PST | `451c325`, `4ea4e03`, `40b7b5b`, `e837df7`, `f082ba3` |
+| `bash scripts/verify-docs-and-context.sh` | Failed (pre-existing unrelated guardrail) | `RuntimeDroppedObjectPersistenceTracker.cs` placement policy violation under inventory world scripts |
+| `bash scripts/verify-extensible-development-contracts.sh` | Passed | `All extensible development contract checks passed.` |
 
-### Guardrail / Docs Verification
+### Unity PlayMode runs (batchmode)
 
-| Command | Timestamp | Exit | Evidence |
-|---|---|---:|---|
-| `bash scripts/verify-docs-and-context.sh` | 2026-03-04 14:28 PST | 1 | Fails on existing policy issue: `RuntimeDroppedObjectPersistenceTracker.cs` is outside required `Core/Scripts/Persistence/` path |
-| `bash scripts/verify-extensible-development-contracts.sh` | 2026-03-04 14:28 PST | 0 | Passed (`All extensible development contract checks passed.`) |
-| `bash .agent/skills/reviewing-design-docs/scripts/audit-docs-context.sh` | 2026-03-04 14:28 PST | 1 | Fails only because it wraps the same existing docs/context guardrail failure above |
+All targeted and aggregate batchmode runs were blocked by an existing open Unity editor session on the same project path.
 
-### Unity PlayMode Verification
+Common failure text:
 
-| Command | Timestamp | Exit | Evidence |
-|---|---|---:|---|
-| `Unity -batchmode ... -testFilter "Reloader.Weapons.Tests.PlayMode.WeaponCombatAudioEmitterPlayModeTests|Reloader.Weapons.Tests.PlayMode.MuzzleAttachmentRuntimePlayModeTests|Reloader.Weapons.Tests.PlayMode.DetachableMagazineRuntimePlayModeTests"` | 2026-03-04 14:28 PST | 1 | Unity aborted before running tests: another Unity instance already has project open; no `combat-audio-attachments.xml` produced |
+- `Aborting batchmode due to fatal error:`
+- `It looks like another Unity instance is running with this project open.`
+- `Multiple Unity instances cannot open the same project.`
 
-## Blockers
+Commands attempted included:
 
-### Unity-open Batchmode Constraint
+- `./scripts/run-unity-tests.sh playmode "Reloader.Weapons.Tests.PlayMode.DetachableMagazineRuntimePlayModeTests" ...`
+- `./scripts/run-unity-tests.sh playmode "Reloader.Weapons.Tests.PlayMode.ScopeAttachmentAdsIntegrationPlayModeTests" ...`
+- `./scripts/run-unity-tests.sh playmode "Reloader.Weapons.Tests.PlayMode.PlayerWeaponControllerPlayModeTests" ...`
+- `./scripts/run-unity-tests.sh playmode "Reloader.Audio.Tests.PlayMode.FootstepAndImpactAudioPlayModeTests" ...`
+- `Unity -batchmode -runTests -testFilter "Reloader.Weapons.Tests.PlayMode|Reloader.UI.Tests.PlayMode" ...`
 
-- Blocked command: targeted playmode batch run for combat audio + attachment tests.
-- Runtime error: `It looks like another Unity instance is running with this project open. Multiple Unity instances cannot open the same project.`
-- Impact: Cannot produce fresh batchmode XML evidence until interactive editor instance is closed (or tests are run from that open editor session).
+## PR Review Thread Resolution Log
 
-## PR Thread Resolution Log (Placeholders)
+PR: https://github.com/iprotsiuk/Reloader/pull/21
 
-| Thread / Link | Area | Requested Change | Owner | Status | Resolution Notes |
-|---|---|---|---|---|---|
-| `TBD-1` | `TBD` | `TBD` | `TBD` | Open | _Placeholder_ |
-| `TBD-2` | `TBD` | `TBD` | `TBD` | Open | _Placeholder_ |
-| `TBD-3` | `TBD` | `TBD` | `TBD` | Open | _Placeholder_ |
+| Thread | Status | Resolution |
+|---|---|---|
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886425108 | Resolved | Runtime emitter auto-resolution + auto-add path (`6f2555f`) |
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886450569 | Resolved | Muzzle bridge now equips discovered/fallback definition (`6f2555f`) |
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886450571 | Resolved | `AttachmentManager.EquipMuzzle` runtime failure reporting corrected (`6f2555f`) |
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886519681 | Resolved | Default catalog bootstrap for runtime-created emitters (`6159b0f`) |
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886519682 | Resolved | Runtime `ImpactAudioRouter` source guaranteed from `WeaponProjectile` (`6159b0f`) |
 
-## Incremental Update Notes
+## Known Residual Risks
 
-- 2026-03-04: Synced task ledger to current branch commits + working tree implementation progress.
-- 2026-03-04: Recorded fresh verification evidence (guardrail scripts + Unity batchmode attempt) and blocker details.
-- 2026-03-04: Added PR-thread tracking placeholders for review-cycle updates.
+- Batchmode test XML evidence is still missing for this branch due Unity-instance lock; rerun required after closing the active editor project.
+- `scripts/verify-docs-and-context.sh` currently fails because of a pre-existing persistence script location issue not introduced by this feature branch.

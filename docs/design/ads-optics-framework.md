@@ -70,6 +70,7 @@ Enums:
   - `EquipOptic(OpticDefinition)`
   - `UnequipOptic()`
   - `GetActiveSightAnchor()`
+  - `ActiveOpticChanged` event for hot-swap listeners
   - `EquipMuzzle(MuzzleAttachmentDefinition)` / `UnequipMuzzle()`
   - exposes `ActiveOpticDefinition` and `ActiveMuzzleDefinition`
   - fallback to `IronSightAnchor`
@@ -77,6 +78,8 @@ Enums:
 - `AdsStateController`
   - tracks ADS state + `AdsT`
   - handles variable zoom (1x-40x clamp)
+  - reacts to optic hot-swap via `AttachmentManager.ActiveOpticChanged`
+  - clamps/normalizes magnification state on optic swap without controller reset
   - applies world FOV mapping
   - computes sensitivity/sway scales
   - drives scope mask / PiP state
@@ -89,6 +92,7 @@ Enums:
 
 - `ScopeMaskController`
   - scope mask UI + outside darkening + reticle scaling
+  - runtime state is externally inspectable via `IsMaskVisible` / `CurrentAlpha`
 
 - `RenderTextureScopeController`
   - lightweight PiP stub

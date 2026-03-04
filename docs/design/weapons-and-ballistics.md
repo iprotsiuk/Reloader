@@ -136,6 +136,9 @@ Each round in the magazine is a specific `AmmoInstance`. Match-grade loads carry
   - `WeaponCombatAudioEmitter.EmitWeaponFire(itemId, muzzlePosition, overrideClip?)`
   - `WeaponCombatAudioEmitter.EmitReloadStarted(itemId, position)`
   - `WeaponCombatAudioEmitter.EmitReloadCompleted(itemId, position)`
+- Runtime default catalog resolution:
+  - `CombatAudioCatalogResolver` loads fallback catalog from `Assets/_Project/Audio/Resources/CombatAudioCatalog.asset`.
+  - Auto-created `WeaponCombatAudioEmitter` instances bind this catalog, avoiding silent fire/reload audio no-op paths when no inspector wiring exists.
 - Fire audio supports muzzle-driven override clips:
   - `PlayerWeaponController` queries `MuzzleAttachmentRuntime.TryGetFireClipOverride()`.
   - When override exists, it is used instead of catalog fallback.
@@ -150,6 +153,9 @@ Each round in the magazine is a specific `AmmoInstance`. Match-grade loads carry
 - Detachable magazine runtime (implemented under `Assets/Game/Weapons/**`):
   - `MagazineAttachmentDefinition`: attached visual prefab, optional dropped-mag prefab, detach/spawn flags, dropped lifetime.
   - `DetachableMagazineRuntime`: hides attached mag on reload start, optionally spawns dropped visual, restores on insert/reload complete.
+- Impact audio routing bootstrap:
+  - `WeaponProjectile` resolves `ImpactAudioRouter` via `ResolveOrCreateRuntimeRouter()` when scene wiring is absent.
+  - Router resolves catalog through `CombatAudioCatalogResolver` to keep default impact audio active in baseline scenes.
 - Current view prefab socket contract used by bridge wiring:
   - `Muzzle` / optional `MuzzleAttachmentSlot`
   - `MagazineSocket`
