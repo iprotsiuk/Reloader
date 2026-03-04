@@ -49,6 +49,19 @@ namespace Reloader.Audio
             return PickClip($"fire::{weaponId}", ResolveWeaponGroup(weaponId)?.FireClips, _defaultGunshotClips);
         }
 
+        public AudioClip GetStableFireClip(string weaponId)
+        {
+            var source = BuildValidClipList(ResolveWeaponGroup(weaponId)?.FireClips, _defaultGunshotClips);
+            if (source.Count == 0)
+            {
+                return null;
+            }
+
+            var key = string.IsNullOrWhiteSpace(weaponId) ? "default" : weaponId.Trim();
+            var index = Mathf.Abs(key.GetHashCode()) % source.Count;
+            return source[index];
+        }
+
         public AudioClip GetRandomReloadStartClip(string weaponId)
         {
             return PickClip($"reload_start::{weaponId}", ResolveWeaponGroup(weaponId)?.ReloadStartClips, _defaultReloadStartClips);

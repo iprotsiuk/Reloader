@@ -61,6 +61,26 @@ namespace Reloader.Audio.Tests.PlayMode
             Object.DestroyImmediate(catalog);
         }
 
+        [Test]
+        public void GetStableFireClip_ReturnsSameClip_ForSameWeapon()
+        {
+            var catalog = ScriptableObject.CreateInstance<CombatAudioCatalog>();
+            var clipA = AudioClip.Create("shot-a", 128, 1, 44100, false);
+            var clipB = AudioClip.Create("shot-b", 128, 1, 44100, false);
+            var clipC = AudioClip.Create("shot-c", 128, 1, 44100, false);
+            SetPrivateField(catalog, "_defaultGunshotClips", new[] { clipA, clipB, clipC });
+
+            var first = catalog.GetStableFireClip("weapon-rifle-01");
+            var second = catalog.GetStableFireClip("weapon-rifle-01");
+            Assert.That(first, Is.Not.Null);
+            Assert.That(second, Is.SameAs(first));
+
+            Object.DestroyImmediate(clipA);
+            Object.DestroyImmediate(clipB);
+            Object.DestroyImmediate(clipC);
+            Object.DestroyImmediate(catalog);
+        }
+
         private static void SetPrivateField(object target, string fieldName, object value)
         {
             var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);

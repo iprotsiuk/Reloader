@@ -5,10 +5,17 @@ namespace Reloader.Weapons.Runtime
 {
     public class WeaponCombatAudioEmitter : MonoBehaviour
     {
+        private enum FireClipSelectionMode
+        {
+            StablePerWeapon = 0,
+            RandomPerShot = 1
+        }
+
         private const string OneShotSourceNodeName = "WeaponAudioOneShotSource";
 
         [SerializeField] private CombatAudioCatalog _catalog;
         [SerializeField] private AudioSource _oneShotSource;
+        [SerializeField] private FireClipSelectionMode _fireClipSelectionMode = FireClipSelectionMode.StablePerWeapon;
         [SerializeField, Range(0f, 1f)] private float _fireVolume = 0.95f;
         [SerializeField, Range(0f, 1f)] private float _reloadVolume = 0.7f;
 
@@ -18,7 +25,13 @@ namespace Reloader.Weapons.Runtime
         {
             var catalog = CombatAudioCatalogResolver.Resolve(_catalog);
             _catalog = catalog;
-            var clip = overrideClip != null ? overrideClip : catalog != null ? catalog.GetRandomFireClip(weaponId) : null;
+            var clip = overrideClip != null
+                ? overrideClip
+                : catalog != null
+                    ? _fireClipSelectionMode == FireClipSelectionMode.StablePerWeapon
+                        ? catalog.GetStableFireClip(weaponId)
+                        : catalog.GetRandomFireClip(weaponId)
+                    : null;
             TryPlay(weaponId, clip, muzzlePosition, _fireVolume);
         }
 
