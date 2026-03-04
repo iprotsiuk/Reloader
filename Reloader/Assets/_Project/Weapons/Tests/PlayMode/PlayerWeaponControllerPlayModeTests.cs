@@ -12,6 +12,7 @@ using Reloader.Weapons.Data;
 using Reloader.Weapons.Runtime;
 using UnityEngine;
 using UnityEngine.TestTools;
+using Object = UnityEngine.Object;
 
 namespace Reloader.Weapons.Tests.PlayMode
 {
