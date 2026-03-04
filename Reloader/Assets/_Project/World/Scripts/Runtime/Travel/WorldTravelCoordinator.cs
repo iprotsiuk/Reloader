@@ -16,7 +16,7 @@ namespace Reloader.World.Travel
         private static float _travelSuppressedUntilRealtime;
         private static Dictionary<string, int> _pendingInventoryQuantities = new();
         private static readonly List<WeaponRuntimeSnapshotCapture> _pendingWeaponSnapshots = new();
-        private static readonly Vector3 FpsArmsLocalPosition = new Vector3(0f, -0.12f, 0.3f);
+        private static readonly Vector3 FpsArmsLocalPosition = new Vector3(0f, -0.027f, 0.1f);
         private static readonly Quaternion FpsArmsLocalRotation = Quaternion.identity;
         private static readonly Vector3 FpsArmsLocalScale = new Vector3(0.42f, 0.42f, 0.42f);
 

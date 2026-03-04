@@ -19,7 +19,7 @@ namespace Reloader.Player.Editor
         private const string IdleClipPath = "Assets/_Project/Player/Resources/Viewmodels/Characters/ViewmodelIdle.anim";
         private const string WalkClipPath = "Assets/_Project/Player/Resources/Viewmodels/Characters/ViewmodelWalk.anim";
         private const string ViewmodelLayerName = "Viewmodel";
-        private static readonly Vector3 FpsArmsOffsetLocalPosition = new(0f, -0.12f, 0.3f);
+        private static readonly Vector3 FpsArmsOffsetLocalPosition = new(0f, -0.027f, 0.1f);
         private static readonly Vector3 FpsArmsOffsetLocalEuler = Vector3.zero;
         private static readonly Vector3 FpsArmsOffsetLocalScale = new(0.42f, 0.42f, 0.42f);
 
