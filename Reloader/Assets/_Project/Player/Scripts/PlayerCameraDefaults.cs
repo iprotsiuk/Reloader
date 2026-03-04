@@ -13,6 +13,8 @@ namespace Reloader.Player
         [SerializeField] private CinemachineCamera _cinemachineCamera;
         [SerializeField] private Transform _cameraFollowTarget;
         [SerializeField] private Transform _cameraLookTarget;
+        [SerializeField] private float _nearClipPlane = 0.01f;
+        [SerializeField] private float _farClipPlane = 1000f;
 
         private void Awake()
         {
@@ -47,9 +49,18 @@ namespace Reloader.Player
 
             if (_mainCamera != null)
             {
+                _mainCamera.nearClipPlane = Mathf.Clamp(_nearClipPlane, 0.001f, 1f);
+                _mainCamera.farClipPlane = Mathf.Max(_mainCamera.nearClipPlane + 0.01f, _farClipPlane);
                 var cameraData = _mainCamera.GetUniversalAdditionalCameraData();
                 cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
                 cameraData.antialiasingQuality = AntialiasingQuality.High;
+
+                var viewmodelCamera = _mainCamera.transform.Find("ViewmodelCamera")?.GetComponent<Camera>();
+                if (viewmodelCamera != null)
+                {
+                    viewmodelCamera.nearClipPlane = _mainCamera.nearClipPlane;
+                    viewmodelCamera.farClipPlane = Mathf.Max(viewmodelCamera.nearClipPlane + 0.01f, 10f);
+                }
             }
         }
 

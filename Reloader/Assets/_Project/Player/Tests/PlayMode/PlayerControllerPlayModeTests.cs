@@ -874,6 +874,8 @@ namespace Reloader.Player.Tests.PlayMode
             var blendMethodValue = blendUpdateMethodProp != null ? blendUpdateMethodProp.GetValue(brain) : blendUpdateMethodField.GetValue(brain);
             Assert.That(updateMethodValue?.ToString(), Is.EqualTo("LateUpdate"));
             Assert.That(blendMethodValue?.ToString(), Is.EqualTo("LateUpdate"));
+            Assert.That(camera.nearClipPlane, Is.EqualTo(0.01f).Within(0.0001f));
+            Assert.That(camera.farClipPlane, Is.GreaterThan(camera.nearClipPlane));
 
             Object.DestroyImmediate(root);
         }
