@@ -141,22 +141,26 @@ namespace Reloader.Game.Weapons
 
         public void SetAdsHeld(bool held)
         {
+            if (!_allowExternalAdsControl)
+            {
+                return;
+            }
+
             _isAdsHeld = held;
             _externalAdsSetFrame = Time.frameCount;
-            if (_allowExternalAdsControl)
-            {
-                _externalAdsControlActive = true;
-            }
+            _externalAdsControlActive = true;
         }
 
         public void SetMagnification(float magnification)
         {
+            if (!_allowExternalZoomControl)
+            {
+                return;
+            }
+
             _targetMagnification = ResolveClampedMagnification(magnification);
             _externalMagnificationSetFrame = Time.frameCount;
-            if (_allowExternalZoomControl)
-            {
-                _externalZoomControlActive = true;
-            }
+            _externalZoomControlActive = true;
         }
 
         public void SetWeaponDefinition(WeaponDefinition weaponDefinition)
