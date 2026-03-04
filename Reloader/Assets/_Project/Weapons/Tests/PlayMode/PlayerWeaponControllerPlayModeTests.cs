@@ -13,6 +13,7 @@ using Reloader.Weapons.Runtime;
 using UnityEngine;
 using UnityEngine.TestTools;
 using Object = UnityEngine.Object;
+using Random = UnityEngine.Random;
 
 namespace Reloader.Weapons.Tests.PlayMode
 {
