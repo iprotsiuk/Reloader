@@ -61,7 +61,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.World.WeaponPickupTarget
   _itemId: weapon-rifle-01
-  _visualRoot: {fileID: 0}
+  _visualRoot: {fileID: 8445401694592989334, guid: 8c7ba79f8ec05794aba7ffdd3d8aba93, type: 3}
   _disableGameObjectOnPickup: 1
   _identity: {fileID: 6513317541855077805}
 --- !u!65 &3965262733833303652
