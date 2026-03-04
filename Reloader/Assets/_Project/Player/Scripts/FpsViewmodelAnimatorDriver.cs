@@ -4,7 +4,7 @@ namespace Reloader.Player
 {
     public sealed class FpsViewmodelAnimatorDriver : MonoBehaviour
     {
-        private static readonly Vector3 ExpectedViewmodelLocalPosition = new Vector3(0f, -0.12f, 0.3f);
+        private static readonly Vector3 ExpectedViewmodelLocalPosition = new Vector3(0f, -0.027f, 0.1f);
         private static readonly Quaternion ExpectedViewmodelLocalRotation = Quaternion.identity;
         private static readonly Vector3 ExpectedViewmodelLocalScale = new Vector3(0.42f, 0.42f, 0.42f);
 
