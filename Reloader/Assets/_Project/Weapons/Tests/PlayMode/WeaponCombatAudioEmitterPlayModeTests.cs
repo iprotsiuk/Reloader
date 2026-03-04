@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Reflection;
 using NUnit.Framework;
-using Reloader.Audio;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Inventory;
@@ -17,15 +16,11 @@ namespace Reloader.Weapons.Tests.PlayMode
     public class WeaponCombatAudioEmitterPlayModeTests
     {
         [UnityTest]
-        public IEnumerator EmitWeaponFire_UsesCatalogClip_AndPublishesPlayback()
+        public IEnumerator EmitWeaponFire_UsesOverrideClip_AndPublishesPlayback()
         {
             var go = new GameObject("Emitter");
             var emitter = go.AddComponent<WeaponCombatAudioEmitter>();
-            var catalog = ScriptableObject.CreateInstance<CombatAudioCatalog>();
             var clip = AudioClip.Create("shot", 128, 1, 44100, false);
-
-            SetCatalogField(catalog, "_defaultGunshotClips", new[] { clip });
-            SetField(emitter, "_catalog", catalog);
 
             var played = 0;
             emitter.ClipPlayed += (_, playedClip, _) =>
@@ -36,13 +31,12 @@ namespace Reloader.Weapons.Tests.PlayMode
                 }
             };
 
-            emitter.EmitWeaponFire("weapon-rifle-01", Vector3.zero);
+            emitter.EmitWeaponFire("weapon-rifle-01", Vector3.zero, clip);
             yield return null;
 
             Assert.That(played, Is.EqualTo(1));
 
             Object.Destroy(go);
-            Object.Destroy(catalog);
             Object.Destroy(clip);
         }
 
@@ -97,20 +91,6 @@ namespace Reloader.Weapons.Tests.PlayMode
             var field = typeof(PlayerWeaponController).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
             field.SetValue(controller, value);
-        }
-
-        private static void SetCatalogField(CombatAudioCatalog catalog, string fieldName, object value)
-        {
-            var field = typeof(CombatAudioCatalog).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
-            field.SetValue(catalog, value);
-        }
-
-        private static void SetField(WeaponCombatAudioEmitter emitter, string fieldName, object value)
-        {
-            var field = typeof(WeaponCombatAudioEmitter).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
-            field.SetValue(emitter, value);
         }
 
         private sealed class SpyWeaponCombatAudioEmitter : WeaponCombatAudioEmitter
