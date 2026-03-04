@@ -97,6 +97,7 @@ namespace Reloader.Weapons.Controllers
         [SerializeField, Min(0f)] private float _holsterHideDelaySeconds = 0.2f;
         private float _scheduledArmsHideTime = -1f;
         private readonly List<Renderer> _packRenderers = new List<Renderer>();
+        private static readonly Bounds ViewmodelSkinnedBounds = new Bounds(Vector3.zero, new Vector3(8f, 8f, 8f));
         public string EquippedItemId => _equippedItemId;
 
         private void Awake()
@@ -434,6 +435,7 @@ namespace Reloader.Weapons.Controllers
             }
 
             _packAnimator.GetComponentsInChildren(true, _packRenderers);
+            ConfigureViewmodelRenderers();
         }
 
         private void SetArmsVisible(bool visible)
@@ -457,6 +459,28 @@ namespace Reloader.Weapons.Controllers
                 }
 
                 renderer.enabled = visible;
+            }
+        }
+
+        private void ConfigureViewmodelRenderers()
+        {
+            for (var i = 0; i < _packRenderers.Count; i++)
+            {
+                var renderer = _packRenderers[i];
+                if (renderer is not SkinnedMeshRenderer skinned)
+                {
+                    continue;
+                }
+
+                if (!skinned.updateWhenOffscreen)
+                {
+                    skinned.updateWhenOffscreen = true;
+                }
+
+                if (skinned.localBounds != ViewmodelSkinnedBounds)
+                {
+                    skinned.localBounds = ViewmodelSkinnedBounds;
+                }
             }
         }
 
