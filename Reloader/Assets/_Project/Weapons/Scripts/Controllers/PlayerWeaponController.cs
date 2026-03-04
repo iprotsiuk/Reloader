@@ -746,6 +746,16 @@ namespace Reloader.Weapons.Controllers
             NotifyViewMagazineInserted(_equippedItemId);
         }
 
+        public void OnAmmunitionFillForwarded()
+        {
+            OnAmmunitionFill();
+        }
+
+        public void OnAnimationEndedReloadForwarded()
+        {
+            OnAnimationEndedReload();
+        }
+
         private void CancelReload(string itemId, WeaponReloadCancelReason reason)
         {
             if (string.IsNullOrWhiteSpace(itemId))
