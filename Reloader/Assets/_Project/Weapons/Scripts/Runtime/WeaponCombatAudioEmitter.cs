@@ -6,6 +6,7 @@ namespace Reloader.Weapons.Runtime
     public class WeaponCombatAudioEmitter : MonoBehaviour
     {
         [SerializeField] private CombatAudioCatalog _catalog;
+        [SerializeField] private AudioSource _oneShotSource;
         [SerializeField, Range(0f, 1f)] private float _fireVolume = 0.95f;
         [SerializeField, Range(0f, 1f)] private float _reloadVolume = 0.7f;
 
@@ -40,6 +41,11 @@ namespace Reloader.Weapons.Runtime
             _catalog = catalog;
         }
 
+        private void Awake()
+        {
+            EnsureOneShotSource();
+        }
+
         private void TryPlay(string weaponId, AudioClip clip, Vector3 position, float volume)
         {
             if (clip == null)
@@ -48,7 +54,33 @@ namespace Reloader.Weapons.Runtime
             }
 
             ClipPlayed?.Invoke(weaponId, clip, position);
-            AudioSource.PlayClipAtPoint(clip, position, Mathf.Clamp01(volume));
+            var source = EnsureOneShotSource();
+            if (source == null)
+            {
+                return;
+            }
+
+            source.transform.position = position;
+            source.PlayOneShot(clip, Mathf.Clamp01(volume));
+        }
+
+        private AudioSource EnsureOneShotSource()
+        {
+            if (_oneShotSource != null)
+            {
+                return _oneShotSource;
+            }
+
+            _oneShotSource = GetComponent<AudioSource>();
+            if (_oneShotSource == null)
+            {
+                _oneShotSource = gameObject.AddComponent<AudioSource>();
+            }
+
+            _oneShotSource.playOnAwake = false;
+            _oneShotSource.spatialBlend = 1f;
+            _oneShotSource.rolloffMode = AudioRolloffMode.Logarithmic;
+            return _oneShotSource;
         }
     }
 }

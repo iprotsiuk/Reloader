@@ -5,6 +5,8 @@ namespace Reloader.Audio
 {
     public sealed class FootstepAudioRouter : MonoBehaviour
     {
+        private const string RuntimeRouterObjectName = "RuntimeFootstepAudioRouter";
+
         [System.Serializable]
         private sealed class TagSurfaceMapping
         {
@@ -18,10 +20,10 @@ namespace Reloader.Audio
         [System.Serializable]
         private sealed class MaterialSurfaceMapping
         {
-            [SerializeField] private PhysicMaterial _material;
+            [SerializeField] private PhysicsMaterial _material;
             [SerializeField] private string _surfaceId = "Default";
 
-            public PhysicMaterial Material => _material;
+            public PhysicsMaterial Material => _material;
             public string SurfaceId => _surfaceId;
         }
 
@@ -36,23 +38,44 @@ namespace Reloader.Audio
         [SerializeField, Range(0f, 1f)] private float _volume = 0.6f;
 
         private float _distanceAccumulator;
+        private PlayerMover _subscribedMover;
 
         public System.Action<string, AudioClip, Vector3> ClipPlayed;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void BootstrapRuntimeRouter()
+        {
+            ResolveOrCreateRuntimeRouter();
+        }
+
+        public static FootstepAudioRouter ResolveOrCreateRuntimeRouter()
+        {
+            var existing = FindFirstObjectByType<FootstepAudioRouter>();
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            var go = new GameObject(RuntimeRouterObjectName);
+            DontDestroyOnLoad(go);
+            return go.AddComponent<FootstepAudioRouter>();
+        }
+
         private void OnEnable()
         {
-            _playerMover ??= GetComponentInParent<PlayerMover>();
-            if (_playerMover != null)
-            {
-                _playerMover.LocomotionFramePublished += HandleLocomotionFrame;
-            }
+            TryBindPlayerMover(forceRebind: true);
         }
 
         private void OnDisable()
         {
-            if (_playerMover != null)
+            UnbindPlayerMover();
+        }
+
+        private void Update()
+        {
+            if (_subscribedMover == null || !_subscribedMover.isActiveAndEnabled)
             {
-                _playerMover.LocomotionFramePublished -= HandleLocomotionFrame;
+                TryBindPlayerMover(forceRebind: true);
             }
         }
 
@@ -131,7 +154,7 @@ namespace Reloader.Audio
             return null;
         }
 
-        private string ResolveSurfaceByMaterial(PhysicMaterial material)
+        private string ResolveSurfaceByMaterial(PhysicsMaterial material)
         {
             if (material == null)
             {
@@ -150,6 +173,43 @@ namespace Reloader.Audio
             }
 
             return null;
+        }
+
+        private void TryBindPlayerMover(bool forceRebind)
+        {
+            if (!forceRebind && _subscribedMover != null)
+            {
+                return;
+            }
+
+            var resolved = _playerMover != null ? _playerMover : GetComponentInParent<PlayerMover>();
+            if (resolved == null)
+            {
+                resolved = FindFirstObjectByType<PlayerMover>(FindObjectsInactive.Include);
+            }
+
+            if (ReferenceEquals(_subscribedMover, resolved))
+            {
+                return;
+            }
+
+            UnbindPlayerMover();
+
+            _playerMover = resolved;
+            _subscribedMover = resolved;
+            if (_subscribedMover != null)
+            {
+                _subscribedMover.LocomotionFramePublished += HandleLocomotionFrame;
+            }
+        }
+
+        private void UnbindPlayerMover()
+        {
+            if (_subscribedMover != null)
+            {
+                _subscribedMover.LocomotionFramePublished -= HandleLocomotionFrame;
+                _subscribedMover = null;
+            }
         }
     }
 }

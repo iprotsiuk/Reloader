@@ -19,10 +19,10 @@ namespace Reloader.Audio
         [System.Serializable]
         private sealed class MaterialSurfaceMapping
         {
-            [SerializeField] private PhysicMaterial _material;
+            [SerializeField] private PhysicsMaterial _material;
             [SerializeField] private string _surfaceId = "Default";
 
-            public PhysicMaterial Material => _material;
+            public PhysicsMaterial Material => _material;
             public string SurfaceId => _surfaceId;
         }
 
@@ -102,7 +102,7 @@ namespace Reloader.Audio
             return null;
         }
 
-        private string ResolveSurfaceByMaterial(PhysicMaterial material)
+        private string ResolveSurfaceByMaterial(PhysicsMaterial material)
         {
             if (material == null)
             {
