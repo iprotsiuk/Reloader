@@ -21,6 +21,7 @@ namespace Reloader.Player
 
         public float VerticalVelocity { get; private set; }
         public bool IsGrounded => _isGroundedDebug;
+        public event System.Action<Vector3, Vector3, bool, float> LocomotionFramePublished;
 
         private void Awake()
         {
@@ -112,6 +113,12 @@ namespace Reloader.Player
             _lastCollisionFlags = collisionFlags;
             _isGroundedDebug = _characterController.isGrounded || (collisionFlags & CollisionFlags.Below) != 0;
             _jumpBufferTimerDebug = _jumpBufferTimer;
+            PublishLocomotionFrame(transform.position, _horizontalVelocity, _isGroundedDebug, deltaTime);
+        }
+
+        public void PublishLocomotionFrame(Vector3 worldPosition, Vector3 horizontalVelocity, bool isGrounded, float deltaTime)
+        {
+            LocomotionFramePublished?.Invoke(worldPosition, horizontalVelocity, isGrounded, deltaTime);
         }
 
         private void ResolveReferences()
