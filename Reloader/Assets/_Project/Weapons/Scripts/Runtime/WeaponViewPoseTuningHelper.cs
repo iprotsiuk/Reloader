@@ -23,6 +23,7 @@ namespace Reloader.Weapons.Runtime
         [SerializeField] private bool _seedOffsetsFromCurrentPoseOnEquip;
 
         private bool _initializedFromCurrentPose;
+        private bool _appliedKar98kDefaultPose;
         private Transform _lastEquippedView;
         private float _blendT;
 
@@ -49,6 +50,7 @@ namespace Reloader.Weapons.Runtime
             if (!IsTuningTargetEquipped(equippedView))
             {
                 _initializedFromCurrentPose = false;
+                _appliedKar98kDefaultPose = false;
                 _lastEquippedView = null;
                 return;
             }
@@ -71,6 +73,13 @@ namespace Reloader.Weapons.Runtime
             {
                 _lastEquippedView = equippedView;
                 _initializedFromCurrentPose = false;
+                _appliedKar98kDefaultPose = false;
+            }
+
+            if (!_appliedKar98kDefaultPose)
+            {
+                TryApplyKar98kDefaults();
+                _appliedKar98kDefaultPose = true;
             }
 
             if (_seedOffsetsFromCurrentPoseOnEquip && !_initializedFromCurrentPose)
@@ -110,6 +119,35 @@ namespace Reloader.Weapons.Runtime
 
             return !string.IsNullOrWhiteSpace(equippedItemId)
                 && string.Equals(equippedItemId, _targetWeaponItemId, System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void TryApplyKar98kDefaults()
+        {
+            if (!string.Equals(_targetWeaponItemId, "weapon-kar98k", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (!IsNearZero(_hipLocalPosition)
+                || !IsNearZero(_hipLocalEuler)
+                || !IsNearZero(_adsLocalPosition)
+                || !IsNearZero(_adsLocalEuler)
+                || !IsNearZero(_rifleLocalEulerOffset))
+            {
+                return;
+            }
+
+            _hipLocalPosition = new Vector3(0.015f, 0.15f, 0.005f);
+            _hipLocalEuler = Vector3.zero;
+            _adsLocalPosition = new Vector3(0f, 0.2f, 0.05f);
+            _adsLocalEuler = Vector3.zero;
+            _blendSpeed = 24f;
+            _rifleLocalEulerOffset = new Vector3(90f, 0f, 0f);
+        }
+
+        private static bool IsNearZero(Vector3 value)
+        {
+            return value.sqrMagnitude <= 0.000001f;
         }
 
     }
