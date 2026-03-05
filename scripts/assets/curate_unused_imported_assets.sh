@@ -47,15 +47,6 @@ CANDIDATE_ROOTS=(
   "${ASSETS_ROOT}/LowPoly Environment Pack"
   "${ASSETS_ROOT}/EasyRoads3D scenes"
 )
-CANDIDATE_GLOBS=(
-  "!Reloader/Assets/Cartoon_Texture_Pack/**"
-  "!Reloader/Assets/Free Wood Door Pack/**"
-  "!Reloader/Assets/YughuesFreeConcreteMaterials/**"
-  "!Reloader/Assets/Low Poly Weapon Pack 4_WWII_1/**"
-  "!Reloader/Assets/Low Poly Optic Pack 1/**"
-  "!Reloader/Assets/LowPoly Environment Pack/**"
-  "!Reloader/Assets/EasyRoads3D scenes/**"
-)
 
 USED_GUIDS_FILE="$(mktemp)"
 trap 'rm -f "${USED_GUIDS_FILE}"' EXIT
@@ -132,10 +123,6 @@ rg_args=(
   --glob '!Reloader/Assets/ThirdParty/**'
   --glob '!Reloader/Assets/Infima Games/**'
 )
-for candidate_glob in "${CANDIDATE_GLOBS[@]}"; do
-  rg_args+=(--glob "${candidate_glob}")
-done
-
 rg "${rg_args[@]}" \
   | sed -E 's/.*guid: ([0-9a-f]{32}).*/\1/' \
   | sort -u > "${USED_GUIDS_FILE}"
