@@ -135,3 +135,8 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
 - Audio asset curation moved unused SFX out of project to external dump path:
   - `/Users/ivanprotsiuk/Documents/SOUNDS/project-audio-dump/2026-03-04-153834`
   - Curated by `scripts/audio/curate_project_audio_assets.sh` (dry-run default, `--apply` to move).
+
+## Ongoing Kar98k Iteration Notes (2026-03-04 late session)
+
+- `22724f3c` fixes scoped ADS zoom input to use `IPlayerInputSource.ConsumeZoomInput()` (Input System compatible) and removes runtime dependency on legacy `UnityEngine.Input.mouseScrollDelta`.
+- `WeaponViewPoseTuningHelper` now preserves inspector-authored hip/ADS values by default and only seeds from current pose when `Seed Offsets From Current Pose On Equip` is explicitly enabled.
