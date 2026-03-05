@@ -39,9 +39,7 @@ Plan source: `docs/plans/2026-03-04-combat-audio-and-attachments-implementation-
 - `a3473ae` fix(audio): stabilize clip selection and tighten combat catalog pools
 - `6f59041` chore(audio): prune unreferenced sfx and add curation script
 - `d06bbae` fix(audio): make weapon fire clip stable per weapon by default
-- `TBD` fix(audio): remove random clip fallback paths for deterministic traceability
-- `TBD` fix(weapons): restore detachable magazine visual on reload cancel
-- `TBD` fix(audio): prevent resolver global cache contamination from custom catalogs
+- `16bea33` fix(audio,weapons): make clip selection deterministic and address review regressions
 
 ## Verification Evidence
 
@@ -84,9 +82,9 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
 | https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886627784 | Resolved | Preserve custom emitter catalog when controller discovers emitter dynamically (`b54d15e`) |
 | https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886627788 | Resolved | Initialize bridged detachable magazine runtime with transferred/default attachment (`b54d15e`) |
 | https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886627792 | Resolved | Keep runtime muzzle state synchronized on rejected equip by clearing mounted runtime attachment (`b54d15e`) |
-| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886682598 | Pending (patched) | `CombatAudioCatalogResolver` no longer caches non-null caller-provided catalogs globally; added resolver regression test |
-| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886682601 | Pending (patched) | Runtime bridge now attempts existing runtime `_defaultAttachment` before giving up when no fallback definition assets resolve |
-| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886748129 | Pending (patched) | Reload cancel path now re-notifies view magazine insertion to restore detachable mag visual |
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886682598 | Resolved | `CombatAudioCatalogResolver` no longer caches non-null caller-provided catalogs globally; added resolver regression test (`16bea33`) |
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886682601 | Resolved | Runtime bridge now attempts existing runtime `_defaultAttachment` before giving up when no fallback definition assets resolve (`16bea33`) |
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886748129 | Resolved | Reload cancel path now re-notifies view magazine insertion to restore detachable mag visual (`16bea33`) |
 
 ## Known Residual Risks
 
