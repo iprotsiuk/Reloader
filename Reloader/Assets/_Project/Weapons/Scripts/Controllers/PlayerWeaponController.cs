@@ -99,6 +99,11 @@ namespace Reloader.Weapons.Controllers
         private bool _pendingUnequipFovBaselineRestore;
         private Transform _defaultMuzzleTransform;
         private GameObject _equippedWeaponView;
+        private Component _adsStateRuntimeBridge;
+        private MethodInfo _adsSetHeldMethod;
+        private MethodInfo _adsSetMagnificationMethod;
+        private PropertyInfo _adsCurrentMagnificationProperty;
+        private float _cachedScopeMagnification = 1f;
         private string _pendingEquipItemId;
         private WeaponDefinition _pendingEquipDefinition;
         private float _pendingEquipApplyTime;
@@ -107,6 +112,8 @@ namespace Reloader.Weapons.Controllers
         private readonly List<Renderer> _packRenderers = new List<Renderer>();
         private static readonly Bounds ViewmodelSkinnedBounds = new Bounds(Vector3.zero, new Vector3(8f, 8f, 8f));
         public string EquippedItemId => _equippedItemId;
+        public Transform EquippedWeaponViewTransform => _equippedWeaponView != null ? _equippedWeaponView.transform : null;
+        public bool IsAiming => _isAiming;
 
         private void Awake()
         {
@@ -796,6 +803,14 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
+            if (HasScopedAdsBridgeActive())
+            {
+                // Keep pack animator/runtime aim state in sync, but let AdsStateController own camera FOV.
+                packDriver.TickAimFov(_inputSource.AimHeld, _baseCameraFieldOfView, _baseCameraFieldOfView, Time.deltaTime);
+                TickScopedAdsBridgeInput();
+                return;
+            }
+
             if (hasFieldOfView && !packDriver.State.IsAiming && Mathf.Abs(packDriver.State.AimFovVelocity) < 0.01f)
             {
                 _baseCameraFieldOfView = Mathf.Clamp(currentFieldOfView, 1f, 179f);
@@ -807,6 +822,43 @@ namespace Reloader.Weapons.Controllers
             {
                 TrySetCurrentFieldOfView(nextFieldOfView);
             }
+        }
+
+        private bool HasScopedAdsBridgeActive()
+        {
+            return _adsStateRuntimeBridge != null;
+        }
+
+        private void TickScopedAdsBridgeInput()
+        {
+            if (_adsStateRuntimeBridge == null)
+            {
+                return;
+            }
+
+            _adsSetHeldMethod ??= _adsStateRuntimeBridge.GetType().GetMethod("SetAdsHeld", BindingFlags.Instance | BindingFlags.Public);
+            _adsSetMagnificationMethod ??= _adsStateRuntimeBridge.GetType().GetMethod("SetMagnification", BindingFlags.Instance | BindingFlags.Public);
+            _adsCurrentMagnificationProperty ??= _adsStateRuntimeBridge.GetType().GetProperty("CurrentMagnification", BindingFlags.Instance | BindingFlags.Public);
+
+            _adsSetHeldMethod?.Invoke(_adsStateRuntimeBridge, new object[] { _inputSource != null && _inputSource.AimHeld });
+            if (_adsSetMagnificationMethod == null || _adsCurrentMagnificationProperty == null)
+            {
+                return;
+            }
+
+            if (_adsCurrentMagnificationProperty.GetValue(_adsStateRuntimeBridge) is float currentMagnification)
+            {
+                _cachedScopeMagnification = currentMagnification;
+            }
+
+            var scrollY = _inputSource != null ? _inputSource.ConsumeZoomInput() : 0f;
+            if (Mathf.Abs(scrollY) <= 0.01f)
+            {
+                return;
+            }
+
+            var nextMagnification = _cachedScopeMagnification + scrollY;
+            _adsSetMagnificationMethod.Invoke(_adsStateRuntimeBridge, new object[] { nextMagnification });
         }
 
         // Forwarded from PackAnimationEventRelay attached to the animator GameObject.
@@ -1381,6 +1433,7 @@ namespace Reloader.Weapons.Controllers
             var preferredMagazineAttachmentDefinition = ResolveViewMagazineAttachmentDefinition(_equippedWeaponView);
             StripViewPhysicsComponents(_equippedWeaponView);
             StripViewRuntimeComponents(_equippedWeaponView);
+            NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
 
             var viewMuzzle = FindDescendantByName(_equippedWeaponView.transform, "Muzzle")
                 ?? FindDescendantByName(_equippedWeaponView.transform, "SOCKET_Muzzle");
@@ -1391,7 +1444,8 @@ namespace Reloader.Weapons.Controllers
 
             EnsureMuzzleRuntimeBridge(_equippedWeaponView, viewMuzzle, preferredMuzzleAttachmentDefinition);
             EnsureDetachableMagazineRuntimeBridge(_equippedWeaponView, preferredMagazineAttachmentDefinition);
-            EnsureAttachmentManagerRuntimeBridge(_equippedWeaponView);
+            var manager = EnsureAttachmentManagerRuntimeBridge(_equippedWeaponView);
+            EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
         }
 
         private void ApplyEquippedAttachmentStateToViewRuntime(WeaponRuntimeState state)
@@ -1454,6 +1508,8 @@ namespace Reloader.Weapons.Controllers
             if (string.IsNullOrWhiteSpace(attachmentItemId))
             {
                 unequipMethod.Invoke(manager, null);
+                EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
+                NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
                 return;
             }
 
@@ -1467,6 +1523,8 @@ namespace Reloader.Weapons.Controllers
             }
 
             equipMethod.Invoke(manager, new object[] { definition });
+            EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
+            NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
         }
 
         private void ApplyMuzzleAttachmentToViewRuntime(string attachmentItemId)
@@ -1499,6 +1557,8 @@ namespace Reloader.Weapons.Controllers
             if (string.IsNullOrWhiteSpace(attachmentItemId))
             {
                 unequipMethod.Invoke(manager, null);
+                EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
+                NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
                 return;
             }
 
@@ -1512,6 +1572,8 @@ namespace Reloader.Weapons.Controllers
             }
 
             equipMethod.Invoke(manager, new object[] { definition });
+            EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
+            NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
         }
 
         private Component EnsureAttachmentManagerRuntimeBridge(GameObject viewRoot)
@@ -1555,6 +1617,57 @@ namespace Reloader.Weapons.Controllers
             }
 
             return manager;
+        }
+
+        private void EnsureScopedAdsRuntimeBridge(GameObject viewRoot, Component attachmentManager)
+        {
+            if (viewRoot == null || attachmentManager == null)
+            {
+                _adsStateRuntimeBridge = null;
+                return;
+            }
+
+            var adsType = ResolveTypeByName("Reloader.Game.Weapons.AdsStateController");
+            if (adsType == null)
+            {
+                _adsStateRuntimeBridge = null;
+                return;
+            }
+
+            _adsStateRuntimeBridge = gameObject.GetComponent(adsType) ?? gameObject.AddComponent(adsType);
+            if (_adsStateRuntimeBridge == null)
+            {
+                return;
+            }
+
+            var worldCamera = ResolveAdsCamera();
+            var viewmodelCamera = ResolveViewmodelCamera(worldCamera);
+
+            var worldField = adsType.GetField("_worldCamera", BindingFlags.Instance | BindingFlags.NonPublic);
+            worldField?.SetValue(_adsStateRuntimeBridge, worldCamera);
+
+            var viewmodelField = adsType.GetField("_viewmodelCamera", BindingFlags.Instance | BindingFlags.NonPublic);
+            viewmodelField?.SetValue(_adsStateRuntimeBridge, viewmodelCamera);
+
+            var managerField = adsType.GetField("_attachmentManager", BindingFlags.Instance | BindingFlags.NonPublic);
+            managerField?.SetValue(_adsStateRuntimeBridge, attachmentManager);
+
+            var definitionField = adsType.GetField("_weaponDefinition", BindingFlags.Instance | BindingFlags.NonPublic);
+            definitionField?.SetValue(_adsStateRuntimeBridge, _equippedDefinition);
+
+            var legacyInputField = adsType.GetField("_useLegacyInput", BindingFlags.Instance | BindingFlags.NonPublic);
+            legacyInputField?.SetValue(_adsStateRuntimeBridge, false);
+        }
+
+        private static Camera ResolveViewmodelCamera(Camera worldCamera)
+        {
+            if (worldCamera == null)
+            {
+                return null;
+            }
+
+            var child = worldCamera.transform.Find("ViewmodelCamera");
+            return child != null ? child.GetComponent<Camera>() : null;
         }
 
         private static UObject ResolveAttachmentDefinitionById(Type definitionType, string idPropertyName, string itemId)
@@ -1603,6 +1716,10 @@ namespace Reloader.Weapons.Controllers
 
             Destroy(_equippedWeaponView);
             _equippedWeaponView = null;
+            _adsStateRuntimeBridge = null;
+            _adsSetHeldMethod = null;
+            _adsSetMagnificationMethod = null;
+            _adsCurrentMagnificationProperty = null;
         }
 
         private static GameObject InstantiateWeaponView(GameObject source, Transform parent)
@@ -1853,6 +1970,117 @@ namespace Reloader.Weapons.Controllers
 
                 // Weapon view instances should be pure visual meshes/sockets.
                 Destroy(behaviour);
+            }
+        }
+
+        private static void NormalizeViewMaterialsForActiveRenderPipeline(GameObject viewRoot)
+        {
+            if (viewRoot == null)
+            {
+                return;
+            }
+
+            var fallbackShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (fallbackShader == null)
+            {
+                return;
+            }
+
+            var renderers = viewRoot.GetComponentsInChildren<Renderer>(true);
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                var renderer = renderers[i];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                var sourceMaterials = renderer.sharedMaterials;
+                var replaced = false;
+                for (var m = 0; m < sourceMaterials.Length; m++)
+                {
+                    var source = sourceMaterials[m];
+                    if (source == null)
+                    {
+                        continue;
+                    }
+
+                    var shader = source.shader;
+                    var shaderName = shader != null ? shader.name : string.Empty;
+                    var requiresUpgrade =
+                        shader == null
+                        || !shader.isSupported
+                        || string.Equals(shaderName, "Hidden/InternalErrorShader", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(shaderName, "Standard", StringComparison.OrdinalIgnoreCase)
+                        || shaderName.StartsWith("Legacy Shaders/", StringComparison.OrdinalIgnoreCase);
+
+                    if (!requiresUpgrade)
+                    {
+                        continue;
+                    }
+
+                    var replacement = new Material(fallbackShader);
+
+                    if (source.HasProperty("_BaseMap") && replacement.HasProperty("_BaseMap"))
+                    {
+                        replacement.SetTexture("_BaseMap", source.GetTexture("_BaseMap"));
+                    }
+                    else if (source.HasProperty("_MainTex"))
+                    {
+                        var tex = source.GetTexture("_MainTex");
+                        if (replacement.HasProperty("_BaseMap"))
+                        {
+                            replacement.SetTexture("_BaseMap", tex);
+                        }
+                        else if (replacement.HasProperty("_MainTex"))
+                        {
+                            replacement.SetTexture("_MainTex", tex);
+                        }
+                    }
+
+                    if (source.HasProperty("_BaseColor") && replacement.HasProperty("_BaseColor"))
+                    {
+                        replacement.SetColor("_BaseColor", source.GetColor("_BaseColor"));
+                    }
+                    else if (source.HasProperty("_Color"))
+                    {
+                        var color = source.GetColor("_Color");
+                        if (replacement.HasProperty("_BaseColor"))
+                        {
+                            replacement.SetColor("_BaseColor", color);
+                        }
+                        else if (replacement.HasProperty("_Color"))
+                        {
+                            replacement.SetColor("_Color", color);
+                        }
+                    }
+
+                    var sourceTransparent =
+                        source.renderQueue >= 3000
+                        || (source.HasProperty("_Mode") && source.GetFloat("_Mode") >= 2.5f);
+                    if (sourceTransparent)
+                    {
+                        if (replacement.HasProperty("_Surface"))
+                        {
+                            replacement.SetFloat("_Surface", 1f);
+                        }
+
+                        if (replacement.HasProperty("_Blend"))
+                        {
+                            replacement.SetFloat("_Blend", 0f);
+                        }
+
+                        replacement.renderQueue = 3000;
+                    }
+
+                    sourceMaterials[m] = replacement;
+                    replaced = true;
+                }
+
+                if (replaced)
+                {
+                    renderer.sharedMaterials = sourceMaterials;
+                }
             }
         }
 
