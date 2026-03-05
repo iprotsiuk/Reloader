@@ -141,6 +141,36 @@ namespace Reloader.Audio.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator FootstepRouter_RebindsToActiveMover_WhenCachedMoverIsInactive()
+        {
+            var playerMoverType = Type.GetType("Reloader.Player.PlayerMover, Reloader.Player");
+            Assert.That(playerMoverType, Is.Not.Null);
+
+            var inactivePlayer = new GameObject("InactivePlayer");
+            inactivePlayer.AddComponent<CharacterController>();
+            var inactiveMover = inactivePlayer.AddComponent(playerMoverType);
+            inactivePlayer.SetActive(false);
+
+            var activePlayer = new GameObject("ActivePlayer");
+            activePlayer.AddComponent<CharacterController>();
+            var activeMover = activePlayer.AddComponent(playerMoverType);
+
+            var routerGo = new GameObject("FootstepRouter");
+            var router = routerGo.AddComponent<FootstepAudioRouter>();
+            SetPrivateField(router, "_playerMover", inactiveMover);
+            SetPrivateField(router, "_subscribedMover", inactiveMover);
+
+            InvokePrivateMethod(router, "TryBindPlayerMover", true);
+            var subscribedMover = GetPrivateField(router, "_subscribedMover") as Component;
+            Assert.That(subscribedMover, Is.Not.Null);
+            Assert.That(subscribedMover, Is.EqualTo(activeMover));
+
+            UnityEngine.Object.Destroy(routerGo);
+            UnityEngine.Object.Destroy(activePlayer);
+            UnityEngine.Object.Destroy(inactivePlayer);
+        }
+
         private static CombatAudioCatalog CreateCatalogWithFootsteps(AudioClip footstepClip)
         {
             var catalog = ScriptableObject.CreateInstance<CombatAudioCatalog>();
@@ -195,6 +225,22 @@ namespace Reloader.Audio.Tests.PlayMode
             var field = target.GetType().GetField(fieldName, flags);
             Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found on {target.GetType().Name}.");
             field.SetValue(target, value);
+        }
+
+        private static object GetPrivateField(object target, string fieldName)
+        {
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            var field = target.GetType().GetField(fieldName, flags);
+            Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found on {target.GetType().Name}.");
+            return field.GetValue(target);
+        }
+
+        private static object InvokePrivateMethod(object target, string methodName, params object[] args)
+        {
+            var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            var method = target.GetType().GetMethod(methodName, flags);
+            Assert.That(method, Is.Not.Null, $"Method '{methodName}' was not found on {target.GetType().Name}.");
+            return method.Invoke(target, args);
         }
     }
 }

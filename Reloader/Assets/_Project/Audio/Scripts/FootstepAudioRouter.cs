@@ -180,11 +180,7 @@ namespace Reloader.Audio
                 return;
             }
 
-            var resolved = _playerMover != null ? _playerMover : GetComponentInParent<PlayerMover>();
-            if (resolved == null)
-            {
-                resolved = FindFirstObjectByType<PlayerMover>(FindObjectsInactive.Include);
-            }
+            var resolved = ResolvePreferredPlayerMover();
 
             if (ReferenceEquals(_subscribedMover, resolved))
             {
@@ -199,6 +195,38 @@ namespace Reloader.Audio
             {
                 _subscribedMover.LocomotionFramePublished += HandleLocomotionFrame;
             }
+        }
+
+        private PlayerMover ResolvePreferredPlayerMover()
+        {
+            if (_playerMover != null && _playerMover.isActiveAndEnabled)
+            {
+                return _playerMover;
+            }
+
+            var parentMover = GetComponentInParent<PlayerMover>();
+            if (parentMover != null && parentMover.isActiveAndEnabled)
+            {
+                return parentMover;
+            }
+
+            var activeMover = FindFirstObjectByType<PlayerMover>();
+            if (activeMover != null && activeMover.isActiveAndEnabled)
+            {
+                return activeMover;
+            }
+
+            if (_playerMover != null)
+            {
+                return _playerMover;
+            }
+
+            if (parentMover != null)
+            {
+                return parentMover;
+            }
+
+            return FindFirstObjectByType<PlayerMover>(FindObjectsInactive.Include);
         }
 
         private void UnbindPlayerMover()
