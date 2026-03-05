@@ -1898,6 +1898,391 @@ namespace Reloader.Weapons.Tests.PlayMode
             Object.Destroy(definition);
         }
 
+        [UnityTest]
+        public IEnumerator TrySwapEquippedWeaponAttachment_ScopeHotSwap_UpdatesAttachmentManagerAndAdsMask()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            var adsControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var scopeMaskControllerType = ResolveType("Reloader.Game.Weapons.ScopeMaskController");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(opticDefinitionType, Is.Not.Null);
+            Assert.That(adsControllerType, Is.Not.Null);
+            Assert.That(scopeMaskControllerType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            UnityEngine.Object highOpticDefinition = null;
+            UnityEngine.Object lowOpticDefinition = null;
+            GameObject highOpticPrefab = null;
+            GameObject lowOpticPrefab = null;
+            GameObject worldCameraGo = null;
+            GameObject viewmodelCameraGo = null;
+            GameObject scopeMaskGo = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+                runtime.TryAddStackItem("att-optic-4x", 1, out _, out _, out _);
+                runtime.TryAddStackItem("att-optic-8x", 1, out _, out _, out _);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x", "att-optic-8x" })
+                });
+
+                viewPrefab = new GameObject("ViewPrefabWithAttachmentManager");
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(viewPrefab.transform, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(viewPrefab.transform, false);
+
+                var manager = viewPrefab.AddComponent(attachmentManagerType);
+                var scopeSlotField = attachmentManagerType.GetField("_scopeSlot", BindingFlags.Instance | BindingFlags.NonPublic);
+                var ironSightField = attachmentManagerType.GetField("_ironSightAnchor", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(scopeSlotField, Is.Not.Null);
+                Assert.That(ironSightField, Is.Not.Null);
+                scopeSlotField.SetValue(manager, scopeSlot);
+                ironSightField.SetValue(manager, ironSightAnchor);
+
+                highOpticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+                lowOpticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+                highOpticPrefab = new GameObject("OpticHighPrefab");
+                var highSightAnchor = new GameObject("SightAnchor").transform;
+                highSightAnchor.SetParent(highOpticPrefab.transform, false);
+                lowOpticPrefab = new GameObject("OpticLowPrefab");
+                var lowSightAnchor = new GameObject("SightAnchor").transform;
+                lowSightAnchor.SetParent(lowOpticPrefab.transform, false);
+
+                SetField(opticDefinitionType, highOpticDefinition, "_opticId", "att-optic-8x");
+                SetField(opticDefinitionType, highOpticDefinition, "_isVariableZoom", true);
+                SetField(opticDefinitionType, highOpticDefinition, "_magnificationMin", 4f);
+                SetField(opticDefinitionType, highOpticDefinition, "_magnificationMax", 12f);
+                SetField(opticDefinitionType, highOpticDefinition, "_magnificationStep", 1f);
+                SetField(opticDefinitionType, highOpticDefinition, "_visualModePolicy", Enum.Parse(ResolveType("Reloader.Game.Weapons.AdsVisualMode"), "Auto"));
+                SetField(opticDefinitionType, highOpticDefinition, "_opticPrefab", highOpticPrefab);
+
+                SetField(opticDefinitionType, lowOpticDefinition, "_opticId", "att-optic-4x");
+                SetField(opticDefinitionType, lowOpticDefinition, "_isVariableZoom", false);
+                SetField(opticDefinitionType, lowOpticDefinition, "_magnificationMin", 1f);
+                SetField(opticDefinitionType, lowOpticDefinition, "_magnificationMax", 1f);
+                SetField(opticDefinitionType, lowOpticDefinition, "_magnificationStep", 1f);
+                SetField(opticDefinitionType, lowOpticDefinition, "_visualModePolicy", Enum.Parse(ResolveType("Reloader.Game.Weapons.AdsVisualMode"), "Auto"));
+                SetField(opticDefinitionType, lowOpticDefinition, "_opticPrefab", lowOpticPrefab);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests("att-optic-4x", WeaponAttachmentSlotType.Scope),
+                    WeaponAttachmentItemMetadata.CreateForTests("att-optic-8x", WeaponAttachmentSlotType.Scope)
+                });
+
+                yield return null;
+                Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+                state.SetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope, "att-optic-8x");
+
+                runtime.SelectBeltSlot(1);
+                yield return null;
+                runtime.SelectBeltSlot(0);
+                yield return null;
+
+                var equippedView = GetControllerField<GameObject>(controller, "_equippedWeaponView");
+                Assert.That(equippedView, Is.Not.Null);
+                var bridgedManager = equippedView.GetComponent(attachmentManagerType);
+                Assert.That(bridgedManager, Is.Not.Null);
+
+                var activeOpticProperty = attachmentManagerType.GetProperty("ActiveOpticDefinition", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(activeOpticProperty, Is.Not.Null);
+                var activeOptic = activeOpticProperty.GetValue(bridgedManager);
+                Assert.That(activeOptic, Is.Not.Null);
+                var opticIdProperty = opticDefinitionType.GetProperty("OpticId", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(opticIdProperty, Is.Not.Null);
+                Assert.That((string)opticIdProperty.GetValue(activeOptic), Is.EqualTo("att-optic-8x"));
+
+                worldCameraGo = new GameObject("WorldCam");
+                var worldCamera = worldCameraGo.AddComponent<Camera>();
+                viewmodelCameraGo = new GameObject("ViewmodelCam");
+                var viewmodelCamera = viewmodelCameraGo.AddComponent<Camera>();
+                scopeMaskGo = new GameObject("ScopeMask");
+                var scopeMask = scopeMaskGo.AddComponent(scopeMaskControllerType);
+                var ads = root.AddComponent(adsControllerType);
+                SetField(adsControllerType, ads, "_worldCamera", worldCamera);
+                SetField(adsControllerType, ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(adsControllerType, ads, "_attachmentManager", bridgedManager);
+                SetField(adsControllerType, ads, "_scopeMaskController", scopeMask);
+                SetField(adsControllerType, ads, "_useLegacyInput", false);
+
+                Invoke(ads, "SetAdsHeld", true);
+                Invoke(ads, "SetMagnification", 8f);
+                yield return null;
+                yield return null;
+                Assert.That((bool)GetProperty(scopeMask, "IsMaskVisible"), Is.True);
+
+                Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-optic-4x"), Is.True);
+                Invoke(ads, "SetMagnification", 1f);
+                yield return null;
+                yield return null;
+                Assert.That((bool)GetProperty(scopeMask, "IsMaskVisible"), Is.False);
+
+                activeOptic = activeOpticProperty.GetValue(bridgedManager);
+                Assert.That((string)opticIdProperty.GetValue(activeOptic), Is.EqualTo("att-optic-4x"));
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (highOpticDefinition != null)
+                {
+                    Object.Destroy(highOpticDefinition);
+                }
+
+                if (lowOpticDefinition != null)
+                {
+                    Object.Destroy(lowOpticDefinition);
+                }
+
+                if (highOpticPrefab != null)
+                {
+                    Object.Destroy(highOpticPrefab);
+                }
+
+                if (lowOpticPrefab != null)
+                {
+                    Object.Destroy(lowOpticPrefab);
+                }
+
+                if (worldCameraGo != null)
+                {
+                    Object.Destroy(worldCameraGo);
+                }
+
+                if (viewmodelCameraGo != null)
+                {
+                    Object.Destroy(viewmodelCameraGo);
+                }
+
+                if (scopeMaskGo != null)
+                {
+                    Object.Destroy(scopeMaskGo);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator TrySwapEquippedWeaponAttachment_MuzzleHotSwap_UpdatesFireOverrideDeterministically()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            RuntimeKernelBootstrapper.Events = new DefaultRuntimeEvents();
+
+            var muzzleRuntimeType = ResolveType("Reloader.Game.Weapons.MuzzleAttachmentRuntime");
+            var muzzleDefinitionType = ResolveType("Reloader.Game.Weapons.MuzzleAttachmentDefinition");
+            Assert.That(muzzleRuntimeType, Is.Not.Null);
+            Assert.That(muzzleDefinitionType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            UnityEngine.Object muzzleA = null;
+            UnityEngine.Object muzzleB = null;
+            AudioClip clipA = null;
+            AudioClip clipB = null;
+            GameObject muzzlePrefabA = null;
+            GameObject muzzlePrefabB = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+                runtime.TryAddStackItem("att-muzzle-a", 1, out _, out _, out _);
+                runtime.TryAddStackItem("att-muzzle-b", 1, out _, out _, out _);
+
+                var emitterSpy = root.AddComponent<ClipCaptureWeaponCombatAudioEmitter>();
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.01f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Muzzle, new[] { "att-muzzle-a", "att-muzzle-b" })
+                });
+
+                viewPrefab = new GameObject("ViewPrefabWithMuzzleRuntime");
+                var muzzleSocket = new GameObject("Muzzle").transform;
+                muzzleSocket.SetParent(viewPrefab.transform, false);
+                var attachmentSlot = new GameObject("MuzzleAttachmentSlot").transform;
+                attachmentSlot.SetParent(viewPrefab.transform, false);
+
+                var runtimeComponent = viewPrefab.AddComponent(muzzleRuntimeType);
+                SetField(muzzleRuntimeType, runtimeComponent, "_muzzleSocket", muzzleSocket);
+                SetField(muzzleRuntimeType, runtimeComponent, "_attachmentSlot", attachmentSlot);
+
+                muzzleA = ScriptableObject.CreateInstance(muzzleDefinitionType);
+                muzzleB = ScriptableObject.CreateInstance(muzzleDefinitionType);
+                clipA = AudioClip.Create("muzzle-a", 128, 1, 44100, false);
+                clipB = AudioClip.Create("muzzle-b", 128, 1, 44100, false);
+                muzzlePrefabA = new GameObject("MuzzlePrefabA");
+                muzzlePrefabB = new GameObject("MuzzlePrefabB");
+                SetField(muzzleDefinitionType, muzzleA, "_attachmentId", "att-muzzle-a");
+                SetField(muzzleDefinitionType, muzzleA, "_muzzlePrefab", muzzlePrefabA);
+                SetField(muzzleDefinitionType, muzzleA, "_fireClipOverride", clipA);
+                SetField(muzzleDefinitionType, muzzleB, "_attachmentId", "att-muzzle-b");
+                SetField(muzzleDefinitionType, muzzleB, "_muzzlePrefab", muzzlePrefabB);
+                SetField(muzzleDefinitionType, muzzleB, "_fireClipOverride", clipB);
+                SetField(muzzleRuntimeType, runtimeComponent, "_defaultAttachment", muzzleB);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_combatAudioEmitter", emitterSpy);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests("att-muzzle-a", WeaponAttachmentSlotType.Muzzle),
+                    WeaponAttachmentItemMetadata.CreateForTests("att-muzzle-b", WeaponAttachmentSlotType.Muzzle)
+                });
+
+                yield return null;
+                Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+                state.SetEquippedAttachmentItemId(WeaponAttachmentSlotType.Muzzle, "att-muzzle-b");
+
+                runtime.SelectBeltSlot(1);
+                yield return null;
+                runtime.SelectBeltSlot(0);
+                yield return null;
+
+                input.FirePressedThisFrame = true;
+                yield return null;
+                Assert.That(emitterSpy.LastFireOverrideClip, Is.SameAs(clipB), "Initial equipped muzzle override should match runtime slot id.");
+
+                Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Muzzle, "att-muzzle-a"), Is.True);
+                input.FirePressedThisFrame = true;
+                yield return null;
+                Assert.That(emitterSpy.LastFireOverrideClip, Is.SameAs(clipA), "Hot-swapped muzzle override should apply immediately without fallback randomness.");
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (muzzleA != null)
+                {
+                    Object.Destroy(muzzleA);
+                }
+
+                if (muzzleB != null)
+                {
+                    Object.Destroy(muzzleB);
+                }
+
+                if (clipA != null)
+                {
+                    Object.Destroy(clipA);
+                }
+
+                if (clipB != null)
+                {
+                    Object.Destroy(clipB);
+                }
+
+                if (muzzlePrefabA != null)
+                {
+                    Object.Destroy(muzzlePrefabA);
+                }
+
+                if (muzzlePrefabB != null)
+                {
+                    Object.Destroy(muzzlePrefabB);
+                }
+            }
+        }
+
+        private static object Invoke(object instance, string methodName, params object[] args)
+        {
+            var method = instance.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, $"Method '{methodName}' was not found on {instance.GetType().Name}.");
+            return method.Invoke(instance, args);
+        }
+
+        private static object GetProperty(object instance, string propertyName)
+        {
+            var property = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(property, Is.Not.Null, $"Property '{propertyName}' was not found on {instance.GetType().Name}.");
+            return property.GetValue(instance);
+        }
+
+        private static void SetField(Type type, object instance, string fieldName, object value)
+        {
+            var field = type.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
+            field.SetValue(instance, value);
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public bool FirePressedThisFrame;
