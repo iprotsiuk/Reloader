@@ -139,15 +139,19 @@ namespace Reloader.Core.Save.Modules
                     ValidateAmmoRecord(state.ItemId, "chamber", state.ChamberRound);
                 }
 
-                if (state.MagazineRounds == null)
+                var hasMagazineRoundsPayload = state.MagazineRounds != null;
+                if (!hasMagazineRoundsPayload)
                 {
                     state.MagazineRounds = new List<AmmoBallisticRecord>();
                 }
 
-                SaveValidation.EnsureCountMatch(
-                    state.MagCount,
-                    state.MagazineRounds.Count,
-                    $"Weapon '{state.ItemId}' magazine round payload count '{state.MagazineRounds.Count}' does not match magCount '{state.MagCount}'.");
+                if (hasMagazineRoundsPayload)
+                {
+                    SaveValidation.EnsureCountMatch(
+                        state.MagCount,
+                        state.MagazineRounds.Count,
+                        $"Weapon '{state.ItemId}' magazine round payload count '{state.MagazineRounds.Count}' does not match magCount '{state.MagCount}'.");
+                }
 
                 for (var j = 0; j < state.MagazineRounds.Count; j++)
                 {

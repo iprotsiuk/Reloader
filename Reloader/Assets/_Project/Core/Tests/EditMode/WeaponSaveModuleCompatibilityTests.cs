@@ -119,6 +119,25 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void WeaponsModule_Validate_AllowsLegacyNullMagazineRoundsPayload()
+        {
+            var module = new WeaponsModule();
+            module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
+            {
+                ItemId = "weapon-kar98k",
+                MagCapacity = 5,
+                MagCount = 2,
+                ReserveCount = 10,
+                ChamberLoaded = false,
+                MagazineRounds = null
+            });
+
+            Assert.DoesNotThrow(() => module.ValidateModuleState());
+            Assert.That(module.WeaponStates[0].MagazineRounds, Is.Not.Null);
+            Assert.That(module.WeaponStates[0].MagazineRounds.Count, Is.EqualTo(0));
+        }
+
+        [Test]
         public void WeaponsModule_Validate_AllowsLargeCapacityAndReserveValues()
         {
             var module = new WeaponsModule();
