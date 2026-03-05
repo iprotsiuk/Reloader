@@ -3,6 +3,7 @@ using UnityEngine;
 
 namespace Reloader.Weapons.Runtime
 {
+    [DefaultExecutionOrder(10000)]
     public sealed class WeaponViewPoseTuningHelper : MonoBehaviour
     {
         [Header("References")]
@@ -81,7 +82,7 @@ namespace Reloader.Weapons.Runtime
                 _initializedFromCurrentPose = true;
             }
 
-            var targetT = _weaponController.IsAiming ? 1f : 0f;
+            var targetT = _weaponController.IsAimInputHeld ? 1f : 0f;
             var step = 1f - Mathf.Exp(-Mathf.Max(1f, _blendSpeed) * Time.deltaTime);
             _blendT = Mathf.Lerp(_blendT, targetT, step);
 
@@ -102,8 +103,13 @@ namespace Reloader.Weapons.Runtime
             }
 
             var equippedItemId = _weaponController.EquippedItemId;
+            if (string.IsNullOrWhiteSpace(_targetWeaponItemId))
+            {
+                return true;
+            }
+
             return !string.IsNullOrWhiteSpace(equippedItemId)
-                && string.Equals(equippedItemId, _targetWeaponItemId, System.StringComparison.Ordinal);
+                && string.Equals(equippedItemId, _targetWeaponItemId, System.StringComparison.OrdinalIgnoreCase);
         }
 
     }

@@ -114,6 +114,7 @@ namespace Reloader.Weapons.Controllers
         public string EquippedItemId => _equippedItemId;
         public Transform EquippedWeaponViewTransform => _equippedWeaponView != null ? _equippedWeaponView.transform : null;
         public bool IsAiming => _isAiming;
+        public bool IsAimInputHeld => _inputSource != null && _inputSource.AimHeld;
 
         private void Awake()
         {
@@ -1652,11 +1653,88 @@ namespace Reloader.Weapons.Controllers
             var managerField = adsType.GetField("_attachmentManager", BindingFlags.Instance | BindingFlags.NonPublic);
             managerField?.SetValue(_adsStateRuntimeBridge, attachmentManager);
 
-            var definitionField = adsType.GetField("_weaponDefinition", BindingFlags.Instance | BindingFlags.NonPublic);
-            definitionField?.SetValue(_adsStateRuntimeBridge, _equippedDefinition);
+            TryAssignScopedAdsWeaponDefinition(adsType);
 
             var legacyInputField = adsType.GetField("_useLegacyInput", BindingFlags.Instance | BindingFlags.NonPublic);
             legacyInputField?.SetValue(_adsStateRuntimeBridge, false);
+        }
+
+        private void TryAssignScopedAdsWeaponDefinition(Type adsType)
+        {
+            if (adsType == null || _adsStateRuntimeBridge == null)
+            {
+                return;
+            }
+
+            var definitionField = adsType.GetField("_weaponDefinition", BindingFlags.Instance | BindingFlags.NonPublic);
+            var setDefinitionMethod = adsType.GetMethod("SetWeaponDefinition", BindingFlags.Instance | BindingFlags.Public);
+            var targetDefinitionType = definitionField?.FieldType
+                ?? (setDefinitionMethod?.GetParameters().Length == 1 ? setDefinitionMethod.GetParameters()[0].ParameterType : null);
+            if (targetDefinitionType == null)
+            {
+                return;
+            }
+
+            UObject resolvedDefinition = null;
+            if (_equippedDefinition != null && targetDefinitionType.IsInstanceOfType(_equippedDefinition))
+            {
+                resolvedDefinition = _equippedDefinition;
+            }
+            else
+            {
+                resolvedDefinition = ResolveGameWeaponDefinition(targetDefinitionType, _equippedItemId);
+            }
+
+            if (resolvedDefinition == null)
+            {
+                return;
+            }
+
+            if (setDefinitionMethod != null)
+            {
+                setDefinitionMethod.Invoke(_adsStateRuntimeBridge, new object[] { resolvedDefinition });
+                return;
+            }
+
+            definitionField?.SetValue(_adsStateRuntimeBridge, resolvedDefinition);
+        }
+
+        private static UObject ResolveGameWeaponDefinition(Type definitionType, string weaponId)
+        {
+            if (definitionType == null || string.IsNullOrWhiteSpace(weaponId))
+            {
+                return null;
+            }
+
+            var idProperty = definitionType.GetProperty("WeaponId", BindingFlags.Instance | BindingFlags.Public)
+                ?? definitionType.GetProperty("ItemId", BindingFlags.Instance | BindingFlags.Public);
+            if (idProperty == null)
+            {
+                return null;
+            }
+
+            var definitions = Resources.FindObjectsOfTypeAll(definitionType);
+            if (definitions == null || definitions.Length == 0)
+            {
+                return null;
+            }
+
+            Array.Sort(definitions, CompareObjectsDeterministically);
+            for (var i = 0; i < definitions.Length; i++)
+            {
+                if (definitions[i] is not UObject candidate)
+                {
+                    continue;
+                }
+
+                if (idProperty.GetValue(candidate) is string candidateId
+                    && string.Equals(candidateId, weaponId, StringComparison.Ordinal))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
         }
 
         private static Camera ResolveViewmodelCamera(Camera worldCamera)
