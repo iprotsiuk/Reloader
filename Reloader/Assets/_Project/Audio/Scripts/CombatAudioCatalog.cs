@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using UnityEngine;
-using URandom = UnityEngine.Random;
 
 namespace Reloader.Audio
 {
@@ -42,44 +40,35 @@ namespace Reloader.Audio
 
         [Header("Footsteps")]
         [SerializeField] private SurfaceAudioGroup[] _footstepGroups = System.Array.Empty<SurfaceAudioGroup>();
-        private readonly Dictionary<string, int> _lastClipIndexByChannel = new Dictionary<string, int>();
 
         public AudioClip GetRandomFireClip(string weaponId)
         {
-            return PickClip($"fire::{weaponId}", ResolveWeaponGroup(weaponId)?.FireClips, _defaultGunshotClips);
+            return GetStableClip($"fire::{weaponId}", ResolveWeaponGroup(weaponId)?.FireClips, _defaultGunshotClips);
         }
 
         public AudioClip GetStableFireClip(string weaponId)
         {
-            var source = BuildValidClipList(ResolveWeaponGroup(weaponId)?.FireClips, _defaultGunshotClips);
-            if (source.Count == 0)
-            {
-                return null;
-            }
-
-            var key = string.IsNullOrWhiteSpace(weaponId) ? "default" : weaponId.Trim();
-            var index = Mathf.Abs(key.GetHashCode()) % source.Count;
-            return source[index];
+            return GetStableClip($"fire::{weaponId}", ResolveWeaponGroup(weaponId)?.FireClips, _defaultGunshotClips);
         }
 
         public AudioClip GetRandomReloadStartClip(string weaponId)
         {
-            return PickClip($"reload_start::{weaponId}", ResolveWeaponGroup(weaponId)?.ReloadStartClips, _defaultReloadStartClips);
+            return GetStableClip($"reload_start::{weaponId}", ResolveWeaponGroup(weaponId)?.ReloadStartClips, _defaultReloadStartClips);
         }
 
         public AudioClip GetRandomReloadCompleteClip(string weaponId)
         {
-            return PickClip($"reload_end::{weaponId}", ResolveWeaponGroup(weaponId)?.ReloadCompleteClips, _defaultReloadCompleteClips);
+            return GetStableClip($"reload_end::{weaponId}", ResolveWeaponGroup(weaponId)?.ReloadCompleteClips, _defaultReloadCompleteClips);
         }
 
         public AudioClip GetRandomImpactClip(string surfaceId)
         {
-            return PickClip($"impact::{surfaceId}", ResolveSurfaceGroup(_impactGroups, surfaceId)?.Clips, null);
+            return GetStableClip($"impact::{surfaceId}", ResolveSurfaceGroup(_impactGroups, surfaceId)?.Clips, null);
         }
 
         public AudioClip GetRandomFootstepClip(string surfaceId)
         {
-            return PickClip($"footstep::{surfaceId}", ResolveSurfaceGroup(_footstepGroups, surfaceId)?.Clips, null);
+            return GetStableClip($"footstep::{surfaceId}", ResolveSurfaceGroup(_footstepGroups, surfaceId)?.Clips, null);
         }
 
         private WeaponShotGroup ResolveWeaponGroup(string weaponId)
@@ -132,7 +121,7 @@ namespace Reloader.Audio
             return fallback;
         }
 
-        private AudioClip PickClip(string channelKey, AudioClip[] primary, AudioClip[] fallback)
+        private static AudioClip GetStableClip(string channelKey, AudioClip[] primary, AudioClip[] fallback)
         {
             var source = BuildValidClipList(primary, fallback);
             if (source.Count == 0)
@@ -140,14 +129,8 @@ namespace Reloader.Audio
                 return null;
             }
 
-            var index = URandom.Range(0, source.Count);
             var resolvedKey = string.IsNullOrWhiteSpace(channelKey) ? "default" : channelKey;
-            if (source.Count > 1 && _lastClipIndexByChannel.TryGetValue(resolvedKey, out var previousIndex) && previousIndex == index)
-            {
-                index = (index + 1) % source.Count;
-            }
-
-            _lastClipIndexByChannel[resolvedKey] = index;
+            var index = Mathf.Abs(resolvedKey.GetHashCode()) % source.Count;
             return source[index];
         }
 

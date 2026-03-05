@@ -11,7 +11,6 @@ namespace Reloader.Audio
         {
             if (current != null)
             {
-                _cachedCatalog = current;
                 return current;
             }
 

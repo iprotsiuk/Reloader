@@ -774,6 +774,7 @@ namespace Reloader.Weapons.Controllers
             }
 
             state.IsReloading = false;
+            NotifyViewMagazineInserted(itemId);
             ResolveWeaponEvents()?.RaiseWeaponReloadCancelled(itemId, reason);
         }
 
@@ -907,6 +908,11 @@ namespace Reloader.Weapons.Controllers
 
             if (resolvedAttachment == null)
             {
+                resolvedAttachment = ResolveRuntimeDefaultAttachment(runtimeComponent, muzzleRuntimeType, attachmentDefinitionType);
+            }
+
+            if (resolvedAttachment == null)
+            {
                 return;
             }
 
@@ -956,6 +962,11 @@ namespace Reloader.Weapons.Controllers
 
             if (resolvedAttachment == null)
             {
+                resolvedAttachment = ResolveRuntimeDefaultAttachment(runtimeComponent, runtimeType, definitionType);
+            }
+
+            if (resolvedAttachment == null)
+            {
                 return;
             }
 
@@ -990,6 +1001,22 @@ namespace Reloader.Weapons.Controllers
             }
 
             return null;
+        }
+
+        private static UObject ResolveRuntimeDefaultAttachment(Component runtimeComponent, Type runtimeType, Type expectedAttachmentType)
+        {
+            if (runtimeComponent == null || runtimeType == null || expectedAttachmentType == null)
+            {
+                return null;
+            }
+
+            var defaultAttachmentField = runtimeType.GetField("_defaultAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (defaultAttachmentField == null || !(defaultAttachmentField.GetValue(runtimeComponent) is UObject current))
+            {
+                return null;
+            }
+
+            return expectedAttachmentType.IsInstanceOfType(current) ? current : null;
         }
 
         private IWeaponEvents ResolveWeaponEvents()

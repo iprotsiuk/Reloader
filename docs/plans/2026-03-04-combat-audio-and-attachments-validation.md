@@ -38,6 +38,10 @@ Plan source: `docs/plans/2026-03-04-combat-audio-and-attachments-implementation-
 - `b54d15e` fix(weapons): resolve emitter catalog and attachment bridge review regressions
 - `a3473ae` fix(audio): stabilize clip selection and tighten combat catalog pools
 - `6f59041` chore(audio): prune unreferenced sfx and add curation script
+- `d06bbae` fix(audio): make weapon fire clip stable per weapon by default
+- `TBD` fix(audio): remove random clip fallback paths for deterministic traceability
+- `TBD` fix(weapons): restore detachable magazine visual on reload cancel
+- `TBD` fix(audio): prevent resolver global cache contamination from custom catalogs
 
 ## Verification Evidence
 
@@ -80,6 +84,9 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
 | https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886627784 | Resolved | Preserve custom emitter catalog when controller discovers emitter dynamically (`b54d15e`) |
 | https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886627788 | Resolved | Initialize bridged detachable magazine runtime with transferred/default attachment (`b54d15e`) |
 | https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886627792 | Resolved | Keep runtime muzzle state synchronized on rejected equip by clearing mounted runtime attachment (`b54d15e`) |
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886682598 | Pending (patched) | `CombatAudioCatalogResolver` no longer caches non-null caller-provided catalogs globally; added resolver regression test |
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886682601 | Pending (patched) | Runtime bridge now attempts existing runtime `_defaultAttachment` before giving up when no fallback definition assets resolve |
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886748129 | Pending (patched) | Reload cancel path now re-notifies view magazine insertion to restore detachable mag visual |
 
 ## Known Residual Risks
 
@@ -88,6 +95,7 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
 - Existing vendor-derived weapon visual prefabs still report missing script references in play mode; runtime attachment modules now skip unsafe prefab instantiation paths to reduce reload/fire crash risk from those assets.
 - Unity MCP test runner is currently reporting `tests_running` busy state and blocking new jobs; rerun the new emitter-regression playmode test after runner recovers:
   - `Reloader.Weapons.Tests.PlayMode.WeaponCombatAudioEmitterPlayModeTests.EmitWeaponFire_DoesNotMoveEmitterHostTransform`
+- Deterministic traceability mode now removes random clip selection across fire/reload/impact/footstep catalog APIs; if per-shot variation is desired later, it should be reintroduced explicitly as opt-in with deterministic seed logging.
 - Audio asset curation moved unused SFX out of project to external dump path:
   - `/Users/ivanprotsiuk/Documents/SOUNDS/project-audio-dump/2026-03-04-153834`
   - Curated by `scripts/audio/curate_project_audio_assets.sh` (dry-run default, `--apply` to move).

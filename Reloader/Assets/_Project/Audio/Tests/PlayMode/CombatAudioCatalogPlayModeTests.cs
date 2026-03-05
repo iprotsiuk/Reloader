@@ -37,7 +37,7 @@ namespace Reloader.Audio.Tests.PlayMode
         }
 
         [Test]
-        public void GetRandomFootstepClip_DoesNotRepeatImmediately_WhenMultipleClipsExist()
+        public void GetRandomFootstepClip_IsDeterministic_PerSurface()
         {
             var catalog = ScriptableObject.CreateInstance<CombatAudioCatalog>();
             var clipA = AudioClip.Create("step-a", 128, 1, 44100, false);
@@ -49,12 +49,11 @@ namespace Reloader.Audio.Tests.PlayMode
             SetPrivateField(group, "_clips", new[] { clipA, clipB });
             SetPrivateField(catalog, "_footstepGroups", new[] { group });
 
-            Random.InitState(1234);
             var first = catalog.GetRandomFootstepClip("Default");
             var second = catalog.GetRandomFootstepClip("Default");
             Assert.That(first, Is.Not.Null);
             Assert.That(second, Is.Not.Null);
-            Assert.That(second, Is.Not.SameAs(first));
+            Assert.That(second, Is.SameAs(first));
 
             Object.DestroyImmediate(clipA);
             Object.DestroyImmediate(clipB);
@@ -81,11 +80,33 @@ namespace Reloader.Audio.Tests.PlayMode
             Object.DestroyImmediate(catalog);
         }
 
+        [Test]
+        public void Resolve_DoesNotCache_CustomCatalogAsGlobalFallback()
+        {
+            SetResolverCachedCatalog(null);
+            var custom = ScriptableObject.CreateInstance<CombatAudioCatalog>();
+            var customResolved = CombatAudioCatalogResolver.Resolve(custom);
+            Assert.That(customResolved, Is.SameAs(custom));
+
+            var fallbackResolved = CombatAudioCatalogResolver.Resolve(null);
+            Assert.That(fallbackResolved, Is.Not.SameAs(custom), "Custom catalog should not become process-wide fallback cache.");
+
+            Object.DestroyImmediate(custom);
+            SetResolverCachedCatalog(null);
+        }
+
         private static void SetPrivateField(object target, string fieldName, object value)
         {
             var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Missing field '{fieldName}' on '{target.GetType().Name}'.");
             field.SetValue(target, value);
+        }
+
+        private static void SetResolverCachedCatalog(CombatAudioCatalog value)
+        {
+            var field = typeof(CombatAudioCatalogResolver).GetField("_cachedCatalog", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, "Missing CombatAudioCatalogResolver._cachedCatalog field.");
+            field.SetValue(null, value);
         }
     }
 }
