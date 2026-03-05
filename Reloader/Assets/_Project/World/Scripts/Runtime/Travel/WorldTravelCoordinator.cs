@@ -392,6 +392,7 @@ namespace Reloader.World.Travel
                 var reserveCount = (int?)snapshotType.GetProperty("ReserveCount", BindingFlags.Instance | BindingFlags.Public)?.GetValue(snapshot) ?? 0;
                 var chamberRound = snapshotType.GetProperty("ChamberRound", BindingFlags.Instance | BindingFlags.Public)?.GetValue(snapshot);
                 var magazineRounds = snapshotType.GetProperty("MagazineRounds", BindingFlags.Instance | BindingFlags.Public)?.GetValue(snapshot);
+                var equippedAttachmentItemIdsBySlot = snapshotType.GetProperty("EquippedAttachmentItemIdsBySlot", BindingFlags.Instance | BindingFlags.Public)?.GetValue(snapshot);
                 if (magazineRounds is not IEnumerable)
                 {
                     continue;
@@ -404,7 +405,8 @@ namespace Reloader.World.Travel
                     MagazineCount = magazineCount,
                     ReserveCount = reserveCount,
                     ChamberRound = chamberRound,
-                    MagazineRounds = magazineRounds
+                    MagazineRounds = magazineRounds,
+                    EquippedAttachmentItemIdsBySlot = equippedAttachmentItemIdsBySlot
                 });
             }
         }
@@ -425,6 +427,7 @@ namespace Reloader.World.Travel
 
             var applyRuntimeState = weaponController.GetType().GetMethod("ApplyRuntimeState", BindingFlags.Instance | BindingFlags.Public);
             var applyRuntimeBallistics = weaponController.GetType().GetMethod("ApplyRuntimeBallistics", BindingFlags.Instance | BindingFlags.Public);
+            var applyRuntimeAttachments = weaponController.GetType().GetMethod("ApplyRuntimeAttachments", BindingFlags.Instance | BindingFlags.Public);
             if (applyRuntimeState == null || applyRuntimeBallistics == null)
             {
                 _pendingWeaponSnapshots.Clear();
@@ -440,6 +443,9 @@ namespace Reloader.World.Travel
 
             var chamberParameterType = ballisticsParameters[1].ParameterType;
             var magazineParameterType = ballisticsParameters[2].ParameterType;
+            var attachmentParameterType = applyRuntimeAttachments?.GetParameters().Length == 2
+                ? applyRuntimeAttachments.GetParameters()[1].ParameterType
+                : null;
             foreach (var snapshot in _pendingWeaponSnapshots)
             {
                 if (snapshot == null || string.IsNullOrWhiteSpace(snapshot.ItemId) || snapshot.MagazineRounds == null)
@@ -486,6 +492,16 @@ namespace Reloader.World.Travel
                 applyRuntimeBallistics.Invoke(
                     weaponController,
                     new[] { (object)snapshot.ItemId, chamberArgument, snapshot.MagazineRounds });
+
+                if (applyRuntimeAttachments != null
+                    && attachmentParameterType != null
+                    && snapshot.EquippedAttachmentItemIdsBySlot != null
+                    && attachmentParameterType.IsInstanceOfType(snapshot.EquippedAttachmentItemIdsBySlot))
+                {
+                    applyRuntimeAttachments.Invoke(
+                        weaponController,
+                        new[] { (object)snapshot.ItemId, snapshot.EquippedAttachmentItemIdsBySlot });
+                }
             }
 
             _pendingWeaponSnapshots.Clear();
@@ -863,6 +879,7 @@ namespace Reloader.World.Travel
             public int ReserveCount;
             public object ChamberRound;
             public object MagazineRounds;
+            public object EquippedAttachmentItemIdsBySlot;
         }
     }
 }
