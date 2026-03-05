@@ -1524,6 +1524,7 @@ namespace Reloader.Weapons.Controllers
             if (string.IsNullOrWhiteSpace(attachmentItemId))
             {
                 unequipMethod.Invoke(manager, null);
+                DestroyChildrenOnAttachmentSlot(managerType, manager, "_scopeSlot");
                 EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
                 NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
                 return;
@@ -1763,6 +1764,29 @@ namespace Reloader.Weapons.Controllers
 
             var child = worldCamera.transform.Find("ViewmodelCamera");
             return child != null ? child.GetComponent<Camera>() : null;
+        }
+
+        private static void DestroyChildrenOnAttachmentSlot(Type managerType, Component manager, string slotFieldName)
+        {
+            if (managerType == null || manager == null || string.IsNullOrWhiteSpace(slotFieldName))
+            {
+                return;
+            }
+
+            var slotField = managerType.GetField(slotFieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            if (slotField?.GetValue(manager) is not Transform slot)
+            {
+                return;
+            }
+
+            for (var i = slot.childCount - 1; i >= 0; i--)
+            {
+                var child = slot.GetChild(i);
+                if (child != null)
+                {
+                    Destroy(child.gameObject);
+                }
+            }
         }
 
         private static UObject ResolveAttachmentDefinitionById(Type definitionType, string idPropertyName, string itemId)
