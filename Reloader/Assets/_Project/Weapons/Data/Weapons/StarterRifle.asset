@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Data.WeaponDefinition
   _itemId: weapon-kar98k
   _displayName: Kar98k (.308)
-  _iconSourcePrefab: {fileID: 100100000, guid: d73d2d23ead64e8499124e2c546e91c5, type: 3}
+  _iconSourcePrefab: {fileID: 100100000, guid: e510c3ebc1fcc91408e00937238ce7e2, type: 3}
   _magazineCapacity: 5
   _fireIntervalSeconds: 0.2
   _projectileSpeed: 120

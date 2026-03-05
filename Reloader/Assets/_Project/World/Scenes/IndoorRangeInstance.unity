@@ -1930,7 +1930,7 @@ MonoBehaviour:
   _weaponViewParent: {fileID: 0}
   _weaponViewPrefabs:
   - _itemId: weapon-kar98k
-    _viewPrefab: {fileID: 1812604386877949182, guid: d73d2d23ead64e8499124e2c546e91c5, type: 3}
+    _viewPrefab: {fileID: 100100000, guid: e510c3ebc1fcc91408e00937238ce7e2, type: 3}
   - _itemId: weapon-pistol-01
     _viewPrefab: {fileID: 850772559695530675, guid: 31f3c4bc3c25047b490da66a3c9a7a8e, type: 3}
   _attachmentItemMetadata:

@@ -163,3 +163,5 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
 - `2026-03-05 attachment mount recovery hotfix`:
   - `PlayerWeaponController` now auto-creates synthetic `ScopeSlot` / `MuzzleAttachmentSlot` runtime anchors from authored attachment visuals when source prefab lacks explicit slot transforms.
   - On first equip, runtime state now seeds attachment IDs from authored visuals if slots were unset, preventing default prefab attachments from disappearing immediately on pickup.
+- `2026-03-05 simplification`:
+  - Kar98k default view/source switched from `WWII_Recon_A_PreSet` to base `WWII_Recon_A` (no pre-mounted scope/muzzle) across `StarterRifle`, `PlayerRoot_MainTown`, `MainTown`, and `IndoorRangeInstance` mappings, so attachment lifecycle is fully player-driven.

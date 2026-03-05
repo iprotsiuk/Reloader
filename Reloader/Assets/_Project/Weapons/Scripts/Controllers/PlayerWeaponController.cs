@@ -1633,16 +1633,18 @@ namespace Reloader.Weapons.Controllers
             }
 
             var manager = viewRoot.GetComponent(managerType) ?? viewRoot.AddComponent(managerType);
-            var scopeSlot = FindDescendantByName(viewRoot.transform, "ScopeSlot")
-                ?? FindDescendantByName(viewRoot.transform, "OpticSlot")
-                ?? CreateAttachmentSlotFromAuthoredVisual(viewRoot.transform, WeaponAttachmentSlotType.Scope, "ScopeSlot");
             var ironSightAnchor = FindDescendantByName(viewRoot.transform, "IronSightAnchor")
                 ?? FindDescendantByName(viewRoot.transform, "SightAnchor")
                 ?? viewRoot.transform;
+            var scopeSlot = FindDescendantByName(viewRoot.transform, "ScopeSlot")
+                ?? FindDescendantByName(viewRoot.transform, "OpticSlot")
+                ?? CreateAttachmentSlotFromAuthoredVisual(viewRoot.transform, WeaponAttachmentSlotType.Scope, "ScopeSlot");
             var muzzleSlot = FindDescendantByName(viewRoot.transform, "MuzzleAttachmentSlot")
                 ?? FindDescendantByName(viewRoot.transform, "Muzzle")
                 ?? FindDescendantByName(viewRoot.transform, "SOCKET_Muzzle")
                 ?? CreateAttachmentSlotFromAuthoredVisual(viewRoot.transform, WeaponAttachmentSlotType.Muzzle, "MuzzleAttachmentSlot");
+            scopeSlot ??= CreateFallbackAttachmentSlot(viewRoot.transform, "ScopeSlot", ironSightAnchor);
+            muzzleSlot ??= CreateFallbackAttachmentSlot(viewRoot.transform, "MuzzleAttachmentSlot", viewRoot.transform);
 
             var scopeSlotField = managerType.GetField("_scopeSlot", BindingFlags.Instance | BindingFlags.NonPublic);
             scopeSlotField?.SetValue(manager, scopeSlot);
@@ -1690,6 +1692,20 @@ namespace Reloader.Weapons.Controllers
             if (TryResolveAuthoredAttachmentItemIdFromView(slotType, out var attachmentItemId))
             {
                 state.SetEquippedAttachmentItemId(slotType, attachmentItemId);
+                return;
+            }
+
+            if (HasAuthoredAttachmentVisual(slotType))
+            {
+                var compatibleIds = _equippedDefinition.GetCompatibleAttachmentItemIds(slotType);
+                if (compatibleIds != null && compatibleIds.Count > 0)
+                {
+                    var fallbackItemId = compatibleIds[0];
+                    if (!string.IsNullOrWhiteSpace(fallbackItemId))
+                    {
+                        state.SetEquippedAttachmentItemId(slotType, fallbackItemId);
+                    }
+                }
             }
         }
 
@@ -2115,6 +2131,41 @@ namespace Reloader.Weapons.Controllers
             }
 
             return null;
+        }
+
+        private bool HasAuthoredAttachmentVisual(WeaponAttachmentSlotType slotType)
+        {
+            return TryFindFirstAuthoredAttachmentVisualTransform(slotType, out _);
+        }
+
+        private static Transform CreateFallbackAttachmentSlot(Transform root, string slotName, Transform reference)
+        {
+            if (root == null || string.IsNullOrWhiteSpace(slotName))
+            {
+                return null;
+            }
+
+            var existing = FindDescendantByName(root, slotName);
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            var slot = new GameObject(slotName).transform;
+            slot.SetParent(root, false);
+            if (reference != null)
+            {
+                slot.position = reference.position;
+                slot.rotation = reference.rotation;
+            }
+            else
+            {
+                slot.localPosition = Vector3.zero;
+                slot.localRotation = Quaternion.identity;
+            }
+
+            slot.localScale = Vector3.one;
+            return slot;
         }
 
         private HashSet<string> BuildCompatibleAttachmentVisualNameKeywords(WeaponAttachmentSlotType slotType)
