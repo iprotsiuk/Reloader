@@ -41,6 +41,32 @@ Plan source: `docs/plans/2026-03-04-combat-audio-and-attachments-implementation-
 - `d06bbae` fix(audio): make weapon fire clip stable per weapon by default
 - `16bea33` fix(audio,weapons): make clip selection deterministic and address review regressions
 - `1be12bc` fix(audio): rebind footstep router to active mover with regression test
+- `43c4218` fix(scripts): make audio curation clip-size lookup portable across BSD and GNU stat
+- `f34083c` test(audio): return from footstep rebind coroutine
+- `1a72f2b` fix(audio): restore generic collections import for combat catalog
+
+## Post-Plan Project Hygiene (Imported Asset Curation)
+
+Large imported packs were curated to reduce demo/package bloat without touching protected vendor roots (`Assets/ThirdParty/**`, `Assets/Infima Games/**`).
+
+- Script added: `scripts/assets/curate_unused_imported_assets.sh`
+- Curation mode: GUID-reference based from active project assets/settings (excluding candidate pack self-references)
+- Candidate roots:
+  - `Assets/Cartoon_Texture_Pack`
+  - `Assets/Free Wood Door Pack`
+  - `Assets/YughuesFreeConcreteMaterials`
+  - `Assets/Low Poly Weapon Pack 4_WWII_1`
+  - `Assets/Low Poly Optic Pack 1`
+  - `Assets/LowPoly Environment Pack`
+  - `Assets/EasyRoads3D scenes`
+- Safety exclusions: `Resources/**`, `StreamingAssets/**`, `Editor/**`, script/asmdef/shader/native plugin extensions.
+
+Applied result:
+
+- Moved out of project: `1042` files
+- Reclaimed size: `1,660,812,529` bytes (~`1.55 GiB`)
+- External dump: `/Users/ivanprotsiuk/Documents/SOUNDS/project-asset-dump/2026-03-04-imported-packs-prune`
+- Manifest: `tmp/asset-curation-manifest-2026-03-04-164113.csv`
 
 ## Verification Evidence
 
