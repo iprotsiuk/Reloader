@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using Reloader.Core.UI;
+using Reloader.UI.Toolkit.Contracts;
 using Reloader.UI.Toolkit.TabInventory;
 using UnityEngine;
 using UnityEngine.UIElements;

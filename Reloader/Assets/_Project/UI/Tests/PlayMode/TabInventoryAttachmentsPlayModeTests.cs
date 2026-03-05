@@ -4,6 +4,7 @@ using NUnit.Framework;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.UI;
+using Reloader.UI.Toolkit.Contracts;
 using Reloader.UI.Toolkit.TabInventory;
 using Reloader.Weapons.Data;
 using Reloader.Weapons.Runtime;
