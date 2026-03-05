@@ -143,3 +143,11 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
 - `22b6eb2d` hardens restore + ADS behavior:
   - `ApplyRuntimeAttachments` now clears all attachment slots before applying restored snapshot keys, preventing stale attachments from surviving partial/legacy saves.
   - Scoped ADS bridge now only overrides pack FOV when an active optic is actually equipped (`AttachmentManager.ActiveOpticDefinition != null`), preserving baseline ADS FOV without scope.
+- `1808348d` hardens attachment removal + PR #22 review regressions:
+  - Kar98k scope/muzzle remove now clears authored attachment visuals using compatible attachment prefab names (not only generic keyword matching), fixing cases where `Remove` kept scope mesh visible on the equipped weapon view.
+  - Added PlayMode coverage for authored scope visual teardown in `PlayerWeaponControllerPlayModeTests.TrySwapEquippedWeaponAttachment_RemoveScope_DestroysAuthoredScopeVisual`.
+  - Closed PR #22 unresolved review items by:
+    - raising inventory changed events after successful attachment swaps,
+    - destroying stale `AdsStateController` bridge on equipped weapon view teardown,
+    - null/whitespace guarding `WeaponRegistry.TryGetWeaponDefinition`,
+    - restoring attachments during travel restore when ballistic chamber payload is unavailable.
