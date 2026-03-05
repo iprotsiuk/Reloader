@@ -30,12 +30,16 @@ namespace Reloader.World.Editor
         private const string StarterPistolSpawnPath = "Assets/_Project/Inventory/Data/Spawns/Pistol_9x19_Starter_Spawn.asset";
         private const string Ammo308SpawnPath = "Assets/_Project/Inventory/Data/Spawns/Cartridge_308_147_FMJ_PMC_Bronze_Spawn.asset";
         private const string Ammo9x19SpawnPath = "Assets/_Project/Inventory/Data/Spawns/Ammo_Factory_9x19_124_FMJ_Spawn.asset";
+        private const string Kar98kScopeSpawnPath = "Assets/_Project/Inventory/Data/Spawns/Kar98k_Scope_Remote_A_Spawn.asset";
+        private const string Kar98kMuzzleSpawnPath = "Assets/_Project/Inventory/Data/Spawns/Kar98k_Muzzle_Device_C_Spawn.asset";
         private const string RifleItemDefinitionPath = "Assets/_Project/Inventory/Data/Items/Rifle_308_Starter.asset";
         private const string PistolItemDefinitionPath = "Assets/_Project/Inventory/Data/Items/Pistol_9x19_Starter.asset";
         private const string Ammo308ItemDefinitionPath = "Assets/_Project/Inventory/Data/Items/Cartridge_308_147_FMJ_PMC_Bronze.asset";
         private const string Ammo9x19ItemDefinitionPath = "Assets/_Project/Inventory/Data/Items/Ammo_Factory_9x19_124_FMJ.asset";
+        private const string Kar98kScopeItemDefinitionPath = "Assets/_Project/Inventory/Data/Items/Kar98k_Scope_Remote_A.asset";
+        private const string Kar98kMuzzleItemDefinitionPath = "Assets/_Project/Inventory/Data/Items/Kar98k_Muzzle_Device_C.asset";
         private const string ProjectilePrefabPath = "Assets/_Project/Weapons/Prefabs/WeaponProjectile.prefab";
-        private const string RifleViewPrefabPath = "Assets/_Project/Weapons/Prefabs/RifleView.prefab";
+        private const string RifleViewPrefabPath = "Assets/Low Poly Weapon Pack 4_WWII_1/Prefabs/Weapons/Weapons_PreSet/WWII_Recon_A_PreSet.prefab";
         private const string PistolViewPrefabPath = "Assets/_Project/Weapons/Prefabs/PistolView.prefab";
         private const string PackCharacterControllerPath = "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Animators/Character/AC_LPSP_PCH.controller";
         private const string PackRifleOverridePath = "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Animators/Character/OC_LPSP_PCH_AR_01.overrideController";
@@ -150,11 +154,15 @@ namespace Reloader.World.Editor
                     var pistolItem = AssetDatabase.LoadAssetAtPath<ItemDefinition>(PistolItemDefinitionPath);
                     var ammo308Item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(Ammo308ItemDefinitionPath);
                     var ammo9x19Item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(Ammo9x19ItemDefinitionPath);
+                    var kar98kScopeItem = AssetDatabase.LoadAssetAtPath<ItemDefinition>(Kar98kScopeItemDefinitionPath);
+                    var kar98kMuzzleItem = AssetDatabase.LoadAssetAtPath<ItemDefinition>(Kar98kMuzzleItemDefinitionPath);
                     var values = new List<ItemDefinition>();
                     if (rifleItem != null) values.Add(rifleItem);
                     if (pistolItem != null) values.Add(pistolItem);
                     if (ammo308Item != null) values.Add(ammo308Item);
                     if (ammo9x19Item != null) values.Add(ammo9x19Item);
+                    if (kar98kScopeItem != null) values.Add(kar98kScopeItem);
+                    if (kar98kMuzzleItem != null) values.Add(kar98kMuzzleItem);
                     itemDefinitions.arraySize = values.Count;
                     for (var i = 0; i < values.Count; i++)
                     {
@@ -394,6 +402,8 @@ namespace Reloader.World.Editor
             var pistolSpawn = AssetDatabase.LoadAssetAtPath<ItemSpawnDefinition>(StarterPistolSpawnPath);
             var ammo308Spawn = AssetDatabase.LoadAssetAtPath<ItemSpawnDefinition>(Ammo308SpawnPath);
             var ammo9x19Spawn = AssetDatabase.LoadAssetAtPath<ItemSpawnDefinition>(Ammo9x19SpawnPath);
+            var kar98kScopeSpawn = AssetDatabase.LoadAssetAtPath<ItemSpawnDefinition>(Kar98kScopeSpawnPath);
+            var kar98kMuzzleSpawn = AssetDatabase.LoadAssetAtPath<ItemSpawnDefinition>(Kar98kMuzzleSpawnPath);
 
             var forward = playerRoot.forward;
             forward.y = 0f;
@@ -410,6 +420,8 @@ namespace Reloader.World.Editor
             EnsureDefinitionPickup("WeaponSpawn_PistolStarter_LPSP", pistolSpawn, basePos + (right * 0.55f));
             EnsureDefinitionPickup("AmmoSpawn_308_LPSP", ammo308Spawn, basePos + (forward * 0.35f) + (right * -0.45f));
             EnsureDefinitionPickup("AmmoSpawn_9x19_LPSP", ammo9x19Spawn, basePos + (forward * 0.35f) + (right * 0.45f));
+            EnsureDefinitionPickup("AttachmentSpawn_Kar98kScope", kar98kScopeSpawn, basePos + (forward * 0.6f) + (right * -0.15f));
+            EnsureDefinitionPickup("AttachmentSpawn_Kar98kMuzzle", kar98kMuzzleSpawn, basePos + (forward * 0.6f) + (right * 0.15f));
         }
 
         private static void EnsureDefinitionPickup(string name, ItemSpawnDefinition spawnDefinition, Vector3 worldPosition)

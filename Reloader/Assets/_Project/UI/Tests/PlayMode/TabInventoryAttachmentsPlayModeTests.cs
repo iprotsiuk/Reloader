@@ -21,7 +21,7 @@ namespace Reloader.UI.Tests.PlayMode
             var inventoryController = owner.AddComponent<PlayerInventoryController>();
             var runtime = new PlayerInventoryRuntime();
             runtime.SetBackpackCapacity(6);
-            runtime.TryStoreItem("weapon-rifle-01", out _, out var weaponSlot, out _);
+            runtime.TryStoreItem("weapon-kar98k", out _, out var weaponSlot, out _);
             runtime.TryStoreItem("att-optic-4x", out _, out _, out _);
             runtime.TryStoreItem("att-muzzle-a", out _, out _, out _);
             inventoryController.Configure(null, null, runtime);
@@ -30,7 +30,7 @@ namespace Reloader.UI.Tests.PlayMode
             var registry = registryOwner.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
             definition.SetRuntimeValuesForTests(
-                itemId: "weapon-rifle-01",
+                itemId: "weapon-kar98k",
                 displayName: "Rifle 01",
                 magazineCapacity: 5,
                 fireIntervalSeconds: 0.2f,
@@ -59,7 +59,7 @@ namespace Reloader.UI.Tests.PlayMode
             controller.Tick();
             controller.HandleIntent(new UiIntent(
                 "tab.inventory.item.context.attachments",
-                new TabInventoryAttachmentContextIntentPayload("belt", weaponSlot, "weapon-rifle-01")));
+                new TabInventoryAttachmentContextIntentPayload("belt", weaponSlot, "weapon-kar98k")));
 
             var attachmentsSection = root.Q<VisualElement>("inventory__section-attachments");
             var slotDropdown = root.Q<DropdownField>("inventory__attachments-slot-dropdown");

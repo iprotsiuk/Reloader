@@ -255,7 +255,7 @@ namespace Reloader.Weapons.Controllers
                 _inventoryController.Runtime,
                 _equippedDefinition,
                 state,
-                BuildAttachmentSlotLookup(),
+                BuildAttachmentSlotLookup(BuildAttachmentMetadataLookup()),
                 slotType,
                 attachmentItemId);
             if (!swapped)
@@ -1061,9 +1061,9 @@ namespace Reloader.Weapons.Controllers
             return expectedAttachmentType.IsInstanceOfType(current) ? current : null;
         }
 
-        private Dictionary<string, WeaponAttachmentSlotType> BuildAttachmentSlotLookup()
+        private Dictionary<string, WeaponAttachmentItemMetadata> BuildAttachmentMetadataLookup()
         {
-            var lookup = new Dictionary<string, WeaponAttachmentSlotType>(StringComparer.Ordinal);
+            var lookup = new Dictionary<string, WeaponAttachmentItemMetadata>(StringComparer.Ordinal);
             if (_attachmentItemMetadata == null || _attachmentItemMetadata.Length == 0)
             {
                 return lookup;
@@ -1072,21 +1072,59 @@ namespace Reloader.Weapons.Controllers
             for (var i = 0; i < _attachmentItemMetadata.Length; i++)
             {
                 var metadata = _attachmentItemMetadata[i];
-                if (metadata == null)
+                if (metadata == null || string.IsNullOrWhiteSpace(metadata.AttachmentItemId))
                 {
                     continue;
                 }
 
-                var attachmentItemId = metadata.AttachmentItemId;
-                if (string.IsNullOrWhiteSpace(attachmentItemId))
-                {
-                    continue;
-                }
-
-                lookup[attachmentItemId] = metadata.SlotType;
+                lookup[metadata.AttachmentItemId] = metadata;
             }
 
             return lookup;
+        }
+
+        private static Dictionary<string, WeaponAttachmentSlotType> BuildAttachmentSlotLookup(
+            IReadOnlyDictionary<string, WeaponAttachmentItemMetadata> metadataLookup)
+        {
+            var lookup = new Dictionary<string, WeaponAttachmentSlotType>(StringComparer.Ordinal);
+            if (metadataLookup == null || metadataLookup.Count == 0)
+            {
+                return lookup;
+            }
+
+            foreach (var entry in metadataLookup)
+            {
+                if (string.IsNullOrWhiteSpace(entry.Key) || entry.Value == null)
+                {
+                    continue;
+                }
+
+                lookup[entry.Key] = entry.Value.SlotType;
+            }
+
+            return lookup;
+        }
+
+        private UObject ResolveAttachmentDefinitionByMetadata(
+            string attachmentItemId,
+            Type expectedDefinitionType,
+            string idPropertyName)
+        {
+            if (string.IsNullOrWhiteSpace(attachmentItemId) || expectedDefinitionType == null)
+            {
+                return null;
+            }
+
+            var metadataLookup = BuildAttachmentMetadataLookup();
+            if (metadataLookup.TryGetValue(attachmentItemId, out var metadata)
+                && metadata != null
+                && metadata.AttachmentDefinition != null
+                && expectedDefinitionType.IsInstanceOfType(metadata.AttachmentDefinition))
+            {
+                return metadata.AttachmentDefinition;
+            }
+
+            return ResolveAttachmentDefinitionById(expectedDefinitionType, idPropertyName, attachmentItemId);
         }
 
         private IWeaponEvents ResolveWeaponEvents()
@@ -1383,7 +1421,10 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
-            var definition = ResolveAttachmentDefinitionById(opticDefinitionType, "OpticId", attachmentItemId);
+            var definition = ResolveAttachmentDefinitionByMetadata(
+                attachmentItemId,
+                opticDefinitionType,
+                "OpticId");
             if (definition == null)
             {
                 return;
@@ -1425,7 +1466,10 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
-            var definition = ResolveAttachmentDefinitionById(muzzleDefinitionType, "AttachmentId", attachmentItemId);
+            var definition = ResolveAttachmentDefinitionByMetadata(
+                attachmentItemId,
+                muzzleDefinitionType,
+                "AttachmentId");
             if (definition == null)
             {
                 return;

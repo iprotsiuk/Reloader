@@ -17,7 +17,7 @@ namespace Reloader.Weapons.Editor
         private const string DataDir = WeaponsRoot + "/Data/Weapons";
         private const string InventoryItemsDir = "Assets/_Project/Inventory/Data/Items";
         private const string InventorySpawnsDir = "Assets/_Project/Inventory/Data/Spawns";
-        private const string SourceRiflePrefabPath = "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Prefabs/Weapons/P_LPSP_WEP_AR_01.prefab";
+        private const string SourceRiflePrefabPath = "Assets/Low Poly Weapon Pack 4_WWII_1/Prefabs/Weapons/Weapons_PreSet/WWII_Recon_A_PreSet.prefab";
         private const string SourcePistolPrefabPath = "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Prefabs/Weapons/P_LPSP_WEP_Handgun_03.prefab";
         private static readonly string[] PackWeaponMaterialPaths =
         {
@@ -59,7 +59,7 @@ namespace Reloader.Weapons.Editor
             BuildDefinitionAsset(
                 "StarterRifle.asset",
                 "weapon-kar98k",
-                "Starter Rifle",
+                "Kar98k (.308)",
                 5,
                 0.2f,
                 120f,

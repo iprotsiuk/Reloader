@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ce25483311fb40e694825b08640a1aac, type: 3}
-  m_Name: Rifle_308_Starter
+  m_Name: Kar98k_Muzzle_Device_C
   m_EditorClassIdentifier: Reloader.Core::Reloader.Core.Items.ItemDefinition
-  _definitionId: weapon-kar98k
-  _category: 4
-  _displayName: Kar98k (.308)
+  _definitionId: att-kar98k-muzzle-device-c
+  _category: 7
+  _displayName: Kar98k Muzzle Device C
   _stackPolicy: 0
   _maxStack: 1
-  _iconSourcePrefab: {fileID: 100100000, guid: d73d2d23ead64e8499124e2c546e91c5, type: 3}
+  _iconSourcePrefab: {fileID: 100100000, guid: fd3b5c2bd2c23b24289eb7cb29b7832f, type: 3}

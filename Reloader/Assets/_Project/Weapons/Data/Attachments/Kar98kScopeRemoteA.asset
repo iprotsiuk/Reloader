@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3edaf11effd2f45829e99b2cb0b3fea5, type: 3}
+  m_Name: Kar98kScopeRemoteA
+  m_EditorClassIdentifier: 
+  _opticId: att-kar98k-scope-remote-a
+  _category: 5
+  _opticPrefab: {fileID: 100100000, guid: 44d59379fabe01844853ff5d03526c66, type: 3}
+  _isVariableZoom: 1
+  _magnificationMin: 4
+  _magnificationMax: 8
+  _magnificationStep: 1
+  _visualModePolicy: 1
+  _eyeReliefBackOffset: 0
+  _reticleUiSprite: {fileID: 0}
+  _hasScopeRenderProfile: 0
+  _scopeRenderProfile:
+    _renderTextureResolution: 1024
+    _scopeCameraFov: 20

@@ -391,7 +391,7 @@ namespace Reloader.UI.Tests.PlayMode
                 true,
                 new[]
                 {
-                    new TabInventoryUiState.SlotState(0, "weapon-rifle-01", true),
+                    new TabInventoryUiState.SlotState(0, "weapon-kar98k", true),
                     new TabInventoryUiState.SlotState(1, null, false),
                     new TabInventoryUiState.SlotState(2, null, false),
                     new TabInventoryUiState.SlotState(3, null, false),
@@ -416,7 +416,7 @@ namespace Reloader.UI.Tests.PlayMode
             var payload = (TabInventoryAttachmentContextIntentPayload)captured.Payload;
             Assert.That(payload.Container, Is.EqualTo("belt"));
             Assert.That(payload.SlotIndex, Is.EqualTo(0));
-            Assert.That(payload.ItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(payload.ItemId, Is.EqualTo("weapon-kar98k"));
         }
 
         private static VisualElement BuildRoot()
