@@ -27,7 +27,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             SetPrivateField(dummyType, damageable, "_impactMarkerPrefab", markerPrefab);
 
             var hitPoint = target.transform.position + Vector3.up;
-            var payload = new ProjectileImpactPayload("weapon-rifle-01", hitPoint, Vector3.forward, 20f, target);
+            var payload = new ProjectileImpactPayload("weapon-kar98k", hitPoint, Vector3.forward, 20f, target);
             InvokeApplyDamage(dummyType, damageable, payload);
 
             yield return null;
@@ -56,8 +56,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             markerPrefab.AddComponent(markerType);
             SetPrivateField(dummyType, damageable, "_impactMarkerPrefab", markerPrefab);
 
-            InvokeApplyDamage(dummyType, damageable, new ProjectileImpactPayload("weapon-rifle-01", target.transform.position + Vector3.up, Vector3.forward, 20f, target));
-            InvokeApplyDamage(dummyType, damageable, new ProjectileImpactPayload("weapon-rifle-01", target.transform.position + (Vector3.up * 0.7f), Vector3.right, 20f, target));
+            InvokeApplyDamage(dummyType, damageable, new ProjectileImpactPayload("weapon-kar98k", target.transform.position + Vector3.up, Vector3.forward, 20f, target));
+            InvokeApplyDamage(dummyType, damageable, new ProjectileImpactPayload("weapon-kar98k", target.transform.position + (Vector3.up * 0.7f), Vector3.right, 20f, target));
 
             yield return new WaitForSeconds(0.2f);
             Assert.That(target.transform.childCount, Is.EqualTo(2));

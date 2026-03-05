@@ -29,13 +29,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             var pickupGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
             pickupGo.transform.position = new Vector3(0f, 0f, 2f);
             var pickupTarget = pickupGo.AddComponent<WeaponPickupTarget>();
-            pickupTarget.SetItemIdForTests("weapon-rifle-01");
+            pickupTarget.SetItemIdForTests("weapon-kar98k");
 
             input.PickupPressedThisFrame = true;
             inventory.Tick();
             yield return null;
 
-            Assert.That(inventory.Runtime.BeltSlotItemIds[0], Is.EqualTo("weapon-rifle-01"));
+            Assert.That(inventory.Runtime.BeltSlotItemIds[0], Is.EqualTo("weapon-kar98k"));
             Assert.That(pickupGo.activeSelf, Is.False);
 
             Object.Destroy(root);
@@ -65,13 +65,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             var pickupGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
             pickupGo.transform.position = new Vector3(0f, 0f, 2f);
             var pickupTarget = pickupGo.AddComponent<WeaponPickupTarget>();
-            pickupTarget.SetItemIdForTests("weapon-rifle-01");
+            pickupTarget.SetItemIdForTests("weapon-kar98k");
 
             input.PickupPressedThisFrame = true;
             inventory.Tick();
             yield return null;
 
-            Assert.That(inventory.Runtime.BeltSlotItemIds[0], Is.EqualTo("weapon-rifle-01"));
+            Assert.That(inventory.Runtime.BeltSlotItemIds[0], Is.EqualTo("weapon-kar98k"));
             Assert.That(pickupGo.activeSelf, Is.False);
 
             Object.Destroy(root);

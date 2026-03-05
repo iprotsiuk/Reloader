@@ -12,7 +12,7 @@ namespace Reloader.Core.Tests.EditMode
             var module = new WeaponsModule();
             module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
             {
-                ItemId = "weapon-rifle-01",
+                ItemId = "weapon-kar98k",
                 ChamberLoaded = true,
                 MagCapacity = 5,
                 MagCount = 3,
@@ -37,6 +37,14 @@ namespace Reloader.Core.Tests.EditMode
                         BallisticCoefficientG1 = 0.45f,
                         DispersionMoa = 1.2f
                     }
+                },
+                Attachments = new System.Collections.Generic.List<WeaponsModule.AttachmentStateRecord>
+                {
+                    new WeaponsModule.AttachmentStateRecord
+                    {
+                        SlotType = 0,
+                        AttachmentItemId = "att-kar98k-scope-remote-a"
+                    }
                 }
             });
 
@@ -46,7 +54,7 @@ namespace Reloader.Core.Tests.EditMode
             restored.RestoreModuleStateFromJson(json);
 
             Assert.That(restored.WeaponStates.Count, Is.EqualTo(1));
-            Assert.That(restored.WeaponStates[0].ItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(restored.WeaponStates[0].ItemId, Is.EqualTo("weapon-kar98k"));
             Assert.That(restored.WeaponStates[0].ChamberLoaded, Is.True);
             Assert.That(restored.WeaponStates[0].MagCapacity, Is.EqualTo(5));
             Assert.That(restored.WeaponStates[0].MagCount, Is.EqualTo(3));
@@ -56,6 +64,9 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(restored.WeaponStates[0].MagazineRounds, Is.Not.Null);
             Assert.That(restored.WeaponStates[0].MagazineRounds.Count, Is.EqualTo(1));
             Assert.That(restored.WeaponStates[0].MagazineRounds[0].AmmoSource, Is.EqualTo((int)AmmoSourceType.Factory));
+            Assert.That(restored.WeaponStates[0].Attachments, Is.Not.Null);
+            Assert.That(restored.WeaponStates[0].Attachments.Count, Is.EqualTo(1));
+            Assert.That(restored.WeaponStates[0].Attachments[0].AttachmentItemId, Is.EqualTo("att-kar98k-scope-remote-a"));
         }
 
         [Test]
@@ -73,7 +84,7 @@ namespace Reloader.Core.Tests.EditMode
             var module = new WeaponsModule();
             module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
             {
-                ItemId = "weapon-rifle-01",
+                ItemId = "weapon-kar98k",
                 MagCapacity = 3,
                 MagCount = 4,
                 ReserveCount = 0,
@@ -89,7 +100,7 @@ namespace Reloader.Core.Tests.EditMode
             var module = new WeaponsModule();
             module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
             {
-                ItemId = "weapon-rifle-01",
+                ItemId = "weapon-kar98k",
                 MagCapacity = 5,
                 MagCount = 2,
                 ReserveCount = 10,
@@ -108,12 +119,31 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void WeaponsModule_Validate_AllowsLegacyNullMagazineRoundsPayload()
+        {
+            var module = new WeaponsModule();
+            module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
+            {
+                ItemId = "weapon-kar98k",
+                MagCapacity = 5,
+                MagCount = 2,
+                ReserveCount = 10,
+                ChamberLoaded = false,
+                MagazineRounds = null
+            });
+
+            Assert.DoesNotThrow(() => module.ValidateModuleState());
+            Assert.That(module.WeaponStates[0].MagazineRounds, Is.Not.Null);
+            Assert.That(module.WeaponStates[0].MagazineRounds.Count, Is.EqualTo(0));
+        }
+
+        [Test]
         public void WeaponsModule_Validate_AllowsLargeCapacityAndReserveValues()
         {
             var module = new WeaponsModule();
             module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
             {
-                ItemId = "weapon-rifle-01",
+                ItemId = "weapon-kar98k",
                 MagCapacity = 500,
                 MagCount = 250,
                 ReserveCount = 125000,
@@ -131,6 +161,27 @@ namespace Reloader.Core.Tests.EditMode
             }
 
             Assert.DoesNotThrow(() => module.ValidateModuleState());
+        }
+
+        [Test]
+        public void WeaponsModule_Validate_Throws_OnDuplicateAttachmentSlots()
+        {
+            var module = new WeaponsModule();
+            module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
+            {
+                ItemId = "weapon-kar98k",
+                MagCapacity = 5,
+                MagCount = 0,
+                ReserveCount = 10,
+                ChamberLoaded = false,
+                Attachments = new System.Collections.Generic.List<WeaponsModule.AttachmentStateRecord>
+                {
+                    new WeaponsModule.AttachmentStateRecord { SlotType = 0, AttachmentItemId = "att-a" },
+                    new WeaponsModule.AttachmentStateRecord { SlotType = 0, AttachmentItemId = "att-b" }
+                }
+            });
+
+            Assert.Throws<System.InvalidOperationException>(() => module.ValidateModuleState());
         }
     }
 }

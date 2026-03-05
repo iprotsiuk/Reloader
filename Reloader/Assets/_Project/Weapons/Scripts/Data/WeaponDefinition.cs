@@ -1,5 +1,6 @@
 using UnityEngine;
 using Reloader.Weapons.PackRuntime;
+using System.Collections.Generic;
 
 namespace Reloader.Weapons.Data
 {
@@ -107,6 +108,7 @@ namespace Reloader.Weapons.Data
         [SerializeField] private string _ammoItemId = "ammo-factory-308-147-fmj";
         [SerializeField] private WeaponScopeConfiguration _scopeConfiguration;
         [SerializeField] private WeaponPackPresentationConfiguration _packPresentationConfiguration;
+        [SerializeField] private WeaponAttachmentCompatibility[] _attachmentCompatibilities = System.Array.Empty<WeaponAttachmentCompatibility>();
 
         public string ItemId => _itemId;
         public string DisplayName => _displayName;
@@ -128,6 +130,25 @@ namespace Reloader.Weapons.Data
         public PackWeaponPresentationConfig ResolvePackPresentationConfig(PackWeaponPresentationConfig fallbackConfig)
         {
             return _packPresentationConfiguration.ResolveOrDefault(fallbackConfig);
+        }
+
+        public IReadOnlyList<string> GetCompatibleAttachmentItemIds(WeaponAttachmentSlotType slotType)
+        {
+            if (_attachmentCompatibilities == null || _attachmentCompatibilities.Length == 0)
+            {
+                return System.Array.Empty<string>();
+            }
+
+            for (var i = 0; i < _attachmentCompatibilities.Length; i++)
+            {
+                var compatibility = _attachmentCompatibilities[i];
+                if (compatibility.SlotType == slotType)
+                {
+                    return compatibility.CompatibleAttachmentItemIds;
+                }
+            }
+
+            return System.Array.Empty<string>();
         }
 
         public void SetRuntimeValuesForTests(
@@ -163,6 +184,14 @@ namespace Reloader.Weapons.Data
             _ammoItemId = ammoItemId;
             _scopeConfiguration = scopeConfiguration ?? default;
             _packPresentationConfiguration = packPresentationConfiguration ?? default;
+            _attachmentCompatibilities = System.Array.Empty<WeaponAttachmentCompatibility>();
+        }
+
+        public void SetAttachmentCompatibilitiesForTests(IReadOnlyList<WeaponAttachmentCompatibility> compatibilities)
+        {
+            _attachmentCompatibilities = compatibilities == null
+                ? System.Array.Empty<WeaponAttachmentCompatibility>()
+                : new List<WeaponAttachmentCompatibility>(compatibilities).ToArray();
         }
     }
 }

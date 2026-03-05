@@ -31,7 +31,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 }
             };
 
-            emitter.EmitWeaponFire("weapon-rifle-01", Vector3.zero, clip);
+            emitter.EmitWeaponFire("weapon-kar98k", Vector3.zero, clip);
             yield return null;
 
             Assert.That(played, Is.EqualTo(1));
@@ -51,7 +51,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var clip = AudioClip.Create("shot", 128, 1, 44100, false);
             var muzzlePosition = initialPosition + new Vector3(0f, 0.5f, 1.25f);
 
-            emitter.EmitWeaponFire("weapon-rifle-01", muzzlePosition, clip);
+            emitter.EmitWeaponFire("weapon-kar98k", muzzlePosition, clip);
             yield return null;
 
             Assert.That(Vector3.Distance(go.transform.position, initialPosition), Is.LessThan(0.0001f));
@@ -72,14 +72,14 @@ namespace Reloader.Weapons.Tests.PlayMode
             var inventoryController = root.AddComponent<PlayerInventoryController>();
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
             runtime.TryAddStackItem("ammo-factory-308-147-fmj", 12, out _, out _, out _);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 12, true);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 12, true);
             registry.SetDefinitionsForTests(new[] { definition });
 
             var emitterSpy = root.AddComponent<SpyWeaponCombatAudioEmitter>();

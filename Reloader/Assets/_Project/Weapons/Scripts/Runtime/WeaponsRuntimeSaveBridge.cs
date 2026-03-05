@@ -1,6 +1,7 @@
 using Reloader.Core.Save.Modules;
 using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.Controllers;
+using Reloader.Weapons.Data;
 using UnityEngine;
 
 namespace Reloader.Weapons.Runtime
@@ -37,7 +38,8 @@ namespace Reloader.Weapons.Runtime
                     MagCapacity = snapshot.MagCapacity,
                     ReserveCount = snapshot.ReserveCount,
                     ChamberRound = snapshot.ChamberRound.HasValue ? ToRecord(snapshot.ChamberRound.Value) : null,
-                    MagazineRounds = ToRecords(snapshot.MagazineRounds)
+                    MagazineRounds = ToRecords(snapshot.MagazineRounds),
+                    Attachments = ToAttachmentRecords(snapshot.EquippedAttachmentItemIdsBySlot)
                 });
             }
         }
@@ -59,6 +61,7 @@ namespace Reloader.Weapons.Runtime
 
                 _weaponController.ApplyRuntimeState(state.ItemId, state.MagCount, state.ReserveCount, state.ChamberLoaded);
                 _weaponController.ApplyRuntimeBallistics(state.ItemId, ToSnapshot(state.ChamberRound), ToSnapshots(state.MagazineRounds));
+                _weaponController.ApplyRuntimeAttachments(state.ItemId, ToAttachmentSnapshot(state.Attachments));
             }
         }
 
@@ -131,6 +134,55 @@ namespace Reloader.Weapons.Runtime
             }
 
             return snapshots;
+        }
+
+        private static System.Collections.Generic.List<WeaponsModule.AttachmentStateRecord> ToAttachmentRecords(
+            System.Collections.Generic.IReadOnlyDictionary<WeaponAttachmentSlotType, string> equippedAttachmentItemIdsBySlot)
+        {
+            var records = new System.Collections.Generic.List<WeaponsModule.AttachmentStateRecord>();
+            if (equippedAttachmentItemIdsBySlot == null)
+            {
+                return records;
+            }
+
+            foreach (var entry in equippedAttachmentItemIdsBySlot)
+            {
+                if (string.IsNullOrWhiteSpace(entry.Value))
+                {
+                    continue;
+                }
+
+                records.Add(new WeaponsModule.AttachmentStateRecord
+                {
+                    SlotType = (int)entry.Key,
+                    AttachmentItemId = entry.Value
+                });
+            }
+
+            return records;
+        }
+
+        private static System.Collections.Generic.Dictionary<WeaponAttachmentSlotType, string> ToAttachmentSnapshot(
+            System.Collections.Generic.IReadOnlyList<WeaponsModule.AttachmentStateRecord> records)
+        {
+            var snapshot = new System.Collections.Generic.Dictionary<WeaponAttachmentSlotType, string>();
+            if (records == null)
+            {
+                return snapshot;
+            }
+
+            for (var i = 0; i < records.Count; i++)
+            {
+                var record = records[i];
+                if (record == null || string.IsNullOrWhiteSpace(record.AttachmentItemId))
+                {
+                    continue;
+                }
+
+                snapshot[(WeaponAttachmentSlotType)record.SlotType] = record.AttachmentItemId;
+            }
+
+            return snapshot;
         }
 
         private bool ResolveDependencies()

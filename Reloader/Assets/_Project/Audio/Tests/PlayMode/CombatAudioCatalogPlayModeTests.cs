@@ -29,7 +29,7 @@ namespace Reloader.Audio.Tests.PlayMode
             var clipA = AudioClip.Create("clip-a", 128, 1, 44100, false);
             SetPrivateField(catalog, "_defaultGunshotClips", new AudioClip[] { null, clipA, null });
 
-            var resolved = catalog.GetRandomFireClip("weapon-rifle-01");
+            var resolved = catalog.GetRandomFireClip("weapon-kar98k");
             Assert.That(resolved, Is.SameAs(clipA));
 
             Object.DestroyImmediate(clipA);
@@ -69,8 +69,8 @@ namespace Reloader.Audio.Tests.PlayMode
             var clipC = AudioClip.Create("shot-c", 128, 1, 44100, false);
             SetPrivateField(catalog, "_defaultGunshotClips", new[] { clipA, clipB, clipC });
 
-            var first = catalog.GetStableFireClip("weapon-rifle-01");
-            var second = catalog.GetStableFireClip("weapon-rifle-01");
+            var first = catalog.GetStableFireClip("weapon-kar98k");
+            var second = catalog.GetStableFireClip("weapon-kar98k");
             Assert.That(first, Is.Not.Null);
             Assert.That(second, Is.SameAs(first));
 

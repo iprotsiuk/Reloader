@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using Reloader.Core.UI;
+using Reloader.UI.Toolkit.Contracts;
 using Reloader.UI.Toolkit.TabInventory;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -379,6 +380,44 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(capturedPayload.Value.SourceContainer, Is.EqualTo("belt"));
             Assert.That(capturedPayload.Value.SourceIndex, Is.EqualTo(0));
             Assert.That(capturedPayload.Value.TargetIndex, Is.EqualTo(-1));
+        }
+
+        [Test]
+        public void RightClickOccupiedSlot_EmitsAttachmentsContextIntent()
+        {
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+            binder.Render(TabInventoryUiState.Create(
+                true,
+                new[]
+                {
+                    new TabInventoryUiState.SlotState(0, "weapon-kar98k", true),
+                    new TabInventoryUiState.SlotState(1, null, false),
+                    new TabInventoryUiState.SlotState(2, null, false),
+                    new TabInventoryUiState.SlotState(3, null, false),
+                    new TabInventoryUiState.SlotState(4, null, false)
+                },
+                new[]
+                {
+                    new TabInventoryUiState.SlotState(0, null, false),
+                    new TabInventoryUiState.SlotState(1, null, false)
+                },
+                string.Empty,
+                false));
+
+            UiIntent captured = default;
+            binder.IntentRaised += intent => captured = intent;
+
+            var emitted = binder.TryRightClickSlotForTests("belt", 0);
+
+            Assert.That(emitted, Is.True);
+            Assert.That(captured.Key, Is.EqualTo("tab.inventory.item.context.attachments"));
+            Assert.That(captured.Payload, Is.TypeOf<TabInventoryAttachmentContextIntentPayload>());
+            var payload = (TabInventoryAttachmentContextIntentPayload)captured.Payload;
+            Assert.That(payload.Container, Is.EqualTo("belt"));
+            Assert.That(payload.SlotIndex, Is.EqualTo(0));
+            Assert.That(payload.ItemId, Is.EqualTo("weapon-kar98k"));
         }
 
         private static VisualElement BuildRoot()

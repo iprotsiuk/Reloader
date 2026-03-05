@@ -13,6 +13,7 @@ namespace Reloader.Weapons.Runtime
         [SerializeField] private WeaponDefinition[] _definitions = Array.Empty<WeaponDefinition>();
 
         private readonly Dictionary<string, WeaponDefinition> _byItemId = new Dictionary<string, WeaponDefinition>();
+        private readonly HashSet<string> _missingItemIds = new HashSet<string>(StringComparer.Ordinal);
         private bool _initialized;
 
         private void Awake()
@@ -22,20 +23,38 @@ namespace Reloader.Weapons.Runtime
 
         public bool TryGetWeaponDefinition(string itemId, out WeaponDefinition definition)
         {
+            definition = null;
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return false;
+            }
+
+            if (!LooksLikeWeaponItemId(itemId))
+            {
+                return false;
+            }
+
             EnsureInitialized();
-            if (_byItemId.TryGetValue(itemId ?? string.Empty, out definition))
+            if (_byItemId.TryGetValue(itemId, out definition))
             {
                 return true;
+            }
+
+            if (_missingItemIds.Contains(itemId))
+            {
+                return false;
             }
 
 #if UNITY_EDITOR
             if (TryResolveFromProjectAssets(itemId, out definition))
             {
                 _byItemId[itemId] = definition;
+                _missingItemIds.Remove(itemId);
                 return true;
             }
 #endif
 
+            _missingItemIds.Add(itemId);
             return false;
         }
 
@@ -44,6 +63,7 @@ namespace Reloader.Weapons.Runtime
             _definitions = definitions ?? Array.Empty<WeaponDefinition>();
             _initialized = false;
             _byItemId.Clear();
+            _missingItemIds.Clear();
             EnsureInitialized();
         }
 
@@ -56,6 +76,7 @@ namespace Reloader.Weapons.Runtime
 
             _initialized = true;
             _byItemId.Clear();
+            _missingItemIds.Clear();
             if (_definitions == null)
             {
                 return;
@@ -71,6 +92,12 @@ namespace Reloader.Weapons.Runtime
 
                 _byItemId[definition.ItemId] = definition;
             }
+        }
+
+        private static bool LooksLikeWeaponItemId(string itemId)
+        {
+            return !string.IsNullOrWhiteSpace(itemId)
+                   && itemId.StartsWith("weapon-", StringComparison.Ordinal);
         }
 
 #if UNITY_EDITOR

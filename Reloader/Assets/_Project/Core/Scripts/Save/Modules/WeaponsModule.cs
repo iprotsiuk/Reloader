@@ -38,6 +38,16 @@ namespace Reloader.Core.Save.Modules
         }
 
         [Serializable]
+        public sealed class AttachmentStateRecord
+        {
+            [JsonProperty("slotType")]
+            public int SlotType { get; set; }
+
+            [JsonProperty("attachmentItemId")]
+            public string AttachmentItemId { get; set; }
+        }
+
+        [Serializable]
         public sealed class WeaponStateRecord
         {
             [JsonProperty("itemId")]
@@ -60,6 +70,9 @@ namespace Reloader.Core.Save.Modules
 
             [JsonProperty("magazineRounds")]
             public List<AmmoBallisticRecord> MagazineRounds { get; set; } = new List<AmmoBallisticRecord>();
+
+            [JsonProperty("attachments")]
+            public List<AttachmentStateRecord> Attachments { get; set; } = new List<AttachmentStateRecord>();
         }
 
         [Serializable]
@@ -126,19 +139,41 @@ namespace Reloader.Core.Save.Modules
                     ValidateAmmoRecord(state.ItemId, "chamber", state.ChamberRound);
                 }
 
-                if (state.MagazineRounds == null)
+                var hasMagazineRoundsPayload = state.MagazineRounds != null;
+                if (!hasMagazineRoundsPayload)
                 {
-                    continue;
+                    state.MagazineRounds = new List<AmmoBallisticRecord>();
                 }
 
-                SaveValidation.EnsureCountMatch(
-                    state.MagCount,
-                    state.MagazineRounds.Count,
-                    $"Weapon '{state.ItemId}' magazine round payload count '{state.MagazineRounds.Count}' does not match magCount '{state.MagCount}'.");
+                if (hasMagazineRoundsPayload)
+                {
+                    SaveValidation.EnsureCountMatch(
+                        state.MagCount,
+                        state.MagazineRounds.Count,
+                        $"Weapon '{state.ItemId}' magazine round payload count '{state.MagazineRounds.Count}' does not match magCount '{state.MagCount}'.");
+                }
 
                 for (var j = 0; j < state.MagazineRounds.Count; j++)
                 {
                     ValidateAmmoRecord(state.ItemId, $"magazine[{j}]", state.MagazineRounds[j]);
+                }
+
+                if (state.Attachments == null)
+                {
+                    state.Attachments = new List<AttachmentStateRecord>();
+                }
+
+                var seenSlots = new HashSet<int>();
+                for (var j = 0; j < state.Attachments.Count; j++)
+                {
+                    var attachment = state.Attachments[j];
+                    SaveValidation.Ensure(attachment != null, $"Weapon '{state.ItemId}' contains null attachment entry at index {j}.");
+                    SaveValidation.EnsureRequiredString(
+                        attachment.AttachmentItemId,
+                        $"Weapon '{state.ItemId}' attachment entry at index {j} has invalid attachment item ID.");
+                    SaveValidation.Ensure(
+                        seenSlots.Add(attachment.SlotType),
+                        $"Weapon '{state.ItemId}' contains duplicate attachment slot '{attachment.SlotType}'.");
                 }
             }
         }

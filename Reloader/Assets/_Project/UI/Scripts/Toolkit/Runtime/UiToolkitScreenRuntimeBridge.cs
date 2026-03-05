@@ -222,6 +222,7 @@ namespace Reloader.UI.Toolkit.Runtime
 
             var controller = GetOrAddController<TabInventoryController>(controllerName);
             controller.SetInventoryController(inventoryController);
+            controller.SetWeaponController(FindFirstObjectByType<PlayerWeaponController>(FindObjectsInactive.Include));
             controller.SetInputSource(inputSource);
             controller.SetDeviceController(ResolveTabDeviceControllerAdapter(inventoryController, inputSource));
             controller.Configure(viewBinder, null);

@@ -192,7 +192,7 @@ namespace Reloader.Weapons.Editor
                     var index = viewPrefabs.arraySize;
                     viewPrefabs.InsertArrayElementAtIndex(index);
                     var entry = viewPrefabs.GetArrayElementAtIndex(index);
-                    entry.FindPropertyRelative("_itemId").stringValue = "weapon-rifle-01";
+                    entry.FindPropertyRelative("_itemId").stringValue = "weapon-kar98k";
                     entry.FindPropertyRelative("_viewPrefab").objectReferenceValue = rifleViewPrefab;
                 }
 
@@ -252,7 +252,7 @@ namespace Reloader.Weapons.Editor
                 var index = entries.arraySize;
                 entries.InsertArrayElementAtIndex(index);
                 var entry = entries.GetArrayElementAtIndex(index);
-                entry.FindPropertyRelative("_itemId").stringValue = "weapon-rifle-01";
+                entry.FindPropertyRelative("_itemId").stringValue = "weapon-kar98k";
                 entry.FindPropertyRelative("_controller").objectReferenceValue = rifleController;
             }
 

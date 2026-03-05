@@ -30,12 +30,18 @@ namespace Reloader.World.Editor
         private const string StarterPistolSpawnPath = "Assets/_Project/Inventory/Data/Spawns/Pistol_9x19_Starter_Spawn.asset";
         private const string Ammo308SpawnPath = "Assets/_Project/Inventory/Data/Spawns/Cartridge_308_147_FMJ_PMC_Bronze_Spawn.asset";
         private const string Ammo9x19SpawnPath = "Assets/_Project/Inventory/Data/Spawns/Ammo_Factory_9x19_124_FMJ_Spawn.asset";
+        private const string Kar98kScopeSpawnPath = "Assets/_Project/Inventory/Data/Spawns/Kar98k_Scope_Remote_A_Spawn.asset";
+        private const string Kar98kMuzzleSpawnPath = "Assets/_Project/Inventory/Data/Spawns/Kar98k_Muzzle_Device_C_Spawn.asset";
         private const string RifleItemDefinitionPath = "Assets/_Project/Inventory/Data/Items/Rifle_308_Starter.asset";
         private const string PistolItemDefinitionPath = "Assets/_Project/Inventory/Data/Items/Pistol_9x19_Starter.asset";
         private const string Ammo308ItemDefinitionPath = "Assets/_Project/Inventory/Data/Items/Cartridge_308_147_FMJ_PMC_Bronze.asset";
         private const string Ammo9x19ItemDefinitionPath = "Assets/_Project/Inventory/Data/Items/Ammo_Factory_9x19_124_FMJ.asset";
+        private const string Kar98kScopeItemDefinitionPath = "Assets/_Project/Inventory/Data/Items/Kar98k_Scope_Remote_A.asset";
+        private const string Kar98kMuzzleItemDefinitionPath = "Assets/_Project/Inventory/Data/Items/Kar98k_Muzzle_Device_C.asset";
         private const string ProjectilePrefabPath = "Assets/_Project/Weapons/Prefabs/WeaponProjectile.prefab";
         private const string RifleViewPrefabPath = "Assets/_Project/Weapons/Prefabs/RifleView.prefab";
+        private const string Kar98kScopeViewPrefabPath = "Assets/Low Poly Weapon Pack 4_WWII_1/Prefabs/Attachments/WWII_Optic_Remote_Range_A.prefab";
+        private const string Kar98kMuzzleViewPrefabPath = "Assets/Low Poly Weapon Pack 4_WWII_1/Prefabs/Attachments/WWII_Muzzle_Device_C.prefab";
         private const string PistolViewPrefabPath = "Assets/_Project/Weapons/Prefabs/PistolView.prefab";
         private const string PackCharacterControllerPath = "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Animators/Character/AC_LPSP_PCH.controller";
         private const string PackRifleOverridePath = "Assets/Infima Games/Low Poly Shooter Pack - Free Sample/Animators/Character/OC_LPSP_PCH_AR_01.overrideController";
@@ -135,6 +141,7 @@ namespace Reloader.World.Editor
             var lookController = playerRoot.GetComponent<PlayerLookController>();
 
             var weaponController = GetOrAddComponent<PlayerWeaponController>(playerRoot);
+            var poseTuningHelper = GetOrAddComponent<WeaponViewPoseTuningHelper>(playerRoot);
             var animationBinder = GetOrAddComponent<PlayerWeaponAnimationBinder>(playerRoot);
             var cameraDefaults = GetOrAddComponent<PlayerCameraDefaults>(playerRoot);
             var animatorDriver = GetOrAddComponent<FpsViewmodelAnimatorDriver>(playerRoot);
@@ -150,11 +157,15 @@ namespace Reloader.World.Editor
                     var pistolItem = AssetDatabase.LoadAssetAtPath<ItemDefinition>(PistolItemDefinitionPath);
                     var ammo308Item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(Ammo308ItemDefinitionPath);
                     var ammo9x19Item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(Ammo9x19ItemDefinitionPath);
+                    var kar98kScopeItem = AssetDatabase.LoadAssetAtPath<ItemDefinition>(Kar98kScopeItemDefinitionPath);
+                    var kar98kMuzzleItem = AssetDatabase.LoadAssetAtPath<ItemDefinition>(Kar98kMuzzleItemDefinitionPath);
                     var values = new List<ItemDefinition>();
                     if (rifleItem != null) values.Add(rifleItem);
                     if (pistolItem != null) values.Add(pistolItem);
                     if (ammo308Item != null) values.Add(ammo308Item);
                     if (ammo9x19Item != null) values.Add(ammo9x19Item);
+                    if (kar98kScopeItem != null) values.Add(kar98kScopeItem);
+                    if (kar98kMuzzleItem != null) values.Add(kar98kMuzzleItem);
                     itemDefinitions.arraySize = values.Count;
                     for (var i = 0; i < values.Count; i++)
                     {
@@ -211,7 +222,7 @@ namespace Reloader.World.Editor
                     var index = weaponViewPrefabs.arraySize;
                     weaponViewPrefabs.InsertArrayElementAtIndex(index);
                     var element = weaponViewPrefabs.GetArrayElementAtIndex(index);
-                    element.FindPropertyRelative("_itemId").stringValue = "weapon-rifle-01";
+                    element.FindPropertyRelative("_itemId").stringValue = "weapon-kar98k";
                     element.FindPropertyRelative("_viewPrefab").objectReferenceValue = rifleViewPrefab;
                 }
 
@@ -234,6 +245,22 @@ namespace Reloader.World.Editor
                 SetStringPropertyIfPresent(packConfig, "_fireStateName", "Layer Actions.Fire");
             }
             weaponSo.ApplyModifiedPropertiesWithoutUndo();
+
+            if (poseTuningHelper != null)
+            {
+                var tuningSo = new SerializedObject(poseTuningHelper);
+                SetObjectReferencePropertyIfPresent(tuningSo, "_weaponController", weaponController);
+                SetStringPropertyIfPresent(tuningSo, "_targetWeaponItemId", "weapon-kar98k");
+                SetBoolPropertyIfPresent(tuningSo, "_enabledInPlayMode", true);
+                SetBoolPropertyIfPresent(tuningSo, "_seedOffsetsFromCurrentPoseOnEquip", false);
+                SetVector3PropertyIfPresent(tuningSo, "_hipLocalPosition", new Vector3(0.015f, 0.15f, 0.005f));
+                SetVector3PropertyIfPresent(tuningSo, "_hipLocalEuler", Vector3.zero);
+                SetVector3PropertyIfPresent(tuningSo, "_adsLocalPosition", new Vector3(0f, 0.2f, 0.05f));
+                SetVector3PropertyIfPresent(tuningSo, "_adsLocalEuler", Vector3.zero);
+                SetFloatPropertyIfPresent(tuningSo, "_blendSpeed", 24f);
+                SetVector3PropertyIfPresent(tuningSo, "_rifleLocalEulerOffset", new Vector3(90f, 0f, 0f));
+                tuningSo.ApplyModifiedPropertiesWithoutUndo();
+            }
 
             if (packController != null && armsAnimator != null)
             {
@@ -294,7 +321,7 @@ namespace Reloader.World.Editor
                 var index = entries.arraySize;
                 entries.InsertArrayElementAtIndex(index);
                 var entry = entries.GetArrayElementAtIndex(index);
-                entry.FindPropertyRelative("_itemId").stringValue = "weapon-rifle-01";
+                entry.FindPropertyRelative("_itemId").stringValue = "weapon-kar98k";
                 entry.FindPropertyRelative("_controller").objectReferenceValue = rifleController;
             }
 
@@ -323,6 +350,76 @@ namespace Reloader.World.Editor
             if (property != null)
             {
                 property.stringValue = value ?? string.Empty;
+            }
+        }
+
+        private static void SetStringPropertyIfPresent(SerializedObject so, string propertyName, string value)
+        {
+            if (so == null || string.IsNullOrWhiteSpace(propertyName))
+            {
+                return;
+            }
+
+            var property = so.FindProperty(propertyName);
+            if (property != null)
+            {
+                property.stringValue = value ?? string.Empty;
+            }
+        }
+
+        private static void SetBoolPropertyIfPresent(SerializedObject so, string propertyName, bool value)
+        {
+            if (so == null || string.IsNullOrWhiteSpace(propertyName))
+            {
+                return;
+            }
+
+            var property = so.FindProperty(propertyName);
+            if (property != null)
+            {
+                property.boolValue = value;
+            }
+        }
+
+        private static void SetFloatPropertyIfPresent(SerializedObject so, string propertyName, float value)
+        {
+            if (so == null || string.IsNullOrWhiteSpace(propertyName))
+            {
+                return;
+            }
+
+            var property = so.FindProperty(propertyName);
+            if (property != null)
+            {
+                property.floatValue = value;
+            }
+        }
+
+        private static void SetVector3PropertyIfPresent(SerializedObject so, string propertyName, Vector3 value)
+        {
+            if (so == null || string.IsNullOrWhiteSpace(propertyName))
+            {
+                return;
+            }
+
+            var property = so.FindProperty(propertyName);
+            if (property != null)
+            {
+                property.vector3Value = value;
+            }
+        }
+
+        private static void SetObjectReferencePropertyIfPresent(SerializedObject so, string propertyName, UnityEngine.Object value)
+        {
+            if (so == null || string.IsNullOrWhiteSpace(propertyName))
+            {
+                return;
+            }
+
+            var property = so.FindProperty(propertyName);
+            if (property != null)
+            {
+                property.objectReferenceValue = value;
             }
         }
 
@@ -394,6 +491,9 @@ namespace Reloader.World.Editor
             var pistolSpawn = AssetDatabase.LoadAssetAtPath<ItemSpawnDefinition>(StarterPistolSpawnPath);
             var ammo308Spawn = AssetDatabase.LoadAssetAtPath<ItemSpawnDefinition>(Ammo308SpawnPath);
             var ammo9x19Spawn = AssetDatabase.LoadAssetAtPath<ItemSpawnDefinition>(Ammo9x19SpawnPath);
+            var kar98kScopeSpawn = AssetDatabase.LoadAssetAtPath<ItemSpawnDefinition>(Kar98kScopeSpawnPath);
+            var kar98kMuzzleSpawn = AssetDatabase.LoadAssetAtPath<ItemSpawnDefinition>(Kar98kMuzzleSpawnPath);
+            CleanupOrphanPickupVisuals();
 
             var forward = playerRoot.forward;
             forward.y = 0f;
@@ -406,13 +506,48 @@ namespace Reloader.World.Editor
             var right = Vector3.Cross(Vector3.up, forward).normalized;
             var basePos = playerRoot.position + (forward * 2.15f) + (Vector3.up * 0.35f);
 
-            EnsureDefinitionPickup("WeaponSpawn_RifleStarter_LPSP", rifleSpawn, basePos + (right * -0.55f));
+            EnsureDefinitionPickup("WeaponSpawn_RifleStarter_LPSP", rifleSpawn, basePos + (right * -0.55f), RifleViewPrefabPath);
             EnsureDefinitionPickup("WeaponSpawn_PistolStarter_LPSP", pistolSpawn, basePos + (right * 0.55f));
             EnsureDefinitionPickup("AmmoSpawn_308_LPSP", ammo308Spawn, basePos + (forward * 0.35f) + (right * -0.45f));
             EnsureDefinitionPickup("AmmoSpawn_9x19_LPSP", ammo9x19Spawn, basePos + (forward * 0.35f) + (right * 0.45f));
+            EnsureDefinitionPickup("AttachmentSpawn_Kar98kScope", kar98kScopeSpawn, basePos + (forward * 0.6f) + (right * -0.15f), Kar98kScopeViewPrefabPath);
+            EnsureDefinitionPickup("AttachmentSpawn_Kar98kMuzzle", kar98kMuzzleSpawn, basePos + (forward * 0.6f) + (right * 0.15f), Kar98kMuzzleViewPrefabPath);
         }
 
-        private static void EnsureDefinitionPickup(string name, ItemSpawnDefinition spawnDefinition, Vector3 worldPosition)
+        private static void CleanupOrphanPickupVisuals()
+        {
+            CleanupOrphanPickupVisualByName("WWII_Recon_A_PreSet");
+            CleanupOrphanPickupVisualByName("WWII_Recon_A");
+            CleanupOrphanPickupVisualByName("WWII_Optic_Remote_Range_A");
+            CleanupOrphanPickupVisualByName("WWII_Muzzle_Device_C");
+        }
+
+        private static void CleanupOrphanPickupVisualByName(string objectName)
+        {
+            if (string.IsNullOrWhiteSpace(objectName))
+            {
+                return;
+            }
+
+            var objects = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < objects.Length; i++)
+            {
+                var transform = objects[i];
+                if (transform == null || transform.name != objectName)
+                {
+                    continue;
+                }
+
+                if (transform.GetComponentInParent<DefinitionPickupTarget>() != null)
+                {
+                    continue;
+                }
+
+                Object.DestroyImmediate(transform.gameObject);
+            }
+        }
+
+        private static void EnsureDefinitionPickup(string name, ItemSpawnDefinition spawnDefinition, Vector3 worldPosition, string forcedVisualPrefabPath = null)
         {
             if (spawnDefinition == null)
             {
@@ -439,7 +574,7 @@ namespace Reloader.World.Editor
             so.FindProperty("_spawnDefinition").objectReferenceValue = spawnDefinition;
             so.ApplyModifiedPropertiesWithoutUndo();
 
-            SyncPickupVisual(go.transform, pickup, spawnDefinition);
+            SyncPickupVisual(go.transform, pickup, spawnDefinition, forcedVisualPrefabPath);
 
             if (go.GetComponent<BoxCollider>() == null)
             {
@@ -460,7 +595,11 @@ namespace Reloader.World.Editor
             EditorUtility.SetDirty(pickup);
         }
 
-        private static void SyncPickupVisual(Transform pickupRoot, DefinitionPickupTarget pickup, ItemSpawnDefinition spawnDefinition)
+        private static void SyncPickupVisual(
+            Transform pickupRoot,
+            DefinitionPickupTarget pickup,
+            ItemSpawnDefinition spawnDefinition,
+            string forcedVisualPrefabPath = null)
         {
             if (pickupRoot == null || pickup == null)
             {
@@ -473,19 +612,31 @@ namespace Reloader.World.Editor
                 Object.DestroyImmediate(existingVisual.gameObject);
             }
 
-            var sourcePrefab = spawnDefinition != null
-                && spawnDefinition.ItemDefinition != null
-                ? spawnDefinition.ItemDefinition.IconSourcePrefab
-                : null;
+            var sourcePrefab = !string.IsNullOrWhiteSpace(forcedVisualPrefabPath)
+                ? AssetDatabase.LoadAssetAtPath<GameObject>(forcedVisualPrefabPath)
+                : TryResolvePickupIconPrefab(spawnDefinition);
 
             GameObject visualRoot = null;
             if (sourcePrefab != null)
             {
-                visualRoot = PrefabUtility.InstantiatePrefab(sourcePrefab) as GameObject;
+                visualRoot = TryInstantiateVisualSource(sourcePrefab);
                 if (visualRoot == null)
                 {
-                    visualRoot = Object.Instantiate(sourcePrefab);
+                    visualRoot = TryCreateMeshProxyVisual(sourcePrefab);
                 }
+            }
+            else if (spawnDefinition != null && spawnDefinition.ItemDefinition != null)
+            {
+                Debug.LogWarning(
+                    $"[MainTownCombatWiring] Missing IconSourcePrefab for item '{spawnDefinition.ItemDefinition.DefinitionId}' while syncing pickup visual '{pickupRoot.name}'.",
+                    pickupRoot);
+            }
+
+            if (sourcePrefab != null && visualRoot == null)
+            {
+                Debug.LogWarning(
+                    $"[MainTownCombatWiring] Failed to instantiate IconSourcePrefab '{sourcePrefab.name}' for item '{spawnDefinition?.ItemDefinition?.DefinitionId ?? "<unknown>"}' on pickup '{pickupRoot.name}'. Falling back to cube.",
+                    pickupRoot);
             }
 
             if (visualRoot == null)
@@ -506,11 +657,236 @@ namespace Reloader.World.Editor
             visualRoot.transform.localRotation = Quaternion.identity;
 
             StripVisualPhysics(visualRoot);
+            NormalizePickupVisualMaterials(visualRoot);
 
             var pickupSo = new SerializedObject(pickup);
             pickupSo.FindProperty("_visualRoot").objectReferenceValue = visualRoot;
             pickupSo.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(visualRoot);
+        }
+
+        private static GameObject TryInstantiateVisualSource(GameObject sourcePrefab)
+        {
+            if (sourcePrefab == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                var prefabInstance = PrefabUtility.InstantiatePrefab(sourcePrefab);
+                if (prefabInstance is GameObject prefabGo)
+                {
+                    return prefabGo;
+                }
+
+                if (prefabInstance is Component prefabComponent)
+                {
+                    return prefabComponent.gameObject;
+                }
+            }
+            catch (System.InvalidCastException)
+            {
+                // Some imported assets can keep stale object refs in serialized fields.
+                // Fallback path below resolves or returns null safely.
+            }
+
+            try
+            {
+                var rawInstance = Object.Instantiate((Object)sourcePrefab);
+                if (rawInstance is GameObject go)
+                {
+                    return go;
+                }
+
+                if (rawInstance is Component component)
+                {
+                    return component.gameObject;
+                }
+            }
+            catch (System.InvalidCastException)
+            {
+                return null;
+            }
+
+            return null;
+        }
+
+        private static GameObject TryCreateMeshProxyVisual(GameObject sourcePrefab)
+        {
+            if (sourcePrefab == null)
+            {
+                return null;
+            }
+
+            var sourceMeshFilter = sourcePrefab.GetComponentInChildren<MeshFilter>(true);
+            var sourceMeshRenderer = sourcePrefab.GetComponentInChildren<MeshRenderer>(true);
+            if (sourceMeshFilter == null || sourceMeshFilter.sharedMesh == null || sourceMeshRenderer == null)
+            {
+                return null;
+            }
+
+            var proxy = new GameObject("VisualProxy");
+            var meshFilter = proxy.AddComponent<MeshFilter>();
+            meshFilter.sharedMesh = sourceMeshFilter.sharedMesh;
+
+            var meshRenderer = proxy.AddComponent<MeshRenderer>();
+            meshRenderer.sharedMaterials = sourceMeshRenderer.sharedMaterials;
+            return proxy;
+        }
+
+        private static void NormalizePickupVisualMaterials(GameObject visualRoot)
+        {
+            if (visualRoot == null)
+            {
+                return;
+            }
+
+            var fallbackShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (fallbackShader == null)
+            {
+                return;
+            }
+
+            var renderers = visualRoot.GetComponentsInChildren<Renderer>(true);
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                var renderer = renderers[i];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                var sharedMaterials = renderer.sharedMaterials;
+                var replaced = false;
+                for (var m = 0; m < sharedMaterials.Length; m++)
+                {
+                    var sourceMaterial = sharedMaterials[m];
+                    if (sourceMaterial == null)
+                    {
+                        continue;
+                    }
+
+                    var shader = sourceMaterial.shader;
+                    var shaderBroken = shader == null
+                        || !shader.isSupported
+                        || string.Equals(shader.name, "Hidden/InternalErrorShader", System.StringComparison.OrdinalIgnoreCase);
+                    var shaderName = shader != null ? shader.name : string.Empty;
+                    var requiresPipelineUpgrade =
+                        string.Equals(shaderName, "Standard", System.StringComparison.OrdinalIgnoreCase)
+                        || shaderName.StartsWith("Legacy Shaders/", System.StringComparison.OrdinalIgnoreCase);
+                    if (!shaderBroken && !requiresPipelineUpgrade)
+                    {
+                        continue;
+                    }
+
+                    var replacement = new Material(fallbackShader);
+                    if (sourceMaterial.HasProperty("_BaseMap") && replacement.HasProperty("_BaseMap"))
+                    {
+                        replacement.SetTexture("_BaseMap", sourceMaterial.GetTexture("_BaseMap"));
+                    }
+                    else if (sourceMaterial.HasProperty("_MainTex"))
+                    {
+                        var tex = sourceMaterial.GetTexture("_MainTex");
+                        if (replacement.HasProperty("_BaseMap"))
+                        {
+                            replacement.SetTexture("_BaseMap", tex);
+                        }
+                        else if (replacement.HasProperty("_MainTex"))
+                        {
+                            replacement.SetTexture("_MainTex", tex);
+                        }
+                    }
+
+                    if (sourceMaterial.HasProperty("_BaseColor") && replacement.HasProperty("_BaseColor"))
+                    {
+                        replacement.SetColor("_BaseColor", sourceMaterial.GetColor("_BaseColor"));
+                    }
+                    else if (sourceMaterial.HasProperty("_Color"))
+                    {
+                        var color = sourceMaterial.GetColor("_Color");
+                        if (replacement.HasProperty("_BaseColor"))
+                        {
+                            replacement.SetColor("_BaseColor", color);
+                        }
+                        else if (replacement.HasProperty("_Color"))
+                        {
+                            replacement.SetColor("_Color", color);
+                        }
+                    }
+
+                    // Preserve basic transparency behavior for lens-like materials.
+                    var sourceQueueTransparent =
+                        sourceMaterial.renderQueue >= 3000
+                        || (sourceMaterial.HasProperty("_Mode") && sourceMaterial.GetFloat("_Mode") >= 2.5f);
+                    if (sourceQueueTransparent)
+                    {
+                        if (replacement.HasProperty("_Surface"))
+                        {
+                            replacement.SetFloat("_Surface", 1f);
+                        }
+
+                        if (replacement.HasProperty("_Blend"))
+                        {
+                            replacement.SetFloat("_Blend", 0f);
+                        }
+
+                        replacement.renderQueue = 3000;
+                    }
+
+                    sharedMaterials[m] = replacement;
+                    replaced = true;
+                }
+
+                if (replaced)
+                {
+                    renderer.sharedMaterials = sharedMaterials;
+                }
+            }
+        }
+
+        private static GameObject TryResolvePickupIconPrefab(ItemSpawnDefinition spawnDefinition)
+        {
+            if (spawnDefinition == null || spawnDefinition.ItemDefinition == null)
+            {
+                return null;
+            }
+
+            var itemDefinition = spawnDefinition.ItemDefinition;
+            var itemId = itemDefinition.DefinitionId;
+
+            GameObject iconPrefab = null;
+            try
+            {
+                iconPrefab = itemDefinition.IconSourcePrefab;
+            }
+            catch (MissingReferenceException)
+            {
+                iconPrefab = null;
+            }
+
+            if (iconPrefab != null)
+            {
+                return iconPrefab;
+            }
+
+            return ResolvePickupIconFallback(itemId);
+        }
+
+        private static GameObject ResolvePickupIconFallback(string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return null;
+            }
+
+            return itemId switch
+            {
+                "weapon-kar98k" => AssetDatabase.LoadAssetAtPath<GameObject>(RifleViewPrefabPath),
+                "att-kar98k-scope-remote-a" => AssetDatabase.LoadAssetAtPath<GameObject>(Kar98kScopeViewPrefabPath),
+                "att-kar98k-muzzle-device-c" => AssetDatabase.LoadAssetAtPath<GameObject>(Kar98kMuzzleViewPrefabPath),
+                _ => null
+            };
         }
 
         private static void StripVisualPhysics(GameObject root)

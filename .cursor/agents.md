@@ -24,6 +24,7 @@ This file is the canonical local guidance entrypoint for agents working in this 
 - `.agent/skills/*/SKILL.md` files are the project skill sources.
 - Use the skill that matches the active task domain before making changes.
 - Use each skill's referenced `resources/` and `scripts/` files as supporting material.
+- For weapon view prefab, attachment mounting, optic/muzzle runtime, or first-person weapon pose work, use `.agent/skills/weapon-view-attachment-framework/SKILL.md` before changing code/assets.
 - For architecture/docs/rules/skills audits, use `.agent/skills/reviewing-design-docs/SKILL.md` first.
 - For writing/updating architecture or design docs, use `.agent/skills/writing-agent-docs/SKILL.md` first.
 

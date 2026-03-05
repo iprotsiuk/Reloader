@@ -6,6 +6,9 @@ using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.Player;
+using Reloader.Weapons.Controllers;
+using Reloader.Weapons.Data;
+using Reloader.Weapons.Runtime;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine.InputSystem;
 using UnityEngine;
@@ -15,10 +18,13 @@ namespace Reloader.UI.Toolkit.TabInventory
     public sealed class TabInventoryController : MonoBehaviour, IUiController
     {
         private const int MinimumBackpackUiSlots = 16;
+        private const string RemoveAttachmentOption = "Remove";
 
         [SerializeField] private PlayerInventoryController _inventoryController;
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private MonoBehaviour _deviceControllerBehaviour;
+        [SerializeField] private PlayerWeaponController _weaponController;
+        [SerializeField] private WeaponRegistry _weaponRegistry;
 
         private TabInventoryViewBinder _viewBinder;
         private TabInventoryDragController _dragController;
@@ -31,6 +37,14 @@ namespace Reloader.UI.Toolkit.TabInventory
         private bool _useRuntimeKernelUiStateEvents = true;
         private bool _isOpen;
         private string _activeSection = "inventory";
+        private string _attachmentsWeaponItemId;
+        private string _attachmentsWeaponDisplayName = string.Empty;
+        private WeaponDefinition _attachmentsWeaponDefinition;
+        private string _attachmentsSelectedSlotName = string.Empty;
+        private string _attachmentsSelectedAttachmentItemId = string.Empty;
+        private string _attachmentsStatusText = string.Empty;
+        private readonly List<string> _attachmentsSlotOptions = new List<string>();
+        private readonly List<string> _attachmentsItemOptions = new List<string>();
 
         public interface IDeviceController
         {
@@ -169,6 +183,11 @@ namespace Reloader.UI.Toolkit.TabInventory
             _deviceController = deviceController;
         }
 
+        public void SetWeaponController(PlayerWeaponController weaponController)
+        {
+            _weaponController = weaponController;
+        }
+
         public void Tick()
         {
             ResolveInputSource();
@@ -215,6 +234,11 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             if (TryHandleDeviceIntent(intent))
+            {
+                return;
+            }
+
+            if (TryHandleAttachmentIntent(intent))
             {
                 return;
             }
@@ -309,7 +333,14 @@ namespace Reloader.UI.Toolkit.TabInventory
                     deviceCanInstallHooks: emptyPanelFields.CanInstallHooks,
                     deviceCanUninstallHooks: emptyPanelFields.CanUninstallHooks,
                     deviceInstallFeedbackText: emptyPanelFields.InstallFeedbackText,
-                    deviceSessionHistoryEntries: emptyPanelFields.SessionHistoryEntries));
+                    deviceSessionHistoryEntries: emptyPanelFields.SessionHistoryEntries,
+                    attachmentsWeaponName: _attachmentsWeaponDisplayName,
+                    attachmentsStatusText: _attachmentsStatusText,
+                    attachmentsSelectedSlot: _attachmentsSelectedSlotName,
+                    attachmentsSelectedItem: _attachmentsSelectedAttachmentItemId,
+                    attachmentsCanApply: CanApplyAttachmentSwap(),
+                    attachmentSlotOptions: _attachmentsSlotOptions,
+                    attachmentItemOptions: _attachmentsItemOptions));
                 return;
             }
 
@@ -354,7 +385,14 @@ namespace Reloader.UI.Toolkit.TabInventory
                 deviceCanInstallHooks: panelFields.CanInstallHooks,
                 deviceCanUninstallHooks: panelFields.CanUninstallHooks,
                 deviceInstallFeedbackText: panelFields.InstallFeedbackText,
-                deviceSessionHistoryEntries: panelFields.SessionHistoryEntries));
+                deviceSessionHistoryEntries: panelFields.SessionHistoryEntries,
+                attachmentsWeaponName: _attachmentsWeaponDisplayName,
+                attachmentsStatusText: _attachmentsStatusText,
+                attachmentsSelectedSlot: _attachmentsSelectedSlotName,
+                attachmentsSelectedItem: _attachmentsSelectedAttachmentItemId,
+                attachmentsCanApply: CanApplyAttachmentSwap(),
+                attachmentSlotOptions: _attachmentsSlotOptions,
+                attachmentItemOptions: _attachmentsItemOptions));
         }
 
         private void BuildDevicePanelFields(out DevicePanelFields panelFields)
@@ -422,6 +460,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 "journal" => "journal",
                 "calendar" => "calendar",
                 "device" => "device",
+                "attachments" => "attachments",
                 _ => "device"
             };
         }
@@ -478,6 +517,325 @@ namespace Reloader.UI.Toolkit.TabInventory
                 default:
                     return false;
             }
+        }
+
+        private bool TryHandleAttachmentIntent(UiIntent intent)
+        {
+            switch (intent.Key)
+            {
+                case "tab.inventory.item.context.attachments":
+                    if (intent.Payload is TabInventoryAttachmentContextIntentPayload payload)
+                    {
+                        OpenAttachmentsPanel(payload);
+                        Refresh();
+                    }
+
+                    return true;
+                case "tab.inventory.attachments.slot-selected":
+                    if (intent.Payload is string slotName)
+                    {
+                        HandleAttachmentSlotSelected(slotName);
+                        Refresh();
+                    }
+
+                    return true;
+                case "tab.inventory.attachments.item-selected":
+                    if (intent.Payload is string itemId)
+                    {
+                        HandleAttachmentItemSelected(itemId);
+                        Refresh();
+                    }
+
+                    return true;
+                case "tab.inventory.attachments.apply":
+                    ApplyAttachmentSelection();
+                    Refresh();
+                    return true;
+                case "tab.inventory.attachments.back":
+                    _activeSection = "inventory";
+                    Refresh();
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private void OpenAttachmentsPanel(TabInventoryAttachmentContextIntentPayload payload)
+        {
+            if (!TryResolvePayloadItemId(payload, out var itemId))
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(payload.ItemId)
+                || !TryResolveWeaponDefinition(itemId, out var definition))
+            {
+                return;
+            }
+
+            _attachmentsWeaponItemId = itemId;
+            _attachmentsWeaponDefinition = definition;
+            _attachmentsWeaponDisplayName = string.IsNullOrWhiteSpace(definition.DisplayName)
+                ? itemId
+                : definition.DisplayName;
+            _attachmentsStatusText = string.Empty;
+            BuildAttachmentSlotOptions(definition);
+            if (_attachmentsSlotOptions.Count == 0)
+            {
+                _attachmentsSelectedSlotName = string.Empty;
+                _attachmentsSelectedAttachmentItemId = string.Empty;
+                _attachmentsStatusText = "No compatible attachment slots.";
+            }
+            else if (!_attachmentsSlotOptions.Contains(_attachmentsSelectedSlotName))
+            {
+                _attachmentsSelectedSlotName = _attachmentsSlotOptions[0];
+            }
+
+            RebuildAttachmentItemOptions();
+            _activeSection = "attachments";
+        }
+
+        private bool TryResolvePayloadItemId(TabInventoryAttachmentContextIntentPayload payload, out string itemId)
+        {
+            itemId = null;
+            var runtime = _inventoryController?.Runtime;
+            if (runtime == null || payload.SlotIndex < 0)
+            {
+                return false;
+            }
+
+            if (string.Equals(payload.Container, "backpack", StringComparison.Ordinal))
+            {
+                if (payload.SlotIndex >= runtime.BackpackItemIds.Count)
+                {
+                    return false;
+                }
+
+                itemId = runtime.BackpackItemIds[payload.SlotIndex];
+            }
+            else
+            {
+                if (payload.SlotIndex >= PlayerInventoryRuntime.BeltSlotCount)
+                {
+                    return false;
+                }
+
+                itemId = runtime.BeltSlotItemIds[payload.SlotIndex];
+            }
+
+            return string.Equals(itemId, payload.ItemId, StringComparison.Ordinal);
+        }
+
+        private void HandleAttachmentSlotSelected(string slotName)
+        {
+            if (!_attachmentsSlotOptions.Contains(slotName))
+            {
+                return;
+            }
+
+            _attachmentsSelectedSlotName = slotName;
+            RebuildAttachmentItemOptions();
+        }
+
+        private void HandleAttachmentItemSelected(string itemId)
+        {
+            if (!_attachmentsItemOptions.Contains(itemId))
+            {
+                return;
+            }
+
+            _attachmentsSelectedAttachmentItemId = itemId;
+        }
+
+        private void ApplyAttachmentSelection()
+        {
+            if (!CanApplyAttachmentSwap())
+            {
+                _attachmentsStatusText = "Select slot and attachment.";
+                return;
+            }
+
+            var weaponController = ResolveWeaponController();
+            if (weaponController == null)
+            {
+                _attachmentsStatusText = "Weapon controller unavailable.";
+                return;
+            }
+
+            if (!TryParseSlotName(_attachmentsSelectedSlotName, out var slotType))
+            {
+                _attachmentsStatusText = "Invalid attachment slot.";
+                return;
+            }
+
+            var selectedBeltItemId = _inventoryController?.Runtime?.SelectedBeltItemId;
+            if (!string.Equals(selectedBeltItemId, _attachmentsWeaponItemId, StringComparison.Ordinal))
+            {
+                _attachmentsStatusText = "Select this weapon on belt before applying.";
+                return;
+            }
+
+            var attachmentItemId = IsRemoveAttachmentOption(_attachmentsSelectedAttachmentItemId)
+                ? string.Empty
+                : _attachmentsSelectedAttachmentItemId;
+            if (!weaponController.TrySwapEquippedWeaponAttachment(slotType, attachmentItemId))
+            {
+                _attachmentsStatusText = "Attachment swap failed.";
+                return;
+            }
+
+            _attachmentsStatusText = string.IsNullOrWhiteSpace(attachmentItemId)
+                ? "Attachment removed."
+                : "Attachment applied.";
+            RebuildAttachmentItemOptions();
+        }
+
+        private bool CanApplyAttachmentSwap()
+        {
+            return !string.IsNullOrWhiteSpace(_attachmentsWeaponItemId)
+                   && !string.IsNullOrWhiteSpace(_attachmentsSelectedSlotName)
+                   && !string.IsNullOrWhiteSpace(_attachmentsSelectedAttachmentItemId);
+        }
+
+        private void BuildAttachmentSlotOptions(WeaponDefinition definition)
+        {
+            _attachmentsSlotOptions.Clear();
+            if (definition == null)
+            {
+                return;
+            }
+
+            AddSlotOptionIfCompatible(definition, WeaponAttachmentSlotType.Scope);
+            AddSlotOptionIfCompatible(definition, WeaponAttachmentSlotType.Muzzle);
+        }
+
+        private void AddSlotOptionIfCompatible(WeaponDefinition definition, WeaponAttachmentSlotType slotType)
+        {
+            var compatible = definition.GetCompatibleAttachmentItemIds(slotType);
+            if (compatible == null || compatible.Count == 0)
+            {
+                return;
+            }
+
+            _attachmentsSlotOptions.Add(slotType.ToString());
+        }
+
+        private void RebuildAttachmentItemOptions()
+        {
+            _attachmentsItemOptions.Clear();
+            if (_attachmentsWeaponDefinition == null
+                || !TryParseSlotName(_attachmentsSelectedSlotName, out var slotType))
+            {
+                _attachmentsSelectedAttachmentItemId = string.Empty;
+                return;
+            }
+
+            var compatible = _attachmentsWeaponDefinition.GetCompatibleAttachmentItemIds(slotType);
+            if (compatible == null || compatible.Count == 0)
+            {
+                _attachmentsSelectedAttachmentItemId = string.Empty;
+                return;
+            }
+
+            var runtime = _inventoryController?.Runtime;
+            TryGetContextWeaponRuntimeState(out var state);
+            var equippedItemId = state?.GetEquippedAttachmentItemId(slotType) ?? string.Empty;
+            if (!_attachmentsItemOptions.Contains(RemoveAttachmentOption))
+            {
+                _attachmentsItemOptions.Add(RemoveAttachmentOption);
+            }
+
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            for (var i = 0; i < compatible.Count; i++)
+            {
+                var attachmentItemId = compatible[i];
+                if (string.IsNullOrWhiteSpace(attachmentItemId) || !seen.Add(attachmentItemId))
+                {
+                    continue;
+                }
+
+                var owned = runtime != null && runtime.GetItemQuantity(attachmentItemId) > 0;
+                var equipped = string.Equals(equippedItemId, attachmentItemId, StringComparison.Ordinal);
+                if (owned || equipped)
+                {
+                    _attachmentsItemOptions.Add(attachmentItemId);
+                }
+            }
+
+            if (_attachmentsItemOptions.Count == 0)
+            {
+                _attachmentsSelectedAttachmentItemId = string.Empty;
+                return;
+            }
+
+            if (!_attachmentsItemOptions.Contains(_attachmentsSelectedAttachmentItemId))
+            {
+                _attachmentsSelectedAttachmentItemId = _attachmentsItemOptions[0];
+            }
+        }
+
+        private static bool IsRemoveAttachmentOption(string value)
+        {
+            return string.Equals(value, RemoveAttachmentOption, StringComparison.Ordinal);
+        }
+
+        private bool TryResolveWeaponDefinition(string itemId, out WeaponDefinition definition)
+        {
+            definition = null;
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return false;
+            }
+
+            var registry = ResolveWeaponRegistry();
+            if (registry != null && registry.TryGetWeaponDefinition(itemId, out definition))
+            {
+                return true;
+            }
+
+            var registries = FindObjectsByType<WeaponRegistry>(FindObjectsSortMode.None);
+            for (var i = 0; i < registries.Length; i++)
+            {
+                var candidate = registries[i];
+                if (candidate == null || candidate == registry)
+                {
+                    continue;
+                }
+
+                if (!candidate.TryGetWeaponDefinition(itemId, out definition))
+                {
+                    continue;
+                }
+
+                _weaponRegistry = candidate;
+                return true;
+            }
+
+            definition = null;
+            return false;
+        }
+
+        private bool TryGetContextWeaponRuntimeState(out WeaponRuntimeState state)
+        {
+            state = null;
+            if (string.IsNullOrWhiteSpace(_attachmentsWeaponItemId))
+            {
+                return false;
+            }
+
+            var weaponController = ResolveWeaponController();
+            return weaponController != null && weaponController.TryGetRuntimeState(_attachmentsWeaponItemId, out state);
+        }
+
+        private static bool TryParseSlotName(string slotName, out WeaponAttachmentSlotType slotType)
+        {
+            if (string.IsNullOrWhiteSpace(slotName))
+            {
+                slotType = default;
+                return false;
+            }
+
+            return Enum.TryParse(slotName, ignoreCase: true, out slotType);
         }
 
         private static string[] BuildSessionHistoryEntries(IReadOnlyList<DeviceSavedGroupEntry> savedGroups)
@@ -636,6 +994,50 @@ namespace Reloader.UI.Toolkit.TabInventory
 
             _deviceController = DependencyResolutionGuard.FindInterface<IDeviceController>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
             return _deviceController;
+        }
+
+        private PlayerWeaponController ResolveWeaponController()
+        {
+            if (!IsReferenceAlive(_weaponController))
+            {
+                _weaponController = null;
+            }
+
+            if (_weaponController != null)
+            {
+                return _weaponController;
+            }
+
+            _weaponController = GetComponent<PlayerWeaponController>();
+            if (_weaponController != null)
+            {
+                return _weaponController;
+            }
+
+            _weaponController = FindAnyObjectByType<PlayerWeaponController>();
+            return _weaponController;
+        }
+
+        private WeaponRegistry ResolveWeaponRegistry()
+        {
+            if (!IsReferenceAlive(_weaponRegistry))
+            {
+                _weaponRegistry = null;
+            }
+
+            if (_weaponRegistry != null)
+            {
+                return _weaponRegistry;
+            }
+
+            _weaponRegistry = GetComponent<WeaponRegistry>();
+            if (_weaponRegistry != null)
+            {
+                return _weaponRegistry;
+            }
+
+            _weaponRegistry = FindAnyObjectByType<WeaponRegistry>();
+            return _weaponRegistry;
         }
 
         private static bool IsReferenceAlive(object instance)

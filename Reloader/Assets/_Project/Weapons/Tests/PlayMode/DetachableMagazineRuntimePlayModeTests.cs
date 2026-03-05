@@ -37,11 +37,11 @@ namespace Reloader.Weapons.Tests.PlayMode
             runtimeType.GetMethod("SetAttachment", BindingFlags.Instance | BindingFlags.Public)?.Invoke(runtime, new object[] { definition });
             Assert.That(magSocket.childCount, Is.EqualTo(1), "Magazine visual should be attached at setup.");
 
-            runtimeType.GetMethod("HandleReloadStarted", BindingFlags.Instance | BindingFlags.Public)?.Invoke(runtime, new object[] { "weapon-rifle-01" });
+            runtimeType.GetMethod("HandleReloadStarted", BindingFlags.Instance | BindingFlags.Public)?.Invoke(runtime, new object[] { "weapon-kar98k" });
             Assert.That(magSocket.GetChild(0).gameObject.activeSelf, Is.False, "Reload start should hide attached magazine.");
             Assert.That(GameObject.Find("DroppedMagazinePrefab(Clone)"), Is.Not.Null, "Reload start should spawn dropped magazine when configured.");
 
-            runtimeType.GetMethod("HandleMagazineInserted", BindingFlags.Instance | BindingFlags.Public)?.Invoke(runtime, new object[] { "weapon-rifle-01" });
+            runtimeType.GetMethod("HandleMagazineInserted", BindingFlags.Instance | BindingFlags.Public)?.Invoke(runtime, new object[] { "weapon-kar98k" });
             Assert.That(magSocket.GetChild(0).gameObject.activeSelf, Is.True, "Insert event should restore magazine visual.");
 
             UnityEngine.Object.DestroyImmediate(root);

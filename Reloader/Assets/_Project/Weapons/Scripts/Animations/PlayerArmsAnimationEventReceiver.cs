@@ -50,13 +50,30 @@ namespace Reloader.Weapons.Animations
             for (var i = 0; i < animators.Length; i++)
             {
                 var animator = animators[i];
-                if (animator == null || animator.gameObject.name != "PlayerArmsVisual")
+                if (!IsPlayerArmsAnimatorHost(animator))
                 {
                     continue;
                 }
 
                 EnsureReceiver(animator);
             }
+        }
+
+        private static bool IsPlayerArmsAnimatorHost(Animator animator)
+        {
+            if (animator == null || animator.gameObject == null)
+            {
+                return false;
+            }
+
+            var name = animator.gameObject.name;
+            if (string.Equals(name, "PlayerArmsVisual")
+                || string.Equals(name, "PlayerArms"))
+            {
+                return true;
+            }
+
+            return name.IndexOf("PlayerArms", System.StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         public void OnAnimationEndedHolster()

@@ -472,6 +472,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 08432ee73ca3844069400aaff36cccd9, type: 2}
   - {fileID: 11400000, guid: e962cf63d0d24030b932ea4051945b88, type: 2}
   - {fileID: 11400000, guid: c84489108e9c04bbebd2575c5d0c4800, type: 2}
+  - {fileID: 11400000, guid: 07fafacffb784ba4a23cca267a6658ef, type: 2}
+  - {fileID: 11400000, guid: 7b5aa598aaa449c08cc90c1f0c9dbb1e, type: 2}
   _startingBackpackCapacity: 9
   _dropForwardDistance: 1.15
   _dropVerticalOffset: 0.8
@@ -612,10 +614,17 @@ MonoBehaviour:
     _fireStateName: Layer Actions.Fire
   _weaponViewParent: {fileID: 6433793350458025806}
   _weaponViewPrefabs:
-  - _itemId: weapon-rifle-01
-    _viewPrefab: {fileID: 8695915813560968154, guid: 4af148b15f97d4845aabd2cb0d1b678c, type: 3}
+  - _itemId: weapon-kar98k
+    _viewPrefab: {fileID: 5782696911360418534, guid: 4af148b15f97d4845aabd2cb0d1b678c, type: 3}
   - _itemId: weapon-pistol-01
     _viewPrefab: {fileID: 850772559695530675, guid: 31f3c4bc3c25047b490da66a3c9a7a8e, type: 3}
+  _attachmentItemMetadata:
+  - _attachmentItemId: att-kar98k-scope-remote-a
+    _slotType: 0
+    _attachmentDefinition: {fileID: 11400000, guid: 460cae1fe8e740989ed4827d91135096, type: 2}
+  - _attachmentItemId: att-kar98k-muzzle-device-c
+    _slotType: 1
+    _attachmentDefinition: {fileID: 11400000, guid: 83914ec7921b4e109c6e0510f971249d, type: 2}
   _holsterHideDelaySeconds: 0.2
 --- !u!114 &1883299677990960139
 MonoBehaviour:

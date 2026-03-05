@@ -249,7 +249,7 @@ namespace Reloader.Core.Tests.PlayMode
                 Position = expectedPosition,
                 Rotation = expectedRotation,
                 ItemInstanceId = "drop:qa:consumed-ignored",
-                ItemDefinitionId = "weapon-rifle-01",
+                ItemDefinitionId = "weapon-kar98k",
                 StackQuantity = 1
             });
 

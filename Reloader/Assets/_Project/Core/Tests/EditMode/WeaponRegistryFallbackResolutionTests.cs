@@ -10,6 +10,26 @@ namespace Reloader.Core.Tests
     public class WeaponRegistryFallbackResolutionTests
     {
         [Test]
+        public void TryGetWeaponDefinition_ReturnsFalse_WhenItemIdIsNullOrWhitespace()
+        {
+            var root = new GameObject("WeaponRegistryNullGuardTests");
+            try
+            {
+                var registry = root.AddComponent<WeaponRegistry>();
+                Assert.That(registry.TryGetWeaponDefinition(null, out var nullDefinition), Is.False);
+                Assert.That(nullDefinition, Is.Null);
+                Assert.That(registry.TryGetWeaponDefinition(" ", out var whitespaceDefinition), Is.False);
+                Assert.That(whitespaceDefinition, Is.Null);
+                Assert.That(registry.TryGetWeaponDefinition("att-kar98k-scope-remote-a", out var nonWeaponDefinition), Is.False);
+                Assert.That(nonWeaponDefinition, Is.Null);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void TryGetWeaponDefinition_ResolvesStarterRifleWhenSerializedDefinitionsAreEmpty()
         {
 #if UNITY_EDITOR
@@ -18,11 +38,11 @@ namespace Reloader.Core.Tests
             {
                 var registry = root.AddComponent<WeaponRegistry>();
 
-                var resolved = registry.TryGetWeaponDefinition("weapon-rifle-01", out var definition);
+                var resolved = registry.TryGetWeaponDefinition("weapon-kar98k", out var definition);
 
                 Assert.That(resolved, Is.True);
                 Assert.That(definition, Is.Not.Null);
-                Assert.That(definition.ItemId, Is.EqualTo("weapon-rifle-01"));
+                Assert.That(definition.ItemId, Is.EqualTo("weapon-kar98k"));
                 Assert.That(
                     AssetDatabase.GetAssetPath(definition),
                     Is.EqualTo("Assets/_Project/Weapons/Data/Weapons/StarterRifle.asset"));
@@ -35,5 +55,6 @@ namespace Reloader.Core.Tests
             Assert.Ignore("WeaponRegistry editor fallback only runs in editor.");
 #endif
         }
+
     }
 }

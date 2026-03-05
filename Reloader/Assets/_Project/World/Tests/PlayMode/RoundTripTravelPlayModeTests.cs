@@ -1,4 +1,5 @@
 using System.Collections;
+using System;
 using NUnit.Framework;
 using Reloader.Core.Runtime;
 using Reloader.World.Travel;
@@ -6,6 +7,7 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.SceneManagement;
 using System.Reflection;
+using Object = UnityEngine.Object;
 
 namespace Reloader.World.Tests.PlayMode
 {
@@ -335,6 +337,8 @@ namespace Reloader.World.Tests.PlayMode
 
             var applyRuntimeState = weaponController.GetType().GetMethod("ApplyRuntimeState", BindingFlags.Instance | BindingFlags.Public);
             Assert.That(applyRuntimeState, Is.Not.Null, "Expected ApplyRuntimeState on PlayerWeaponController.");
+            var applyRuntimeAttachments = weaponController.GetType().GetMethod("ApplyRuntimeAttachments", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(applyRuntimeAttachments, Is.Not.Null, "Expected ApplyRuntimeAttachments on PlayerWeaponController.");
 
             var candidateItemIds = new System.Collections.Generic.List<string>();
             var selectedBeltItemIdProperty = runtime.GetType().GetProperty("SelectedBeltItemId", BindingFlags.Instance | BindingFlags.Public);
@@ -392,6 +396,21 @@ namespace Reloader.World.Tests.PlayMode
 
             Assert.That(weaponItemId, Is.Not.Null.And.Not.Empty, "Expected a weapon item id that accepts runtime state apply.");
 
+            var slotEnumType = System.Type.GetType("Reloader.Weapons.Data.WeaponAttachmentSlotType, Reloader.Weapons");
+            Assert.That(slotEnumType, Is.Not.Null, "Expected WeaponAttachmentSlotType enum type.");
+            var scopeSlot = System.Enum.Parse(slotEnumType, "Scope");
+            var attachmentsParameterType = applyRuntimeAttachments.GetParameters()[1].ParameterType;
+            var attachmentsMapType = typeof(System.Collections.Generic.Dictionary<,>).MakeGenericType(slotEnumType, typeof(string));
+            object attachmentsMap = System.Activator.CreateInstance(attachmentsMapType);
+            attachmentsMapType.GetMethod("Add", new[] { slotEnumType, typeof(string) })
+                ?.Invoke(attachmentsMap, new object[] { scopeSlot, "att-kar98k-scope-remote-a" });
+            Assert.That(
+                attachmentsParameterType.IsInstanceOfType(attachmentsMap),
+                Is.True,
+                "Expected runtime attachment map assignable to ApplyRuntimeAttachments parameter type.");
+            var appliedAttachments = (bool)applyRuntimeAttachments.Invoke(weaponController, new object[] { weaponItemId, attachmentsMap });
+            Assert.That(appliedAttachments, Is.True, "Expected attachment runtime state to apply before travel.");
+
             var interactor = CreatePlayerInteractor();
             var toIndoorObject = GameObject.Find("MainTown_SmokeToIndoor_Trigger");
             Assert.That(toIndoorObject, Is.Not.Null, "Expected authored smoke trigger in MainTown.");
@@ -433,13 +452,17 @@ namespace Reloader.World.Tests.PlayMode
             var state = tryGetArgs[1];
             var magazineCountProperty = state.GetType().GetProperty("MagazineCount", BindingFlags.Instance | BindingFlags.Public);
             var chamberLoadedProperty = state.GetType().GetProperty("ChamberLoaded", BindingFlags.Instance | BindingFlags.Public);
+            var getAttachmentMethod = state.GetType().GetMethod("GetEquippedAttachmentItemId", BindingFlags.Instance | BindingFlags.Public);
             Assert.That(magazineCountProperty, Is.Not.Null, "Expected MagazineCount on WeaponRuntimeState.");
             Assert.That(chamberLoadedProperty, Is.Not.Null, "Expected ChamberLoaded on WeaponRuntimeState.");
+            Assert.That(getAttachmentMethod, Is.Not.Null, "Expected GetEquippedAttachmentItemId on WeaponRuntimeState.");
 
             var magazineCount = (int)magazineCountProperty.GetValue(state);
             var chamberLoaded = (bool)chamberLoadedProperty.GetValue(state);
+            var scopeAttachmentId = getAttachmentMethod.Invoke(state, new[] { scopeSlot }) as string;
             Assert.That(magazineCount, Is.EqualTo(2), "Expected magazine count to persist across travel.");
             Assert.That(chamberLoaded, Is.True, "Expected chamber loaded state to persist across travel.");
+            Assert.That(scopeAttachmentId, Is.EqualTo("att-kar98k-scope-remote-a"), "Expected equipped scope attachment to persist across travel.");
         }
 
         [UnityTest]

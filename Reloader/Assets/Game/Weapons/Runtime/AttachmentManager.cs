@@ -1,5 +1,4 @@
 using System;
-using System.Reflection;
 using UnityEngine;
 
 namespace Reloader.Game.Weapons
@@ -15,6 +14,8 @@ namespace Reloader.Game.Weapons
 
         [Header("Fallback")]
         [SerializeField] private Transform _ironSightAnchor;
+        [Header("Debug")]
+        [SerializeField] private bool _verboseOpticLogs;
 
         private GameObject _equippedOpticInstance;
         private Transform _activeSightAnchor;
@@ -24,9 +25,24 @@ namespace Reloader.Game.Weapons
         public event Action<OpticDefinition> ActiveOpticChanged;
         public OpticDefinition ActiveOpticDefinition => _activeOpticDefinition;
         public MuzzleAttachmentDefinition ActiveMuzzleDefinition => _activeMuzzleDefinition;
+        public Transform ScopeSlot => _scopeSlot;
+        public Transform MuzzleSlot => _muzzleSlot;
 
         private void Awake()
         {
+            RefreshSightAnchor();
+        }
+
+        public void ConfigureMounts(
+            Transform scopeSlot,
+            Transform ironSightAnchor,
+            Transform muzzleSlot,
+            MuzzleAttachmentRuntime muzzleRuntime)
+        {
+            _scopeSlot = scopeSlot;
+            _ironSightAnchor = ironSightAnchor;
+            _muzzleSlot = muzzleSlot;
+            _muzzleRuntime = muzzleRuntime;
             RefreshSightAnchor();
         }
 
@@ -43,10 +59,15 @@ namespace Reloader.Game.Weapons
             if (optic == null)
             {
                 RefreshSightAnchor();
+                if (_verboseOpticLogs)
+                {
+                    Debug.Log("AttachmentManager: EquipOptic(null) -> unequipped optic, using fallback sight anchor.", this);
+                }
                 return _activeSightAnchor != null;
             }
 
-            if (optic.OpticPrefab == null)
+            var opticPrefab = optic.OpticPrefab;
+            if (opticPrefab == null)
             {
                 Debug.LogWarning("AttachmentManager: OpticDefinition has no OpticPrefab. Equip rejected.", optic);
                 RefreshSightAnchor();
@@ -54,13 +75,43 @@ namespace Reloader.Game.Weapons
             }
 
             _activeOpticDefinition = optic;
-
-            _equippedOpticInstance = Instantiate(_activeOpticDefinition.OpticPrefab, _scopeSlot, false);
-            _activeSightAnchor = ResolveSightAnchor(_equippedOpticInstance.transform);
-            if (_activeSightAnchor == null)
+            if (_verboseOpticLogs)
             {
-                Debug.LogWarning("AttachmentManager: Equipped optic has no SightAnchor. Falling back to optic root.", _equippedOpticInstance);
-                _activeSightAnchor = _equippedOpticInstance.transform;
+                Debug.Log(
+                    $"AttachmentManager: EquipOptic begin. opticId='{optic.OpticId}', prefabObject='{opticPrefab.name}', type='{opticPrefab.GetType().Name}', scopeSlot='{_scopeSlot.name}'.",
+                    this);
+            }
+
+            try
+            {
+                _equippedOpticInstance = Instantiate(opticPrefab, _scopeSlot, false);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    $"AttachmentManager: Optic instantiate threw {ex.GetType().Name}. opticId='{optic.OpticId}', prefabObject='{opticPrefab.name}', prefabType='{opticPrefab.GetType().FullName}'. Equip rejected.",
+                    optic);
+                UnequipOptic();
+                return false;
+            }
+
+            if (_equippedOpticInstance == null)
+            {
+                Debug.LogWarning(
+                    $"AttachmentManager: Optic instantiate returned null. opticId='{optic.OpticId}', prefabObject='{opticPrefab.name}', prefabType='{opticPrefab.GetType().FullName}'. Equip rejected.",
+                    optic);
+                UnequipOptic();
+                return false;
+            }
+
+            _activeSightAnchor = ResolveOrCreateSightAnchor(_equippedOpticInstance.transform);
+            ApplySlotLayer(_scopeSlot);
+
+            if (_verboseOpticLogs)
+            {
+                Debug.Log(
+                    $"AttachmentManager: EquipOptic success. spawned='{_equippedOpticInstance.name}', scopeSlotChildren={_scopeSlot.childCount}, activeSightAnchor='{_activeSightAnchor.name}'.",
+                    this);
             }
 
             RaiseActiveOpticChanged();
@@ -77,6 +128,10 @@ namespace Reloader.Game.Weapons
 
             _activeOpticDefinition = null;
             RefreshSightAnchor();
+            if (_verboseOpticLogs)
+            {
+                Debug.Log("AttachmentManager: UnequipOptic complete.", this);
+            }
             RaiseActiveOpticChanged();
         }
 
@@ -123,6 +178,7 @@ namespace Reloader.Game.Weapons
 
             Instantiate(muzzle.MuzzlePrefab, _muzzleSlot, false);
             _activeMuzzleDefinition = muzzle;
+            ApplySlotLayer(_muzzleSlot);
             return true;
         }
 
@@ -171,6 +227,8 @@ namespace Reloader.Game.Weapons
                 return false;
             }
 
+            ApplySlotLayer(slot);
+
             var expectedPrefix = muzzle.MuzzlePrefab.name;
             for (var i = 0; i < slot.childCount; i++)
             {
@@ -191,7 +249,7 @@ namespace Reloader.Game.Weapons
                 return null;
             }
 
-            var slotField = typeof(MuzzleAttachmentRuntime).GetField("_attachmentSlot", BindingFlags.Instance | BindingFlags.NonPublic);
+            var slotField = typeof(MuzzleAttachmentRuntime).GetField("_attachmentSlot", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
             return slotField?.GetValue(runtime) as Transform;
         }
 
@@ -217,6 +275,56 @@ namespace Reloader.Game.Weapons
             }
 
             return null;
+        }
+
+        private Transform ResolveOrCreateSightAnchor(Transform opticRoot)
+        {
+            var existingAnchor = ResolveSightAnchor(opticRoot);
+            if (existingAnchor != null)
+            {
+                return existingAnchor;
+            }
+
+            if (opticRoot == null)
+            {
+                return null;
+            }
+
+            var syntheticAnchor = new GameObject(SightAnchorName).transform;
+            syntheticAnchor.SetParent(opticRoot, false);
+            syntheticAnchor.gameObject.layer = opticRoot.gameObject.layer;
+
+            syntheticAnchor.localPosition = Vector3.zero;
+            syntheticAnchor.localRotation = Quaternion.identity;
+            syntheticAnchor.localScale = Vector3.one;
+            return syntheticAnchor;
+        }
+
+        private static void ApplySlotLayer(Transform slot)
+        {
+            if (slot == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < slot.childCount; i++)
+            {
+                ApplyLayerRecursively(slot.GetChild(i), slot.gameObject.layer);
+            }
+        }
+
+        private static void ApplyLayerRecursively(Transform root, int layer)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            root.gameObject.layer = layer;
+            for (var i = 0; i < root.childCount; i++)
+            {
+                ApplyLayerRecursively(root.GetChild(i), layer);
+            }
         }
 
         private void RaiseActiveOpticChanged()

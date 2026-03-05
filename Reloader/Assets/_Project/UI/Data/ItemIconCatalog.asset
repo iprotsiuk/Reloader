@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: ItemIconCatalog
   m_EditorClassIdentifier: Reloader.Core::Reloader.Core.UI.ItemIconCatalog
   _entries:
-  - _itemId: weapon-rifle-01
+  - _itemId: weapon-kar98k
     _icon: {fileID: 21300000, guid: 6b61fc5859fba4d2381dd47696b14454, type: 3}

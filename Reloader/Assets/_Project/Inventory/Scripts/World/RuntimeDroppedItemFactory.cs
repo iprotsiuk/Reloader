@@ -95,12 +95,19 @@ namespace Reloader.Inventory
 
             if (definition != null && definition.IconSourcePrefab != null)
             {
-                var visualRoot = Object.Instantiate(definition.IconSourcePrefab, parent);
-                visualRoot.name = "visual";
-                StripPhysicsComponents(visualRoot);
-                visualRoot.transform.localPosition = Vector3.zero;
-                visualRoot.transform.localRotation = Quaternion.identity;
-                return;
+                var visualRoot = TryInstantiateVisualRoot(definition.IconSourcePrefab, parent);
+                if (visualRoot != null)
+                {
+                    visualRoot.name = "visual";
+                    StripPhysicsComponents(visualRoot);
+                    visualRoot.transform.localPosition = Vector3.zero;
+                    visualRoot.transform.localRotation = Quaternion.identity;
+                    return;
+                }
+
+                Debug.LogWarning(
+                    $"[RuntimeDroppedItemFactory] Failed to instantiate IconSourcePrefab '{definition.IconSourcePrefab.name}' for item '{definition.DefinitionId}'. Falling back to cube.",
+                    parent);
             }
 
             var fallback = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -138,6 +145,34 @@ namespace Reloader.Inventory
                     Object.Destroy(rigidbodies[i]);
                 }
             }
+        }
+
+        private static GameObject TryInstantiateVisualRoot(GameObject sourcePrefab, Transform parent)
+        {
+            if (sourcePrefab == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                var rawInstance = Object.Instantiate((Object)sourcePrefab, parent);
+                if (rawInstance is GameObject go)
+                {
+                    return go;
+                }
+
+                if (rawInstance is Component component)
+                {
+                    return component.gameObject;
+                }
+            }
+            catch (System.InvalidCastException)
+            {
+                return null;
+            }
+
+            return null;
         }
 
         private static float ResolveDropMass(ItemDefinition definition, int quantity)

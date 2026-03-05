@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Animations.WeaponAnimatorOverrideProfile
   _defaultController: {fileID: 9100000, guid: 027ae8cddc85a484fa5fd415d19d7a8e, type: 2}
   _entries:
-  - _itemId: weapon-rifle-01
+  - _itemId: weapon-kar98k
     _controller: {fileID: 22100000, guid: 1288116e5192cd84b808721e453eb7e7, type: 2}
   - _itemId: weapon-pistol-01
     _controller: {fileID: 22100000, guid: 257eac322a7afde43bfa9aa9e60baa84, type: 2}

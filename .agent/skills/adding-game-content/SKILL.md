@@ -20,6 +20,7 @@ Read these docs first (in order):
 3. `docs/design/weapons-and-ballistics.md` — weapon data models (if adding weapons/parts)
 4. `docs/design/ads-optics-framework.md` — implemented ADS/optics runtime + data contract (if adding optics/sights/ADS content)
 5. `.agent/skills/unity-project-conventions/SKILL.md` — coding standards
+6. `.agent/skills/weapon-view-attachment-framework/SKILL.md` — required when the content includes first-person weapon views, attachment slots, scopes, muzzles, magazines, slides, or other mountable upgrades
 
 See `docs/design/README.md` for the full routing index.
 
@@ -32,6 +33,13 @@ Content Addition Progress:
 - [ ] Fill all required fields with realistic values
 - [ ] Verify no code changes needed (data-driven principle)
 - [ ] Test in-editor: asset appears in game systems
+
+If the content being added is a weapon, optic, muzzle, or other runtime-mounted attachment, also:
+
+- [ ] Verify the weapon item id binds to an explicit runtime view prefab
+- [ ] Verify the runtime view prefab exposes `WeaponViewAttachmentMounts`
+- [ ] Verify the prefab starts with empty runtime attachment slots
+- [ ] Verify the attachment definition points at an explicit attachment prefab
 ```
 
 ## Content Type Reference

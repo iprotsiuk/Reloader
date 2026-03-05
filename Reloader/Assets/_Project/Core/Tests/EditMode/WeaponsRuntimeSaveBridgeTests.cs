@@ -20,11 +20,11 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(bridgeType, Is.Not.Null, "WeaponsRuntimeSaveBridge type should exist.");
 
             var (player, controller, definition, registryGo) = CreateWeaponController(
-                "weapon-rifle-01",
+                "weapon-kar98k",
                 magCapacity: 5,
                 startingMagCount: 4,
                 reserveCount: 12);
-            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var state), Is.True);
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
             state.SetAmmoCounts(magazineCount: 2, reserveCount: 9, chamberLoaded: true);
             state.SetAmmoLoadoutForTests(
                 new AmmoBallisticSnapshot(AmmoSourceType.Handload, 2725f, 8f, 175f, 0.51f, 0.7f),
@@ -33,6 +33,7 @@ namespace Reloader.Core.Tests.EditMode
                     new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2640f, 16f, 168f, 0.45f, 1.2f),
                     new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2635f, 15f, 168f, 0.45f, 1.2f)
                 });
+            state.SetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope, "att-kar98k-scope-remote-a");
 
             var bridgeGo = new GameObject("Bridge");
             var bridge = bridgeGo.AddComponent(bridgeType);
@@ -44,7 +45,7 @@ namespace Reloader.Core.Tests.EditMode
             InvokeMethod(bridgeType, bridge, "CaptureToModule");
 
             Assert.That(module.WeaponStates.Count, Is.EqualTo(1));
-            Assert.That(module.WeaponStates[0].ItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(module.WeaponStates[0].ItemId, Is.EqualTo("weapon-kar98k"));
             Assert.That(module.WeaponStates[0].MagCount, Is.EqualTo(2));
             Assert.That(module.WeaponStates[0].ReserveCount, Is.EqualTo(9));
             Assert.That(module.WeaponStates[0].ChamberLoaded, Is.True);
@@ -52,6 +53,10 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(module.WeaponStates[0].ChamberRound.MuzzleVelocityFps, Is.EqualTo(2725f));
             Assert.That(module.WeaponStates[0].MagazineRounds, Is.Not.Null);
             Assert.That(module.WeaponStates[0].MagazineRounds.Count, Is.EqualTo(2));
+            Assert.That(module.WeaponStates[0].Attachments, Is.Not.Null);
+            Assert.That(module.WeaponStates[0].Attachments.Count, Is.EqualTo(1));
+            Assert.That(module.WeaponStates[0].Attachments[0].SlotType, Is.EqualTo((int)WeaponAttachmentSlotType.Scope));
+            Assert.That(module.WeaponStates[0].Attachments[0].AttachmentItemId, Is.EqualTo("att-kar98k-scope-remote-a"));
 
             Object.DestroyImmediate(bridgeGo);
             Object.DestroyImmediate(definition);
@@ -66,17 +71,17 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(bridgeType, Is.Not.Null, "WeaponsRuntimeSaveBridge type should exist.");
 
             var (player, controller, definition, registryGo) = CreateWeaponController(
-                "weapon-rifle-01",
+                "weapon-kar98k",
                 magCapacity: 5,
                 startingMagCount: 5,
                 reserveCount: 15);
-            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var initialState), Is.True);
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var initialState), Is.True);
             initialState.SetAmmoCounts(5, 15, chamberLoaded: true);
 
             var module = new WeaponsModule();
             module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
             {
-                ItemId = "weapon-rifle-01",
+                ItemId = "weapon-kar98k",
                 MagCount = 1,
                 ReserveCount = 3,
                 ChamberLoaded = true,
@@ -100,6 +105,14 @@ namespace Reloader.Core.Tests.EditMode
                         BallisticCoefficientG1 = 0.45f,
                         DispersionMoa = 1f
                     }
+                },
+                Attachments = new System.Collections.Generic.List<WeaponsModule.AttachmentStateRecord>
+                {
+                    new WeaponsModule.AttachmentStateRecord
+                    {
+                        SlotType = (int)WeaponAttachmentSlotType.Scope,
+                        AttachmentItemId = "att-kar98k-scope-remote-a"
+                    }
                 }
             });
 
@@ -110,15 +123,55 @@ namespace Reloader.Core.Tests.EditMode
 
             InvokeMethod(bridgeType, bridge, "RestoreFromModule");
 
-            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var restored), Is.True);
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var restored), Is.True);
             Assert.That(restored.MagazineCount, Is.EqualTo(1));
             Assert.That(restored.ReserveCount, Is.EqualTo(3));
             Assert.That(restored.ChamberLoaded, Is.True);
+            Assert.That(restored.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.EqualTo("att-kar98k-scope-remote-a"));
 
             var fired = restored.TryFire(5f, out var fireData);
             Assert.That(fired, Is.True);
             Assert.That(fireData.FiredRound.HasValue, Is.True);
             Assert.That(fireData.FiredRound.Value.MuzzleVelocityFps, Is.EqualTo(2750f));
+
+            Object.DestroyImmediate(bridgeGo);
+            Object.DestroyImmediate(definition);
+            Object.DestroyImmediate(registryGo);
+            Object.DestroyImmediate(player);
+        }
+
+        [Test]
+        public void RestoreFromModule_ClearsMissingAttachmentSlots()
+        {
+            var bridgeType = System.Type.GetType("Reloader.Weapons.Runtime.WeaponsRuntimeSaveBridge, Reloader.Weapons");
+            Assert.That(bridgeType, Is.Not.Null, "WeaponsRuntimeSaveBridge type should exist.");
+
+            var (player, controller, definition, registryGo) = CreateWeaponController(
+                "weapon-kar98k",
+                magCapacity: 5,
+                startingMagCount: 5,
+                reserveCount: 15);
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var initialState), Is.True);
+            initialState.SetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope, "att-kar98k-scope-remote-a");
+
+            var module = new WeaponsModule();
+            module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
+            {
+                ItemId = "weapon-kar98k",
+                MagCount = 1,
+                ReserveCount = 3,
+                ChamberLoaded = true
+            });
+
+            var bridgeGo = new GameObject("Bridge");
+            var bridge = bridgeGo.AddComponent(bridgeType);
+            SetPrivateField(bridgeType, bridge, "_weaponController", controller);
+            SetPrivateField(bridgeType, bridge, "_weaponsModule", module);
+
+            InvokeMethod(bridgeType, bridge, "RestoreFromModule");
+
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var restored), Is.True);
+            Assert.That(restored.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.EqualTo(string.Empty));
 
             Object.DestroyImmediate(bridgeGo);
             Object.DestroyImmediate(definition);

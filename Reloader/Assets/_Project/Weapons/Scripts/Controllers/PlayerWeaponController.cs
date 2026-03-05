@@ -14,6 +14,9 @@ using System.Reflection;
 using UnityEngine;
 using URandom = UnityEngine.Random;
 using UObject = UnityEngine.Object;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Reloader.Weapons.Controllers
 {
@@ -36,7 +39,8 @@ namespace Reloader.Weapons.Controllers
             int magCount,
             int reserveCount,
             AmmoBallisticSnapshot? chamberRound,
-            IReadOnlyList<AmmoBallisticSnapshot> magazineRounds)
+            IReadOnlyList<AmmoBallisticSnapshot> magazineRounds,
+            IReadOnlyDictionary<WeaponAttachmentSlotType, string> equippedAttachmentItemIdsBySlot)
         {
             ItemId = itemId;
             ChamberLoaded = chamberLoaded;
@@ -45,6 +49,7 @@ namespace Reloader.Weapons.Controllers
             ReserveCount = reserveCount;
             ChamberRound = chamberRound;
             MagazineRounds = magazineRounds;
+            EquippedAttachmentItemIdsBySlot = equippedAttachmentItemIdsBySlot;
         }
 
         public string ItemId { get; }
@@ -54,6 +59,7 @@ namespace Reloader.Weapons.Controllers
         public int ReserveCount { get; }
         public AmmoBallisticSnapshot? ChamberRound { get; }
         public IReadOnlyList<AmmoBallisticSnapshot> MagazineRounds { get; }
+        public IReadOnlyDictionary<WeaponAttachmentSlotType, string> EquippedAttachmentItemIdsBySlot { get; }
     }
 
     public sealed class PlayerWeaponController : MonoBehaviour
@@ -73,8 +79,8 @@ namespace Reloader.Weapons.Controllers
         [SerializeField] private PackWeaponPresentationConfig _packPresentationConfig = new PackWeaponPresentationConfig();
         [SerializeField] private Transform _weaponViewParent;
         [SerializeField] private WeaponViewPrefabBinding[] _weaponViewPrefabs = System.Array.Empty<WeaponViewPrefabBinding>();
+        [SerializeField] private WeaponAttachmentItemMetadata[] _attachmentItemMetadata = System.Array.Empty<WeaponAttachmentItemMetadata>();
         [SerializeField] private bool _allowSceneWideDependencyLookup;
-        [SerializeField] private bool _useInventoryDefinitionViewFallback;
 
         private IPlayerInputSource _inputSource;
         private readonly Dictionary<string, WeaponRuntimeState> _statesByItemId = new Dictionary<string, WeaponRuntimeState>();
@@ -95,6 +101,13 @@ namespace Reloader.Weapons.Controllers
         private bool _pendingUnequipFovBaselineRestore;
         private Transform _defaultMuzzleTransform;
         private GameObject _equippedWeaponView;
+        private Component _adsStateRuntimeBridge;
+        private Component _adsAttachmentManagerRuntimeBridge;
+        private PropertyInfo _adsActiveOpticProperty;
+        private MethodInfo _adsSetHeldMethod;
+        private MethodInfo _adsSetMagnificationMethod;
+        private PropertyInfo _adsCurrentMagnificationProperty;
+        private float _cachedScopeMagnification = 1f;
         private string _pendingEquipItemId;
         private WeaponDefinition _pendingEquipDefinition;
         private float _pendingEquipApplyTime;
@@ -102,7 +115,11 @@ namespace Reloader.Weapons.Controllers
         private float _scheduledArmsHideTime = -1f;
         private readonly List<Renderer> _packRenderers = new List<Renderer>();
         private static readonly Bounds ViewmodelSkinnedBounds = new Bounds(Vector3.zero, new Vector3(8f, 8f, 8f));
+        private static readonly Dictionary<int, Material> MaterialUpgradeCacheBySourceId = new Dictionary<int, Material>();
         public string EquippedItemId => _equippedItemId;
+        public Transform EquippedWeaponViewTransform => _equippedWeaponView != null ? _equippedWeaponView.transform : null;
+        public bool IsAiming => _isAiming;
+        public bool IsAimInputHeld => _inputSource != null && _inputSource.AimHeld;
 
         private void Awake()
         {
@@ -156,7 +173,22 @@ namespace Reloader.Weapons.Controllers
 
         public bool TryGetRuntimeState(string itemId, out WeaponRuntimeState state)
         {
-            return _statesByItemId.TryGetValue(itemId ?? string.Empty, out state);
+            return _statesByItemId.TryGetValue(NormalizeWeaponItemId(itemId), out state);
+        }
+
+        public bool HasMagnifiedOpticEquipped()
+        {
+            if (string.IsNullOrWhiteSpace(_equippedItemId))
+            {
+                return false;
+            }
+
+            if (!TryGetActiveOpticMagnification(out var minMagnification, out var maxMagnification))
+            {
+                return false;
+            }
+
+            return maxMagnification > 1.01f || minMagnification > 1.01f;
         }
 
         public IReadOnlyList<WeaponRuntimeSnapshot> GetRuntimeStateSnapshots()
@@ -177,7 +209,8 @@ namespace Reloader.Weapons.Controllers
                     state.MagazineCount,
                     state.ReserveCount,
                     state.ChamberRound,
-                    state.GetMagazineRoundsSnapshot()));
+                    state.GetMagazineRoundsSnapshot(),
+                    state.GetEquippedAttachmentItemIdsSnapshot()));
             }
 
             return snapshots;
@@ -185,14 +218,15 @@ namespace Reloader.Weapons.Controllers
 
         public bool ApplyRuntimeState(string itemId, int magazineCount, int reserveCount, bool chamberLoaded)
         {
-            if (string.IsNullOrWhiteSpace(itemId))
+            var normalizedItemId = NormalizeWeaponItemId(itemId);
+            if (string.IsNullOrWhiteSpace(normalizedItemId))
             {
                 return false;
             }
 
-            var state = TryGetRuntimeState(itemId, out var existing)
+            var state = TryGetRuntimeState(normalizedItemId, out var existing)
                 ? existing
-                : GetOrCreateState(itemId, ResolveWeaponDefinition(itemId), seedFromDefinition: false);
+                : GetOrCreateState(normalizedItemId, ResolveWeaponDefinition(normalizedItemId), seedFromDefinition: false);
             if (state == null)
             {
                 return false;
@@ -204,14 +238,15 @@ namespace Reloader.Weapons.Controllers
 
         public bool ApplyRuntimeBallistics(string itemId, AmmoBallisticSnapshot? chamberRound, IReadOnlyList<AmmoBallisticSnapshot> magazineRounds)
         {
-            if (string.IsNullOrWhiteSpace(itemId))
+            var normalizedItemId = NormalizeWeaponItemId(itemId);
+            if (string.IsNullOrWhiteSpace(normalizedItemId))
             {
                 return false;
             }
 
-            var state = TryGetRuntimeState(itemId, out var existing)
+            var state = TryGetRuntimeState(normalizedItemId, out var existing)
                 ? existing
-                : GetOrCreateState(itemId, ResolveWeaponDefinition(itemId), seedFromDefinition: false);
+                : GetOrCreateState(normalizedItemId, ResolveWeaponDefinition(normalizedItemId), seedFromDefinition: false);
             if (state == null)
             {
                 return false;
@@ -225,12 +260,95 @@ namespace Reloader.Weapons.Controllers
             return true;
         }
 
+        public bool ApplyRuntimeAttachments(string itemId, IReadOnlyDictionary<WeaponAttachmentSlotType, string> equippedAttachmentItemIdsBySlot)
+        {
+            var normalizedItemId = NormalizeWeaponItemId(itemId);
+            if (string.IsNullOrWhiteSpace(normalizedItemId))
+            {
+                return false;
+            }
+
+            var state = TryGetRuntimeState(normalizedItemId, out var existing)
+                ? existing
+                : GetOrCreateState(normalizedItemId, ResolveWeaponDefinition(normalizedItemId), seedFromDefinition: false);
+            if (state == null)
+            {
+                return false;
+            }
+
+            ClearAttachmentSlots(state);
+            if (equippedAttachmentItemIdsBySlot != null)
+            {
+                foreach (var entry in equippedAttachmentItemIdsBySlot)
+                {
+                    state.SetEquippedAttachmentItemId(entry.Key, entry.Value);
+                }
+            }
+
+            if (string.Equals(_equippedItemId, normalizedItemId, StringComparison.Ordinal))
+            {
+                ApplyEquippedAttachmentStateToViewRuntime(state);
+            }
+
+            return true;
+        }
+
         public void Configure(IWeaponEvents weaponEvents = null, IInventoryEvents inventoryEvents = null)
         {
             _useRuntimeKernelWeaponEvents = weaponEvents == null;
             _weaponEvents = weaponEvents;
             _useRuntimeKernelInventoryEvents = inventoryEvents == null;
             _inventoryEvents = inventoryEvents;
+        }
+
+        public bool TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType slotType, string attachmentItemId)
+        {
+            if (string.IsNullOrWhiteSpace(_equippedItemId)
+                || _equippedDefinition == null
+                || _inventoryController == null
+                || _inventoryController.Runtime == null)
+            {
+                return false;
+            }
+
+            if (!TryGetRuntimeState(_equippedItemId, out var state) || state == null)
+            {
+                return false;
+            }
+
+            var previousAttachmentItemId = state.GetEquippedAttachmentItemId(slotType);
+            var swapped = WeaponAttachmentSwapService.TrySwap(
+                _inventoryController.Runtime,
+                _equippedDefinition,
+                state,
+                BuildAttachmentSlotLookup(BuildAttachmentMetadataLookup()),
+                slotType,
+                attachmentItemId);
+            if (!swapped)
+            {
+                return false;
+            }
+
+            var applied = ApplyEquippedAttachmentSlotToViewRuntime(slotType, state.GetEquippedAttachmentItemId(slotType));
+            if (!applied)
+            {
+                var reverted = WeaponAttachmentSwapService.TrySwap(
+                    _inventoryController.Runtime,
+                    _equippedDefinition,
+                    state,
+                    BuildAttachmentSlotLookup(BuildAttachmentMetadataLookup()),
+                    slotType,
+                    previousAttachmentItemId);
+                if (reverted)
+                {
+                    ApplyEquippedAttachmentSlotToViewRuntime(slotType, previousAttachmentItemId);
+                }
+
+                return false;
+            }
+
+            ResolveInventoryEvents()?.RaiseInventoryChanged();
+            return true;
         }
 
         private void ResolveReferences()
@@ -287,7 +405,9 @@ namespace Reloader.Weapons.Controllers
 
         private void UpdateEquipFromSelection()
         {
-            var selectedItemId = _inventoryController.Runtime != null ? _inventoryController.Runtime.SelectedBeltItemId : null;
+            var selectedItemId = _inventoryController.Runtime != null
+                ? NormalizeWeaponItemId(_inventoryController.Runtime.SelectedBeltItemId)
+                : null;
             if (HasPendingEquip())
             {
                 if (!string.IsNullOrWhiteSpace(selectedItemId) && TryResolveWeaponDefinition(selectedItemId, out var pendingDefinition))
@@ -327,6 +447,7 @@ namespace Reloader.Weapons.Controllers
 
         private void SetEquippedWeapon(string itemId, WeaponDefinition definition)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             if (_equippedItemId == itemId)
             {
                 if (!string.IsNullOrWhiteSpace(_equippedItemId)
@@ -334,6 +455,10 @@ namespace Reloader.Weapons.Controllers
                     && _equippedWeaponView == null)
                 {
                     SpawnEquippedWeaponView(_equippedItemId);
+                    if (TryGetRuntimeState(_equippedItemId, out var existingState))
+                    {
+                        ApplyEquippedAttachmentStateToViewRuntime(existingState);
+                    }
                 }
 
                 return;
@@ -396,6 +521,7 @@ namespace Reloader.Weapons.Controllers
 
             state.IsEquipped = true;
             SpawnEquippedWeaponView(_equippedItemId);
+            ApplyEquippedAttachmentStateToViewRuntime(state);
             GetOrCreatePackDriver(_equippedItemId).SetEquipped(true);
             ResolveWeaponEvents()?.RaiseWeaponEquipped(_equippedItemId);
         }
@@ -420,7 +546,7 @@ namespace Reloader.Weapons.Controllers
 
         private void StartPendingEquip(string itemId, WeaponDefinition definition)
         {
-            _pendingEquipItemId = itemId;
+            _pendingEquipItemId = NormalizeWeaponItemId(itemId);
             _pendingEquipDefinition = definition;
             _pendingEquipApplyTime = Time.time + 0.08f;
         }
@@ -718,6 +844,14 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
+            if (HasScopedAdsBridgeActive())
+            {
+                // Keep pack animator/runtime aim state in sync, but let AdsStateController own camera FOV.
+                packDriver.TickAimFov(_inputSource.AimHeld, _baseCameraFieldOfView, _baseCameraFieldOfView, Time.deltaTime);
+                TickScopedAdsBridgeInput();
+                return;
+            }
+
             if (hasFieldOfView && !packDriver.State.IsAiming && Mathf.Abs(packDriver.State.AimFovVelocity) < 0.01f)
             {
                 _baseCameraFieldOfView = Mathf.Clamp(currentFieldOfView, 1f, 179f);
@@ -729,6 +863,132 @@ namespace Reloader.Weapons.Controllers
             {
                 TrySetCurrentFieldOfView(nextFieldOfView);
             }
+        }
+
+        private bool HasScopedAdsBridgeActive()
+        {
+            if (_adsStateRuntimeBridge == null || _adsAttachmentManagerRuntimeBridge == null)
+            {
+                return false;
+            }
+
+            var managerType = _adsAttachmentManagerRuntimeBridge.GetType();
+            _adsActiveOpticProperty ??= managerType.GetProperty("ActiveOpticDefinition", BindingFlags.Instance | BindingFlags.Public);
+            if (_adsActiveOpticProperty == null)
+            {
+                return false;
+            }
+
+            return _adsActiveOpticProperty.GetValue(_adsAttachmentManagerRuntimeBridge) != null;
+        }
+
+        public bool TryGetActiveOpticMagnification(out float minMagnification, out float maxMagnification)
+        {
+            minMagnification = 1f;
+            maxMagnification = 1f;
+
+            var activeOptic = ResolveActiveOpticDefinition();
+            if (activeOptic == null)
+            {
+                activeOptic = ResolveEquippedScopeDefinitionFromState();
+            }
+
+            if (activeOptic == null)
+            {
+                return false;
+            }
+
+            return TryReadOpticMagnification(activeOptic, out minMagnification, out maxMagnification);
+        }
+
+        private UObject ResolveActiveOpticDefinition()
+        {
+            if (_adsAttachmentManagerRuntimeBridge == null)
+            {
+                return null;
+            }
+
+            var managerType = _adsAttachmentManagerRuntimeBridge.GetType();
+            _adsActiveOpticProperty ??= managerType.GetProperty("ActiveOpticDefinition", BindingFlags.Instance | BindingFlags.Public);
+            return _adsActiveOpticProperty?.GetValue(_adsAttachmentManagerRuntimeBridge) as UObject;
+        }
+
+        private UObject ResolveEquippedScopeDefinitionFromState()
+        {
+            if (string.IsNullOrWhiteSpace(_equippedItemId)
+                || !TryGetRuntimeState(_equippedItemId, out var runtimeState)
+                || runtimeState == null)
+            {
+                return null;
+            }
+
+            var attachmentItemId = runtimeState.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope);
+            if (string.IsNullOrWhiteSpace(attachmentItemId))
+            {
+                return null;
+            }
+
+            return ResolveOpticDefinition(attachmentItemId);
+        }
+
+        private static bool TryReadOpticMagnification(UObject opticDefinition, out float minMagnification, out float maxMagnification)
+        {
+            minMagnification = 1f;
+            maxMagnification = 1f;
+            if (opticDefinition == null)
+            {
+                return false;
+            }
+
+            var opticType = opticDefinition.GetType();
+            var minProperty = opticType.GetProperty("MagnificationMin", BindingFlags.Instance | BindingFlags.Public);
+            var maxProperty = opticType.GetProperty("MagnificationMax", BindingFlags.Instance | BindingFlags.Public);
+            if (minProperty == null || maxProperty == null)
+            {
+                return false;
+            }
+
+            if (minProperty.GetValue(opticDefinition) is not float minValue
+                || maxProperty.GetValue(opticDefinition) is not float maxValue)
+            {
+                return false;
+            }
+
+            minMagnification = minValue;
+            maxMagnification = maxValue;
+            return true;
+        }
+
+        private void TickScopedAdsBridgeInput()
+        {
+            if (_adsStateRuntimeBridge == null)
+            {
+                return;
+            }
+
+            _adsSetHeldMethod ??= _adsStateRuntimeBridge.GetType().GetMethod("SetAdsHeld", BindingFlags.Instance | BindingFlags.Public);
+            _adsSetMagnificationMethod ??= _adsStateRuntimeBridge.GetType().GetMethod("SetMagnification", BindingFlags.Instance | BindingFlags.Public);
+            _adsCurrentMagnificationProperty ??= _adsStateRuntimeBridge.GetType().GetProperty("CurrentMagnification", BindingFlags.Instance | BindingFlags.Public);
+
+            _adsSetHeldMethod?.Invoke(_adsStateRuntimeBridge, new object[] { _inputSource != null && _inputSource.AimHeld });
+            if (_adsSetMagnificationMethod == null || _adsCurrentMagnificationProperty == null)
+            {
+                return;
+            }
+
+            if (_adsCurrentMagnificationProperty.GetValue(_adsStateRuntimeBridge) is float currentMagnification)
+            {
+                _cachedScopeMagnification = currentMagnification;
+            }
+
+            var scrollY = _inputSource != null ? _inputSource.ConsumeZoomInput() : 0f;
+            if (Mathf.Abs(scrollY) <= 0.01f)
+            {
+                return;
+            }
+
+            var nextMagnification = _cachedScopeMagnification + scrollY;
+            _adsSetMagnificationMethod.Invoke(_adsStateRuntimeBridge, new object[] { nextMagnification });
         }
 
         // Forwarded from PackAnimationEventRelay attached to the animator GameObject.
@@ -872,7 +1132,10 @@ namespace Reloader.Weapons.Controllers
             return null;
         }
 
-        private void EnsureMuzzleRuntimeBridge(GameObject viewRoot, Transform viewMuzzle, UObject preferredAttachmentDefinition)
+        private void EnsureMuzzleRuntimeBridge(
+            GameObject viewRoot,
+            WeaponViewAttachmentMounts mounts,
+            Transform viewMuzzle)
         {
             if (viewRoot == null || viewMuzzle == null)
             {
@@ -886,7 +1149,14 @@ namespace Reloader.Weapons.Controllers
             }
 
             var runtimeComponent = viewRoot.GetComponent(muzzleRuntimeType) ?? viewRoot.AddComponent(muzzleRuntimeType);
-            var attachmentSlot = FindDescendantByName(viewRoot.transform, "MuzzleAttachmentSlot") ?? viewMuzzle;
+            Transform attachmentSlot = null;
+            if (mounts != null)
+            {
+                mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Muzzle, out attachmentSlot);
+            }
+
+            attachmentSlot ??= FindDescendantByName(viewRoot.transform, "MuzzleAttachmentSlot")
+                ?? viewMuzzle;
 
             var muzzleSocketField = muzzleRuntimeType.GetField("_muzzleSocket", BindingFlags.Instance | BindingFlags.NonPublic);
             muzzleSocketField?.SetValue(runtimeComponent, viewMuzzle);
@@ -894,36 +1164,14 @@ namespace Reloader.Weapons.Controllers
             var attachmentSlotField = muzzleRuntimeType.GetField("_attachmentSlot", BindingFlags.Instance | BindingFlags.NonPublic);
             attachmentSlotField?.SetValue(runtimeComponent, attachmentSlot);
 
-            var attachmentDefinitionType = ResolveTypeByName("Reloader.Game.Weapons.MuzzleAttachmentDefinition");
-            if (attachmentDefinitionType == null)
-            {
-                return;
-            }
-
-            var resolvedAttachment = preferredAttachmentDefinition;
-            if (resolvedAttachment == null || !attachmentDefinitionType.IsInstanceOfType(resolvedAttachment))
-            {
-                resolvedAttachment = ResolveDeterministicMuzzleDefinitionFallback(attachmentDefinitionType);
-            }
-
-            if (resolvedAttachment == null)
-            {
-                resolvedAttachment = ResolveRuntimeDefaultAttachment(runtimeComponent, muzzleRuntimeType, attachmentDefinitionType);
-            }
-
-            if (resolvedAttachment == null)
-            {
-                return;
-            }
-
             var defaultAttachmentField = muzzleRuntimeType.GetField("_defaultAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
-            defaultAttachmentField?.SetValue(runtimeComponent, resolvedAttachment);
+            defaultAttachmentField?.SetValue(runtimeComponent, null);
 
-            var equipMethod = muzzleRuntimeType.GetMethod("Equip", BindingFlags.Instance | BindingFlags.Public);
-            equipMethod?.Invoke(runtimeComponent, new object[] { resolvedAttachment });
+            var unequipMethod = muzzleRuntimeType.GetMethod("Unequip", BindingFlags.Instance | BindingFlags.Public);
+            unequipMethod?.Invoke(runtimeComponent, null);
         }
 
-        private void EnsureDetachableMagazineRuntimeBridge(GameObject viewRoot, UObject preferredAttachmentDefinition)
+        private void EnsureDetachableMagazineRuntimeBridge(GameObject viewRoot, WeaponViewAttachmentMounts mounts)
         {
             if (viewRoot == null)
             {
@@ -937,10 +1185,18 @@ namespace Reloader.Weapons.Controllers
             }
 
             var runtimeComponent = viewRoot.GetComponent(runtimeType) ?? viewRoot.AddComponent(runtimeType);
-            var magazineSocket = FindDescendantByName(viewRoot.transform, "MagazineSocket")
-                ?? FindDescendantByName(viewRoot.transform, "SOCKET_Magazine")
-                ?? FindDescendantByName(viewRoot.transform, "Muzzle");
-            var dropSocket = FindDescendantByName(viewRoot.transform, "MagazineDropSocket") ?? magazineSocket;
+            var magazineSocket = mounts != null
+                ? mounts.MagazineSocket
+                : FindDescendantByName(viewRoot.transform, "MagazineSocket")
+                    ?? FindDescendantByName(viewRoot.transform, "SOCKET_Magazine")
+                    ?? FindDescendantByName(viewRoot.transform, "Muzzle");
+            var dropSocket = mounts != null && mounts.MagazineDropSocket != null
+                ? mounts.MagazineDropSocket
+                : FindDescendantByName(viewRoot.transform, "MagazineDropSocket") ?? magazineSocket;
+            if (magazineSocket == null)
+            {
+                return;
+            }
 
             var magazineSocketField = runtimeType.GetField("_magazineSocket", BindingFlags.Instance | BindingFlags.NonPublic);
             magazineSocketField?.SetValue(runtimeComponent, magazineSocket);
@@ -948,33 +1204,11 @@ namespace Reloader.Weapons.Controllers
             var dropSocketField = runtimeType.GetField("_magazineDropSocket", BindingFlags.Instance | BindingFlags.NonPublic);
             dropSocketField?.SetValue(runtimeComponent, dropSocket);
 
-            var definitionType = ResolveTypeByName("Reloader.Game.Weapons.MagazineAttachmentDefinition");
-            if (definitionType == null)
-            {
-                return;
-            }
-
-            var resolvedAttachment = preferredAttachmentDefinition;
-            if (resolvedAttachment == null || !definitionType.IsInstanceOfType(resolvedAttachment))
-            {
-                resolvedAttachment = ResolveDeterministicMagazineDefinitionFallback(definitionType);
-            }
-
-            if (resolvedAttachment == null)
-            {
-                resolvedAttachment = ResolveRuntimeDefaultAttachment(runtimeComponent, runtimeType, definitionType);
-            }
-
-            if (resolvedAttachment == null)
-            {
-                return;
-            }
-
             var defaultAttachmentField = runtimeType.GetField("_defaultAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
-            defaultAttachmentField?.SetValue(runtimeComponent, resolvedAttachment);
+            defaultAttachmentField?.SetValue(runtimeComponent, null);
 
             var setAttachmentMethod = runtimeType.GetMethod("SetAttachment", BindingFlags.Instance | BindingFlags.Public);
-            setAttachmentMethod?.Invoke(runtimeComponent, new object[] { resolvedAttachment });
+            setAttachmentMethod?.Invoke(runtimeComponent, new object[] { null });
         }
 
         private static Type ResolveTypeByName(string fullTypeName)
@@ -1003,20 +1237,75 @@ namespace Reloader.Weapons.Controllers
             return null;
         }
 
-        private static UObject ResolveRuntimeDefaultAttachment(Component runtimeComponent, Type runtimeType, Type expectedAttachmentType)
+        private Dictionary<string, WeaponAttachmentItemMetadata> BuildAttachmentMetadataLookup()
         {
-            if (runtimeComponent == null || runtimeType == null || expectedAttachmentType == null)
+            var lookup = new Dictionary<string, WeaponAttachmentItemMetadata>(StringComparer.Ordinal);
+            if (_attachmentItemMetadata == null || _attachmentItemMetadata.Length == 0)
+            {
+                return lookup;
+            }
+
+            for (var i = 0; i < _attachmentItemMetadata.Length; i++)
+            {
+                var metadata = _attachmentItemMetadata[i];
+                if (metadata == null || string.IsNullOrWhiteSpace(metadata.AttachmentItemId))
+                {
+                    continue;
+                }
+
+                lookup[metadata.AttachmentItemId] = metadata;
+            }
+
+            return lookup;
+        }
+
+        private static Dictionary<string, WeaponAttachmentSlotType> BuildAttachmentSlotLookup(
+            IReadOnlyDictionary<string, WeaponAttachmentItemMetadata> metadataLookup)
+        {
+            var lookup = new Dictionary<string, WeaponAttachmentSlotType>(StringComparer.Ordinal);
+            if (metadataLookup == null || metadataLookup.Count == 0)
+            {
+                return lookup;
+            }
+
+            foreach (var entry in metadataLookup)
+            {
+                if (string.IsNullOrWhiteSpace(entry.Key) || entry.Value == null)
+                {
+                    continue;
+                }
+
+                lookup[entry.Key] = entry.Value.SlotType;
+            }
+
+            return lookup;
+        }
+
+        private UObject ResolveAttachmentDefinitionByMetadata(
+            string attachmentItemId,
+            Type expectedDefinitionType,
+            string idPropertyName)
+        {
+            if (string.IsNullOrWhiteSpace(attachmentItemId) || expectedDefinitionType == null)
             {
                 return null;
             }
 
-            var defaultAttachmentField = runtimeType.GetField("_defaultAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
-            if (defaultAttachmentField == null || !(defaultAttachmentField.GetValue(runtimeComponent) is UObject current))
+            var metadataLookup = BuildAttachmentMetadataLookup();
+            if (metadataLookup.TryGetValue(attachmentItemId, out var metadata)
+                && metadata != null
+                && metadata.AttachmentDefinition != null
+                && expectedDefinitionType.IsInstanceOfType(metadata.AttachmentDefinition)
+                && IsDefinitionPrefabReferenceUsable(metadata.AttachmentDefinition, expectedDefinitionType, idPropertyName))
             {
-                return null;
+                return metadata.AttachmentDefinition;
             }
 
-            return expectedAttachmentType.IsInstanceOfType(current) ? current : null;
+            return ResolveAttachmentDefinitionById(
+                expectedDefinitionType,
+                idPropertyName,
+                attachmentItemId,
+                GetPrefabPropertyNameForDefinition(expectedDefinitionType, idPropertyName));
         }
 
         private IWeaponEvents ResolveWeaponEvents()
@@ -1043,6 +1332,7 @@ namespace Reloader.Weapons.Controllers
 
         private WeaponRuntimeState GetOrCreateState(string itemId, WeaponDefinition definition, bool seedFromDefinition)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             if (definition == null || string.IsNullOrWhiteSpace(itemId))
             {
                 return null;
@@ -1167,6 +1457,7 @@ namespace Reloader.Weapons.Controllers
 
         private PackWeaponRuntimeDriver GetOrCreatePackDriver(string itemId)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             if (string.IsNullOrWhiteSpace(itemId))
             {
                 return null;
@@ -1195,6 +1486,7 @@ namespace Reloader.Weapons.Controllers
 
         private void SpawnEquippedWeaponView(string itemId)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             if (string.IsNullOrWhiteSpace(itemId))
             {
                 return;
@@ -1230,20 +1522,546 @@ namespace Reloader.Weapons.Controllers
             _equippedWeaponView.transform.localPosition = Vector3.zero;
             _equippedWeaponView.transform.localRotation = Quaternion.identity;
             _equippedWeaponView.transform.localScale = Vector3.one;
-            var preferredMuzzleAttachmentDefinition = ResolveViewMuzzleAttachmentDefinition(_equippedWeaponView);
-            var preferredMagazineAttachmentDefinition = ResolveViewMagazineAttachmentDefinition(_equippedWeaponView);
             StripViewPhysicsComponents(_equippedWeaponView);
             StripViewRuntimeComponents(_equippedWeaponView);
+            NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
 
-            var viewMuzzle = FindDescendantByName(_equippedWeaponView.transform, "Muzzle")
+            var mounts = _equippedWeaponView.GetComponent<WeaponViewAttachmentMounts>();
+            if (mounts == null)
+            {
+                Debug.LogWarning($"PlayerWeaponController: View '{_equippedWeaponView.name}' is missing WeaponViewAttachmentMounts.", this);
+            }
+
+            var viewMuzzle = mounts?.MuzzleTransform
+                ?? FindDescendantByName(_equippedWeaponView.transform, "Muzzle")
                 ?? FindDescendantByName(_equippedWeaponView.transform, "SOCKET_Muzzle");
             if (viewMuzzle != null)
             {
                 _muzzleTransform = viewMuzzle;
             }
 
-            EnsureMuzzleRuntimeBridge(_equippedWeaponView, viewMuzzle, preferredMuzzleAttachmentDefinition);
-            EnsureDetachableMagazineRuntimeBridge(_equippedWeaponView, preferredMagazineAttachmentDefinition);
+            EnsureMuzzleRuntimeBridge(_equippedWeaponView, mounts, viewMuzzle);
+            EnsureDetachableMagazineRuntimeBridge(_equippedWeaponView, mounts);
+            var manager = EnsureAttachmentManagerRuntimeBridge(_equippedWeaponView);
+            EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
+        }
+
+        private void ApplyEquippedAttachmentStateToViewRuntime(WeaponRuntimeState state)
+        {
+            if (state == null || _equippedWeaponView == null)
+            {
+                return;
+            }
+
+            ApplyEquippedAttachmentSlotToViewRuntime(WeaponAttachmentSlotType.Scope, state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope));
+            ApplyEquippedAttachmentSlotToViewRuntime(WeaponAttachmentSlotType.Muzzle, state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Muzzle));
+        }
+
+        private bool ApplyEquippedAttachmentSlotToViewRuntime(WeaponAttachmentSlotType slotType, string attachmentItemId)
+        {
+            if (_equippedWeaponView == null)
+            {
+                return false;
+            }
+
+            var normalizedItemId = string.IsNullOrWhiteSpace(attachmentItemId) ? string.Empty : attachmentItemId;
+            switch (slotType)
+            {
+                case WeaponAttachmentSlotType.Scope:
+                    return ApplyScopeAttachmentToViewRuntime(normalizedItemId);
+                case WeaponAttachmentSlotType.Muzzle:
+                    return ApplyMuzzleAttachmentToViewRuntime(normalizedItemId);
+                default:
+                    return false;
+            }
+        }
+
+        private bool ApplyScopeAttachmentToViewRuntime(string attachmentItemId)
+        {
+            if (_equippedWeaponView == null)
+            {
+                return false;
+            }
+
+            var managerType = ResolveTypeByName("Reloader.Game.Weapons.AttachmentManager");
+            var opticDefinitionType = ResolveTypeByName("Reloader.Game.Weapons.OpticDefinition");
+            if (managerType == null || opticDefinitionType == null)
+            {
+                return false;
+            }
+
+            var manager = EnsureAttachmentManagerRuntimeBridge(_equippedWeaponView);
+            if (manager == null)
+            {
+                return false;
+            }
+
+            var unequipMethod = managerType.GetMethod("UnequipOptic", BindingFlags.Instance | BindingFlags.Public);
+            var equipMethod = managerType.GetMethod("EquipOptic", BindingFlags.Instance | BindingFlags.Public);
+            if (unequipMethod == null || equipMethod == null)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(attachmentItemId))
+            {
+                unequipMethod.Invoke(manager, null);
+                EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
+                NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
+                return true;
+            }
+
+            var definition = ResolveOpticDefinition(attachmentItemId);
+            if (definition == null)
+            {
+                Debug.LogWarning(
+                    $"PlayerWeaponController: Scope definition resolve failed for attachmentItemId='{attachmentItemId}'.",
+                    this);
+                return false;
+            }
+
+            var opticPrefabProperty = opticDefinitionType.GetProperty("OpticPrefab", BindingFlags.Instance | BindingFlags.Public);
+            var opticPrefabObject = opticPrefabProperty?.GetValue(definition) as UObject;
+            if (opticPrefabObject == null)
+            {
+                Debug.LogWarning(
+                    $"PlayerWeaponController: Scope definition '{definition.name}' ({definition.GetType().FullName}) has null OpticPrefab for attachmentItemId='{attachmentItemId}'.",
+                    this);
+            }
+
+            var equipSucceeded = equipMethod.Invoke(manager, new object[] { definition }) is bool equipResult && equipResult;
+            if (!equipSucceeded)
+            {
+                Debug.LogWarning(
+                    $"PlayerWeaponController: EquipOptic returned failure for attachmentItemId='{attachmentItemId}', definition='{definition.name}' ({definition.GetType().FullName}), opticPrefab='{opticPrefabObject?.name ?? "<null>"}' ({opticPrefabObject?.GetType().FullName ?? "<null>"}).",
+                    this);
+            }
+
+            EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
+            NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
+            return equipSucceeded;
+        }
+
+        private bool ApplyMuzzleAttachmentToViewRuntime(string attachmentItemId)
+        {
+            if (_equippedWeaponView == null)
+            {
+                return false;
+            }
+
+            var managerType = ResolveTypeByName("Reloader.Game.Weapons.AttachmentManager");
+            if (managerType == null)
+            {
+                return false;
+            }
+
+            var manager = EnsureAttachmentManagerRuntimeBridge(_equippedWeaponView);
+            if (manager == null)
+            {
+                return false;
+            }
+
+            var unequipMethod = managerType.GetMethod("UnequipMuzzle", BindingFlags.Instance | BindingFlags.Public);
+            var equipMethod = managerType.GetMethod("EquipMuzzle", BindingFlags.Instance | BindingFlags.Public);
+            if (unequipMethod == null || equipMethod == null)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(attachmentItemId))
+            {
+                unequipMethod.Invoke(manager, null);
+                EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
+                NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
+                return true;
+            }
+
+            var definition = ResolveMuzzleAttachmentDefinition(attachmentItemId);
+            if (definition == null)
+            {
+                return false;
+            }
+
+            var equipSucceeded = equipMethod.Invoke(manager, new object[] { definition }) is bool equipResult && equipResult;
+            EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
+            NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
+            return equipSucceeded;
+        }
+
+        private Component EnsureAttachmentManagerRuntimeBridge(GameObject viewRoot)
+        {
+            if (viewRoot == null)
+            {
+                return null;
+            }
+
+            var managerType = ResolveTypeByName("Reloader.Game.Weapons.AttachmentManager");
+            if (managerType == null)
+            {
+                return null;
+            }
+
+            var manager = viewRoot.GetComponent(managerType);
+            if (manager == null)
+            {
+                manager = viewRoot.AddComponent(managerType);
+            }
+
+            var mounts = viewRoot.GetComponent<WeaponViewAttachmentMounts>();
+            var ironSightAnchor = mounts != null
+                ? (mounts.IronSightAnchor != null ? mounts.IronSightAnchor : viewRoot.transform)
+                : FindDescendantByName(viewRoot.transform, "IronSightAnchor")
+                    ?? FindDescendantByName(viewRoot.transform, "SightAnchor")
+                    ?? viewRoot.transform;
+            Transform scopeSlot = null;
+            Transform muzzleSlot = null;
+            if (mounts != null)
+            {
+                mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Scope, out scopeSlot);
+                mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Muzzle, out muzzleSlot);
+            }
+
+            scopeSlot ??= FindDescendantByName(viewRoot.transform, "ScopeSlot")
+                ?? FindDescendantByName(viewRoot.transform, "OpticSlot");
+            muzzleSlot ??= FindDescendantByName(viewRoot.transform, "MuzzleAttachmentSlot");
+
+            if (scopeSlot == null && muzzleSlot == null)
+            {
+                Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing explicit attachment slots.", this);
+                return null;
+            }
+
+            var configureMethod = managerType.GetMethod("ConfigureMounts", BindingFlags.Instance | BindingFlags.Public);
+            if (configureMethod == null)
+            {
+                return null;
+            }
+
+            var muzzleRuntimeType = ResolveTypeByName("Reloader.Game.Weapons.MuzzleAttachmentRuntime");
+            var muzzleRuntime = muzzleRuntimeType != null ? viewRoot.GetComponent(muzzleRuntimeType) : null;
+            configureMethod.Invoke(manager, new object[] { scopeSlot, ironSightAnchor, muzzleSlot, muzzleRuntime });
+            return manager;
+        }
+
+        private void EnsureScopedAdsRuntimeBridge(GameObject viewRoot, Component attachmentManager)
+        {
+            if (viewRoot == null || attachmentManager == null)
+            {
+                _adsStateRuntimeBridge = null;
+                _adsActiveOpticProperty = null;
+                return;
+            }
+
+            var adsType = ResolveTypeByName("Reloader.Game.Weapons.AdsStateController");
+            if (adsType == null)
+            {
+                _adsStateRuntimeBridge = null;
+                _adsActiveOpticProperty = null;
+                return;
+            }
+
+            _adsStateRuntimeBridge = gameObject.GetComponent(adsType) ?? gameObject.AddComponent(adsType);
+            if (_adsStateRuntimeBridge == null)
+            {
+                return;
+            }
+
+            var worldCamera = ResolveAdsCamera();
+            var viewmodelCamera = ResolveViewmodelCamera(worldCamera);
+
+            var worldField = adsType.GetField("_worldCamera", BindingFlags.Instance | BindingFlags.NonPublic);
+            worldField?.SetValue(_adsStateRuntimeBridge, worldCamera);
+
+            var viewmodelField = adsType.GetField("_viewmodelCamera", BindingFlags.Instance | BindingFlags.NonPublic);
+            viewmodelField?.SetValue(_adsStateRuntimeBridge, viewmodelCamera);
+
+            var managerField = adsType.GetField("_attachmentManager", BindingFlags.Instance | BindingFlags.NonPublic);
+            managerField?.SetValue(_adsStateRuntimeBridge, attachmentManager);
+            _adsAttachmentManagerRuntimeBridge = attachmentManager;
+            _adsActiveOpticProperty = null;
+
+            TryAssignScopedAdsWeaponDefinition(adsType);
+
+            var legacyInputField = adsType.GetField("_useLegacyInput", BindingFlags.Instance | BindingFlags.NonPublic);
+            legacyInputField?.SetValue(_adsStateRuntimeBridge, false);
+        }
+
+        private void TryAssignScopedAdsWeaponDefinition(Type adsType)
+        {
+            if (adsType == null || _adsStateRuntimeBridge == null)
+            {
+                return;
+            }
+
+            var definitionField = adsType.GetField("_weaponDefinition", BindingFlags.Instance | BindingFlags.NonPublic);
+            var setDefinitionMethod = adsType.GetMethod("SetWeaponDefinition", BindingFlags.Instance | BindingFlags.Public);
+            var targetDefinitionType = definitionField?.FieldType
+                ?? (setDefinitionMethod?.GetParameters().Length == 1 ? setDefinitionMethod.GetParameters()[0].ParameterType : null);
+            if (targetDefinitionType == null)
+            {
+                return;
+            }
+
+            UObject resolvedDefinition = null;
+            if (_equippedDefinition != null && targetDefinitionType.IsInstanceOfType(_equippedDefinition))
+            {
+                resolvedDefinition = _equippedDefinition;
+            }
+            else
+            {
+                resolvedDefinition = ResolveGameWeaponDefinition(targetDefinitionType, _equippedItemId);
+            }
+
+            if (resolvedDefinition == null)
+            {
+                return;
+            }
+
+            if (setDefinitionMethod != null)
+            {
+                setDefinitionMethod.Invoke(_adsStateRuntimeBridge, new object[] { resolvedDefinition });
+                return;
+            }
+
+            definitionField?.SetValue(_adsStateRuntimeBridge, resolvedDefinition);
+        }
+
+        private static UObject ResolveGameWeaponDefinition(Type definitionType, string weaponId)
+        {
+            if (definitionType == null || string.IsNullOrWhiteSpace(weaponId))
+            {
+                return null;
+            }
+
+            var idProperty = definitionType.GetProperty("WeaponId", BindingFlags.Instance | BindingFlags.Public)
+                ?? definitionType.GetProperty("ItemId", BindingFlags.Instance | BindingFlags.Public);
+            if (idProperty == null)
+            {
+                return null;
+            }
+
+            var definitions = Resources.FindObjectsOfTypeAll(definitionType);
+            if (definitions == null || definitions.Length == 0)
+            {
+                return null;
+            }
+
+            Array.Sort(definitions, CompareObjectsDeterministically);
+            for (var i = 0; i < definitions.Length; i++)
+            {
+                if (definitions[i] is not UObject candidate)
+                {
+                    continue;
+                }
+
+                if (idProperty.GetValue(candidate) is string candidateId
+                    && string.Equals(candidateId, weaponId, StringComparison.Ordinal))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        private static Camera ResolveViewmodelCamera(Camera worldCamera)
+        {
+            if (worldCamera == null)
+            {
+                return null;
+            }
+
+            var child = worldCamera.transform.Find("ViewmodelCamera");
+            return child != null ? child.GetComponent<Camera>() : null;
+        }
+
+        private static void SetLayerRecursively(Transform root, int layer)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            root.gameObject.layer = layer;
+            for (var i = 0; i < root.childCount; i++)
+            {
+                SetLayerRecursively(root.GetChild(i), layer);
+            }
+        }
+
+        private static UObject ResolveAttachmentDefinitionById(
+            Type definitionType,
+            string idPropertyName,
+            string itemId,
+            string requiredPrefabPropertyName = null)
+        {
+            if (definitionType == null || string.IsNullOrWhiteSpace(idPropertyName) || string.IsNullOrWhiteSpace(itemId))
+            {
+                return null;
+            }
+
+            var definitions = Resources.FindObjectsOfTypeAll(definitionType);
+            if (definitions == null || definitions.Length == 0)
+            {
+                return null;
+            }
+
+            var idProperty = definitionType.GetProperty(idPropertyName, BindingFlags.Instance | BindingFlags.Public);
+            if (idProperty == null)
+            {
+                return null;
+            }
+
+            PropertyInfo requiredPrefabProperty = null;
+            if (!string.IsNullOrWhiteSpace(requiredPrefabPropertyName))
+            {
+                requiredPrefabProperty = definitionType.GetProperty(requiredPrefabPropertyName, BindingFlags.Instance | BindingFlags.Public);
+            }
+
+            Array.Sort(definitions, CompareObjectsDeterministically);
+            for (var i = 0; i < definitions.Length; i++)
+            {
+                if (definitions[i] is not UObject candidate)
+                {
+                    continue;
+                }
+
+                if (idProperty.GetValue(candidate) is string candidateId
+                    && string.Equals(candidateId, itemId, StringComparison.Ordinal))
+                {
+                    if (requiredPrefabProperty != null)
+                    {
+                        if (requiredPrefabProperty.GetValue(candidate) is not GameObject requiredPrefab
+                            || requiredPrefab == null)
+                        {
+                            continue;
+                        }
+                    }
+
+                    return candidate;
+                }
+            }
+
+#if UNITY_EDITOR
+            var fromAssetDatabase = ResolveAttachmentDefinitionFromAssetDatabase(
+                definitionType,
+                idPropertyName,
+                itemId,
+                requiredPrefabPropertyName);
+            if (fromAssetDatabase != null)
+            {
+                return fromAssetDatabase;
+            }
+#endif
+
+            return null;
+        }
+
+#if UNITY_EDITOR
+        private static UObject ResolveAttachmentDefinitionFromAssetDatabase(
+            Type definitionType,
+            string idPropertyName,
+            string itemId,
+            string requiredPrefabPropertyName)
+        {
+            if (definitionType == null || string.IsNullOrWhiteSpace(idPropertyName) || string.IsNullOrWhiteSpace(itemId))
+            {
+                return null;
+            }
+
+            var idProperty = definitionType.GetProperty(idPropertyName, BindingFlags.Instance | BindingFlags.Public);
+            if (idProperty == null)
+            {
+                return null;
+            }
+
+            PropertyInfo requiredPrefabProperty = null;
+            if (!string.IsNullOrWhiteSpace(requiredPrefabPropertyName))
+            {
+                requiredPrefabProperty = definitionType.GetProperty(requiredPrefabPropertyName, BindingFlags.Instance | BindingFlags.Public);
+            }
+
+            var searchFilter = $"t:{definitionType.Name}";
+            var guids = AssetDatabase.FindAssets(searchFilter);
+            for (var i = 0; i < guids.Length; i++)
+            {
+                var assetPath = AssetDatabase.GUIDToAssetPath(guids[i]);
+                var candidate = AssetDatabase.LoadAssetAtPath(assetPath, definitionType);
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                if (idProperty.GetValue(candidate) is not string candidateId
+                    || !string.Equals(candidateId, itemId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (requiredPrefabProperty != null)
+                {
+                    if (requiredPrefabProperty.GetValue(candidate) is not GameObject prefab
+                        || prefab == null)
+                    {
+                        continue;
+                    }
+                }
+
+                return candidate as UObject;
+            }
+
+            return null;
+        }
+#endif
+
+        private static bool IsDefinitionPrefabReferenceUsable(
+            UObject definition,
+            Type expectedDefinitionType,
+            string idPropertyName)
+        {
+            if (definition == null || expectedDefinitionType == null)
+            {
+                return false;
+            }
+
+            var prefabPropertyName = GetPrefabPropertyNameForDefinition(expectedDefinitionType, idPropertyName);
+            if (string.IsNullOrWhiteSpace(prefabPropertyName))
+            {
+                return true;
+            }
+
+            var prefabProperty = expectedDefinitionType.GetProperty(prefabPropertyName, BindingFlags.Instance | BindingFlags.Public);
+            if (prefabProperty == null)
+            {
+                return false;
+            }
+
+            if (prefabProperty.GetValue(definition) is not GameObject prefab)
+            {
+                return false;
+            }
+
+            return prefab != null;
+        }
+
+        private static string GetPrefabPropertyNameForDefinition(Type expectedDefinitionType, string idPropertyName)
+        {
+            if (expectedDefinitionType == null)
+            {
+                return null;
+            }
+
+            if (string.Equals(idPropertyName, "OpticId", StringComparison.Ordinal))
+            {
+                return "OpticPrefab";
+            }
+
+            if (string.Equals(idPropertyName, "AttachmentId", StringComparison.Ordinal))
+            {
+                return "MuzzlePrefab";
+            }
+
+            return null;
         }
 
         private void DestroyEquippedWeaponView()
@@ -1255,6 +2073,31 @@ namespace Reloader.Weapons.Controllers
 
             Destroy(_equippedWeaponView);
             _equippedWeaponView = null;
+            if (_adsStateRuntimeBridge != null)
+            {
+                Destroy(_adsStateRuntimeBridge);
+            }
+
+            _adsStateRuntimeBridge = null;
+            _adsAttachmentManagerRuntimeBridge = null;
+            _adsActiveOpticProperty = null;
+            _adsSetHeldMethod = null;
+            _adsSetMagnificationMethod = null;
+            _adsCurrentMagnificationProperty = null;
+        }
+
+        private static void ClearAttachmentSlots(WeaponRuntimeState state)
+        {
+            if (state == null)
+            {
+                return;
+            }
+
+            var slotValues = (WeaponAttachmentSlotType[])Enum.GetValues(typeof(WeaponAttachmentSlotType));
+            for (var i = 0; i < slotValues.Length; i++)
+            {
+                state.SetEquippedAttachmentItemId(slotValues[i], string.Empty);
+            }
         }
 
         private static GameObject InstantiateWeaponView(GameObject source, Transform parent)
@@ -1294,54 +2137,77 @@ namespace Reloader.Weapons.Controllers
 
         private GameObject ResolveWeaponViewPrefab(string itemId)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             for (var i = 0; i < _weaponViewPrefabs.Length; i++)
             {
                 var binding = _weaponViewPrefabs[i];
-                if (!string.IsNullOrWhiteSpace(binding.ItemId) && binding.ItemId == itemId && binding.ViewPrefab != null)
+                if (!string.IsNullOrWhiteSpace(binding.ItemId)
+                    && NormalizeWeaponItemId(binding.ItemId) == itemId
+                    && binding.ViewPrefab != null)
                 {
                     return binding.ViewPrefab;
                 }
             }
 
-            if (_equippedDefinition != null
-                && _equippedDefinition.ItemId == itemId
-                && _equippedDefinition.IconSourcePrefab != null)
-            {
-                return _equippedDefinition.IconSourcePrefab;
-            }
+            Debug.LogWarning(
+                $"PlayerWeaponController: No explicit weapon view prefab binding exists for '{itemId}'. View spawn rejected.",
+                this);
+            return null;
+        }
 
-            if (!_useInventoryDefinitionViewFallback)
+        private UObject ResolveOpticDefinition(string attachmentItemId)
+        {
+            if (string.IsNullOrWhiteSpace(attachmentItemId))
             {
                 return null;
             }
 
-            var itemDefinitions = _inventoryController != null
-                ? _inventoryController.GetItemDefinitionRegistrySnapshot()
-                : null;
-            if (itemDefinitions != null)
+            var metadataLookup = BuildAttachmentMetadataLookup();
+            if (metadataLookup.TryGetValue(attachmentItemId, out var metadata)
+                && metadata?.AttachmentDefinition != null)
             {
-                for (var i = 0; i < itemDefinitions.Count; i++)
+                var metadataType = ResolveTypeByName("Reloader.Game.Weapons.OpticDefinition");
+                if (metadataType != null && metadataType.IsInstanceOfType(metadata.AttachmentDefinition))
                 {
-                    var definition = itemDefinitions[i];
-                    if (definition == null
-                        || string.IsNullOrWhiteSpace(definition.DefinitionId)
-                        || definition.IconSourcePrefab == null)
-                    {
-                        continue;
-                    }
-
-                    if (definition.DefinitionId == itemId)
-                    {
-                        return definition.IconSourcePrefab;
-                    }
+                    return metadata.AttachmentDefinition;
                 }
             }
 
-            return null;
+            return ResolveAttachmentDefinitionById(
+                ResolveTypeByName("Reloader.Game.Weapons.OpticDefinition"),
+                "OpticId",
+                attachmentItemId,
+                "OpticPrefab");
+        }
+
+        private UObject ResolveMuzzleAttachmentDefinition(string attachmentItemId)
+        {
+            if (string.IsNullOrWhiteSpace(attachmentItemId))
+            {
+                return null;
+            }
+
+            var metadataLookup = BuildAttachmentMetadataLookup();
+            if (metadataLookup.TryGetValue(attachmentItemId, out var metadata)
+                && metadata?.AttachmentDefinition != null)
+            {
+                var metadataType = ResolveTypeByName("Reloader.Game.Weapons.MuzzleAttachmentDefinition");
+                if (metadataType != null && metadataType.IsInstanceOfType(metadata.AttachmentDefinition))
+                {
+                    return metadata.AttachmentDefinition;
+                }
+            }
+
+            return ResolveAttachmentDefinitionById(
+                ResolveTypeByName("Reloader.Game.Weapons.MuzzleAttachmentDefinition"),
+                "AttachmentId",
+                attachmentItemId,
+                "MuzzlePrefab");
         }
 
         private bool TryResolveWeaponDefinition(string itemId, out WeaponDefinition definition)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             definition = ResolveWeaponDefinition(itemId);
             if (definition != null)
             {
@@ -1499,70 +2365,131 @@ namespace Reloader.Weapons.Controllers
                     continue;
                 }
 
+                if (behaviour is WeaponViewAttachmentMounts)
+                {
+                    continue;
+                }
+
                 // Weapon view instances should be pure visual meshes/sockets.
                 Destroy(behaviour);
             }
         }
 
-        private static UObject ResolveViewMuzzleAttachmentDefinition(GameObject viewRoot)
+        private static void NormalizeViewMaterialsForActiveRenderPipeline(GameObject viewRoot)
         {
             if (viewRoot == null)
             {
-                return null;
+                return;
             }
 
-            var behaviours = viewRoot.GetComponentsInChildren<MonoBehaviour>(true);
-            for (var i = 0; i < behaviours.Length; i++)
+            var fallbackShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (fallbackShader == null)
             {
-                var behaviour = behaviours[i];
-                if (behaviour == null || behaviour.GetType().Name != "MuzzleAttachmentRuntime")
+                return;
+            }
+
+            var renderers = viewRoot.GetComponentsInChildren<Renderer>(true);
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                var renderer = renderers[i];
+                if (renderer == null)
                 {
                     continue;
                 }
 
-                var behaviourType = behaviour.GetType();
-                var activeAttachmentProperty = behaviourType.GetProperty("ActiveAttachment", BindingFlags.Instance | BindingFlags.Public);
-                if (activeAttachmentProperty != null && activeAttachmentProperty.GetValue(behaviour) is UObject activeAttachment)
+                var sourceMaterials = renderer.sharedMaterials;
+                var replaced = false;
+                for (var m = 0; m < sourceMaterials.Length; m++)
                 {
-                    return activeAttachment;
+                    var source = sourceMaterials[m];
+                    if (source == null)
+                    {
+                        continue;
+                    }
+
+                    var shader = source.shader;
+                    var shaderName = shader != null ? shader.name : string.Empty;
+                    var requiresUpgrade =
+                        shader == null
+                        || !shader.isSupported
+                        || string.Equals(shaderName, "Hidden/InternalErrorShader", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(shaderName, "Standard", StringComparison.OrdinalIgnoreCase)
+                        || shaderName.StartsWith("Legacy Shaders/", StringComparison.OrdinalIgnoreCase);
+
+                    if (!requiresUpgrade)
+                    {
+                        continue;
+                    }
+
+                    var sourceId = source.GetInstanceID();
+                    if (!MaterialUpgradeCacheBySourceId.TryGetValue(sourceId, out var replacement) || replacement == null)
+                    {
+                        replacement = new Material(fallbackShader);
+
+                        if (source.HasProperty("_BaseMap") && replacement.HasProperty("_BaseMap"))
+                        {
+                            replacement.SetTexture("_BaseMap", source.GetTexture("_BaseMap"));
+                        }
+                        else if (source.HasProperty("_MainTex"))
+                        {
+                            var tex = source.GetTexture("_MainTex");
+                            if (replacement.HasProperty("_BaseMap"))
+                            {
+                                replacement.SetTexture("_BaseMap", tex);
+                            }
+                            else if (replacement.HasProperty("_MainTex"))
+                            {
+                                replacement.SetTexture("_MainTex", tex);
+                            }
+                        }
+
+                        if (source.HasProperty("_BaseColor") && replacement.HasProperty("_BaseColor"))
+                        {
+                            replacement.SetColor("_BaseColor", source.GetColor("_BaseColor"));
+                        }
+                        else if (source.HasProperty("_Color"))
+                        {
+                            var color = source.GetColor("_Color");
+                            if (replacement.HasProperty("_BaseColor"))
+                            {
+                                replacement.SetColor("_BaseColor", color);
+                            }
+                            else if (replacement.HasProperty("_Color"))
+                            {
+                                replacement.SetColor("_Color", color);
+                            }
+                        }
+
+                        var sourceTransparent =
+                            source.renderQueue >= 3000
+                            || (source.HasProperty("_Mode") && source.GetFloat("_Mode") >= 2.5f);
+                        if (sourceTransparent)
+                        {
+                            if (replacement.HasProperty("_Surface"))
+                            {
+                                replacement.SetFloat("_Surface", 1f);
+                            }
+
+                            if (replacement.HasProperty("_Blend"))
+                            {
+                                replacement.SetFloat("_Blend", 0f);
+                            }
+
+                            replacement.renderQueue = 3000;
+                        }
+
+                        MaterialUpgradeCacheBySourceId[sourceId] = replacement;
+                    }
+
+                    sourceMaterials[m] = replacement;
+                    replaced = true;
                 }
 
-                var defaultAttachmentField = behaviourType.GetField("_defaultAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
-                if (defaultAttachmentField != null && defaultAttachmentField.GetValue(behaviour) is UObject defaultAttachment)
+                if (replaced)
                 {
-                    return defaultAttachment;
+                    renderer.sharedMaterials = sourceMaterials;
                 }
             }
-
-            return null;
-        }
-
-        private static UObject ResolveDeterministicMuzzleDefinitionFallback(Type attachmentDefinitionType)
-        {
-            if (attachmentDefinitionType == null)
-            {
-                return null;
-            }
-
-            var definitions = Resources.FindObjectsOfTypeAll(attachmentDefinitionType);
-            if (definitions == null || definitions.Length == 0)
-            {
-                return null;
-            }
-
-            Array.Sort(definitions, CompareObjectsDeterministically);
-            for (var i = 0; i < definitions.Length; i++)
-            {
-                var candidate = definitions[i];
-                if (candidate == null || !IsSafeMuzzleDefinition(candidate))
-                {
-                    continue;
-                }
-
-                return candidate;
-            }
-
-            return null;
         }
 
         private static int CompareObjectsDeterministically(UObject left, UObject right)
@@ -1588,113 +2515,9 @@ namespace Reloader.Weapons.Controllers
                 : left.GetInstanceID().CompareTo(right.GetInstanceID());
         }
 
-        private static bool IsSafeMuzzleDefinition(UObject definition)
-        {
-            if (definition == null)
-            {
-                return false;
-            }
-
-            var muzzlePrefabField = definition.GetType().GetField("_muzzlePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
-            if (muzzlePrefabField == null || !(muzzlePrefabField.GetValue(definition) is GameObject muzzlePrefab) || muzzlePrefab == null)
-            {
-                return false;
-            }
-
-            return !HasMissingScriptsInPrefab(muzzlePrefab);
-        }
-
-        private static UObject ResolveViewMagazineAttachmentDefinition(GameObject viewRoot)
-        {
-            if (viewRoot == null)
-            {
-                return null;
-            }
-
-            var behaviours = viewRoot.GetComponentsInChildren<MonoBehaviour>(true);
-            for (var i = 0; i < behaviours.Length; i++)
-            {
-                var behaviour = behaviours[i];
-                if (behaviour == null || behaviour.GetType().Name != "DetachableMagazineRuntime")
-                {
-                    continue;
-                }
-
-                var defaultAttachmentField = behaviour.GetType().GetField("_defaultAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
-                if (defaultAttachmentField != null && defaultAttachmentField.GetValue(behaviour) is UObject defaultAttachment)
-                {
-                    return defaultAttachment;
-                }
-            }
-
-            return null;
-        }
-
-        private static UObject ResolveDeterministicMagazineDefinitionFallback(Type definitionType)
-        {
-            if (definitionType == null)
-            {
-                return null;
-            }
-
-            var definitions = Resources.FindObjectsOfTypeAll(definitionType);
-            if (definitions == null || definitions.Length == 0)
-            {
-                return null;
-            }
-
-            Array.Sort(definitions, CompareObjectsDeterministically);
-            for (var i = 0; i < definitions.Length; i++)
-            {
-                var candidate = definitions[i];
-                if (candidate == null || !IsSafeMagazineDefinition(candidate))
-                {
-                    continue;
-                }
-
-                return candidate;
-            }
-
-            return null;
-        }
-
-        private static bool IsSafeMagazineDefinition(UObject definition)
-        {
-            if (definition == null)
-            {
-                return false;
-            }
-
-            var visualPrefabField = definition.GetType().GetField("_magazineVisualPrefab", BindingFlags.Instance | BindingFlags.NonPublic);
-            if (visualPrefabField == null || !(visualPrefabField.GetValue(definition) is GameObject visualPrefab) || visualPrefab == null)
-            {
-                return false;
-            }
-
-            return !HasMissingScriptsInPrefab(visualPrefab);
-        }
-
-        private static bool HasMissingScriptsInPrefab(GameObject prefab)
-        {
-            if (prefab == null)
-            {
-                return true;
-            }
-
-            var components = prefab.GetComponentsInChildren<Component>(true);
-            for (var i = 0; i < components.Length; i++)
-            {
-                if (components[i] == null)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         private PackWeaponPresentationConfig ResolvePackPresentationConfig(string itemId, WeaponDefinition definition = null)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             var fallbackConfig = _packPresentationConfig ?? new PackWeaponPresentationConfig();
             if (string.IsNullOrWhiteSpace(itemId))
             {
@@ -1770,12 +2593,18 @@ namespace Reloader.Weapons.Controllers
 
         private WeaponDefinition ResolveWeaponDefinition(string itemId)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             if (string.IsNullOrWhiteSpace(itemId) || _weaponRegistry == null)
             {
                 return null;
             }
 
             return _weaponRegistry.TryGetWeaponDefinition(itemId, out var definition) ? definition : null;
+        }
+
+        private static string NormalizeWeaponItemId(string itemId)
+        {
+            return string.IsNullOrWhiteSpace(itemId) ? string.Empty : itemId;
         }
 
     }

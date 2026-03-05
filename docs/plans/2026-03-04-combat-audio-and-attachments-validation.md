@@ -135,3 +135,37 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
 - Audio asset curation moved unused SFX out of project to external dump path:
   - `/Users/ivanprotsiuk/Documents/SOUNDS/project-audio-dump/2026-03-04-153834`
   - Curated by `scripts/audio/curate_project_audio_assets.sh` (dry-run default, `--apply` to move).
+
+## Ongoing Kar98k Iteration Notes (2026-03-04 late session)
+
+- `22724f3c` fixes scoped ADS zoom input to use `IPlayerInputSource.ConsumeZoomInput()` (Input System compatible) and removes runtime dependency on legacy `UnityEngine.Input.mouseScrollDelta`.
+- `WeaponViewPoseTuningHelper` now preserves inspector-authored hip/ADS values by default and only seeds from current pose when `Seed Offsets From Current Pose On Equip` is explicitly enabled.
+- `22b6eb2d` hardens restore + ADS behavior:
+  - `ApplyRuntimeAttachments` now clears all attachment slots before applying restored snapshot keys, preventing stale attachments from surviving partial/legacy saves.
+  - Scoped ADS bridge now only overrides pack FOV when an active optic is actually equipped (`AttachmentManager.ActiveOpticDefinition != null`), preserving baseline ADS FOV without scope.
+- `1808348d` hardens attachment removal + PR #22 review regressions:
+  - Kar98k scope/muzzle remove now clears authored attachment visuals using compatible attachment prefab names (not only generic keyword matching), fixing cases where `Remove` kept scope mesh visible on the equipped weapon view.
+  - Added PlayMode coverage for authored scope visual teardown in `PlayerWeaponControllerPlayModeTests.TrySwapEquippedWeaponAttachment_RemoveScope_DestroysAuthoredScopeVisual`.
+  - Closed PR #22 unresolved review items by:
+    - raising inventory changed events after successful attachment swaps,
+    - destroying stale `AdsStateController` bridge on equipped weapon view teardown,
+    - null/whitespace guarding `WeaponRegistry.TryGetWeaponDefinition`,
+    - restoring attachments during travel restore when ballistic chamber payload is unavailable.
+- `2026-03-05 hotfix` resolves two Kar98k follow-up regressions from live playtest:
+  - Scope swap apply no-op in `MainTown` caused by scene-level `PlayerWeaponController._attachmentItemMetadata` override set to empty array; scene now mirrors prefab metadata entries for Kar98k scope/muzzle definitions.
+  - Severe FPS drop when selecting non-weapon belt items (for example scope attachment) caused by per-frame weapon registry miss path hitting editor asset scans; `WeaponRegistry` now short-circuits non-weapon IDs and caches negative lookup misses.
+  - Attachment swaps now fail-fast with rollback if runtime mount is not possible (for example missing scope slot on active view), so inventory/state are not consumed when visual/runtime apply fails.
+- `2026-03-05 scene parity hotfix` removes location-dependent attachment behavior:
+  - `IndoorRangeInstance` now maps `weapon-kar98k` to the same WWII Kar98k view prefab used by `MainTown` (removed stale AR `RifleView` mapping).
+  - `IndoorRangeInstance` now includes Kar98k attachment metadata wiring (`att-kar98k-scope-remote-a`, `att-kar98k-muzzle-device-c`) on `PlayerWeaponController`.
+  - Added `EventSystem` + `InputSystemUIInputModule` to `IndoorRangeInstance` so TAB right-click attachment context works in range scene.
+  - Broadened animation event receiver auto-wiring to cover `PlayerArms` animator hosts and added explicit receiver ensure in `PlayerWeaponAnimationBinder` to prevent `OnAnimationEndedHolster` no-receiver errors.
+- `2026-03-05 attachment mount recovery hotfix`:
+  - `PlayerWeaponController` now auto-creates synthetic `ScopeSlot` / `MuzzleAttachmentSlot` runtime anchors from authored attachment visuals when source prefab lacks explicit slot transforms.
+  - On first equip, runtime state now seeds attachment IDs from authored visuals if slots were unset, preventing default prefab attachments from disappearing immediately on pickup.
+- `2026-03-05 simplification`:
+  - Kar98k default view/source switched from `WWII_Recon_A_PreSet` to base `WWII_Recon_A` (no pre-mounted scope/muzzle) across `StarterRifle`, `PlayerRoot_MainTown`, `MainTown`, and `IndoorRangeInstance` mappings, so attachment lifecycle is fully player-driven.
+- `2026-03-05 scope-visual follow-up`:
+  - Fixed `Wire MainTown Combat Setup` / content builder fallback to stop re-introducing preset-scoped Kar98k by switching editor constants to base `WWII_Recon_A.prefab`.
+  - `PlayerWeaponController` now aligns mounted scope/muzzle instance layers to the runtime slot layer recursively after equip, so optics render in the held viewmodel camera pass (previously FOV changed but optic mesh could remain culled on Default layer).
+  - Kar98k scope fallback anchor resolution now uses `WWII_Recon_A_Sight` when explicit `ScopeSlot` / `OpticSlot` / `SightAnchor` mounts are absent on the base prefab.

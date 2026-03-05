@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce25483311fb40e694825b08640a1aac, type: 3}
   m_Name: Rifle_556_Starter
   m_EditorClassIdentifier: Reloader.Core::Reloader.Core.Items.ItemDefinition
-  _definitionId: weapon-rifle-01
+  _definitionId: weapon-kar98k
   _category: 4
   _displayName: Rifle_556_Starter
   _stackPolicy: 0
   _maxStack: 1
-  _iconSourcePrefab: {fileID: 8445401694592989334, guid: 8c7ba79f8ec05794aba7ffdd3d8aba93, type: 3}
+  _iconSourcePrefab: {fileID: 100100000, guid: 4af148b15f97d4845aabd2cb0d1b678c, type: 3}

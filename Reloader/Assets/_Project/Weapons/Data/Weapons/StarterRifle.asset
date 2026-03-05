@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00fe5b4d07ab045459437b6920dc2c46, type: 3}
   m_Name: StarterRifle
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Data.WeaponDefinition
-  _itemId: weapon-rifle-01
-  _displayName: Starter Rifle
+  _itemId: weapon-kar98k
+  _displayName: Kar98k (.308)
   _iconSourcePrefab: {fileID: 100100000, guid: 4af148b15f97d4845aabd2cb0d1b678c, type: 3}
   _magazineCapacity: 5
   _fireIntervalSeconds: 0.2
@@ -48,3 +48,10 @@ MonoBehaviour:
       _fireTriggerParameter: Fire
       _reloadStateName: Layer Actions.Reload
       _fireStateName: Layer Actions.Fire
+  _attachmentCompatibilities:
+  - _slotType: 0
+    _compatibleAttachmentItemIds:
+    - att-kar98k-scope-remote-a
+  - _slotType: 1
+    _compatibleAttachmentItemIds:
+    - att-kar98k-muzzle-device-c

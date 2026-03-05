@@ -8,7 +8,7 @@ namespace Reloader.Core.Tests.EditMode
         [Test]
         public void TickAim_ChangesStateAndInterpolatesTowardAdsFov()
         {
-            var state = new PackWeaponRuntimeState("weapon-rifle-01");
+            var state = new PackWeaponRuntimeState("weapon-kar98k");
             var config = new PackWeaponPresentationConfig();
             var driver = new PackWeaponRuntimeDriver(state, config);
 
@@ -25,7 +25,7 @@ namespace Reloader.Core.Tests.EditMode
         [Test]
         public void ReloadLifecycle_StartCancelCompleteTransitionsRuntimeState()
         {
-            var state = new PackWeaponRuntimeState("weapon-rifle-01");
+            var state = new PackWeaponRuntimeState("weapon-kar98k");
             var driver = new PackWeaponRuntimeDriver(state, new PackWeaponPresentationConfig());
             driver.SetEquipped(true);
             Assert.That(driver.State.IsEquipped, Is.True);
