@@ -298,6 +298,7 @@ namespace Reloader.Weapons.Controllers
                 return false;
             }
 
+            var previousAttachmentItemId = state.GetEquippedAttachmentItemId(slotType);
             var swapped = WeaponAttachmentSwapService.TrySwap(
                 _inventoryController.Runtime,
                 _equippedDefinition,
@@ -310,7 +311,24 @@ namespace Reloader.Weapons.Controllers
                 return false;
             }
 
-            ApplyEquippedAttachmentSlotToViewRuntime(slotType, state.GetEquippedAttachmentItemId(slotType));
+            var applied = ApplyEquippedAttachmentSlotToViewRuntime(slotType, state.GetEquippedAttachmentItemId(slotType));
+            if (!applied)
+            {
+                var reverted = WeaponAttachmentSwapService.TrySwap(
+                    _inventoryController.Runtime,
+                    _equippedDefinition,
+                    state,
+                    BuildAttachmentSlotLookup(BuildAttachmentMetadataLookup()),
+                    slotType,
+                    previousAttachmentItemId);
+                if (reverted)
+                {
+                    ApplyEquippedAttachmentSlotToViewRuntime(slotType, previousAttachmentItemId);
+                }
+
+                return false;
+            }
+
             ResolveInventoryEvents()?.RaiseInventoryChanged();
             return true;
         }
@@ -1476,50 +1494,50 @@ namespace Reloader.Weapons.Controllers
             ApplyEquippedAttachmentSlotToViewRuntime(WeaponAttachmentSlotType.Muzzle, state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Muzzle));
         }
 
-        private void ApplyEquippedAttachmentSlotToViewRuntime(WeaponAttachmentSlotType slotType, string attachmentItemId)
+        private bool ApplyEquippedAttachmentSlotToViewRuntime(WeaponAttachmentSlotType slotType, string attachmentItemId)
         {
             if (_equippedWeaponView == null)
             {
-                return;
+                return false;
             }
 
             var normalizedItemId = string.IsNullOrWhiteSpace(attachmentItemId) ? string.Empty : attachmentItemId;
             switch (slotType)
             {
                 case WeaponAttachmentSlotType.Scope:
-                    ApplyScopeAttachmentToViewRuntime(normalizedItemId);
-                    break;
+                    return ApplyScopeAttachmentToViewRuntime(normalizedItemId);
                 case WeaponAttachmentSlotType.Muzzle:
-                    ApplyMuzzleAttachmentToViewRuntime(normalizedItemId);
-                    break;
+                    return ApplyMuzzleAttachmentToViewRuntime(normalizedItemId);
+                default:
+                    return false;
             }
         }
 
-        private void ApplyScopeAttachmentToViewRuntime(string attachmentItemId)
+        private bool ApplyScopeAttachmentToViewRuntime(string attachmentItemId)
         {
             if (_equippedWeaponView == null)
             {
-                return;
+                return false;
             }
 
             var managerType = ResolveTypeByName("Reloader.Game.Weapons.AttachmentManager");
             var opticDefinitionType = ResolveTypeByName("Reloader.Game.Weapons.OpticDefinition");
             if (managerType == null || opticDefinitionType == null)
             {
-                return;
+                return false;
             }
 
             var manager = EnsureAttachmentManagerRuntimeBridge(_equippedWeaponView);
             if (manager == null)
             {
-                return;
+                return false;
             }
 
             var equipMethod = managerType.GetMethod("EquipOptic", BindingFlags.Instance | BindingFlags.Public);
             var unequipMethod = managerType.GetMethod("UnequipOptic", BindingFlags.Instance | BindingFlags.Public);
             if (equipMethod == null || unequipMethod == null)
             {
-                return;
+                return false;
             }
 
             if (string.IsNullOrWhiteSpace(attachmentItemId))
@@ -1529,7 +1547,7 @@ namespace Reloader.Weapons.Controllers
                 DestroyAuthoredAttachmentVisualsForSlot(WeaponAttachmentSlotType.Scope);
                 EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
                 NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
-                return;
+                return true;
             }
 
             DestroyAuthoredAttachmentVisualsForSlot(WeaponAttachmentSlotType.Scope);
@@ -1539,39 +1557,40 @@ namespace Reloader.Weapons.Controllers
                 "OpticId");
             if (definition == null)
             {
-                return;
+                return false;
             }
 
-            equipMethod.Invoke(manager, new object[] { definition });
+            var equipSucceeded = equipMethod.Invoke(manager, new object[] { definition }) is bool equipResult && equipResult;
             EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
             NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
+            return equipSucceeded;
         }
 
-        private void ApplyMuzzleAttachmentToViewRuntime(string attachmentItemId)
+        private bool ApplyMuzzleAttachmentToViewRuntime(string attachmentItemId)
         {
             if (_equippedWeaponView == null)
             {
-                return;
+                return false;
             }
 
             var managerType = ResolveTypeByName("Reloader.Game.Weapons.AttachmentManager");
             var muzzleDefinitionType = ResolveTypeByName("Reloader.Game.Weapons.MuzzleAttachmentDefinition");
             if (managerType == null || muzzleDefinitionType == null)
             {
-                return;
+                return false;
             }
 
             var manager = EnsureAttachmentManagerRuntimeBridge(_equippedWeaponView);
             if (manager == null)
             {
-                return;
+                return false;
             }
 
             var equipMethod = managerType.GetMethod("EquipMuzzle", BindingFlags.Instance | BindingFlags.Public);
             var unequipMethod = managerType.GetMethod("UnequipMuzzle", BindingFlags.Instance | BindingFlags.Public);
             if (equipMethod == null || unequipMethod == null)
             {
-                return;
+                return false;
             }
 
             if (string.IsNullOrWhiteSpace(attachmentItemId))
@@ -1580,7 +1599,7 @@ namespace Reloader.Weapons.Controllers
                 DestroyAuthoredAttachmentVisualsForSlot(WeaponAttachmentSlotType.Muzzle);
                 EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
                 NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
-                return;
+                return true;
             }
 
             DestroyAuthoredAttachmentVisualsForSlot(WeaponAttachmentSlotType.Muzzle);
@@ -1590,12 +1609,13 @@ namespace Reloader.Weapons.Controllers
                 "AttachmentId");
             if (definition == null)
             {
-                return;
+                return false;
             }
 
-            equipMethod.Invoke(manager, new object[] { definition });
+            var equipSucceeded = equipMethod.Invoke(manager, new object[] { definition }) is bool equipResult && equipResult;
             EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
             NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
+            return equipSucceeded;
         }
 
         private Component EnsureAttachmentManagerRuntimeBridge(GameObject viewRoot)

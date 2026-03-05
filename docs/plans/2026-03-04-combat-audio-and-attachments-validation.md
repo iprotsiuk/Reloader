@@ -154,3 +154,4 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
 - `2026-03-05 hotfix` resolves two Kar98k follow-up regressions from live playtest:
   - Scope swap apply no-op in `MainTown` caused by scene-level `PlayerWeaponController._attachmentItemMetadata` override set to empty array; scene now mirrors prefab metadata entries for Kar98k scope/muzzle definitions.
   - Severe FPS drop when selecting non-weapon belt items (for example scope attachment) caused by per-frame weapon registry miss path hitting editor asset scans; `WeaponRegistry` now short-circuits non-weapon IDs and caches negative lookup misses.
+  - Attachment swaps now fail-fast with rollback if runtime mount is not possible (for example missing scope slot on active view), so inventory/state are not consumed when visual/runtime apply fails.
