@@ -177,6 +177,126 @@ namespace Reloader.Weapons.Tests.PlayMode
             Cleanup(root, lowMag, highMag, worldCamGo, viewmodelCamGo, scopeMaskGo);
         }
 
+        [UnityTest]
+        public IEnumerator ScopedPipOptic_PreservesMainCameraFovDuringAds()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedAdsRoot");
+            var manager = root.AddComponent(attachmentManagerType);
+            var scopeSlot = new GameObject("ScopeSlot").transform;
+            scopeSlot.SetParent(root.transform, false);
+            var ironAnchor = new GameObject("IronSightAnchor").transform;
+            ironAnchor.SetParent(root.transform, false);
+            SetField(manager, "_scopeSlot", scopeSlot);
+            SetField(manager, "_ironSightAnchor", ironAnchor);
+
+            var worldCamGo = new GameObject("WorldCam");
+            var worldCamera = worldCamGo.AddComponent<Camera>();
+            worldCamera.fieldOfView = 72f;
+
+            var viewmodelCamGo = new GameObject("ViewmodelCam");
+            var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+            viewmodelCamera.fieldOfView = 55f;
+
+            var scopeCameraGo = new GameObject("ScopeCam");
+            var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+            scopeCamera.fieldOfView = 20f;
+
+            var scopeController = root.AddComponent(renderTextureScopeControllerType);
+            SetField(scopeController, "_scopeCamera", scopeCamera);
+
+            var ads = root.AddComponent(adsStateControllerType);
+            SetField(ads, "_worldCamera", worldCamera);
+            SetField(ads, "_viewmodelCamera", viewmodelCamera);
+            SetField(ads, "_attachmentManager", manager);
+            SetField(ads, "_renderTextureScopeController", scopeController);
+            SetField(ads, "_useLegacyInput", false);
+
+            var scopedOptic = CreateOpticDefinition("scope-pip", 4f, 12f, true, "RenderTexturePiP");
+            Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+
+            Invoke(ads, "SetAdsHeld", true);
+            Invoke(ads, "SetMagnification", 8f);
+
+            yield return null;
+            yield return null;
+
+            Assert.That(worldCamera.fieldOfView, Is.EqualTo(72f).Within(0.05f), "Scoped PiP optics should not zoom the main camera.");
+
+            Cleanup(root, scopedOptic, worldCamGo, viewmodelCamGo, scopeCameraGo);
+        }
+
+        [UnityTest]
+        public IEnumerator ScopedPipOptic_UsesScopeCameraFovForMagnification()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedAdsRoot");
+            var manager = root.AddComponent(attachmentManagerType);
+            var scopeSlot = new GameObject("ScopeSlot").transform;
+            scopeSlot.SetParent(root.transform, false);
+            var ironAnchor = new GameObject("IronSightAnchor").transform;
+            ironAnchor.SetParent(root.transform, false);
+            SetField(manager, "_scopeSlot", scopeSlot);
+            SetField(manager, "_ironSightAnchor", ironAnchor);
+
+            var worldCamGo = new GameObject("WorldCam");
+            var worldCamera = worldCamGo.AddComponent<Camera>();
+            worldCamera.fieldOfView = 72f;
+
+            var viewmodelCamGo = new GameObject("ViewmodelCam");
+            var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+            viewmodelCamera.fieldOfView = 55f;
+
+            var scopeCameraGo = new GameObject("ScopeCam");
+            var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+            scopeCamera.fieldOfView = 20f;
+
+            var scopeController = root.AddComponent(renderTextureScopeControllerType);
+            SetField(scopeController, "_scopeCamera", scopeCamera);
+
+            var ads = root.AddComponent(adsStateControllerType);
+            SetField(ads, "_worldCamera", worldCamera);
+            SetField(ads, "_viewmodelCamera", viewmodelCamera);
+            SetField(ads, "_attachmentManager", manager);
+            SetField(ads, "_renderTextureScopeController", scopeController);
+            SetField(ads, "_useLegacyInput", false);
+
+            var scopedOptic = CreateOpticDefinition("scope-pip", 4f, 12f, true, "RenderTexturePiP");
+            Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+
+            Invoke(ads, "SetAdsHeld", true);
+            Invoke(ads, "SetMagnification", 4f);
+
+            yield return null;
+            yield return null;
+
+            var firstScopeFov = scopeCamera.fieldOfView;
+
+            Invoke(ads, "SetMagnification", 8f);
+
+            yield return null;
+            yield return null;
+
+            var secondScopeFov = scopeCamera.fieldOfView;
+            Assert.That(firstScopeFov, Is.EqualTo(MagnificationToFieldOfView(72f, 4f)).Within(0.2f));
+            Assert.That(secondScopeFov, Is.EqualTo(MagnificationToFieldOfView(72f, 8f)).Within(0.2f));
+            Assert.That(secondScopeFov, Is.LessThan(firstScopeFov), "Higher magnification should narrow the scope camera FOV.");
+
+            Cleanup(root, scopedOptic, worldCamGo, viewmodelCamGo, scopeCameraGo);
+        }
+
         private static ScriptableObject CreateOpticDefinition(string id, float minMag, float maxMag, bool variableZoom, string visualMode)
         {
             var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
@@ -198,6 +318,15 @@ namespace Reloader.Weapons.Tests.PlayMode
             SetField(definition, "_opticPrefab", prefab);
 
             return definition;
+        }
+
+        private static float MagnificationToFieldOfView(float referenceFieldOfView, float magnification)
+        {
+            var safeReferenceFov = Mathf.Clamp(referenceFieldOfView, 1f, 179f);
+            var safeMagnification = Mathf.Max(1f, magnification);
+            var referenceHalfAngle = safeReferenceFov * 0.5f * Mathf.Deg2Rad;
+            var zoomedHalfAngle = Mathf.Atan(Mathf.Tan(referenceHalfAngle) / safeMagnification);
+            return Mathf.Clamp(zoomedHalfAngle * 2f * Mathf.Rad2Deg, 1f, safeReferenceFov);
         }
 
         private static ScriptableObject ResolveOpticDefinitionById(string opticId)
