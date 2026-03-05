@@ -18,6 +18,7 @@ namespace Reloader.UI.Toolkit.TabInventory
     public sealed class TabInventoryController : MonoBehaviour, IUiController
     {
         private const int MinimumBackpackUiSlots = 16;
+        private const string RemoveAttachmentOption = "Remove";
 
         [SerializeField] private PlayerInventoryController _inventoryController;
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
@@ -674,13 +675,18 @@ namespace Reloader.UI.Toolkit.TabInventory
                 return;
             }
 
-            if (!weaponController.TrySwapEquippedWeaponAttachment(slotType, _attachmentsSelectedAttachmentItemId))
+            var attachmentItemId = IsRemoveAttachmentOption(_attachmentsSelectedAttachmentItemId)
+                ? string.Empty
+                : _attachmentsSelectedAttachmentItemId;
+            if (!weaponController.TrySwapEquippedWeaponAttachment(slotType, attachmentItemId))
             {
                 _attachmentsStatusText = "Attachment swap failed.";
                 return;
             }
 
-            _attachmentsStatusText = "Attachment applied.";
+            _attachmentsStatusText = string.IsNullOrWhiteSpace(attachmentItemId)
+                ? "Attachment removed."
+                : "Attachment applied.";
             RebuildAttachmentItemOptions();
         }
 
@@ -734,6 +740,11 @@ namespace Reloader.UI.Toolkit.TabInventory
             var runtime = _inventoryController?.Runtime;
             TryGetContextWeaponRuntimeState(out var state);
             var equippedItemId = state?.GetEquippedAttachmentItemId(slotType) ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(equippedItemId))
+            {
+                _attachmentsItemOptions.Add(RemoveAttachmentOption);
+            }
+
             var seen = new HashSet<string>(StringComparer.Ordinal);
             for (var i = 0; i < compatible.Count; i++)
             {
@@ -761,6 +772,11 @@ namespace Reloader.UI.Toolkit.TabInventory
             {
                 _attachmentsSelectedAttachmentItemId = _attachmentsItemOptions[0];
             }
+        }
+
+        private static bool IsRemoveAttachmentOption(string value)
+        {
+            return string.Equals(value, RemoveAttachmentOption, StringComparison.Ordinal);
         }
 
         private bool TryResolveWeaponDefinition(string itemId, out WeaponDefinition definition)

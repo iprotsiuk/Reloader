@@ -18,10 +18,26 @@ namespace Reloader.Weapons.Runtime
             if (inventoryRuntime == null
                 || weaponDefinition == null
                 || runtimeState == null
-                || attachmentSlotByItemId == null
-                || string.IsNullOrWhiteSpace(newAttachmentItemId))
+                || attachmentSlotByItemId == null)
             {
                 return false;
+            }
+
+            var currentAttachmentItemId = runtimeState.GetEquippedAttachmentItemId(slotType);
+            if (string.IsNullOrWhiteSpace(newAttachmentItemId))
+            {
+                if (string.IsNullOrWhiteSpace(currentAttachmentItemId))
+                {
+                    return true;
+                }
+
+                if (!inventoryRuntime.TryAddStackItem(currentAttachmentItemId, 1, out _, out _, out _))
+                {
+                    return false;
+                }
+
+                runtimeState.SetEquippedAttachmentItemId(slotType, string.Empty);
+                return true;
             }
 
             if (attachmentSlotByItemId.TryGetValue(newAttachmentItemId, out var resolvedSlotType)
@@ -36,7 +52,6 @@ namespace Reloader.Weapons.Runtime
                 return false;
             }
 
-            var currentAttachmentItemId = runtimeState.GetEquippedAttachmentItemId(slotType);
             if (string.Equals(currentAttachmentItemId, newAttachmentItemId, StringComparison.Ordinal))
             {
                 return true;
