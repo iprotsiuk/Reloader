@@ -60,6 +60,11 @@ namespace Reloader.Weapons.Animations
                 _animator = ResolveViewmodelAnimator();
             }
 
+            if (_animator != null)
+            {
+                PlayerArmsAnimationEventReceiver.EnsureReceiver(_animator);
+            }
+
             _weaponController ??= GetComponent<Controllers.PlayerWeaponController>();
         }
 

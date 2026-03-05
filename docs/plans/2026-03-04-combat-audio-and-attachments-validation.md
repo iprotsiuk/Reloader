@@ -155,3 +155,8 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
   - Scope swap apply no-op in `MainTown` caused by scene-level `PlayerWeaponController._attachmentItemMetadata` override set to empty array; scene now mirrors prefab metadata entries for Kar98k scope/muzzle definitions.
   - Severe FPS drop when selecting non-weapon belt items (for example scope attachment) caused by per-frame weapon registry miss path hitting editor asset scans; `WeaponRegistry` now short-circuits non-weapon IDs and caches negative lookup misses.
   - Attachment swaps now fail-fast with rollback if runtime mount is not possible (for example missing scope slot on active view), so inventory/state are not consumed when visual/runtime apply fails.
+- `2026-03-05 scene parity hotfix` removes location-dependent attachment behavior:
+  - `IndoorRangeInstance` now maps `weapon-kar98k` to the same WWII Kar98k view prefab used by `MainTown` (removed stale AR `RifleView` mapping).
+  - `IndoorRangeInstance` now includes Kar98k attachment metadata wiring (`att-kar98k-scope-remote-a`, `att-kar98k-muzzle-device-c`) on `PlayerWeaponController`.
+  - Added `EventSystem` + `InputSystemUIInputModule` to `IndoorRangeInstance` so TAB right-click attachment context works in range scene.
+  - Broadened animation event receiver auto-wiring to cover `PlayerArms` animator hosts and added explicit receiver ensure in `PlayerWeaponAnimationBinder` to prevent `OnAnimationEndedHolster` no-receiver errors.
