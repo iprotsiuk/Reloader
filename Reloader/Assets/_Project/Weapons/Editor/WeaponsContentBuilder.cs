@@ -55,7 +55,12 @@ namespace Reloader.Weapons.Editor
 
             BuildProjectilePrefab();
             BuildViewPrefab("RifleView", sourceRiflePrefab, new Vector3(0f, 0.08f, 0.72f));
-            BuildPickupPrefab("RiflePickup", "weapon-kar98k", sourceRiflePrefab, new Vector3(0.9f, 0.35f, 0.24f));
+            BuildPickupPrefab(
+                "RiflePickup",
+                "weapon-kar98k",
+                sourceRiflePrefab,
+                new Vector3(0.06f, 0.29f, 1.45f),
+                new Vector3(0f, 0.02f, 0.28f));
             BuildDefinitionAsset(
                 "StarterRifle.asset",
                 "weapon-kar98k",
@@ -208,7 +213,12 @@ namespace Reloader.Weapons.Editor
             Object.DestroyImmediate(root);
         }
 
-        private static void BuildPickupPrefab(string prefabName, string itemId, GameObject sourceWeaponPrefab, Vector3 colliderSize)
+        private static void BuildPickupPrefab(
+            string prefabName,
+            string itemId,
+            GameObject sourceWeaponPrefab,
+            Vector3 colliderSize,
+            Vector3? colliderCenter = null)
         {
             var root = new GameObject(prefabName);
             var pickup = root.AddComponent<WeaponPickupTarget>();
@@ -216,6 +226,7 @@ namespace Reloader.Weapons.Editor
 
             var collider = root.AddComponent<BoxCollider>();
             collider.size = colliderSize;
+            collider.center = colliderCenter ?? Vector3.zero;
 
             var model = (GameObject)PrefabUtility.InstantiatePrefab(sourceWeaponPrefab);
             model.name = "Visual";
