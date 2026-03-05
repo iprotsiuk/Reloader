@@ -1,3 +1,5 @@
+using System;
+using System.Reflection;
 using UnityEngine;
 
 namespace Reloader.Game.Weapons
@@ -8,6 +10,8 @@ namespace Reloader.Game.Weapons
 
         [Header("Weapon Mounts")]
         [SerializeField] private Transform _scopeSlot;
+        [SerializeField] private Transform _muzzleSlot;
+        [SerializeField] private MuzzleAttachmentRuntime _muzzleRuntime;
 
         [Header("Fallback")]
         [SerializeField] private Transform _ironSightAnchor;
@@ -15,8 +19,11 @@ namespace Reloader.Game.Weapons
         private GameObject _equippedOpticInstance;
         private Transform _activeSightAnchor;
         private OpticDefinition _activeOpticDefinition;
+        private MuzzleAttachmentDefinition _activeMuzzleDefinition;
 
+        public event Action<OpticDefinition> ActiveOpticChanged;
         public OpticDefinition ActiveOpticDefinition => _activeOpticDefinition;
+        public MuzzleAttachmentDefinition ActiveMuzzleDefinition => _activeMuzzleDefinition;
 
         private void Awake()
         {
@@ -56,6 +63,7 @@ namespace Reloader.Game.Weapons
                 _activeSightAnchor = _equippedOpticInstance.transform;
             }
 
+            RaiseActiveOpticChanged();
             return true;
         }
 
@@ -69,6 +77,7 @@ namespace Reloader.Game.Weapons
 
             _activeOpticDefinition = null;
             RefreshSightAnchor();
+            RaiseActiveOpticChanged();
         }
 
         public Transform GetActiveSightAnchor()
@@ -79,6 +88,111 @@ namespace Reloader.Game.Weapons
             }
 
             return _activeSightAnchor;
+        }
+
+        public bool EquipMuzzle(MuzzleAttachmentDefinition muzzle)
+        {
+            if (muzzle == null)
+            {
+                UnequipMuzzle();
+                return true;
+            }
+
+            if (_muzzleRuntime != null)
+            {
+                if (!TryEquipMuzzleWithRuntime(muzzle))
+                {
+                    _activeMuzzleDefinition = null;
+                    return false;
+                }
+
+                _activeMuzzleDefinition = muzzle;
+                return true;
+            }
+
+            if (_muzzleSlot == null || muzzle.MuzzlePrefab == null)
+            {
+                _activeMuzzleDefinition = null;
+                return false;
+            }
+
+            for (var i = _muzzleSlot.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_muzzleSlot.GetChild(i).gameObject);
+            }
+
+            Instantiate(muzzle.MuzzlePrefab, _muzzleSlot, false);
+            _activeMuzzleDefinition = muzzle;
+            return true;
+        }
+
+        public void UnequipMuzzle()
+        {
+            _activeMuzzleDefinition = null;
+            if (_muzzleRuntime != null)
+            {
+                _muzzleRuntime.Unequip();
+            }
+
+            if (_muzzleSlot == null)
+            {
+                return;
+            }
+
+            for (var i = _muzzleSlot.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_muzzleSlot.GetChild(i).gameObject);
+            }
+        }
+
+        private bool TryEquipMuzzleWithRuntime(MuzzleAttachmentDefinition muzzle)
+        {
+            if (_muzzleRuntime == null || muzzle == null || muzzle.MuzzlePrefab == null)
+            {
+                _muzzleRuntime?.Unequip();
+                return false;
+            }
+
+            var slot = ResolveRuntimeAttachmentSlot(_muzzleRuntime);
+            if (slot == null)
+            {
+                _muzzleRuntime.Unequip();
+                return false;
+            }
+
+            _muzzleRuntime.Equip(muzzle);
+            if (_muzzleRuntime.ActiveAttachment != muzzle)
+            {
+                return false;
+            }
+
+            if (slot.childCount == 0)
+            {
+                return false;
+            }
+
+            var expectedPrefix = muzzle.MuzzlePrefab.name;
+            for (var i = 0; i < slot.childCount; i++)
+            {
+                var child = slot.GetChild(i);
+                if (child != null && child.name.StartsWith(expectedPrefix))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static Transform ResolveRuntimeAttachmentSlot(MuzzleAttachmentRuntime runtime)
+        {
+            if (runtime == null)
+            {
+                return null;
+            }
+
+            var slotField = typeof(MuzzleAttachmentRuntime).GetField("_attachmentSlot", BindingFlags.Instance | BindingFlags.NonPublic);
+            return slotField?.GetValue(runtime) as Transform;
         }
 
         private void RefreshSightAnchor()
@@ -103,6 +217,11 @@ namespace Reloader.Game.Weapons
             }
 
             return null;
+        }
+
+        private void RaiseActiveOpticChanged()
+        {
+            ActiveOpticChanged?.Invoke(_activeOpticDefinition);
         }
     }
 }

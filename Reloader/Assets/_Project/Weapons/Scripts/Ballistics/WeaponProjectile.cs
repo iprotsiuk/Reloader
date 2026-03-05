@@ -1,5 +1,6 @@
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using Reloader.Audio;
 using UnityEngine;
 
 namespace Reloader.Weapons.Ballistics
@@ -18,6 +19,7 @@ namespace Reloader.Weapons.Ballistics
         [SerializeField] private float _impactVfxLifetimeSeconds = 5f;
         [SerializeField] private bool _spawnInFlightVisual = true;
         [SerializeField] private Color _projectileVisualColor = new Color(1f, 0.75f, 0.2f, 1f);
+        [SerializeField] private ImpactAudioRouter _impactAudioRouter;
 
         private Vector3 _velocity;
         private float _remainingLifetime;
@@ -32,6 +34,7 @@ namespace Reloader.Weapons.Ballistics
 
         private void Awake()
         {
+            _impactAudioRouter ??= ImpactAudioRouter.ResolveOrCreateRuntimeRouter();
             EnsureInFlightVisual();
             _remainingLifetime = _lifetimeSeconds;
             _velocity = transform.forward * _speed;
@@ -75,6 +78,7 @@ namespace Reloader.Weapons.Ballistics
                 var damageable = hit.collider.GetComponentInParent<IDamageable>();
                 damageable?.ApplyDamage(payload);
                 SpawnImpactVfx(hit.point, hit.normal);
+                _impactAudioRouter?.EmitImpact(hit.point, hit.collider);
                 ResolveWeaponEvents()?.RaiseProjectileHit(_itemId, hit.point, _damage);
                 Destroy(gameObject);
                 return;

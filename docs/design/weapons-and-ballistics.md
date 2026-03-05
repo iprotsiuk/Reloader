@@ -130,6 +130,37 @@ Each round in the magazine is a specific `AmmoInstance`. Match-grade loads carry
 - `OnWeaponAimChanged(string itemId, bool isAiming)`
 - `OnProjectileHit(string itemId, Vector3 point, float damage)`
 
+### Combat Audio + Attachment Runtime Bridge [v0.1 Implemented]
+
+- `_Project/Weapons` fire/reload loop now routes into a dedicated runtime emitter:
+  - `WeaponCombatAudioEmitter.EmitWeaponFire(itemId, muzzlePosition, overrideClip?)`
+  - `WeaponCombatAudioEmitter.EmitReloadStarted(itemId, position)`
+  - `WeaponCombatAudioEmitter.EmitReloadCompleted(itemId, position)`
+- Runtime default catalog resolution:
+  - `CombatAudioCatalogResolver` loads fallback catalog from `Assets/_Project/Audio/Resources/CombatAudioCatalog.asset`.
+  - Auto-created `WeaponCombatAudioEmitter` instances bind this catalog, avoiding silent fire/reload audio no-op paths when no inspector wiring exists.
+- Fire audio supports muzzle-driven override clips:
+  - `PlayerWeaponController` queries `MuzzleAttachmentRuntime.TryGetFireClipOverride()`.
+  - When override exists, it is used instead of catalog fallback.
+- View runtime hooks are sent through the equipped view root (`SendMessage`, `DontRequireReceiver`):
+  - `HandleWeaponFired`
+  - `HandleReloadStarted`
+  - `HandleMagazineInserted`
+  - `HandleReloadCompleted`
+- Muzzle attachment runtime (implemented under `Assets/Game/Weapons/**`):
+  - `MuzzleAttachmentDefinition`: muzzle prefab, flash prefab, fire clip override, flash light profile.
+  - `MuzzleAttachmentRuntime`: equip/unequip prefab, flash spawn on fire, optional one-shot light, audio override provider.
+- Detachable magazine runtime (implemented under `Assets/Game/Weapons/**`):
+  - `MagazineAttachmentDefinition`: attached visual prefab, optional dropped-mag prefab, detach/spawn flags, dropped lifetime.
+  - `DetachableMagazineRuntime`: hides attached mag on reload start, optionally spawns dropped visual, restores on insert/reload complete.
+- Impact audio routing bootstrap:
+  - `WeaponProjectile` resolves `ImpactAudioRouter` via `ResolveOrCreateRuntimeRouter()` when scene wiring is absent.
+  - Router resolves catalog through `CombatAudioCatalogResolver` to keep default impact audio active in baseline scenes.
+- Current view prefab socket contract used by bridge wiring:
+  - `Muzzle` / optional `MuzzleAttachmentSlot`
+  - `MagazineSocket`
+  - optional `MagazineDropSocket` (falls back to `MagazineSocket`)
+
 ### ADS Movement Rule [v0.1]
 
 - ADS is gameplay-authoritative in v0.1: movement speed is multiplied by weapon/profile ADS multiplier (default `0.7`) while aiming.
