@@ -12,6 +12,7 @@ namespace Reloader.Game.Weapons
         private bool _initialized;
         private RenderTexture _scopeRenderTexture;
         private ScopeLensDisplay _lastLensDisplay;
+        private ScopeReticleController _lastReticleController;
         private int _lastResolution = -1;
 
         private void Awake()
@@ -34,23 +35,27 @@ namespace Reloader.Game.Weapons
             var requestedFov = ResolveRequestedFov(isActive, optic, referenceFieldOfView, magnification);
             var requestedResolution = ResolveRequestedResolution(optic);
             var lensDisplay = ResolveLensDisplay(activeOpticInstance);
+            var reticleController = ResolveReticleController(activeOpticInstance);
 
             if (_initialized
                 && _lastIsActive == isActive
                 && Mathf.Approximately(_lastAppliedFov, requestedFov)
                 && _lastResolution == requestedResolution
-                && ReferenceEquals(_lastLensDisplay, lensDisplay))
+                && ReferenceEquals(_lastLensDisplay, lensDisplay)
+                && ReferenceEquals(_lastReticleController, reticleController))
             {
                 return;
             }
 
             EnsureRenderTexture(requestedResolution);
             BindLensDisplay(isActive, lensDisplay);
+            BindReticle(isActive, reticleController, optic, magnification);
             ApplyState(isActive, requestedFov);
             _lastIsActive = isActive;
             _lastAppliedFov = requestedFov;
             _lastResolution = requestedResolution;
             _lastLensDisplay = lensDisplay;
+            _lastReticleController = reticleController;
             _initialized = true;
         }
 
@@ -110,6 +115,16 @@ namespace Reloader.Game.Weapons
             return activeOpticInstance.GetComponentInChildren<ScopeLensDisplay>(true);
         }
 
+        private ScopeReticleController ResolveReticleController(GameObject activeOpticInstance)
+        {
+            if (activeOpticInstance == null)
+            {
+                return null;
+            }
+
+            return activeOpticInstance.GetComponentInChildren<ScopeReticleController>(true);
+        }
+
         private void EnsureRenderTexture(int resolution)
         {
             var safeResolution = Mathf.Clamp(resolution, 128, 4096);
@@ -147,6 +162,23 @@ namespace Reloader.Game.Weapons
             }
 
             lensDisplay.TrySetTexture(_scopeRenderTexture);
+        }
+
+        private void BindReticle(bool isActive, ScopeReticleController reticleController, OpticDefinition optic, float magnification)
+        {
+            if (!isActive)
+            {
+                _lastReticleController?.Clear();
+                return;
+            }
+
+            if (reticleController == null)
+            {
+                Debug.LogWarning("RenderTextureScopeController: Active scoped optic is missing a ScopeReticleController binding.", this);
+                return;
+            }
+
+            reticleController.ApplyReticle(optic != null ? optic.ScopeReticleDefinition : null, magnification);
         }
 
         private void ReleaseRenderTexture()

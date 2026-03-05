@@ -14,6 +14,7 @@ namespace Reloader.Game.Weapons
         [SerializeField] private AttachmentManager _attachmentManager;
         [SerializeField] private ScopeMaskController _scopeMaskController;
         [SerializeField] private RenderTextureScopeController _renderTextureScopeController;
+        [SerializeField] private PeripheralScopeEffects _peripheralScopeEffects;
         [SerializeField] private WeaponDefinition _weaponDefinition;
 
         [Header("Input")]
@@ -153,6 +154,11 @@ namespace Reloader.Game.Weapons
             if (_renderTextureScopeController != null)
             {
                 _renderTextureScopeController.SetScopeActive(false, null, null, _baseWorldFov, 1f);
+            }
+
+            if (_peripheralScopeEffects != null)
+            {
+                _peripheralScopeEffects.SetState(false, 0f);
             }
         }
 
@@ -358,6 +364,11 @@ namespace Reloader.Game.Weapons
                 var scopeMagnification = Mathf.Max(MinMagnification, CurrentMagnification);
                 var activeOpticInstance = _attachmentManager != null ? _attachmentManager.ActiveOpticInstance : null;
                 _renderTextureScopeController.SetScopeActive(usePip, optic, activeOpticInstance, scopeReferenceFov, scopeMagnification);
+
+                if (_peripheralScopeEffects != null)
+                {
+                    _peripheralScopeEffects.SetState(usePip, AdsT);
+                }
             }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
