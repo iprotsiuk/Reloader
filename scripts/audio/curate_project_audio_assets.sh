@@ -34,6 +34,33 @@ fi
 USED_GUIDS_FILE="$(mktemp)"
 trap 'rm -f "${USED_GUIDS_FILE}"' EXIT
 
+file_size_bytes() {
+  local path="$1"
+  local size=""
+
+  # BSD/macOS stat
+  if size="$(stat -f%z "${path}" 2>/dev/null)"; then
+    printf "%s\n" "${size}"
+    return 0
+  fi
+
+  # GNU/Linux stat
+  if size="$(stat -c%s "${path}" 2>/dev/null)"; then
+    printf "%s\n" "${size}"
+    return 0
+  fi
+
+  # Portable fallback
+  size="$(wc -c < "${path}" | tr -d '[:space:]')"
+  if [[ -n "${size}" ]]; then
+    printf "%s\n" "${size}"
+    return 0
+  fi
+
+  echo "Failed to determine file size: ${path}" >&2
+  return 1
+}
+
 cd "${REPO_ROOT}"
 rg -No 'guid: ([0-9a-f]{32})' Reloader/Assets \
   --glob '!**/*.meta' \
@@ -61,7 +88,7 @@ while IFS= read -r -d '' clip_path; do
     continue
   fi
 
-  clip_size="$(stat -f%z "${clip_path}")"
+  clip_size="$(file_size_bytes "${clip_path}")"
   move_count=$((move_count + 1))
   move_size_bytes=$((move_size_bytes + clip_size))
 
