@@ -1847,7 +1847,7 @@ namespace Reloader.Weapons.Controllers
 
         private static string NormalizeWeaponItemId(string itemId)
         {
-            return WeaponItemIdAliases.Normalize(itemId);
+            return string.IsNullOrWhiteSpace(itemId) ? string.Empty : itemId;
         }
 
     }

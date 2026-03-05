@@ -36,28 +36,5 @@ namespace Reloader.Core.Tests
 #endif
         }
 
-        [Test]
-        public void TryGetWeaponDefinition_LegacyRifleId_ResolvesKar98kDefinition()
-        {
-#if UNITY_EDITOR
-            var root = new GameObject("WeaponRegistryFallbackResolutionTests_LegacyAlias");
-            try
-            {
-                var registry = root.AddComponent<WeaponRegistry>();
-
-                var resolved = registry.TryGetWeaponDefinition("weapon-rifle-01", out var definition);
-
-                Assert.That(resolved, Is.True);
-                Assert.That(definition, Is.Not.Null);
-                Assert.That(definition.ItemId, Is.EqualTo("weapon-kar98k"));
-            }
-            finally
-            {
-                Object.DestroyImmediate(root);
-            }
-#else
-            Assert.Ignore("WeaponRegistry editor fallback only runs in editor.");
-#endif
-        }
     }
 }

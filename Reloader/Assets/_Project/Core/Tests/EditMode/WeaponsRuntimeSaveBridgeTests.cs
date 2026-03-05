@@ -126,45 +126,6 @@ namespace Reloader.Core.Tests.EditMode
             Object.DestroyImmediate(player);
         }
 
-        [Test]
-        public void RestoreFromModule_LegacyRifleId_MapsToKar98kRuntimeState()
-        {
-            var bridgeType = System.Type.GetType("Reloader.Weapons.Runtime.WeaponsRuntimeSaveBridge, Reloader.Weapons");
-            Assert.That(bridgeType, Is.Not.Null, "WeaponsRuntimeSaveBridge type should exist.");
-
-            var (player, controller, definition, registryGo) = CreateWeaponController(
-                WeaponItemIdAliases.Kar98k,
-                magCapacity: 5,
-                startingMagCount: 5,
-                reserveCount: 15);
-
-            var module = new WeaponsModule();
-            module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
-            {
-                ItemId = WeaponItemIdAliases.LegacyStarterRifle,
-                MagCount = 2,
-                ReserveCount = 4,
-                ChamberLoaded = true
-            });
-
-            var bridgeGo = new GameObject("Bridge");
-            var bridge = bridgeGo.AddComponent(bridgeType);
-            SetPrivateField(bridgeType, bridge, "_weaponController", controller);
-            SetPrivateField(bridgeType, bridge, "_weaponsModule", module);
-
-            InvokeMethod(bridgeType, bridge, "RestoreFromModule");
-
-            Assert.That(controller.TryGetRuntimeState(WeaponItemIdAliases.Kar98k, out var restored), Is.True);
-            Assert.That(restored.MagazineCount, Is.EqualTo(2));
-            Assert.That(restored.ReserveCount, Is.EqualTo(4));
-            Assert.That(restored.ChamberLoaded, Is.True);
-
-            Object.DestroyImmediate(bridgeGo);
-            Object.DestroyImmediate(definition);
-            Object.DestroyImmediate(registryGo);
-            Object.DestroyImmediate(player);
-        }
-
         private static (GameObject root, PlayerWeaponController controller, WeaponDefinition definition, GameObject registryRoot) CreateWeaponController(
             string itemId,
             int magCapacity,
