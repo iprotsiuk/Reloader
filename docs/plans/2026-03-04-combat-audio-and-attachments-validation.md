@@ -68,6 +68,15 @@ Applied result:
 - External dump: `/Users/ivanprotsiuk/Documents/SOUNDS/project-asset-dump/2026-03-04-imported-packs-prune`
 - Manifest: `tmp/asset-curation-manifest-2026-03-04-164113.csv`
 
+Additional conservative `ThirdParty` demo cleanup:
+
+- Script added: `scripts/assets/curate_thirdparty_demo_folders.sh`
+- Scope: demo/example/profile/test folders only, removed only when no external references exist.
+- Moved: `4` folders
+- Reclaimed size: `59,601,027` bytes (~`56.8 MiB`)
+- External dump: `/Users/ivanprotsiuk/Documents/SOUNDS/project-asset-dump/2026-03-04-thirdparty-demo-prune`
+- Manifest: `tmp/thirdparty-demo-curation-manifest-2026-03-04-164736.csv`
+
 ## Verification Evidence
 
 ### Guardrails
