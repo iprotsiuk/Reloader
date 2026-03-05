@@ -37,6 +37,14 @@ namespace Reloader.Core.Tests.EditMode
                         BallisticCoefficientG1 = 0.45f,
                         DispersionMoa = 1.2f
                     }
+                },
+                Attachments = new System.Collections.Generic.List<WeaponsModule.AttachmentStateRecord>
+                {
+                    new WeaponsModule.AttachmentStateRecord
+                    {
+                        SlotType = 0,
+                        AttachmentItemId = "att-kar98k-scope-remote-a"
+                    }
                 }
             });
 
@@ -56,6 +64,9 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(restored.WeaponStates[0].MagazineRounds, Is.Not.Null);
             Assert.That(restored.WeaponStates[0].MagazineRounds.Count, Is.EqualTo(1));
             Assert.That(restored.WeaponStates[0].MagazineRounds[0].AmmoSource, Is.EqualTo((int)AmmoSourceType.Factory));
+            Assert.That(restored.WeaponStates[0].Attachments, Is.Not.Null);
+            Assert.That(restored.WeaponStates[0].Attachments.Count, Is.EqualTo(1));
+            Assert.That(restored.WeaponStates[0].Attachments[0].AttachmentItemId, Is.EqualTo("att-kar98k-scope-remote-a"));
         }
 
         [Test]
@@ -131,6 +142,27 @@ namespace Reloader.Core.Tests.EditMode
             }
 
             Assert.DoesNotThrow(() => module.ValidateModuleState());
+        }
+
+        [Test]
+        public void WeaponsModule_Validate_Throws_OnDuplicateAttachmentSlots()
+        {
+            var module = new WeaponsModule();
+            module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
+            {
+                ItemId = "weapon-kar98k",
+                MagCapacity = 5,
+                MagCount = 0,
+                ReserveCount = 10,
+                ChamberLoaded = false,
+                Attachments = new System.Collections.Generic.List<WeaponsModule.AttachmentStateRecord>
+                {
+                    new WeaponsModule.AttachmentStateRecord { SlotType = 0, AttachmentItemId = "att-a" },
+                    new WeaponsModule.AttachmentStateRecord { SlotType = 0, AttachmentItemId = "att-b" }
+                }
+            });
+
+            Assert.Throws<System.InvalidOperationException>(() => module.ValidateModuleState());
         }
     }
 }

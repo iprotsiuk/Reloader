@@ -36,7 +36,8 @@ namespace Reloader.Weapons.Controllers
             int magCount,
             int reserveCount,
             AmmoBallisticSnapshot? chamberRound,
-            IReadOnlyList<AmmoBallisticSnapshot> magazineRounds)
+            IReadOnlyList<AmmoBallisticSnapshot> magazineRounds,
+            IReadOnlyDictionary<WeaponAttachmentSlotType, string> equippedAttachmentItemIdsBySlot)
         {
             ItemId = itemId;
             ChamberLoaded = chamberLoaded;
@@ -45,6 +46,7 @@ namespace Reloader.Weapons.Controllers
             ReserveCount = reserveCount;
             ChamberRound = chamberRound;
             MagazineRounds = magazineRounds;
+            EquippedAttachmentItemIdsBySlot = equippedAttachmentItemIdsBySlot;
         }
 
         public string ItemId { get; }
@@ -54,6 +56,7 @@ namespace Reloader.Weapons.Controllers
         public int ReserveCount { get; }
         public AmmoBallisticSnapshot? ChamberRound { get; }
         public IReadOnlyList<AmmoBallisticSnapshot> MagazineRounds { get; }
+        public IReadOnlyDictionary<WeaponAttachmentSlotType, string> EquippedAttachmentItemIdsBySlot { get; }
     }
 
     public sealed class PlayerWeaponController : MonoBehaviour
@@ -178,7 +181,8 @@ namespace Reloader.Weapons.Controllers
                     state.MagazineCount,
                     state.ReserveCount,
                     state.ChamberRound,
-                    state.GetMagazineRoundsSnapshot()));
+                    state.GetMagazineRoundsSnapshot(),
+                    state.GetEquippedAttachmentItemIdsSnapshot()));
             }
 
             return snapshots;
@@ -225,6 +229,38 @@ namespace Reloader.Weapons.Controllers
             var normalizedChamberLoaded = state.ChamberLoaded;
             state.SetAmmoLoadoutForTests(chamberRound, magazineRounds);
             state.SetAmmoCounts(normalizedMagazineCount, normalizedReserveCount, normalizedChamberLoaded);
+            return true;
+        }
+
+        public bool ApplyRuntimeAttachments(string itemId, IReadOnlyDictionary<WeaponAttachmentSlotType, string> equippedAttachmentItemIdsBySlot)
+        {
+            var normalizedItemId = NormalizeWeaponItemId(itemId);
+            if (string.IsNullOrWhiteSpace(normalizedItemId))
+            {
+                return false;
+            }
+
+            var state = TryGetRuntimeState(normalizedItemId, out var existing)
+                ? existing
+                : GetOrCreateState(normalizedItemId, ResolveWeaponDefinition(normalizedItemId), seedFromDefinition: false);
+            if (state == null)
+            {
+                return false;
+            }
+
+            if (equippedAttachmentItemIdsBySlot != null)
+            {
+                foreach (var entry in equippedAttachmentItemIdsBySlot)
+                {
+                    state.SetEquippedAttachmentItemId(entry.Key, entry.Value);
+                }
+            }
+
+            if (string.Equals(_equippedItemId, normalizedItemId, StringComparison.Ordinal))
+            {
+                ApplyEquippedAttachmentStateToViewRuntime(state);
+            }
+
             return true;
         }
 

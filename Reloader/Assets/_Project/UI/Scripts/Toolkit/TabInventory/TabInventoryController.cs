@@ -701,7 +701,6 @@ namespace Reloader.UI.Toolkit.TabInventory
 
             AddSlotOptionIfCompatible(definition, WeaponAttachmentSlotType.Scope);
             AddSlotOptionIfCompatible(definition, WeaponAttachmentSlotType.Muzzle);
-            AddSlotOptionIfCompatible(definition, WeaponAttachmentSlotType.Magazine);
         }
 
         private void AddSlotOptionIfCompatible(WeaponDefinition definition, WeaponAttachmentSlotType slotType)

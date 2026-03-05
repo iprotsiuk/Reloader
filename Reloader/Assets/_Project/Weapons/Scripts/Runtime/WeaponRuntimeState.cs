@@ -207,6 +207,11 @@ namespace Reloader.Weapons.Runtime
             _equippedAttachmentItemIdsBySlot[slotType] = itemId;
         }
 
+        public IReadOnlyDictionary<WeaponAttachmentSlotType, string> GetEquippedAttachmentItemIdsSnapshot()
+        {
+            return new Dictionary<WeaponAttachmentSlotType, string>(_equippedAttachmentItemIdsBySlot);
+        }
+
         private void SyncMagazineSnapshotsToCount()
         {
             while (_magazineRounds.Count < MagazineCount)

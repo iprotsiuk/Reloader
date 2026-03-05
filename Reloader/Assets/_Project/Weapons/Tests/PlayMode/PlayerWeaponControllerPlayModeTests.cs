@@ -1899,6 +1899,45 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator TrySwapEquippedWeaponAttachment_AllowsCompatibilityBasedSwap_WhenMetadataLookupIsEmpty()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+            runtime.SelectBeltSlot(0);
+            runtime.TryAddStackItem("att-optic-4x", 1, out _, out _, out _);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            definition.SetAttachmentCompatibilitiesForTests(new[]
+            {
+                WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x" })
+            });
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_weaponRegistry", registry);
+            SetControllerField(controller, "_attachmentItemMetadata", Array.Empty<WeaponAttachmentItemMetadata>());
+
+            yield return null;
+
+            Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-optic-4x"), Is.True);
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+            Assert.That(state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.EqualTo("att-optic-4x"));
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
         public IEnumerator TrySwapEquippedWeaponAttachment_ScopeHotSwap_UpdatesAttachmentManagerAndAdsMask()
         {
             var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");

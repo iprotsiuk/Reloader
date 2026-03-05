@@ -33,6 +33,7 @@ namespace Reloader.Core.Tests.EditMode
                     new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2640f, 16f, 168f, 0.45f, 1.2f),
                     new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2635f, 15f, 168f, 0.45f, 1.2f)
                 });
+            state.SetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope, "att-kar98k-scope-remote-a");
 
             var bridgeGo = new GameObject("Bridge");
             var bridge = bridgeGo.AddComponent(bridgeType);
@@ -52,6 +53,10 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(module.WeaponStates[0].ChamberRound.MuzzleVelocityFps, Is.EqualTo(2725f));
             Assert.That(module.WeaponStates[0].MagazineRounds, Is.Not.Null);
             Assert.That(module.WeaponStates[0].MagazineRounds.Count, Is.EqualTo(2));
+            Assert.That(module.WeaponStates[0].Attachments, Is.Not.Null);
+            Assert.That(module.WeaponStates[0].Attachments.Count, Is.EqualTo(1));
+            Assert.That(module.WeaponStates[0].Attachments[0].SlotType, Is.EqualTo((int)WeaponAttachmentSlotType.Scope));
+            Assert.That(module.WeaponStates[0].Attachments[0].AttachmentItemId, Is.EqualTo("att-kar98k-scope-remote-a"));
 
             Object.DestroyImmediate(bridgeGo);
             Object.DestroyImmediate(definition);
@@ -100,6 +105,14 @@ namespace Reloader.Core.Tests.EditMode
                         BallisticCoefficientG1 = 0.45f,
                         DispersionMoa = 1f
                     }
+                },
+                Attachments = new System.Collections.Generic.List<WeaponsModule.AttachmentStateRecord>
+                {
+                    new WeaponsModule.AttachmentStateRecord
+                    {
+                        SlotType = (int)WeaponAttachmentSlotType.Scope,
+                        AttachmentItemId = "att-kar98k-scope-remote-a"
+                    }
                 }
             });
 
@@ -114,6 +127,7 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(restored.MagazineCount, Is.EqualTo(1));
             Assert.That(restored.ReserveCount, Is.EqualTo(3));
             Assert.That(restored.ChamberLoaded, Is.True);
+            Assert.That(restored.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.EqualTo("att-kar98k-scope-remote-a"));
 
             var fired = restored.TryFire(5f, out var fireData);
             Assert.That(fired, Is.True);

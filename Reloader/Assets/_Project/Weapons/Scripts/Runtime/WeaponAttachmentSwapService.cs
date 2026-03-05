@@ -24,12 +24,8 @@ namespace Reloader.Weapons.Runtime
                 return false;
             }
 
-            if (!attachmentSlotByItemId.TryGetValue(newAttachmentItemId, out var resolvedSlotType))
-            {
-                return false;
-            }
-
-            if (resolvedSlotType != slotType)
+            if (attachmentSlotByItemId.TryGetValue(newAttachmentItemId, out var resolvedSlotType)
+                && resolvedSlotType != slotType)
             {
                 return false;
             }
