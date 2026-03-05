@@ -35,8 +35,16 @@ namespace Reloader.Game.Weapons
 
             _propertyBlock ??= new MaterialPropertyBlock();
             _targetRenderer.GetPropertyBlock(_propertyBlock);
-            _propertyBlock.SetTexture(BaseMapId, texture);
-            _propertyBlock.SetTexture(MainTexId, texture);
+            if (texture == null)
+            {
+                _propertyBlock.Clear();
+            }
+            else
+            {
+                _propertyBlock.SetTexture(BaseMapId, texture);
+                _propertyBlock.SetTexture(MainTexId, texture);
+            }
+
             _targetRenderer.SetPropertyBlock(_propertyBlock);
             CurrentTexture = texture;
             return true;
