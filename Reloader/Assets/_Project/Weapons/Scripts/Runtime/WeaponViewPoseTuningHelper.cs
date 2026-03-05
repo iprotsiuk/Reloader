@@ -1,4 +1,5 @@
 using Reloader.Weapons.Controllers;
+using Reloader.Weapons.Data;
 using UnityEngine;
 
 namespace Reloader.Weapons.Runtime
@@ -6,6 +7,51 @@ namespace Reloader.Weapons.Runtime
     [DefaultExecutionOrder(10000)]
     public sealed class WeaponViewPoseTuningHelper : MonoBehaviour
     {
+        [System.Serializable]
+        private struct AttachmentPoseOverride
+        {
+            [SerializeField] private WeaponAttachmentSlotType _slotType;
+            [SerializeField] private string _attachmentItemId;
+            [SerializeField] private Vector3 _hipLocalPosition;
+            [SerializeField] private Vector3 _hipLocalEuler;
+            [SerializeField] private Vector3 _adsLocalPosition;
+            [SerializeField] private Vector3 _adsLocalEuler;
+            [SerializeField, Min(1f)] private float _blendSpeed;
+            [SerializeField] private Vector3 _rifleLocalEulerOffset;
+
+            public WeaponAttachmentSlotType SlotType => _slotType;
+            public string AttachmentItemId => string.IsNullOrWhiteSpace(_attachmentItemId) ? string.Empty : _attachmentItemId;
+            public Vector3 HipLocalPosition => _hipLocalPosition;
+            public Vector3 HipLocalEuler => _hipLocalEuler;
+            public Vector3 AdsLocalPosition => _adsLocalPosition;
+            public Vector3 AdsLocalEuler => _adsLocalEuler;
+            public float BlendSpeed => Mathf.Max(1f, _blendSpeed);
+            public Vector3 RifleLocalEulerOffset => _rifleLocalEulerOffset;
+
+            public void SeedFromTransform(Transform equippedView)
+            {
+                if (equippedView == null)
+                {
+                    return;
+                }
+
+                _hipLocalPosition = equippedView.localPosition;
+                _hipLocalEuler = equippedView.localEulerAngles;
+                _adsLocalPosition = equippedView.localPosition;
+                _adsLocalEuler = equippedView.localEulerAngles;
+            }
+        }
+
+        private struct PoseData
+        {
+            public Vector3 HipLocalPosition;
+            public Vector3 HipLocalEuler;
+            public Vector3 AdsLocalPosition;
+            public Vector3 AdsLocalEuler;
+            public float BlendSpeed;
+            public Vector3 RifleLocalEulerOffset;
+        }
+
         [Header("References")]
         [SerializeField] private PlayerWeaponController _weaponController;
 
@@ -13,7 +59,7 @@ namespace Reloader.Weapons.Runtime
         [SerializeField] private string _targetWeaponItemId = "weapon-kar98k";
         [SerializeField] private bool _enabledInPlayMode = true;
 
-        [Header("Offsets (local to equipped weapon root)")]
+        [Header("Base Pose (used for irons / no matching attachment override)")]
         [SerializeField] private Vector3 _hipLocalPosition;
         [SerializeField] private Vector3 _hipLocalEuler;
         [SerializeField] private Vector3 _adsLocalPosition;
@@ -21,6 +67,13 @@ namespace Reloader.Weapons.Runtime
         [SerializeField, Min(1f)] private float _blendSpeed = 24f;
         [SerializeField] private Vector3 _rifleLocalEulerOffset;
         [SerializeField] private bool _seedOffsetsFromCurrentPoseOnEquip;
+
+        [Header("Attachment Overrides (matched by slot + equipped attachment item id)")]
+        [SerializeField] private AttachmentPoseOverride[] _attachmentPoseOverrides = System.Array.Empty<AttachmentPoseOverride>();
+
+        [Header("Debug")]
+        [SerializeField] private string _activePoseSource = "Base";
+        [SerializeField] private string _activeAttachmentItemId = string.Empty;
 
         private bool _initializedFromCurrentPose;
         private bool _appliedKar98kDefaultPose;
@@ -52,6 +105,8 @@ namespace Reloader.Weapons.Runtime
                 _initializedFromCurrentPose = false;
                 _appliedKar98kDefaultPose = false;
                 _lastEquippedView = null;
+                _activePoseSource = "Inactive";
+                _activeAttachmentItemId = string.Empty;
                 return;
             }
         }
@@ -82,23 +137,31 @@ namespace Reloader.Weapons.Runtime
                 _appliedKar98kDefaultPose = true;
             }
 
+            var pose = ResolveActivePose(out var overrideIndex, out var matchedAttachmentItemId);
+            _activeAttachmentItemId = matchedAttachmentItemId;
+            _activePoseSource = overrideIndex >= 0
+                ? $"AttachmentOverride[{overrideIndex}]"
+                : "Base";
+
             if (_seedOffsetsFromCurrentPoseOnEquip && !_initializedFromCurrentPose)
             {
-                _hipLocalPosition = equippedView.localPosition;
-                _hipLocalEuler = equippedView.localEulerAngles;
-                _adsLocalPosition = equippedView.localPosition;
-                _adsLocalEuler = equippedView.localEulerAngles;
+                SeedResolvedPoseFromCurrentTransform(equippedView, overrideIndex);
+                pose = ResolveActivePose(out overrideIndex, out matchedAttachmentItemId);
+                _activeAttachmentItemId = matchedAttachmentItemId;
+                _activePoseSource = overrideIndex >= 0
+                    ? $"AttachmentOverride[{overrideIndex}]"
+                    : "Base";
                 _initializedFromCurrentPose = true;
             }
 
             var targetT = _weaponController.IsAimInputHeld ? 1f : 0f;
-            var step = 1f - Mathf.Exp(-Mathf.Max(1f, _blendSpeed) * Time.deltaTime);
+            var step = 1f - Mathf.Exp(-Mathf.Max(1f, pose.BlendSpeed) * Time.deltaTime);
             _blendT = Mathf.Lerp(_blendT, targetT, step);
 
-            var targetPosition = Vector3.Lerp(_hipLocalPosition, _adsLocalPosition, _blendT);
-            var hipRot = Quaternion.Euler(_hipLocalEuler);
-            var adsRot = Quaternion.Euler(_adsLocalEuler);
-            var targetRotation = Quaternion.Slerp(hipRot, adsRot, _blendT) * Quaternion.Euler(_rifleLocalEulerOffset);
+            var targetPosition = Vector3.Lerp(pose.HipLocalPosition, pose.AdsLocalPosition, _blendT);
+            var hipRot = Quaternion.Euler(pose.HipLocalEuler);
+            var adsRot = Quaternion.Euler(pose.AdsLocalEuler);
+            var targetRotation = Quaternion.Slerp(hipRot, adsRot, _blendT) * Quaternion.Euler(pose.RifleLocalEulerOffset);
 
             equippedView.localPosition = targetPosition;
             equippedView.localRotation = targetRotation;
@@ -150,5 +213,78 @@ namespace Reloader.Weapons.Runtime
             return value.sqrMagnitude <= 0.000001f;
         }
 
+        private PoseData ResolveActivePose(out int overrideIndex, out string matchedAttachmentItemId)
+        {
+            var pose = new PoseData
+            {
+                HipLocalPosition = _hipLocalPosition,
+                HipLocalEuler = _hipLocalEuler,
+                AdsLocalPosition = _adsLocalPosition,
+                AdsLocalEuler = _adsLocalEuler,
+                BlendSpeed = Mathf.Max(1f, _blendSpeed),
+                RifleLocalEulerOffset = _rifleLocalEulerOffset
+            };
+
+            overrideIndex = -1;
+            matchedAttachmentItemId = string.Empty;
+
+            if (_weaponController == null
+                || string.IsNullOrWhiteSpace(_weaponController.EquippedItemId)
+                || !_weaponController.TryGetRuntimeState(_weaponController.EquippedItemId, out var state)
+                || state == null
+                || _attachmentPoseOverrides == null
+                || _attachmentPoseOverrides.Length == 0)
+            {
+                return pose;
+            }
+
+            for (var i = 0; i < _attachmentPoseOverrides.Length; i++)
+            {
+                var candidate = _attachmentPoseOverrides[i];
+                if (string.IsNullOrWhiteSpace(candidate.AttachmentItemId))
+                {
+                    continue;
+                }
+
+                var equippedAttachmentItemId = state.GetEquippedAttachmentItemId(candidate.SlotType);
+                if (!string.Equals(candidate.AttachmentItemId, equippedAttachmentItemId, System.StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                overrideIndex = i;
+                matchedAttachmentItemId = equippedAttachmentItemId;
+                pose.HipLocalPosition = candidate.HipLocalPosition;
+                pose.HipLocalEuler = candidate.HipLocalEuler;
+                pose.AdsLocalPosition = candidate.AdsLocalPosition;
+                pose.AdsLocalEuler = candidate.AdsLocalEuler;
+                pose.BlendSpeed = candidate.BlendSpeed;
+                pose.RifleLocalEulerOffset = candidate.RifleLocalEulerOffset;
+                return pose;
+            }
+
+            return pose;
+        }
+
+        private void SeedResolvedPoseFromCurrentTransform(Transform equippedView, int overrideIndex)
+        {
+            if (equippedView == null)
+            {
+                return;
+            }
+
+            if (overrideIndex >= 0 && _attachmentPoseOverrides != null && overrideIndex < _attachmentPoseOverrides.Length)
+            {
+                var overridePose = _attachmentPoseOverrides[overrideIndex];
+                overridePose.SeedFromTransform(equippedView);
+                _attachmentPoseOverrides[overrideIndex] = overridePose;
+                return;
+            }
+
+            _hipLocalPosition = equippedView.localPosition;
+            _hipLocalEuler = equippedView.localEulerAngles;
+            _adsLocalPosition = equippedView.localPosition;
+            _adsLocalEuler = equippedView.localEulerAngles;
+        }
     }
 }
