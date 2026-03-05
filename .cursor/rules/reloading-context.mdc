@@ -11,8 +11,10 @@ You are working on the core reloading or weapons system. Read these docs:
 1. `docs/design/core-architecture.md` — shared patterns
 2. `docs/design/reloading-system.md` — reloading data models, process steps, equipment
 3. `docs/design/weapons-and-ballistics.md` — weapon parts, ballistics model, shooting
+4. `docs/design/weapon-view-attachment-runtime.md` — required runtime contract for weapon view prefabs and attachment mounting when touching first-person weapon views or attachments
 4. `.agent/skills/reloading-domain-knowledge/SKILL.md` — accuracy calculation, real-world reference (only if implementing accuracy/ballistics)
 5. `.agent/skills/adding-game-content/SKILL.md` — only when creating/editing ScriptableObject data assets under `Reloader/Assets/_Project/Reloading/Data/**` or `Reloader/Assets/_Project/Weapons/Data/**`
+6. `.agent/skills/weapon-view-attachment-framework/SKILL.md` — required when changing weapon view prefabs, attachment slots, attachment runtime, or view/scene wiring for weapons
 
 For logic/bugfix/refactor tasks in scripts, skip `adding-game-content`.
 

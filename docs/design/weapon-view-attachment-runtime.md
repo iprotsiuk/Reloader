@@ -64,6 +64,32 @@ The contract rule is stable:
 - keep runtime state and swap logic data-driven
 - do not add more controller-side transform discovery heuristics
 
+## Agent Extension Workflow [v0.1]
+
+Future agents extending weapons or attachments must follow this workflow:
+
+1. Bind the weapon item id to one explicit first-person runtime view prefab.
+2. Add or update `WeaponViewAttachmentMounts` on that prefab so every required slot/reference is serialized explicitly.
+3. Keep the prefab visually empty for runtime attachment slots.
+4. Add or update attachment definition assets so each attachment item id resolves to one explicit mount prefab.
+5. Extend slot-driven runtime ownership instead of adding new transform-name heuristics or fallback lookups.
+6. Add pose tuning through `WeaponViewPoseTuningHelper` base pose plus per-attachment overrides when ADS differs by optic/attachment.
+7. Verify the in-hand spawned weapon, mount success path, mount failure path, and no-fallback behavior.
+
+This is mandatory for:
+
+- new rifles
+- new pistols
+- new scopes / optics
+- new muzzle devices
+- new magazines
+- new slides
+- new triggers
+- new bipods
+- any future weapon upgrade family
+
+Do not treat Kar98k as a special-case template beyond being the first complete example.
+
 ## Ownership Boundaries [v0.1]
 
 `PlayerWeaponController`
@@ -103,3 +129,4 @@ Any change to this flow should re-check:
 - initial rifle view spawns without pre-mounted scope visuals
 - `WeaponRuntimeState` remains the only attachment source of truth
 - 1x optics do not disable pose tuning unless scoped ADS is actually required
+- new weapons/attachments follow the same explicit view-prefab + explicit-slot + explicit-definition contract without introducing fallback behavior
