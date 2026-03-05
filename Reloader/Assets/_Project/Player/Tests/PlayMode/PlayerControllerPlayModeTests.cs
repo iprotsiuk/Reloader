@@ -892,12 +892,12 @@ namespace Reloader.Player.Tests.PlayMode
                 RuntimeKernelBootstrapper.Events = runtimeWeaponEvents;
                 root = new GameObject("ViewmodelAdapterRoot");
                 var adapter = root.AddComponent<ViewmodelAnimationAdapter>();
-                adapter.SetEquippedItemIdForTests("weapon-rifle-01");
+                adapter.SetEquippedItemIdForTests("weapon-kar98k");
 
-                runtimeWeaponEvents.RaiseWeaponReloadStarted("weapon-rifle-01");
-                runtimeWeaponEvents.RaiseWeaponFired("weapon-rifle-01", Vector3.zero, Vector3.forward);
-                runtimeWeaponEvents.RaiseWeaponAimChanged("weapon-rifle-01", true);
-                runtimeWeaponEvents.RaiseWeaponReloadCancelled("weapon-rifle-01", WeaponReloadCancelReason.Sprint);
+                runtimeWeaponEvents.RaiseWeaponReloadStarted("weapon-kar98k");
+                runtimeWeaponEvents.RaiseWeaponFired("weapon-kar98k", Vector3.zero, Vector3.forward);
+                runtimeWeaponEvents.RaiseWeaponAimChanged("weapon-kar98k", true);
+                runtimeWeaponEvents.RaiseWeaponReloadCancelled("weapon-kar98k", WeaponReloadCancelReason.Sprint);
 
                 Assert.That(adapter.IsReloadingDebug, Is.False);
                 Assert.That(adapter.IsAimingDebug, Is.True);

@@ -60,7 +60,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1fa348bdf35634605b2234c152683173, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.World.WeaponPickupTarget
-  _itemId: weapon-rifle-01
+  _itemId: weapon-kar98k
   _visualRoot: {fileID: 8445401694592989334, guid: 8c7ba79f8ec05794aba7ffdd3d8aba93, type: 3}
   _disableGameObjectOnPickup: 1
   _identity: {fileID: 6513317541855077805}

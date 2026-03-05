@@ -109,7 +109,7 @@ namespace Reloader.PlayerDevice.Tests.PlayMode
             metrics.Configure(SelectedTargetId, "Session Target", 275f);
 
             var impactPoint = new Vector3(0f, 0f, 8.25f);
-            var payloadWithoutSource = new ProjectileImpactPayload("weapon-rifle-01", impactPoint, Vector3.forward, 20f, target);
+            var payloadWithoutSource = new ProjectileImpactPayload("weapon-kar98k", impactPoint, Vector3.forward, 20f, target);
             Assert.That(payloadWithoutSource.SourcePoint.HasValue, Is.False);
             damageable.ApplyDamage(payloadWithoutSource);
 
@@ -135,7 +135,7 @@ namespace Reloader.PlayerDevice.Tests.PlayMode
 
             var impactPoint = target.transform.position + new Vector3(0.04f, -0.02f, 0.5f);
             var sourcePoint = impactPoint + (Vector3.back * 25f);
-            var payload = new ProjectileImpactPayload("weapon-rifle-01", impactPoint, Vector3.forward, 20f, target, sourcePoint);
+            var payload = new ProjectileImpactPayload("weapon-kar98k", impactPoint, Vector3.forward, 20f, target, sourcePoint);
 
             damageable.ApplyDamage(payload);
             damageable.ApplyDamage(payload);
@@ -162,8 +162,8 @@ namespace Reloader.PlayerDevice.Tests.PlayMode
             var nearbyImpactPoint = impactPoint + new Vector3(0.002f, -0.0015f, 0.001f);
             var sourcePoint = impactPoint + (Vector3.back * 25f);
 
-            var firstPayload = new ProjectileImpactPayload("weapon-rifle-01", impactPoint, Vector3.forward, 20f, target, sourcePoint);
-            var duplicatePayload = new ProjectileImpactPayload("weapon-rifle-01", nearbyImpactPoint, Vector3.forward, 20f, target, sourcePoint);
+            var firstPayload = new ProjectileImpactPayload("weapon-kar98k", impactPoint, Vector3.forward, 20f, target, sourcePoint);
+            var duplicatePayload = new ProjectileImpactPayload("weapon-kar98k", nearbyImpactPoint, Vector3.forward, 20f, target, sourcePoint);
 
             damageable.ApplyDamage(firstPayload);
             damageable.ApplyDamage(duplicatePayload);

@@ -58,14 +58,14 @@ namespace Reloader.Core.Tests.EditMode
             RuntimeKernelBootstrapper.WeaponEvents.OnWeaponEquipped += Handler;
             try
             {
-                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponEquipped("weapon-rifle-01");
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponEquipped("weapon-kar98k");
             }
             finally
             {
                 RuntimeKernelBootstrapper.WeaponEvents.OnWeaponEquipped -= Handler;
             }
 
-            Assert.That(equippedItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(equippedItemId, Is.EqualTo("weapon-kar98k"));
         }
 
         [Test]
@@ -77,14 +77,14 @@ namespace Reloader.Core.Tests.EditMode
             RuntimeKernelBootstrapper.WeaponEvents.OnWeaponEquipStarted += Handler;
             try
             {
-                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponEquipStarted("weapon-rifle-01");
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponEquipStarted("weapon-kar98k");
             }
             finally
             {
                 RuntimeKernelBootstrapper.WeaponEvents.OnWeaponEquipStarted -= Handler;
             }
 
-            Assert.That(equippedItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(equippedItemId, Is.EqualTo("weapon-kar98k"));
         }
 
         [Test]
@@ -96,14 +96,14 @@ namespace Reloader.Core.Tests.EditMode
             RuntimeKernelBootstrapper.WeaponEvents.OnWeaponUnequipStarted += Handler;
             try
             {
-                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponUnequipStarted("weapon-rifle-01");
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponUnequipStarted("weapon-kar98k");
             }
             finally
             {
                 RuntimeKernelBootstrapper.WeaponEvents.OnWeaponUnequipStarted -= Handler;
             }
 
-            Assert.That(unequippedItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(unequippedItemId, Is.EqualTo("weapon-kar98k"));
         }
 
         [Test]
@@ -122,14 +122,14 @@ namespace Reloader.Core.Tests.EditMode
             RuntimeKernelBootstrapper.WeaponEvents.OnWeaponFired += Handler;
             try
             {
-                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponFired("weapon-rifle-01", new Vector3(1f, 2f, 3f), Vector3.forward);
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponFired("weapon-kar98k", new Vector3(1f, 2f, 3f), Vector3.forward);
             }
             finally
             {
                 RuntimeKernelBootstrapper.WeaponEvents.OnWeaponFired -= Handler;
             }
 
-            Assert.That(firedItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(firedItemId, Is.EqualTo("weapon-kar98k"));
             Assert.That(firedOrigin, Is.EqualTo(new Vector3(1f, 2f, 3f)));
             Assert.That(firedDirection, Is.EqualTo(Vector3.forward));
         }
@@ -150,14 +150,14 @@ namespace Reloader.Core.Tests.EditMode
             RuntimeKernelBootstrapper.WeaponEvents.OnWeaponReloaded += Handler;
             try
             {
-                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponReloaded("weapon-rifle-01", 5, 25);
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponReloaded("weapon-kar98k", 5, 25);
             }
             finally
             {
                 RuntimeKernelBootstrapper.WeaponEvents.OnWeaponReloaded -= Handler;
             }
 
-            Assert.That(reloadedItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(reloadedItemId, Is.EqualTo("weapon-kar98k"));
             Assert.That(magCount, Is.EqualTo(5));
             Assert.That(reserveCount, Is.EqualTo(25));
         }
@@ -171,14 +171,14 @@ namespace Reloader.Core.Tests.EditMode
             RuntimeKernelBootstrapper.WeaponEvents.OnWeaponReloadStarted += Handler;
             try
             {
-                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponReloadStarted("weapon-rifle-01");
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponReloadStarted("weapon-kar98k");
             }
             finally
             {
                 RuntimeKernelBootstrapper.WeaponEvents.OnWeaponReloadStarted -= Handler;
             }
 
-            Assert.That(reloadedItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(reloadedItemId, Is.EqualTo("weapon-kar98k"));
         }
 
         [Test]
@@ -196,14 +196,14 @@ namespace Reloader.Core.Tests.EditMode
             RuntimeKernelBootstrapper.WeaponEvents.OnWeaponReloadCancelled += Handler;
             try
             {
-                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponReloadCancelled("weapon-rifle-01", WeaponReloadCancelReason.Sprint);
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponReloadCancelled("weapon-kar98k", WeaponReloadCancelReason.Sprint);
             }
             finally
             {
                 RuntimeKernelBootstrapper.WeaponEvents.OnWeaponReloadCancelled -= Handler;
             }
 
-            Assert.That(reloadedItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(reloadedItemId, Is.EqualTo("weapon-kar98k"));
             Assert.That(reason, Is.EqualTo(WeaponReloadCancelReason.Sprint));
         }
 
@@ -221,14 +221,14 @@ namespace Reloader.Core.Tests.EditMode
             RuntimeKernelBootstrapper.WeaponEvents.OnWeaponAimChanged += Handler;
             try
             {
-                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponAimChanged("weapon-rifle-01", true);
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseWeaponAimChanged("weapon-kar98k", true);
             }
             finally
             {
                 RuntimeKernelBootstrapper.WeaponEvents.OnWeaponAimChanged -= Handler;
             }
 
-            Assert.That(aimedItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(aimedItemId, Is.EqualTo("weapon-kar98k"));
             Assert.That(isAiming, Is.True);
         }
 
@@ -248,14 +248,14 @@ namespace Reloader.Core.Tests.EditMode
             RuntimeKernelBootstrapper.WeaponEvents.OnProjectileHit += Handler;
             try
             {
-                RuntimeKernelBootstrapper.WeaponEvents.RaiseProjectileHit("weapon-rifle-01", new Vector3(3f, 1f, -2f), 42.5f);
+                RuntimeKernelBootstrapper.WeaponEvents.RaiseProjectileHit("weapon-kar98k", new Vector3(3f, 1f, -2f), 42.5f);
             }
             finally
             {
                 RuntimeKernelBootstrapper.WeaponEvents.OnProjectileHit -= Handler;
             }
 
-            Assert.That(hitItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(hitItemId, Is.EqualTo("weapon-kar98k"));
             Assert.That(hitPoint, Is.EqualTo(new Vector3(3f, 1f, -2f)));
             Assert.That(damage, Is.EqualTo(42.5f));
         }

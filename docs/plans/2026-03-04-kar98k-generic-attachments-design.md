@@ -25,7 +25,7 @@ Use a generic attachment domain layer under project-owned paths in `_Project/Wea
 - Data-driven compatibility via ScriptableObject data and runtime state.
 - No per-weapon bespoke branching.
 - Camera-authoritative ADS remains unchanged.
-- Existing item id `weapon-rifle-01` remains active for compatibility with tests and scene wiring.
+- Existing item id `weapon-kar98k` remains active for compatibility with tests and scene wiring.
 
 ## Core Design Decisions
 - Use generic slot model now, but only activate `Scope` and `Muzzle` for this milestone.

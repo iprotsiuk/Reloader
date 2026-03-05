@@ -64,14 +64,14 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var runtime = new PlayerInventoryRuntime();
                 inventoryController.Configure(input, resolver, runtime);
 
-                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
                 runtime.SelectBeltSlot(0);
                 runtime.TryAddStackItem("ammo-factory-308-147-fmj", 10, out _, out _, out _);
 
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
                 definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
                 registry.SetDefinitionsForTests(new[] { definition });
 
                 var injectedEvents = new DefaultRuntimeEvents();
@@ -158,13 +158,13 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var runtime = new PlayerInventoryRuntime();
                 inventoryController.Configure(input, resolver, runtime);
 
-                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
                 runtime.SelectBeltSlot(0);
 
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
                 definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
                 registry.SetDefinitionsForTests(new[] { definition });
 
                 var injectedEvents = new DefaultRuntimeEvents();
@@ -235,13 +235,13 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var runtime = new PlayerInventoryRuntime();
                 inventoryController.Configure(input, resolver, runtime);
 
-                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
                 runtime.SelectBeltSlot(0);
 
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
                 definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 120f, 0f, 20f, 10000f, 1, 0, true);
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 120f, 0f, 20f, 10000f, 1, 0, true);
                 registry.SetDefinitionsForTests(new[] { definition });
 
                 target = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -335,13 +335,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
@@ -371,14 +371,14 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
             definition.SetRuntimeValuesForTests(
-                "weapon-rifle-01",
+                "weapon-kar98k",
                 "Scoped Rifle",
                 5,
                 0.1f,
@@ -430,7 +430,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.BeltSlotItemIds[1] = null;
             runtime.SelectBeltSlot(0);
 
@@ -438,7 +438,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
             definition.SetRuntimeValuesForTests(
-                "weapon-rifle-01",
+                "weapon-kar98k",
                 "Scoped Rifle",
                 5,
                 0.1f,
@@ -489,7 +489,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.BeltSlotItemIds[1] = null;
             runtime.SelectBeltSlot(0);
 
@@ -497,7 +497,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
             definition.SetRuntimeValuesForTests(
-                "weapon-rifle-01",
+                "weapon-kar98k",
                 "Scoped Rifle",
                 5,
                 0.1f,
@@ -557,14 +557,14 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
             runtime.TryAddStackItem("ammo-factory-308-147-fmj", 10, out _, out _, out _);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
@@ -590,17 +590,17 @@ namespace Reloader.Weapons.Tests.PlayMode
             input.FirePressedThisFrame = true;
             yield return null;
 
-            Assert.That(equipped, Is.EqualTo("weapon-rifle-01"));
-            Assert.That(fired, Is.EqualTo("weapon-rifle-01"));
-            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var stateAfterFire), Is.True);
+            Assert.That(equipped, Is.EqualTo("weapon-kar98k"));
+            Assert.That(fired, Is.EqualTo("weapon-kar98k"));
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var stateAfterFire), Is.True);
             Assert.That(stateAfterFire.MagazineCount, Is.EqualTo(0));
 
             input.ReloadPressedThisFrame = true;
             yield return null;
             yield return new WaitForSeconds(0.36f);
 
-            Assert.That(reloaded, Is.EqualTo("weapon-rifle-01"));
-            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var stateAfterReload), Is.True);
+            Assert.That(reloaded, Is.EqualTo("weapon-kar98k"));
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var stateAfterReload), Is.True);
             Assert.That(stateAfterReload.MagazineCount, Is.EqualTo(5));
             Assert.That(stateAfterReload.ReserveCount, Is.EqualTo(runtime.GetItemQuantity("ammo-factory-308-147-fmj")));
 
@@ -609,7 +609,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             yield return null;
 
             Assert.That(firedCount, Is.EqualTo(2));
-            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var stateAfterReloadFire), Is.True);
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var stateAfterReloadFire), Is.True);
             Assert.That(stateAfterReloadFire.ChamberLoaded, Is.True);
             Assert.That(stateAfterReloadFire.MagazineCount, Is.EqualTo(4));
 
@@ -639,13 +639,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             var input = inputGo.AddComponent<TestInputSource>();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
             registry.SetDefinitionsForTests(new[] { definition });
 
             root.AddComponent<PlayerWeaponController>();
@@ -656,7 +656,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
             yield return null;
 
-            Assert.That(equipped, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(equipped, Is.EqualTo("weapon-kar98k"));
 
             runtimeEvents.OnWeaponEquipped -= OnEquipped;
             RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
@@ -680,7 +680,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
 
             var staleRegistryGo = new GameObject("StaleRegistry");
@@ -692,7 +692,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var activeRegistryGo = new GameObject("ActiveRegistry");
             var activeRegistry = activeRegistryGo.AddComponent<WeaponRegistry>();
             var activeDefinition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            activeDefinition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            activeDefinition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
             activeRegistry.SetDefinitionsForTests(new[] { activeDefinition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
@@ -707,7 +707,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             yield return null;
 
             Assert.That(firedCount, Is.EqualTo(1));
-            Assert.That(controller.EquippedItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(controller.EquippedItemId, Is.EqualTo("weapon-kar98k"));
 
             runtimeEvents.OnWeaponFired -= HandleWeaponFired;
             RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
@@ -732,14 +732,14 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
             runtime.TryAddStackItem("ammo-factory-308-147-fmj", 10, out _, out _, out _);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 0, 0, false);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 0, 0, false);
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
@@ -757,10 +757,10 @@ namespace Reloader.Weapons.Tests.PlayMode
 
             yield return null;
 
-            Assert.That(controller.ApplyRuntimeState("weapon-rifle-01", 0, 0, false), Is.True);
+            Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 0, 0, false), Is.True);
             Assert.That(
                 controller.ApplyRuntimeBallistics(
-                    "weapon-rifle-01",
+                    "weapon-kar98k",
                     null,
                     new[]
                     {
@@ -782,13 +782,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             yield return null;
             yield return new WaitForSeconds(0.36f);
 
-            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var stateAfterReload), Is.True);
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var stateAfterReload), Is.True);
             Assert.That(stateAfterReload.ChamberLoaded, Is.True);
             Assert.That(stateAfterReload.MagazineCount, Is.GreaterThan(0));
             Assert.That(runtime.GetItemQuantity("ammo-factory-308-147-fmj"), Is.LessThan(quantityBeforeReload));
             Assert.That(inventoryChangedCount, Is.EqualTo(1));
             Assert.That(reloadEventCount, Is.EqualTo(1));
-            Assert.That(reloadedItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(reloadedItemId, Is.EqualTo("weapon-kar98k"));
 
             runtimeEvents.OnInventoryChanged -= OnInventoryChanged;
             runtimeEvents.OnWeaponReloaded -= OnWeaponReloaded;
@@ -823,16 +823,16 @@ namespace Reloader.Weapons.Tests.PlayMode
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 0, 0, false);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 0, 0, false);
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
             yield return null;
 
-            Assert.That(controller.ApplyRuntimeState("weapon-rifle-01", 999, -5, true), Is.True);
+            Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 999, -5, true), Is.True);
             Assert.That(
                 controller.ApplyRuntimeBallistics(
-                    "weapon-rifle-01",
+                    "weapon-kar98k",
                     null,
                     new[]
                     {
@@ -846,7 +846,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                     }),
                 Is.True);
 
-            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var state), Is.True);
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
             Assert.That(state.MagazineCount, Is.EqualTo(5));
             Assert.That(state.GetMagazineRoundsSnapshot().Count, Is.EqualTo(5));
             Assert.That(state.ReserveCount, Is.EqualTo(0));
@@ -868,13 +868,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
             registry.SetDefinitionsForTests(new[] { definition });
 
             root.AddComponent<PlayerWeaponController>();
@@ -908,19 +908,19 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 10f, 0f, 20f, 120f, 1, 0, true);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 10f, 0f, 20f, 120f, 1, 0, true);
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
             yield return null;
 
-            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var state), Is.True);
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
             var chamberRound = new AmmoBallisticSnapshot(AmmoSourceType.Factory, 3000f, 0f, 168f, 0.46f, 0f);
             state.SetAmmoLoadoutForTests(chamberRound, System.Array.Empty<AmmoBallisticSnapshot>());
 
@@ -955,19 +955,19 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 10f, 0f, 20f, 120f, 1, 0, true);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 10f, 0f, 20f, 120f, 1, 0, true);
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
             yield return null;
 
-            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var state), Is.True);
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
             var chamberRound = new AmmoBallisticSnapshot(AmmoSourceType.Factory, 3000f, 0f, 168f, 0.46f, 12f);
             state.SetAmmoLoadoutForTests(chamberRound, System.Array.Empty<AmmoBallisticSnapshot>());
 
@@ -1015,14 +1015,14 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
             runtime.TryAddStackItem("ammo-factory-308-147-fmj", 10, out _, out _, out _);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 0, 10, false);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 0, 10, false);
             registry.SetDefinitionsForTests(new[] { definition });
 
             root.AddComponent<PlayerWeaponController>();
@@ -1047,8 +1047,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             input.SprintHeldValue = true;
             yield return null;
 
-            Assert.That(startedItemId, Is.EqualTo("weapon-rifle-01"));
-            Assert.That(cancelledItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(startedItemId, Is.EqualTo("weapon-kar98k"));
+            Assert.That(cancelledItemId, Is.EqualTo("weapon-kar98k"));
             Assert.That(cancelledReason, Is.EqualTo(WeaponReloadCancelReason.Sprint));
 
             runtimeEvents.OnWeaponReloadStarted -= HandleStarted;
@@ -1073,13 +1073,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
             registry.SetDefinitionsForTests(new[] { definition });
 
             root.AddComponent<PlayerWeaponController>();
@@ -1101,7 +1101,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             yield return null;
 
             Assert.That(raised, Is.True);
-            Assert.That(eventItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(eventItemId, Is.EqualTo("weapon-kar98k"));
             Assert.That(isAiming, Is.True);
 
             runtimeEvents.OnWeaponAimChanged -= HandleAimChanged;
@@ -1125,14 +1125,14 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
             runtime.TryAddStackItem("ammo-factory-308-147-fmj", 10, out _, out _, out _);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 0, 10, false);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 0, 10, false);
             registry.SetDefinitionsForTests(new[] { definition });
 
             root.AddComponent<PlayerWeaponController>();
@@ -1154,7 +1154,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             runtime.SelectBeltSlot(1);
             yield return null;
 
-            Assert.That(cancelledItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(cancelledItemId, Is.EqualTo("weapon-kar98k"));
             Assert.That(cancelledReason, Is.EqualTo(WeaponReloadCancelReason.Unequip));
 
             runtimeEvents.OnWeaponReloadCancelled -= HandleCancelled;
@@ -1184,13 +1184,13 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var runtime = new PlayerInventoryRuntime();
                 inventoryController.Configure(input, resolver, runtime);
 
-                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
                 runtime.SelectBeltSlot(0);
 
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
                 definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
                 var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.That(iconPrefabField, Is.Not.Null);
                 iconPrefabField.SetValue(definition, viewPrefab);
@@ -1201,7 +1201,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetControllerField(controller, "_weaponViewParent", root.transform);
                 yield return null;
 
-                var equippedView = root.transform.Find("EquippedView_weapon-rifle-01");
+                var equippedView = root.transform.Find("EquippedView_weapon-kar98k");
                 Assert.That(equippedView, Is.Not.Null, "Expected equipped view to spawn from WeaponDefinition icon prefab when explicit view bindings are missing.");
             }
             finally
@@ -1243,13 +1243,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
             registry.SetDefinitionsForTests(new[] { definition });
 
             var equipStartedCount = 0;
@@ -1299,13 +1299,13 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var runtime = new PlayerInventoryRuntime();
                 inventoryController.Configure(input, resolver, runtime);
 
-                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
                 runtime.SelectBeltSlot(0);
 
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
                 definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
                 var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.That(iconPrefabField, Is.Not.Null);
                 iconPrefabField.SetValue(definition, viewPrefab);
@@ -1320,7 +1320,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetControllerField(controller, "_weaponViewParent", root.transform);
                 yield return null;
 
-                var viewName = "EquippedView_weapon-rifle-01";
+                var viewName = "EquippedView_weapon-kar98k";
                 Assert.That(root.transform.Find(viewName), Is.Not.Null);
                 Assert.That(equipStartedCount, Is.EqualTo(1));
                 Assert.That(unequipStartedCount, Is.EqualTo(0));
@@ -1379,7 +1379,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
 
             var cameraPivot = new GameObject("CameraPivot").transform;
@@ -1399,7 +1399,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
             var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(iconPrefabField, Is.Not.Null);
             iconPrefabField.SetValue(definition, viewPrefab);
@@ -1410,8 +1410,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             SetControllerField(controller, "_weaponViewParent", configuredParent);
             yield return null;
 
-            Assert.That(configuredParent.Find("EquippedView_weapon-rifle-01"), Is.Not.Null);
-            Assert.That(fallbackParent.Find("EquippedView_weapon-rifle-01"), Is.Null);
+            Assert.That(configuredParent.Find("EquippedView_weapon-kar98k"), Is.Not.Null);
+            Assert.That(fallbackParent.Find("EquippedView_weapon-kar98k"), Is.Null);
 
             Object.Destroy(root);
             Object.Destroy(viewPrefab);
@@ -1429,7 +1429,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.BeltSlotItemIds[1] = "weapon-rifle-02";
             runtime.BeltSlotItemIds[2] = "weapon-rifle-03";
             runtime.SelectBeltSlot(0);
@@ -1437,7 +1437,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definitionA = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definitionA.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle 01", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
+            definitionA.SetRuntimeValuesForTests("weapon-kar98k", "Rifle 01", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
             var definitionB = ScriptableObject.CreateInstance<WeaponDefinition>();
             definitionB.SetRuntimeValuesForTests("weapon-rifle-02", "Rifle 02", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
             var definitionC = ScriptableObject.CreateInstance<WeaponDefinition>();
@@ -1475,13 +1475,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
@@ -1517,13 +1517,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
             registry.SetDefinitionsForTests(new[] { definition });
 
             var customCatalog = ScriptableObject.CreateInstance<CombatAudioCatalog>();
@@ -1584,7 +1584,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var runtime = new PlayerInventoryRuntime();
                 inventoryController.Configure(input, resolver, runtime);
 
-                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
                 runtime.SelectBeltSlot(0);
 
                 var emitterSpy = root.AddComponent<ClipCaptureWeaponCombatAudioEmitter>();
@@ -1592,7 +1592,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
                 definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
 
                 viewPrefab = new GameObject("ViewPrefabWithMuzzleRuntime");
                 var muzzle = new GameObject("Muzzle").transform;
@@ -1701,13 +1701,13 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var inventoryController = root.AddComponent<PlayerInventoryController>();
                 var runtime = new PlayerInventoryRuntime();
                 inventoryController.Configure(input, resolver, runtime);
-                runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
                 runtime.SelectBeltSlot(0);
 
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
                 definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-                definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
 
                 viewPrefab = new GameObject("ViewPrefabWithMagRuntime");
                 var muzzle = new GameObject("Muzzle").transform;
@@ -1810,13 +1810,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
             definition.SetAttachmentCompatibilitiesForTests(new[]
             {
                 WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x" }),
@@ -1858,14 +1858,14 @@ namespace Reloader.Weapons.Tests.PlayMode
             var runtime = new PlayerInventoryRuntime();
             inventoryController.Configure(input, resolver, runtime);
 
-            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
             runtime.SelectBeltSlot(0);
             runtime.TryAddStackItem("att-optic-4x", 1, out _, out _, out _);
 
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
             definition.SetAttachmentCompatibilitiesForTests(new[]
             {
                 WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x", "att-optic-8x" })
@@ -1882,7 +1882,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
             yield return null;
 
-            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var state), Is.True);
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
             state.SetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope, "att-optic-8x");
 
             Assert.That(runtime.GetItemQuantity("att-optic-4x"), Is.EqualTo(1));

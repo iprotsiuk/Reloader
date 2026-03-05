@@ -20,7 +20,7 @@ MonoBehaviour:
   _defaultReloadStartClips: []
   _defaultReloadCompleteClips: []
   _weaponShotGroups:
-  - _weaponId: weapon-rifle-01
+  - _weaponId: weapon-kar98k
     _fireClips:
     - {fileID: 8300000, guid: 64cc69f377c7345edb9a65456ffc19e7, type: 3}
     - {fileID: 8300000, guid: 8bf84bf48356341cda897629a2c2a0f8, type: 3}

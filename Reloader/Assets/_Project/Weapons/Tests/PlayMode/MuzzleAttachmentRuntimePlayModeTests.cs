@@ -39,7 +39,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(overrideClip, Is.SameAs(clip));
             Assert.That(slot.childCount, Is.EqualTo(1), "Muzzle prefab should be mounted into attachment slot.");
 
-            runtimeType.GetMethod("HandleWeaponFired", BindingFlags.Instance | BindingFlags.Public)?.Invoke(runtime, new object[] { "weapon-rifle-01" });
+            runtimeType.GetMethod("HandleWeaponFired", BindingFlags.Instance | BindingFlags.Public)?.Invoke(runtime, new object[] { "weapon-kar98k" });
             var spawnedFlash = GameObject.Find("MuzzleFlashPrefab(Clone)");
             Assert.That(spawnedFlash, Is.Not.Null, "Firing should spawn flash prefab when configured.");
 

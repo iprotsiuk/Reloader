@@ -57,8 +57,9 @@ namespace Reloader.Weapons.Runtime
                     continue;
                 }
 
-                _weaponController.ApplyRuntimeState(state.ItemId, state.MagCount, state.ReserveCount, state.ChamberLoaded);
-                _weaponController.ApplyRuntimeBallistics(state.ItemId, ToSnapshot(state.ChamberRound), ToSnapshots(state.MagazineRounds));
+                var normalizedItemId = WeaponItemIdAliases.Normalize(state.ItemId);
+                _weaponController.ApplyRuntimeState(normalizedItemId, state.MagCount, state.ReserveCount, state.ChamberLoaded);
+                _weaponController.ApplyRuntimeBallistics(normalizedItemId, ToSnapshot(state.ChamberRound), ToSnapshots(state.MagazineRounds));
             }
         }
 

@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Ship a generic inventory-backed attachment framework and wire `weapon-rifle-01` to `WWII_Recon_A_PreSet` with functional scope/muzzle swapping via TAB attachments UI.
+**Goal:** Ship a generic inventory-backed attachment framework and wire `weapon-kar98k` to `WWII_Recon_A_PreSet` with functional scope/muzzle swapping via TAB attachments UI.
 
 **Architecture:** Build a project-owned generic attachment layer in `_Project/Weapons` (data + runtime + UI) and bridge selected attachments into existing `Assets/Game/Weapons` attachment/ADS runtime. Keep camera-authoritative ADS unchanged and avoid per-weapon special-case logic.
 
@@ -136,7 +136,7 @@
 - Modify: `Reloader/Assets/_Project/Weapons/Prefabs/**` wrapper/runtime prefab assets (project-owned only)
 
 **Step 1: Write the failing test**
-- Add integration PlayMode test for `weapon-rifle-01`:
+- Add integration PlayMode test for `weapon-kar98k`:
   - view resolves to `WWII_Recon_A_PreSet` wrapper path,
   - compatible scope/muzzle list exists,
   - swap updates equipped view anchor/muzzle visual.

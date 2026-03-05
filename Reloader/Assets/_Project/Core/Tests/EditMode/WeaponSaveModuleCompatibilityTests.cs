@@ -12,7 +12,7 @@ namespace Reloader.Core.Tests.EditMode
             var module = new WeaponsModule();
             module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
             {
-                ItemId = "weapon-rifle-01",
+                ItemId = "weapon-kar98k",
                 ChamberLoaded = true,
                 MagCapacity = 5,
                 MagCount = 3,
@@ -46,7 +46,7 @@ namespace Reloader.Core.Tests.EditMode
             restored.RestoreModuleStateFromJson(json);
 
             Assert.That(restored.WeaponStates.Count, Is.EqualTo(1));
-            Assert.That(restored.WeaponStates[0].ItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(restored.WeaponStates[0].ItemId, Is.EqualTo("weapon-kar98k"));
             Assert.That(restored.WeaponStates[0].ChamberLoaded, Is.True);
             Assert.That(restored.WeaponStates[0].MagCapacity, Is.EqualTo(5));
             Assert.That(restored.WeaponStates[0].MagCount, Is.EqualTo(3));
@@ -73,7 +73,7 @@ namespace Reloader.Core.Tests.EditMode
             var module = new WeaponsModule();
             module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
             {
-                ItemId = "weapon-rifle-01",
+                ItemId = "weapon-kar98k",
                 MagCapacity = 3,
                 MagCount = 4,
                 ReserveCount = 0,
@@ -89,7 +89,7 @@ namespace Reloader.Core.Tests.EditMode
             var module = new WeaponsModule();
             module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
             {
-                ItemId = "weapon-rifle-01",
+                ItemId = "weapon-kar98k",
                 MagCapacity = 5,
                 MagCount = 2,
                 ReserveCount = 10,
@@ -113,7 +113,7 @@ namespace Reloader.Core.Tests.EditMode
             var module = new WeaponsModule();
             module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
             {
-                ItemId = "weapon-rifle-01",
+                ItemId = "weapon-kar98k",
                 MagCapacity = 500,
                 MagCount = 250,
                 ReserveCount = 125000,

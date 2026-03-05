@@ -55,10 +55,10 @@ namespace Reloader.Weapons.Editor
 
             BuildProjectilePrefab();
             BuildViewPrefab("RifleView", sourceRiflePrefab, new Vector3(0f, 0.08f, 0.72f));
-            BuildPickupPrefab("RiflePickup", "weapon-rifle-01", sourceRiflePrefab, new Vector3(0.9f, 0.35f, 0.24f));
+            BuildPickupPrefab("RiflePickup", "weapon-kar98k", sourceRiflePrefab, new Vector3(0.9f, 0.35f, 0.24f));
             BuildDefinitionAsset(
                 "StarterRifle.asset",
-                "weapon-rifle-01",
+                "weapon-kar98k",
                 "Starter Rifle",
                 5,
                 0.2f,
@@ -72,7 +72,7 @@ namespace Reloader.Weapons.Editor
                 "ammo-factory-308-147-fmj");
             EnsureInventoryItemAndSpawn(
                 "Rifle_308_Starter",
-                "weapon-rifle-01",
+                "weapon-kar98k",
                 ItemCategory.Weapon,
                 ItemStackPolicy.NonStackable,
                 1,

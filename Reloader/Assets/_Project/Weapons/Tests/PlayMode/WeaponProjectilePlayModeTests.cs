@@ -49,7 +49,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             void HandleFallbackProjectileHit(string _, Vector3 __, float ___) => fallbackHitRaised++;
 
             projectile.Configure(injectedEvents);
-            projectile.Initialize("weapon-rifle-01", Vector3.forward, speed: 120f, gravityMultiplier: 0f, damage: 33f, lifetimeSeconds: 3f);
+            projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 120f, gravityMultiplier: 0f, damage: 33f, lifetimeSeconds: 3f);
 
             var elapsed = 0f;
             while (receiver.HitCount == 0 && elapsed < 0.5f)
@@ -93,7 +93,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             target.AddComponent<TestDamageable>();
 
             projectile.Configure();
-            projectile.Initialize("weapon-rifle-01", Vector3.forward, speed: 120f, gravityMultiplier: 0f, damage: 33f, lifetimeSeconds: 3f);
+            projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 120f, gravityMultiplier: 0f, damage: 33f, lifetimeSeconds: 3f);
 
             RuntimeKernelBootstrapper.Events = replacementRuntimeEvents;
             yield return null;
@@ -140,7 +140,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 hitDamage = damage;
             }
 
-            projectile.Initialize("weapon-rifle-01", Vector3.forward, speed: 120f, gravityMultiplier: 0f, damage: 33f, lifetimeSeconds: 3f);
+            projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 120f, gravityMultiplier: 0f, damage: 33f, lifetimeSeconds: 3f);
 
             var elapsed = 0f;
             while (receiver.HitCount == 0 && elapsed < 0.5f)
@@ -154,7 +154,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
             Assert.That(receiver.HitCount, Is.EqualTo(1));
             Assert.That(receiver.LastDamage, Is.EqualTo(33f));
-            Assert.That(hitItemId, Is.EqualTo("weapon-rifle-01"));
+            Assert.That(hitItemId, Is.EqualTo("weapon-kar98k"));
             Assert.That(hitDamage, Is.EqualTo(33f));
 
             Object.Destroy(projectileGo);
@@ -168,7 +168,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             projectileGo.transform.position = new Vector3(0f, 3f, 0f);
             projectileGo.transform.forward = Vector3.forward;
             var projectile = projectileGo.AddComponent<WeaponProjectile>();
-            projectile.Initialize("weapon-rifle-01", Vector3.forward, speed: 15f, gravityMultiplier: 1f, damage: 10f, lifetimeSeconds: 2f);
+            projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 15f, gravityMultiplier: 1f, damage: 10f, lifetimeSeconds: 2f);
 
             var start = projectileGo.transform.position;
             yield return null;
@@ -188,7 +188,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             projectileGo.transform.position = Vector3.zero;
             projectileGo.transform.forward = Vector3.forward;
             var projectile = projectileGo.AddComponent<WeaponProjectile>();
-            projectile.Initialize("weapon-rifle-01", Vector3.forward, speed: 5f, gravityMultiplier: 0f, damage: 1f, lifetimeSeconds: 0.05f);
+            projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 5f, gravityMultiplier: 0f, damage: 1f, lifetimeSeconds: 0.05f);
 
             yield return new WaitForSeconds(0.1f);
 
@@ -213,7 +213,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             target.transform.position = new Vector3(0f, 1f, 4f);
             var receiver = target.AddComponent<TestDamageable>();
 
-            projectile.Initialize("weapon-rifle-01", Vector3.forward, speed: 120f, gravityMultiplier: 0f, damage: 22f, lifetimeSeconds: 2f, shooterRoot: shooter.transform);
+            projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 120f, gravityMultiplier: 0f, damage: 22f, lifetimeSeconds: 2f, shooterRoot: shooter.transform);
 
             var elapsed = 0f;
             while (receiver.HitCount == 0 && elapsed < 0.5f)
@@ -244,7 +244,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             wall.transform.position = new Vector3(0f, 1f, 3f);
             wall.transform.localScale = new Vector3(2f, 2f, 0.25f);
 
-            projectile.Initialize("weapon-rifle-01", Vector3.forward, speed: 90f, gravityMultiplier: 0f, damage: 10f, lifetimeSeconds: 2f);
+            projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 90f, gravityMultiplier: 0f, damage: 10f, lifetimeSeconds: 2f);
 
             var elapsed = 0f;
             var hasExtraParticleSystem = false;
@@ -268,13 +268,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             var low = lowGo.AddComponent<WeaponProjectile>();
             lowGo.transform.position = Vector3.zero;
             lowGo.transform.forward = Vector3.forward;
-            low.Initialize("weapon-rifle-01", Vector3.forward, speed: 220f, gravityMultiplier: 0f, damage: 10f, lifetimeSeconds: 2f, ballisticCoefficientG1: 0.2f);
+            low.Initialize("weapon-kar98k", Vector3.forward, speed: 220f, gravityMultiplier: 0f, damage: 10f, lifetimeSeconds: 2f, ballisticCoefficientG1: 0.2f);
 
             var highGo = new GameObject("HighBcProjectile");
             var high = highGo.AddComponent<WeaponProjectile>();
             highGo.transform.position = new Vector3(0f, 1f, 0f);
             highGo.transform.forward = Vector3.forward;
-            high.Initialize("weapon-rifle-01", Vector3.forward, speed: 220f, gravityMultiplier: 0f, damage: 10f, lifetimeSeconds: 2f, ballisticCoefficientG1: 0.7f);
+            high.Initialize("weapon-kar98k", Vector3.forward, speed: 220f, gravityMultiplier: 0f, damage: 10f, lifetimeSeconds: 2f, ballisticCoefficientG1: 0.7f);
 
             yield return new WaitForSeconds(0.4f);
 

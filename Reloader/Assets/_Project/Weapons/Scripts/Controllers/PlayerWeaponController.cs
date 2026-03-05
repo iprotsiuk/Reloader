@@ -157,7 +157,7 @@ namespace Reloader.Weapons.Controllers
 
         public bool TryGetRuntimeState(string itemId, out WeaponRuntimeState state)
         {
-            return _statesByItemId.TryGetValue(itemId ?? string.Empty, out state);
+            return _statesByItemId.TryGetValue(NormalizeWeaponItemId(itemId), out state);
         }
 
         public IReadOnlyList<WeaponRuntimeSnapshot> GetRuntimeStateSnapshots()
@@ -186,14 +186,15 @@ namespace Reloader.Weapons.Controllers
 
         public bool ApplyRuntimeState(string itemId, int magazineCount, int reserveCount, bool chamberLoaded)
         {
-            if (string.IsNullOrWhiteSpace(itemId))
+            var normalizedItemId = NormalizeWeaponItemId(itemId);
+            if (string.IsNullOrWhiteSpace(normalizedItemId))
             {
                 return false;
             }
 
-            var state = TryGetRuntimeState(itemId, out var existing)
+            var state = TryGetRuntimeState(normalizedItemId, out var existing)
                 ? existing
-                : GetOrCreateState(itemId, ResolveWeaponDefinition(itemId), seedFromDefinition: false);
+                : GetOrCreateState(normalizedItemId, ResolveWeaponDefinition(normalizedItemId), seedFromDefinition: false);
             if (state == null)
             {
                 return false;
@@ -205,14 +206,15 @@ namespace Reloader.Weapons.Controllers
 
         public bool ApplyRuntimeBallistics(string itemId, AmmoBallisticSnapshot? chamberRound, IReadOnlyList<AmmoBallisticSnapshot> magazineRounds)
         {
-            if (string.IsNullOrWhiteSpace(itemId))
+            var normalizedItemId = NormalizeWeaponItemId(itemId);
+            if (string.IsNullOrWhiteSpace(normalizedItemId))
             {
                 return false;
             }
 
-            var state = TryGetRuntimeState(itemId, out var existing)
+            var state = TryGetRuntimeState(normalizedItemId, out var existing)
                 ? existing
-                : GetOrCreateState(itemId, ResolveWeaponDefinition(itemId), seedFromDefinition: false);
+                : GetOrCreateState(normalizedItemId, ResolveWeaponDefinition(normalizedItemId), seedFromDefinition: false);
             if (state == null)
             {
                 return false;
@@ -312,7 +314,9 @@ namespace Reloader.Weapons.Controllers
 
         private void UpdateEquipFromSelection()
         {
-            var selectedItemId = _inventoryController.Runtime != null ? _inventoryController.Runtime.SelectedBeltItemId : null;
+            var selectedItemId = _inventoryController.Runtime != null
+                ? NormalizeWeaponItemId(_inventoryController.Runtime.SelectedBeltItemId)
+                : null;
             if (HasPendingEquip())
             {
                 if (!string.IsNullOrWhiteSpace(selectedItemId) && TryResolveWeaponDefinition(selectedItemId, out var pendingDefinition))
@@ -352,6 +356,7 @@ namespace Reloader.Weapons.Controllers
 
         private void SetEquippedWeapon(string itemId, WeaponDefinition definition)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             if (_equippedItemId == itemId)
             {
                 if (!string.IsNullOrWhiteSpace(_equippedItemId)
@@ -445,7 +450,7 @@ namespace Reloader.Weapons.Controllers
 
         private void StartPendingEquip(string itemId, WeaponDefinition definition)
         {
-            _pendingEquipItemId = itemId;
+            _pendingEquipItemId = NormalizeWeaponItemId(itemId);
             _pendingEquipDefinition = definition;
             _pendingEquipApplyTime = Time.time + 0.08f;
         }
@@ -1096,6 +1101,7 @@ namespace Reloader.Weapons.Controllers
 
         private WeaponRuntimeState GetOrCreateState(string itemId, WeaponDefinition definition, bool seedFromDefinition)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             if (definition == null || string.IsNullOrWhiteSpace(itemId))
             {
                 return null;
@@ -1220,6 +1226,7 @@ namespace Reloader.Weapons.Controllers
 
         private PackWeaponRuntimeDriver GetOrCreatePackDriver(string itemId)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             if (string.IsNullOrWhiteSpace(itemId))
             {
                 return null;
@@ -1248,6 +1255,7 @@ namespace Reloader.Weapons.Controllers
 
         private void SpawnEquippedWeaponView(string itemId)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             if (string.IsNullOrWhiteSpace(itemId))
             {
                 return;
@@ -1347,17 +1355,20 @@ namespace Reloader.Weapons.Controllers
 
         private GameObject ResolveWeaponViewPrefab(string itemId)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             for (var i = 0; i < _weaponViewPrefabs.Length; i++)
             {
                 var binding = _weaponViewPrefabs[i];
-                if (!string.IsNullOrWhiteSpace(binding.ItemId) && binding.ItemId == itemId && binding.ViewPrefab != null)
+                if (!string.IsNullOrWhiteSpace(binding.ItemId)
+                    && NormalizeWeaponItemId(binding.ItemId) == itemId
+                    && binding.ViewPrefab != null)
                 {
                     return binding.ViewPrefab;
                 }
             }
 
             if (_equippedDefinition != null
-                && _equippedDefinition.ItemId == itemId
+                && NormalizeWeaponItemId(_equippedDefinition.ItemId) == itemId
                 && _equippedDefinition.IconSourcePrefab != null)
             {
                 return _equippedDefinition.IconSourcePrefab;
@@ -1383,7 +1394,7 @@ namespace Reloader.Weapons.Controllers
                         continue;
                     }
 
-                    if (definition.DefinitionId == itemId)
+                    if (NormalizeWeaponItemId(definition.DefinitionId) == itemId)
                     {
                         return definition.IconSourcePrefab;
                     }
@@ -1395,6 +1406,7 @@ namespace Reloader.Weapons.Controllers
 
         private bool TryResolveWeaponDefinition(string itemId, out WeaponDefinition definition)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             definition = ResolveWeaponDefinition(itemId);
             if (definition != null)
             {
@@ -1748,6 +1760,7 @@ namespace Reloader.Weapons.Controllers
 
         private PackWeaponPresentationConfig ResolvePackPresentationConfig(string itemId, WeaponDefinition definition = null)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             var fallbackConfig = _packPresentationConfig ?? new PackWeaponPresentationConfig();
             if (string.IsNullOrWhiteSpace(itemId))
             {
@@ -1823,12 +1836,18 @@ namespace Reloader.Weapons.Controllers
 
         private WeaponDefinition ResolveWeaponDefinition(string itemId)
         {
+            itemId = NormalizeWeaponItemId(itemId);
             if (string.IsNullOrWhiteSpace(itemId) || _weaponRegistry == null)
             {
                 return null;
             }
 
             return _weaponRegistry.TryGetWeaponDefinition(itemId, out var definition) ? definition : null;
+        }
+
+        private static string NormalizeWeaponItemId(string itemId)
+        {
+            return WeaponItemIdAliases.Normalize(itemId);
         }
 
     }

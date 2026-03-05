@@ -18,14 +18,38 @@ namespace Reloader.Core.Tests
             {
                 var registry = root.AddComponent<WeaponRegistry>();
 
+                var resolved = registry.TryGetWeaponDefinition("weapon-kar98k", out var definition);
+
+                Assert.That(resolved, Is.True);
+                Assert.That(definition, Is.Not.Null);
+                Assert.That(definition.ItemId, Is.EqualTo("weapon-kar98k"));
+                Assert.That(
+                    AssetDatabase.GetAssetPath(definition),
+                    Is.EqualTo("Assets/_Project/Weapons/Data/Weapons/StarterRifle.asset"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+#else
+            Assert.Ignore("WeaponRegistry editor fallback only runs in editor.");
+#endif
+        }
+
+        [Test]
+        public void TryGetWeaponDefinition_LegacyRifleId_ResolvesKar98kDefinition()
+        {
+#if UNITY_EDITOR
+            var root = new GameObject("WeaponRegistryFallbackResolutionTests_LegacyAlias");
+            try
+            {
+                var registry = root.AddComponent<WeaponRegistry>();
+
                 var resolved = registry.TryGetWeaponDefinition("weapon-rifle-01", out var definition);
 
                 Assert.That(resolved, Is.True);
                 Assert.That(definition, Is.Not.Null);
-                Assert.That(definition.ItemId, Is.EqualTo("weapon-rifle-01"));
-                Assert.That(
-                    AssetDatabase.GetAssetPath(definition),
-                    Is.EqualTo("Assets/_Project/Weapons/Data/Weapons/StarterRifle.asset"));
+                Assert.That(definition.ItemId, Is.EqualTo("weapon-kar98k"));
             }
             finally
             {

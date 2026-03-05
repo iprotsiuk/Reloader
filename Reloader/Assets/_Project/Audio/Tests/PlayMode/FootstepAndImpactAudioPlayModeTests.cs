@@ -83,7 +83,7 @@ namespace Reloader.Audio.Tests.PlayMode
             Assert.That(initializeMethod, Is.Not.Null);
             initializeMethod.Invoke(projectile, new object[]
             {
-                "weapon-rifle-01",
+                "weapon-kar98k",
                 Vector3.forward,
                 120f,
                 0f,

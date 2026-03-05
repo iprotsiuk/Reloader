@@ -12,7 +12,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         public void WeaponDefinition_ReturnsCompatibleAttachmentIds_PerSlot()
         {
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 100f, 1f, 20f, 250f);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 100f, 1f, 20f, 250f);
             definition.SetAttachmentCompatibilitiesForTests(new[]
             {
                 WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x", "att-optic-8x" }),
@@ -32,7 +32,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         public void WeaponDefinition_ReturnsEmptyCompatibility_WhenSlotNotConfigured()
         {
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 100f, 1f, 20f, 250f);
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 100f, 1f, 20f, 250f);
 
             var slotIds = definition.GetCompatibleAttachmentItemIds(WeaponAttachmentSlotType.Scope);
 
@@ -46,7 +46,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         public void RuntimeState_StoresAndRetrievesEquippedAttachmentItemId_PerSlot()
         {
             var state = new WeaponRuntimeState(
-                "weapon-rifle-01",
+                "weapon-kar98k",
                 5,
                 0.1f,
                 0,
@@ -69,7 +69,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         public void SetAmmoCounts_ClampsToCapacity_AndSynthesizesChamberRound()
         {
             var state = new WeaponRuntimeState(
-                "weapon-rifle-01",
+                "weapon-kar98k",
                 5,
                 0.1f,
                 0,
@@ -89,7 +89,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         public void SetAmmoLoadoutForTests_ClampsMagazineRoundsToCapacity()
         {
             var state = new WeaponRuntimeState(
-                "weapon-rifle-01",
+                "weapon-kar98k",
                 3,
                 0.1f,
                 0,

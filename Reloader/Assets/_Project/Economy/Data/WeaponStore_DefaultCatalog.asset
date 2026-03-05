@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: WeaponStore_DefaultCatalog
   m_EditorClassIdentifier: Reloader.Economy::Reloader.Economy.ShopCatalogDefinition
   _items:
-  - _itemId: weapon-rifle-01
+  - _itemId: weapon-kar98k
     _displayName: Starter .308 Rifle
     _category: weapon
     _unitPrice: 900

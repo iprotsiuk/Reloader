@@ -23,15 +23,16 @@ namespace Reloader.Weapons.Runtime
         public bool TryGetWeaponDefinition(string itemId, out WeaponDefinition definition)
         {
             EnsureInitialized();
-            if (_byItemId.TryGetValue(itemId ?? string.Empty, out definition))
+            var normalizedItemId = WeaponItemIdAliases.Normalize(itemId);
+            if (_byItemId.TryGetValue(normalizedItemId, out definition))
             {
                 return true;
             }
 
 #if UNITY_EDITOR
-            if (TryResolveFromProjectAssets(itemId, out definition))
+            if (TryResolveFromProjectAssets(normalizedItemId, out definition))
             {
-                _byItemId[itemId] = definition;
+                _byItemId[normalizedItemId] = definition;
                 return true;
             }
 #endif
@@ -69,7 +70,7 @@ namespace Reloader.Weapons.Runtime
                     continue;
                 }
 
-                _byItemId[definition.ItemId] = definition;
+                _byItemId[WeaponItemIdAliases.Normalize(definition.ItemId)] = definition;
             }
         }
 

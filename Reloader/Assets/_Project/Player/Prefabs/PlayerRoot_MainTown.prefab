@@ -612,7 +612,7 @@ MonoBehaviour:
     _fireStateName: Layer Actions.Fire
   _weaponViewParent: {fileID: 6433793350458025806}
   _weaponViewPrefabs:
-  - _itemId: weapon-rifle-01
+  - _itemId: weapon-kar98k
     _viewPrefab: {fileID: 8695915813560968154, guid: 4af148b15f97d4845aabd2cb0d1b678c, type: 3}
   - _itemId: weapon-pistol-01
     _viewPrefab: {fileID: 850772559695530675, guid: 31f3c4bc3c25047b490da66a3c9a7a8e, type: 3}

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce25483311fb40e694825b08640a1aac, type: 3}
   m_Name: Rifle_308_Starter
   m_EditorClassIdentifier: Reloader.Core::Reloader.Core.Items.ItemDefinition
-  _definitionId: weapon-rifle-01
+  _definitionId: weapon-kar98k
   _category: 4
   _displayName: Rifle_308_Starter
   _stackPolicy: 0
