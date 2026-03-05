@@ -55,7 +55,22 @@ namespace Reloader.Game.Weapons
 
             _activeOpticDefinition = optic;
 
-            _equippedOpticInstance = Instantiate(_activeOpticDefinition.OpticPrefab, _scopeSlot, false);
+            var spawnedOptic = Instantiate((UnityEngine.Object)_activeOpticDefinition.OpticPrefab, _scopeSlot, false);
+            if (spawnedOptic is GameObject spawnedGameObject)
+            {
+                _equippedOpticInstance = spawnedGameObject;
+            }
+            else if (spawnedOptic is Component spawnedComponent)
+            {
+                _equippedOpticInstance = spawnedComponent.gameObject;
+            }
+            else
+            {
+                Debug.LogWarning("AttachmentManager: Optic prefab instantiate returned unsupported type. Equip rejected.", optic);
+                UnequipOptic();
+                return false;
+            }
+
             _activeSightAnchor = ResolveSightAnchor(_equippedOpticInstance.transform);
             if (_activeSightAnchor == null)
             {
