@@ -169,6 +169,7 @@ namespace Reloader.Audio.Tests.PlayMode
             UnityEngine.Object.Destroy(routerGo);
             UnityEngine.Object.Destroy(activePlayer);
             UnityEngine.Object.Destroy(inactivePlayer);
+            yield return null;
         }
 
         private static CombatAudioCatalog CreateCatalogWithFootsteps(AudioClip footstepClip)
