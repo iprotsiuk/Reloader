@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.SceneManagement;
 using System.Reflection;
+using Object = UnityEngine.Object;
 
 namespace Reloader.World.Tests.PlayMode
 {
