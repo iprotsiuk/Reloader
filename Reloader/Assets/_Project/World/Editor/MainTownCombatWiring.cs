@@ -39,7 +39,7 @@ namespace Reloader.World.Editor
         private const string Kar98kScopeItemDefinitionPath = "Assets/_Project/Inventory/Data/Items/Kar98k_Scope_Remote_A.asset";
         private const string Kar98kMuzzleItemDefinitionPath = "Assets/_Project/Inventory/Data/Items/Kar98k_Muzzle_Device_C.asset";
         private const string ProjectilePrefabPath = "Assets/_Project/Weapons/Prefabs/WeaponProjectile.prefab";
-        private const string RifleViewPrefabPath = "Assets/Low Poly Weapon Pack 4_WWII_1/Prefabs/Weapons/Weapons_PreSet/WWII_Recon_A_PreSet.prefab";
+        private const string RifleViewPrefabPath = "Assets/Low Poly Weapon Pack 4_WWII_1/Prefabs/Weapons/WWII_Recon_A.prefab";
         private const string Kar98kScopeViewPrefabPath = "Assets/Low Poly Weapon Pack 4_WWII_1/Prefabs/Attachments/WWII_Optic_Remote_Range_A.prefab";
         private const string Kar98kMuzzleViewPrefabPath = "Assets/Low Poly Weapon Pack 4_WWII_1/Prefabs/Attachments/WWII_Muzzle_Device_C.prefab";
         private const string PistolViewPrefabPath = "Assets/_Project/Weapons/Prefabs/PistolView.prefab";
@@ -517,6 +517,7 @@ namespace Reloader.World.Editor
         private static void CleanupOrphanPickupVisuals()
         {
             CleanupOrphanPickupVisualByName("WWII_Recon_A_PreSet");
+            CleanupOrphanPickupVisualByName("WWII_Recon_A");
             CleanupOrphanPickupVisualByName("WWII_Optic_Remote_Range_A");
             CleanupOrphanPickupVisualByName("WWII_Muzzle_Device_C");
         }

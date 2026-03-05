@@ -1562,6 +1562,7 @@ namespace Reloader.Weapons.Controllers
             }
 
             var equipSucceeded = equipMethod.Invoke(manager, new object[] { definition }) is bool equipResult && equipResult;
+            ApplyAttachmentSlotVisualOverrides(managerType, manager, "_scopeSlot");
             EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
             NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
             return equipSucceeded;
@@ -1614,9 +1615,33 @@ namespace Reloader.Weapons.Controllers
             }
 
             var equipSucceeded = equipMethod.Invoke(manager, new object[] { definition }) is bool equipResult && equipResult;
+            ApplyAttachmentSlotVisualOverrides(managerType, manager, "_muzzleSlot");
             EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
             NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
             return equipSucceeded;
+        }
+
+        private static void ApplyAttachmentSlotVisualOverrides(Type managerType, Component manager, string slotFieldName)
+        {
+            if (managerType == null || manager == null || string.IsNullOrWhiteSpace(slotFieldName))
+            {
+                return;
+            }
+
+            var slotField = managerType.GetField(slotFieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            if (slotField?.GetValue(manager) is not Transform slot)
+            {
+                return;
+            }
+
+            for (var i = 0; i < slot.childCount; i++)
+            {
+                var child = slot.GetChild(i);
+                if (child != null)
+                {
+                    SetLayerRecursively(child, slot.gameObject.layer);
+                }
+            }
         }
 
         private Component EnsureAttachmentManagerRuntimeBridge(GameObject viewRoot)
@@ -1633,11 +1658,10 @@ namespace Reloader.Weapons.Controllers
             }
 
             var manager = viewRoot.GetComponent(managerType) ?? viewRoot.AddComponent(managerType);
-            var ironSightAnchor = FindDescendantByName(viewRoot.transform, "IronSightAnchor")
-                ?? FindDescendantByName(viewRoot.transform, "SightAnchor")
-                ?? viewRoot.transform;
+            var ironSightAnchor = ResolveScopeReferenceTransform(viewRoot.transform);
             var scopeSlot = FindDescendantByName(viewRoot.transform, "ScopeSlot")
                 ?? FindDescendantByName(viewRoot.transform, "OpticSlot")
+                ?? FindDescendantByName(viewRoot.transform, "WWII_Recon_A_Sight")
                 ?? CreateAttachmentSlotFromAuthoredVisual(viewRoot.transform, WeaponAttachmentSlotType.Scope, "ScopeSlot");
             var muzzleSlot = FindDescendantByName(viewRoot.transform, "MuzzleAttachmentSlot")
                 ?? FindDescendantByName(viewRoot.transform, "Muzzle")
@@ -1664,6 +1688,19 @@ namespace Reloader.Weapons.Controllers
             }
 
             return manager;
+        }
+
+        private static Transform ResolveScopeReferenceTransform(Transform root)
+        {
+            if (root == null)
+            {
+                return null;
+            }
+
+            return FindDescendantByName(root, "IronSightAnchor")
+                ?? FindDescendantByName(root, "SightAnchor")
+                ?? FindDescendantByName(root, "WWII_Recon_A_Sight")
+                ?? root;
         }
 
         private void SeedEquippedAttachmentStateFromViewIfUnset(WeaponRuntimeState state)
@@ -1859,6 +1896,20 @@ namespace Reloader.Weapons.Controllers
                 {
                     Destroy(child.gameObject);
                 }
+            }
+        }
+
+        private static void SetLayerRecursively(Transform root, int layer)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            root.gameObject.layer = layer;
+            for (var i = 0; i < root.childCount; i++)
+            {
+                SetLayerRecursively(root.GetChild(i), layer);
             }
         }
 

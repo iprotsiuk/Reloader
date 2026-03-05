@@ -1984,10 +1984,13 @@ namespace Reloader.Weapons.Tests.PlayMode
                 });
 
                 viewPrefab = new GameObject("ViewPrefabWithAttachmentManager");
+                viewPrefab.layer = 23;
                 var scopeSlot = new GameObject("ScopeSlot").transform;
                 scopeSlot.SetParent(viewPrefab.transform, false);
+                scopeSlot.gameObject.layer = 23;
                 var ironSightAnchor = new GameObject("IronSightAnchor").transform;
                 ironSightAnchor.SetParent(viewPrefab.transform, false);
+                ironSightAnchor.gameObject.layer = 23;
 
                 var manager = viewPrefab.AddComponent(attachmentManagerType);
                 var scopeSlotField = attachmentManagerType.GetField("_scopeSlot", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -2053,6 +2056,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(activeOpticProperty, Is.Not.Null);
                 var activeOptic = activeOpticProperty.GetValue(bridgedManager);
                 Assert.That(activeOptic, Is.Not.Null);
+                Assert.That(scopeSlot.childCount, Is.EqualTo(1), "Scope should be mounted into scope slot.");
+                Assert.That(scopeSlot.GetChild(0).gameObject.layer, Is.EqualTo(scopeSlot.gameObject.layer), "Mounted scope visual must inherit slot layer so the viewmodel camera can render it.");
                 var opticIdProperty = opticDefinitionType.GetProperty("OpticId", BindingFlags.Instance | BindingFlags.Public);
                 Assert.That(opticIdProperty, Is.Not.Null);
                 Assert.That((string)opticIdProperty.GetValue(activeOptic), Is.EqualTo("att-optic-8x"));
@@ -2081,6 +2086,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 yield return null;
                 yield return null;
                 Assert.That((bool)GetProperty(scopeMask, "IsMaskVisible"), Is.False);
+                Assert.That(scopeSlot.childCount, Is.EqualTo(1), "Scope should remain mounted after hot swap.");
+                Assert.That(scopeSlot.GetChild(0).gameObject.layer, Is.EqualTo(scopeSlot.gameObject.layer), "Swapped scope visual must inherit slot layer.");
 
                 activeOptic = activeOpticProperty.GetValue(bridgedManager);
                 Assert.That((string)opticIdProperty.GetValue(activeOptic), Is.EqualTo("att-optic-4x"));

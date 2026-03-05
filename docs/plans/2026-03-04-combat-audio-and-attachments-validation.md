@@ -165,3 +165,7 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
   - On first equip, runtime state now seeds attachment IDs from authored visuals if slots were unset, preventing default prefab attachments from disappearing immediately on pickup.
 - `2026-03-05 simplification`:
   - Kar98k default view/source switched from `WWII_Recon_A_PreSet` to base `WWII_Recon_A` (no pre-mounted scope/muzzle) across `StarterRifle`, `PlayerRoot_MainTown`, `MainTown`, and `IndoorRangeInstance` mappings, so attachment lifecycle is fully player-driven.
+- `2026-03-05 scope-visual follow-up`:
+  - Fixed `Wire MainTown Combat Setup` / content builder fallback to stop re-introducing preset-scoped Kar98k by switching editor constants to base `WWII_Recon_A.prefab`.
+  - `PlayerWeaponController` now aligns mounted scope/muzzle instance layers to the runtime slot layer recursively after equip, so optics render in the held viewmodel camera pass (previously FOV changed but optic mesh could remain culled on Default layer).
+  - Kar98k scope fallback anchor resolution now uses `WWII_Recon_A_Sight` when explicit `ScopeSlot` / `OpticSlot` / `SightAnchor` mounts are absent on the base prefab.
