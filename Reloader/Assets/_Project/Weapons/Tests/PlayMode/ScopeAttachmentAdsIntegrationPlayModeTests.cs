@@ -1,14 +1,89 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Reloader.Weapons.Tests.PlayMode
 {
     public class ScopeAttachmentAdsIntegrationPlayModeTests
     {
+        [UnityTest]
+        public IEnumerator EquipOptic_RealKar98kAsset_MountsWithoutEditorFallbackAndResolvesSightAnchor()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var opticDefinition = ResolveOpticDefinitionById("att-kar98k-scope-remote-a");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(opticDefinition, Is.Not.Null, "Expected the real Kar98k optic definition asset to be loaded.");
+
+            var root = new GameObject("AttachmentRoot");
+            var manager = root.AddComponent(attachmentManagerType);
+            var scopeSlot = new GameObject("ScopeSlot").transform;
+            scopeSlot.SetParent(root.transform, false);
+            var ironAnchor = new GameObject("IronSightAnchor").transform;
+            ironAnchor.SetParent(root.transform, false);
+
+            SetField(manager, "_scopeSlot", scopeSlot);
+            SetField(manager, "_ironSightAnchor", ironAnchor);
+
+            var warnings = new List<string>();
+            void CaptureLog(string condition, string stackTrace, LogType type)
+            {
+                if (type == LogType.Warning)
+                {
+                    warnings.Add(condition ?? string.Empty);
+                }
+            }
+
+            Application.logMessageReceived += CaptureLog;
+            try
+            {
+                Assert.That((bool)Invoke(manager, "EquipOptic", opticDefinition), Is.True);
+
+                var activeAnchor = Invoke(manager, "GetActiveSightAnchor") as Transform;
+                Assert.That(activeAnchor, Is.Not.Null);
+                Assert.That(activeAnchor.name, Is.EqualTo("SightAnchor"), "Real Kar98k optic should resolve an authored sight anchor.");
+                Assert.That(scopeSlot.childCount, Is.EqualTo(1));
+                Assert.That(activeAnchor, Is.Not.EqualTo(scopeSlot.GetChild(0)), "Sight anchor should not fall back to optic root.");
+                Assert.That(
+                    warnings.Exists(message => message.Contains("Used editor fallback optic prefab", StringComparison.Ordinal)),
+                    Is.False,
+                    "Healthy real optic mount should not require editor fallback.");
+            }
+            finally
+            {
+                Application.logMessageReceived -= CaptureLog;
+                Cleanup(root);
+            }
+
+            yield return null;
+        }
+
+        [Test]
+        public void AttachmentManager_DefaultVerboseOpticLogs_AreDisabled()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+
+            var root = new GameObject("AttachmentRoot");
+            try
+            {
+                var manager = root.AddComponent(attachmentManagerType);
+                var verboseLogsField = attachmentManagerType.GetField("_verboseOpticLogs", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(verboseLogsField, Is.Not.Null);
+                Assert.That((bool)verboseLogsField.GetValue(manager), Is.False);
+            }
+            finally
+            {
+                Cleanup(root);
+            }
+        }
+
         [UnityTest]
         public IEnumerator EquipOptic_HotSwap_UpdatesActiveSightAnchor()
         {
@@ -32,12 +107,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             var firstAnchor = Invoke(manager, "GetActiveSightAnchor") as Transform;
             Assert.That(firstAnchor, Is.Not.Null);
             Assert.That(firstAnchor.name, Is.EqualTo("SightAnchor"));
+            var firstAnchorInstanceId = firstAnchor.GetInstanceID();
             Assert.That(GetProperty(manager, "ActiveOpticDefinition"), Is.EqualTo(lpvo));
 
             Assert.That((bool)Invoke(manager, "EquipOptic", highMag), Is.True);
             var secondAnchor = Invoke(manager, "GetActiveSightAnchor") as Transform;
             Assert.That(secondAnchor, Is.Not.Null);
-            Assert.That(secondAnchor, Is.Not.EqualTo(firstAnchor));
+            Assert.That(secondAnchor.GetInstanceID(), Is.Not.EqualTo(firstAnchorInstanceId));
             Assert.That(GetProperty(manager, "ActiveOpticDefinition"), Is.EqualTo(highMag));
 
             Cleanup(root, lpvo, highMag);
@@ -122,6 +198,44 @@ namespace Reloader.Weapons.Tests.PlayMode
             SetField(definition, "_opticPrefab", prefab);
 
             return definition;
+        }
+
+        private static ScriptableObject ResolveOpticDefinitionById(string opticId)
+        {
+#if UNITY_EDITOR
+            if (string.Equals(opticId, "att-kar98k-scope-remote-a", StringComparison.Ordinal))
+            {
+                var opticAsset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                    "Assets/_Project/Weapons/Data/Attachments/Kar98kScopeRemoteA.asset");
+                if (opticAsset != null)
+                {
+                    return opticAsset;
+                }
+            }
+#endif
+
+            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            Assert.That(opticDefinitionType, Is.Not.Null);
+
+            var opticIdProperty = opticDefinitionType.GetProperty("OpticId", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(opticIdProperty, Is.Not.Null);
+
+            var candidates = Resources.FindObjectsOfTypeAll(opticDefinitionType);
+            for (var i = 0; i < candidates.Length; i++)
+            {
+                if (candidates[i] is not ScriptableObject candidate)
+                {
+                    continue;
+                }
+
+                if (opticIdProperty.GetValue(candidate) is string candidateId
+                    && string.Equals(candidateId, opticId, StringComparison.Ordinal))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
         }
 
         private static Type ResolveType(string fullName)

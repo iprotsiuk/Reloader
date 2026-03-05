@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Kar98kMuzzleDeviceC
   m_EditorClassIdentifier: 
   _attachmentId: att-kar98k-muzzle-device-c
-  _muzzlePrefab: {fileID: 100100000, guid: fd3b5c2bd2c23b24289eb7cb29b7832f, type: 3}
+  _muzzlePrefab: {fileID: 6536592311503995727, guid: fd3b5c2bd2c23b24289eb7cb29b7832f, type: 3}
   _flashPrefab: {fileID: 0}
   _fireClipOverride: {fileID: 0}
   _flashLightIntensity: 2

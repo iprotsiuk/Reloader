@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using Reloader.Inventory;
 using Reloader.Player;
@@ -111,6 +112,84 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(inventorySection.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(attachmentsSection.style.display.value, Is.EqualTo(DisplayStyle.None));
 
+            UnityEngine.Object.DestroyImmediate(owner);
+        }
+
+        [Test]
+        public void Controller_AttachmentsIntent_FallsBackToAnotherWeaponRegistry_WhenPrimaryRegistryLacksDefinition()
+        {
+            var owner = new GameObject("TabInventoryAttachmentsRegistryFallbackController");
+            var inventoryController = owner.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(8);
+            runtime.BeltSlotItemIds[0] = "weapon-pistol-01";
+            runtime.SelectBeltSlot(0);
+            runtime.TryStoreItem("weapon-pistol-01", out _, out _, out _);
+            runtime.TryStoreItem("att-pistol-optic", out _, out _, out _);
+            inventoryController.Configure(null, null, runtime);
+
+            var primaryRegistry = owner.AddComponent<WeaponRegistry>();
+            var primaryDefinition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            primaryDefinition.SetRuntimeValuesForTests(
+                itemId: "weapon-kar98k",
+                displayName: "Kar98k",
+                magazineCapacity: 5,
+                fireIntervalSeconds: 0.2f,
+                projectileSpeed: 900f,
+                projectileGravityMultiplier: 1f,
+                baseDamage: 40f,
+                maxRangeMeters: 400f);
+            primaryRegistry.SetDefinitionsForTests(new[] { primaryDefinition });
+
+            var fallbackRegistryOwner = new GameObject("TabInventoryAttachmentsRegistryFallback");
+            var fallbackRegistry = fallbackRegistryOwner.AddComponent<WeaponRegistry>();
+            var fallbackDefinition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            fallbackDefinition.SetRuntimeValuesForTests(
+                itemId: "weapon-pistol-01",
+                displayName: "Pistol 01",
+                magazineCapacity: 12,
+                fireIntervalSeconds: 0.15f,
+                projectileSpeed: 420f,
+                projectileGravityMultiplier: 1f,
+                baseDamage: 20f,
+                maxRangeMeters: 80f);
+            fallbackDefinition.SetAttachmentCompatibilitiesForTests(new[]
+            {
+                WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-pistol-optic" })
+            });
+            fallbackRegistry.SetDefinitionsForTests(new[] { fallbackDefinition });
+
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 0);
+
+            var inputSource = owner.AddComponent<TestInputSource>();
+            var controller = owner.AddComponent<TabInventoryController>();
+            controller.SetInventoryController(inventoryController);
+            controller.SetInputSource(inputSource);
+            controller.Configure(binder, new TabInventoryDragController());
+
+            var resolveMethod = typeof(TabInventoryController).GetMethod(
+                "TryResolveWeaponDefinition",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(resolveMethod, Is.Not.Null);
+            var args = new object[] { "weapon-pistol-01", null };
+            var resolved = (bool)resolveMethod.Invoke(controller, args);
+            Assert.That(resolved, Is.True, "Expected fallback registry lookup to resolve pistol definition.");
+
+            inputSource.MenuTogglePressedThisFrame = true;
+            controller.Tick();
+            controller.HandleIntent(new UiIntent(
+                "tab.inventory.item.context.attachments",
+                new TabInventoryAttachmentContextIntentPayload("belt", 0, "weapon-pistol-01")));
+
+            var resolvedDefinition = args[1] as WeaponDefinition;
+            Assert.That(resolvedDefinition, Is.Not.Null);
+            Assert.That(resolvedDefinition.ItemId, Is.EqualTo("weapon-pistol-01"));
+
+            UnityEngine.Object.DestroyImmediate(primaryDefinition);
+            UnityEngine.Object.DestroyImmediate(fallbackDefinition);
+            UnityEngine.Object.DestroyImmediate(fallbackRegistryOwner);
             UnityEngine.Object.DestroyImmediate(owner);
         }
 

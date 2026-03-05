@@ -9,6 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8912925845023556728}
+  - component: {fileID: 776500000000000105}
   m_Layer: 0
   m_Name: PistolView
   m_TagString: Untagged
@@ -34,8 +35,28 @@ Transform:
   - {fileID: 2280447949852161331}
   - {fileID: 5175795971222780079}
   - {fileID: 7691575539049933317}
+  - {fileID: 776500000000000102}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &776500000000000105
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 850772559695530675}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f40673980f34f66b6fb8fc530a8aa70, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _ironSightAnchor: {fileID: 776500000000000102}
+  _muzzleTransform: {fileID: 6661808663148718580}
+  _magazineSocket: {fileID: 5175795971222780079}
+  _magazineDropSocket: {fileID: 7691575539049933317}
+  _attachmentSlots:
+  - _slotType: 1
+    _slotTransform: {fileID: 2280447949852161331}
 --- !u!1 &3180016798595929174
 GameObject:
   m_ObjectHideFlags: 0
@@ -62,6 +83,37 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: -0.03, z: 0.17}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8912925845023556728}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &776500000000000101
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 776500000000000102}
+  m_Layer: 0
+  m_Name: IronSightAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &776500000000000102
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 776500000000000101}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.085, z: 0.24}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

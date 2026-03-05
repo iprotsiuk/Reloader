@@ -2,5 +2,8 @@
   "name": "reloader-tools",
   "private": true,
   "type": "module",
-  "scripts": {}
+  "scripts": {
+    "gen:town": "python3 scripts/ai/generate_fal_images.py",
+    "gen:town:default": "python3 scripts/ai/generate_fal_images.py --models fal-ai/nano-banana-2,fal-ai/nano-banana-pro,fal-ai/flux/dev"
+  }
 }

@@ -15,6 +15,9 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Reloader.Weapons.Tests.PlayMode
 {
@@ -1165,7 +1168,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator Equip_WithoutExplicitViewBindings_UsesWeaponDefinitionIconSourcePrefab()
+        public IEnumerator Equip_WithoutExplicitViewBindings_DoesNotSpawnWeaponViewFallback()
         {
             var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
             var runtimeEvents = new DefaultRuntimeEvents();
@@ -1199,10 +1202,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var controller = root.AddComponent<PlayerWeaponController>();
                 SetControllerField(controller, "_weaponRegistry", registry);
                 SetControllerField(controller, "_weaponViewParent", root.transform);
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
                 yield return null;
 
                 var equippedView = root.transform.Find("EquippedView_weapon-kar98k");
-                Assert.That(equippedView, Is.Not.Null, "Expected equipped view to spawn from WeaponDefinition icon prefab when explicit view bindings are missing.");
+                Assert.That(equippedView, Is.Null, "Weapon view spawn should fail loudly when explicit bindings are missing.");
             }
             finally
             {
@@ -1408,6 +1412,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var controller = root.AddComponent<PlayerWeaponController>();
             SetControllerField(controller, "_weaponRegistry", registry);
             SetControllerField(controller, "_weaponViewParent", configuredParent);
+            SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
             yield return null;
 
             Assert.That(configuredParent.Find("EquippedView_weapon-kar98k"), Is.Not.Null);
@@ -1557,7 +1562,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator Fire_WithViewMuzzleDefaultAttachment_BridgesAndUsesOverrideClip()
+        public IEnumerator Spawn_WithViewMuzzleDefaultAttachment_DoesNotAutoEquipMuzzleRuntime()
         {
             var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
             RuntimeKernelBootstrapper.Events = new DefaultRuntimeEvents();
@@ -1572,7 +1577,6 @@ namespace Reloader.Weapons.Tests.PlayMode
             WeaponDefinition definition = null;
             GameObject viewPrefab = null;
             UnityEngine.Object muzzleDefinition = null;
-            AudioClip overrideClip = null;
             GameObject muzzlePrefab = null;
 
             try
@@ -1599,6 +1603,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 muzzle.SetParent(viewPrefab.transform, false);
                 var slot = new GameObject("MuzzleAttachmentSlot").transform;
                 slot.SetParent(viewPrefab.transform, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, muzzleFirePoint: muzzle, muzzleSlot: slot);
                 var runtimeComponent = viewPrefab.AddComponent(runtimeType);
                 var muzzleSocketField = runtimeType.GetField("_muzzleSocket", BindingFlags.Instance | BindingFlags.NonPublic);
                 var attachmentSlotField = runtimeType.GetField("_attachmentSlot", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -1608,15 +1613,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(defaultAttachmentField, Is.Not.Null);
 
                 muzzleDefinition = ScriptableObject.CreateInstance(definitionType);
-                overrideClip = AudioClip.Create("muzzle-override", 128, 1, 44100, false);
                 muzzlePrefab = new GameObject("MuzzleDevicePrefab");
 
                 var definitionMuzzlePrefabField = definitionType.GetField("_muzzlePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
-                var definitionClipField = definitionType.GetField("_fireClipOverride", BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.That(definitionMuzzlePrefabField, Is.Not.Null);
-                Assert.That(definitionClipField, Is.Not.Null);
                 definitionMuzzlePrefabField.SetValue(muzzleDefinition, muzzlePrefab);
-                definitionClipField.SetValue(muzzleDefinition, overrideClip);
 
                 muzzleSocketField.SetValue(runtimeComponent, muzzle);
                 attachmentSlotField.SetValue(runtimeComponent, slot);
@@ -1631,12 +1632,31 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var controller = root.AddComponent<PlayerWeaponController>();
                 SetControllerField(controller, "_weaponRegistry", registry);
                 SetControllerField(controller, "_combatAudioEmitter", emitterSpy);
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
                 yield return null;
+
+                var equippedViewField = typeof(PlayerWeaponController).GetField("_equippedWeaponView", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(equippedViewField, Is.Not.Null);
+                var equippedView = equippedViewField.GetValue(controller) as GameObject;
+                Assert.That(equippedView, Is.Not.Null);
+
+                var bridgedRuntime = equippedView.GetComponent(runtimeType);
+                Assert.That(bridgedRuntime, Is.Not.Null);
+
+                var activeAttachmentField = runtimeType.GetField("_activeAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(activeAttachmentField, Is.Not.Null);
+                Assert.That(activeAttachmentField.GetValue(bridgedRuntime), Is.Null, "Spawned weapon views should not auto-equip authored default muzzle attachments.");
+
+                var bridgedSlotField = runtimeType.GetField("_attachmentSlot", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(bridgedSlotField, Is.Not.Null);
+                var bridgedSlot = bridgedSlotField.GetValue(bridgedRuntime) as Transform;
+                Assert.That(bridgedSlot, Is.Not.Null);
+                Assert.That(bridgedSlot.childCount, Is.EqualTo(0), "Muzzle attachment slot should stay empty until runtime state explicitly equips a muzzle.");
 
                 input.FirePressedThisFrame = true;
                 yield return null;
 
-                Assert.That(emitterSpy.LastFireOverrideClip, Is.SameAs(overrideClip));
+                Assert.That(emitterSpy.LastFireOverrideClip, Is.Null, "Fire override should remain unset when no muzzle is explicitly equipped.");
             }
             finally
             {
@@ -1666,11 +1686,6 @@ namespace Reloader.Weapons.Tests.PlayMode
                     Object.Destroy(muzzleDefinition);
                 }
 
-                if (overrideClip != null)
-                {
-                    Object.Destroy(overrideClip);
-                }
-
                 if (muzzlePrefab != null)
                 {
                     Object.Destroy(muzzlePrefab);
@@ -1679,7 +1694,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator EquipView_WithDetachableMagazineRuntimeDefaultAttachment_BridgesAndActivatesAttachment()
+        public IEnumerator Spawn_WithDetachableMagazineRuntimeDefaultAttachment_DoesNotAutoEquipAttachment()
         {
             var runtimeType = ResolveType("Reloader.Game.Weapons.DetachableMagazineRuntime");
             var definitionType = ResolveType("Reloader.Game.Weapons.MagazineAttachmentDefinition");
@@ -1716,6 +1731,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 magazineSocket.SetParent(viewPrefab.transform, false);
                 var dropSocket = new GameObject("MagazineDropSocket").transform;
                 dropSocket.SetParent(viewPrefab.transform, false);
+                ConfigureTestWeaponViewMounts(
+                    viewPrefab,
+                    muzzleFirePoint: muzzle,
+                    magazineSocket: magazineSocket,
+                    magazineDropSocket: dropSocket);
 
                 var runtimeComponent = viewPrefab.AddComponent(runtimeType);
                 var magazineSocketField = runtimeType.GetField("_magazineSocket", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -1746,6 +1766,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 var controller = root.AddComponent<PlayerWeaponController>();
                 SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
                 yield return null;
 
                 var equippedViewField = typeof(PlayerWeaponController).GetField("_equippedWeaponView", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -1758,13 +1779,13 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 var activeAttachmentField = runtimeType.GetField("_activeAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.That(activeAttachmentField, Is.Not.Null);
-                Assert.That(activeAttachmentField.GetValue(bridgedRuntime), Is.SameAs(magazineDefinition));
+                Assert.That(activeAttachmentField.GetValue(bridgedRuntime), Is.Null, "Spawned weapon views should not auto-equip authored default magazine attachments.");
 
                 var bridgedMagSocketField = runtimeType.GetField("_magazineSocket", BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.That(bridgedMagSocketField, Is.Not.Null);
                 var bridgedMagazineSocket = bridgedMagSocketField.GetValue(bridgedRuntime) as Transform;
                 Assert.That(bridgedMagazineSocket, Is.Not.Null);
-                Assert.That(bridgedMagazineSocket.childCount, Is.EqualTo(1), "Bridged magazine runtime should mount configured visual.");
+                Assert.That(bridgedMagazineSocket.childCount, Is.EqualTo(0), "Magazine socket should stay empty until runtime state explicitly equips a magazine attachment.");
             }
             finally
             {
@@ -1865,11 +1886,20 @@ namespace Reloader.Weapons.Tests.PlayMode
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            var viewPrefab = new GameObject("Kar98kView");
+            var scopeSlot = new GameObject("ScopeSlot").transform;
+            scopeSlot.SetParent(viewPrefab.transform, false);
+            var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+            ironSightAnchor.SetParent(viewPrefab.transform, false);
+            ConfigureTestWeaponViewMounts(viewPrefab, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
             definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
             definition.SetAttachmentCompatibilitiesForTests(new[]
             {
                 WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x", "att-optic-8x" })
             });
+            var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(iconPrefabField, Is.Not.Null);
+            iconPrefabField.SetValue(definition, viewPrefab);
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
@@ -1879,6 +1909,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 WeaponAttachmentItemMetadata.CreateForTests("att-optic-4x", WeaponAttachmentSlotType.Scope),
                 WeaponAttachmentItemMetadata.CreateForTests("att-optic-8x", WeaponAttachmentSlotType.Scope)
             });
+            SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
             yield return null;
 
@@ -1896,6 +1927,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             Object.Destroy(root);
             Object.Destroy(registryGo);
             Object.Destroy(definition);
+            Object.Destroy(viewPrefab);
         }
 
         [UnityTest]
@@ -1915,16 +1947,26 @@ namespace Reloader.Weapons.Tests.PlayMode
             var registryGo = new GameObject("Registry");
             var registry = registryGo.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            var viewPrefab = new GameObject("Kar98kView");
+            var scopeSlot = new GameObject("ScopeSlot").transform;
+            scopeSlot.SetParent(viewPrefab.transform, false);
+            var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+            ironSightAnchor.SetParent(viewPrefab.transform, false);
+            ConfigureTestWeaponViewMounts(viewPrefab, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
             definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
             definition.SetAttachmentCompatibilitiesForTests(new[]
             {
                 WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x" })
             });
+            var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(iconPrefabField, Is.Not.Null);
+            iconPrefabField.SetValue(definition, viewPrefab);
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
             SetControllerField(controller, "_weaponRegistry", registry);
             SetControllerField(controller, "_attachmentItemMetadata", Array.Empty<WeaponAttachmentItemMetadata>());
+            SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
             yield return null;
 
@@ -1935,6 +1977,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             Object.Destroy(root);
             Object.Destroy(registryGo);
             Object.Destroy(definition);
+            Object.Destroy(viewPrefab);
         }
 
         [UnityTest]
@@ -1991,6 +2034,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var ironSightAnchor = new GameObject("IronSightAnchor").transform;
                 ironSightAnchor.SetParent(viewPrefab.transform, false);
                 ironSightAnchor.gameObject.layer = 23;
+                ConfigureTestWeaponViewMounts(viewPrefab, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
 
                 var manager = viewPrefab.AddComponent(attachmentManagerType);
                 var scopeSlotField = attachmentManagerType.GetField("_scopeSlot", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -2187,7 +2231,9 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 // No ScopeSlot on purpose: runtime mount should fail.
                 viewPrefab = new GameObject("ViewPrefabWithoutScopeSlot");
-                new GameObject("IronSightAnchor").transform.SetParent(viewPrefab.transform, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(viewPrefab.transform, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, ironSightAnchor: ironSightAnchor);
 
                 opticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
                 opticPrefab = new GameObject("OpticPrefab");
@@ -2289,8 +2335,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 });
 
                 viewPrefab = new GameObject("Kar98kView");
-                new GameObject("ScopeSlot").transform.SetParent(viewPrefab.transform, false);
-                new GameObject("IronSightAnchor").transform.SetParent(viewPrefab.transform, false);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(viewPrefab.transform, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(viewPrefab.transform, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
                 var authoredScopeVisual = new GameObject("WWII_Optic_Remote_Range_A");
                 authoredScopeVisual.AddComponent<MeshFilter>();
                 authoredScopeVisual.AddComponent<MeshRenderer>();
@@ -2319,6 +2368,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                         WeaponAttachmentSlotType.Scope,
                         opticDefinition)
                 });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
                 yield return null;
                 runtime.SelectBeltSlot(1);
@@ -2409,8 +2459,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 });
 
                 viewPrefab = new GameObject("Kar98kView");
-                new GameObject("ScopeSlot").transform.SetParent(viewPrefab.transform, false);
-                new GameObject("IronSightAnchor").transform.SetParent(viewPrefab.transform, false);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(viewPrefab.transform, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(viewPrefab.transform, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
                 var authoredScopeVisual = new GameObject("WWII_Optic_Remote_Range_A");
                 authoredScopeVisual.AddComponent<MeshFilter>();
                 authoredScopeVisual.AddComponent<MeshRenderer>();
@@ -2439,6 +2492,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                         WeaponAttachmentSlotType.Scope,
                         opticDefinition)
                 });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
                 yield return null;
                 Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
@@ -2566,6 +2620,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 muzzleSocket.SetParent(viewPrefab.transform, false);
                 var attachmentSlot = new GameObject("MuzzleAttachmentSlot").transform;
                 attachmentSlot.SetParent(viewPrefab.transform, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, muzzleFirePoint: muzzleSocket, muzzleSlot: attachmentSlot);
 
                 var runtimeComponent = viewPrefab.AddComponent(muzzleRuntimeType);
                 SetField(muzzleRuntimeType, runtimeComponent, "_muzzleSocket", muzzleSocket);
@@ -2598,6 +2653,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                     WeaponAttachmentItemMetadata.CreateForTests("att-muzzle-a", WeaponAttachmentSlotType.Muzzle),
                     WeaponAttachmentItemMetadata.CreateForTests("att-muzzle-b", WeaponAttachmentSlotType.Muzzle)
                 });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
                 yield return null;
                 Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
@@ -2706,6 +2762,526 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator TrySwapEquippedWeaponAttachment_RealKar98kScopeAsset_MountsIntoRuntimeViewWithDedicatedSightAnchor()
+        {
+#if UNITY_EDITOR
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+
+            try
+            {
+                var realOpticDefinition = AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                    "Assets/_Project/Weapons/Data/Attachments/Kar98kScopeRemoteA.asset");
+                Assert.That(realOpticDefinition, Is.Not.Null);
+
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+                runtime.TryAddStackItem("att-kar98k-scope-remote-a", 1, out _, out _, out _);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Kar98k", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-kar98k-scope-remote-a" })
+                });
+
+                viewPrefab = new GameObject("Kar98kView");
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(viewPrefab.transform, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(viewPrefab.transform, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests(
+                        "att-kar98k-scope-remote-a",
+                        WeaponAttachmentSlotType.Scope,
+                        realOpticDefinition)
+                });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
+
+                yield return null;
+
+                Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-kar98k-scope-remote-a"), Is.True);
+                yield return null;
+
+                var equippedView = GetControllerField<GameObject>(controller, "_equippedWeaponView");
+                Assert.That(equippedView, Is.Not.Null);
+
+                var manager = equippedView.GetComponent(attachmentManagerType);
+                Assert.That(manager, Is.Not.Null);
+
+                var equippedScopeSlot = equippedView.transform.Find("ScopeSlot");
+                Assert.That(equippedScopeSlot, Is.Not.Null);
+                Assert.That(equippedScopeSlot.childCount, Is.EqualTo(1));
+
+                var activeAnchor = Invoke(manager, "GetActiveSightAnchor") as Transform;
+                Assert.That(activeAnchor, Is.Not.Null);
+                Assert.That(activeAnchor, Is.Not.EqualTo(equippedScopeSlot.GetChild(0)), "Real Kar98k scope should not fall back to optic root as the sight anchor.");
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+            }
+#else
+            Assert.Ignore("Requires UnityEditor AssetDatabase.");
+            yield break;
+#endif
+        }
+
+        [Test]
+        public void RifleViewPrefab_ExposesExplicitAttachmentMountContract()
+        {
+#if UNITY_EDITOR
+            var mountsType = ResolveType("Reloader.Weapons.Runtime.WeaponViewAttachmentMounts");
+            Assert.That(mountsType, Is.Not.Null, "Refactor contract requires an explicit weapon-view attachment mount component.");
+
+            var rifleViewPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/_Project/Weapons/Prefabs/RifleView.prefab");
+            Assert.That(rifleViewPrefab, Is.Not.Null);
+
+            var mounts = rifleViewPrefab.GetComponent(mountsType);
+            Assert.That(mounts, Is.Not.Null, "Rifle runtime view should expose attachment slots explicitly instead of relying on name heuristics.");
+
+            var ironSightAnchor = GetProperty(mounts, "IronSightAnchor") as Transform;
+            Assert.That(ironSightAnchor, Is.Not.Null);
+
+            var tryGetSlot = mountsType.GetMethod("TryGetAttachmentSlot", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(tryGetSlot, Is.Not.Null);
+
+            var scopeArgs = new object[] { WeaponAttachmentSlotType.Scope, null };
+            var muzzleArgs = new object[] { WeaponAttachmentSlotType.Muzzle, null };
+            Assert.That((bool)tryGetSlot.Invoke(mounts, scopeArgs), Is.True);
+            Assert.That(scopeArgs[1] as Transform, Is.Not.Null);
+            Assert.That((bool)tryGetSlot.Invoke(mounts, muzzleArgs), Is.True);
+            Assert.That(muzzleArgs[1] as Transform, Is.Not.Null);
+#else
+            Assert.Ignore("Requires UnityEditor AssetDatabase.");
+#endif
+        }
+
+        [UnityTest]
+        public IEnumerator EquipWeapon_DoesNotSeedScopeAttachmentStateFromAuthoredViewVisual()
+        {
+            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            Assert.That(opticDefinitionType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            UnityEngine.Object opticDefinition = null;
+            GameObject opticPrefab = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Kar98k", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-seeded" })
+                });
+
+                viewPrefab = new GameObject("Kar98kView");
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(viewPrefab.transform, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(viewPrefab.transform, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
+
+                opticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+                opticPrefab = new GameObject("OpticSeededPrefab");
+                new GameObject("SightAnchor").transform.SetParent(opticPrefab.transform, false);
+                SetField(opticDefinitionType, opticDefinition, "_opticId", "att-optic-seeded");
+                SetField(opticDefinitionType, opticDefinition, "_opticPrefab", opticPrefab);
+
+                var authoredVisual = new GameObject("OpticSeededPrefab_AuthedViewMesh");
+                authoredVisual.transform.SetParent(viewPrefab.transform, false);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests(
+                        "att-optic-seeded",
+                        WeaponAttachmentSlotType.Scope,
+                        opticDefinition)
+                });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
+
+                yield return null;
+
+                Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+                Assert.That(state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.Empty);
+
+                var equippedView = GetControllerField<GameObject>(controller, "_equippedWeaponView");
+                Assert.That(equippedView, Is.Not.Null);
+                var runtimeScopeSlot = equippedView.transform.Find("ScopeSlot");
+                Assert.That(runtimeScopeSlot, Is.Not.Null);
+                Assert.That(runtimeScopeSlot.childCount, Is.EqualTo(0), "Spawned runtime view should stay empty until the player explicitly equips an attachment.");
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (opticDefinition != null)
+                {
+                    Object.Destroy(opticDefinition);
+                }
+
+                if (opticPrefab != null)
+                {
+                    Object.Destroy(opticPrefab);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator WeaponViewPoseTuningHelper_AimingWithOneXOptic_StillAppliesAdsPose()
+        {
+            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            Assert.That(opticDefinitionType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            UnityEngine.Object oneXOpticDefinition = null;
+            GameObject oneXOpticPrefab = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Kar98k", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-1x" })
+                });
+
+                viewPrefab = new GameObject("Kar98kView");
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(viewPrefab.transform, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(viewPrefab.transform, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
+
+                oneXOpticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+                oneXOpticPrefab = new GameObject("OpticOneXPrefab");
+                new GameObject("SightAnchor").transform.SetParent(oneXOpticPrefab.transform, false);
+                SetField(opticDefinitionType, oneXOpticDefinition, "_opticId", "att-optic-1x");
+                SetField(opticDefinitionType, oneXOpticDefinition, "_isVariableZoom", false);
+                SetField(opticDefinitionType, oneXOpticDefinition, "_magnificationMin", 1f);
+                SetField(opticDefinitionType, oneXOpticDefinition, "_magnificationMax", 1f);
+                SetField(opticDefinitionType, oneXOpticDefinition, "_magnificationStep", 1f);
+                SetField(opticDefinitionType, oneXOpticDefinition, "_opticPrefab", oneXOpticPrefab);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests(
+                        "att-optic-1x",
+                        WeaponAttachmentSlotType.Scope,
+                        oneXOpticDefinition)
+                });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
+
+                var poseHelper = root.AddComponent<WeaponViewPoseTuningHelper>();
+                SetField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_weaponController", controller);
+                SetField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_targetWeaponItemId", "weapon-kar98k");
+                SetField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_hipLocalPosition", Vector3.zero);
+                SetField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_adsLocalPosition", new Vector3(0.25f, 0f, 0f));
+                SetField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_hipLocalEuler", Vector3.zero);
+                SetField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_adsLocalEuler", Vector3.zero);
+                SetField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_rifleLocalEulerOffset", Vector3.zero);
+                SetField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_blendSpeed", 1000f);
+
+                yield return null;
+                Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+                state.SetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope, "att-optic-1x");
+
+                runtime.SelectBeltSlot(1);
+                yield return null;
+                runtime.SelectBeltSlot(0);
+                yield return null;
+
+                var equippedView = controller.EquippedWeaponViewTransform;
+                Assert.That(equippedView, Is.Not.Null);
+                equippedView.localPosition = Vector3.zero;
+                input.AimHeldValue = true;
+
+                yield return null;
+
+                Assert.That(equippedView.localPosition.x, Is.GreaterThan(0.1f), "1x optics should still use tuned ADS pose instead of bypassing pose updates.");
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (oneXOpticDefinition != null)
+                {
+                    Object.Destroy(oneXOpticDefinition);
+                }
+
+                if (oneXOpticPrefab != null)
+                {
+                    Object.Destroy(oneXOpticPrefab);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator WeaponViewPoseTuningHelper_AimingWithMagnifiedScope_UsesAttachmentSpecificAdsPose()
+        {
+            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            Assert.That(opticDefinitionType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            UnityEngine.Object scopedOpticDefinition = null;
+            GameObject scopedOpticPrefab = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Kar98k", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x" })
+                });
+
+                viewPrefab = new GameObject("Kar98kView");
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(viewPrefab.transform, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(viewPrefab.transform, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
+
+                scopedOpticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+                scopedOpticPrefab = new GameObject("OpticFourXPrefab");
+                new GameObject("SightAnchor").transform.SetParent(scopedOpticPrefab.transform, false);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_opticId", "att-optic-4x");
+                SetField(opticDefinitionType, scopedOpticDefinition, "_isVariableZoom", false);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_magnificationMin", 4f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_magnificationMax", 4f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_magnificationStep", 1f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_opticPrefab", scopedOpticPrefab);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests(
+                        "att-optic-4x",
+                        WeaponAttachmentSlotType.Scope,
+                        scopedOpticDefinition)
+                });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
+
+                var poseHelper = root.AddComponent<WeaponViewPoseTuningHelper>();
+                var helperType = typeof(WeaponViewPoseTuningHelper);
+                SetField(helperType, poseHelper, "_weaponController", controller);
+                SetField(helperType, poseHelper, "_targetWeaponItemId", "weapon-kar98k");
+                SetField(helperType, poseHelper, "_hipLocalPosition", Vector3.zero);
+                SetField(helperType, poseHelper, "_adsLocalPosition", new Vector3(0.1f, 0f, 0f));
+                SetField(helperType, poseHelper, "_hipLocalEuler", Vector3.zero);
+                SetField(helperType, poseHelper, "_adsLocalEuler", Vector3.zero);
+                SetField(helperType, poseHelper, "_rifleLocalEulerOffset", Vector3.zero);
+                SetField(helperType, poseHelper, "_blendSpeed", 1000f);
+
+                var overrideType = helperType.GetNestedType("AttachmentPoseOverride", BindingFlags.NonPublic);
+                Assert.That(overrideType, Is.Not.Null, "Attachment-specific pose overrides should be supported for scoped ADS tuning.");
+                var overrides = Array.CreateInstance(overrideType, 1);
+                var entry = Activator.CreateInstance(overrideType);
+                SetField(overrideType, entry, "_slotType", WeaponAttachmentSlotType.Scope);
+                SetField(overrideType, entry, "_attachmentItemId", "att-optic-4x");
+                SetField(overrideType, entry, "_hipLocalPosition", Vector3.zero);
+                SetField(overrideType, entry, "_hipLocalEuler", Vector3.zero);
+                SetField(overrideType, entry, "_adsLocalPosition", new Vector3(0.4f, 0f, 0f));
+                SetField(overrideType, entry, "_adsLocalEuler", Vector3.zero);
+                SetField(overrideType, entry, "_rifleLocalEulerOffset", Vector3.zero);
+                SetField(overrideType, entry, "_blendSpeed", 1000f);
+                overrides.SetValue(entry, 0);
+                SetField(helperType, poseHelper, "_attachmentPoseOverrides", overrides);
+
+                yield return null;
+                Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+                state.SetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope, "att-optic-4x");
+
+                runtime.SelectBeltSlot(1);
+                yield return null;
+                runtime.SelectBeltSlot(0);
+                yield return null;
+
+                var equippedView = controller.EquippedWeaponViewTransform;
+                Assert.That(equippedView, Is.Not.Null);
+                equippedView.localPosition = Vector3.zero;
+                input.AimHeldValue = true;
+
+                yield return null;
+
+                Assert.That(equippedView.localPosition.x, Is.GreaterThan(0.3f), "Magnified optics should be able to drive an attachment-specific ADS pose override.");
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (scopedOpticDefinition != null)
+                {
+                    Object.Destroy(scopedOpticDefinition);
+                }
+
+                if (scopedOpticPrefab != null)
+                {
+                    Object.Destroy(scopedOpticPrefab);
+                }
+            }
+        }
+
         private static object Invoke(object instance, string methodName, params object[] args)
         {
             var method = instance.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -2725,6 +3301,50 @@ namespace Reloader.Weapons.Tests.PlayMode
             var field = type.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
             field.SetValue(instance, value);
+        }
+
+        private static void ConfigureTestWeaponViewMounts(
+            GameObject viewPrefab,
+            Transform muzzleFirePoint = null,
+            Transform ironSightAnchor = null,
+            Transform magazineSocket = null,
+            Transform magazineDropSocket = null,
+            Transform scopeSlot = null,
+            Transform muzzleSlot = null)
+        {
+            Assert.That(viewPrefab, Is.Not.Null);
+
+            var mountsType = ResolveType("Reloader.Weapons.Runtime.WeaponViewAttachmentMounts");
+            Assert.That(mountsType, Is.Not.Null, "WeaponViewAttachmentMounts should exist so runtime views declare slots explicitly.");
+
+            var mounts = viewPrefab.GetComponent(mountsType) ?? viewPrefab.AddComponent(mountsType);
+            SetField(mountsType, mounts, "_muzzleTransform", muzzleFirePoint);
+            SetField(mountsType, mounts, "_ironSightAnchor", ironSightAnchor);
+            SetField(mountsType, mounts, "_magazineSocket", magazineSocket);
+            SetField(mountsType, mounts, "_magazineDropSocket", magazineDropSocket);
+
+            var slotEntryType = mountsType.GetNestedType("AttachmentSlotMount", BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(slotEntryType, Is.Not.Null);
+
+            var entries = Array.CreateInstance(slotEntryType, scopeSlot != null && muzzleSlot != null ? 2 : scopeSlot != null || muzzleSlot != null ? 1 : 0);
+            var index = 0;
+            if (scopeSlot != null)
+            {
+                var entry = Activator.CreateInstance(slotEntryType);
+                SetField(slotEntryType, entry, "_slotType", WeaponAttachmentSlotType.Scope);
+                SetField(slotEntryType, entry, "_slotTransform", scopeSlot);
+                entries.SetValue(entry, index++);
+            }
+
+            if (muzzleSlot != null)
+            {
+                var entry = Activator.CreateInstance(slotEntryType);
+                SetField(slotEntryType, entry, "_slotType", WeaponAttachmentSlotType.Muzzle);
+                SetField(slotEntryType, entry, "_slotTransform", muzzleSlot);
+                entries.SetValue(entry, index);
+            }
+
+            SetField(mountsType, mounts, "_attachmentSlots", entries);
         }
 
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
@@ -2826,6 +3446,21 @@ namespace Reloader.Weapons.Tests.PlayMode
             var field = typeof(PlayerWeaponController).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
             return (T)field.GetValue(controller);
+        }
+
+        private static void SetControllerWeaponViewBinding(PlayerWeaponController controller, string itemId, GameObject viewPrefab)
+        {
+            Assert.That(controller, Is.Not.Null);
+            Assert.That(viewPrefab, Is.Not.Null);
+
+            var bindingType = typeof(WeaponViewPrefabBinding);
+            var binding = Activator.CreateInstance(bindingType);
+            SetField(bindingType, binding, "_itemId", itemId);
+            SetField(bindingType, binding, "_viewPrefab", viewPrefab);
+
+            var bindings = new[] { (WeaponViewPrefabBinding)binding };
+            SetControllerField(controller, "_weaponViewPrefabs", bindings);
+            Invoke(controller, "UpdateEquipFromSelection");
         }
 
         private static Type ResolveType(string fullName)

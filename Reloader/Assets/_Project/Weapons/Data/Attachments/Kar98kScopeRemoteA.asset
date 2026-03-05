@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _opticId: att-kar98k-scope-remote-a
   _category: 5
-  _opticPrefab: {fileID: 100100000, guid: 44d59379fabe01844853ff5d03526c66, type: 3}
+  _opticPrefab: {fileID: 9098247942822831858, guid: 44d59379fabe01844853ff5d03526c66, type: 3}
   _isVariableZoom: 1
   _magnificationMin: 4
   _magnificationMax: 8
