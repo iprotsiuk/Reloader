@@ -140,6 +140,45 @@ namespace Reloader.Core.Tests.EditMode
             Object.DestroyImmediate(player);
         }
 
+        [Test]
+        public void RestoreFromModule_ClearsMissingAttachmentSlots()
+        {
+            var bridgeType = System.Type.GetType("Reloader.Weapons.Runtime.WeaponsRuntimeSaveBridge, Reloader.Weapons");
+            Assert.That(bridgeType, Is.Not.Null, "WeaponsRuntimeSaveBridge type should exist.");
+
+            var (player, controller, definition, registryGo) = CreateWeaponController(
+                "weapon-kar98k",
+                magCapacity: 5,
+                startingMagCount: 5,
+                reserveCount: 15);
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var initialState), Is.True);
+            initialState.SetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope, "att-kar98k-scope-remote-a");
+
+            var module = new WeaponsModule();
+            module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
+            {
+                ItemId = "weapon-kar98k",
+                MagCount = 1,
+                ReserveCount = 3,
+                ChamberLoaded = true
+            });
+
+            var bridgeGo = new GameObject("Bridge");
+            var bridge = bridgeGo.AddComponent(bridgeType);
+            SetPrivateField(bridgeType, bridge, "_weaponController", controller);
+            SetPrivateField(bridgeType, bridge, "_weaponsModule", module);
+
+            InvokeMethod(bridgeType, bridge, "RestoreFromModule");
+
+            Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var restored), Is.True);
+            Assert.That(restored.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.EqualTo(string.Empty));
+
+            Object.DestroyImmediate(bridgeGo);
+            Object.DestroyImmediate(definition);
+            Object.DestroyImmediate(registryGo);
+            Object.DestroyImmediate(player);
+        }
+
         private static (GameObject root, PlayerWeaponController controller, WeaponDefinition definition, GameObject registryRoot) CreateWeaponController(
             string itemId,
             int magCapacity,

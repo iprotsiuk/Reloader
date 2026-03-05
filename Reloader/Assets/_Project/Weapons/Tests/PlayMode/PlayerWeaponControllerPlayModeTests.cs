@@ -2301,6 +2301,40 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void HasScopedAdsBridgeActive_ReturnsFalse_WhenBridgeHasNoActiveOptic()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+
+            var root = new GameObject("PlayerRoot");
+            var bridgeHost = new GameObject("AdsBridgeHost");
+            var managerHost = new GameObject("AttachmentManagerHost");
+            try
+            {
+                var controller = root.AddComponent<PlayerWeaponController>();
+                var adsBridge = bridgeHost.AddComponent<MinimalBridgeMarker>();
+                var manager = managerHost.AddComponent(attachmentManagerType);
+
+                SetControllerField(controller, "_adsStateRuntimeBridge", adsBridge);
+                SetControllerField(controller, "_adsAttachmentManagerRuntimeBridge", manager);
+
+                var hasScopedAdsBridgeActive = typeof(PlayerWeaponController).GetMethod(
+                    "HasScopedAdsBridgeActive",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(hasScopedAdsBridgeActive, Is.Not.Null);
+
+                var isActive = (bool)hasScopedAdsBridgeActive.Invoke(controller, null);
+                Assert.That(isActive, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(bridgeHost);
+                Object.DestroyImmediate(managerHost);
+            }
+        }
+
         private static object Invoke(object instance, string methodName, params object[] args)
         {
             var method = instance.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -2385,6 +2419,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 ReloadPressedThisFrame = false;
                 return true;
             }
+        }
+
+        private sealed class MinimalBridgeMarker : MonoBehaviour
+        {
         }
 
         private sealed class TestPickupResolver : MonoBehaviour, IInventoryPickupTargetResolver

@@ -100,6 +100,8 @@ namespace Reloader.Weapons.Controllers
         private Transform _defaultMuzzleTransform;
         private GameObject _equippedWeaponView;
         private Component _adsStateRuntimeBridge;
+        private Component _adsAttachmentManagerRuntimeBridge;
+        private PropertyInfo _adsActiveOpticProperty;
         private MethodInfo _adsSetHeldMethod;
         private MethodInfo _adsSetMagnificationMethod;
         private PropertyInfo _adsCurrentMagnificationProperty;
@@ -256,6 +258,7 @@ namespace Reloader.Weapons.Controllers
                 return false;
             }
 
+            ClearAttachmentSlots(state);
             if (equippedAttachmentItemIdsBySlot != null)
             {
                 foreach (var entry in equippedAttachmentItemIdsBySlot)
@@ -827,7 +830,19 @@ namespace Reloader.Weapons.Controllers
 
         private bool HasScopedAdsBridgeActive()
         {
-            return _adsStateRuntimeBridge != null;
+            if (_adsStateRuntimeBridge == null || _adsAttachmentManagerRuntimeBridge == null)
+            {
+                return false;
+            }
+
+            var managerType = _adsAttachmentManagerRuntimeBridge.GetType();
+            _adsActiveOpticProperty ??= managerType.GetProperty("ActiveOpticDefinition", BindingFlags.Instance | BindingFlags.Public);
+            if (_adsActiveOpticProperty == null)
+            {
+                return false;
+            }
+
+            return _adsActiveOpticProperty.GetValue(_adsAttachmentManagerRuntimeBridge) != null;
         }
 
         private void TickScopedAdsBridgeInput()
@@ -1652,6 +1667,8 @@ namespace Reloader.Weapons.Controllers
 
             var managerField = adsType.GetField("_attachmentManager", BindingFlags.Instance | BindingFlags.NonPublic);
             managerField?.SetValue(_adsStateRuntimeBridge, attachmentManager);
+            _adsAttachmentManagerRuntimeBridge = attachmentManager;
+            _adsActiveOpticProperty = null;
 
             TryAssignScopedAdsWeaponDefinition(adsType);
 
@@ -1795,9 +1812,25 @@ namespace Reloader.Weapons.Controllers
             Destroy(_equippedWeaponView);
             _equippedWeaponView = null;
             _adsStateRuntimeBridge = null;
+            _adsAttachmentManagerRuntimeBridge = null;
+            _adsActiveOpticProperty = null;
             _adsSetHeldMethod = null;
             _adsSetMagnificationMethod = null;
             _adsCurrentMagnificationProperty = null;
+        }
+
+        private static void ClearAttachmentSlots(WeaponRuntimeState state)
+        {
+            if (state == null)
+            {
+                return;
+            }
+
+            var slotValues = (WeaponAttachmentSlotType[])Enum.GetValues(typeof(WeaponAttachmentSlotType));
+            for (var i = 0; i < slotValues.Length; i++)
+            {
+                state.SetEquippedAttachmentItemId(slotValues[i], string.Empty);
+            }
         }
 
         private static GameObject InstantiateWeaponView(GameObject source, Transform parent)
