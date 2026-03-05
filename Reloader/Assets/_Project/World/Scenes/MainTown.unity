@@ -2293,7 +2293,13 @@ MonoBehaviour:
     _viewPrefab: {fileID: 1812604386877949182, guid: d73d2d23ead64e8499124e2c546e91c5, type: 3}
   - _itemId: weapon-pistol-01
     _viewPrefab: {fileID: 850772559695530675, guid: 31f3c4bc3c25047b490da66a3c9a7a8e, type: 3}
-  _attachmentItemMetadata: []
+  _attachmentItemMetadata:
+  - _attachmentItemId: att-kar98k-scope-remote-a
+    _slotType: 0
+    _attachmentDefinition: {fileID: 11400000, guid: 460cae1fe8e740989ed4827d91135096, type: 2}
+  - _attachmentItemId: att-kar98k-muzzle-device-c
+    _slotType: 1
+    _attachmentDefinition: {fileID: 11400000, guid: 83914ec7921b4e109c6e0510f971249d, type: 2}
   _allowSceneWideDependencyLookup: 0
   _useInventoryDefinitionViewFallback: 0
   _holsterHideDelaySeconds: 0.2

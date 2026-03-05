@@ -20,6 +20,8 @@ namespace Reloader.Core.Tests
                 Assert.That(nullDefinition, Is.Null);
                 Assert.That(registry.TryGetWeaponDefinition(" ", out var whitespaceDefinition), Is.False);
                 Assert.That(whitespaceDefinition, Is.Null);
+                Assert.That(registry.TryGetWeaponDefinition("att-kar98k-scope-remote-a", out var nonWeaponDefinition), Is.False);
+                Assert.That(nonWeaponDefinition, Is.Null);
             }
             finally
             {

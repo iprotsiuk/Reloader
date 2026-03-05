@@ -151,3 +151,6 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
     - destroying stale `AdsStateController` bridge on equipped weapon view teardown,
     - null/whitespace guarding `WeaponRegistry.TryGetWeaponDefinition`,
     - restoring attachments during travel restore when ballistic chamber payload is unavailable.
+- `2026-03-05 hotfix` resolves two Kar98k follow-up regressions from live playtest:
+  - Scope swap apply no-op in `MainTown` caused by scene-level `PlayerWeaponController._attachmentItemMetadata` override set to empty array; scene now mirrors prefab metadata entries for Kar98k scope/muzzle definitions.
+  - Severe FPS drop when selecting non-weapon belt items (for example scope attachment) caused by per-frame weapon registry miss path hitting editor asset scans; `WeaponRegistry` now short-circuits non-weapon IDs and caches negative lookup misses.
