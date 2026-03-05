@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Reloader.Weapons.Ballistics;
+using Reloader.Weapons.Data;
 using UnityEngine;
 
 namespace Reloader.Weapons.Runtime
@@ -21,6 +22,7 @@ namespace Reloader.Weapons.Runtime
         private AmmoBallisticSnapshot? _chamberRound;
         private readonly Queue<AmmoBallisticSnapshot> _magazineRounds = new Queue<AmmoBallisticSnapshot>();
         private AmmoBallisticSnapshot? _reserveRoundTemplate;
+        private readonly Dictionary<WeaponAttachmentSlotType, string> _equippedAttachmentItemIdsBySlot = new Dictionary<WeaponAttachmentSlotType, string>();
 
         public WeaponRuntimeState(
             string itemId,
@@ -182,6 +184,27 @@ namespace Reloader.Weapons.Runtime
         {
             SyncMagazineSnapshotsToCount();
             return new List<AmmoBallisticSnapshot>(_magazineRounds);
+        }
+
+        public string GetEquippedAttachmentItemId(WeaponAttachmentSlotType slotType)
+        {
+            if (_equippedAttachmentItemIdsBySlot.TryGetValue(slotType, out var itemId) && !string.IsNullOrWhiteSpace(itemId))
+            {
+                return itemId;
+            }
+
+            return string.Empty;
+        }
+
+        public void SetEquippedAttachmentItemId(WeaponAttachmentSlotType slotType, string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                _equippedAttachmentItemIdsBySlot.Remove(slotType);
+                return;
+            }
+
+            _equippedAttachmentItemIdsBySlot[slotType] = itemId;
         }
 
         private void SyncMagazineSnapshotsToCount()
