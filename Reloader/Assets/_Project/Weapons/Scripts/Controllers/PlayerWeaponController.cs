@@ -503,6 +503,7 @@ namespace Reloader.Weapons.Controllers
 
             state.IsEquipped = true;
             SpawnEquippedWeaponView(_equippedItemId);
+            SeedEquippedAttachmentStateFromViewIfUnset(state);
             ApplyEquippedAttachmentStateToViewRuntime(state);
             GetOrCreatePackDriver(_equippedItemId).SetEquipped(true);
             ResolveWeaponEvents()?.RaiseWeaponEquipped(_equippedItemId);
@@ -1633,13 +1634,15 @@ namespace Reloader.Weapons.Controllers
 
             var manager = viewRoot.GetComponent(managerType) ?? viewRoot.AddComponent(managerType);
             var scopeSlot = FindDescendantByName(viewRoot.transform, "ScopeSlot")
-                ?? FindDescendantByName(viewRoot.transform, "OpticSlot");
+                ?? FindDescendantByName(viewRoot.transform, "OpticSlot")
+                ?? CreateAttachmentSlotFromAuthoredVisual(viewRoot.transform, WeaponAttachmentSlotType.Scope, "ScopeSlot");
             var ironSightAnchor = FindDescendantByName(viewRoot.transform, "IronSightAnchor")
                 ?? FindDescendantByName(viewRoot.transform, "SightAnchor")
                 ?? viewRoot.transform;
             var muzzleSlot = FindDescendantByName(viewRoot.transform, "MuzzleAttachmentSlot")
                 ?? FindDescendantByName(viewRoot.transform, "Muzzle")
-                ?? FindDescendantByName(viewRoot.transform, "SOCKET_Muzzle");
+                ?? FindDescendantByName(viewRoot.transform, "SOCKET_Muzzle")
+                ?? CreateAttachmentSlotFromAuthoredVisual(viewRoot.transform, WeaponAttachmentSlotType.Muzzle, "MuzzleAttachmentSlot");
 
             var scopeSlotField = managerType.GetField("_scopeSlot", BindingFlags.Instance | BindingFlags.NonPublic);
             scopeSlotField?.SetValue(manager, scopeSlot);
@@ -1659,6 +1662,35 @@ namespace Reloader.Weapons.Controllers
             }
 
             return manager;
+        }
+
+        private void SeedEquippedAttachmentStateFromViewIfUnset(WeaponRuntimeState state)
+        {
+            if (state == null || _equippedWeaponView == null)
+            {
+                return;
+            }
+
+            SeedAttachmentSlotFromViewIfUnset(state, WeaponAttachmentSlotType.Scope);
+            SeedAttachmentSlotFromViewIfUnset(state, WeaponAttachmentSlotType.Muzzle);
+        }
+
+        private void SeedAttachmentSlotFromViewIfUnset(WeaponRuntimeState state, WeaponAttachmentSlotType slotType)
+        {
+            if (state == null || _equippedWeaponView == null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(state.GetEquippedAttachmentItemId(slotType)))
+            {
+                return;
+            }
+
+            if (TryResolveAuthoredAttachmentItemIdFromView(slotType, out var attachmentItemId))
+            {
+                state.SetEquippedAttachmentItemId(slotType, attachmentItemId);
+            }
         }
 
         private void EnsureScopedAdsRuntimeBridge(GameObject viewRoot, Component attachmentManager)
@@ -1894,6 +1926,195 @@ namespace Reloader.Weapons.Controllers
                     DestroyAuthoredAttachmentVisualsByName(_equippedWeaponView.transform, "muzzle", "suppressor", "brake");
                     break;
             }
+        }
+
+        private Transform CreateAttachmentSlotFromAuthoredVisual(Transform root, WeaponAttachmentSlotType slotType, string slotName)
+        {
+            if (root == null || string.IsNullOrWhiteSpace(slotName))
+            {
+                return null;
+            }
+
+            if (!TryFindFirstAuthoredAttachmentVisualTransform(slotType, out var authoredVisual) || authoredVisual == null)
+            {
+                return null;
+            }
+
+            var existing = FindDescendantByName(root, slotName);
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            var slotGo = new GameObject(slotName);
+            var slot = slotGo.transform;
+            var parent = authoredVisual.parent != null ? authoredVisual.parent : root;
+            slot.SetParent(parent, false);
+            slot.localPosition = authoredVisual.localPosition;
+            slot.localRotation = authoredVisual.localRotation;
+            slot.localScale = authoredVisual.localScale;
+            return slot;
+        }
+
+        private bool TryResolveAuthoredAttachmentItemIdFromView(WeaponAttachmentSlotType slotType, out string attachmentItemId)
+        {
+            attachmentItemId = string.Empty;
+            if (_equippedWeaponView == null || _equippedDefinition == null)
+            {
+                return false;
+            }
+
+            var compatibleIds = _equippedDefinition.GetCompatibleAttachmentItemIds(slotType);
+            if (compatibleIds == null || compatibleIds.Count == 0)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < compatibleIds.Count; i++)
+            {
+                var candidateItemId = compatibleIds[i];
+                if (string.IsNullOrWhiteSpace(candidateItemId))
+                {
+                    continue;
+                }
+
+                if (!TryGetAttachmentVisualPrefabName(slotType, candidateItemId, out var visualPrefabName))
+                {
+                    continue;
+                }
+
+                if (FindDescendantByNamePrefix(_equippedWeaponView.transform, visualPrefabName) != null)
+                {
+                    attachmentItemId = candidateItemId;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool TryFindFirstAuthoredAttachmentVisualTransform(WeaponAttachmentSlotType slotType, out Transform visualTransform)
+        {
+            visualTransform = null;
+            if (_equippedWeaponView == null || _equippedDefinition == null)
+            {
+                return false;
+            }
+
+            var compatibleIds = _equippedDefinition.GetCompatibleAttachmentItemIds(slotType);
+            if (compatibleIds == null || compatibleIds.Count == 0)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < compatibleIds.Count; i++)
+            {
+                var candidateItemId = compatibleIds[i];
+                if (string.IsNullOrWhiteSpace(candidateItemId))
+                {
+                    continue;
+                }
+
+                if (!TryGetAttachmentVisualPrefabName(slotType, candidateItemId, out var visualPrefabName))
+                {
+                    continue;
+                }
+
+                var found = FindDescendantByNamePrefix(_equippedWeaponView.transform, visualPrefabName);
+                if (found == null)
+                {
+                    continue;
+                }
+
+                visualTransform = found;
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryGetAttachmentVisualPrefabName(WeaponAttachmentSlotType slotType, string attachmentItemId, out string prefabName)
+        {
+            prefabName = string.Empty;
+            if (string.IsNullOrWhiteSpace(attachmentItemId))
+            {
+                return false;
+            }
+
+            string definitionTypeName;
+            string idPropertyName;
+            string prefabPropertyName;
+            switch (slotType)
+            {
+                case WeaponAttachmentSlotType.Scope:
+                    definitionTypeName = "Reloader.Game.Weapons.OpticDefinition";
+                    idPropertyName = "OpticId";
+                    prefabPropertyName = "OpticPrefab";
+                    break;
+                case WeaponAttachmentSlotType.Muzzle:
+                    definitionTypeName = "Reloader.Game.Weapons.MuzzleAttachmentDefinition";
+                    idPropertyName = "AttachmentId";
+                    prefabPropertyName = "MuzzlePrefab";
+                    break;
+                default:
+                    return false;
+            }
+
+            var definitionType = ResolveTypeByName(definitionTypeName);
+            var prefabProperty = definitionType?.GetProperty(prefabPropertyName, BindingFlags.Instance | BindingFlags.Public);
+            if (definitionType == null || prefabProperty == null)
+            {
+                return false;
+            }
+
+            var metadataLookup = BuildAttachmentMetadataLookup();
+            UObject definition = null;
+            if (metadataLookup.TryGetValue(attachmentItemId, out var metadata)
+                && metadata?.AttachmentDefinition != null
+                && definitionType.IsInstanceOfType(metadata.AttachmentDefinition))
+            {
+                definition = metadata.AttachmentDefinition;
+            }
+
+            definition ??= ResolveAttachmentDefinitionById(definitionType, idPropertyName, attachmentItemId);
+            if (definition == null)
+            {
+                return false;
+            }
+
+            if (prefabProperty.GetValue(definition) is not GameObject visualPrefab
+                || string.IsNullOrWhiteSpace(visualPrefab.name))
+            {
+                return false;
+            }
+
+            prefabName = visualPrefab.name;
+            return true;
+        }
+
+        private static Transform FindDescendantByNamePrefix(Transform root, string namePrefix)
+        {
+            if (root == null || string.IsNullOrWhiteSpace(namePrefix))
+            {
+                return null;
+            }
+
+            var transforms = root.GetComponentsInChildren<Transform>(true);
+            for (var i = 0; i < transforms.Length; i++)
+            {
+                var candidate = transforms[i];
+                if (candidate == null || candidate == root)
+                {
+                    continue;
+                }
+
+                if (candidate.name.StartsWith(namePrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
         }
 
         private HashSet<string> BuildCompatibleAttachmentVisualNameKeywords(WeaponAttachmentSlotType slotType)

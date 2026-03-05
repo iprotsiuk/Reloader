@@ -160,3 +160,6 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
   - `IndoorRangeInstance` now includes Kar98k attachment metadata wiring (`att-kar98k-scope-remote-a`, `att-kar98k-muzzle-device-c`) on `PlayerWeaponController`.
   - Added `EventSystem` + `InputSystemUIInputModule` to `IndoorRangeInstance` so TAB right-click attachment context works in range scene.
   - Broadened animation event receiver auto-wiring to cover `PlayerArms` animator hosts and added explicit receiver ensure in `PlayerWeaponAnimationBinder` to prevent `OnAnimationEndedHolster` no-receiver errors.
+- `2026-03-05 attachment mount recovery hotfix`:
+  - `PlayerWeaponController` now auto-creates synthetic `ScopeSlot` / `MuzzleAttachmentSlot` runtime anchors from authored attachment visuals when source prefab lacks explicit slot transforms.
+  - On first equip, runtime state now seeds attachment IDs from authored visuals if slots were unset, preventing default prefab attachments from disappearing immediately on pickup.
