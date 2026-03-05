@@ -40,6 +40,7 @@ Plan source: `docs/plans/2026-03-04-combat-audio-and-attachments-implementation-
 - `6f59041` chore(audio): prune unreferenced sfx and add curation script
 - `d06bbae` fix(audio): make weapon fire clip stable per weapon by default
 - `16bea33` fix(audio,weapons): make clip selection deterministic and address review regressions
+- `1be12bc` fix(audio): rebind footstep router to active mover with regression test
 
 ## Verification Evidence
 
@@ -85,6 +86,7 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
 | https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886682598 | Resolved | `CombatAudioCatalogResolver` no longer caches non-null caller-provided catalogs globally; added resolver regression test (`16bea33`) |
 | https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886682601 | Resolved | Runtime bridge now attempts existing runtime `_defaultAttachment` before giving up when no fallback definition assets resolve (`16bea33`) |
 | https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886748129 | Resolved | Reload cancel path now re-notifies view magazine insertion to restore detachable mag visual (`16bea33`) |
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886812814 | Resolved | Footstep router now prefers active mover rebinding over stale inactive cache; regression coverage added (`1be12bc`) |
 
 ## Known Residual Risks
 
