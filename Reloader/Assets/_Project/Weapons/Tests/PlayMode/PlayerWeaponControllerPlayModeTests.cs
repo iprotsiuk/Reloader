@@ -1800,6 +1800,104 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator TrySwapEquippedWeaponAttachment_RejectsUnknownIncompatibleAndUnownedAttachment()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            definition.SetAttachmentCompatibilitiesForTests(new[]
+            {
+                WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x" }),
+                WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Muzzle, new[] { "att-muzzle-brake" })
+            });
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            runtime.TryAddStackItem("att-optic-4x", 1, out _, out _, out _);
+            runtime.TryAddStackItem("att-muzzle-brake", 1, out _, out _, out _);
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_weaponRegistry", registry);
+            SetControllerField(controller, "_attachmentItemMetadata", new[]
+            {
+                WeaponAttachmentItemMetadata.CreateForTests("att-optic-4x", WeaponAttachmentSlotType.Scope),
+                WeaponAttachmentItemMetadata.CreateForTests("att-muzzle-brake", WeaponAttachmentSlotType.Muzzle)
+            });
+
+            yield return null;
+
+            Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-unknown"), Is.False, "Unknown attachment should be rejected.");
+            Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-muzzle-brake"), Is.False, "Incompatible attachment should be rejected.");
+
+            Assert.That(runtime.TryRemoveStackItem("att-optic-4x", 1), Is.True, "Test setup should remove the scope so swap is unowned.");
+            Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-optic-4x"), Is.False, "Unowned attachment should be rejected.");
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
+        public IEnumerator TrySwapEquippedWeaponAttachment_WithOwnedCompatibleAttachment_PerformsAtomicSwapAndUpdatesRuntimeState()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-rifle-01";
+            runtime.SelectBeltSlot(0);
+            runtime.TryAddStackItem("att-optic-4x", 1, out _, out _, out _);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-rifle-01", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            definition.SetAttachmentCompatibilitiesForTests(new[]
+            {
+                WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x", "att-optic-8x" })
+            });
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_weaponRegistry", registry);
+            SetControllerField(controller, "_attachmentItemMetadata", new[]
+            {
+                WeaponAttachmentItemMetadata.CreateForTests("att-optic-4x", WeaponAttachmentSlotType.Scope),
+                WeaponAttachmentItemMetadata.CreateForTests("att-optic-8x", WeaponAttachmentSlotType.Scope)
+            });
+
+            yield return null;
+
+            Assert.That(controller.TryGetRuntimeState("weapon-rifle-01", out var state), Is.True);
+            state.SetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope, "att-optic-8x");
+
+            Assert.That(runtime.GetItemQuantity("att-optic-4x"), Is.EqualTo(1));
+            Assert.That(runtime.GetItemQuantity("att-optic-8x"), Is.EqualTo(0));
+
+            Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-optic-4x"), Is.True);
+            Assert.That(state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.EqualTo("att-optic-4x"));
+            Assert.That(runtime.GetItemQuantity("att-optic-4x"), Is.EqualTo(0), "New attachment should be consumed from inventory.");
+            Assert.That(runtime.GetItemQuantity("att-optic-8x"), Is.EqualTo(1), "Previous attachment should be returned to inventory.");
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public bool FirePressedThisFrame;

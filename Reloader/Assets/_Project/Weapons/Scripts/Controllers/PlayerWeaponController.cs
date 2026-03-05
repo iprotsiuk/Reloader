@@ -73,6 +73,7 @@ namespace Reloader.Weapons.Controllers
         [SerializeField] private PackWeaponPresentationConfig _packPresentationConfig = new PackWeaponPresentationConfig();
         [SerializeField] private Transform _weaponViewParent;
         [SerializeField] private WeaponViewPrefabBinding[] _weaponViewPrefabs = System.Array.Empty<WeaponViewPrefabBinding>();
+        [SerializeField] private WeaponAttachmentItemMetadata[] _attachmentItemMetadata = System.Array.Empty<WeaponAttachmentItemMetadata>();
         [SerializeField] private bool _allowSceneWideDependencyLookup;
         [SerializeField] private bool _useInventoryDefinitionViewFallback;
 
@@ -231,6 +232,30 @@ namespace Reloader.Weapons.Controllers
             _weaponEvents = weaponEvents;
             _useRuntimeKernelInventoryEvents = inventoryEvents == null;
             _inventoryEvents = inventoryEvents;
+        }
+
+        public bool TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType slotType, string attachmentItemId)
+        {
+            if (string.IsNullOrWhiteSpace(_equippedItemId)
+                || _equippedDefinition == null
+                || _inventoryController == null
+                || _inventoryController.Runtime == null)
+            {
+                return false;
+            }
+
+            if (!TryGetRuntimeState(_equippedItemId, out var state) || state == null)
+            {
+                return false;
+            }
+
+            return WeaponAttachmentSwapService.TrySwap(
+                _inventoryController.Runtime,
+                _equippedDefinition,
+                state,
+                BuildAttachmentSlotLookup(),
+                slotType,
+                attachmentItemId);
         }
 
         private void ResolveReferences()
@@ -1017,6 +1042,34 @@ namespace Reloader.Weapons.Controllers
             }
 
             return expectedAttachmentType.IsInstanceOfType(current) ? current : null;
+        }
+
+        private Dictionary<string, WeaponAttachmentSlotType> BuildAttachmentSlotLookup()
+        {
+            var lookup = new Dictionary<string, WeaponAttachmentSlotType>(StringComparer.Ordinal);
+            if (_attachmentItemMetadata == null || _attachmentItemMetadata.Length == 0)
+            {
+                return lookup;
+            }
+
+            for (var i = 0; i < _attachmentItemMetadata.Length; i++)
+            {
+                var metadata = _attachmentItemMetadata[i];
+                if (metadata == null)
+                {
+                    continue;
+                }
+
+                var attachmentItemId = metadata.AttachmentItemId;
+                if (string.IsNullOrWhiteSpace(attachmentItemId))
+                {
+                    continue;
+                }
+
+                lookup[attachmentItemId] = metadata.SlotType;
+            }
+
+            return lookup;
         }
 
         private IWeaponEvents ResolveWeaponEvents()
