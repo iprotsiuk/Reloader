@@ -82,6 +82,7 @@ namespace Reloader.Weapons.Controllers
 
         private IPlayerInputSource _inputSource;
         private readonly Dictionary<string, WeaponRuntimeState> _statesByItemId = new Dictionary<string, WeaponRuntimeState>();
+        private readonly HashSet<string> _pendingViewAttachmentSeedItemIds = new HashSet<string>(StringComparer.Ordinal);
         private readonly Dictionary<string, PackWeaponRuntimeDriver> _packDriversByItemId = new Dictionary<string, PackWeaponRuntimeDriver>();
         private IWeaponEvents _weaponEvents;
         private IInventoryEvents _inventoryEvents;
@@ -503,7 +504,10 @@ namespace Reloader.Weapons.Controllers
 
             state.IsEquipped = true;
             SpawnEquippedWeaponView(_equippedItemId);
-            SeedEquippedAttachmentStateFromViewIfUnset(state);
+            if (_pendingViewAttachmentSeedItemIds.Remove(_equippedItemId))
+            {
+                SeedEquippedAttachmentStateFromViewIfUnset(state);
+            }
             ApplyEquippedAttachmentStateToViewRuntime(state);
             GetOrCreatePackDriver(_equippedItemId).SetEquipped(true);
             ResolveWeaponEvents()?.RaiseWeaponEquipped(_equippedItemId);
@@ -1297,6 +1301,7 @@ namespace Reloader.Weapons.Controllers
             _statesByItemId[itemId] = state;
             if (seedFromDefinition)
             {
+                _pendingViewAttachmentSeedItemIds.Add(itemId);
                 SeedStateAmmoFromDefinition(state, definition);
             }
 
