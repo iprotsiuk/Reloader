@@ -740,7 +740,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             var runtime = _inventoryController?.Runtime;
             TryGetContextWeaponRuntimeState(out var state);
             var equippedItemId = state?.GetEquippedAttachmentItemId(slotType) ?? string.Empty;
-            if (!string.IsNullOrWhiteSpace(equippedItemId))
+            if (!_attachmentsItemOptions.Contains(RemoveAttachmentOption))
             {
                 _attachmentsItemOptions.Add(RemoveAttachmentOption);
             }

@@ -72,7 +72,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(attachmentsSection.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(slotDropdown.choices, Is.EquivalentTo(new[] { "Scope", "Muzzle" }));
             Assert.That(slotDropdown.value, Is.EqualTo("Scope"));
-            Assert.That(attachmentDropdown.choices, Is.EquivalentTo(new[] { "att-optic-4x" }));
+            Assert.That(attachmentDropdown.choices, Is.EquivalentTo(new[] { "Remove", "att-optic-4x" }));
             Assert.That(weaponLabel.text, Is.EqualTo("Rifle 01"));
 
             UnityEngine.Object.DestroyImmediate(definition);
