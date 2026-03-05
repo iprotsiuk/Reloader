@@ -48,6 +48,11 @@ namespace Reloader.UI.Toolkit.Runtime
             config.Set(UiRuntimeCompositionIds.IntentKeys.TradeConfirmSell, "ConfirmSellOrder");
             config.Set(UiRuntimeCompositionIds.IntentKeys.ReloadingOperationSelect, "SelectReloadingOperation");
             config.Set(UiRuntimeCompositionIds.IntentKeys.ReloadingOperationExecute, "ExecuteReloadingOperation");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.TabInventoryAttachmentsOpen, "OpenWeaponAttachments");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.TabInventoryAttachmentsSlotSelected, "SelectWeaponAttachmentSlot");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.TabInventoryAttachmentsItemSelected, "SelectWeaponAttachmentItem");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.TabInventoryAttachmentsApply, "ApplyWeaponAttachmentSwap");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.TabInventoryAttachmentsBack, "CloseWeaponAttachments");
             return config;
         }
     }

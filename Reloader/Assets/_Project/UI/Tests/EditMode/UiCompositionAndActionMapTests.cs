@@ -34,6 +34,11 @@ namespace Reloader.UI.Tests.EditMode
         [TestCase(UiRuntimeCompositionIds.IntentKeys.TradeConfirmSell)]
         [TestCase(UiRuntimeCompositionIds.IntentKeys.ReloadingOperationSelect)]
         [TestCase(UiRuntimeCompositionIds.IntentKeys.ReloadingOperationExecute)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.TabInventoryAttachmentsOpen)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.TabInventoryAttachmentsSlotSelected)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.TabInventoryAttachmentsItemSelected)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.TabInventoryAttachmentsApply)]
+        [TestCase(UiRuntimeCompositionIds.IntentKeys.TabInventoryAttachmentsBack)]
         public void ActionMap_DefaultsContainRequiredIntentKeys(string intentKey)
         {
             var map = UiActionMapConfig.CreateWithDefaults();

@@ -30,7 +30,12 @@ namespace Reloader.UI.Toolkit.TabInventory
         private VisualElement _journalSection;
         private VisualElement _calendarSection;
         private VisualElement _deviceSection;
+        private VisualElement _attachmentsSection;
         private VisualElement _deviceNotes;
+        private Label _attachmentsWeaponName;
+        private Label _attachmentsStatus;
+        private DropdownField _attachmentsSlotDropdown;
+        private DropdownField _attachmentsItemDropdown;
         private Label _deviceSelectedTargetValue;
         private Label _deviceShotCountValue;
         private Label _deviceSpreadValue;
@@ -48,6 +53,8 @@ namespace Reloader.UI.Toolkit.TabInventory
         private Button _deviceClearGroupButton;
         private Button _deviceInstallHooksButton;
         private Button _deviceUninstallHooksButton;
+        private Button _attachmentsApplyButton;
+        private Button _attachmentsBackButton;
         private readonly Dictionary<string, Action> _intentInvokeByTestId = new Dictionary<string, Action>();
         private string[] _beltSlotItemIds = Array.Empty<string>();
         private int[] _beltSlotMaxStacks = Array.Empty<int>();
@@ -111,7 +118,12 @@ namespace Reloader.UI.Toolkit.TabInventory
             _journalSection = root?.Q<VisualElement>("inventory__section-journal");
             _calendarSection = root?.Q<VisualElement>("inventory__section-calendar");
             _deviceSection = root?.Q<VisualElement>("inventory__section-device");
+            _attachmentsSection = root?.Q<VisualElement>("inventory__section-attachments");
             _deviceNotes = root?.Q<VisualElement>("inventory__device-notes");
+            _attachmentsWeaponName = root?.Q<Label>("inventory__attachments-weapon-name");
+            _attachmentsStatus = root?.Q<Label>("inventory__attachments-status");
+            _attachmentsSlotDropdown = root?.Q<DropdownField>("inventory__attachments-slot-dropdown");
+            _attachmentsItemDropdown = root?.Q<DropdownField>("inventory__attachments-item-dropdown");
             _deviceSelectedTargetValue = root?.Q<Label>("inventory__device-selected-target-value");
             _deviceShotCountValue = root?.Q<Label>("inventory__device-shot-count-value");
             _deviceSpreadValue = root?.Q<Label>("inventory__device-spread-value");
@@ -129,6 +141,8 @@ namespace Reloader.UI.Toolkit.TabInventory
             _deviceClearGroupButton = root?.Q<Button>("inventory__device-clear-group");
             _deviceInstallHooksButton = root?.Q<Button>("inventory__device-install-hooks");
             _deviceUninstallHooksButton = root?.Q<Button>("inventory__device-uninstall-hooks");
+            _attachmentsApplyButton = root?.Q<Button>("inventory__attachments-apply");
+            _attachmentsBackButton = root?.Q<Button>("inventory__attachments-back");
             _intentInvokeByTestId.Clear();
             _tabs.Clear();
             _deviceButtonRows.Clear();
@@ -152,6 +166,7 @@ namespace Reloader.UI.Toolkit.TabInventory
 
             RegisterTabIntents();
             RegisterDeviceActionIntents();
+            RegisterAttachmentActionIntents();
 
             _beltSlots = new VisualElement[Math.Max(0, beltSlotCount)];
             _beltSlotItemIds = new string[_beltSlots.Length];
@@ -164,11 +179,24 @@ namespace Reloader.UI.Toolkit.TabInventory
                 if (slot != null)
                 {
                     var capturedIndex = i;
-                    slot.RegisterCallback<PointerDownEvent>(evt => TryPointerDown("belt", capturedIndex, evt.pointerId));
+                    slot.RegisterCallback<PointerDownEvent>(evt =>
+                    {
+                        if (evt.button == 0)
+                        {
+                            TryPointerDown("belt", capturedIndex, evt.pointerId);
+                        }
+                    });
+                    slot.RegisterCallback<PointerUpEvent>(evt => TryPointerUp("belt", capturedIndex, evt.pointerId));
+                    slot.RegisterCallback<PointerDownEvent>(evt =>
+                    {
+                        if (evt.button == 1 && TryRaiseAttachmentContextIntent("belt", capturedIndex))
+                        {
+                            evt.StopImmediatePropagation();
+                        }
+                    });
                     slot.RegisterCallback<PointerEnterEvent>(evt => TryPointerEnter("belt", capturedIndex, evt.position));
                     slot.RegisterCallback<PointerMoveEvent>(evt => TryPointerMove("belt", capturedIndex, evt.position));
                     slot.RegisterCallback<PointerLeaveEvent>(_ => HideTooltip());
-                    slot.RegisterCallback<PointerUpEvent>(evt => TryPointerUp("belt", capturedIndex, evt.pointerId));
                     slot.RegisterCallback<ClickEvent>(_ => HandleSlotClick("belt", capturedIndex));
                 }
             }
@@ -184,11 +212,24 @@ namespace Reloader.UI.Toolkit.TabInventory
                 if (slot != null)
                 {
                     var capturedIndex = i;
-                    slot.RegisterCallback<PointerDownEvent>(evt => TryPointerDown("backpack", capturedIndex, evt.pointerId));
+                    slot.RegisterCallback<PointerDownEvent>(evt =>
+                    {
+                        if (evt.button == 0)
+                        {
+                            TryPointerDown("backpack", capturedIndex, evt.pointerId);
+                        }
+                    });
+                    slot.RegisterCallback<PointerUpEvent>(evt => TryPointerUp("backpack", capturedIndex, evt.pointerId));
+                    slot.RegisterCallback<PointerDownEvent>(evt =>
+                    {
+                        if (evt.button == 1 && TryRaiseAttachmentContextIntent("backpack", capturedIndex))
+                        {
+                            evt.StopImmediatePropagation();
+                        }
+                    });
                     slot.RegisterCallback<PointerEnterEvent>(evt => TryPointerEnter("backpack", capturedIndex, evt.position));
                     slot.RegisterCallback<PointerMoveEvent>(evt => TryPointerMove("backpack", capturedIndex, evt.position));
                     slot.RegisterCallback<PointerLeaveEvent>(_ => HideTooltip());
-                    slot.RegisterCallback<PointerUpEvent>(evt => TryPointerUp("backpack", capturedIndex, evt.pointerId));
                     slot.RegisterCallback<ClickEvent>(_ => HandleSlotClick("backpack", capturedIndex));
                 }
             }
@@ -259,6 +300,29 @@ namespace Reloader.UI.Toolkit.TabInventory
             _deviceInstallHooksButton?.SetEnabled(inventoryState.DeviceCanInstallHooks);
             _deviceUninstallHooksButton?.SetEnabled(inventoryState.DeviceCanUninstallHooks);
             RenderDeviceSessionHistory(inventoryState.DeviceSessionHistoryEntries);
+            if (_attachmentsWeaponName != null)
+            {
+                _attachmentsWeaponName.text = inventoryState.AttachmentsWeaponName;
+            }
+
+            if (_attachmentsStatus != null)
+            {
+                _attachmentsStatus.text = inventoryState.AttachmentsStatusText;
+            }
+
+            if (_attachmentsSlotDropdown != null)
+            {
+                _attachmentsSlotDropdown.choices = new List<string>(inventoryState.AttachmentSlotOptions);
+                _attachmentsSlotDropdown.SetValueWithoutNotify(inventoryState.AttachmentsSelectedSlot);
+            }
+
+            if (_attachmentsItemDropdown != null)
+            {
+                _attachmentsItemDropdown.choices = new List<string>(inventoryState.AttachmentItemOptions);
+                _attachmentsItemDropdown.SetValueWithoutNotify(inventoryState.AttachmentsSelectedItem);
+            }
+
+            _attachmentsApplyButton?.SetEnabled(inventoryState.AttachmentsCanApply);
 
             if (!inventoryState.IsOpen)
             {
@@ -301,6 +365,23 @@ namespace Reloader.UI.Toolkit.TabInventory
             RegisterIntent(_deviceClearGroupButton, "test.device.clear-group", "tab.inventory.device.clear-group", null);
             RegisterIntent(_deviceInstallHooksButton, "test.device.install-hooks", "tab.inventory.device.install-hooks", null);
             RegisterIntent(_deviceUninstallHooksButton, "test.device.uninstall-hooks", "tab.inventory.device.uninstall-hooks", null);
+        }
+
+        private void RegisterAttachmentActionIntents()
+        {
+            RegisterIntent(_attachmentsApplyButton, "test.attachments.apply", "tab.inventory.attachments.apply", null);
+            RegisterIntent(_attachmentsBackButton, "test.attachments.back", "tab.inventory.attachments.back", null);
+            if (_attachmentsSlotDropdown != null)
+            {
+                _attachmentsSlotDropdown.RegisterValueChangedCallback(evt =>
+                    IntentRaised?.Invoke(new UiIntent("tab.inventory.attachments.slot-selected", evt.newValue)));
+            }
+
+            if (_attachmentsItemDropdown != null)
+            {
+                _attachmentsItemDropdown.RegisterValueChangedCallback(evt =>
+                    IntentRaised?.Invoke(new UiIntent("tab.inventory.attachments.item-selected", evt.newValue)));
+            }
         }
 
         private void RegisterIntent(Button button, string testId, string key, object payload)
@@ -532,6 +613,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             SetSectionVisibility(_journalSection, section == "journal");
             SetSectionVisibility(_calendarSection, section == "calendar");
             SetSectionVisibility(_deviceSection, section == "device");
+            SetSectionVisibility(_attachmentsSection, section == "attachments");
 
             _tabInventory?.EnableInClassList("is-active", section == "inventory");
             _tabQuests?.EnableInClassList("is-active", section == "quests");
@@ -656,6 +738,11 @@ namespace Reloader.UI.Toolkit.TabInventory
             return TryInteractSlot(container, slotIndex);
         }
 
+        public bool TryRightClickSlotForTests(string container, int slotIndex)
+        {
+            return TryRaiseAttachmentContextIntent(container, slotIndex);
+        }
+
         public bool TryPointerDownForTests(string container, int slotIndex)
         {
             return TryPointerDown(container, slotIndex, pointerId: -1);
@@ -706,6 +793,18 @@ namespace Reloader.UI.Toolkit.TabInventory
             return TryInvokeIntentForTests(testId);
         }
 
+        public bool TryInvokeAttachmentActionForTests(string action)
+        {
+            var testId = action switch
+            {
+                "apply" => "test.attachments.apply",
+                "back" => "test.attachments.back",
+                _ => null
+            };
+
+            return TryInvokeIntentForTests(testId);
+        }
+
         private bool TryInvokeIntentForTests(string testId)
         {
             if (string.IsNullOrWhiteSpace(testId) || !_intentInvokeByTestId.TryGetValue(testId, out var invoke))
@@ -714,6 +813,26 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             invoke?.Invoke();
+            return true;
+        }
+
+        private bool TryRaiseAttachmentContextIntent(string container, int slotIndex)
+        {
+            if (slotIndex < 0)
+            {
+                return false;
+            }
+
+            var normalizedContainer = NormalizeContainer(container);
+            var itemId = ResolveSlotItemId(normalizedContainer, slotIndex);
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return false;
+            }
+
+            IntentRaised?.Invoke(new UiIntent(
+                "tab.inventory.item.context.attachments",
+                new TabInventoryAttachmentContextIntentPayload(normalizedContainer, slotIndex, itemId)));
             return true;
         }
 

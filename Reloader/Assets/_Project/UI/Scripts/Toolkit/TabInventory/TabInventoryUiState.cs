@@ -45,7 +45,14 @@ namespace Reloader.UI.Toolkit.TabInventory
             bool deviceCanInstallHooks,
             bool deviceCanUninstallHooks,
             string deviceInstallFeedbackText,
-            string[] deviceSessionHistoryEntries)
+            string[] deviceSessionHistoryEntries,
+            string attachmentsWeaponName,
+            string attachmentsStatusText,
+            string attachmentsSelectedSlot,
+            string attachmentsSelectedItem,
+            bool attachmentsCanApply,
+            string[] attachmentSlotOptions,
+            string[] attachmentItemOptions)
             : base("tab-inventory")
         {
             IsOpen = isOpen;
@@ -66,6 +73,13 @@ namespace Reloader.UI.Toolkit.TabInventory
             DeviceCanUninstallHooks = deviceCanUninstallHooks;
             DeviceInstallFeedbackText = deviceInstallFeedbackText ?? string.Empty;
             _deviceSessionHistoryEntries = deviceSessionHistoryEntries ?? Array.Empty<string>();
+            AttachmentsWeaponName = attachmentsWeaponName ?? string.Empty;
+            AttachmentsStatusText = attachmentsStatusText ?? string.Empty;
+            AttachmentsSelectedSlot = attachmentsSelectedSlot ?? string.Empty;
+            AttachmentsSelectedItem = attachmentsSelectedItem ?? string.Empty;
+            AttachmentsCanApply = attachmentsCanApply;
+            _attachmentSlotOptions = attachmentSlotOptions ?? Array.Empty<string>();
+            _attachmentItemOptions = attachmentItemOptions ?? Array.Empty<string>();
         }
 
         public bool IsOpen { get; }
@@ -87,6 +101,15 @@ namespace Reloader.UI.Toolkit.TabInventory
         public string DeviceInstallFeedbackText { get; }
         private readonly string[] _deviceSessionHistoryEntries;
         public IReadOnlyList<string> DeviceSessionHistoryEntries => _deviceSessionHistoryEntries;
+        public string AttachmentsWeaponName { get; }
+        public string AttachmentsStatusText { get; }
+        public string AttachmentsSelectedSlot { get; }
+        public string AttachmentsSelectedItem { get; }
+        public bool AttachmentsCanApply { get; }
+        private readonly string[] _attachmentSlotOptions;
+        private readonly string[] _attachmentItemOptions;
+        public IReadOnlyList<string> AttachmentSlotOptions => _attachmentSlotOptions;
+        public IReadOnlyList<string> AttachmentItemOptions => _attachmentItemOptions;
 
         public static TabInventoryUiState Create(
             bool isOpen,
@@ -106,13 +129,26 @@ namespace Reloader.UI.Toolkit.TabInventory
             bool deviceCanInstallHooks = false,
             bool deviceCanUninstallHooks = false,
             string deviceInstallFeedbackText = "Hooks are not installed.",
-            IEnumerable<string> deviceSessionHistoryEntries = null)
+            IEnumerable<string> deviceSessionHistoryEntries = null,
+            string attachmentsWeaponName = "",
+            string attachmentsStatusText = "",
+            string attachmentsSelectedSlot = "",
+            string attachmentsSelectedItem = "",
+            bool attachmentsCanApply = false,
+            IEnumerable<string> attachmentSlotOptions = null,
+            IEnumerable<string> attachmentItemOptions = null)
         {
             var belt = beltSlots == null ? Array.Empty<SlotState>() : new List<SlotState>(beltSlots).ToArray();
             var backpack = backpackSlots == null ? Array.Empty<SlotState>() : new List<SlotState>(backpackSlots).ToArray();
             var historyEntries = deviceSessionHistoryEntries == null
                 ? Array.Empty<string>()
                 : new List<string>(deviceSessionHistoryEntries).ToArray();
+            var slotOptions = attachmentSlotOptions == null
+                ? Array.Empty<string>()
+                : new List<string>(attachmentSlotOptions).ToArray();
+            var itemOptions = attachmentItemOptions == null
+                ? Array.Empty<string>()
+                : new List<string>(attachmentItemOptions).ToArray();
             return new TabInventoryUiState(
                 isOpen,
                 belt,
@@ -131,7 +167,14 @@ namespace Reloader.UI.Toolkit.TabInventory
                 deviceCanInstallHooks,
                 deviceCanUninstallHooks,
                 deviceInstallFeedbackText,
-                historyEntries);
+                historyEntries,
+                attachmentsWeaponName,
+                attachmentsStatusText,
+                attachmentsSelectedSlot,
+                attachmentsSelectedItem,
+                attachmentsCanApply,
+                slotOptions,
+                itemOptions);
         }
     }
 }

@@ -114,6 +114,22 @@
                     </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
+            <ui:VisualElement name="inventory__section-attachments" class="inventory__section inventory__section--hidden">
+                <ui:VisualElement class="inventory__attachments-content">
+                    <ui:Label text="Weapon Attachments" class="inventory__section-title ui-kit__hint"/>
+                    <ui:VisualElement class="inventory__attachments-header">
+                        <ui:Label text="Weapon" class="inventory__device-field-label"/>
+                        <ui:Label name="inventory__attachments-weapon-name" text="-" class="inventory__device-field-value"/>
+                    </ui:VisualElement>
+                    <ui:DropdownField name="inventory__attachments-slot-dropdown" label="Slot"/>
+                    <ui:DropdownField name="inventory__attachments-item-dropdown" label="Attachment"/>
+                    <ui:VisualElement class="inventory__device-button-row">
+                        <ui:Button name="inventory__attachments-apply" text="Apply" class="inventory__tab ui-kit__tab"/>
+                        <ui:Button name="inventory__attachments-back" text="Back" class="inventory__tab ui-kit__tab"/>
+                    </ui:VisualElement>
+                    <ui:Label name="inventory__attachments-status" text="" class="inventory__device-feedback"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

@@ -41,6 +41,11 @@ namespace Reloader.UI.Toolkit.Runtime
             public const string TradeConfirmSell = "trade.confirm.sell";
             public const string ReloadingOperationSelect = "reloading.operation.select";
             public const string ReloadingOperationExecute = "reloading.operation.execute";
+            public const string TabInventoryAttachmentsOpen = "tab.inventory.item.context.attachments";
+            public const string TabInventoryAttachmentsSlotSelected = "tab.inventory.attachments.slot-selected";
+            public const string TabInventoryAttachmentsItemSelected = "tab.inventory.attachments.item-selected";
+            public const string TabInventoryAttachmentsApply = "tab.inventory.attachments.apply";
+            public const string TabInventoryAttachmentsBack = "tab.inventory.attachments.back";
         }
     }
 }
