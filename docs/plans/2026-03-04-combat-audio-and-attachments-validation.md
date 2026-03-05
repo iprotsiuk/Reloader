@@ -122,6 +122,7 @@ PR: https://github.com/iprotsiuk/Reloader/pull/21
 | https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886682601 | Resolved | Runtime bridge now attempts existing runtime `_defaultAttachment` before giving up when no fallback definition assets resolve (`16bea33`) |
 | https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886748129 | Resolved | Reload cancel path now re-notifies view magazine insertion to restore detachable mag visual (`16bea33`) |
 | https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2886812814 | Resolved | Footstep router now prefers active mover rebinding over stale inactive cache; regression coverage added (`1be12bc`) |
+| https://github.com/iprotsiuk/Reloader/pull/21#discussion_r2887020916 | Resolved | Restored `Wall_Brick_Basecolor_B/C` textures (+ original GUID metas) used by IndoorRange wall materials after asset-prune regression (`pending commit`) |
 
 ## Known Residual Risks
 
