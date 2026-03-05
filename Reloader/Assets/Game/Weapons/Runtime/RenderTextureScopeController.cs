@@ -84,9 +84,7 @@ namespace Reloader.Game.Weapons
 
             if (optic.HasScopeRenderProfile)
             {
-                var baseScopeFov = optic.RenderProfile.ScopeCameraFov;
-                var zoomRatio = Mathf.Max(1f, magnification / Mathf.Max(1f, optic.MagnificationMin));
-                return MagnificationToFieldOfView(baseScopeFov, zoomRatio);
+                return optic.RenderProfile.ScopeCameraFov;
             }
 
             return MagnificationToFieldOfView(referenceFieldOfView, magnification);

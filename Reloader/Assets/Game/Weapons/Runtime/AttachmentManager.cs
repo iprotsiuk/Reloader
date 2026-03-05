@@ -25,6 +25,7 @@ namespace Reloader.Game.Weapons
         public event Action<OpticDefinition> ActiveOpticChanged;
         public OpticDefinition ActiveOpticDefinition => _activeOpticDefinition;
         public MuzzleAttachmentDefinition ActiveMuzzleDefinition => _activeMuzzleDefinition;
+        public GameObject ActiveOpticInstance => _equippedOpticInstance;
         public Transform ScopeSlot => _scopeSlot;
         public Transform MuzzleSlot => _muzzleSlot;
 

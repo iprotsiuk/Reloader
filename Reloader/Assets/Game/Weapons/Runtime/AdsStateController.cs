@@ -355,7 +355,7 @@ namespace Reloader.Game.Weapons
             {
                 var usePip = adsVisible && policy == AdsVisualMode.RenderTexturePiP;
                 var scopeReferenceFov = _baseWorldFov;
-                var scopeMagnification = Mathf.Max(MinMagnification, _targetMagnification);
+                var scopeMagnification = Mathf.Max(MinMagnification, CurrentMagnification);
                 var activeOpticInstance = _attachmentManager != null ? _attachmentManager.ActiveOpticInstance : null;
                 _renderTextureScopeController.SetScopeActive(usePip, optic, activeOpticInstance, scopeReferenceFov, scopeMagnification);
             }
