@@ -311,6 +311,7 @@ namespace Reloader.Weapons.Controllers
             }
 
             ApplyEquippedAttachmentSlotToViewRuntime(slotType, state.GetEquippedAttachmentItemId(slotType));
+            ResolveInventoryEvents()?.RaiseInventoryChanged();
             return true;
         }
 
@@ -1525,11 +1526,13 @@ namespace Reloader.Weapons.Controllers
             {
                 unequipMethod.Invoke(manager, null);
                 DestroyChildrenOnAttachmentSlot(managerType, manager, "_scopeSlot");
+                DestroyAuthoredAttachmentVisualsForSlot(WeaponAttachmentSlotType.Scope);
                 EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
                 NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
                 return;
             }
 
+            DestroyAuthoredAttachmentVisualsForSlot(WeaponAttachmentSlotType.Scope);
             var definition = ResolveAttachmentDefinitionByMetadata(
                 attachmentItemId,
                 opticDefinitionType,
@@ -1574,11 +1577,13 @@ namespace Reloader.Weapons.Controllers
             if (string.IsNullOrWhiteSpace(attachmentItemId))
             {
                 unequipMethod.Invoke(manager, null);
+                DestroyAuthoredAttachmentVisualsForSlot(WeaponAttachmentSlotType.Muzzle);
                 EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
                 NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
                 return;
             }
 
+            DestroyAuthoredAttachmentVisualsForSlot(WeaponAttachmentSlotType.Muzzle);
             var definition = ResolveAttachmentDefinitionByMetadata(
                 attachmentItemId,
                 muzzleDefinitionType,
@@ -1789,6 +1794,161 @@ namespace Reloader.Weapons.Controllers
             }
         }
 
+        private static void DestroyAuthoredAttachmentVisualsByName(Transform root, params string[] keywords)
+        {
+            if (root == null || keywords == null || keywords.Length == 0)
+            {
+                return;
+            }
+
+            var candidates = root.GetComponentsInChildren<Transform>(true);
+            for (var i = 0; i < candidates.Length; i++)
+            {
+                var candidate = candidates[i];
+                if (candidate == null || candidate == root)
+                {
+                    continue;
+                }
+
+                var name = candidate.name;
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    continue;
+                }
+
+                var isKeywordMatch = false;
+                for (var j = 0; j < keywords.Length; j++)
+                {
+                    var keyword = keywords[j];
+                    if (!string.IsNullOrWhiteSpace(keyword)
+                        && name.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        isKeywordMatch = true;
+                        break;
+                    }
+                }
+
+                if (!isKeywordMatch)
+                {
+                    continue;
+                }
+
+                if (name.IndexOf("slot", StringComparison.OrdinalIgnoreCase) >= 0
+                    || name.IndexOf("anchor", StringComparison.OrdinalIgnoreCase) >= 0
+                    || name.IndexOf("socket", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    continue;
+                }
+
+                var hasRenderable = candidate.GetComponentInChildren<Renderer>(true) != null;
+                if (!hasRenderable)
+                {
+                    continue;
+                }
+
+                Destroy(candidate.gameObject);
+            }
+        }
+
+        private void DestroyAuthoredAttachmentVisualsForSlot(WeaponAttachmentSlotType slotType)
+        {
+            if (_equippedWeaponView == null)
+            {
+                return;
+            }
+
+            var names = BuildCompatibleAttachmentVisualNameKeywords(slotType);
+            if (names.Count > 0)
+            {
+                var nameArray = new string[names.Count];
+                names.CopyTo(nameArray);
+                DestroyAuthoredAttachmentVisualsByName(_equippedWeaponView.transform, nameArray);
+            }
+
+            switch (slotType)
+            {
+                case WeaponAttachmentSlotType.Scope:
+                    DestroyAuthoredAttachmentVisualsByName(_equippedWeaponView.transform, "optic", "scope");
+                    break;
+                case WeaponAttachmentSlotType.Muzzle:
+                    DestroyAuthoredAttachmentVisualsByName(_equippedWeaponView.transform, "muzzle", "suppressor", "brake");
+                    break;
+            }
+        }
+
+        private HashSet<string> BuildCompatibleAttachmentVisualNameKeywords(WeaponAttachmentSlotType slotType)
+        {
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (_equippedDefinition == null)
+            {
+                return names;
+            }
+
+            var compatibleIds = _equippedDefinition.GetCompatibleAttachmentItemIds(slotType);
+            if (compatibleIds == null || compatibleIds.Count == 0)
+            {
+                return names;
+            }
+
+            string definitionTypeName;
+            string idPropertyName;
+            string prefabPropertyName;
+            switch (slotType)
+            {
+                case WeaponAttachmentSlotType.Scope:
+                    definitionTypeName = "Reloader.Game.Weapons.OpticDefinition";
+                    idPropertyName = "OpticId";
+                    prefabPropertyName = "OpticPrefab";
+                    break;
+                case WeaponAttachmentSlotType.Muzzle:
+                    definitionTypeName = "Reloader.Game.Weapons.MuzzleAttachmentDefinition";
+                    idPropertyName = "AttachmentId";
+                    prefabPropertyName = "MuzzlePrefab";
+                    break;
+                default:
+                    return names;
+            }
+
+            var definitionType = ResolveTypeByName(definitionTypeName);
+            var prefabProperty = definitionType?.GetProperty(prefabPropertyName, BindingFlags.Instance | BindingFlags.Public);
+            if (definitionType == null || prefabProperty == null)
+            {
+                return names;
+            }
+
+            var metadataLookup = BuildAttachmentMetadataLookup();
+            for (var i = 0; i < compatibleIds.Count; i++)
+            {
+                var attachmentItemId = compatibleIds[i];
+                if (string.IsNullOrWhiteSpace(attachmentItemId))
+                {
+                    continue;
+                }
+
+                UObject definition = null;
+                if (metadataLookup.TryGetValue(attachmentItemId, out var metadata)
+                    && metadata?.AttachmentDefinition != null
+                    && definitionType.IsInstanceOfType(metadata.AttachmentDefinition))
+                {
+                    definition = metadata.AttachmentDefinition;
+                }
+
+                definition ??= ResolveAttachmentDefinitionById(definitionType, idPropertyName, attachmentItemId);
+                if (definition == null)
+                {
+                    continue;
+                }
+
+                if (prefabProperty.GetValue(definition) is GameObject visualPrefab
+                    && !string.IsNullOrWhiteSpace(visualPrefab.name))
+                {
+                    names.Add(visualPrefab.name);
+                }
+            }
+
+            return names;
+        }
+
         private static UObject ResolveAttachmentDefinitionById(Type definitionType, string idPropertyName, string itemId)
         {
             if (definitionType == null || string.IsNullOrWhiteSpace(idPropertyName) || string.IsNullOrWhiteSpace(itemId))
@@ -1835,6 +1995,11 @@ namespace Reloader.Weapons.Controllers
 
             Destroy(_equippedWeaponView);
             _equippedWeaponView = null;
+            if (_adsStateRuntimeBridge != null)
+            {
+                Destroy(_adsStateRuntimeBridge);
+            }
+
             _adsStateRuntimeBridge = null;
             _adsAttachmentManagerRuntimeBridge = null;
             _adsActiveOpticProperty = null;

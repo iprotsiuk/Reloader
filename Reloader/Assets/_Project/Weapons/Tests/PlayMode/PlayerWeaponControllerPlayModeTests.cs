@@ -2145,6 +2145,146 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator TrySwapEquippedWeaponAttachment_RemoveScope_DestroysAuthoredScopeVisual()
+        {
+            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            Assert.That(opticDefinitionType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            UnityEngine.Object opticDefinition = null;
+            GameObject opticPrefab = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Kar98k", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-kar98k-optic" })
+                });
+
+                viewPrefab = new GameObject("Kar98kView");
+                new GameObject("ScopeSlot").transform.SetParent(viewPrefab.transform, false);
+                new GameObject("IronSightAnchor").transform.SetParent(viewPrefab.transform, false);
+                var authoredScopeVisual = new GameObject("WWII_Optic_Remote_Range_A");
+                authoredScopeVisual.AddComponent<MeshFilter>();
+                authoredScopeVisual.AddComponent<MeshRenderer>();
+                authoredScopeVisual.transform.SetParent(viewPrefab.transform, false);
+
+                opticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+                opticPrefab = new GameObject("WWII_Optic_Remote_Range_A");
+                new GameObject("SightAnchor").transform.SetParent(opticPrefab.transform, false);
+                SetField(opticDefinitionType, opticDefinition, "_opticId", "att-kar98k-optic");
+                SetField(opticDefinitionType, opticDefinition, "_opticPrefab", opticPrefab);
+                SetField(opticDefinitionType, opticDefinition, "_magnificationMin", 4f);
+                SetField(opticDefinitionType, opticDefinition, "_magnificationMax", 4f);
+                SetField(opticDefinitionType, opticDefinition, "_magnificationStep", 1f);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests(
+                        "att-kar98k-optic",
+                        WeaponAttachmentSlotType.Scope,
+                        opticDefinition)
+                });
+
+                yield return null;
+                Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+                state.SetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope, "att-kar98k-optic");
+
+                runtime.SelectBeltSlot(1);
+                yield return null;
+                runtime.SelectBeltSlot(0);
+                yield return null;
+
+                var equippedView = GetControllerField<GameObject>(controller, "_equippedWeaponView");
+                Assert.That(equippedView, Is.Not.Null);
+
+                var authoredScopePresentBeforeRemove = false;
+                var transformsBefore = equippedView.GetComponentsInChildren<Transform>(true);
+                for (var i = 0; i < transformsBefore.Length; i++)
+                {
+                    if (string.Equals(transformsBefore[i].name, "WWII_Optic_Remote_Range_A", StringComparison.Ordinal))
+                    {
+                        authoredScopePresentBeforeRemove = true;
+                        break;
+                    }
+                }
+
+                Assert.That(authoredScopePresentBeforeRemove, Is.True, "Test setup should include authored scope visual.");
+                Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, string.Empty), Is.True);
+                yield return null;
+
+                var authoredScopePresentAfterRemove = false;
+                var transformsAfter = equippedView.GetComponentsInChildren<Transform>(true);
+                for (var i = 0; i < transformsAfter.Length; i++)
+                {
+                    if (string.Equals(transformsAfter[i].name, "WWII_Optic_Remote_Range_A", StringComparison.Ordinal))
+                    {
+                        authoredScopePresentAfterRemove = true;
+                        break;
+                    }
+                }
+
+                Assert.That(authoredScopePresentAfterRemove, Is.False, "Removing scope should remove authored scope visuals from equipped view.");
+                Assert.That(state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.EqualTo(string.Empty));
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (opticDefinition != null)
+                {
+                    Object.Destroy(opticDefinition);
+                }
+
+                if (opticPrefab != null)
+                {
+                    Object.Destroy(opticPrefab);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator TrySwapEquippedWeaponAttachment_MuzzleHotSwap_UpdatesFireOverrideDeterministically()
         {
             var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;

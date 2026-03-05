@@ -22,6 +22,12 @@ namespace Reloader.Weapons.Runtime
 
         public bool TryGetWeaponDefinition(string itemId, out WeaponDefinition definition)
         {
+            definition = null;
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return false;
+            }
+
             EnsureInitialized();
             if (_byItemId.TryGetValue(itemId, out definition))
             {

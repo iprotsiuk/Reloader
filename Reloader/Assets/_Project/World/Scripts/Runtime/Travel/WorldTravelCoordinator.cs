@@ -478,6 +478,16 @@ namespace Reloader.World.Travel
 
                 if (chamberArgument == null && snapshot.ChamberLoaded)
                 {
+                    if (applyRuntimeAttachments != null
+                        && attachmentParameterType != null
+                        && snapshot.EquippedAttachmentItemIdsBySlot != null
+                        && attachmentParameterType.IsInstanceOfType(snapshot.EquippedAttachmentItemIdsBySlot))
+                    {
+                        applyRuntimeAttachments.Invoke(
+                            weaponController,
+                            new[] { (object)snapshot.ItemId, snapshot.EquippedAttachmentItemIdsBySlot });
+                    }
+
                     // Keep chamber-loaded state from ApplyRuntimeState when there is no concrete ballistic payload to apply.
                     continue;
                 }

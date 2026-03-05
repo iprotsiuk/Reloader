@@ -10,6 +10,24 @@ namespace Reloader.Core.Tests
     public class WeaponRegistryFallbackResolutionTests
     {
         [Test]
+        public void TryGetWeaponDefinition_ReturnsFalse_WhenItemIdIsNullOrWhitespace()
+        {
+            var root = new GameObject("WeaponRegistryNullGuardTests");
+            try
+            {
+                var registry = root.AddComponent<WeaponRegistry>();
+                Assert.That(registry.TryGetWeaponDefinition(null, out var nullDefinition), Is.False);
+                Assert.That(nullDefinition, Is.Null);
+                Assert.That(registry.TryGetWeaponDefinition(" ", out var whitespaceDefinition), Is.False);
+                Assert.That(whitespaceDefinition, Is.Null);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void TryGetWeaponDefinition_ResolvesStarterRifleWhenSerializedDefinitionsAreEmpty()
         {
 #if UNITY_EDITOR
