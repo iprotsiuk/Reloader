@@ -2728,6 +2728,129 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator TrySwapEquippedWeaponAttachment_MuzzleOnlyViewWithoutScopeSlot_StillMountsMuzzle()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            RuntimeKernelBootstrapper.Events = new DefaultRuntimeEvents();
+
+            var muzzleDefinitionType = ResolveType("Reloader.Game.Weapons.MuzzleAttachmentDefinition");
+            Assert.That(muzzleDefinitionType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            UnityEngine.Object muzzleDefinition = null;
+            AudioClip overrideClip = null;
+            GameObject muzzlePrefab = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+                runtime.TryAddStackItem("att-muzzle-a", 1, out _, out _, out _);
+
+                var emitterSpy = root.AddComponent<ClipCaptureWeaponCombatAudioEmitter>();
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.01f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Muzzle, new[] { "att-muzzle-a" })
+                });
+
+                viewPrefab = new GameObject("ViewPrefabWithOnlyMuzzleSlot");
+                var muzzleSocket = new GameObject("Muzzle").transform;
+                muzzleSocket.SetParent(viewPrefab.transform, false);
+                var muzzleSlot = new GameObject("MuzzleAttachmentSlot").transform;
+                muzzleSlot.SetParent(viewPrefab.transform, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, muzzleFirePoint: muzzleSocket, muzzleSlot: muzzleSlot);
+
+                muzzleDefinition = ScriptableObject.CreateInstance(muzzleDefinitionType);
+                overrideClip = AudioClip.Create("muzzle-only", 128, 1, 44100, false);
+                muzzlePrefab = new GameObject("MuzzleOnlyPrefab");
+                SetField(muzzleDefinitionType, muzzleDefinition, "_attachmentId", "att-muzzle-a");
+                SetField(muzzleDefinitionType, muzzleDefinition, "_muzzlePrefab", muzzlePrefab);
+                SetField(muzzleDefinitionType, muzzleDefinition, "_fireClipOverride", overrideClip);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_combatAudioEmitter", emitterSpy);
+                SetControllerField(controller, "_weaponViewParent", root.transform);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests("att-muzzle-a", WeaponAttachmentSlotType.Muzzle, muzzleDefinition)
+                });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
+
+                yield return null;
+
+                Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Muzzle, "att-muzzle-a"), Is.True);
+
+                input.FirePressedThisFrame = true;
+                yield return null;
+
+                var equippedView = controller.EquippedWeaponViewTransform;
+                Assert.That(equippedView, Is.Not.Null);
+                var runtimeMuzzleSlot = equippedView.Find("MuzzleAttachmentSlot");
+                Assert.That(runtimeMuzzleSlot, Is.Not.Null);
+                Assert.That(runtimeMuzzleSlot.childCount, Is.EqualTo(1), "Muzzle-only views should still mount runtime muzzle attachments.");
+                Assert.That(emitterSpy.LastFireOverrideClip, Is.SameAs(overrideClip), "Muzzle-only views should still drive fire override clips through the attachment runtime.");
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (muzzleDefinition != null)
+                {
+                    Object.Destroy(muzzleDefinition);
+                }
+
+                if (overrideClip != null)
+                {
+                    Object.Destroy(overrideClip);
+                }
+
+                if (muzzlePrefab != null)
+                {
+                    Object.Destroy(muzzlePrefab);
+                }
+            }
+        }
+
         [Test]
         public void HasScopedAdsBridgeActive_ReturnsFalse_WhenBridgeHasNoActiveOptic()
         {

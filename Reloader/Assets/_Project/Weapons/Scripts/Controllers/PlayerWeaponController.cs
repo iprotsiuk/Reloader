@@ -1137,7 +1137,7 @@ namespace Reloader.Weapons.Controllers
             WeaponViewAttachmentMounts mounts,
             Transform viewMuzzle)
         {
-            if (viewRoot == null || mounts == null || viewMuzzle == null)
+            if (viewRoot == null || viewMuzzle == null)
             {
                 return;
             }
@@ -1155,7 +1155,8 @@ namespace Reloader.Weapons.Controllers
                 mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Muzzle, out attachmentSlot);
             }
 
-            attachmentSlot ??= viewMuzzle;
+            attachmentSlot ??= FindDescendantByName(viewRoot.transform, "MuzzleAttachmentSlot")
+                ?? viewMuzzle;
 
             var muzzleSocketField = muzzleRuntimeType.GetField("_muzzleSocket", BindingFlags.Instance | BindingFlags.NonPublic);
             muzzleSocketField?.SetValue(runtimeComponent, viewMuzzle);
@@ -1724,9 +1725,9 @@ namespace Reloader.Weapons.Controllers
                 ?? FindDescendantByName(viewRoot.transform, "OpticSlot");
             muzzleSlot ??= FindDescendantByName(viewRoot.transform, "MuzzleAttachmentSlot");
 
-            if (scopeSlot == null)
+            if (scopeSlot == null && muzzleSlot == null)
             {
-                Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing an explicit scope slot.", this);
+                Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing explicit attachment slots.", this);
                 return null;
             }
 
@@ -2360,6 +2361,11 @@ namespace Reloader.Weapons.Controllers
             {
                 var behaviour = behaviours[i];
                 if (behaviour == null)
+                {
+                    continue;
+                }
+
+                if (behaviour is WeaponViewAttachmentMounts)
                 {
                     continue;
                 }
