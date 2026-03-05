@@ -2191,6 +2191,17 @@ MonoBehaviour:
   _blendSpeed: 24
   _rifleLocalEulerOffset: {x: 90, y: 0, z: 0}
   _seedOffsetsFromCurrentPoseOnEquip: 0
+  _attachmentPoseOverrides:
+  - _slotType: 0
+    _attachmentItemId: att-kar98k-scope-remote-a
+    _hipLocalPosition: {x: 0.015, y: 0.15, z: 0.005}
+    _hipLocalEuler: {x: 0, y: 0, z: 0}
+    _adsLocalPosition: {x: 0, y: 0.2, z: 0.05}
+    _adsLocalEuler: {x: 0, y: 0, z: 0}
+    _blendSpeed: 24
+    _rifleLocalEulerOffset: {x: 90, y: 0, z: 0}
+  _activePoseSource: Base
+  _activeAttachmentItemId: 
 --- !u!1001 &628516051
 PrefabInstance:
   m_ObjectHideFlags: 0
