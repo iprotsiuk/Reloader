@@ -14,5 +14,11 @@ namespace Reloader.Core.Save
 
         [JsonProperty("lawStateEnabled")]
         public bool LawStateEnabled { get; set; }
+
+        [JsonProperty("contractStateEnabled")]
+        public bool ContractStateEnabled { get; set; }
+
+        [JsonProperty("policeHeatStateEnabled")]
+        public bool PoliceHeatStateEnabled { get; set; }
     }
 }

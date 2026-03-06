@@ -78,14 +78,23 @@ Current repository implementation requires these registered module payloads:
 - `WorldObjectState` module payload:
   - `sceneObjectStates[]` keyed by `scenePath` with per-object records (`objectId`, `consumed`, `destroyed`, optional transform override, `lastUpdatedDay`, optional `itemInstanceId`)
   - `reclaimEntries[]` for daily cleanup handoff (`scenePath`, `objectId`, `itemInstanceId`, `cleanedOnDay`)
+- `ContainerStorage` module payload: `containers[]` keyed by `containerId` with stored item-instance IDs
+- `PlayerDevice` module payload: `selectedTarget`, `activeGroupShots[]`, `savedGroups[]`, `notesText`, `installedHooks[]`
+- `WorkbenchLoadout` module payload: `workbenches[]` keyed by `workbenchId` with nested `slotNodes[]`
+- `ContractState` module payload: `contractId`, `targetId`, `distanceBand`, `payout`, `generatedContractIds[]`, `completedContractIds[]`
+- `PoliceHeatState` module payload: `level`, `lastCrimeType`, `searchTimeRemainingSeconds`, `hasLineOfSightToPlayer`
 
 `chamberRound` and `magazineRounds[]` serialize ammo ballistic snapshots for the active weapon state (`ammoSource`, `muzzleVelocityFps`, `velocityStdDevFps`, `projectileMassGrains`, `ballisticCoefficientG1`, `dispersionMoa`).
 
 In-flight projectile state is intentionally out-of-scope for v0.1 saves.
 
 Schema note:
-- Runtime save schema is now `v2`.
+- Runtime save schema is now `v6`.
 - `SchemaV1ToV2AddWorldObjectStateMigration` inserts a default `WorldObjectState` block when loading older saves.
+- `SchemaV2ToV3AddContainerStorageMigration` inserts a default `ContainerStorage` block when loading older saves.
+- `SchemaV3ToV4AddPlayerDeviceMigration` inserts a default `PlayerDevice` block when loading older saves.
+- `SchemaV4ToV5AddWorkbenchLoadoutMigration` inserts a default `WorkbenchLoadout` block when loading older saves.
+- `SchemaV5ToV6AddContractAndPoliceHeatStateMigration` inserts default `ContractState` and `PoliceHeatState` blocks when loading older saves.
 - Load remains transactional: missing required module blocks still fail before restore.
 
 The broader schema below is the v0.1 design target and forward schema contract. Treat it as planned module scope until those modules are registered and migration-backed in runtime.
@@ -104,6 +113,11 @@ The broader schema below is the v0.1 design target and forward schema contract. 
 | `Inventory` | Implemented now | Yes | Persists carried/belt/backpack ids + capacity + belt selection. |
 | `Weapons` | Implemented now | Yes | Persists active weapon loadout + chamber/mag ammo ballistic snapshots. |
 | `WorldObjectState` | Implemented now | Yes | Unified world-object state + reclaim entries for daily cleanup. |
+| `ContainerStorage` | Implemented now | Yes | Persists stored item-instance IDs for containers/chests. |
+| `PlayerDevice` | Implemented now | Yes | Persists selected target, shot groups, notes, and installed hooks. |
+| `WorkbenchLoadout` | Implemented now | Yes | Persists nested workbench slot loadouts by `workbenchId`. |
+| `ContractState` | Implemented now | Yes | Persists the active assassination contract plus generated/completed contract history IDs. |
+| `PoliceHeatState` | Implemented now | Yes | Persists current police heat/search state for wanted-level recovery. |
 | `PlayerState` | Planned target | No | Listed in target schema only. |
 | `ItemRegistry` | Planned target | No | Listed in target schema only. |
 | `ItemLocation` | Planned target | No | Listed in target schema only. |

@@ -8,9 +8,9 @@ namespace Reloader.Core.Save
     {
         /// <summary>
         /// Creates the default save pipeline for v0.x.
-        /// Registration order is deterministic: CoreWorld, Inventory, Weapons, WorldObjectState, ContainerStorage, PlayerDevice, WorkbenchLoadout.
+        /// Registration order is deterministic: CoreWorld, Inventory, Weapons, WorldObjectState, ContainerStorage, PlayerDevice, WorkbenchLoadout, ContractState, PoliceHeatState.
         /// </summary>
-        public static SaveCoordinator CreateDefaultCoordinator(int currentSchemaVersion = 5)
+        public static SaveCoordinator CreateDefaultCoordinator(int currentSchemaVersion = 6)
         {
             return new SaveCoordinator(
                 new SaveFileRepository(),
@@ -20,7 +20,8 @@ namespace Reloader.Core.Save
                     new SchemaV1ToV2AddWorldObjectStateMigration(),
                     new SchemaV2ToV3AddContainerStorageMigration(),
                     new SchemaV3ToV4AddPlayerDeviceMigration(),
-                    new SchemaV4ToV5AddWorkbenchLoadoutMigration()
+                    new SchemaV4ToV5AddWorkbenchLoadoutMigration(),
+                    new SchemaV5ToV6AddContractAndPoliceHeatStateMigration()
                 }),
                 new[]
                 {
@@ -30,7 +31,9 @@ namespace Reloader.Core.Save
                     new SaveModuleRegistration(3, new WorldObjectStateModule()),
                     new SaveModuleRegistration(4, new ContainerStorageModule()),
                     new SaveModuleRegistration(5, new PlayerDeviceModule()),
-                    new SaveModuleRegistration(6, new WorkbenchLoadoutModule())
+                    new SaveModuleRegistration(6, new WorkbenchLoadoutModule()),
+                    new SaveModuleRegistration(7, new ContractStateModule()),
+                    new SaveModuleRegistration(8, new PoliceHeatStateModule())
                 },
                 currentSchemaVersion);
         }

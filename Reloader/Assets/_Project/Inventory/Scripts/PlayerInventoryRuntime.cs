@@ -341,6 +341,19 @@ namespace Reloader.Inventory
             SelectedBeltIndex = beltIndex;
         }
 
+        public void ClearCarriedItems()
+        {
+            for (var i = 0; i < BeltSlotCount; i++)
+            {
+                BeltSlotItemIds[i] = null;
+            }
+
+            BackpackItemIds.Clear();
+            _slotStackStates.Clear();
+            _itemQuantities.Clear();
+            SelectedBeltIndex = -1;
+        }
+
         public bool TryMoveItem(InventoryArea sourceArea, int sourceIndex, InventoryArea targetArea, int targetIndex)
         {
             if (!TryGetSlotItem(sourceArea, sourceIndex, out var sourceItem) || string.IsNullOrWhiteSpace(sourceItem))

@@ -51,5 +51,33 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(restored.BackpackCapacity, Is.EqualTo(0));
             Assert.That(restored.SelectedBeltIndex, Is.EqualTo(-1));
         }
+
+        [Test]
+        public void InventoryModule_ClearCarriedState_RemovesCarriedSlotsButPreservesCapacity()
+        {
+            var module = new InventoryModule
+            {
+                BackpackCapacity = 3,
+                SelectedBeltIndex = 2
+            };
+            module.CarriedItemIds.Add("c-1");
+            module.CarriedItemIds.Add("c-2");
+            module.BeltSlotItemIds.Add("belt-0");
+            module.BeltSlotItemIds.Add("belt-1");
+            module.BeltSlotItemIds.Add(null);
+            module.BeltSlotItemIds.Add(null);
+            module.BeltSlotItemIds.Add(null);
+            module.BackpackItemIds.Add("pack-0");
+            module.BackpackItemIds.Add("pack-1");
+
+            module.ClearCarriedState();
+
+            Assert.That(module.CarriedItemIds.Count, Is.EqualTo(0));
+            Assert.That(module.BeltSlotItemIds.Count, Is.EqualTo(InventoryModule.BeltSlotCount));
+            Assert.That(module.BeltSlotItemIds.TrueForAll(itemId => itemId == null), Is.True);
+            Assert.That(module.BackpackItemIds.Count, Is.EqualTo(0));
+            Assert.That(module.BackpackCapacity, Is.EqualTo(3));
+            Assert.That(module.SelectedBeltIndex, Is.EqualTo(-1));
+        }
     }
 }

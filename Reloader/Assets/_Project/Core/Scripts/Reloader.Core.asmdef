@@ -2,6 +2,7 @@
   "name": "Reloader.Core",
   "rootNamespace": "Reloader.Core",
   "references": [
+    "Reloader.Contracts",
     "Unity.Newtonsoft.Json"
   ],
   "includePlatforms": [],

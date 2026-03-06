@@ -17,11 +17,16 @@ Current repository runtime requires these registered module blocks:
 - `Inventory` (`carriedItemIds`, `beltSlotItemIds`, `backpackItemIds`, `backpackCapacity`, `selectedBeltIndex`)
 - `Weapons` (`itemId`, `chamberLoaded`, `magCount`, `reserveCount`, `chamberRound`, `magazineRounds[]`)
 - `WorldObjectState` (`sceneObjectStates[]`, `reclaimEntries[]`; scene-path + object-id keyed world object records)
+- `ContainerStorage` (`containers[]` keyed by `containerId`)
+- `PlayerDevice` (`selectedTarget`, `activeGroupShots[]`, `savedGroups[]`, `notesText`, `installedHooks[]`)
+- `WorkbenchLoadout` (`workbenches[]` with nested `slotNodes[]`)
+- `ContractState` (`contractId`, `targetId`, `distanceBand`, `payout`, `generatedContractIds[]`, `completedContractIds[]`)
+- `PoliceHeatState` (`level`, `lastCrimeType`, `searchTimeRemainingSeconds`, `hasLineOfSightToPlayer`)
 
 Weapons ammo snapshot fields are: `ammoSource`, `muzzleVelocityFps`, `velocityStdDevFps`, `projectileMassGrains`, `ballisticCoefficientG1`, `dispersionMoa`.
 In-flight projectiles are intentionally excluded from v0.1 save scope.
 
-Runtime schema note: baseline schema is `v2`, with `SchemaV1ToV2AddWorldObjectStateMigration` adding default `WorldObjectState` for older saves.
+Runtime schema note: baseline schema is `v6`, with migrations adding default blocks in sequence for `WorldObjectState`, `ContainerStorage`, `PlayerDevice`, `WorkbenchLoadout`, `ContractState`, and `PoliceHeatState` when older saves are loaded.
 
 The broader `SaveData` tree in `save-and-progression.md` is the target schema contract. Blocks become required only after module registration + migration support land in runtime.
 
@@ -36,7 +41,7 @@ The broader `SaveData` tree in `save-and-progression.md` is the target schema co
 - Unknown module keys are ignored safely.
 - Missing required registered module blocks fail before any restore.
 - Corrupted module payload JSON fails before any restore.
-- Baseline deterministic order: `CoreWorld`, `Inventory`, `Weapons`, `WorldObjectState`.
+- Baseline deterministic order: `CoreWorld`, `Inventory`, `Weapons`, `WorldObjectState`, `ContainerStorage`, `PlayerDevice`, `WorkbenchLoadout`, `ContractState`, `PoliceHeatState`.
 
 ## Unified World-Object Policy Contract [v0.2]
 
