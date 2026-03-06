@@ -57,6 +57,23 @@ Differences between scenes should come from authored world layout, not separate 
 
 ---
 
+## Acquisition Authority
+
+`MainTown` should stop seeding starter weapons on the floor.
+
+Authoritative acquisition rules for this pass:
+
+- supported weapons and ammo are sold through the authored weapon/ammo vendor catalogs
+- the player's `StorageChest` remains general-purpose storage, but starts seeded once with the grandpa rifle kit:
+  - `Kar98k`
+  - `Kar98k` scope
+  - `Kar98k` muzzle device
+  - `50` rounds of `.308`
+- no authored starter floor spawns for guns, ammo, or attachments remain in `MainTown`
+- dropped items can still exist later from real gameplay events, but the scene no longer depends on seeded world pickups for starter access
+
+---
+
 ## Drop Visual Contract
 
 Dropping guns/ammo with `G` must create authored world visuals, not generic cubes.

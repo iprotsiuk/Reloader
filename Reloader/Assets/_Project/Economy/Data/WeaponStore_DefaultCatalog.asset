@@ -14,8 +14,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Economy::Reloader.Economy.ShopCatalogDefinition
   _items:
   - _itemId: weapon-kar98k
-    _displayName: Starter .308 Rifle
+    _displayName: Kar98k (.308)
     _category: weapon
     _unitPrice: 900
+    _startingStock: 10000
+    _iconSourcePrefab: {fileID: 0}
+  - _itemId: weapon-canik-tp9
+    _displayName: Canik TP9 (9mm)
+    _category: weapon
+    _unitPrice: 650
+    _startingStock: 10000
+    _iconSourcePrefab: {fileID: 0}
+  - _itemId: att-kar98k-scope-remote-a
+    _displayName: Kar98k Scope (Remote A)
+    _category: attachment
+    _unitPrice: 350
+    _startingStock: 10000
+    _iconSourcePrefab: {fileID: 0}
+  - _itemId: att-kar98k-muzzle-device-c
+    _displayName: Kar98k Muzzle Device C
+    _category: attachment
+    _unitPrice: 200
     _startingStock: 10000
     _iconSourcePrefab: {fileID: 0}

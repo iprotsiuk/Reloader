@@ -42,4 +42,4 @@ Key artifacts:
 - `PlayerWeaponController` exists and core refs are assigned.
 - `PlayerCameraDefaults` + `PlayerLookController` references are assigned.
 - `CameraPivot/CameraLookTarget` and `CameraPivot/WeaponMuzzle` exist.
-- pickup -> equip -> ADS/reload/fire smoke passes.
+- authoritative acquisition path -> equip -> ADS/reload/fire smoke passes.

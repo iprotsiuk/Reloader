@@ -110,6 +110,10 @@ namespace Reloader.World.Tests.EditMode
                 "Assets/_Project/Inventory/Data/Spawns/Ammo_Factory_9x19_124_FMJ_Spawn.asset");
             var animationProfile = AssetDatabase.LoadAssetAtPath<WeaponAnimatorOverrideProfile>(
                 "Assets/_Project/Weapons/Data/AnimationProfiles/PlayerWeaponAnimatorOverrideProfile.asset");
+            var weaponCatalog = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(
+                "Assets/_Project/Economy/Data/WeaponStore_DefaultCatalog.asset");
+            var ammoCatalog = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(
+                "Assets/_Project/Economy/Data/AmmoStore_DefaultCatalog.asset");
 
             Assert.That(starterPistol, Is.Not.Null);
             Assert.That(starterPistol!.ItemId, Is.EqualTo("weapon-canik-tp9"));
@@ -139,6 +143,26 @@ namespace Reloader.World.Tests.EditMode
             CollectionAssert.AreEquivalent(
                 new[] { "weapon-kar98k", "weapon-canik-tp9" },
                 itemIds);
+
+            Assert.That(weaponCatalog, Is.Not.Null);
+            CollectionAssert.AreEquivalent(
+                new[]
+                {
+                    "weapon-kar98k",
+                    "weapon-canik-tp9",
+                    "att-kar98k-scope-remote-a",
+                    "att-kar98k-muzzle-device-c"
+                },
+                ExtractCatalogItemIds(weaponCatalog!));
+
+            Assert.That(ammoCatalog, Is.Not.Null);
+            CollectionAssert.AreEquivalent(
+                new[]
+                {
+                    "ammo-factory-308-147-fmj",
+                    "ammo-factory-9x19-124-fmj"
+                },
+                ExtractCatalogItemIds(ammoCatalog!));
 
             Assert.That(
                 AssetDatabase.LoadAssetAtPath<UnityEngine.Object>("Assets/_Project/Inventory/Data/Items/Rifle_556_Starter.asset"),
@@ -216,6 +240,29 @@ namespace Reloader.World.Tests.EditMode
             });
 
             return contract;
+        }
+
+        private static IEnumerable<string> ExtractCatalogItemIds(UnityEngine.Object catalogAsset)
+        {
+            if (catalogAsset == null)
+            {
+                yield break;
+            }
+
+            var itemsProperty = new SerializedObject(catalogAsset).FindProperty("_items");
+            if (itemsProperty == null)
+            {
+                yield break;
+            }
+
+            for (var i = 0; i < itemsProperty.arraySize; i++)
+            {
+                var itemId = itemsProperty.GetArrayElementAtIndex(i).FindPropertyRelative("_itemId")?.stringValue;
+                if (!string.IsNullOrWhiteSpace(itemId))
+                {
+                    yield return itemId;
+                }
+            }
         }
 
         private static Scene CreateTempScene()

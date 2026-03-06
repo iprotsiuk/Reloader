@@ -3,12 +3,16 @@ using NUnit.Framework;
 using Reloader.Weapons.Runtime;
 using Reloader.World.Editor;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Reloader.World.Tests.EditMode
 {
     public class MainTownCombatWiringEditModeTests
     {
+        private const string MainTownScenePath = "Assets/_Project/World/Scenes/MainTown.unity";
+
         private static readonly MethodInfo ShouldSeedDefaultWeaponPoseTuningMethod =
             typeof(MainTownCombatWiring).GetMethod(
                 "ShouldSeedDefaultWeaponPoseTuning",
@@ -55,10 +59,58 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(shouldSeed, Is.False);
         }
 
+        [Test]
+        public void MainTownScene_RemovesStarterFloorPickups_InFavorOfVendorAndChestAuthority()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                Assert.That(FindRoot(scene, "WeaponSpawn_RifleStarter_LPSP"), Is.Null,
+                    "MainTown should not keep a floor-spawned Kar98k pickup.");
+                Assert.That(FindRoot(scene, "WeaponSpawn_RifleStarter"), Is.Null,
+                    "Legacy duplicate rifle pickup should stay removed.");
+                Assert.That(FindRoot(scene, "WeaponSpawn_RifleStarter_Exported"), Is.Null,
+                    "Exported duplicate rifle pickup should stay removed.");
+                Assert.That(FindRoot(scene, "WeaponSpawn_PistolStarter_LPSP"), Is.Null,
+                    "MainTown should not keep a floor-spawned pistol pickup.");
+                Assert.That(FindRoot(scene, "AmmoSpawn_308_LPSP"), Is.Null,
+                    ".308 starter ammo pickup should stay removed from MainTown.");
+                Assert.That(FindRoot(scene, "AmmoSpawn_9x19_LPSP"), Is.Null,
+                    "9x19 starter ammo pickup should stay removed from MainTown.");
+                Assert.That(FindRoot(scene, "AttachmentSpawn_Kar98kScope"), Is.Null,
+                    "Kar98k scope pickup should move to the vendor/chest authority path.");
+                Assert.That(FindRoot(scene, "AttachmentSpawn_Kar98kMuzzle"), Is.Null,
+                    "Kar98k muzzle pickup should move to the vendor/chest authority path.");
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
         private static bool InvokeShouldSeedDefaultWeaponPoseTuning(SerializedObject serializedObject)
         {
             Assert.That(ShouldSeedDefaultWeaponPoseTuningMethod, Is.Not.Null);
             return (bool)ShouldSeedDefaultWeaponPoseTuningMethod.Invoke(null, new object[] { serializedObject });
+        }
+
+        private static GameObject FindRoot(Scene scene, string rootName)
+        {
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                if (root.name == rootName)
+                {
+                    return root;
+                }
+            }
+
+            return null;
         }
     }
 }

@@ -19,3 +19,9 @@ MonoBehaviour:
     _unitPrice: 2
     _startingStock: 10000
     _iconSourcePrefab: {fileID: 0}
+  - _itemId: ammo-factory-9x19-124-fmj
+    _displayName: Factory 9mm 124gr FMJ
+    _category: ammo
+    _unitPrice: 1
+    _startingStock: 10000
+    _iconSourcePrefab: {fileID: 0}

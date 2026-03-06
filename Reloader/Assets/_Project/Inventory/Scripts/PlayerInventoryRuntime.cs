@@ -326,6 +326,31 @@ namespace Reloader.Inventory
             return true;
         }
 
+        public bool TryInsertBackpackStack(int targetIndex, string itemId, int quantity, int maxStack)
+        {
+            if (string.IsNullOrWhiteSpace(itemId) || quantity <= 0 || maxStack <= 0)
+            {
+                return false;
+            }
+
+            var insertAt = targetIndex;
+            if (insertAt < 0 || insertAt > BackpackItemIds.Count)
+            {
+                insertAt = BackpackItemIds.Count;
+            }
+
+            if (insertAt >= BackpackCapacity || BackpackItemIds.Count >= BackpackCapacity)
+            {
+                return false;
+            }
+
+            ShiftBackpackStackStateIndicesUpFrom(insertAt);
+            BackpackItemIds.Insert(insertAt, itemId);
+            SetSlotStackState(InventoryArea.Backpack, insertAt, new StackSlotState(quantity, maxStack));
+            RebuildItemQuantities();
+            return true;
+        }
+
         public void SelectBeltSlot(int beltIndex)
         {
             if (beltIndex < 0 || beltIndex >= BeltSlotCount)
@@ -915,6 +940,21 @@ namespace Reloader.Inventory
                 else
                 {
                     _slotStackStates.Remove(toKey);
+                }
+            }
+        }
+
+        private void ShiftBackpackStackStateIndicesUpFrom(int insertIndex)
+        {
+            for (var i = BackpackItemIds.Count - 1; i >= insertIndex; i--)
+            {
+                var fromKey = GetSlotKey(InventoryArea.Backpack, i);
+                var toKey = GetSlotKey(InventoryArea.Backpack, i + 1);
+
+                if (_slotStackStates.TryGetValue(fromKey, out var state))
+                {
+                    _slotStackStates[toKey] = state;
+                    _slotStackStates.Remove(fromKey);
                 }
             }
         }

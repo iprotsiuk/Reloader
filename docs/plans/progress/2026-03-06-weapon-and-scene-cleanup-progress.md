@@ -5,6 +5,7 @@
 - Supported authored weapons: `Kar98k (.308)` and `Canik TP9 (9mm)`
 - Strict registry/runtime behavior: no hidden fallback lookup
 - Scene parity: `MainTown` and `IndoorRange`
+- MainTown acquisition authority: vendor catalogs + `StorageChest`, no seeded starter floor spawns
 - Dropped-item visuals: no grey cube fallback in live runtime
 - Active PR review feedback: `PoliceHeatController.ReportLineOfSightLost()` idempotence
 
@@ -21,7 +22,11 @@
 - [x] Canik TP9 naming/content cleanup complete
 - [x] Unsupported authored weapon content pruned
 - [x] MainTown / IndoorRange parity cleanup complete
+- [x] MainTown starter floor-spawn removal complete
+- [x] StorageChest one-time grandpa kit seeding complete
 - [x] Dropped-item visual cleanup complete
+- [ ] Sniper scope subsystem docs aligned to assassination-contract roadmap
+- [ ] Repo docs/ignore cleanup complete
 - [x] Targeted verification complete
 - [x] PR updated with progress/evidence
 
@@ -54,6 +59,10 @@
   - `WorldSceneContractValidatorEditModeTests.SupportedWeaponAuthority_UsesKar98kAndCanikTp9Only`: green `1/1`
   - `WorldSceneContractValidatorEditModeTests.ActivityInstanceScaffold_SeedsSupportedWeaponAuthoritySet`: green `1/1`
   - `RoundTripTravelPlayModeTests.MainTownAndIndoorRange_ShareSupportedWeaponIdsAndViewMappings`: green `1/1`
+- MainTown acquisition cleanup:
+  - `MainTownCombatWiringEditModeTests.MainTownScene_RemovesStarterFloorPickups_InFavorOfVendorAndChestAuthority`: green `1/1`
+  - `WorldStorageContainerSeedLoadoutPlayModeTests`: green `2/2`
+  - `StorageTransferEngineTests`: green `2/2`
 - Repo contract verification:
   - `bash scripts/verify-docs-and-context.sh`: passed
   - `bash scripts/verify-extensible-development-contracts.sh`: passed
@@ -67,4 +76,5 @@
 
 - Do not invent fake pistol attachment content in this pass.
 - Do not broaden this into the later contract/law/NPC/world architecture rewrite.
+- Starter access is now vendor/storage-driven; scene-floor starter pickups are intentionally removed.
 - Keep this progress doc updated with commits, verification, and deferred follow-ups.

@@ -28,7 +28,8 @@ After every scene mutation set:
 - Read changed objects/components and verify key references.
 - Verify required runtime chains are complete (not partial).
 - For MainTown combat specifically:
-  - `WeaponRegistry._definitions` non-empty and includes starter rifle.
+  - `WeaponRegistry._definitions` includes only the supported authored weapons (`Kar98k`, `Canik TP9`).
+  - vendor and storage authority is intact: no seeded starter floor spawns, starter kit seeded in `StorageChest`, supported weapon/ammo catalogs present.
   - `PlayerWeaponController` refs set: input, inventory, registry, muzzle, camera defaults, projectile.
   - `PlayerLookController._cameraDefaults` set.
   - `CameraPivot/CameraLookTarget` and `CameraPivot/WeaponMuzzle` present.
@@ -40,7 +41,7 @@ Run targeted tests before completion claim:
 - `Reloader.World.Tests.PlayMode.SceneTopologySmokeTests`
 - `Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests`
 - `Reloader.World.Tests.EditMode.TravelContextEditModeTests`
-- world-flow tests touched by the change (for combat/pickup: relevant weapons playmode tests)
+- world-flow tests touched by the change (for combat/acquisition/storage: relevant weapon + storage playmode tests)
 
 ## 5) Completion Rules
 

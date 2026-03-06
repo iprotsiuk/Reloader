@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Clean the branch so only `Kar98k + Canik TP9` remain as authored supported weapons, remove hidden fallback behavior, make town/range weapon wiring deterministic, fix dropped-item visuals, and resolve the active PR review comment.
+**Goal:** Clean the branch so only `Kar98k + Canik TP9` remain as authored supported weapons, remove hidden fallback behavior, make town/range weapon wiring deterministic, replace starter floor spawns with vendor/chest authority, fix dropped-item visuals, and resolve the active PR review comment.
 
 **Architecture:** Treat this as a strict cleanup/refactor pass, not a subsystem rewrite. Tighten authoritative weapon/content ownership, remove live runtime/editor rescue paths, enforce consistent scene wiring, and make missing visuals/configuration fail loudly instead of degrading into unrelated behavior or grey cubes. Keep the deeper contracts/law/NPC refactor deferred.
 
@@ -152,7 +152,7 @@ Run targeted edit/play suites for affected builders/runtime consumers.
 
 - Re-run targeted builder/runtime suites
 
-### Task 5: Make `MainTown` and `IndoorRange` weapon wiring deterministic and parity-safe
+### Task 5: Make `MainTown` and `IndoorRange` weapon wiring deterministic, parity-safe, and acquisition-authoritative
 
 **Files:**
 - Modify: `Reloader/Assets/_Project/World/Editor/MainTownCombatWiring.cs`
@@ -182,13 +182,16 @@ Expected:
 
 - Align shared constants and weapon ids
 - Remove permissive rifle-only or stale scene overrides where they create drift
+- Remove seeded starter floor spawns from `MainTown`
+- Seed `StorageChest` once with the grandpa rifle kit (`Kar98k`, scope, muzzle, `50` rounds of `.308`)
+- Keep supported weapon/ammo access on vendor catalogs instead of scene-floor starter objects
 - Keep scene-specific authored world objects, but not scene-specific weapon definitions/behavior
 
 **Step 4: Run tests to verify they pass**
 
 Run the same commands and expect green.
 
-### Task 6: Remove grey-cube fallback from dropped-item and scene-pickup visuals
+### Task 6: Remove grey-cube fallback from dropped-item visuals and delete dead scene-pickup authoring debt
 
 **Files:**
 - Modify: `Reloader/Assets/_Project/Player/Tests/PlayMode/PlayerInventoryControllerPlayModeTests.cs`
@@ -215,8 +218,9 @@ Expected:
 **Step 3: Write minimal implementation**
 
 - Remove live cube fallback from `RuntimeDroppedItemFactory`
-- Remove scene-authoring cube fallback from `MainTownCombatWiring.SyncPickupVisual`
-- Replace with explicit failure/logging behavior and deterministic authored-visual resolution
+- Remove dead pickup-authoring helper code from `MainTownCombatWiring`
+- Keep only cleanup code for stale starter spawn objects and orphan visuals
+- Replace hidden fallback behavior with explicit failure/logging behavior and deterministic authored-visual resolution
 
 **Step 4: Run tests to verify they pass**
 

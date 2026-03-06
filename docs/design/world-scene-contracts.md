@@ -4,14 +4,14 @@
 
 ## Why This Exists
 
-MainTown exposed a scaling risk: scene content could be partially functional (pickup works) while critical gameplay wiring (equip/ADS/reload/fire) was missing. For a project with many future town/instance scenes, this must be validated by contract, not by manual memory.
+MainTown exposed a scaling risk: scene content could be partially functional (an acquisition path works) while critical gameplay wiring (equip/ADS/reload/fire) was missing. For a project with many future town/instance scenes, this must be validated by contract, not by manual memory.
 
 This document defines the scalable foundation for world-scene authoring.
 
 ## Incident Summary (February 27, 2026)
 
-- Symptom: rifle/ammo pickup worked, but ADS, reload, and firing did not.
-- Root cause: `MainTown` had inventory/pickup chain wired, but missing/empty combat chain:
+- Symptom: rifle/ammo acquisition worked, but ADS, reload, and firing did not.
+- Root cause: `MainTown` had an acquisition path wired, but missing/empty combat chain:
   - missing or unwired `PlayerWeaponController`
   - `WeaponRegistry` with no weapon definitions
   - missing camera/muzzle/link dependencies for combat runtime
@@ -85,7 +85,7 @@ Every world scene change must pass policy validation:
 World-scene flows must pass:
 - topology smoke (build settings order contract)
 - travel round-trip contract
-- pickup -> equip -> ADS/reload/fire happy path in key hub scenes
+- authoritative acquisition path (`vendor`, `storage`, or dropped-item pickup when intentionally authored) -> equip -> ADS/reload/fire happy path in key hub scenes
 
 ### Gate 3: MCP Read-Back Verification
 

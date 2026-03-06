@@ -1,4 +1,5 @@
 using System;
+using Reloader.Core.Events;
 
 namespace Reloader.Inventory
 {
@@ -62,12 +63,23 @@ namespace Reloader.Inventory
                 return false;
             }
 
-            if (!targetContainer.TrySetSlotItemId(targetIndex, sourceItemId))
+            var quantity = player.GetSlotQuantity(InventoryArea.Backpack, sourceIndex);
+            var maxStack = player.GetSlotMaxStack(InventoryArea.Backpack, sourceIndex);
+            if (quantity <= 0 || maxStack <= 0)
             {
                 return false;
             }
 
-            player.BackpackItemIds.RemoveAt(sourceIndex);
+            if (!player.TryRemoveFromSlot(InventoryArea.Backpack, sourceIndex, out var removedItemId, out var removedQuantity))
+            {
+                return false;
+            }
+
+            if (!targetContainer.TrySetSlotStack(targetIndex, new ItemStackState(removedItemId, removedQuantity, maxStack)))
+            {
+                return false;
+            }
+
             return true;
         }
 
@@ -82,8 +94,7 @@ namespace Reloader.Inventory
                 return false;
             }
 
-            var sourceItemId = sourceContainer.GetSlotItemId(sourceIndex);
-            if (string.IsNullOrWhiteSpace(sourceItemId))
+            if (!sourceContainer.TryGetSlotStack(sourceIndex, out var sourceStack) || sourceStack == null)
             {
                 return false;
             }
@@ -99,8 +110,13 @@ namespace Reloader.Inventory
                 return false;
             }
 
-            player.BackpackItemIds.Insert(insertAt, sourceItemId);
-            sourceContainer.TrySetSlotItemId(sourceIndex, null);
+            player.SetItemMaxStack(sourceStack.ItemId, sourceStack.MaxStack);
+            if (!player.TryInsertBackpackStack(insertAt, sourceStack.ItemId, sourceStack.Quantity, sourceStack.MaxStack))
+            {
+                return false;
+            }
+
+            sourceContainer.TrySetSlotStack(sourceIndex, null);
             return true;
         }
 
