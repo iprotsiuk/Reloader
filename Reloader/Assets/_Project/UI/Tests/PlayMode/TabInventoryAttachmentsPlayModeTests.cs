@@ -107,7 +107,9 @@ namespace Reloader.UI.Tests.PlayMode
                 "tab.inventory.item.context.attachments",
                 new TabInventoryAttachmentContextIntentPayload("belt", slotIndex, "consumable-bandage")));
 
+            var inventorySection = root.Q<VisualElement>("inventory__section-inventory");
             var attachmentsSection = root.Q<VisualElement>("inventory__section-attachments");
+            Assert.That(inventorySection.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(attachmentsSection.style.display.value, Is.EqualTo(DisplayStyle.None));
 
             UnityEngine.Object.DestroyImmediate(owner);

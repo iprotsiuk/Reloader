@@ -333,6 +333,12 @@ namespace Reloader.Weapons.Controllers
                 return false;
             }
 
+            if (string.IsNullOrWhiteSpace(attachmentItemId) && _equippedWeaponView == null)
+            {
+                ResolveInventoryEvents()?.RaiseInventoryChanged();
+                return true;
+            }
+
             var applied = ApplyEquippedAttachmentSlotToViewRuntime(slotType, state.GetEquippedAttachmentItemId(slotType));
             if (!applied)
             {
