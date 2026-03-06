@@ -55,6 +55,9 @@ namespace Reloader.Core.Runtime
         public event Action<int> OnMoneyChanged;
         public event Action<InteractionHintPayload> OnInteractionHintShown;
         public event Action OnInteractionHintCleared;
+        public event Action<string> OnContractAccepted;
+        public event Action<string> OnContractFailed;
+        public event Action<string, float> OnContractCompleted;
 
         public void RaiseSaveStarted() => OnSaveStarted?.Invoke();
         public void RaiseSaveCompleted() => OnSaveCompleted?.Invoke();
@@ -136,6 +139,9 @@ namespace Reloader.Core.Runtime
         }
 
         public void RaiseMoneyChanged(int amount) => OnMoneyChanged?.Invoke(amount);
+        public void RaiseContractAccepted(string contractId) => OnContractAccepted?.Invoke(contractId);
+        public void RaiseContractFailed(string contractId) => OnContractFailed?.Invoke(contractId);
+        public void RaiseContractCompleted(string contractId, float payout) => OnContractCompleted?.Invoke(contractId, payout);
 
         public void RaiseInteractionHintShown(InteractionHintPayload payload)
         {
