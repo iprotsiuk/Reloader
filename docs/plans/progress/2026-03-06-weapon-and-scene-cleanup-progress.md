@@ -71,6 +71,9 @@
   - red: `MainTownCombatWiringEditModeTests`: `2/4` passed (`AmmoSpawn_*308*` floor clutter still present, starter chest missing `weapon-canik-tp9`)
   - green: `MainTownCombatWiringEditModeTests`: `4/4`
   - green: `WorldStorageContainerSeedLoadoutPlayModeTests`: `2/2`
+- Follow-up ammo-box cleanup verification:
+  - red: `MainTownCombatWiringEditModeTests.MainTownScene_RemovesStarterFloorPickups_InFavorOfVendorAndChestAuthority`: `0/1` (`AmmoBox_100R_308*` roots still present)
+  - green: `MainTownCombatWiringEditModeTests.MainTownScene_RemovesStarterFloorPickups_InFavorOfVendorAndChestAuthority`: `1/1`
 - Repo contract verification:
   - `bash scripts/verify-docs-and-context.sh`: passed
   - `bash scripts/verify-extensible-development-contracts.sh`: passed

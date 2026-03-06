@@ -89,6 +89,10 @@ namespace Reloader.World.Tests.EditMode
                     "Legacy loose .308 bullet pickup should stay removed from MainTown.");
                 Assert.That(FindRoot(scene, "AmmoSpawn_Bullet308_Exported"), Is.Null,
                     "Exported loose .308 bullet pickup should stay removed from MainTown.");
+                Assert.That(FindRoot(scene, "AmmoBox_100R_308"), Is.Null,
+                    "Legacy .308 ammo box floor spawn should stay removed from MainTown.");
+                Assert.That(FindRoot(scene, "AmmoBox_100R_308_Exported"), Is.Null,
+                    "Exported .308 ammo box floor spawn should stay removed from MainTown.");
                 Assert.That(FindRoot(scene, "AttachmentSpawn_Kar98kScope"), Is.Null,
                     "Kar98k scope pickup should move to the vendor/chest authority path.");
                 Assert.That(FindRoot(scene, "AttachmentSpawn_Kar98kMuzzle"), Is.Null,
