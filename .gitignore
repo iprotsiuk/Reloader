@@ -88,3 +88,4 @@ Reloader/Assets/Screenshots.meta
 /package [0-9]*.json
 /package-lock [0-9]*.json
 Reloader/ProjectSettings/ShaderGraphSettings 2.asset
+docs/plans/*-handover-prompt.md
