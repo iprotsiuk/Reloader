@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Generic;
 using NUnit.Framework;
+using Reloader.Weapons.Animations;
+using Reloader.Weapons.Data;
+using Reloader.Weapons.Runtime;
 using Reloader.World.Contracts;
 using Reloader.World.Editor;
 using UnityEditor;
@@ -89,6 +93,110 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(mainTownContract!.RequiredObjectPaths, Does.Contain("ReloadingWorkbench"));
             Assert.That(mainTownContract.RequiredObjectPaths, Does.Contain("MainTown_SmokeToIndoor_Trigger"));
             Assert.That(indoorRangeContract!.RequiredObjectPaths, Does.Contain("IndoorRange_SmokeToMainTown_Trigger"));
+        }
+
+        [Test]
+        public void SupportedWeaponAuthority_UsesKar98kAndCanikTp9Only()
+        {
+            var starterPistol = AssetDatabase.LoadAssetAtPath<WeaponDefinition>(
+                "Assets/_Project/Weapons/Data/Weapons/StarterPistol.asset");
+            var pistolItem = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(
+                "Assets/_Project/Inventory/Data/Items/Pistol_9x19_Starter.asset");
+            var pistolAmmoItem = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(
+                "Assets/_Project/Inventory/Data/Items/Ammo_Factory_9x19_124_FMJ.asset");
+            var pistolSpawn = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(
+                "Assets/_Project/Inventory/Data/Spawns/Pistol_9x19_Starter_Spawn.asset");
+            var pistolAmmoSpawn = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(
+                "Assets/_Project/Inventory/Data/Spawns/Ammo_Factory_9x19_124_FMJ_Spawn.asset");
+            var animationProfile = AssetDatabase.LoadAssetAtPath<WeaponAnimatorOverrideProfile>(
+                "Assets/_Project/Weapons/Data/AnimationProfiles/PlayerWeaponAnimatorOverrideProfile.asset");
+
+            Assert.That(starterPistol, Is.Not.Null);
+            Assert.That(starterPistol!.ItemId, Is.EqualTo("weapon-canik-tp9"));
+            Assert.That(starterPistol.DisplayName, Is.EqualTo("Canik TP9 (9mm)"));
+
+            Assert.That(pistolItem, Is.Not.Null);
+            var pistolItemSo = new SerializedObject(pistolItem);
+            Assert.That(pistolItemSo.FindProperty("_definitionId")!.stringValue, Is.EqualTo("weapon-canik-tp9"));
+            Assert.That(pistolItemSo.FindProperty("_displayName")!.stringValue, Is.EqualTo("Canik TP9 (9mm)"));
+
+            Assert.That(pistolAmmoItem, Is.Not.Null);
+            var pistolAmmoSo = new SerializedObject(pistolAmmoItem);
+            Assert.That(pistolAmmoSo.FindProperty("_displayName")!.stringValue, Is.EqualTo("Factory 9mm 124gr FMJ"));
+
+            Assert.That(pistolSpawn, Is.Not.Null);
+            Assert.That(pistolAmmoSpawn, Is.Not.Null);
+
+            Assert.That(animationProfile, Is.Not.Null);
+            var entriesProperty = new SerializedObject(animationProfile).FindProperty("_entries");
+            Assert.That(entriesProperty, Is.Not.Null);
+            var itemIds = new List<string>();
+            for (var i = 0; i < entriesProperty.arraySize; i++)
+            {
+                itemIds.Add(entriesProperty.GetArrayElementAtIndex(i).FindPropertyRelative("_itemId").stringValue);
+            }
+
+            CollectionAssert.AreEquivalent(
+                new[] { "weapon-kar98k", "weapon-canik-tp9" },
+                itemIds);
+
+            Assert.That(
+                AssetDatabase.LoadAssetAtPath<UnityEngine.Object>("Assets/_Project/Inventory/Data/Items/Rifle_556_Starter.asset"),
+                Is.Null);
+            Assert.That(
+                AssetDatabase.LoadAssetAtPath<UnityEngine.Object>("Assets/_Project/Inventory/Data/Items/Ammo_Factory_556_55_FMJ.asset"),
+                Is.Null);
+            Assert.That(
+                AssetDatabase.LoadAssetAtPath<UnityEngine.Object>("Assets/_Project/Inventory/Data/Spawns/Rifle_556_Starter_Spawn.asset"),
+                Is.Null);
+            Assert.That(
+                AssetDatabase.LoadAssetAtPath<UnityEngine.Object>("Assets/_Project/Inventory/Data/Spawns/Ammo_Factory_556_55_FMJ_Spawn.asset"),
+                Is.Null);
+        }
+
+        [Test]
+        public void ActivityInstanceScaffold_SeedsSupportedWeaponAuthoritySet()
+        {
+            var scene = CreateTempScene();
+            try
+            {
+                var playerRoot = new GameObject("PlayerRoot");
+                var cameraPivot = new GameObject("CameraPivot");
+                var camera = new GameObject("Main Camera");
+
+                SceneManager.MoveGameObjectToScene(playerRoot, scene);
+                SceneManager.MoveGameObjectToScene(cameraPivot, scene);
+                SceneManager.MoveGameObjectToScene(camera, scene);
+
+                cameraPivot.transform.SetParent(playerRoot.transform, false);
+                camera.transform.SetParent(cameraPivot.transform, false);
+                camera.AddComponent<Camera>();
+
+                EditorSceneManager.SetActiveScene(scene);
+                WorldSceneTemplateScaffolds.ApplyActivityInstanceScaffoldToActiveScene();
+
+                var registry = UnityEngine.Object.FindFirstObjectByType<WeaponRegistry>();
+                Assert.That(registry, Is.Not.Null);
+
+                var definitions = new SerializedObject(registry).FindProperty("_definitions");
+                Assert.That(definitions, Is.Not.Null);
+                var ids = new List<string>();
+                for (var i = 0; i < definitions.arraySize; i++)
+                {
+                    if (definitions.GetArrayElementAtIndex(i).objectReferenceValue is WeaponDefinition definition)
+                    {
+                        ids.Add(definition.ItemId);
+                    }
+                }
+
+                CollectionAssert.AreEquivalent(
+                    new[] { "weapon-kar98k", "weapon-canik-tp9" },
+                    ids);
+            }
+            finally
+            {
+                CloseAndDeleteTempScene(scene);
+            }
         }
 
         private static WorldSceneContract CreateBaseContract(WorldSceneRole sceneRole)

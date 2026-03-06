@@ -54,9 +54,9 @@ namespace Reloader.World.Editor
             var starterRifle = AssetDatabase.LoadAssetAtPath<WeaponDefinition>(StarterRiflePath);
             var starterPistol = AssetDatabase.LoadAssetAtPath<WeaponDefinition>(StarterPistolPath);
             var projectilePrefab = AssetDatabase.LoadAssetAtPath<WeaponProjectile>(ProjectilePrefabPath);
-            if (starterRifle == null || projectilePrefab == null)
+            if (starterRifle == null || starterPistol == null || projectilePrefab == null)
             {
-                Debug.LogError("MainTown combat wiring failed: missing StarterRifle asset or WeaponProjectile prefab.");
+                Debug.LogError("MainTown combat wiring failed: missing StarterRifle asset, StarterPistol asset, or WeaponProjectile prefab.");
                 return;
             }
 
@@ -127,12 +127,9 @@ namespace Reloader.World.Editor
 
             var registrySo = new SerializedObject(registry);
             var definitionsProp = registrySo.FindProperty("_definitions");
-            definitionsProp.arraySize = starterPistol != null ? 2 : 1;
+            definitionsProp.arraySize = 2;
             definitionsProp.GetArrayElementAtIndex(0).objectReferenceValue = starterRifle;
-            if (starterPistol != null)
-            {
-                definitionsProp.GetArrayElementAtIndex(1).objectReferenceValue = starterPistol;
-            }
+            definitionsProp.GetArrayElementAtIndex(1).objectReferenceValue = starterPistol;
             registrySo.ApplyModifiedPropertiesWithoutUndo();
 
             var inputReader = playerRoot.GetComponent<PlayerInputReader>();
@@ -231,7 +228,7 @@ namespace Reloader.World.Editor
                     var index = weaponViewPrefabs.arraySize;
                     weaponViewPrefabs.InsertArrayElementAtIndex(index);
                     var element = weaponViewPrefabs.GetArrayElementAtIndex(index);
-                    element.FindPropertyRelative("_itemId").stringValue = "weapon-pistol-01";
+                    element.FindPropertyRelative("_itemId").stringValue = "weapon-canik-tp9";
                     element.FindPropertyRelative("_viewPrefab").objectReferenceValue = pistolViewPrefab;
                 }
             }
@@ -334,7 +331,7 @@ namespace Reloader.World.Editor
                 var index = entries.arraySize;
                 entries.InsertArrayElementAtIndex(index);
                 var entry = entries.GetArrayElementAtIndex(index);
-                entry.FindPropertyRelative("_itemId").stringValue = "weapon-pistol-01";
+                entry.FindPropertyRelative("_itemId").stringValue = "weapon-canik-tp9";
                 entry.FindPropertyRelative("_controller").objectReferenceValue = pistolController;
             }
 
@@ -658,39 +655,23 @@ namespace Reloader.World.Editor
                 ? AssetDatabase.LoadAssetAtPath<GameObject>(forcedVisualPrefabPath)
                 : TryResolvePickupIconPrefab(spawnDefinition);
 
-            GameObject visualRoot = null;
-            if (sourcePrefab != null)
+            if (sourcePrefab == null)
             {
-                visualRoot = TryInstantiateVisualSource(sourcePrefab);
-                if (visualRoot == null)
-                {
-                    visualRoot = TryCreateMeshProxyVisual(sourcePrefab);
-                }
-            }
-            else if (spawnDefinition != null && spawnDefinition.ItemDefinition != null)
-            {
-                Debug.LogWarning(
-                    $"[MainTownCombatWiring] Missing IconSourcePrefab for item '{spawnDefinition.ItemDefinition.DefinitionId}' while syncing pickup visual '{pickupRoot.name}'.",
+                Debug.LogError(
+                    $"[MainTownCombatWiring] Missing authored visual source for item '{spawnDefinition?.ItemDefinition?.DefinitionId ?? "<unknown>"}' on pickup '{pickupRoot.name}'.",
                     pickupRoot);
+                ClearPickupVisualReference(pickup);
+                return;
             }
 
-            if (sourcePrefab != null && visualRoot == null)
-            {
-                Debug.LogWarning(
-                    $"[MainTownCombatWiring] Failed to instantiate IconSourcePrefab '{sourcePrefab.name}' for item '{spawnDefinition?.ItemDefinition?.DefinitionId ?? "<unknown>"}' on pickup '{pickupRoot.name}'. Falling back to cube.",
-                    pickupRoot);
-            }
-
+            var visualRoot = TryInstantiateVisualSource(sourcePrefab);
             if (visualRoot == null)
             {
-                visualRoot = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                var fallbackCollider = visualRoot.GetComponent<Collider>();
-                if (fallbackCollider != null)
-                {
-                    Object.DestroyImmediate(fallbackCollider);
-                }
-
-                visualRoot.transform.localScale = Vector3.one * 0.22f;
+                Debug.LogError(
+                    $"[MainTownCombatWiring] Failed to instantiate authored visual '{sourcePrefab.name}' for item '{spawnDefinition?.ItemDefinition?.DefinitionId ?? "<unknown>"}' on pickup '{pickupRoot.name}'.",
+                    pickupRoot);
+                ClearPickupVisualReference(pickup);
+                return;
             }
 
             visualRoot.name = "Visual";
@@ -752,29 +733,6 @@ namespace Reloader.World.Editor
             }
 
             return null;
-        }
-
-        private static GameObject TryCreateMeshProxyVisual(GameObject sourcePrefab)
-        {
-            if (sourcePrefab == null)
-            {
-                return null;
-            }
-
-            var sourceMeshFilter = sourcePrefab.GetComponentInChildren<MeshFilter>(true);
-            var sourceMeshRenderer = sourcePrefab.GetComponentInChildren<MeshRenderer>(true);
-            if (sourceMeshFilter == null || sourceMeshFilter.sharedMesh == null || sourceMeshRenderer == null)
-            {
-                return null;
-            }
-
-            var proxy = new GameObject("VisualProxy");
-            var meshFilter = proxy.AddComponent<MeshFilter>();
-            meshFilter.sharedMesh = sourceMeshFilter.sharedMesh;
-
-            var meshRenderer = proxy.AddComponent<MeshRenderer>();
-            meshRenderer.sharedMaterials = sourceMeshRenderer.sharedMaterials;
-            return proxy;
         }
 
         private static void NormalizePickupVisualMaterials(GameObject visualRoot)
@@ -894,41 +852,7 @@ namespace Reloader.World.Editor
                 return null;
             }
 
-            var itemDefinition = spawnDefinition.ItemDefinition;
-            var itemId = itemDefinition.DefinitionId;
-
-            GameObject iconPrefab = null;
-            try
-            {
-                iconPrefab = itemDefinition.IconSourcePrefab;
-            }
-            catch (MissingReferenceException)
-            {
-                iconPrefab = null;
-            }
-
-            if (iconPrefab != null)
-            {
-                return iconPrefab;
-            }
-
-            return ResolvePickupIconFallback(itemId);
-        }
-
-        private static GameObject ResolvePickupIconFallback(string itemId)
-        {
-            if (string.IsNullOrWhiteSpace(itemId))
-            {
-                return null;
-            }
-
-            return itemId switch
-            {
-                "weapon-kar98k" => AssetDatabase.LoadAssetAtPath<GameObject>(RifleViewPrefabPath),
-                "att-kar98k-scope-remote-a" => AssetDatabase.LoadAssetAtPath<GameObject>(Kar98kScopeViewPrefabPath),
-                "att-kar98k-muzzle-device-c" => AssetDatabase.LoadAssetAtPath<GameObject>(Kar98kMuzzleViewPrefabPath),
-                _ => null
-            };
+            return spawnDefinition.ItemDefinition.IconSourcePrefab;
         }
 
         private static void StripVisualPhysics(GameObject root)
@@ -961,6 +885,19 @@ namespace Reloader.World.Editor
         {
             var component = target.GetComponent<T>();
             return component != null ? component : Undo.AddComponent<T>(target);
+        }
+
+        private static void ClearPickupVisualReference(DefinitionPickupTarget pickup)
+        {
+            if (pickup == null)
+            {
+                return;
+            }
+
+            var pickupSo = new SerializedObject(pickup);
+            pickupSo.FindProperty("_visualRoot").objectReferenceValue = null;
+            pickupSo.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(pickup);
         }
 
         private static Transform EnsureChild(Transform parent, string childName, Vector3 localPosition)

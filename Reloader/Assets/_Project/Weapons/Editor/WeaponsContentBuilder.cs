@@ -82,16 +82,17 @@ namespace Reloader.Weapons.Editor
                 ItemStackPolicy.NonStackable,
                 1,
                 sourceRiflePrefab,
+                "Kar98k (.308)",
                 1);
 
             if (sourcePistolPrefab != null)
             {
                 BuildViewPrefab("PistolView", sourcePistolPrefab, new Vector3(0f, 0.07f, 0.42f));
-                BuildPickupPrefab("PistolPickup", "weapon-pistol-01", sourcePistolPrefab, new Vector3(0.5f, 0.26f, 0.2f));
+                BuildPickupPrefab("PistolPickup", "weapon-canik-tp9", sourcePistolPrefab, new Vector3(0.5f, 0.26f, 0.2f));
                 BuildDefinitionAsset(
                     "StarterPistol.asset",
-                    "weapon-pistol-01",
-                    "Starter Pistol",
+                    "weapon-canik-tp9",
+                    "Canik TP9 (9mm)",
                     12,
                     0.13f,
                     95f,
@@ -104,11 +105,12 @@ namespace Reloader.Weapons.Editor
                     "ammo-factory-9x19-124-fmj");
                 EnsureInventoryItemAndSpawn(
                     "Pistol_9x19_Starter",
-                    "weapon-pistol-01",
+                    "weapon-canik-tp9",
                     ItemCategory.Weapon,
                     ItemStackPolicy.NonStackable,
                     1,
                     sourcePistolPrefab,
+                    "Canik TP9 (9mm)",
                     1);
             }
 
@@ -119,6 +121,7 @@ namespace Reloader.Weapons.Editor
                 ItemStackPolicy.StackByDefinition,
                 999,
                 sourceRiflePrefab,
+                "Factory .308 147gr FMJ",
                 120);
             EnsureInventoryItemAndSpawn(
                 "Ammo_Factory_9x19_124_FMJ",
@@ -127,6 +130,7 @@ namespace Reloader.Weapons.Editor
                 ItemStackPolicy.StackByDefinition,
                 999,
                 sourcePistolPrefab != null ? sourcePistolPrefab : sourceRiflePrefab,
+                "Factory 9mm 124gr FMJ",
                 90);
 
             AssetDatabase.SaveAssets();
@@ -284,6 +288,7 @@ namespace Reloader.Weapons.Editor
             ItemStackPolicy stackPolicy,
             int maxStack,
             GameObject iconSourcePrefab,
+            string displayName,
             int spawnQuantity)
         {
             var itemPath = InventoryItemsDir + "/" + baseName + ".asset";
@@ -297,7 +302,7 @@ namespace Reloader.Weapons.Editor
             item.SetValuesForTests(
                 itemId,
                 category,
-                baseName,
+                displayName,
                 stackPolicy,
                 maxStack,
                 iconSourcePrefab);

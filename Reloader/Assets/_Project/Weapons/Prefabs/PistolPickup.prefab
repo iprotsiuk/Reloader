@@ -60,7 +60,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1fa348bdf35634605b2234c152683173, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.World.WeaponPickupTarget
-  _itemId: weapon-pistol-01
+  _itemId: weapon-canik-tp9
   _visualRoot: {fileID: 189091626145577203, guid: 464d2b315a1ed6b408948cc2fc04e8f7, type: 3}
   _disableGameObjectOnPickup: 1
   _identity: {fileID: 4217734862122372673}

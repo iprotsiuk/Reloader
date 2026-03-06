@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce25483311fb40e694825b08640a1aac, type: 3}
   m_Name: Pistol_9x19_Starter
   m_EditorClassIdentifier: Reloader.Core::Reloader.Core.Items.ItemDefinition
-  _definitionId: weapon-pistol-01
+  _definitionId: weapon-canik-tp9
   _category: 4
-  _displayName: Pistol_9x19_Starter
+  _displayName: Canik TP9 (9mm)
   _stackPolicy: 0
   _maxStack: 1
   _iconSourcePrefab: {fileID: 3323188960195468350, guid: f172bfbfee7784d30aaa8a7646e6471c, type: 3}

@@ -16,5 +16,5 @@ MonoBehaviour:
   _entries:
   - _itemId: weapon-kar98k
     _controller: {fileID: 22100000, guid: 1288116e5192cd84b808721e453eb7e7, type: 2}
-  - _itemId: weapon-pistol-01
+  - _itemId: weapon-canik-tp9
     _controller: {fileID: 22100000, guid: 257eac322a7afde43bfa9aa9e60baa84, type: 2}

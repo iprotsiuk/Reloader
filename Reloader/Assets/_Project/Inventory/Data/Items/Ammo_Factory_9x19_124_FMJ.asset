@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Core::Reloader.Core.Items.ItemDefinition
   _definitionId: ammo-factory-9x19-124-fmj
   _category: 1
-  _displayName: Ammo_Factory_9x19_124_FMJ
+  _displayName: Factory 9mm 124gr FMJ
   _stackPolicy: 1
   _maxStack: 999
   _iconSourcePrefab: {fileID: 189091626145577203, guid: 464d2b315a1ed6b408948cc2fc04e8f7, type: 3}

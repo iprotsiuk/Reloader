@@ -20,8 +20,10 @@ namespace Reloader.UI.Toolkit.TabInventory
         private const int MinimumBackpackUiSlots = 16;
         private const string RemoveAttachmentOption = "Remove";
         private const string NoTargetMarkedText = "No target marked";
+        private const string NoWeaponSelectedText = "No weapon selected";
         private const string ReconHooksInstalledText = "Recon hooks installed.";
         private const string ReconHooksNotInstalledText = "Recon hooks are not installed.";
+        private const string SelectWeaponToManageAttachmentsText = "Select a weapon to manage attachments.";
         private const string ZeroValidationShotsText = "0 validation shots";
 
         [SerializeField] private PlayerInventoryController _inventoryController;
@@ -573,7 +575,14 @@ namespace Reloader.UI.Toolkit.TabInventory
             if (string.IsNullOrWhiteSpace(payload.ItemId)
                 || !TryResolveWeaponDefinition(itemId, out var definition))
             {
-                _activeSection = "inventory";
+                if (LooksLikeWeaponItemId(itemId))
+                {
+                    SetUnresolvedAttachmentsState(itemId, SelectWeaponToManageAttachmentsText);
+                }
+                else
+                {
+                    _activeSection = "inventory";
+                }
                 return;
             }
 
@@ -596,6 +605,19 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             RebuildAttachmentItemOptions();
+            _activeSection = "attachments";
+        }
+
+        private void SetUnresolvedAttachmentsState(string itemId, string statusText)
+        {
+            _attachmentsWeaponItemId = itemId ?? string.Empty;
+            _attachmentsWeaponDefinition = null;
+            _attachmentsWeaponDisplayName = NoWeaponSelectedText;
+            _attachmentsSelectedSlotName = string.Empty;
+            _attachmentsSelectedAttachmentItemId = string.Empty;
+            _attachmentsStatusText = statusText ?? string.Empty;
+            _attachmentsSlotOptions.Clear();
+            _attachmentsItemOptions.Clear();
             _activeSection = "attachments";
         }
 
@@ -781,6 +803,12 @@ namespace Reloader.UI.Toolkit.TabInventory
         private static bool IsRemoveAttachmentOption(string value)
         {
             return string.Equals(value, RemoveAttachmentOption, StringComparison.Ordinal);
+        }
+
+        private static bool LooksLikeWeaponItemId(string itemId)
+        {
+            return !string.IsNullOrWhiteSpace(itemId)
+                && itemId.StartsWith("weapon-", StringComparison.Ordinal);
         }
 
         private bool TryResolveWeaponDefinition(string itemId, out WeaponDefinition definition)

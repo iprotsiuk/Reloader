@@ -120,9 +120,9 @@ namespace Reloader.UI.Tests.PlayMode
             var inventoryController = owner.AddComponent<PlayerInventoryController>();
             var runtime = new PlayerInventoryRuntime();
             runtime.SetBackpackCapacity(8);
-            runtime.BeltSlotItemIds[0] = "weapon-pistol-01";
+            runtime.BeltSlotItemIds[0] = "weapon-canik-tp9";
             runtime.SelectBeltSlot(0);
-            runtime.TryStoreItem("weapon-pistol-01", out _, out _, out _);
+            runtime.TryStoreItem("weapon-canik-tp9", out _, out _, out _);
             runtime.TryStoreItem("att-pistol-optic", out _, out _, out _);
             inventoryController.Configure(null, null, runtime);
 
@@ -143,7 +143,7 @@ namespace Reloader.UI.Tests.PlayMode
             var fallbackRegistry = fallbackRegistryOwner.AddComponent<WeaponRegistry>();
             var fallbackDefinition = ScriptableObject.CreateInstance<WeaponDefinition>();
             fallbackDefinition.SetRuntimeValuesForTests(
-                itemId: "weapon-pistol-01",
+                itemId: "weapon-canik-tp9",
                 displayName: "Pistol 01",
                 magazineCapacity: 12,
                 fireIntervalSeconds: 0.15f,
@@ -171,7 +171,7 @@ namespace Reloader.UI.Tests.PlayMode
                 "TryResolveWeaponDefinition",
                 BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(resolveMethod, Is.Not.Null);
-            var args = new object[] { "weapon-pistol-01", null };
+            var args = new object[] { "weapon-canik-tp9", null };
             var resolved = (bool)resolveMethod.Invoke(controller, args);
             Assert.That(resolved, Is.False, "Expected strict registry lookup to reject cross-registry resolution.");
             Assert.That(args[1], Is.Null);
@@ -180,7 +180,7 @@ namespace Reloader.UI.Tests.PlayMode
             controller.Tick();
             controller.HandleIntent(new UiIntent(
                 "tab.inventory.item.context.attachments",
-                new TabInventoryAttachmentContextIntentPayload("belt", 0, "weapon-pistol-01")));
+                new TabInventoryAttachmentContextIntentPayload("belt", 0, "weapon-canik-tp9")));
 
             Assert.That(root.Q<Label>("inventory__attachments-weapon-name")?.text, Is.EqualTo("No weapon selected"));
             Assert.That(root.Q<Label>("inventory__attachments-status")?.text, Is.EqualTo("Select a weapon to manage attachments."));

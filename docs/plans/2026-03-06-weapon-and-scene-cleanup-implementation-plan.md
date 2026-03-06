@@ -87,6 +87,8 @@ Run the same command and expect green.
 - Modify: `Reloader/Assets/_Project/UI/Tests/PlayMode/TabInventoryAttachmentsPlayModeTests.cs`
 - Modify: `Reloader/Assets/_Project/Weapons/Scripts/Runtime/WeaponRegistry.cs`
 - Modify: `Reloader/Assets/_Project/UI/Scripts/Toolkit/TabInventory/TabInventoryController.cs`
+- Modify: `Reloader/Assets/_Project/Weapons/Scripts/Controllers/PlayerWeaponController.cs`
+- Modify: targeted `Reloader/Assets/_Project/Weapons/Tests/PlayMode/PlayerWeaponControllerPlayModeTests.cs` coverage as needed
 
 **Step 1: Write the failing tests**
 
@@ -109,6 +111,7 @@ Expected:
 
 - Remove editor asset-scan rescue from `WeaponRegistry.TryGetWeaponDefinition`
 - Remove `TabInventoryController.TryResolveWeaponDefinition` scanning of other registries
+- Remove `PlayerWeaponController` scene-wide registry rescue for weapon-definition resolution
 - Keep explicit assigned registry behavior only
 
 **Step 4: Run tests to verify they pass**
