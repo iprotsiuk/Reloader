@@ -97,6 +97,10 @@ Schema note:
 - `SchemaV5ToV6AddContractAndPoliceHeatStateMigration` inserts default `ContractState` and `PoliceHeatState` blocks when loading older saves.
 - Load remains transactional: missing required module blocks still fail before restore.
 
+Implementation note:
+- `ContractState` and `PoliceHeatState` are now registered schema/module blocks with migration coverage.
+- Live capture/restore of current contract execution and police pursuit state still requires dedicated runtime save bridges; until those land, these blocks serialize their module state correctly but default save capture does not yet mirror gameplay state automatically.
+
 The broader schema below is the v0.1 design target and forward schema contract. Treat it as planned module scope until those modules are registered and migration-backed in runtime.
 
 ### Feature Flags and Module Registration Coherence [v0.1]
@@ -116,8 +120,8 @@ The broader schema below is the v0.1 design target and forward schema contract. 
 | `ContainerStorage` | Implemented now | Yes | Persists stored item-instance IDs for containers/chests. |
 | `PlayerDevice` | Implemented now | Yes | Persists selected target, shot groups, notes, and installed hooks. |
 | `WorkbenchLoadout` | Implemented now | Yes | Persists nested workbench slot loadouts by `workbenchId`. |
-| `ContractState` | Implemented now | Yes | Persists the active assassination contract plus generated/completed contract history IDs. |
-| `PoliceHeatState` | Implemented now | Yes | Persists current police heat/search state for wanted-level recovery. |
+| `ContractState` | Schema/module implemented | Partial | Module + migration are in place; runtime bridge wiring for live contract state is still pending. |
+| `PoliceHeatState` | Schema/module implemented | Partial | Module + migration are in place; runtime bridge wiring for live heat/search state is still pending. |
 | `PlayerState` | Planned target | No | Listed in target schema only. |
 | `ItemRegistry` | Planned target | No | Listed in target schema only. |
 | `ItemLocation` | Planned target | No | Listed in target schema only. |

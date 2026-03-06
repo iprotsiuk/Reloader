@@ -30,6 +30,10 @@ Runtime schema note: baseline schema is `v6`, with migrations adding default blo
 
 The broader `SaveData` tree in `save-and-progression.md` is the target schema contract. Blocks become required only after module registration + migration support land in runtime.
 
+Current limitation:
+- `ContractState` and `PoliceHeatState` now exist as registered schema blocks and module contracts.
+- Live runtime capture/restore for those systems still needs dedicated save bridges; default save capture does not yet pull active gameplay state into those blocks automatically.
+
 ### Feature Flag / Module Coherence [v0.1]
 
 - `SaveFeatureFlags` may only enable systems that have registered domain modules in `SaveBootstrapper`.

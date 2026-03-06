@@ -9,6 +9,7 @@ namespace Reloader.Core.Save
         /// <summary>
         /// Creates the default save pipeline for v0.x.
         /// Registration order is deterministic: CoreWorld, Inventory, Weapons, WorldObjectState, ContainerStorage, PlayerDevice, WorkbenchLoadout, ContractState, PoliceHeatState.
+        /// ContractState and PoliceHeatState are schema-backed modules; live runtime bridge wiring still lands separately.
         /// </summary>
         public static SaveCoordinator CreateDefaultCoordinator(int currentSchemaVersion = 6)
         {
