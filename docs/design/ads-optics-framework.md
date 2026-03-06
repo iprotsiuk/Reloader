@@ -66,6 +66,7 @@ Contract notes:
 - `eyeReliefBackOffset` is part of the production scoped-ADS contract and is applied by `WeaponAimAligner` after anchor alignment.
 - `RenderTexturePiP` optics must provide explicit prefab authoring for `SightAnchor` and `ScopeLensDisplay`.
 - scoped optics must remain future-proof for persistent user zeroing (`windage` / `elevation`) so optic state can be saved per configured optic after player adjustment
+- persistent optic adjustment state must live in runtime optic/scope state snapshots (`zoom`, `zero`, `windage`, `elevation`), not in authored pose offsets or scope-camera transforms
 
 Enums:
 - `AdsVisualMode`: `Auto`, `Mask`, `RenderTexturePiP`

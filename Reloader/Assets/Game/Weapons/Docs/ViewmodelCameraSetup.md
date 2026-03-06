@@ -212,6 +212,7 @@ Use one test scene with player, arms, and both cameras.
 
 Future extensibility note:
 - user scope zeroing (windage/elevation) should persist on the configured optic and must not depend on ad hoc scene tuning or per-session camera hacks
+- persistence should serialize optic adjustment snapshots (`zoom`, `zero`, `windage`, `elevation`) as optic runtime state rather than mutating `AdsPivot`, `SightAnchor`, or scope-camera transforms
 
 6. Confirm debug alignment output.
 - `WeaponAimAligner` gizmos show camera axis, sight axis, and error line.
