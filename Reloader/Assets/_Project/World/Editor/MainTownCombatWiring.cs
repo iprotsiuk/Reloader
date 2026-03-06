@@ -442,7 +442,13 @@ namespace Reloader.World.Editor
                 && adsLocalPosition.vector3Value.sqrMagnitude <= 0.000001f
                 && adsLocalEuler.vector3Value.sqrMagnitude <= 0.000001f
                 && rifleLocalEulerOffset.vector3Value.sqrMagnitude <= 0.000001f
-                && Mathf.Abs(blendSpeed.floatValue) <= 0.000001f;
+                && IsApproximatelyUnseededBlendSpeed(blendSpeed.floatValue);
+        }
+
+        private static bool IsApproximatelyUnseededBlendSpeed(float value)
+        {
+            return Mathf.Abs(value) <= 0.000001f
+                || Mathf.Abs(value - 24f) <= 0.000001f;
         }
 
         private static void SetObjectReferencePropertyIfPresent(SerializedObject so, string propertyName, UnityEngine.Object value)
