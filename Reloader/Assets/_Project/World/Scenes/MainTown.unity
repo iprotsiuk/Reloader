@@ -1745,6 +1745,8 @@ GameObject:
   - component: {fileID: 573788852}
   - component: {fileID: 573788853}
   - component: {fileID: 573788854}
+  - component: {fileID: 573788855}
+  - component: {fileID: 573788856}
   m_Layer: 0
   m_Name: PlayerRoot
   m_TagString: Player
@@ -2193,7 +2195,6 @@ MonoBehaviour:
   _adsLocalEuler: {x: 0, y: 0, z: 0}
   _blendSpeed: 24
   _rifleLocalEulerOffset: {x: 90, y: 0, z: 0}
-  _seedOffsetsFromCurrentPoseOnEquip: 0
   _attachmentPoseOverrides:
   - _slotType: 0
     _attachmentItemId: att-kar98k-scope-remote-a
@@ -2203,8 +2204,39 @@ MonoBehaviour:
     _adsLocalEuler: {x: 0, y: 0, z: 0}
     _blendSpeed: 24
     _rifleLocalEulerOffset: {x: 90, y: 0, z: 0}
+    _scopedAdsEyeReliefBackOffset: -0.1
   _activePoseSource: Base
   _activeAttachmentItemId: 
+--- !u!114 &573788855
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 573788834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2044c11f87f86430aaf8b134d12ee18a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _scopedBehaviours:
+  - {fileID: 573788856}
+--- !u!114 &573788856
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 573788834}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2708d690d7d7429ea23c5712ff3d537, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _centerWidthNormalized: 0.32
+  _centerHeightNormalized: 0.32
+  _maxPeripheralAlpha: 0.82
+  _maskColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1001 &628516051
 PrefabInstance:
   m_ObjectHideFlags: 0

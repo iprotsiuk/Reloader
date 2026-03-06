@@ -21,10 +21,18 @@ namespace Reloader.Game.Weapons
 
             for (var i = 0; i < _scopedBehaviours.Length; i++)
             {
-                if (_scopedBehaviours[i] != null)
+                var behaviour = _scopedBehaviours[i];
+                if (behaviour == null)
                 {
-                    _scopedBehaviours[i].enabled = isActive;
+                    continue;
                 }
+
+                if (behaviour is IPeripheralScopeEffectReceiver receiver)
+                {
+                    receiver.SetScopedState(isActive, CurrentAlpha);
+                }
+
+                behaviour.enabled = isActive;
             }
         }
     }

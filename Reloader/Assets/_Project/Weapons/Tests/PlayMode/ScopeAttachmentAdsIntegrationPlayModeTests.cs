@@ -895,10 +895,12 @@ namespace Reloader.Weapons.Tests.PlayMode
             var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
             var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
             var peripheralEffectsType = ResolveType("Reloader.Game.Weapons.PeripheralScopeEffects");
+            var peripheralScopeScreenMaskType = ResolveType("Reloader.Game.Weapons.PeripheralScopeScreenMask");
             Assert.That(attachmentManagerType, Is.Not.Null);
             Assert.That(adsStateControllerType, Is.Not.Null);
             Assert.That(renderTextureScopeControllerType, Is.Not.Null);
             Assert.That(peripheralEffectsType, Is.Not.Null);
+            Assert.That(peripheralScopeScreenMaskType, Is.Not.Null);
 
             var root = new GameObject("ScopedAdsRoot");
             ScriptableObject scopedOptic = null;
@@ -926,6 +928,9 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var scopeController = root.AddComponent(renderTextureScopeControllerType);
                 SetField(scopeController, "_scopeCamera", scopeCamera);
                 var peripheralEffects = root.AddComponent(peripheralEffectsType);
+                var peripheralMask = root.AddComponent(peripheralScopeScreenMaskType) as Behaviour;
+                Assert.That(peripheralMask, Is.Not.Null);
+                SetField(peripheralEffectsType, peripheralEffects, "_scopedBehaviours", new[] { peripheralMask });
 
                 var ads = root.AddComponent(adsStateControllerType);
                 SetField(ads, "_worldCamera", worldCamera);
@@ -950,6 +955,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                     60,
                     "Peripheral effects did not activate after entering ADS.");
                 Assert.That((bool)GetProperty(peripheralEffects, "IsActive"), Is.True);
+                Assert.That(peripheralMask.enabled, Is.True, "Scoped peripheral effect receiver should enable while ADS is active.");
 
                 Invoke(ads, "SetAdsHeld", false);
 
@@ -958,6 +964,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                     60,
                     "Peripheral effects did not disable after leaving ADS.");
                 Assert.That((bool)GetProperty(peripheralEffects, "IsActive"), Is.False);
+                Assert.That(peripheralMask.enabled, Is.False, "Scoped peripheral effect receiver should disable after leaving ADS.");
             }
             finally
             {
