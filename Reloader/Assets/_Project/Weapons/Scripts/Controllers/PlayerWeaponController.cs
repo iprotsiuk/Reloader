@@ -1780,10 +1780,62 @@ namespace Reloader.Weapons.Controllers
             _adsAttachmentManagerRuntimeBridge = attachmentManager;
             _adsActiveOpticProperty = null;
 
+            EnsureRenderTextureScopeRuntimeBridge(adsType, worldCamera);
+            EnsurePeripheralScopeEffectsRuntimeBridge(adsType);
             TryAssignScopedAdsWeaponDefinition(adsType);
 
             var legacyInputField = adsType.GetField("_useLegacyInput", BindingFlags.Instance | BindingFlags.NonPublic);
             legacyInputField?.SetValue(_adsStateRuntimeBridge, false);
+        }
+
+        private void EnsureRenderTextureScopeRuntimeBridge(Type adsType, Camera worldCamera)
+        {
+            if (adsType == null || _adsStateRuntimeBridge == null)
+            {
+                return;
+            }
+
+            var renderScopeType = ResolveTypeByName("Reloader.Game.Weapons.RenderTextureScopeController");
+            if (renderScopeType == null)
+            {
+                return;
+            }
+
+            var renderScopeController = gameObject.GetComponent(renderScopeType) ?? gameObject.AddComponent(renderScopeType);
+            if (renderScopeController == null)
+            {
+                return;
+            }
+
+            var scopeCamera = EnsureScopeCamera(worldCamera);
+            var scopeCameraField = renderScopeType.GetField("_scopeCamera", BindingFlags.Instance | BindingFlags.NonPublic);
+            scopeCameraField?.SetValue(renderScopeController, scopeCamera);
+
+            var renderScopeField = adsType.GetField("_renderTextureScopeController", BindingFlags.Instance | BindingFlags.NonPublic);
+            renderScopeField?.SetValue(_adsStateRuntimeBridge, renderScopeController);
+        }
+
+        private void EnsurePeripheralScopeEffectsRuntimeBridge(Type adsType)
+        {
+            if (adsType == null || _adsStateRuntimeBridge == null)
+            {
+                return;
+            }
+
+            var peripheralEffectsType = ResolveTypeByName("Reloader.Game.Weapons.PeripheralScopeEffects");
+            if (peripheralEffectsType == null)
+            {
+                return;
+            }
+
+            var peripheralEffects = gameObject.GetComponent(peripheralEffectsType) ?? gameObject.AddComponent(peripheralEffectsType);
+            if (peripheralEffects == null)
+            {
+                return;
+            }
+
+            var peripheralEffectsField = adsType.GetField("_peripheralScopeEffects", BindingFlags.Instance | BindingFlags.NonPublic);
+            peripheralEffectsField?.SetValue(_adsStateRuntimeBridge, peripheralEffects);
         }
 
         private void TryAssignScopedAdsWeaponDefinition(Type adsType)
@@ -1873,6 +1925,51 @@ namespace Reloader.Weapons.Controllers
 
             var child = worldCamera.transform.Find("ViewmodelCamera");
             return child != null ? child.GetComponent<Camera>() : null;
+        }
+
+        private static Camera EnsureScopeCamera(Camera worldCamera)
+        {
+            if (worldCamera == null)
+            {
+                return null;
+            }
+
+            var scopeTransform = worldCamera.transform.Find("ScopeCamera");
+            Camera scopeCamera;
+            if (scopeTransform != null)
+            {
+                scopeCamera = scopeTransform.GetComponent<Camera>();
+            }
+            else
+            {
+                var scopeCameraGo = new GameObject("ScopeCamera");
+                scopeTransform = scopeCameraGo.transform;
+                scopeTransform.SetParent(worldCamera.transform, false);
+                scopeCamera = scopeCameraGo.AddComponent<Camera>();
+            }
+
+            if (scopeCamera == null)
+            {
+                return null;
+            }
+
+            scopeTransform.localPosition = Vector3.zero;
+            scopeTransform.localRotation = Quaternion.identity;
+            scopeTransform.localScale = Vector3.one;
+
+            scopeCamera.enabled = false;
+            scopeCamera.clearFlags = worldCamera.clearFlags;
+            scopeCamera.backgroundColor = worldCamera.backgroundColor;
+            scopeCamera.cullingMask = worldCamera.cullingMask;
+            scopeCamera.nearClipPlane = worldCamera.nearClipPlane;
+            scopeCamera.farClipPlane = worldCamera.farClipPlane;
+            scopeCamera.allowHDR = worldCamera.allowHDR;
+            scopeCamera.allowMSAA = worldCamera.allowMSAA;
+            scopeCamera.orthographic = worldCamera.orthographic;
+            scopeCamera.depthTextureMode = worldCamera.depthTextureMode;
+            scopeCamera.fieldOfView = worldCamera.fieldOfView;
+            scopeCamera.targetTexture = null;
+            return scopeCamera;
         }
 
         private static void SetLayerRecursively(Transform root, int layer)
