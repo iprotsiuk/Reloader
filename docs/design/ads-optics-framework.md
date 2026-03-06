@@ -20,6 +20,8 @@ This is a code-driven alignment system (no per-weapon ADS animation combinatoric
 - During ADS, the viewmodel rig (`AdsPivot`) is moved to align active `SightAnchor` to camera.
 - **Do not move camera to chase weapon.**
 - Alignment runs in `LateUpdate`.
+- `WeaponViewPoseTuningHelper` provides coarse weapon presentation tuning only. Final scoped eye alignment is owned by `WeaponAimAligner`.
+- PiP optics are strict authored content. Missing anchors or lens-display wiring must fail loudly during development instead of falling back silently.
 
 Alignment model:
 
@@ -60,6 +62,11 @@ Fields:
 - optional reticle sprite
 - optional `ScopeRenderProfile` (`renderTextureResolution`, `scopeCameraFov`)
 
+Contract notes:
+- `eyeReliefBackOffset` is part of the production scoped-ADS contract and is applied by `WeaponAimAligner` after anchor alignment.
+- `RenderTexturePiP` optics must provide explicit prefab authoring for `SightAnchor` and `ScopeLensDisplay`.
+- scoped optics must remain future-proof for persistent user zeroing (`windage` / `elevation`) so optic state can be saved per configured optic after player adjustment
+
 Enums:
 - `AdsVisualMode`: `Auto`, `Mask`, `RenderTexturePiP`
 - `OpticCategory`: `Irons`, `RedDot`, `Holo`, `Prism`, `LPVO`, `ScopeHighMag`
@@ -73,7 +80,8 @@ Enums:
   - `ActiveOpticChanged` event for hot-swap listeners
   - `EquipMuzzle(MuzzleAttachmentDefinition)` / `UnequipMuzzle()`
   - exposes `ActiveOpticDefinition` and `ActiveMuzzleDefinition`
-  - fallback to `IronSightAnchor`
+  - uses `IronSightAnchor` only when no optic is equipped
+  - must not synthesize anchors for misconfigured optics
 
 - `AdsStateController`
   - tracks ADS state + `AdsT`
@@ -87,7 +95,7 @@ Enums:
 - `WeaponAimAligner`
   - `LateUpdate` alignment
   - camera-authoritative transform solve
-  - optional eye-relief offset
+  - production eye-relief offset from `OpticDefinition.eyeReliefBackOffset`
   - debug gizmos for camera/sight/error
 
 - `ScopeMaskController`
@@ -95,8 +103,10 @@ Enums:
   - runtime state is externally inspectable via `IsMaskVisible` / `CurrentAlpha`
 
 - `RenderTextureScopeController`
-  - lightweight PiP stub
-  - disabled by default unless active in ADS
+  - PiP scope-image owner
+  - drives lens render-texture binding and reticle application
+  - scope camera must exclude `Viewmodel` content
+  - must remain compatible with future persistent optic zeroing so reticle/optic adjustment state can shift point of aim without reworking the scope pipeline
 
 ## Visual Mode Policy [v0.1]
 
@@ -106,7 +116,11 @@ Enums:
 
 `Mask` forces mask mode.
 
-`RenderTexturePiP` enables PiP path (stub runtime in v0.1).
+`RenderTexturePiP` enables the full PiP path:
+- main camera keeps gameplay FOV
+- scope camera renders only world content for the optic lens
+- reticle behavior is driven from explicit optic data
+- scope camera must not render `Viewmodel`
 
 ## Prefab Conventions [v0.1]
 
@@ -123,6 +137,11 @@ ViewModelRoot
  |- Eject
 ```
 
+Production authoring rules:
+- `AdsPivot` is required for camera-authoritative scoped alignment.
+- weapon and arms meshes must render on the `Viewmodel` layer.
+- runtime-scoped PiP must render from a separate scope camera that excludes `Viewmodel`.
+
 ### Optic prefab
 
 ```text
@@ -131,6 +150,32 @@ OpticPrefab
 ```
 
 `SightAnchor` = eye position behind optic, not glass surface.
+
+PiP optic contract:
+
+```text
+OpticPrefab
+ |- SightAnchor
+ |- EyepieceLens (MeshRenderer + ScopeLensDisplay)
+ |- OptionalReticle (ScopeReticleController / equivalent)
+```
+
+Strict development rule:
+- do not synthesize `SightAnchor`
+- do not fall back to optic root
+- do not silently accept missing `ScopeLensDisplay` for `RenderTexturePiP`
+
+## Production Migration Rules [v0.1]
+
+- Future optics must follow the reusable authored contract instead of one-off scene tuning.
+- `WeaponViewPoseTuningHelper` gets the rifle close; `WeaponAimAligner` makes the scope actually line up.
+- Correctness order for PiP scopes is:
+  1. authored `SightAnchor`
+  2. authored `eyeReliefBackOffset`
+  3. scope camera exclusion of `Viewmodel`
+  4. coarse pose tuning
+- future zeroing support must be implemented as persistent optic state, not as scene-only pose offsets or hardcoded camera fudges
+- Missing anchors, missing lens displays, or scope cameras rendering `Viewmodel` are development bugs, not acceptable degraded behavior.
 
 ## Integration Notes [v0.1]
 
