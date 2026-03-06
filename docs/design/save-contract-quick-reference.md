@@ -17,26 +17,37 @@ Current repository runtime requires these registered module blocks:
 - `Inventory` (`carriedItemIds`, `beltSlotItemIds`, `backpackItemIds`, `backpackCapacity`, `selectedBeltIndex`)
 - `Weapons` (`itemId`, `chamberLoaded`, `magCount`, `reserveCount`, `chamberRound`, `magazineRounds[]`)
 - `WorldObjectState` (`sceneObjectStates[]`, `reclaimEntries[]`; scene-path + object-id keyed world object records)
+- `ContainerStorage` (`containers[]` keyed by `containerId`)
+- `PlayerDevice` (`selectedTarget`, `activeGroupShots[]`, `savedGroups[]`, `notesText`, `installedHooks[]`)
+- `WorkbenchLoadout` (`workbenches[]` with nested `slotNodes[]`)
+- `ContractState` (`contractId`, `targetId`, `distanceBand`, `payout`, `generatedContractIds[]`, `completedContractIds[]`)
+- `PoliceHeatState` (`level`, `lastCrimeType`, `searchTimeRemainingSeconds`, `hasLineOfSightToPlayer`)
 
 Weapons ammo snapshot fields are: `ammoSource`, `muzzleVelocityFps`, `velocityStdDevFps`, `projectileMassGrains`, `ballisticCoefficientG1`, `dispersionMoa`.
 In-flight projectiles are intentionally excluded from v0.1 save scope.
 
-Runtime schema note: baseline schema is `v2`, with `SchemaV1ToV2AddWorldObjectStateMigration` adding default `WorldObjectState` for older saves.
+Runtime schema note: baseline schema is `v6`, and loads fail if the save schema does not exactly match it.
 
-The broader `SaveData` tree in `save-and-progression.md` is the target schema contract. Blocks become required only after module registration + migration support land in runtime.
+The broader `SaveData` tree in `save-and-progression.md` is the target schema contract. Blocks become required only after module registration lands in runtime.
+
+Current limitation:
+- `ContractState` and `PoliceHeatState` now exist as registered schema blocks and module contracts.
+- Live runtime capture/restore for those systems still needs dedicated save bridges; default save capture does not yet pull active gameplay state into those blocks automatically.
 
 ### Feature Flag / Module Coherence [v0.1]
 
-- `SaveFeatureFlags` may only enable systems that have registered domain modules in `SaveBootstrapper`.
-- If a feature flag exists without module registration support, it must remain disabled.
-- Enabling a new flag requires, in the same change: module registration, payload contract, and migration notes.
+Feature flags are retired in the current save runtime. Keep this heading for routing/guardrail compatibility only.
+
+- Save/load behavior is driven by the registered module set in `SaveBootstrapper`, not by optional feature flags.
+- If schema scope expands, update module registration, payload contracts, and current-schema docs in the same change.
 
 ## Load/Restore Guarantees [v0.1]
 
 - Unknown module keys are ignored safely.
+- Schema mismatch fails before any restore.
 - Missing required registered module blocks fail before any restore.
 - Corrupted module payload JSON fails before any restore.
-- Baseline deterministic order: `CoreWorld`, `Inventory`, `Weapons`, `WorldObjectState`.
+- Baseline deterministic order: `CoreWorld`, `Inventory`, `Weapons`, `WorldObjectState`, `ContainerStorage`, `PlayerDevice`, `WorkbenchLoadout`, `ContractState`, `PoliceHeatState`.
 
 ## Unified World-Object Policy Contract [v0.2]
 
@@ -74,7 +85,7 @@ Uncompressed `SaveEnvelope` JSON thresholds:
 - Persist authoritative state only; do not persist derived/runtime-recomputable fields.
 - Keep references ID-based across modules.
 - Quantize high-volume floats only when gameplay-safe.
-- Keep module payloads JSON-first for migration/debuggability.
+- Keep module payloads JSON-first for debuggability.
 - If space pressure rises, prefer file-level compression at repository I/O boundary over per-module format changes.
 
 ## When To Load Full Docs [v0.1]
@@ -82,7 +93,7 @@ Uncompressed `SaveEnvelope` JSON thresholds:
 Load [save-and-progression.md](save-and-progression.md) when changing:
 
 - `SaveEnvelope` schema/versioning semantics
-- migration chain behavior
+- schema-version validation behavior
 - module restore ordering/validation contracts
 - exact-restore guarantees
 

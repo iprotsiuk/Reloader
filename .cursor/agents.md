@@ -8,10 +8,11 @@ This file is the canonical local guidance entrypoint for agents working in this 
 - Treat each router's `globs` as the trigger for domain context.
 - `game-design-docs.mdc` is always-on and points agents to the modular design docs under `docs/design/`.
 - Gameplay routing is intentionally split by domain to reduce context load:
+  - `assassination-contracts-context.mdc` → assassination contracts, target generation, premium long-range job flow
   - `inventory-economy-context.mdc` → inventory/economy/shopping workflows
-  - `hunting-competitions-context.mdc` → hunting loops and competition flows
+  - `hunting-competitions-context.mdc` → deferred optional side systems only
   - `npcs-quests-context.mdc` → NPC definitions, dialogue, quest systems
-  - `law-enforcement-context.mdc` → legal rules, policing, black-market behavior
+  - `law-enforcement-context.mdc` → police heat, search, arrest, confiscation, black-market behavior
 - Save-related routing is intentionally split to reduce context load:
   - `inventory-save-context.mdc` → pipeline orchestration under `Core/Scripts/Save/**`
   - `save-schema-context.mdc` → persisted DTO/schema contract changes

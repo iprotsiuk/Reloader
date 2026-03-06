@@ -15,6 +15,7 @@ namespace Reloader.World.Editor
     public static class WorldSceneTemplateScaffolds
     {
         private const string StarterRiflePath = "Assets/_Project/Weapons/Data/Weapons/StarterRifle.asset";
+        private const string StarterPistolPath = "Assets/_Project/Weapons/Data/Weapons/StarterPistol.asset";
         private const string ProjectilePrefabPath = "Assets/_Project/Weapons/Prefabs/WeaponProjectile.prefab";
 
         [MenuItem("Reloader/World/Templates/Apply TownHub Scaffold To Active Scene")]
@@ -131,8 +132,10 @@ namespace Reloader.World.Editor
             }
 
             var starterRifle = AssetDatabase.LoadAssetAtPath<WeaponDefinition>(StarterRiflePath);
-            if (starterRifle == null)
+            var starterPistol = AssetDatabase.LoadAssetAtPath<WeaponDefinition>(StarterPistolPath);
+            if (starterRifle == null || starterPistol == null)
             {
+                Debug.LogError("Activity scaffold requires both StarterRifle and StarterPistol assets.");
                 return;
             }
 
@@ -143,13 +146,16 @@ namespace Reloader.World.Editor
                 return;
             }
 
-            if (definitions.arraySize == 1 && definitions.GetArrayElementAtIndex(0).objectReferenceValue == starterRifle)
+            if (definitions.arraySize == 2
+                && definitions.GetArrayElementAtIndex(0).objectReferenceValue == starterRifle
+                && definitions.GetArrayElementAtIndex(1).objectReferenceValue == starterPistol)
             {
                 return;
             }
 
-            definitions.arraySize = 1;
+            definitions.arraySize = 2;
             definitions.GetArrayElementAtIndex(0).objectReferenceValue = starterRifle;
+            definitions.GetArrayElementAtIndex(1).objectReferenceValue = starterPistol;
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(weaponRegistry);
             changed = true;

@@ -15,14 +15,13 @@
 
 ## Save Envelope and Versioning [v0.1]
 
-All save files use a versioned envelope so payload contracts can evolve without breaking milestone compatibility:
+All save files use a versioned envelope so payload contracts stay explicit and debuggable:
 
 ```
 SaveEnvelope
-├── schemaVersion   (int, migration source/target)
+├── schemaVersion   (int, must match current runtime schema)
 ├── buildVersion    (string, diagnostic only)
 ├── createdAtUtc    (ISO-8601 timestamp)
-├── featureFlags    (which optional systems were active when saved)
 └── modules         (Dictionary<string, ModuleSaveBlock>)
     └── ModuleSaveBlock
         ├── moduleVersion
@@ -30,9 +29,9 @@ SaveEnvelope
 ```
 
 Compatibility policy:
-- Guaranteed compatibility is milestone-to-milestone (`v0.1` -> `v0.2`) through explicit migrations.
+- Runtime only loads saves whose `schemaVersion` exactly matches the current schema.
 - Intermediate experiment builds are not guaranteed to remain compatible.
-- New schema versions must include migration steps from prior milestone schemas.
+- Schema bumps must update docs/tests in the same change.
 
 Forward-compatibility behavior:
 - Unknown module keys are ignored safely during load.
@@ -60,7 +59,7 @@ Data-shape rules for staying within budget:
 Load order is deterministic and must stay stable:
 
 1. Read and deserialize `SaveEnvelope`.
-2. Run migration chain from `schemaVersion` -> current runtime schema.
+2. Reject the load if `schemaVersion` does not equal the current runtime schema.
 3. Validate required module presence and payload JSON well-formedness.
 4. Restore modules in explicit registration order (`CoreWorld`, `Inventory`, `Weapons`, `WorldObjectState` in current v0.1 implemented baseline).
 5. Run post-restore module validation.
@@ -78,23 +77,26 @@ Current repository implementation requires these registered module payloads:
 - `WorldObjectState` module payload:
   - `sceneObjectStates[]` keyed by `scenePath` with per-object records (`objectId`, `consumed`, `destroyed`, optional transform override, `lastUpdatedDay`, optional `itemInstanceId`)
   - `reclaimEntries[]` for daily cleanup handoff (`scenePath`, `objectId`, `itemInstanceId`, `cleanedOnDay`)
+- `ContainerStorage` module payload: `containers[]` keyed by `containerId` with stored item-instance IDs
+- `PlayerDevice` module payload: `selectedTarget`, `activeGroupShots[]`, `savedGroups[]`, `notesText`, `installedHooks[]`
+- `WorkbenchLoadout` module payload: `workbenches[]` keyed by `workbenchId` with nested `slotNodes[]`
+- `ContractState` module payload: `contractId`, `targetId`, `distanceBand`, `payout`, `generatedContractIds[]`, `completedContractIds[]`
+- `PoliceHeatState` module payload: `level`, `lastCrimeType`, `searchTimeRemainingSeconds`, `hasLineOfSightToPlayer`
 
 `chamberRound` and `magazineRounds[]` serialize ammo ballistic snapshots for the active weapon state (`ammoSource`, `muzzleVelocityFps`, `velocityStdDevFps`, `projectileMassGrains`, `ballisticCoefficientG1`, `dispersionMoa`).
 
 In-flight projectile state is intentionally out-of-scope for v0.1 saves.
 
 Schema note:
-- Runtime save schema is now `v2`.
-- `SchemaV1ToV2AddWorldObjectStateMigration` inserts a default `WorldObjectState` block when loading older saves.
+- Runtime save schema is now `v6`.
+- Loads fail fast when schema does not exactly match `v6`.
 - Load remains transactional: missing required module blocks still fail before restore.
 
-The broader schema below is the v0.1 design target and forward schema contract. Treat it as planned module scope until those modules are registered and migration-backed in runtime.
+Implementation note:
+- `ContractState` and `PoliceHeatState` are now registered schema/module blocks in the current runtime schema.
+- Live capture/restore of current contract execution and police pursuit state still requires dedicated runtime save bridges; until those land, these blocks serialize their module state correctly but default save capture does not yet mirror gameplay state automatically.
 
-### Feature Flags and Module Registration Coherence [v0.1]
-
-- `SaveFeatureFlags` are declarative capability toggles, not runtime guarantees by themselves.
-- A flag may be enabled only when the corresponding module is registered in `SaveBootstrapper` and covered by migration-aware payload handling.
-- Introducing a new enabled save feature requires all of: registration, payload contract, restore validation, and migration notes in the same change.
+The broader schema below is the v0.1 design target and forward schema contract. Treat it as planned module scope until those modules are registered in runtime.
 
 ### Save Module Readiness Matrix [v0.1]
 
@@ -104,6 +106,11 @@ The broader schema below is the v0.1 design target and forward schema contract. 
 | `Inventory` | Implemented now | Yes | Persists carried/belt/backpack ids + capacity + belt selection. |
 | `Weapons` | Implemented now | Yes | Persists active weapon loadout + chamber/mag ammo ballistic snapshots. |
 | `WorldObjectState` | Implemented now | Yes | Unified world-object state + reclaim entries for daily cleanup. |
+| `ContainerStorage` | Implemented now | Yes | Persists stored item-instance IDs for containers/chests. |
+| `PlayerDevice` | Implemented now | Yes | Persists selected target, shot groups, notes, and installed hooks. |
+| `WorkbenchLoadout` | Implemented now | Yes | Persists nested workbench slot loadouts by `workbenchId`. |
+| `ContractState` | Schema/module implemented | Partial | Module is registered; runtime bridge wiring for live contract state is still pending. |
+| `PoliceHeatState` | Schema/module implemented | Partial | Module is registered; runtime bridge wiring for live heat/search state is still pending. |
 | `PlayerState` | Planned target | No | Listed in target schema only. |
 | `ItemRegistry` | Planned target | No | Listed in target schema only. |
 | `ItemLocation` | Planned target | No | Listed in target schema only. |
@@ -130,7 +137,7 @@ Use this matrix as the implementation source of truth for v0.1 feature work: onl
 
 When this contract changes, expected suites include:
 
-- Core save EditMode coverage (`WorldObjectStateSaveModuleTests`, migration + module registration/load invariants).
+- Core save EditMode coverage (`WorldObjectStateSaveModuleTests`, save coordinator + module registration/load invariants).
 - Core persistence PlayMode coverage (`WorldObjectPersistenceRuntimeBridgePlayModeTests`, including `DailyReset` cleanup + reclaim behavior).
 - World travel PlayMode coverage (`RoundTripTravelPlayModeTests`, including no ownership-based hide workaround).
 - Pickup flow coverage impacted by world identity/state capture (`PlayerInventoryControllerPlayModeTests`, `PickupTargetWorldIdentity*` tests).
@@ -146,8 +153,8 @@ SaveData (logical domain content carried by modules)
 │   ├── health
 │   ├── activeDebuffs[] (shaky hands, tinnitus, blurry vision + duration)
 │   ├── money
-│   ├── reputation scores (competition, hunting, ammo crafting, legal standing)
-│   └── licenses and permits owned
+│   ├── reputation scores (contract reliability, ammo crafting, fixer trust, legal heat)
+│   └── arrest/death recovery metadata
 ├── ItemRegistry
 │   └── uniqueId -> full ItemInstance payload (single source of truth)
 ├── ItemLocation
@@ -175,12 +182,15 @@ SaveData (logical domain content carried by modules)
 ├── QuestState[]
 │   ├── active, completed, failed quests with progress
 │   └── timed quest deadlines
+├── ContractState[]
+│   ├── activeContractId
+│   ├── generatedContracts[]
+│   └── completedContractHistory[]
 ├── WorldState
 │   ├── dayCount, timeOfDay
-│   ├── animalPopulation per hunting area (v1+ when hunting is active)
 │   ├── weather state + seed
 │   ├── shop restock timers
-│   └── law enforcement alert level (v1+)
+│   └── police heat / search state
 ├── WorkshopState
 │   ├── equipment placement (position, rotation per tool)
 │   ├── in-progress reload batches
@@ -196,11 +206,11 @@ SaveData (logical domain content carried by modules)
 
 Field naming convention for payload examples: use lowerCamelCase with `Id`/`Ids` suffixes (for example `carriedItemIds`, `containerId`, `magazineAmmoIds`) to match serialized JSON naming style.
 
-Forward-compatibility rule: target schema blocks for later-phase systems (for example `NPCState`, hunting population fields, and law-enforcement state) are defined from v0.1 so save files stay migratable. In phases where those systems are not active yet, these blocks can remain empty/default when modules exist, and may be absent in earlier implementation slices.
+Forward-compatibility rule: target schema blocks for later-phase systems (for example `NPCState`, `ContractState`, and advanced law-enforcement state) are defined from v0.1 so schema growth stays explicit. In phases where those systems are not active yet, these blocks can remain empty/default when modules exist, and may be absent in earlier implementation slices.
 
 **Exact restore target contract [v0.1]:** Loading a save should restore the same world state the player left for every active system in the current phase: player transform, dropped item transforms (including floor items), inventory/container contents, weapon/vehicle state, and progression flags. If NPC simulation is active, NPC transforms/state should restore exactly as well. **Current implemented scope is partial** (`CoreWorld`, `Inventory`, `Weapons`, `WorldObjectState`) and full exact restoration remains in progress per `v0.1-demo-status-and-milestones.md`.
 
-**Save format:** JSON envelope + per-module payload JSON. Each domain module serializes its own payload contract; migration code evolves schema versions explicitly.
+**Save format:** JSON envelope + per-module payload JSON. Each domain module serializes its own payload contract; schema changes update the current runtime contract explicitly.
 
 ---
 
@@ -208,23 +218,23 @@ Forward-compatibility rule: target schema blocks for later-phase systems (for ex
 
 ```
 WAKE UP     → At home (bed), or wherever the player fell asleep,
-              or jail (if arrested the previous day).
+              or at a police station / hospital after a failed job.
               Check debuffs, check quest deadlines.
 
 MORNING     → Decide what to do today:
+              - Accept or review a contract
               - Reload ammo at the workshop bench
-              - Drive to town for supplies
-              - Head to the range to practice or compete
-              - Drive to hunting checkpoint (v1+)
-              - Fill NPC orders for custom ammo
-              - Do odd jobs for cash
+              - Buy parts and supplies
+              - Head to the range to validate the setup
+              - Scout a route or firing position
+              - Do side work for cash
 
 DAYTIME     → Execute the plan. Multiple activities in one day
               are possible depending on time management.
               Time passes during activities.
 
 EVENING     → Return home (or don't — player choice).
-              Sell goods, organize inventory, review earnings.
+              Collect payout, organize inventory, review heat and earnings.
               Clean weapons, prep brass for tomorrow.
 
 NIGHT       → Sleep (time skip to next morning) or stay up
@@ -244,8 +254,8 @@ The player is never forced into this loop. They can do whatever they want in wha
 |-------|-------------|-----|
 | Start | Grandpa's rifle + old press + one caliber | Story intro |
 | Early | Case trimmer, tumbler, calipers, second caliber | Buy from shop or quest reward |
-| Mid | Digital scale, powder measure, multiple calibers, better press | Earn from competitions + hunting |
-| Late | Progressive press, electronic dispenser, chronograph | Major purchase or quest chain |
+| Mid | Better optics, digital scale, powder measure, contract-intel tools | Earn from clean contracts |
+| Late | Progressive press, electronic dispenser, chronograph, premium optics | Major purchase or high-tier contract chain |
 | Endgame | Bullet casting, custom dies, automated systems, employees | Long-term investment |
 
 ## Weapon Progression [v1+]
@@ -253,27 +263,27 @@ The player is never forced into this loop. They can do whatever they want in wha
 | Phase | Weapons |
 |-------|---------|
 | Start | Grandpa's bolt-action rifle (one caliber, worn but functional) |
-| Early | Buy a .22 LR for small game, or a pistol for competition |
-| Mid | Precision rifle for long range, AR-platform for 3-gun |
-| Late | Multiple specialized weapons for different competition types |
-| Endgame | Custom-built rifles, wildcat chamberings, full competition arsenal |
+| Early | Buy a sidearm, basic optics, or support gear for lower-risk jobs |
+| Mid | Precision rifle for long range and cleaner contract execution |
+| Late | Multiple specialized weapons for different contract types |
+| Endgame | Custom-built rifles, wildcat chamberings, full premium contract arsenal |
 
 ## World Progression [v1+]
 
 | Phase | Access |
 |-------|--------|
-| Start | House + town + local range + nearby hunting area |
-| Mid | Regional competition venues, more hunting areas |
-| Late | National venues, premium hunting grounds, second property |
-| Endgame | Full map access, all competition tiers, hire employees |
+| Start | House + town + local range |
+| Mid | More contract spaces, better vantage routes, wider town access |
+| Late | Premium job locations, second property, stronger escape infrastructure |
+| Endgame | Full map access, multiple operating spaces, hire employees |
 
 ## Reputation Progression [v1+]
 
 | Reputation | Effect |
 |-----------|--------|
-| Ammo quality rep | NPCs seek you out, pay more, refer others |
-| Competition rep | Invitations to higher tiers, sponsorship offers |
-| Hunting rep | Access to better grounds, tips from veterans |
-| Legal standing | Affects police suspicion, NPC trust |
+| Ammo quality rep | Better trust in your contract-prep competence |
+| Contract reliability | Higher-tier jobs, cleaner intros, better payouts |
+| Fixer trust | Access to safer intel and gear sources |
+| Legal heat | Affects police suspicion, search intensity, NPC caution |
 
 **Implementation note:** Precision systems (component sorting, annealing tracking, per-lot powder variance, fire-forming) are designed into the data model from v0.1 even though full gameplay implementation is phased. The data fields exist on SOs and instances from day one — the gameplay UI and interactions that expose them may come in later versions. See prototype-scope.md for version targets.

@@ -78,6 +78,22 @@ Single currency: dollars. Simple and clear.
 
 ---
 
+## Economy Spine [v0.1]
+
+Primary money source:
+- procedurally generated assassination contracts
+
+Secondary/supporting money:
+- selling spare gear
+- low-tier errands or favors
+- opportunistic black-market trade
+
+Design rule:
+- random murder and robbery are allowed, but they must remain economically weak compared to contract payouts
+- the player should make serious money by planning and completing jobs, not by generic chaos farming
+
+---
+
 ## Component Pricing Schema [v0.1]
 
 Canonical pricing fields for components are normalized across powder, bullets, cases, and primers:
@@ -102,10 +118,9 @@ Factory ammo templates use the same package schema (`packageCount`, `packagePric
 
 | Source | Details |
 |--------|---------|
-| Competition prizes | Scale with difficulty tier, skill-based |
-| Hunting bounties/pelts | Sell at general store, price varies by quality |
-| Selling custom ammo | NPC buyers, price based on your reputation and ammo quality |
-| Odd jobs / quests | NPC requests, deliveries, cleanup work |
+| Assassination contracts | Main source of money; payout scales with distance, risk, witness pressure, and clean escape |
+| Selling custom ammo | Side income, not the main progression path |
+| Odd jobs / quests | Low-to-mid supplemental money |
 | Brass scavenging | Collect spent brass at range, sell or reload it |
 | Black market sales | Higher profit, higher risk |
 
@@ -113,7 +128,7 @@ Factory ammo templates use the same package schema (`packageCount`, `packagePric
 
 ## Expenses [v0.2]
 
-Reloading components, equipment upgrades, weapons, attachments, workshop/house upgrades, vehicle fuel and maintenance, competition entry fees, hunting licenses and tags, medical bills (after catastrophic failures), fines and legal fees.
+Reloading components, equipment upgrades, weapons, attachments, workshop/house upgrades, vehicle fuel and maintenance, medical bills, bribes/fines/legal fees, and replacement gear after arrest or death.
 
 ---
 
@@ -127,7 +142,7 @@ All physically located in the main world (seamless entry):
 | Reloading Supply | Components (powder, primers, bullets, brass), equipment, dies, tools |
 | General Store | Food, cleaning supplies, miscellaneous |
 | Online Catalog | Wider selection, delivery next day, shipping cost. Interact with computer in house. |
-| Black Market Dealer | Restricted/illegal items. Risky. See [law-enforcement.md](law-enforcement.md). |
+| Black Market Dealer | Restricted/illegal items and risky contract-support gear. See [law-enforcement.md](law-enforcement.md). |
 | NPC Direct Trade | Buy/sell with NPCs you have rapport with |
 
-Shops both buy and sell. The General Store buys hunting pelts/bounties. The Gun Store buys used weapons. NPCs buy custom ammo. Buy/sell inventory may differ from the sell inventory shown in the table.
+Shops both buy and sell. The Gun Store buys used weapons. NPCs may buy custom ammo. Contract handlers and fixers pay job rewards rather than acting as normal shops. Buy/sell inventory may differ from the sell inventory shown in the table.

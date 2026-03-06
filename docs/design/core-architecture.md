@@ -2,7 +2,7 @@
 
 > **For agents:** This is the shared architecture reference. Read this before working on any game system. For domain-specific design, see the relevant module doc in this folder — check [README.md](README.md) for routing.
 
-**Game:** Reloader — a first-person open-world reloading simulator with hunting and shooting competitions.
+**Game:** Reloader — a first-person precision-assassination sandbox built around weapon prep, reloading, long-range shooting, and police escape.
 
 **Engine:** Unity 6.3, Universal Render Pipeline (URP), Universal 3D template.
 
@@ -12,13 +12,14 @@
 
 **Development:** Solo developer assisted by AI agents (Opus 4.6, Codex 5.3, etc).
 
-**Comparable games:** My Summer Car (sandbox simulation, learn by failure), Schedule 1 (open world game loop, persistent items, driving).
+**Comparable games:** My Summer Car (sandbox simulation, learn by failure), Hitman (assassination sandbox structure), GTA (wanted-state escape cadence).
 
 **Core differentiators:**
 - No hand-holding. The game simulates physics and consequences, not rules.
+- Procedurally generated assassination contracts are the main money and progression source.
 - Fire-formed brass tracking. Brass fired in a specific chamber fits that chamber better.
 - Modular everything. Every weapon part is individually tracked, worn, and swappable.
-- Full reloading spectrum. From basic pistol plinking ammo to extreme long range wildcat cartridges.
+- Load development matters because premium long-range jobs pay the most and some targets are only practical to solve from distance.
 - Extensible architecture. Every system is built to accept new content without code changes.
 
 ---
@@ -57,12 +58,13 @@ Reloader/Assets/
 │   ├── Reloading/               # Core system: press, dies, powder, bench
 │   ├── Inventory/               # Item management, storage, weight/capacity
 │   ├── Economy/                 # Currency, transactions, pricing, shops
+│   ├── Contracts/               # Contract generation, target intel, payout, mission state
 │   ├── World/                   # Terrain, locations, scene management
-│   ├── NPCs/                    # NPC behavior, dialogue, vendors
-│   ├── Competitions/            # Shooting competitions, scoring, rules
-│   ├── Hunting/                 # Animal AI, tracking, scoring
+│   ├── NPCs/                    # Handlers, targets, witnesses, police, vendors
+│   ├── Competitions/            # Deferred optional side systems
+│   ├── Hunting/                 # Deferred optional side systems
 │   ├── Quests/                  # Quest/mission system
-│   ├── LawEnforcement/          # Police, wardens, legal system
+│   ├── LawEnforcement/          # Police heat, search, arrest, black-market behavior
 │   ├── Vehicles/                # Driveable cars, transport
 │   ├── UI/                      # Shared UI components, HUD, menus
 │   └── Audio/                   # SFX, music, ambient
@@ -147,7 +149,7 @@ Managers survive scene transitions via `DontDestroyOnLoad`:
 |--------------------|---------------|
 | `GameManager` | Game state, time of day, day cycle, pause, game-over |
 | `SceneLoader` | Scene transitions, loading screens, additive loading |
-| `SaveCoordinator` (service) | Save envelope capture/load orchestration, migration chain, deterministic module restore order |
+| `SaveCoordinator` (service) | Save envelope capture/load orchestration, schema validation, deterministic module restore order |
 | `InventoryManager` | Player carried items, weight, capacity |
 | `EconomyManager` | Money, transactions, price fluctuations |
 | `QuestManager` | Active quests, progress tracking, rewards |
@@ -155,7 +157,7 @@ Managers survive scene transitions via `DontDestroyOnLoad`:
 
 Manager entries provide a static `Instance` property (singleton pattern). `SaveCoordinator` is a plain service built by `SaveBootstrapper`, not a `DontDestroyOnLoad` singleton manager. Gameplay code should use runtime event ports/hub (`IGameEventsRuntimeHub` via `RuntimeKernelBootstrapper.Events`) for cross-system communication, not call other managers directly. Managers may call each other's `Instance` for infrastructure tasks.
 
-**Domain managers:** Not every game system requires a persistent singleton manager. Systems like Hunting, Competitions, Law Enforcement, and Vehicles may use scene-level MonoBehaviours or static utility classes instead. The singletons above are for systems that MUST persist across scene transitions. Domain-specific management patterns are defined in each domain's design doc.
+**Domain managers:** Not every game system requires a persistent singleton manager. Systems like Contracts, Law Enforcement, Vehicles, and later side modes may use scene-level MonoBehaviours or static utility classes instead. The singletons above are for systems that MUST persist across scene transitions. Domain-specific management patterns are defined in each domain's design doc.
 
 ---
 
@@ -163,9 +165,9 @@ Manager entries provide a static `Instance` property (singleton pattern). `SaveC
 
 Systems communicate through runtime event ports + a runtime hub.
 
-### Current `GameEvents` surface (implemented in repository) — legacy compatibility note
+### Current `GameEvents` surface (implemented in repository)
 
-`GameEvents` is retired. Keep this heading for guardrail compatibility only; runtime code must use `IGameEventsRuntimeHub` and related event-port interfaces.
+`GameEvents` is removed from the repository. Runtime code must use `IGameEventsRuntimeHub` and related event-port interfaces.
 
 ### Current runtime event contract (implemented in repository)
 
@@ -175,7 +177,7 @@ Systems communicate through runtime event ports + a runtime hub.
 - `RuntimeKernelBootstrapper.Events` is the runtime access point used by modules/adapters.
 - Cross-domain extension guardrails are defined in [extensible-development-contracts.md](extensible-development-contracts.md).
 
-### Target cross-domain `GameEvents` surface (planned) — represented as runtime hub contracts
+### Target cross-domain `GameEvents` surface (planned)
 
 ```csharp
 public interface IGameEventsRuntimeHub
@@ -184,14 +186,18 @@ public interface IGameEventsRuntimeHub
     event Action<ItemInstance> OnItemDropped;
     event Action<float> OnMoneyChanged;
     event Action<AmmoInstance> OnAmmoAssembled;
-    event Action<CompetitionResult> OnCompetitionEnded;
+    event Action<string> OnContractAccepted;
+    event Action<string> OnContractFailed;
+    event Action<string, float> OnContractCompleted;
     event Action OnDayAdvanced;
     event Action<WeaponInstance, AmmoInstance> OnWeaponFired;
     event Action<CrimeType> OnCrimeCommitted;
+    event Action<int, float> OnHeatChanged;
+    event Action<string> OnTargetEliminated;
+    event Action OnPlayerArrested;
+    event Action<PlayerRespawnReason> OnPlayerRespawned;
     event Action<VehicleInstance> OnVehicleParked;
     event Action<VehicleInstance> OnVehicleDriven;
-    event Action<AnimalInstance, AmmoInstance> OnAnimalKilled;
-    event Action<string> OnHuntingViolation;
     event Action<QuestInstance> OnQuestCompleted;
     event Action<QuestInstance> OnQuestFailed;
     event Action<string, float> OnReputationChanged;
@@ -236,11 +242,11 @@ All instance subclasses use explicit typed fields for runtime state only. The `c
 
 ## Persistence Contract and Evolution [v0.1]
 
-Save/load uses a versioned envelope contract so milestone evolution stays compatible:
+Save/load uses a versioned envelope contract with strict current-schema validation:
 
-- `SaveEnvelope.schemaVersion` is the migration source/target.
+- `SaveEnvelope.schemaVersion` must exactly match the runtime schema.
 - `SaveEnvelope.modules` stores per-domain `ModuleSaveBlock` payloads (`moduleVersion` + `payloadJson`).
-- Compatibility is guaranteed milestone-to-milestone (`v0.1` -> `v0.2`) via explicit migration steps.
+- Experiment builds are not guaranteed to remain save-compatible across schema changes.
 - Unknown module blocks are ignored safely; missing required blocks fail before module restore.
 
 Deterministic restore order is mandatory. Baseline ordering is:
@@ -304,9 +310,10 @@ Each game system has its own detailed design doc. See [README.md](README.md) for
 |--------|-----|----------------|
 | Reloading System | [reloading-system.md](reloading-system.md) | `reloading-domain-knowledge`, `adding-game-content` |
 | Weapons & Ballistics | [weapons-and-ballistics.md](weapons-and-ballistics.md) | `reloading-domain-knowledge` |
+| Assassination Contracts | [assassination-contracts.md](assassination-contracts.md) | — |
 | World & Vehicles | [world-and-vehicles.md](world-and-vehicles.md) | — |
 | Inventory & Economy | [inventory-and-economy.md](inventory-and-economy.md) | `adding-game-content` |
-| Hunting & Competitions | [hunting-and-competitions.md](hunting-and-competitions.md) | — |
+| Hunting & Competitions (Deferred) | [hunting-and-competitions.md](hunting-and-competitions.md) | — |
 | NPCs & Quests | [npcs-and-quests.md](npcs-and-quests.md) | — |
 | Law Enforcement | [law-enforcement.md](law-enforcement.md) | — |
 | Save System & Progression | [save-and-progression.md](save-and-progression.md) | — |

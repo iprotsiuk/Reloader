@@ -4,7 +4,6 @@ using System.IO;
 using NUnit.Framework;
 using Reloader.Core.Save;
 using Reloader.Core.Save.IO;
-using Reloader.Core.Save.Migrations;
 using Reloader.Core.Save.Modules;
 
 namespace Reloader.Core.Tests.EditMode
@@ -35,88 +34,25 @@ namespace Reloader.Core.Tests.EditMode
         public void SaveBootstrapper_DefaultCoordinatorCapture_IncludesPlayerDeviceModule()
         {
             var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
-            var envelope = coordinator.CaptureEnvelope("0.4.0-dev", new SaveFeatureFlags());
+            var envelope = coordinator.CaptureEnvelope("0.4.0-dev");
 
-            Assert.That(envelope.SchemaVersion, Is.EqualTo(5));
+            Assert.That(envelope.SchemaVersion, Is.EqualTo(6));
             Assert.That(envelope.Modules.ContainsKey("PlayerDevice"), Is.True);
             Assert.That(envelope.Modules["PlayerDevice"].ModuleVersion, Is.EqualTo(1));
         }
 
         [Test]
-        public void SaveBootstrapper_DefaultCoordinatorLoad_MigratesSchemaV3SaveMissingPlayerDevice_AndRestoresSuccessfully()
+        public void SaveBootstrapper_DefaultCoordinatorLoad_RejectsSaveMissingPlayerDeviceModule()
         {
             var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
             var repository = new SaveFileRepository();
-            var envelope = coordinator.CaptureEnvelope("0.4.0-dev", new SaveFeatureFlags());
-            envelope.SchemaVersion = 3;
+            var envelope = coordinator.CaptureEnvelope("0.4.0-dev");
             envelope.Modules.Remove("PlayerDevice");
 
             repository.WriteEnvelope(_savePath, envelope);
 
-            Assert.DoesNotThrow(() => coordinator.Load(_savePath));
-        }
-
-        [Test]
-        public void SchemaV3ToV4AddPlayerDeviceMigration_InsertsMissingModuleBlock()
-        {
-            var migration = new SchemaV3ToV4AddPlayerDeviceMigration();
-            var envelope = new SaveEnvelope
-            {
-                SchemaVersion = 3,
-                BuildVersion = "0.3.0-dev",
-                CreatedAtUtc = "2026-03-01T00:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
-                Modules = new Dictionary<string, ModuleSaveBlock>
-                {
-                    { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "Inventory", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "Weapons", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "WorldObjectState", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "ContainerStorage", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } }
-                }
-            };
-
-            var migrated = migration.Apply(envelope);
-
-            Assert.That(migrated.SchemaVersion, Is.EqualTo(4));
-            Assert.That(migrated.Modules.ContainsKey("PlayerDevice"), Is.True);
-            Assert.That(migrated.Modules["PlayerDevice"].ModuleVersion, Is.EqualTo(1));
-            Assert.That(migrated.Modules["PlayerDevice"].PayloadJson, Is.EqualTo("{}"));
-        }
-
-        [Test]
-        public void SchemaV3ToV4AddPlayerDeviceMigration_LeavesExistingModuleBlockUnchanged()
-        {
-            var migration = new SchemaV3ToV4AddPlayerDeviceMigration();
-            var existingBlock = new ModuleSaveBlock
-            {
-                ModuleVersion = 17,
-                PayloadJson = "{\"preserve\":true}"
-            };
-
-            var envelope = new SaveEnvelope
-            {
-                SchemaVersion = 3,
-                BuildVersion = "0.3.0-dev",
-                CreatedAtUtc = "2026-03-01T00:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
-                Modules = new Dictionary<string, ModuleSaveBlock>
-                {
-                    { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "Inventory", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "Weapons", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "WorldObjectState", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "ContainerStorage", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "PlayerDevice", existingBlock }
-                }
-            };
-
-            var migrated = migration.Apply(envelope);
-
-            Assert.That(migrated.SchemaVersion, Is.EqualTo(4));
-            Assert.That(migrated.Modules["PlayerDevice"], Is.SameAs(existingBlock));
-            Assert.That(migrated.Modules["PlayerDevice"].ModuleVersion, Is.EqualTo(17));
-            Assert.That(migrated.Modules["PlayerDevice"].PayloadJson, Is.EqualTo("{\"preserve\":true}"));
+            var ex = Assert.Throws<InvalidDataException>(() => coordinator.Load(_savePath));
+            Assert.That(ex.Message, Does.Contain("Missing required module block"));
         }
 
         [Test]

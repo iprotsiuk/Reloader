@@ -1,21 +1,22 @@
 ---
-description: Context for agents working on reloading system or weapons/ballistics code
+description: Context for agents working on precision weapons, reloading, or load-development code
 globs: Reloader/Assets/_Project/Reloading/**,Reloader/Assets/_Project/Weapons/**
 alwaysApply: false
 ---
 
-# Reloading & Weapons Context
+# Precision Weapons & Reloading Context
 
-You are working on the core reloading or weapons system. Read these docs:
+You are working on the precision weapons or reloading stack that supports the contract sandbox. Read these docs:
 
 1. `docs/design/core-architecture.md` — shared patterns
 2. `docs/design/reloading-system.md` — reloading data models, process steps, equipment
 3. `docs/design/weapons-and-ballistics.md` — weapon parts, ballistics model, shooting
 4. `docs/design/weapon-view-attachment-runtime.md` — required runtime contract for weapon view prefabs and attachment mounting when touching first-person weapon views or attachments
-4. `.agent/skills/reloading-domain-knowledge/SKILL.md` — accuracy calculation, real-world reference (only if implementing accuracy/ballistics)
-5. `.agent/skills/adding-game-content/SKILL.md` — only when creating/editing ScriptableObject data assets under `Reloader/Assets/_Project/Reloading/Data/**` or `Reloader/Assets/_Project/Weapons/Data/**`
-6. `.agent/skills/weapon-view-attachment-framework/SKILL.md` — required when changing weapon view prefabs, attachment slots, attachment runtime, or view/scene wiring for weapons
+5. `docs/design/assassination-contracts.md` — load only when the change affects contract execution, long-range jobs, or target-prep flow
+6. `.agent/skills/reloading-domain-knowledge/SKILL.md` — accuracy calculation, real-world reference (only if implementing accuracy/ballistics)
+7. `.agent/skills/adding-game-content/SKILL.md` — only when creating/editing ScriptableObject data assets under `Reloader/Assets/_Project/Reloading/Data/**` or `Reloader/Assets/_Project/Weapons/Data/**`
+8. `.agent/skills/weapon-view-attachment-framework/SKILL.md` — required when changing weapon view prefabs, attachment slots, attachment runtime, or view/scene wiring for weapons
 
 For logic/bugfix/refactor tasks in scripts, skip `adding-game-content`.
 
-Do NOT load docs for unrelated systems (hunting, quests, law enforcement, driving, etc.).
+Do NOT load unrelated deep-domain docs unless the task explicitly crosses boundaries.

@@ -222,5 +222,32 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(removedQuantity, Is.EqualTo(1));
             Assert.That(runtime.BackpackItemIds.Count, Is.EqualTo(0));
         }
+
+        [Test]
+        public void ClearCarriedItems_RemovesBeltAndBackpackItems_ButPreservesCapacityAndMaxStacks()
+        {
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(3);
+            runtime.SetItemMaxStack("ammo-22lr", 100);
+            runtime.TryAddStackItem("ammo-22lr", 120, out _, out _, out _);
+            runtime.TryAddStackItem("tool-trimmer", 1, out _, out _, out _);
+            Assert.That(runtime.TryMoveItem(InventoryArea.Belt, 2, InventoryArea.Backpack, 0), Is.True);
+            runtime.SelectBeltSlot(1);
+
+            runtime.ClearCarriedItems();
+
+            Assert.That(runtime.BeltSlotItemIds, Is.EqualTo(new string[PlayerInventoryRuntime.BeltSlotCount]));
+            Assert.That(runtime.BackpackItemIds.Count, Is.EqualTo(0));
+            Assert.That(runtime.BackpackCapacity, Is.EqualTo(3));
+            Assert.That(runtime.SelectedBeltIndex, Is.EqualTo(-1));
+            Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(0));
+
+            var stored = runtime.TryAddStackItem("ammo-22lr", 120, out var storedArea, out var storedIndex, out _);
+            Assert.That(stored, Is.True);
+            Assert.That(storedArea, Is.EqualTo(InventoryArea.Belt));
+            Assert.That(storedIndex, Is.EqualTo(0));
+            Assert.That(runtime.GetSlotQuantity(InventoryArea.Belt, 0), Is.EqualTo(100));
+            Assert.That(runtime.GetSlotQuantity(InventoryArea.Belt, 1), Is.EqualTo(20));
+        }
     }
 }

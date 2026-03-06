@@ -333,6 +333,12 @@ namespace Reloader.Weapons.Controllers
                 return false;
             }
 
+            if (string.IsNullOrWhiteSpace(attachmentItemId) && _equippedWeaponView == null)
+            {
+                ResolveInventoryEvents()?.RaiseInventoryChanged();
+                return true;
+            }
+
             var applied = ApplyEquippedAttachmentSlotToViewRuntime(slotType, state.GetEquippedAttachmentItemId(slotType));
             if (!applied)
             {
@@ -2429,31 +2435,7 @@ namespace Reloader.Weapons.Controllers
         {
             itemId = NormalizeWeaponItemId(itemId);
             definition = ResolveWeaponDefinition(itemId);
-            if (definition != null)
-            {
-                return true;
-            }
-
-            if (string.IsNullOrWhiteSpace(itemId))
-            {
-                return false;
-            }
-
-            var registries = FindObjectsByType<WeaponRegistry>(FindObjectsSortMode.InstanceID);
-            for (var i = 0; i < registries.Length; i++)
-            {
-                var candidate = registries[i];
-                if (candidate == null || !candidate.TryGetWeaponDefinition(itemId, out definition))
-                {
-                    continue;
-                }
-
-                _weaponRegistry = candidate;
-                return true;
-            }
-
-            definition = null;
-            return false;
+            return definition != null;
         }
 
         private Transform ResolveDefaultWeaponViewParent()

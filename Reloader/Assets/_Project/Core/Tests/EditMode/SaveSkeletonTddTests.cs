@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
+using Reloader.Contracts.Runtime;
+using Reloader.Core.Events;
 using Reloader.Core.Save;
 using Reloader.Core.Save.IO;
-using Reloader.Core.Save.Migrations;
+using Reloader.Core.Save.Modules;
 
 namespace Reloader.Core.Tests.EditMode
 {
@@ -38,12 +40,6 @@ namespace Reloader.Core.Tests.EditMode
                 SchemaVersion = 1,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags
-                {
-                    NpcStateEnabled = false,
-                    HuntingStateEnabled = false,
-                    LawStateEnabled = false
-                },
                 Modules = new Dictionary<string, ModuleSaveBlock>
                 {
                     {
@@ -68,27 +64,29 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void MigrationRunner_MigratesToCurrentSchema_WithBaselineNoOpMigration()
+        public void SaveCoordinator_Load_ThrowsWhenSchemaVersionDoesNotMatchRuntimeSchema()
         {
-            var runner = new MigrationRunner(new ISaveMigration[]
+            var coreWorld = new RecordingModule("CoreWorld");
+            var inventory = new RecordingModule("Inventory");
+            var coordinator = CreateCoordinator(coreWorld, inventory);
+            var repository = new SaveFileRepository();
+            var envelope = new SaveEnvelope
             {
-                new SchemaV1ToV1NoOpMigration()
-            });
-
-            runner.ValidateConfiguration();
-
-            var input = new SaveEnvelope
-            {
-                SchemaVersion = 1,
+                SchemaVersion = 2,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
-                Modules = new Dictionary<string, ModuleSaveBlock>()
+                Modules = new Dictionary<string, ModuleSaveBlock>
+                {
+                    { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = coreWorld.CaptureModuleStateJson() } },
+                    { "Inventory", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = inventory.CaptureModuleStateJson() } }
+                }
             };
+            repository.WriteEnvelope(_savePath, envelope);
 
-            var migrated = runner.MigrateTo(input, 1);
-
-            Assert.That(migrated.SchemaVersion, Is.EqualTo(1));
+            var ex = Assert.Throws<InvalidDataException>(() => coordinator.Load(_savePath));
+            Assert.That(ex.Message, Does.Contain("does not match runtime schema"));
+            Assert.That(coreWorld.RestoreCallCount, Is.EqualTo(0));
+            Assert.That(inventory.RestoreCallCount, Is.EqualTo(0));
         }
 
         [Test]
@@ -124,7 +122,6 @@ namespace Reloader.Core.Tests.EditMode
                 SchemaVersion = 1,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
                 Modules = new Dictionary<string, ModuleSaveBlock>
                 {
                     { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = coreWorld.CaptureModuleStateJson() } }
@@ -151,7 +148,6 @@ namespace Reloader.Core.Tests.EditMode
                 SchemaVersion = 1,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
                 Modules = new Dictionary<string, ModuleSaveBlock>
                 {
                     { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = coreWorld.CaptureModuleStateJson() } },
@@ -175,7 +171,6 @@ namespace Reloader.Core.Tests.EditMode
 
             var coordinator = new SaveCoordinator(
                 new SaveFileRepository(),
-                new MigrationRunner(new ISaveMigration[] { new SchemaV1ToV1NoOpMigration() }),
                 new[]
                 {
                     new SaveModuleRegistration(1, inventory),
@@ -207,7 +202,6 @@ namespace Reloader.Core.Tests.EditMode
                 SchemaVersion = 1,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
                 Modules = new Dictionary<string, ModuleSaveBlock>
                 {
                     { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{\"name\":\"core-after\"}" } },
@@ -233,7 +227,6 @@ namespace Reloader.Core.Tests.EditMode
                 SchemaVersion = 1,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
                 Modules = new Dictionary<string, ModuleSaveBlock>
                 {
                     { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{\"name\":\"core-after\"}" } },
@@ -255,11 +248,107 @@ namespace Reloader.Core.Tests.EditMode
             }
         }
 
+        [Test]
+        public void SaveBootstrapper_DefaultCoordinatorCapture_IncludesContractAndPoliceHeatModules()
+        {
+            var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
+
+            var envelope = coordinator.CaptureEnvelope("0.6.0-dev");
+
+            Assert.That(envelope.SchemaVersion, Is.EqualTo(6));
+            Assert.That(envelope.Modules.ContainsKey("ContractState"), Is.True);
+            Assert.That(envelope.Modules.ContainsKey("PoliceHeatState"), Is.True);
+        }
+
+        [Test]
+        public void SaveBootstrapper_DefaultCoordinatorLoad_RejectsLegacySchemaSave()
+        {
+            var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
+            var repository = new SaveFileRepository();
+            var envelope = new SaveEnvelope
+            {
+                SchemaVersion = 5,
+                BuildVersion = "0.6.0-dev",
+                CreatedAtUtc = "2026-03-06T00:00:00Z",
+                Modules = new Dictionary<string, ModuleSaveBlock>
+                {
+                    { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
+                    { "Inventory", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
+                    { "Weapons", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
+                    { "WorldObjectState", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
+                    { "ContainerStorage", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
+                    { "PlayerDevice", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
+                    { "WorkbenchLoadout", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } }
+                }
+            };
+            repository.WriteEnvelope(_savePath, envelope);
+
+            var ex = Assert.Throws<InvalidDataException>(() => coordinator.Load(_savePath));
+            Assert.That(ex.Message, Does.Contain("does not match runtime schema"));
+        }
+
+        [Test]
+        public void ContractStateModule_RoundTrip_PreservesActiveContractState()
+        {
+            var module = new ContractStateModule
+            {
+                ActiveContract = new AssassinationContractRuntimeState("contract.alpha", "target.window", 420f, 1500)
+            };
+            module.GeneratedContractIds.Add("contract.alpha");
+            module.CompletedContractIds.Add("contract.legacy");
+
+            var restored = new ContractStateModule();
+            restored.RestoreModuleStateFromJson(module.CaptureModuleStateJson());
+
+            Assert.That(restored.ActiveContract, Is.Not.Null);
+            Assert.That(restored.ActiveContract.ContractId, Is.EqualTo("contract.alpha"));
+            Assert.That(restored.ActiveContract.TargetId, Is.EqualTo("target.window"));
+            Assert.That(restored.ActiveContract.DistanceBand, Is.EqualTo(420f));
+            Assert.That(restored.ActiveContract.Payout, Is.EqualTo(1500));
+            Assert.That(restored.GeneratedContractIds, Is.EqualTo(new[] { "contract.alpha" }));
+            Assert.That(restored.CompletedContractIds, Is.EqualTo(new[] { "contract.legacy" }));
+        }
+
+        [Test]
+        public void ContractStateModule_Validate_RejectsPartialActiveContractIdentity()
+        {
+            var missingTarget = new ContractStateModule
+            {
+                ActiveContractId = "contract.alpha",
+                ActiveTargetId = string.Empty
+            };
+
+            var missingContract = new ContractStateModule
+            {
+                ActiveContractId = string.Empty,
+                ActiveTargetId = "target.window"
+            };
+
+            Assert.Throws<InvalidOperationException>(() => missingTarget.ValidateModuleState());
+            Assert.Throws<InvalidOperationException>(() => missingContract.ValidateModuleState());
+        }
+
+        [Test]
+        public void PoliceHeatStateModule_RoundTrip_PreservesSearchState()
+        {
+            var module = new PoliceHeatStateModule
+            {
+                CurrentState = new PoliceHeatState(PoliceHeatLevel.Search, CrimeType.Murder, 32.5f, false)
+            };
+
+            var restored = new PoliceHeatStateModule();
+            restored.RestoreModuleStateFromJson(module.CaptureModuleStateJson());
+
+            Assert.That(restored.CurrentState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+            Assert.That(restored.CurrentState.LastCrimeType, Is.EqualTo(CrimeType.Murder));
+            Assert.That(restored.CurrentState.SearchTimeRemainingSeconds, Is.EqualTo(32.5f));
+            Assert.That(restored.CurrentState.HasLineOfSightToPlayer, Is.False);
+        }
+
         private SaveCoordinator CreateCoordinator(RecordingModule coreWorld, RecordingModule inventory)
         {
             return new SaveCoordinator(
                 new SaveFileRepository(),
-                new MigrationRunner(new ISaveMigration[] { new SchemaV1ToV1NoOpMigration() }),
                 new[]
                 {
                     new SaveModuleRegistration(0, coreWorld),
@@ -275,7 +364,6 @@ namespace Reloader.Core.Tests.EditMode
                 SchemaVersion = 1,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
                 Modules = new Dictionary<string, ModuleSaveBlock>
                 {
                     { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{\"name\":\"core\"}" } },
@@ -292,7 +380,6 @@ namespace Reloader.Core.Tests.EditMode
                 SchemaVersion = 1,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
                 Modules = new Dictionary<string, ModuleSaveBlock>
                 {
                     { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{\"name\":\"core\"}" } },

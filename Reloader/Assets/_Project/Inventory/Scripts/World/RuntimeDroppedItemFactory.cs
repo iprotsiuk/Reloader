@@ -30,6 +30,11 @@ namespace Reloader.Inventory
                 return false;
             }
 
+            if (!TryCreateVisualRoot(itemId, definition, out var visualRoot))
+            {
+                return false;
+            }
+
             dropRoot = new GameObject($"drop-{itemId}");
             if (targetScene.IsValid() && targetScene.isLoaded)
             {
@@ -62,63 +67,63 @@ namespace Reloader.Inventory
             rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
             rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
-            if (definition != null)
-            {
-                var spawnDefinition = ScriptableObject.CreateInstance<ItemSpawnDefinition>();
-                spawnDefinition.SetValuesForTests(definition, quantity);
+            var spawnDefinition = ScriptableObject.CreateInstance<ItemSpawnDefinition>();
+            spawnDefinition.SetValuesForTests(definition, quantity);
 
-                var definitionPickup = dropRoot.AddComponent<DefinitionPickupTarget>();
-                definitionPickup.SetSpawnDefinitionForTests(spawnDefinition);
+            var definitionPickup = dropRoot.AddComponent<DefinitionPickupTarget>();
+            definitionPickup.SetSpawnDefinitionForTests(spawnDefinition);
 
-                var spawnLifetime = dropRoot.AddComponent<RuntimeDropSpawnLifetime>();
-                spawnLifetime.Assign(spawnDefinition);
-            }
-            else
-            {
-                var stackPickup = dropRoot.AddComponent<RuntimeStackPickupTarget>();
-                stackPickup.SetValuesForTests(itemId, quantity);
-            }
+            var spawnLifetime = dropRoot.AddComponent<RuntimeDropSpawnLifetime>();
+            spawnLifetime.Assign(spawnDefinition);
 
-            CreateVisual(definition, dropRoot.transform);
+            AttachVisual(dropRoot.transform, visualRoot);
 
             var persistenceTracker = dropRoot.AddComponent<RuntimeDroppedObjectPersistenceTracker>();
             persistenceTracker.Configure(itemId, quantity, runtimeDropInstanceId);
             return true;
         }
 
-        private static void CreateVisual(ItemDefinition definition, Transform parent)
+        private static bool TryCreateVisualRoot(string itemId, ItemDefinition definition, out GameObject visualRoot)
         {
-            if (parent == null)
+            visualRoot = null;
+
+            if (definition == null)
+            {
+                Debug.LogError(
+                    $"[RuntimeDroppedItemFactory] Cannot create dropped item '{itemId}' because no ItemDefinition was resolved.");
+                return false;
+            }
+
+            if (definition.IconSourcePrefab == null)
+            {
+                Debug.LogError(
+                    $"[RuntimeDroppedItemFactory] Cannot create dropped item '{itemId}' because ItemDefinition '{definition.DefinitionId}' has no IconSourcePrefab.");
+                return false;
+            }
+
+            visualRoot = TryInstantiateVisualRoot(definition.IconSourcePrefab);
+            if (visualRoot == null)
+            {
+                Debug.LogError(
+                    $"[RuntimeDroppedItemFactory] Cannot create dropped item '{itemId}' because IconSourcePrefab '{definition.IconSourcePrefab.name}' could not be instantiated.");
+                return false;
+            }
+
+            return true;
+        }
+
+        private static void AttachVisual(Transform parent, GameObject visualRoot)
+        {
+            if (parent == null || visualRoot == null)
             {
                 return;
             }
 
-            if (definition != null && definition.IconSourcePrefab != null)
-            {
-                var visualRoot = TryInstantiateVisualRoot(definition.IconSourcePrefab, parent);
-                if (visualRoot != null)
-                {
-                    visualRoot.name = "visual";
-                    StripPhysicsComponents(visualRoot);
-                    visualRoot.transform.localPosition = Vector3.zero;
-                    visualRoot.transform.localRotation = Quaternion.identity;
-                    return;
-                }
-
-                Debug.LogWarning(
-                    $"[RuntimeDroppedItemFactory] Failed to instantiate IconSourcePrefab '{definition.IconSourcePrefab.name}' for item '{definition.DefinitionId}'. Falling back to cube.",
-                    parent);
-            }
-
-            var fallback = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            fallback.name = "visual";
-            fallback.transform.SetParent(parent, false);
-            fallback.transform.localScale = Vector3.one * 0.22f;
-            var collider = fallback.GetComponent<Collider>();
-            if (collider != null)
-            {
-                Object.Destroy(collider);
-            }
+            visualRoot.name = "visual";
+            visualRoot.transform.SetParent(parent, false);
+            StripPhysicsComponents(visualRoot);
+            visualRoot.transform.localPosition = Vector3.zero;
+            visualRoot.transform.localRotation = Quaternion.identity;
         }
 
         private static void StripPhysicsComponents(GameObject root)
@@ -133,7 +138,7 @@ namespace Reloader.Inventory
             {
                 if (colliders[i] != null)
                 {
-                    Object.Destroy(colliders[i]);
+                    Object.DestroyImmediate(colliders[i]);
                 }
             }
 
@@ -142,12 +147,12 @@ namespace Reloader.Inventory
             {
                 if (rigidbodies[i] != null)
                 {
-                    Object.Destroy(rigidbodies[i]);
+                    Object.DestroyImmediate(rigidbodies[i]);
                 }
             }
         }
 
-        private static GameObject TryInstantiateVisualRoot(GameObject sourcePrefab, Transform parent)
+        private static GameObject TryInstantiateVisualRoot(GameObject sourcePrefab)
         {
             if (sourcePrefab == null)
             {
@@ -156,7 +161,7 @@ namespace Reloader.Inventory
 
             try
             {
-                var rawInstance = Object.Instantiate((Object)sourcePrefab, parent);
+                var rawInstance = Object.Instantiate((Object)sourcePrefab);
                 if (rawInstance is GameObject go)
                 {
                     return go;

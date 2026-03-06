@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00fe5b4d07ab045459437b6920dc2c46, type: 3}
   m_Name: StarterPistol
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Data.WeaponDefinition
-  _itemId: weapon-pistol-01
-  _displayName: Starter Pistol
+  _itemId: weapon-canik-tp9
+  _displayName: Canik TP9 (9mm)
   _iconSourcePrefab: {fileID: 100100000, guid: 31f3c4bc3c25047b490da66a3c9a7a8e, type: 3}
   _magazineCapacity: 12
   _fireIntervalSeconds: 0.13

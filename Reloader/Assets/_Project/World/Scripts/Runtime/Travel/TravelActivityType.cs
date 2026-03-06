@@ -3,9 +3,9 @@ namespace Reloader.World.Travel
     public enum TravelActivityType
     {
         Unknown = 0,
-        IndoorRange = 1,
-        OutdoorRange = 2,
-        CompetitionVenue = 3,
-        HuntingGrounds = 4
+        ContractPrep = 1,
+        ContractExecution = 2,
+        PoliceEscape = 3,
+        TradeAndResupply = 4
     }
 }

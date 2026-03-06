@@ -23,6 +23,9 @@ namespace Reloader.NPCs.Runtime
         CompetitionOrganizer = 18,
         BankWorker = 19,
         PostWorker = 20,
+        Handler = 21,
+        Target = 22,
+        Witness = 23,
         GameWarden = Warden,
         PoliceOfficer = Police
     }

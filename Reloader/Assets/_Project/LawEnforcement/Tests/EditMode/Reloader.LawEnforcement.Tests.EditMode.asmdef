@@ -1,0 +1,22 @@
+{
+  "name": "Reloader.LawEnforcement.Tests.EditMode",
+  "rootNamespace": "Reloader.LawEnforcement.Tests",
+  "references": [
+    "Reloader.LawEnforcement",
+    "Reloader.Core"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

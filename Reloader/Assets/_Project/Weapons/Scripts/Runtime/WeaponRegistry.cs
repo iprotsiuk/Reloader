@@ -2,9 +2,6 @@ using System;
 using System.Collections.Generic;
 using Reloader.Weapons.Data;
 using UnityEngine;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 namespace Reloader.Weapons.Runtime
 {
@@ -44,15 +41,6 @@ namespace Reloader.Weapons.Runtime
             {
                 return false;
             }
-
-#if UNITY_EDITOR
-            if (TryResolveFromProjectAssets(itemId, out definition))
-            {
-                _byItemId[itemId] = definition;
-                _missingItemIds.Remove(itemId);
-                return true;
-            }
-#endif
 
             _missingItemIds.Add(itemId);
             return false;
@@ -99,30 +87,5 @@ namespace Reloader.Weapons.Runtime
             return !string.IsNullOrWhiteSpace(itemId)
                    && itemId.StartsWith("weapon-", StringComparison.Ordinal);
         }
-
-#if UNITY_EDITOR
-        private static bool TryResolveFromProjectAssets(string itemId, out WeaponDefinition definition)
-        {
-            definition = null;
-            if (string.IsNullOrWhiteSpace(itemId))
-            {
-                return false;
-            }
-
-            var guids = AssetDatabase.FindAssets("t:WeaponDefinition");
-            for (var i = 0; i < guids.Length; i++)
-            {
-                var path = AssetDatabase.GUIDToAssetPath(guids[i]);
-                var candidate = AssetDatabase.LoadAssetAtPath<WeaponDefinition>(path);
-                if (candidate != null && candidate.ItemId == itemId)
-                {
-                    definition = candidate;
-                    return true;
-                }
-            }
-
-            return false;
-        }
-#endif
     }
 }

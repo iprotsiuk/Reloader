@@ -161,8 +161,16 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void GameEventsRuntimeHub_Surface_DoesNotImplementContractEventsDirectly()
+        {
+            Assert.That(typeof(IContractEvents).IsAssignableFrom(typeof(IGameEventsRuntimeHub)), Is.False);
+        }
+
+        [Test]
         public void RuntimeKernelBootstrapper_Surface_ExposesTypedDomainChannels()
         {
+            AssertTypedChannel("ContractEvents", typeof(IContractEvents));
+            AssertTypedChannel("LawEnforcementEvents", typeof(ILawEnforcementEvents));
             AssertTypedChannel("InventoryEvents", typeof(IInventoryEvents));
             AssertTypedChannel("WeaponEvents", typeof(IWeaponEvents));
             AssertTypedChannel("ShopEvents", typeof(IShopEvents));
@@ -176,6 +184,10 @@ namespace Reloader.Core.Tests.EditMode
             var hub = new DefaultRuntimeEvents();
             RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), hub);
 
+            var contractPort = ReadTypedChannel("ContractEvents");
+            Assert.That(contractPort, Is.SameAs(hub.ContractEvents));
+            Assert.That(contractPort, Is.Not.SameAs(hub));
+            Assert.That(ReadTypedChannel("LawEnforcementEvents"), Is.SameAs(hub));
             Assert.That(ReadTypedChannel("InventoryEvents"), Is.SameAs(hub));
             Assert.That(ReadTypedChannel("WeaponEvents"), Is.SameAs(hub));
             Assert.That(ReadTypedChannel("ShopEvents"), Is.SameAs(hub));
@@ -192,6 +204,9 @@ namespace Reloader.Core.Tests.EditMode
             RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>());
 
             Assert.That(RuntimeKernelBootstrapper.Events, Is.SameAs(initialHub));
+            Assert.That(ReadTypedChannel("ContractEvents"), Is.SameAs(initialHub.ContractEvents));
+            Assert.That(ReadTypedChannel("ContractEvents"), Is.Not.SameAs(initialHub));
+            Assert.That(ReadTypedChannel("LawEnforcementEvents"), Is.SameAs(initialHub));
             Assert.That(ReadTypedChannel("InventoryEvents"), Is.SameAs(initialHub));
             Assert.That(ReadTypedChannel("WeaponEvents"), Is.SameAs(initialHub));
             Assert.That(ReadTypedChannel("ShopEvents"), Is.SameAs(initialHub));
@@ -215,6 +230,8 @@ namespace Reloader.Core.Tests.EditMode
         [Test]
         public void IRuntimeEvents_Surface_ExposesDomainPortAccessors()
         {
+            AssertRuntimePortAccessor("ContractEvents", typeof(IContractEvents));
+            AssertRuntimePortAccessor("LawEnforcementEvents", typeof(ILawEnforcementEvents));
             AssertRuntimePortAccessor("InventoryEvents", typeof(IInventoryEvents));
             AssertRuntimePortAccessor("WeaponEvents", typeof(IWeaponEvents));
             AssertRuntimePortAccessor("ShopEvents", typeof(IShopEvents));
@@ -223,10 +240,14 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void DefaultRuntimeEvents_IRuntimeEventsPorts_ResolveToCurrentHubInstance()
+        public void DefaultRuntimeEvents_IRuntimeEventsPorts_ResolveStableContractPortAndHubBackedChannels()
         {
             IRuntimeEvents runtimeEvents = new DefaultRuntimeEvents();
+            var contractPort = ReadRuntimePort(runtimeEvents, "ContractEvents");
 
+            Assert.That(contractPort, Is.Not.SameAs(runtimeEvents));
+            Assert.That(contractPort, Is.SameAs(ReadRuntimePort(runtimeEvents, "ContractEvents")));
+            Assert.That(ReadRuntimePort(runtimeEvents, "LawEnforcementEvents"), Is.SameAs(runtimeEvents));
             Assert.That(ReadRuntimePort(runtimeEvents, "InventoryEvents"), Is.SameAs(runtimeEvents));
             Assert.That(ReadRuntimePort(runtimeEvents, "WeaponEvents"), Is.SameAs(runtimeEvents));
             Assert.That(ReadRuntimePort(runtimeEvents, "ShopEvents"), Is.SameAs(runtimeEvents));
@@ -372,7 +393,6 @@ namespace Reloader.Core.Tests.EditMode
             var property = typeof(RuntimeKernelBootstrapper).GetProperty(propertyName, BindingFlags.Public | BindingFlags.Static);
             Assert.That(property, Is.Not.Null);
             Assert.That(property!.PropertyType, Is.EqualTo(expectedType));
-            Assert.That(property.PropertyType.IsAssignableFrom(typeof(IGameEventsRuntimeHub)), Is.True);
         }
 
         private static object ReadTypedChannel(string propertyName)

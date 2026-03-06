@@ -25,11 +25,13 @@ namespace Reloader.Core.Runtime
             }
         }
 
-        public static IInventoryEvents InventoryEvents => kernel.Events;
-        public static IWeaponEvents WeaponEvents => kernel.Events;
-        public static IShopEvents ShopEvents => kernel.Events;
-        public static IUiStateEvents UiStateEvents => kernel.Events;
-        public static IInteractionHintEvents InteractionHintEvents => kernel.Events;
+        public static IContractEvents ContractEvents => kernel.Events.ContractEvents;
+        public static ILawEnforcementEvents LawEnforcementEvents => kernel.Events.LawEnforcementEvents;
+        public static IInventoryEvents InventoryEvents => kernel.Events.InventoryEvents;
+        public static IWeaponEvents WeaponEvents => kernel.Events.WeaponEvents;
+        public static IShopEvents ShopEvents => kernel.Events.ShopEvents;
+        public static IUiStateEvents UiStateEvents => kernel.Events.UiStateEvents;
+        public static IInteractionHintEvents InteractionHintEvents => kernel.Events.InteractionHintEvents;
 
         public static RuntimeKernel Configure(IEnumerable<RuntimeModuleRegistration> registrations, IGameEventsRuntimeHub eventsImplementation = null)
         {

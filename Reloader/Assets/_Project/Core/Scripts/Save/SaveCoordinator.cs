@@ -11,18 +11,15 @@ namespace Reloader.Core.Save
     public sealed class SaveCoordinator
     {
         private readonly SaveFileRepository _fileRepository;
-        private readonly MigrationRunner _migrationRunner;
         private readonly List<SaveModuleRegistration> _moduleRegistrations;
         private readonly int _currentSchemaVersion;
 
         public SaveCoordinator(
             SaveFileRepository fileRepository,
-            MigrationRunner migrationRunner,
             IEnumerable<SaveModuleRegistration> moduleRegistrations,
             int currentSchemaVersion = 1)
         {
             _fileRepository = fileRepository ?? throw new ArgumentNullException(nameof(fileRepository));
-            _migrationRunner = migrationRunner ?? throw new ArgumentNullException(nameof(migrationRunner));
             _moduleRegistrations = (moduleRegistrations ?? throw new ArgumentNullException(nameof(moduleRegistrations)))
                 .OrderBy(x => x.Order)
                 .ToList();
@@ -37,11 +34,9 @@ namespace Reloader.Core.Save
             {
                 throw new InvalidOperationException("Duplicate module keys detected in save module registrations.");
             }
-
-            _migrationRunner.ValidateConfiguration();
         }
 
-        public SaveEnvelope CaptureEnvelope(string buildVersion, SaveFeatureFlags featureFlags)
+        public SaveEnvelope CaptureEnvelope(string buildVersion)
         {
             SaveRuntimeBridgeRegistry.PrepareForSave(_moduleRegistrations);
 
@@ -50,7 +45,6 @@ namespace Reloader.Core.Save
                 SchemaVersion = _currentSchemaVersion,
                 BuildVersion = string.IsNullOrWhiteSpace(buildVersion) ? "0.0.0-unknown" : buildVersion,
                 CreatedAtUtc = DateTime.UtcNow.ToString("O"),
-                FeatureFlags = featureFlags ?? new SaveFeatureFlags(),
                 Modules = new Dictionary<string, ModuleSaveBlock>()
             };
 
@@ -66,16 +60,21 @@ namespace Reloader.Core.Save
             return envelope;
         }
 
-        public void Save(string absolutePath, string buildVersion, SaveFeatureFlags featureFlags)
+        public void Save(string absolutePath, string buildVersion)
         {
-            var envelope = CaptureEnvelope(buildVersion, featureFlags);
+            var envelope = CaptureEnvelope(buildVersion);
             _fileRepository.WriteEnvelope(absolutePath, envelope);
         }
 
         public void Load(string absolutePath)
         {
             var envelope = _fileRepository.ReadEnvelope(absolutePath);
-            envelope = _migrationRunner.MigrateTo(envelope, _currentSchemaVersion);
+
+            if (envelope.SchemaVersion != _currentSchemaVersion)
+            {
+                throw new InvalidDataException(
+                    $"Save schema {envelope.SchemaVersion} does not match runtime schema {_currentSchemaVersion}.");
+            }
 
             ValidateRequiredModulesPresent(envelope);
             ValidateAllPayloadsAreWellFormedJson(envelope);

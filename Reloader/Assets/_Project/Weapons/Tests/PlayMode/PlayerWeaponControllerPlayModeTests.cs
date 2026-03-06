@@ -670,7 +670,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator MultipleRegistries_WhenInitialRegistryMissesSelectedItem_ResolvesFallbackRegistryAndFires()
+        public IEnumerator MultipleRegistries_WhenAssignedRegistryMissesSelectedItem_DoesNotRescueFromOtherSceneRegistry()
         {
             var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
             var runtimeEvents = new DefaultRuntimeEvents();
@@ -699,6 +699,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             activeRegistry.SetDefinitionsForTests(new[] { activeDefinition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_weaponRegistry", staleRegistry);
 
             var firedCount = 0;
             runtimeEvents.OnWeaponFired += HandleWeaponFired;
@@ -709,8 +710,9 @@ namespace Reloader.Weapons.Tests.PlayMode
             input.FirePressedThisFrame = true;
             yield return null;
 
-            Assert.That(firedCount, Is.EqualTo(1));
-            Assert.That(controller.EquippedItemId, Is.EqualTo("weapon-kar98k"));
+            Assert.That(firedCount, Is.EqualTo(0));
+            Assert.That(controller.EquippedItemId, Is.Empty);
+            Assert.That(GetControllerField<WeaponRegistry>(controller, "_weaponRegistry"), Is.SameAs(staleRegistry));
 
             runtimeEvents.OnWeaponFired -= HandleWeaponFired;
             RuntimeKernelBootstrapper.Events = runtimeEventsBefore;

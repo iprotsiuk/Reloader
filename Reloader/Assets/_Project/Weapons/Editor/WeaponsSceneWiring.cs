@@ -45,14 +45,10 @@ namespace Reloader.Weapons.Editor
             var starterRifle = AssetDatabase.LoadAssetAtPath<WeaponDefinition>(StarterRiflePath);
             var starterPistol = AssetDatabase.LoadAssetAtPath<WeaponDefinition>(StarterPistolPath);
             var projectilePrefab = AssetDatabase.LoadAssetAtPath<WeaponProjectile>(ProjectilePrefabPath);
-            if (starterRifle == null || projectilePrefab == null)
+            if (starterRifle == null || starterPistol == null || projectilePrefab == null)
             {
-                Debug.LogError("Missing StarterRifle asset or WeaponProjectile prefab. Build starter content first.");
+                Debug.LogError("Missing StarterRifle asset, StarterPistol asset, or WeaponProjectile prefab. Build supported weapon content first.");
                 return;
-            }
-            if (starterPistol == null)
-            {
-                Debug.LogWarning("StarterPistol asset not found. WeaponRegistry will be wired with rifle only.");
             }
 
             var changedCount = 0;
@@ -139,12 +135,9 @@ namespace Reloader.Weapons.Editor
 
             var registrySo = new SerializedObject(registry);
             var definitionsProp = registrySo.FindProperty("_definitions");
-            definitionsProp.arraySize = starterPistol != null ? 2 : 1;
+            definitionsProp.arraySize = 2;
             definitionsProp.GetArrayElementAtIndex(0).objectReferenceValue = starterRifle;
-            if (starterPistol != null)
-            {
-                definitionsProp.GetArrayElementAtIndex(1).objectReferenceValue = starterPistol;
-            }
+            definitionsProp.GetArrayElementAtIndex(1).objectReferenceValue = starterPistol;
             registrySo.ApplyModifiedPropertiesWithoutUndo();
 
             var weaponController = playerRoot.GetComponent<PlayerWeaponController>();
@@ -201,7 +194,7 @@ namespace Reloader.Weapons.Editor
                     var index = viewPrefabs.arraySize;
                     viewPrefabs.InsertArrayElementAtIndex(index);
                     var entry = viewPrefabs.GetArrayElementAtIndex(index);
-                    entry.FindPropertyRelative("_itemId").stringValue = "weapon-pistol-01";
+                    entry.FindPropertyRelative("_itemId").stringValue = "weapon-canik-tp9";
                     entry.FindPropertyRelative("_viewPrefab").objectReferenceValue = pistolViewPrefab;
                 }
             }
@@ -261,7 +254,7 @@ namespace Reloader.Weapons.Editor
                 var index = entries.arraySize;
                 entries.InsertArrayElementAtIndex(index);
                 var entry = entries.GetArrayElementAtIndex(index);
-                entry.FindPropertyRelative("_itemId").stringValue = "weapon-pistol-01";
+                entry.FindPropertyRelative("_itemId").stringValue = "weapon-canik-tp9";
                 entry.FindPropertyRelative("_controller").objectReferenceValue = pistolController;
             }
 

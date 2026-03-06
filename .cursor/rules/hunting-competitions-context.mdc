@@ -1,18 +1,19 @@
 ---
-description: Context for agents working on hunting loops, animal systems, competitions, or scoring
+description: Context for agents working on deferred hunting or competition side systems
 globs: Reloader/Assets/_Project/Hunting/**,Reloader/Assets/_Project/Competitions/**
 alwaysApply: false
 ---
 
-# Hunting & Competitions Context
+# Deferred Hunting & Competitions Context
 
-You are working on hunting or competition systems. Read these docs:
+You are working on a deferred hunting or competition side system. Read these docs:
 
 1. `docs/design/core-architecture.md` — shared patterns and cross-system communication
-2. `docs/design/hunting-and-competitions.md` — hunting and competition progression/data
+2. `docs/design/assassination-contracts.md` — current top-level game fantasy and economy spine
+3. `docs/design/hunting-and-competitions.md` — deferred-side-system note and constraints
 
-If your task changes scoring/shot mechanics, also load:
+If your task changes shared shooting mechanics, also load:
 
-3. `docs/design/weapons-and-ballistics.md`
+4. `docs/design/weapons-and-ballistics.md`
 
-Do NOT load unrelated deep domain docs unless the task explicitly crosses boundaries.
+Do NOT let hunting or competition content redefine the main project loop. These systems are optional and subordinate to the assassination-contract fantasy.

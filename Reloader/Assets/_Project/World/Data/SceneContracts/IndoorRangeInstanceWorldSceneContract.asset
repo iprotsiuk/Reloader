@@ -20,6 +20,7 @@ MonoBehaviour:
   - PlayerRoot/CameraPivot/CameraLookTarget
   - PlayerRoot/CameraPivot/WeaponMuzzle
   - WeaponRegistry
+  - IndoorRange_SmokeToMainTown_Trigger
   - IndoorRange_Geometry
   - IndoorRange_Geometry/Range_Floor
   - IndoorRange_Geometry/Range_Ceiling

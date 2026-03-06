@@ -1931,7 +1931,7 @@ MonoBehaviour:
   _weaponViewPrefabs:
   - _itemId: weapon-kar98k
     _viewPrefab: {fileID: 5782696911360418534, guid: 4af148b15f97d4845aabd2cb0d1b678c, type: 3}
-  - _itemId: weapon-pistol-01
+  - _itemId: weapon-canik-tp9
     _viewPrefab: {fileID: 850772559695530675, guid: 31f3c4bc3c25047b490da66a3c9a7a8e, type: 3}
   _attachmentItemMetadata:
   - _attachmentItemId: att-kar98k-scope-remote-a
@@ -2391,6 +2391,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Runtime.WeaponRegistry
   _definitions:
   - {fileID: 11400000, guid: 5a94afc0f47e6415ca88ff356fe170a4, type: 2}
+  - {fileID: 11400000, guid: 03361120229a74c34bb0d5b2dc439932, type: 2}
 --- !u!4 &1914596210
 Transform:
   m_ObjectHideFlags: 0

@@ -6,6 +6,15 @@ namespace Reloader.Core.Runtime
 {
     public sealed class DefaultRuntimeEvents : IGameEventsRuntimeHub
     {
+        private readonly IContractEvents _contractEvents;
+
+        public DefaultRuntimeEvents()
+        {
+            _contractEvents = new ContractEventsPort(this);
+        }
+
+        public IContractEvents ContractEvents => _contractEvents;
+        public ILawEnforcementEvents LawEnforcementEvents => this;
         public IInventoryEvents InventoryEvents => this;
         public IWeaponEvents WeaponEvents => this;
         public IShopEvents ShopEvents => this;
@@ -46,15 +55,17 @@ namespace Reloader.Core.Runtime
         public event Action<ShopCheckoutRequest> OnShopBuyCheckoutRequested;
         public event Action<ShopCheckoutRequest> OnShopSellCheckoutRequested;
         public event Action<ShopTradeResultPayload> OnShopTradeResultReceived;
-
-        [Obsolete("Use OnShopTradeResultReceived with ShopTradeResultPayload.")]
-        public event Action<string, int, bool, bool, string> OnShopTradeResult;
         public event Action<bool> OnWorkbenchMenuVisibilityChanged;
         public event Action<bool> OnTabInventoryVisibilityChanged;
         public event Action<bool> OnEscMenuVisibilityChanged;
         public event Action<int> OnMoneyChanged;
         public event Action<InteractionHintPayload> OnInteractionHintShown;
         public event Action OnInteractionHintCleared;
+        public event Action<PoliceHeatState> OnHeatChanged;
+
+        private event Action<string> ContractAccepted;
+        private event Action<string> ContractFailed;
+        private event Action<string, int> ContractCompleted;
 
         public void RaiseSaveStarted() => OnSaveStarted?.Invoke();
         public void RaiseSaveCompleted() => OnSaveCompleted?.Invoke();
@@ -96,25 +107,6 @@ namespace Reloader.Core.Runtime
         public void RaiseShopTradeResult(ShopTradeResultPayload payload)
         {
             OnShopTradeResultReceived?.Invoke(payload);
-#pragma warning disable CS0618
-            OnShopTradeResult?.Invoke(
-                payload.ItemId,
-                payload.Quantity,
-                payload.IsBuy,
-                payload.Success,
-                payload.Success ? string.Empty : payload.FailureReason.ToString());
-#pragma warning restore CS0618
-        }
-
-        [Obsolete("Use RaiseShopTradeResult(ShopTradeResultPayload payload).")]
-        public void RaiseShopTradeResult(string itemId, int quantity, bool isBuy, bool success, string failureReason)
-        {
-            RaiseShopTradeResult(new ShopTradeResultPayload(
-                itemId,
-                quantity,
-                isBuy,
-                success,
-                ShopTradeResultPayload.ParseLegacyFailureReason(failureReason, success)));
         }
 
         public void RaiseWorkbenchMenuVisibilityChanged(bool isVisible)
@@ -136,6 +128,7 @@ namespace Reloader.Core.Runtime
         }
 
         public void RaiseMoneyChanged(int amount) => OnMoneyChanged?.Invoke(amount);
+        public void RaiseHeatChanged(PoliceHeatState state) => OnHeatChanged?.Invoke(state);
 
         public void RaiseInteractionHintShown(InteractionHintPayload payload)
         {
@@ -155,6 +148,42 @@ namespace Reloader.Core.Runtime
             CurrentInteractionHint = new InteractionHintPayload(string.Empty, string.Empty, string.Empty);
             HasInteractionHint = false;
             OnInteractionHintCleared?.Invoke();
+        }
+
+        private void RaiseContractAcceptedInternal(string contractId) => ContractAccepted?.Invoke(contractId);
+        private void RaiseContractFailedInternal(string contractId) => ContractFailed?.Invoke(contractId);
+        private void RaiseContractCompletedInternal(string contractId, int payout) => ContractCompleted?.Invoke(contractId, payout);
+
+        private sealed class ContractEventsPort : IContractEvents
+        {
+            private readonly DefaultRuntimeEvents _owner;
+
+            public ContractEventsPort(DefaultRuntimeEvents owner)
+            {
+                _owner = owner ?? throw new ArgumentNullException(nameof(owner));
+            }
+
+            public event Action<string> OnContractAccepted
+            {
+                add => _owner.ContractAccepted += value;
+                remove => _owner.ContractAccepted -= value;
+            }
+
+            public event Action<string> OnContractFailed
+            {
+                add => _owner.ContractFailed += value;
+                remove => _owner.ContractFailed -= value;
+            }
+
+            public event Action<string, int> OnContractCompleted
+            {
+                add => _owner.ContractCompleted += value;
+                remove => _owner.ContractCompleted -= value;
+            }
+
+            public void RaiseContractAccepted(string contractId) => _owner.RaiseContractAcceptedInternal(contractId);
+            public void RaiseContractFailed(string contractId) => _owner.RaiseContractFailedInternal(contractId);
+            public void RaiseContractCompleted(string contractId, int payout) => _owner.RaiseContractCompletedInternal(contractId, payout);
         }
     }
 }

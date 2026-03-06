@@ -9,13 +9,13 @@
 | Type | Role |
 |------|------|
 | Shopkeepers | Buy/sell, restock daily, give opinions and advice |
-| Competitors | Appear at competitions, have skill levels, can befriend |
-| Hunting buddies | Share tips, reveal spots, quest givers |
+| Contract handlers | Offer jobs, intel, payout, and escalation into better work |
+| Targets | Contract victims with routines, schedules, and risk profiles |
+| Witnesses / civilians | Populate the town and feed police response when they observe violence |
 | Old timers | Reloading wisdom, lore, mentorship |
-| Game warden | Patrols hunting areas, checks licenses, enforces law |
-| Police | Patrol town, can stop/search, enforce weapon laws |
-| Customers | Want to buy your ammo, give specs and their brass |
-| Black market contacts | Sell illegal items, offer shady jobs |
+| Police | Patrol town, search, pursue, arrest, and escalate heat |
+| Spotters / fixers | Sell intel, routes, ranges, and positioning help |
+| Black market contacts | Sell illegal items and risky support services |
 
 ---
 
@@ -24,34 +24,34 @@
 | Type | Example |
 |------|---------|
 | Tutorial | "Grandpa's old rifle needs ammo — reload some .30-06" |
-| Fetch/delivery | "Bring me 50 rounds of match .308 by Friday" |
-| Competition entry | "Qualify for regionals with a sub-MOA group" |
-| Hunting contract | "Clear the coyotes from Henderson's ranch" |
+| Fetch / delivery | "Bring me specific components before tonight's job" |
+| Assassination contract | "Window target, 420 meters, low collateral, leave unseen" |
+| Intel setup | "Photograph the route and mark the clean sightline" |
 | Equipment unlock | "Help fix the old press and you can keep it" |
 | Story beats | Narrative milestones unlocking new areas/features |
-| Reputation | "Prove yourself at the local match to earn shop discount" |
+| Reputation | "Land a clean long shot and unlock better contracts" |
 
 ---
 
 ## Relationship System [v1+]
 
-Each NPC tracks relationship level with the player. Higher relationship → better prices, tips, quest access, ammo sale reputation. Negative actions (crime, rudeness, bad ammo) decrease relationship.
+Each NPC tracks relationship level with the player. Higher relationship unlocks better prices, better contract intel, safer introductions, and cleaner payout opportunities. Negative actions (public chaos, failed jobs, collateral damage, rudeness) decrease relationship.
 
 ---
 
 ## Data Model [v1+]
 
 ### NPCDefinition SO
-- `npcType` — Shopkeeper / Competitor / HuntingBuddy / OldTimer / Warden / Police / Customer / BlackMarket
+- `npcType` — Shopkeeper / Handler / Target / Witness / OldTimer / Police / Fixer / BlackMarket
 - `defaultRelationship` — starting relationship level
 - `dialogueTree` — reference to dialogue data
 - `shopInventory` — for vendor NPCs: list of items they stock
-- `skillLevel` — for competitor NPCs: how good they are
-- `patrolArea` — for wardens/police: where they patrol
+- `skillLevel` — optional accuracy/intel/security skill for relevant roles
+- `patrolArea` — for police or guard roles: where they patrol
 - `customProperties`
 
 ### QuestDefinition SO
-- `questType` — Tutorial / Fetch / Competition / Hunting / Equipment / Story / Reputation
+- `questType` — Tutorial / Fetch / Assassination / Intel / Equipment / Story / Reputation
 - `objectives[]` — list of objectives with progress tracking
 - `rewards` — money, items, reputation, access unlocks
 - `deadline` — optional time limit in game days
@@ -68,6 +68,7 @@ Each NPC tracks relationship level with the player. Higher relationship → bett
 - `NpcAgent.CollectActions()` aggregates player actions from capabilities implementing `INpcActionProvider`.
 - `NpcAiController` consumes `INpcDecisionProvider`; if none is assigned, it falls back to `RuleBasedDecisionProvider`.
 - Vendor interaction is wired through `VendorTradeCapability` (`vendor.trade.open`) and remains compatible with shop-vendor targets.
+- Existing role/runtime seams should now be used for handlers, targets, witnesses, and police response actors rather than competition or hunting-only content.
 
 ### Designer Quickstart (Now)
 1. Drag a role prefab from `Reloader/Assets/_Project/NPCs/Prefabs/Roles/` into the active runtime world scene (currently `MainTown`; `MainWorld` is compatibility-only).

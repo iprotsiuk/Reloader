@@ -119,7 +119,7 @@ Mask behavior:
   - magnification <= 2x: no mask
   - magnification >= 4x: mask
 
-## 6. Example Setup: Pistol + Red Dot
+## 6. Example Setup: Canik TP9 + Red Dot
 
 ### Prefab
 - Weapon viewmodel uses required layout above.
@@ -127,7 +127,7 @@ Mask behavior:
 
 ### ScriptableObjects
 `WeaponDefinition`:
-- `weaponId`: `pistol_9mm`
+- `weaponId`: `weapon-canik-tp9`
 - `adsInTime`: `0.10`
 - `adsOutTime`: `0.08`
 - `baseAdsSensitivityScale`: `0.9`
@@ -188,7 +188,7 @@ Expected:
 
 Use one test scene with player, arms, and both cameras.
 
-1. Equip pistol + red dot, hold ADS.
+1. Equip Canik TP9 + red dot, hold ADS.
 - `SightAnchor` aligns with camera.
 - No jitter.
 - No scope mask.

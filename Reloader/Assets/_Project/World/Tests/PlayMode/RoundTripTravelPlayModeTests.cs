@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System;
 using NUnit.Framework;
 using Reloader.Core.Runtime;
@@ -466,6 +467,25 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator MainTownAndIndoorRange_ShareSupportedWeaponIdsAndViewMappings()
+        {
+            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
+            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+
+            var expectedIds = new[] { "weapon-canik-tp9", "weapon-kar98k" };
+            CollectionAssert.AreEquivalent(expectedIds, GetWeaponRegistryItemIdsForActivePlayer());
+            CollectionAssert.AreEquivalent(expectedIds, GetWeaponViewItemIdsForActivePlayer());
+
+            var startedTravel = WorldTravelCoordinator.TryLoadSceneAtEntry(IndoorRangeSceneName, "entry.indoor.arrival");
+            Assert.That(startedTravel, Is.True, "Expected direct indoor travel to start for parity verification.");
+            yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
+            yield return WaitForResolvedEntryPoint("entry.indoor.arrival", SceneSwitchTimeoutSeconds);
+
+            CollectionAssert.AreEquivalent(expectedIds, GetWeaponRegistryItemIdsForActivePlayer());
+            CollectionAssert.AreEquivalent(expectedIds, GetWeaponViewItemIdsForActivePlayer());
+        }
+
+        [UnityTest]
         public IEnumerator TravelCoordinator_DoesNotContainOwnedPickupHideWorkaround()
         {
             var workaroundMethod = typeof(WorldTravelCoordinator).GetMethod(
@@ -772,6 +792,74 @@ namespace Reloader.World.Tests.PlayMode
             var weaponInventoryField = weaponController.GetType().GetField("_inventoryController", BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(weaponInputField?.GetValue(weaponController), Is.Not.Null, "Weapon controller input reference should be assigned.");
             Assert.That(weaponInventoryField?.GetValue(weaponController), Is.Not.Null, "Weapon controller inventory reference should be assigned.");
+        }
+
+        private static IReadOnlyList<string> GetWeaponRegistryItemIdsForActivePlayer()
+        {
+            var playerRoot = GameObject.Find("PlayerRoot");
+            Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot.");
+
+            var weaponController = playerRoot.GetComponent("PlayerWeaponController");
+            Assert.That(weaponController, Is.Not.Null, "Expected PlayerWeaponController.");
+
+            var weaponRegistryField = weaponController.GetType().GetField("_weaponRegistry", BindingFlags.Instance | BindingFlags.NonPublic);
+            var weaponRegistry = weaponRegistryField?.GetValue(weaponController);
+            Assert.That(weaponRegistry, Is.Not.Null, "Expected WeaponRegistry.");
+
+            var definitionsField = weaponRegistry.GetType().GetField("_definitions", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(definitionsField, Is.Not.Null, "Expected _definitions field on WeaponRegistry.");
+
+            var ids = new List<string>();
+            if (definitionsField.GetValue(weaponRegistry) is IEnumerable definitions)
+            {
+                foreach (var definition in definitions)
+                {
+                    if (definition == null)
+                    {
+                        continue;
+                    }
+
+                    var itemId = definition.GetType().GetProperty("ItemId", BindingFlags.Instance | BindingFlags.Public)?.GetValue(definition) as string;
+                    if (!string.IsNullOrWhiteSpace(itemId))
+                    {
+                        ids.Add(itemId);
+                    }
+                }
+            }
+
+            return ids;
+        }
+
+        private static IReadOnlyList<string> GetWeaponViewItemIdsForActivePlayer()
+        {
+            var playerRoot = GameObject.Find("PlayerRoot");
+            Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot.");
+
+            var weaponController = playerRoot.GetComponent("PlayerWeaponController");
+            Assert.That(weaponController, Is.Not.Null, "Expected PlayerWeaponController.");
+
+            var viewsField = weaponController.GetType().GetField("_weaponViewPrefabs", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(viewsField, Is.Not.Null, "Expected _weaponViewPrefabs field on PlayerWeaponController.");
+
+            var ids = new List<string>();
+            if (viewsField.GetValue(weaponController) is IEnumerable entries)
+            {
+                foreach (var entry in entries)
+                {
+                    if (entry == null)
+                    {
+                        continue;
+                    }
+
+                    var itemId = entry.GetType().GetProperty("ItemId", BindingFlags.Instance | BindingFlags.Public)?.GetValue(entry) as string;
+                    if (!string.IsNullOrWhiteSpace(itemId))
+                    {
+                        ids.Add(itemId);
+                    }
+                }
+            }
+
+            return ids;
         }
 
         private static SceneEntryPoint FindEntryPointInScene(Scene scene, string entryPointId)

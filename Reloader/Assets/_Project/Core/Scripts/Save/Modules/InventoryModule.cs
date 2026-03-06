@@ -35,6 +35,20 @@ namespace Reloader.Core.Save.Modules
         public int BackpackCapacity { get; set; }
         public int SelectedBeltIndex { get; set; } = -1;
 
+        public void ClearCarriedState()
+        {
+            CarriedItemIds.Clear();
+
+            BeltSlotItemIds.Clear();
+            for (var i = 0; i < BeltSlotCount; i++)
+            {
+                BeltSlotItemIds.Add(null);
+            }
+
+            BackpackItemIds.Clear();
+            SelectedBeltIndex = -1;
+        }
+
         public string CaptureModuleStateJson()
         {
             var payload = new InventoryPayload

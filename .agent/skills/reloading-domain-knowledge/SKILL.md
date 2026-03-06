@@ -1,6 +1,6 @@
 ---
 name: reloading-domain-knowledge
-description: Provides real-world ammunition reloading reference knowledge for building accurate game mechanics. Use when implementing reloading mechanics, ballistics calculations, ammunition behavior, weapon interactions, or debugging reloading-related game logic in Reloader.
+description: Provides real-world ammunition reloading and ballistic reference knowledge for load development and precision shooting systems. Use when implementing reloading mechanics, ballistics calculations, ammunition behavior, weapon interactions, or debugging load-development game logic that supports Reloader's assassination-contract sandbox.
 ---
 
 # Reloading Domain Knowledge
@@ -9,10 +9,10 @@ description: Provides real-world ammunition reloading reference knowledge for bu
 
 - Implementing any reloading workbench mechanic
 - Writing ballistics or accuracy calculations
-- Modeling ammo quality consequences
+- Modeling ammo quality consequences for long-range shots
 - Designing failure modes and danger mechanics
 - Creating realistic equipment behavior
-- NOT appropriate when: working on UI, economy, quests, driving, or non-reloading systems
+- NOT appropriate when: working on UI, contract generation, police heat, driving, or non-reloading systems unless the task directly depends on load-development knowledge
 
 ## Prerequisites
 
@@ -20,6 +20,7 @@ Read these docs first:
 1. `docs/design/core-architecture.md` — shared patterns, project structure
 2. `docs/design/reloading-system.md` — reloading system design and data models
 3. `docs/design/weapons-and-ballistics.md` — weapon system and ballistics design (if working on accuracy/shooting)
+4. `docs/design/assassination-contracts.md` — when the work affects premium long-range contract play
 
 ## Core Concepts
 
@@ -221,7 +222,7 @@ SD (Standard Deviation) of muzzle velocity is the #1 predictor of long-range acc
 | Flash hole deburring | Burr from manufacturing diverts flame unevenly | Deburr flash holes for consistent ignition |
 | Neck tension consistency | Brass hardness varies = tension varies | Anneal necks to reset hardness to known state |
 | Annealing (life + consistency) | Resets work-hardened brass neck/shoulder. Two benefits: (1) extends case life — un-annealed brass cracks after fewer firings, (2) makes sizing more consistent — uniform hardness = uniform neck tension after sizing. Equipment quality matters: cheap propane torch is inconsistent; quality induction annealer (AMP Annealing) gives precise repeatable results. | Anneal every 2-5 firings for consistency |
-| Primer seating tool quality | Uniform primer depth = uniform ignition = tighter velocity SD. A wobbly hand primer gives ±0.003" depth variation; a quality bench-mounted seater (K&M, Primal Rights) gives ±0.0005". Combines with primer pocket uniformity — even a great tool can't fix a sloppy pocket. | Bench-mounted seater for competition |
+| Primer seating tool quality | Uniform primer depth = uniform ignition = tighter velocity SD. A wobbly hand primer gives ±0.003" depth variation; a quality bench-mounted seater (K&M, Primal Rights) gives ±0.0005". Combines with primer pocket uniformity — even a great tool can't fix a sloppy pocket. | Bench-mounted seater for premium long-range work |
 | CBTO consistency | Cartridge Base To Ogive measured to ogive datum with comparator. Repeatable to ±0.0005". OAL (tip-based) varies ±0.005-0.010" even with identical bullets — useless for controlling jump. | ±0.0005" for match, verify with comparator |
 | Distance from lands (jump) | Distance bullet ogive travels before engaging rifling. Computed from barrel.freeBore + throatErosion vs. bullet.ogiveLength and ammo.cbto. Optimal: 0.010-0.030" for most loads. Must be measured per rifle+bullet combo with OAL gauge. | Measure jam length, seat to target CBTO |
 | Jump consistency (batch) | Even with optimal average jump, CBTO variance round-to-round creates jump variance → opens groups. Driven by seating die/tool quality. | CBTO SD < 0.0005" for match |
@@ -240,23 +241,23 @@ SD (Standard Deviation) of muzzle velocity is the #1 predictor of long-range acc
 | Bore fouling state | A clean bore shoots to a different POI than a fouled bore. Most precision shooters fire "fouling shots" before competing. Copper fouling builds over hundreds of rounds. |
 | Barrel temperature | Hot barrel = larger bore diameter = velocity change + accuracy degradation. Strings of rapid fire walk the group. Wait between shots for precision. |
 
-These niche factors create gameplay depth: a casual player ignores them and shoots "okay" groups. A dedicated player who weighs brass, sorts bullets, anneals necks, and manages storage shoots tiny groups that win national competitions.
+These niche factors create gameplay depth: a casual player ignores them and shoots "okay" groups. A dedicated player who weighs brass, sorts bullets, anneals necks, and manages storage shoots tiny groups that solve premium long-range contracts.
 
 ### Bullet Types and Terminal Performance
 
 | Type | Full Name | Use | Terminal Behavior |
 |------|-----------|-----|-------------------|
-| FMJ | Full Metal Jacket | Target, plinking | Pass-through, minimal expansion (bad for hunting) |
+| FMJ | Full Metal Jacket | Range validation, cheap practice | Pass-through, minimal expansion |
 | HP | Hollow Point | Match, varmint | Expands rapidly, fragments at high velocity |
 | SP | Soft Point | Hunting | Controlled expansion, good weight retention |
 | BondedHP | Bonded Hollow Point | Hunting large game | Maximum weight retention, reliable expansion |
-| Match | Match (usually HPBT) | Competition | Ultra-consistent BC, NOT designed for hunting |
+| Match | Match (usually HPBT) | Precision contracts | Ultra-consistent BC, optimized for accuracy rather than terminal effect |
 | Solid | Solid copper/brass | Dangerous game, lead-free | No fragmentation, deep penetration |
 | Cast | Cast lead | Plinking, cowboy | Low velocity, lead fouling at high velocity |
 
-Using match bullets for hunting is legal but unethical — they're not designed to expand reliably and may wound without killing.
+Match bullets are optimized for precision, not reliable terminal performance. Use them when the design goal is accuracy, not expansion.
 
-**Terminal performance fields (future — hunting v0.2+):** BulletDefinition will need terminal ballistics fields (`expansionFactor`, `weightRetention`, `minExpansionVelocity`) for the hunting system's kill calculation. For v0.1, bullet `type` enum is sufficient for basic behavior differentiation. Detailed terminal fields should use `customProperties` until the hunting system is built, then promote to first-class fields.
+**Terminal performance fields (future):** `BulletDefinition` may later need terminal ballistics fields (`expansionFactor`, `weightRetention`, `minExpansionVelocity`) for systems that model body damage or post-hit lethality in more detail. For v0.1, bullet `type` enum is sufficient for basic behavior differentiation. Detailed terminal fields should use `customProperties` until that gameplay is built, then promote to first-class fields.
 
 ### Equipment Tiers
 

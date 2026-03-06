@@ -76,6 +76,8 @@ Reloader/Assets/**/LightingData.asset
 Reloader/Assets/**/LightingData.asset.meta
 !Reloader/Assets/Scenes/MainWorld/LightingData.asset
 !Reloader/Assets/Scenes/MainWorld/LightingData.asset.meta
+Reloader/Assets/Screenshots/
+Reloader/Assets/Screenshots.meta
 *.unitypackage
 *.unitypackage.meta
 
@@ -85,3 +87,5 @@ Reloader/Assets/**/LightingData.asset.meta
 # Accidental local duplicate root npm files (for example: "package 2.json")
 /package [0-9]*.json
 /package-lock [0-9]*.json
+Reloader/ProjectSettings/ShaderGraphSettings 2.asset
+docs/plans/*-handover-prompt.md

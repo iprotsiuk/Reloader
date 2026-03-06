@@ -199,15 +199,14 @@ Authoring details and setup are defined in [ads-optics-framework.md](ads-optics-
 
 ---
 
-## Competition Spectrum [v0.2]
+## Contract Distance Bands [v0.2]
 
-| Category | Distance | Key Skill | Caliber Examples |
-|----------|----------|-----------|-----------------|
-| Pistol (USPSA/IDPA) | 7-25 yards | Speed + accuracy | 9mm, .45 ACP |
-| Carbine / 3-Gun | Mixed | Versatility | 5.56, 9mm, 12ga |
-| Precision Rifle | 100-600 yards | Accuracy, wind reading | .308, 6.5 Creedmoor |
-| Long Range | 600-1200 yards | Advanced ballistics | .308, .300 WM, 6.5 CM |
-| ELR (Extreme Long Range) | 1+ mile | Master ballistics | .338 Lapua, .50 BMG, wildcats |
-| Benchrest | 100-300 yards | Pure accuracy, no time | .22 PPC, 6mm BR |
+| Band | Distance | Key Skill | Contract Use |
+|------|----------|-----------|--------------|
+| Close | 7-50 yards | Fast setup, low visibility | Cheap or messy jobs; not the premium fantasy |
+| Mid | 50-200 yards | Clean sight picture, stable position | Basic contract work |
+| Precision | 200-600 yards | Accuracy, ammo consistency, position planning | Strong contract payouts |
+| Long Range | 600-1200 yards | Advanced ballistics, optic confidence, discipline | Premium contracts |
+| ELR | 1+ mile | Master ballistics, specialized equipment | Rare endgame contracts |
 
-For competition gameplay mechanics, see [hunting-and-competitions.md](hunting-and-competitions.md).
+For contract structure and payout logic, see [assassination-contracts.md](assassination-contracts.md). Hunting and competitions are now deferred side systems.

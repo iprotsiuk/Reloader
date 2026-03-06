@@ -35,25 +35,16 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator ExecuteCutover_DisablesLegacyPresenters_AndCreatesToolkitDocuments()
+        public IEnumerator ExecuteCutover_CreatesToolkitDocumentsAndRuntimeBridge()
         {
             var installerGo = new GameObject("Installer");
-            var installer = installerGo.AddComponent<UiToolkitRuntimeInstaller>();
-
-            var beltGo = new GameObject("LegacyBelt");
-            var ammoGo = new GameObject("LegacyAmmo");
-            var tabGo = new GameObject("LegacyTab");
-            beltGo.AddComponent<Reloader.UI.BeltHudPresenter>();
-            ammoGo.AddComponent<Reloader.UI.AmmoHudPresenter>();
-            tabGo.AddComponent<Reloader.UI.TabUiPresenter>();
+            installerGo.AddComponent<UiToolkitRuntimeInstaller>();
 
             var bootstrapGo = new GameObject("Bootstrap");
             var bootstrap = bootstrapGo.AddComponent<BeltHudBootstrap>();
             bootstrap.ExecuteCutover();
 
             yield return null;
-
-            Assert.That(installer.ActiveLegacyPresenterCountForTests(), Is.EqualTo(0));
 
             var runtimeRoot = Object.FindFirstObjectByType<UiToolkitRuntimeRoot>(FindObjectsInactive.Include);
             Assert.That(runtimeRoot, Is.Not.Null);
@@ -161,9 +152,6 @@ namespace Reloader.UI.Tests.PlayMode
             DestroyOwnersOfType<PlayerWeaponController>();
             DestroyOwnersOfType<WeaponRegistry>();
             DestroyOwnersOfType<StubPlayerInputSource>();
-            DestroyOwnersOfType<BeltHudPresenter>();
-            DestroyOwnersOfType<AmmoHudPresenter>();
-            DestroyOwnersOfType<TabUiPresenter>();
         }
 
         private static void DestroyOwnersOfType<T>() where T : Component
@@ -183,11 +171,6 @@ namespace Reloader.UI.Tests.PlayMode
 
 namespace Reloader.UI
 {
-    // Legacy marker stubs for cutover verification after legacy presenter deletion.
-    public sealed class BeltHudPresenter : MonoBehaviour { }
-    public sealed class AmmoHudPresenter : MonoBehaviour { }
-    public sealed class TabUiPresenter : MonoBehaviour { }
-
     public sealed class StubPlayerInputSource : MonoBehaviour, IPlayerInputSource
     {
         public Vector2 MoveInput => Vector2.zero;

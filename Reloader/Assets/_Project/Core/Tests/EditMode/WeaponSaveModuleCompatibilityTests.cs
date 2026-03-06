@@ -4,7 +4,7 @@ using Reloader.Weapons.Ballistics;
 
 namespace Reloader.Core.Tests.EditMode
 {
-    public class WeaponSaveModuleCompatibilityTests
+    public class WeaponSaveModuleTests
     {
         [Test]
         public void WeaponsModule_RoundTrip_PreservesWeaponStatesByItemId()
@@ -70,7 +70,7 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void WeaponsModule_Restore_LegacyPayload_DefaultsToEmptyStates()
+        public void WeaponsModule_Restore_EmptyPayload_DefaultsToEmptyStates()
         {
             var module = new WeaponsModule();
             module.RestoreModuleStateFromJson("{}");
@@ -119,7 +119,7 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void WeaponsModule_Validate_AllowsLegacyNullMagazineRoundsPayload()
+        public void WeaponsModule_Validate_NormalizesNullMagazineRoundsToEmpty()
         {
             var module = new WeaponsModule();
             module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord

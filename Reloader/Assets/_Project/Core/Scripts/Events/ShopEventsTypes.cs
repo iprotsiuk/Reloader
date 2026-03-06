@@ -29,17 +29,5 @@ namespace Reloader.Core.Events
             Success = success;
             FailureReason = success ? ShopTradeFailureReason.None : failureReason;
         }
-
-        public static ShopTradeFailureReason ParseLegacyFailureReason(string failureReason, bool success)
-        {
-            if (success || string.IsNullOrWhiteSpace(failureReason))
-            {
-                return ShopTradeFailureReason.None;
-            }
-
-            return System.Enum.TryParse(failureReason, ignoreCase: true, out ShopTradeFailureReason parsed)
-                ? parsed
-                : ShopTradeFailureReason.Unrecognized;
-        }
     }
 }

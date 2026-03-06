@@ -12,7 +12,7 @@ You are working on player, shared UI, or audio systems. Read these docs:
 2. `docs/design/v0.1-demo-status-and-milestones.md` — canonical implemented vs planned status
 3. `docs/design/prototype-scope.md` — version targets (scope by milestone)
 4. `docs/design/extensible-development-contracts.md` — UI runtime bridge and interaction workflow guardrails
-5. Domain doc(s) affected by your change (for example reloading, world, inventory/economy)
+5. Domain doc(s) affected by your change (for example contracts, world, inventory/economy)
 6. `.agent/skills/unity-project-conventions/SKILL.md` — project conventions for scripts/assets
 
 Do NOT load unrelated deep domain docs unless the change explicitly crosses that boundary.

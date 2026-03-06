@@ -19,6 +19,12 @@ namespace Reloader.UI.Toolkit.TabInventory
     {
         private const int MinimumBackpackUiSlots = 16;
         private const string RemoveAttachmentOption = "Remove";
+        private const string NoTargetMarkedText = "No target marked";
+        private const string NoWeaponSelectedText = "No weapon selected";
+        private const string ReconHooksInstalledText = "Recon hooks installed.";
+        private const string ReconHooksNotInstalledText = "Recon hooks are not installed.";
+        private const string SelectWeaponToManageAttachmentsText = "Select a weapon to manage attachments.";
+        private const string ZeroValidationShotsText = "0 validation shots";
 
         [SerializeField] private PlayerInventoryController _inventoryController;
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
@@ -36,7 +42,7 @@ namespace Reloader.UI.Toolkit.TabInventory
         private IUiStateEvents _uiStateEvents;
         private bool _useRuntimeKernelUiStateEvents = true;
         private bool _isOpen;
-        private string _activeSection = "inventory";
+        private string _activeSection = "device";
         private string _attachmentsWeaponItemId;
         private string _attachmentsWeaponDisplayName = string.Empty;
         private WeaponDefinition _attachmentsWeaponDefinition;
@@ -219,7 +225,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 }
 
                 SetMenuOpen(true);
-                _activeSection = "inventory";
+                _activeSection = "device";
                 Refresh();
             }
         }
@@ -410,12 +416,10 @@ namespace Reloader.UI.Toolkit.TabInventory
                     "{0} ({1:0.0} m)",
                     string.IsNullOrWhiteSpace(status.TargetDisplayName) ? "Unnamed Target" : status.TargetDisplayName,
                     Mathf.Max(0f, status.TargetDistanceMeters))
-                : "No target selected";
+                : NoTargetMarkedText;
 
             var shotCount = Mathf.Max(0, status.ShotCount);
-            var shotCountText = shotCount == 1
-                ? "1 shot"
-                : string.Format(CultureInfo.InvariantCulture, "{0} shots", shotCount);
+            var shotCountText = FormatValidationShotCount(shotCount);
             var spreadText = status.IsMoaAvailable
                 ? string.Format(CultureInfo.InvariantCulture, "{0:0.0} cm", Math.Max(0d, status.SpreadMeters) * 100d)
                 : "--";
@@ -436,7 +440,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 status.CanInstallHooks,
                 status.CanUninstallHooks,
                 string.IsNullOrWhiteSpace(status.AttachmentFeedbackText)
-                    ? (status.CanUninstallHooks ? "Hooks installed." : "Hooks are not installed.")
+                    ? (status.CanUninstallHooks ? ReconHooksInstalledText : ReconHooksNotInstalledText)
                     : status.AttachmentFeedbackText,
                 sessionHistoryEntries);
         }
@@ -564,12 +568,21 @@ namespace Reloader.UI.Toolkit.TabInventory
         {
             if (!TryResolvePayloadItemId(payload, out var itemId))
             {
+                _activeSection = "inventory";
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(payload.ItemId)
                 || !TryResolveWeaponDefinition(itemId, out var definition))
             {
+                if (LooksLikeWeaponItemId(itemId))
+                {
+                    SetUnresolvedAttachmentsState(itemId, SelectWeaponToManageAttachmentsText);
+                }
+                else
+                {
+                    _activeSection = "inventory";
+                }
                 return;
             }
 
@@ -592,6 +605,19 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             RebuildAttachmentItemOptions();
+            _activeSection = "attachments";
+        }
+
+        private void SetUnresolvedAttachmentsState(string itemId, string statusText)
+        {
+            _attachmentsWeaponItemId = itemId ?? string.Empty;
+            _attachmentsWeaponDefinition = null;
+            _attachmentsWeaponDisplayName = NoWeaponSelectedText;
+            _attachmentsSelectedSlotName = string.Empty;
+            _attachmentsSelectedAttachmentItemId = string.Empty;
+            _attachmentsStatusText = statusText ?? string.Empty;
+            _attachmentsSlotOptions.Clear();
+            _attachmentsItemOptions.Clear();
             _activeSection = "attachments";
         }
 
@@ -779,6 +805,12 @@ namespace Reloader.UI.Toolkit.TabInventory
             return string.Equals(value, RemoveAttachmentOption, StringComparison.Ordinal);
         }
 
+        private static bool LooksLikeWeaponItemId(string itemId)
+        {
+            return !string.IsNullOrWhiteSpace(itemId)
+                && itemId.StartsWith("weapon-", StringComparison.Ordinal);
+        }
+
         private bool TryResolveWeaponDefinition(string itemId, out WeaponDefinition definition)
         {
             definition = null;
@@ -788,31 +820,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             var registry = ResolveWeaponRegistry();
-            if (registry != null && registry.TryGetWeaponDefinition(itemId, out definition))
-            {
-                return true;
-            }
-
-            var registries = FindObjectsByType<WeaponRegistry>(FindObjectsSortMode.None);
-            for (var i = 0; i < registries.Length; i++)
-            {
-                var candidate = registries[i];
-                if (candidate == null || candidate == registry)
-                {
-                    continue;
-                }
-
-                if (!candidate.TryGetWeaponDefinition(itemId, out definition))
-                {
-                    continue;
-                }
-
-                _weaponRegistry = candidate;
-                return true;
-            }
-
-            definition = null;
-            return false;
+            return registry != null && registry.TryGetWeaponDefinition(itemId, out definition);
         }
 
         private bool TryGetContextWeaponRuntimeState(out WeaponRuntimeState state)
@@ -850,9 +858,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             {
                 var group = savedGroups[i];
                 var shotCount = Mathf.Max(0, group.ShotCount);
-                var shotText = shotCount == 1
-                    ? "1 shot"
-                    : string.Format(CultureInfo.InvariantCulture, "{0} shots", shotCount);
+                var shotText = FormatValidationShotCount(shotCount);
                 var spreadText = group.IsMoaAvailable
                     ? string.Format(CultureInfo.InvariantCulture, "{0:0.0} cm", Math.Max(0d, group.SpreadMeters) * 100d)
                     : "--";
@@ -871,6 +877,14 @@ namespace Reloader.UI.Toolkit.TabInventory
             return entries;
         }
 
+        private static string FormatValidationShotCount(int shotCount)
+        {
+            var clampedShotCount = Mathf.Max(0, shotCount);
+            return clampedShotCount == 1
+                ? "1 validation shot"
+                : string.Format(CultureInfo.InvariantCulture, "{0} validation shots", clampedShotCount);
+        }
+
         private readonly struct DevicePanelFields
         {
             public DevicePanelFields(
@@ -886,8 +900,8 @@ namespace Reloader.UI.Toolkit.TabInventory
                 string installFeedbackText,
                 string[] sessionHistoryEntries)
             {
-                SelectedTargetText = selectedTargetText ?? "No target selected";
-                ShotCountText = shotCountText ?? "0 shots";
+                SelectedTargetText = selectedTargetText ?? NoTargetMarkedText;
+                ShotCountText = shotCountText ?? ZeroValidationShotsText;
                 SpreadText = spreadText ?? "--";
                 MoaText = moaText ?? "--";
                 SavedGroupsText = savedGroupsText ?? "0";
@@ -914,8 +928,8 @@ namespace Reloader.UI.Toolkit.TabInventory
             public static DevicePanelFields CreateDefault()
             {
                 return new DevicePanelFields(
-                    selectedTargetText: "No target selected",
-                    shotCountText: "0 shots",
+                    selectedTargetText: NoTargetMarkedText,
+                    shotCountText: ZeroValidationShotsText,
                     spreadText: "--",
                     moaText: "--",
                     savedGroupsText: "0",
@@ -923,7 +937,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                     canClearGroup: false,
                     canInstallHooks: false,
                     canUninstallHooks: false,
-                    installFeedbackText: "Hooks are not installed.",
+                    installFeedbackText: ReconHooksNotInstalledText,
                     sessionHistoryEntries: Array.Empty<string>());
             }
         }

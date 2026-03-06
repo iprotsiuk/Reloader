@@ -563,12 +563,6 @@ namespace Reloader.Inventory
 
         private string ResolvePickupDisplayName(IInventoryPickupTarget pickupTarget)
         {
-            if (pickupTarget is IInventoryDisplayNamePickupTarget displayNameTarget
-                && !string.IsNullOrWhiteSpace(displayNameTarget.DisplayName))
-            {
-                return displayNameTarget.DisplayName;
-            }
-
             if (pickupTarget is IInventoryDefinitionPickupTarget definitionTarget
                 && definitionTarget.SpawnDefinition != null
                 && definitionTarget.SpawnDefinition.ItemDefinition != null
@@ -771,13 +765,7 @@ namespace Reloader.Inventory
                 return true;
             }
 
-            if (!TryResolveItemDefinitionFromLoadedObjects(itemId, out definition))
-            {
-                return false;
-            }
-
-            EnsureItemDefinitionRegistered(definition);
-            return true;
+            return false;
         }
 
         private bool TryResolveItemDefinitionFromRegistry(string itemId, out ItemDefinition definition)
@@ -806,30 +794,6 @@ namespace Reloader.Inventory
             }
 
             definition = null;
-            return false;
-        }
-
-        private static bool TryResolveItemDefinitionFromLoadedObjects(string itemId, out ItemDefinition definition)
-        {
-            definition = null;
-            var loadedDefinitions = Resources.FindObjectsOfTypeAll<ItemDefinition>();
-            for (var i = 0; i < loadedDefinitions.Length; i++)
-            {
-                var candidate = loadedDefinitions[i];
-                if (candidate == null || string.IsNullOrWhiteSpace(candidate.DefinitionId))
-                {
-                    continue;
-                }
-
-                if (!string.Equals(candidate.DefinitionId, itemId, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                definition = candidate;
-                return true;
-            }
-
             return false;
         }
 

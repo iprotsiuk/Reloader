@@ -68,7 +68,7 @@ Each step is a physical interaction at the workbench:
   - `ReloadingOperationGate` capability checks wired to `ReloadingFlowController`
   - `ReloadingBenchTarget` exposes bench runtime state to runtime/UI surfaces
 - Landed save/load persistence for mounted graphs:
-  - `WorkbenchLoadout` save module and `SchemaV4ToV5AddWorkbenchLoadoutMigration`
+  - `WorkbenchLoadout` save module in the current runtime schema
   - `WorkbenchRuntimeSaveBridge` capture/restore hooks via runtime bridge registry
 - Evidence tests include:
   - `WorkbenchMountDefinitionsEditModeTests`

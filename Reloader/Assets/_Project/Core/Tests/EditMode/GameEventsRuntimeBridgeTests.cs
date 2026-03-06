@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using NUnit.Framework;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
@@ -167,6 +166,39 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void RaiseHeatChanged_TypedPortInvokesConfiguredRuntimeHub()
+        {
+            var hub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), hub);
+
+            var receivedState = default(PoliceHeatState);
+            var raised = false;
+
+            void Handler(PoliceHeatState state)
+            {
+                raised = true;
+                receivedState = state;
+            }
+
+            hub.OnHeatChanged += Handler;
+            try
+            {
+                RuntimeKernelBootstrapper.LawEnforcementEvents.RaiseHeatChanged(
+                    new PoliceHeatState(PoliceHeatLevel.Search, CrimeType.Murder, 30f, false));
+            }
+            finally
+            {
+                hub.OnHeatChanged -= Handler;
+            }
+
+            Assert.That(raised, Is.True);
+            Assert.That(receivedState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+            Assert.That(receivedState.LastCrimeType, Is.EqualTo(CrimeType.Murder));
+            Assert.That(receivedState.SearchTimeRemainingSeconds, Is.EqualTo(30f));
+            Assert.That(receivedState.HasLineOfSightToPlayer, Is.False);
+        }
+
+        [Test]
         public void MenuVisibilityFlags_ArePreservedOnRuntimeHub()
         {
             var hub = new DefaultRuntimeEvents();
@@ -272,28 +304,11 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void LegacyGameEvents_AreMarkedObsoleteAsWarningOnly()
+        public void LegacyGameEvents_TypeIsRemoved()
         {
-            var typeAttribute = typeof(GameEvents).GetCustomAttributes(typeof(ObsoleteAttribute), false)
-                .OfType<ObsoleteAttribute>()
-                .SingleOrDefault();
-            Assert.That(typeAttribute, Is.Not.Null);
-            Assert.That(typeAttribute.IsError, Is.False);
+            var legacyType = typeof(DefaultRuntimeEvents).Assembly.GetType("Reloader.Core.Events.GameEvents");
 
-            var raiseMethods = typeof(GameEvents).GetMethods()
-                .Where(method => method.Name.StartsWith("Raise", StringComparison.Ordinal))
-                .ToArray();
-            Assert.That(raiseMethods.Length, Is.GreaterThan(0));
-
-            for (var i = 0; i < raiseMethods.Length; i++)
-            {
-                var methodAttribute = raiseMethods[i]
-                    .GetCustomAttributes(typeof(ObsoleteAttribute), false)
-                    .OfType<ObsoleteAttribute>()
-                    .SingleOrDefault();
-                Assert.That(methodAttribute, Is.Not.Null, $"{raiseMethods[i].Name} should be obsolete.");
-                Assert.That(methodAttribute.IsError, Is.False, $"{raiseMethods[i].Name} should be warning-only obsolete.");
-            }
+            Assert.That(legacyType, Is.Null);
         }
     }
 }

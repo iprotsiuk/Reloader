@@ -6,6 +6,10 @@ namespace Reloader.UI.Toolkit.TabInventory
 {
     public sealed class TabInventoryUiState : UiRenderState
     {
+        private const string NoTargetMarkedText = "No target marked";
+        private const string ZeroValidationShotsText = "0 validation shots";
+        private const string ReconHooksNotInstalledText = "Recon hooks are not installed.";
+
         public readonly struct SlotState
         {
             public SlotState(int index, string itemId, bool isOccupied, int quantity = 1, int maxStack = 1)
@@ -119,8 +123,8 @@ namespace Reloader.UI.Toolkit.TabInventory
             bool tooltipVisible,
             string activeSection = "device",
             bool deviceNotesVisible = true,
-            string deviceSelectedTargetText = "No target selected",
-            string deviceShotCountText = "0 shots",
+            string deviceSelectedTargetText = NoTargetMarkedText,
+            string deviceShotCountText = ZeroValidationShotsText,
             string deviceSpreadText = "--",
             string deviceMoaText = "--",
             string deviceSavedGroupsText = "0",
@@ -128,7 +132,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             bool deviceCanClearGroup = false,
             bool deviceCanInstallHooks = false,
             bool deviceCanUninstallHooks = false,
-            string deviceInstallFeedbackText = "Hooks are not installed.",
+            string deviceInstallFeedbackText = ReconHooksNotInstalledText,
             IEnumerable<string> deviceSessionHistoryEntries = null,
             string attachmentsWeaponName = "",
             string attachmentsStatusText = "",
