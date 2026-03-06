@@ -73,6 +73,21 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [Test]
+        public void RealKar98kOpticAsset_UsesRenderTexturePipVisualMode()
+        {
+            var opticDefinition = ResolveOpticDefinitionById("att-kar98k-scope-remote-a");
+            var adsVisualModeType = ResolveType("Reloader.Game.Weapons.AdsVisualMode");
+            Assert.That(opticDefinition, Is.Not.Null, "Expected the real Kar98k optic definition asset to be loaded.");
+            Assert.That(adsVisualModeType, Is.Not.Null);
+
+            var visualModePolicyProperty = opticDefinition.GetType().GetProperty("VisualModePolicy", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(visualModePolicyProperty, Is.Not.Null);
+
+            var visualMode = visualModePolicyProperty.GetValue(opticDefinition);
+            Assert.That(visualMode, Is.EqualTo(Enum.Parse(adsVisualModeType, "RenderTexturePiP")));
+        }
+
+        [Test]
         public void AttachmentManager_DefaultVerboseOpticLogs_AreDisabled()
         {
             var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
