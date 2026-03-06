@@ -6,7 +6,14 @@ namespace Reloader.Core.Runtime
 {
     public sealed class DefaultRuntimeEvents : IGameEventsRuntimeHub
     {
-        public IContractEvents ContractEvents => this;
+        private readonly IContractEvents _contractEvents;
+
+        public DefaultRuntimeEvents()
+        {
+            _contractEvents = new ContractEventsPort(this);
+        }
+
+        public IContractEvents ContractEvents => _contractEvents;
         public ILawEnforcementEvents LawEnforcementEvents => this;
         public IInventoryEvents InventoryEvents => this;
         public IWeaponEvents WeaponEvents => this;
@@ -57,10 +64,11 @@ namespace Reloader.Core.Runtime
         public event Action<int> OnMoneyChanged;
         public event Action<InteractionHintPayload> OnInteractionHintShown;
         public event Action OnInteractionHintCleared;
-        public event Action<string> OnContractAccepted;
-        public event Action<string> OnContractFailed;
-        public event Action<string, int> OnContractCompleted;
         public event Action<PoliceHeatState> OnHeatChanged;
+
+        private event Action<string> ContractAccepted;
+        private event Action<string> ContractFailed;
+        private event Action<string, int> ContractCompleted;
 
         public void RaiseSaveStarted() => OnSaveStarted?.Invoke();
         public void RaiseSaveCompleted() => OnSaveCompleted?.Invoke();
@@ -142,9 +150,6 @@ namespace Reloader.Core.Runtime
         }
 
         public void RaiseMoneyChanged(int amount) => OnMoneyChanged?.Invoke(amount);
-        public void RaiseContractAccepted(string contractId) => OnContractAccepted?.Invoke(contractId);
-        public void RaiseContractFailed(string contractId) => OnContractFailed?.Invoke(contractId);
-        public void RaiseContractCompleted(string contractId, int payout) => OnContractCompleted?.Invoke(contractId, payout);
         public void RaiseHeatChanged(PoliceHeatState state) => OnHeatChanged?.Invoke(state);
 
         public void RaiseInteractionHintShown(InteractionHintPayload payload)
@@ -165,6 +170,42 @@ namespace Reloader.Core.Runtime
             CurrentInteractionHint = new InteractionHintPayload(string.Empty, string.Empty, string.Empty);
             HasInteractionHint = false;
             OnInteractionHintCleared?.Invoke();
+        }
+
+        private void RaiseContractAcceptedInternal(string contractId) => ContractAccepted?.Invoke(contractId);
+        private void RaiseContractFailedInternal(string contractId) => ContractFailed?.Invoke(contractId);
+        private void RaiseContractCompletedInternal(string contractId, int payout) => ContractCompleted?.Invoke(contractId, payout);
+
+        private sealed class ContractEventsPort : IContractEvents
+        {
+            private readonly DefaultRuntimeEvents _owner;
+
+            public ContractEventsPort(DefaultRuntimeEvents owner)
+            {
+                _owner = owner ?? throw new ArgumentNullException(nameof(owner));
+            }
+
+            public event Action<string> OnContractAccepted
+            {
+                add => _owner.ContractAccepted += value;
+                remove => _owner.ContractAccepted -= value;
+            }
+
+            public event Action<string> OnContractFailed
+            {
+                add => _owner.ContractFailed += value;
+                remove => _owner.ContractFailed -= value;
+            }
+
+            public event Action<string, int> OnContractCompleted
+            {
+                add => _owner.ContractCompleted += value;
+                remove => _owner.ContractCompleted -= value;
+            }
+
+            public void RaiseContractAccepted(string contractId) => _owner.RaiseContractAcceptedInternal(contractId);
+            public void RaiseContractFailed(string contractId) => _owner.RaiseContractFailedInternal(contractId);
+            public void RaiseContractCompleted(string contractId, int payout) => _owner.RaiseContractCompletedInternal(contractId, payout);
         }
     }
 }
