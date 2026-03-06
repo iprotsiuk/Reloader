@@ -179,7 +179,11 @@ namespace Reloader.Game.Weapons
         {
             if (!isActive)
             {
-                _lastReticleController?.Clear();
+                if (_lastReticleController != null)
+                {
+                    _lastReticleController.Clear();
+                }
+
                 return;
             }
 

@@ -489,6 +489,105 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ScopedPipOptic_LensDisplaySwapsOffDarkSourceMaterialWhileActive()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            var scopeLensDisplayType = ResolveType("Reloader.Game.Weapons.ScopeLensDisplay");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+            Assert.That(scopeLensDisplayType, Is.Not.Null);
+
+            var root = new GameObject("ScopedAdsRoot");
+            ScriptableObject scopedOptic = null;
+            GameObject opticPrefab = null;
+            GameObject worldCamGo = null;
+            GameObject viewmodelCamGo = null;
+            GameObject scopeCameraGo = null;
+
+            try
+            {
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                worldCamGo = new GameObject("WorldCam");
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+                worldCamera.fieldOfView = 72f;
+
+                viewmodelCamGo = new GameObject("ViewmodelCam");
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+                viewmodelCamera.fieldOfView = 55f;
+
+                scopeCameraGo = new GameObject("ScopeCam");
+                var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+                scopeCamera.fieldOfView = 20f;
+
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+                SetField(scopeController, "_scopeCamera", scopeCamera);
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_worldCamera", worldCamera);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_renderTextureScopeController", scopeController);
+                SetField(ads, "_useLegacyInput", false);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-dark-lens", 4f, 12f, true, "RenderTexturePiP");
+                opticPrefab = new GameObject("Optic_scope-pip-dark-lens");
+                new GameObject("SightAnchor").transform.SetParent(opticPrefab.transform, false);
+                var lensDisplayGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                lensDisplayGo.name = "LensDisplay";
+                lensDisplayGo.transform.SetParent(opticPrefab.transform, false);
+                var lensRenderer = lensDisplayGo.GetComponent<Renderer>();
+                Assert.That(lensRenderer, Is.Not.Null);
+                var darkLensMaterial = new Material(Shader.Find("Standard"))
+                {
+                    color = new Color(0.1f, 0.1f, 0.1f, 0.25f)
+                };
+                lensRenderer.sharedMaterial = darkLensMaterial;
+
+                var prefabLensDisplay = lensDisplayGo.AddComponent(scopeLensDisplayType);
+                SetField(prefabLensDisplay, "_targetRenderer", lensRenderer);
+                SetField(scopedOptic, "_opticPrefab", opticPrefab);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+                var activeOpticInstance = GetProperty(manager, "ActiveOpticInstance") as GameObject;
+                Assert.That(activeOpticInstance, Is.Not.Null);
+                var liveLensDisplay = GetComponentInChildren(activeOpticInstance, scopeLensDisplayType);
+                Assert.That(liveLensDisplay, Is.Not.Null);
+
+                var liveLensRenderer = activeOpticInstance.transform.Find("LensDisplay")?.GetComponent<Renderer>();
+                Assert.That(liveLensRenderer, Is.Not.Null);
+                var originalMaterial = liveLensRenderer.sharedMaterial;
+                Assert.That(originalMaterial, Is.Not.Null);
+
+                Invoke(ads, "SetAdsHeld", true);
+                Invoke(ads, "SetMagnification", 8f);
+                yield return null;
+                yield return null;
+
+                Assert.That(liveLensRenderer.sharedMaterial, Is.Not.SameAs(originalMaterial),
+                    "Scoped PiP lens should swap off the dark source material while actively displaying the scope image.");
+
+                Assert.That((bool)Invoke(liveLensDisplay, "TrySetTexture", new object[] { null }), Is.True);
+
+                Assert.That(liveLensRenderer.sharedMaterial, Is.SameAs(originalMaterial),
+                    "Lens display should restore the authored lens material when the scope image is cleared.");
+            }
+            finally
+            {
+                Cleanup(root, scopedOptic, opticPrefab, worldCamGo, viewmodelCamGo, scopeCameraGo);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ScopedPipOptic_MissingReticleDefinition_LogsWarning()
         {
             var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
@@ -568,6 +667,60 @@ namespace Reloader.Weapons.Tests.PlayMode
             {
                 Application.logMessageReceived -= CaptureLog;
                 Cleanup(root, scopedOptic, opticPrefab, worldCamGo, viewmodelCamGo, scopeCameraGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ScopedPipOptic_DestroyedPreviousReticleController_DoesNotThrowOnDeactivate()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            var reticleControllerType = ResolveType("Reloader.Game.Weapons.ScopeReticleController");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+            Assert.That(reticleControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedAdsRoot");
+            ScriptableObject scopedOptic = null;
+            GameObject opticPrefab = null;
+            GameObject scopeCameraGo = null;
+
+            try
+            {
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                scopeCameraGo = new GameObject("ScopeCam");
+                var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+                SetField(scopeController, "_scopeCamera", scopeCamera);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-destroyed-reticle", 4f, 8f, true, "RenderTexturePiP");
+                opticPrefab = new GameObject("Optic_scope-pip-destroyed-reticle");
+                new GameObject("SightAnchor").transform.SetParent(opticPrefab.transform, false);
+                var reticleGo = new GameObject("Reticle");
+                reticleGo.transform.SetParent(opticPrefab.transform, false);
+                reticleGo.AddComponent(reticleControllerType);
+                SetField(scopedOptic, "_opticPrefab", opticPrefab);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+                var activeOpticInstance = GetProperty(manager, "ActiveOpticInstance") as GameObject;
+                Assert.That(activeOpticInstance, Is.Not.Null);
+
+                Invoke(scopeController, "SetScopeActive", true, scopedOptic, activeOpticInstance, 72f, 8f);
+                UnityEngine.Object.Destroy(activeOpticInstance);
+                yield return null;
+
+                Assert.DoesNotThrow(() => Invoke(scopeController, "SetScopeActive", false, scopedOptic, null, 72f, 1f));
+            }
+            finally
+            {
+                Cleanup(root, scopedOptic, opticPrefab, scopeCameraGo);
             }
         }
 
