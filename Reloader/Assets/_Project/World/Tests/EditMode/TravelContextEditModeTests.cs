@@ -15,22 +15,31 @@ namespace Reloader.World.Tests.EditMode
                 "MainTown",
                 "entry.indoor-range",
                 "entry.main-town.return",
-                TravelActivityType.IndoorRange,
+                TravelActivityType.ContractPrep,
                 TravelTimeAdvancePolicy.ShortTrip);
 
             Assert.That(Attribute.IsDefined(typeof(TravelContext), typeof(SerializableAttribute)), Is.True);
             Assert.That(context.DestinationSceneName, Is.EqualTo("MainTown"));
             Assert.That(context.DestinationEntryPointId, Is.EqualTo("entry.indoor-range"));
             Assert.That(context.ReturnEntryPointId, Is.EqualTo("entry.main-town.return"));
-            Assert.That(context.ActivityType, Is.EqualTo(TravelActivityType.IndoorRange));
+            Assert.That(context.ActivityType, Is.EqualTo(TravelActivityType.ContractPrep));
             Assert.That(context.TimeAdvancePolicy, Is.EqualTo(TravelTimeAdvancePolicy.ShortTrip));
+        }
+
+        [Test]
+        public void TravelActivityType_ContainsContractPrepAndContractExecutionLanguage()
+        {
+            Assert.That(Enum.IsDefined(typeof(TravelActivityType), nameof(TravelActivityType.ContractPrep)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(TravelActivityType), nameof(TravelActivityType.ContractExecution)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(TravelActivityType), nameof(TravelActivityType.PoliceEscape)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(TravelActivityType), nameof(TravelActivityType.TradeAndResupply)), Is.True);
         }
 
         [Test]
         public void TravelContext_ThrowsWhenDestinationSceneNameMissing()
         {
             Assert.That(
-                () => new TravelContext(" ", "entry-a", "entry-b", TravelActivityType.IndoorRange, TravelTimeAdvancePolicy.None),
+                () => new TravelContext(" ", "entry-a", "entry-b", TravelActivityType.ContractPrep, TravelTimeAdvancePolicy.None),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -38,7 +47,7 @@ namespace Reloader.World.Tests.EditMode
         public void TravelContext_ThrowsWhenDestinationEntryPointIdMissing()
         {
             Assert.That(
-                () => new TravelContext("MainTown", "", "entry-b", TravelActivityType.IndoorRange, TravelTimeAdvancePolicy.None),
+                () => new TravelContext("MainTown", "", "entry-b", TravelActivityType.ContractPrep, TravelTimeAdvancePolicy.None),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -46,7 +55,7 @@ namespace Reloader.World.Tests.EditMode
         public void TravelContext_ThrowsWhenReturnEntryPointIdMissing()
         {
             Assert.That(
-                () => new TravelContext("MainTown", "entry-a", null, TravelActivityType.IndoorRange, TravelTimeAdvancePolicy.None),
+                () => new TravelContext("MainTown", "entry-a", null, TravelActivityType.ContractPrep, TravelTimeAdvancePolicy.None),
                 Throws.TypeOf<ArgumentException>());
         }
 
@@ -157,7 +166,7 @@ namespace Reloader.World.Tests.EditMode
                 "MainTown",
                 "entry.indoor-range",
                 "entry.main-town.return",
-                TravelActivityType.IndoorRange,
+                TravelActivityType.ContractPrep,
                 TravelTimeAdvancePolicy.None);
 
             JsonUtility.FromJsonOverwrite("{\"_destinationSceneName\":\"\"}", context);

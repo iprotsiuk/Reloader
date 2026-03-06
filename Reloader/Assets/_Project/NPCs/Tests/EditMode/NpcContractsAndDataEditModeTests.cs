@@ -63,6 +63,9 @@ namespace Reloader.NPCs.Tests.EditMode
         [Test]
         public void RoleAndCapabilityEnums_IncludeApprovedScopeCMembers()
         {
+            Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.Handler)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.Target)), Is.True);
+            Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.Witness)), Is.True);
             Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.PoliceOfficer)), Is.True);
             Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.GameWarden)), Is.True);
             Assert.That(Enum.IsDefined(typeof(NpcRoleKind), nameof(NpcRoleKind.LawEnforcementOfficer)), Is.True);

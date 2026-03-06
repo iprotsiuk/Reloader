@@ -72,8 +72,16 @@ namespace Reloader.World.Editor
             contract.RequiredObjectPaths.Add("PlayerRoot/CameraPivot/WeaponMuzzle");
             contract.RequiredObjectPaths.Add("WeaponRegistry");
 
+            if (string.Equals(contract.ScenePath, MainTownScenePath, StringComparison.Ordinal))
+            {
+                contract.RequiredObjectPaths.Add("ReloadingWorkbench");
+                contract.RequiredObjectPaths.Add("MainTown_SmokeToIndoor_Trigger");
+                return;
+            }
+
             if (string.Equals(contract.ScenePath, IndoorRangeScenePath, StringComparison.Ordinal))
             {
+                contract.RequiredObjectPaths.Add("IndoorRange_SmokeToMainTown_Trigger");
                 contract.RequiredObjectPaths.Add("IndoorRange_Geometry");
                 contract.RequiredObjectPaths.Add("IndoorRange_Geometry/Range_Floor");
                 contract.RequiredObjectPaths.Add("IndoorRange_Geometry/Range_Ceiling");

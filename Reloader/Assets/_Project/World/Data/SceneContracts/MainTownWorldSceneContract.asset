@@ -20,6 +20,8 @@ MonoBehaviour:
   - PlayerRoot/CameraPivot/CameraLookTarget
   - PlayerRoot/CameraPivot/WeaponMuzzle
   - WeaponRegistry
+  - ReloadingWorkbench
+  - MainTown_SmokeToIndoor_Trigger
   _requiredComponentContracts:
   - _objectPath: WeaponRegistry
     _componentScriptAsset: {fileID: 11500000, guid: 3331390cdd63f426a9872b70f2353cce, type: 3}

@@ -76,6 +76,21 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
+        [Test]
+        public void DefaultWorldSceneContracts_IncludeContractPrepAnchors()
+        {
+            var mainTownContract = AssetDatabase.LoadAssetAtPath<WorldSceneContract>(
+                "Assets/_Project/World/Data/SceneContracts/MainTownWorldSceneContract.asset");
+            var indoorRangeContract = AssetDatabase.LoadAssetAtPath<WorldSceneContract>(
+                "Assets/_Project/World/Data/SceneContracts/IndoorRangeInstanceWorldSceneContract.asset");
+
+            Assert.That(mainTownContract, Is.Not.Null);
+            Assert.That(indoorRangeContract, Is.Not.Null);
+            Assert.That(mainTownContract!.RequiredObjectPaths, Does.Contain("ReloadingWorkbench"));
+            Assert.That(mainTownContract.RequiredObjectPaths, Does.Contain("MainTown_SmokeToIndoor_Trigger"));
+            Assert.That(indoorRangeContract!.RequiredObjectPaths, Does.Contain("IndoorRange_SmokeToMainTown_Trigger"));
+        }
+
         private static WorldSceneContract CreateBaseContract(WorldSceneRole sceneRole)
         {
             var contract = ScriptableObject.CreateInstance<WorldSceneContract>();
