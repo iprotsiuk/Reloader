@@ -66,6 +66,7 @@ Authoritative acquisition rules for this pass:
 - supported weapons and ammo are sold through the authored weapon/ammo vendor catalogs
 - the player's `StorageChest` remains general-purpose storage, but starts seeded once with the grandpa rifle kit:
   - `Kar98k`
+  - `Canik TP9`
   - `Kar98k` scope
   - `Kar98k` muzzle device
   - `50` rounds of `.308`

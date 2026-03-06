@@ -525,6 +525,10 @@ namespace Reloader.World.Editor
             CleanupPickupObjectByName("WeaponSpawn_PistolStarter_LPSP");
             CleanupPickupObjectByName("AmmoSpawn_308_LPSP");
             CleanupPickupObjectByName("AmmoSpawn_9x19_LPSP");
+            CleanupPickupObjectByName("AmmoSpawn_Cartridge308");
+            CleanupPickupObjectByName("AmmoSpawn_Cartridge308_Exported");
+            CleanupPickupObjectByName("AmmoSpawn_Bullet308");
+            CleanupPickupObjectByName("AmmoSpawn_Bullet308_Exported");
             CleanupPickupObjectByName("AttachmentSpawn_Kar98kScope");
             CleanupPickupObjectByName("AttachmentSpawn_Kar98kMuzzle");
         }

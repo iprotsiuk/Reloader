@@ -23,7 +23,7 @@
 - [x] Unsupported authored weapon content pruned
 - [x] MainTown / IndoorRange parity cleanup complete
 - [x] MainTown starter floor-spawn removal complete
-- [x] StorageChest one-time grandpa kit seeding complete
+- [x] StorageChest one-time starter weapon kit seeding complete
 - [x] Dropped-item visual cleanup complete
 - [x] Sniper scope subsystem docs aligned to assassination-contract roadmap
 - [x] Repo docs/ignore cleanup complete
@@ -67,6 +67,10 @@
   - `git diff --check`: passed
   - `storage-world-edit.xml`: green `10/10`
   - `storage-seed-play.xml`: green `2/2`
+- Follow-up starter-kit cleanup verification:
+  - red: `MainTownCombatWiringEditModeTests`: `2/4` passed (`AmmoSpawn_*308*` floor clutter still present, starter chest missing `weapon-canik-tp9`)
+  - green: `MainTownCombatWiringEditModeTests`: `4/4`
+  - green: `WorldStorageContainerSeedLoadoutPlayModeTests`: `2/2`
 - Repo contract verification:
   - `bash scripts/verify-docs-and-context.sh`: passed
   - `bash scripts/verify-extensible-development-contracts.sh`: passed
@@ -81,4 +85,5 @@
 - Do not invent fake pistol attachment content in this pass.
 - Do not broaden this into the later contract/law/NPC/world architecture rewrite.
 - Starter access is now vendor/storage-driven; scene-floor starter pickups are intentionally removed.
+- `StorageChest` starter kit now includes both the `Kar98k` and `Canik TP9`.
 - Keep this progress doc updated with commits, verification, and deferred follow-ups.

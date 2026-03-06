@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Weapons.Runtime;
@@ -31,7 +33,7 @@ namespace Reloader.World.Tests.EditMode
         {
             if (_root != null)
             {
-                Object.DestroyImmediate(_root);
+                UnityEngine.Object.DestroyImmediate(_root);
             }
         }
 
@@ -79,10 +81,76 @@ namespace Reloader.World.Tests.EditMode
                     ".308 starter ammo pickup should stay removed from MainTown.");
                 Assert.That(FindRoot(scene, "AmmoSpawn_9x19_LPSP"), Is.Null,
                     "9x19 starter ammo pickup should stay removed from MainTown.");
+                Assert.That(FindRoot(scene, "AmmoSpawn_Cartridge308"), Is.Null,
+                    "Legacy loose .308 cartridge pickup should stay removed from MainTown.");
+                Assert.That(FindRoot(scene, "AmmoSpawn_Cartridge308_Exported"), Is.Null,
+                    "Exported loose .308 cartridge pickup should stay removed from MainTown.");
+                Assert.That(FindRoot(scene, "AmmoSpawn_Bullet308"), Is.Null,
+                    "Legacy loose .308 bullet pickup should stay removed from MainTown.");
+                Assert.That(FindRoot(scene, "AmmoSpawn_Bullet308_Exported"), Is.Null,
+                    "Exported loose .308 bullet pickup should stay removed from MainTown.");
                 Assert.That(FindRoot(scene, "AttachmentSpawn_Kar98kScope"), Is.Null,
                     "Kar98k scope pickup should move to the vendor/chest authority path.");
                 Assert.That(FindRoot(scene, "AttachmentSpawn_Kar98kMuzzle"), Is.Null,
                     "Kar98k muzzle pickup should move to the vendor/chest authority path.");
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void MainTownScene_SeedsStorageChest_WithRifleAndCanikStarterLoadout()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var storageChest = FindRoot(scene, "StorageChest");
+                Assert.That(storageChest, Is.Not.Null, "MainTown should keep the authored StorageChest root.");
+
+                var seederType = Type.GetType("Reloader.Inventory.WorldStorageContainerSeedLoadout, Reloader.Inventory");
+                Assert.That(seederType, Is.Not.Null, "Expected chest starter-loadout seeder type.");
+
+                var seeder = storageChest!.GetComponent(seederType!);
+                Assert.That(seeder, Is.Not.Null, "StorageChest should seed the supported starter loadout.");
+
+                var entriesProperty = new SerializedObject(seeder).FindProperty("_entries");
+                Assert.That(entriesProperty, Is.Not.Null);
+
+                var itemIds = new List<string>();
+                var ammo308Quantity = 0;
+                for (var i = 0; i < entriesProperty.arraySize; i++)
+                {
+                    var element = entriesProperty.GetArrayElementAtIndex(i);
+                    var definition = element.FindPropertyRelative("_itemDefinition").objectReferenceValue;
+                    Assert.That(definition, Is.Not.Null, "Seed entries should point to real item definitions.");
+
+                    var itemId = new SerializedObject(definition).FindProperty("_definitionId")!.stringValue;
+                    itemIds.Add(itemId);
+                    if (itemId == "ammo-factory-308-147-fmj")
+                    {
+                        ammo308Quantity = element.FindPropertyRelative("_quantity").intValue;
+                    }
+                }
+
+                CollectionAssert.AreEquivalent(
+                    new[]
+                    {
+                        "weapon-kar98k",
+                        "weapon-canik-tp9",
+                        "att-kar98k-scope-remote-a",
+                        "att-kar98k-muzzle-device-c",
+                        "ammo-factory-308-147-fmj"
+                    },
+                    itemIds);
+                Assert.That(ammo308Quantity, Is.EqualTo(50), "Starter chest should seed exactly 50 rounds of .308.");
             }
             finally
             {
