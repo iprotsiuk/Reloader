@@ -25,8 +25,8 @@
 - [x] MainTown starter floor-spawn removal complete
 - [x] StorageChest one-time grandpa kit seeding complete
 - [x] Dropped-item visual cleanup complete
-- [ ] Sniper scope subsystem docs aligned to assassination-contract roadmap
-- [ ] Repo docs/ignore cleanup complete
+- [x] Sniper scope subsystem docs aligned to assassination-contract roadmap
+- [x] Repo docs/ignore cleanup complete
 - [x] Targeted verification complete
 - [x] PR updated with progress/evidence
 
@@ -63,6 +63,10 @@
   - `MainTownCombatWiringEditModeTests.MainTownScene_RemovesStarterFloorPickups_InFavorOfVendorAndChestAuthority`: green `1/1`
   - `WorldStorageContainerSeedLoadoutPlayModeTests`: green `2/2`
   - `StorageTransferEngineTests`: green `2/2`
+- Fresh detached-worktree verification (`1c39c47f`):
+  - `git diff --check`: passed
+  - `storage-world-edit.xml`: green `10/10`
+  - `storage-seed-play.xml`: green `2/2`
 - Repo contract verification:
   - `bash scripts/verify-docs-and-context.sh`: passed
   - `bash scripts/verify-extensible-development-contracts.sh`: passed
