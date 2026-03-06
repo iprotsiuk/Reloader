@@ -128,14 +128,11 @@ namespace Reloader.Game.Weapons
                 targetLocalRotation = targetWorldRotation;
             }
 
-            var blendedLocalPosition = Vector3.Lerp(_restLocalPosition, targetLocalPosition, adsT);
-            var blendedLocalRotation = Quaternion.Slerp(_restLocalRotation, targetLocalRotation, adsT);
-
-            var positionStep = 1f - Mathf.Exp(-Mathf.Max(0.001f, _positionLerpSpeed) * Time.deltaTime);
-            var rotationStep = 1f - Mathf.Exp(-Mathf.Max(0.001f, _rotationLerpSpeed) * Time.deltaTime);
-
-            _adsPivot.localPosition = Vector3.Lerp(_adsPivot.localPosition, blendedLocalPosition, positionStep);
-            _adsPivot.localRotation = Quaternion.Slerp(_adsPivot.localRotation, blendedLocalRotation, rotationStep);
+            // Scoped ADS timing already comes from AdsStateController.AdsT.
+            // Apply the solved pivot pose directly from that blend so the optic
+            // is fully aligned when ADS completes instead of continuing to settle.
+            _adsPivot.localPosition = Vector3.Lerp(_restLocalPosition, targetLocalPosition, adsT);
+            _adsPivot.localRotation = Quaternion.Slerp(_restLocalRotation, targetLocalRotation, adsT);
 
             DebugAlignmentErrorDistance = Vector3.Distance(sightAnchor.position, cameraTx.position);
             DebugAlignmentErrorAngleDegrees = Quaternion.Angle(sightAnchor.rotation, cameraTx.rotation);

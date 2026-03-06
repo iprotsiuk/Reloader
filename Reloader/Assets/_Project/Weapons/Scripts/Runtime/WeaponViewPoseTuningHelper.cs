@@ -150,9 +150,17 @@ namespace Reloader.Weapons.Runtime
                 ? $"AttachmentOverride[{overrideIndex}]"
                 : "Base";
 
+            var useDirectScopedBlend = ShouldUseDirectScopedBlend();
             var targetT = ResolveTargetAdsBlendT();
-            var step = 1f - Mathf.Exp(-Mathf.Max(1f, pose.BlendSpeed) * Time.deltaTime);
-            _blendT = Mathf.Lerp(_blendT, targetT, step);
+            if (useDirectScopedBlend)
+            {
+                _blendT = targetT;
+            }
+            else
+            {
+                var step = 1f - Mathf.Exp(-Mathf.Max(1f, pose.BlendSpeed) * Time.deltaTime);
+                _blendT = Mathf.Lerp(_blendT, targetT, step);
+            }
 
             var targetPosition = Vector3.Lerp(pose.HipLocalPosition, pose.AdsLocalPosition, _blendT);
             var hipRot = Quaternion.Euler(pose.HipLocalEuler);
@@ -187,12 +195,19 @@ namespace Reloader.Weapons.Runtime
                 return 0f;
             }
 
-            if (_weaponController.HasActiveScopedAdsAlignment && _weaponController.HasMagnifiedOpticEquipped())
+            if (ShouldUseDirectScopedBlend())
             {
                 return _weaponController.CurrentAdsBlendT;
             }
 
             return _weaponController.IsAimInputHeld ? 1f : 0f;
+        }
+
+        private bool ShouldUseDirectScopedBlend()
+        {
+            return _weaponController != null
+                && _weaponController.HasActiveScopedAdsAlignment
+                && _weaponController.HasMagnifiedOpticEquipped();
         }
 
         private PoseData ResolveActivePose(out int overrideIndex, out string matchedAttachmentItemId)

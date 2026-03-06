@@ -76,11 +76,11 @@ namespace Reloader.World.Editor
                 if (context.UsesMagnifiedScopedAlignment)
                 {
                     EditorGUILayout.HelpBox(
-                        "Magnified scoped ADS is camera-authoritative. Root ADS position/euler remain coarse presentation inputs, while Scoped Eye Relief Back Offset is the effective full-ADS tuning control.",
+                        "Magnified scoped ADS is camera-authoritative. Root ADS position/euler are only coarse presentation inputs. Use Move Rifle Away From Camera for the actual full-ADS camera distance adjustment.",
                         MessageType.None);
                 }
 
-                _playModeBufferValues = DrawValuesEditor(_playModeBufferValues);
+                _playModeBufferValues = DrawValuesEditor(_playModeBufferValues, context.UsesMagnifiedScopedAlignment);
 
                 if (GUILayout.Button("Apply Runtime Override Values"))
                 {
@@ -98,7 +98,7 @@ namespace Reloader.World.Editor
             }
 
             SyncPlayModeBaseBuffer(context.Values);
-            _playModeBufferValues = DrawValuesEditor(_playModeBufferValues);
+            _playModeBufferValues = DrawValuesEditor(_playModeBufferValues, context.UsesMagnifiedScopedAlignment);
 
             if (GUILayout.Button("Apply Runtime Base Pose Values"))
             {
@@ -149,7 +149,7 @@ namespace Reloader.World.Editor
             }
         }
 
-        private static WeaponViewPoseTuningValues DrawValuesEditor(WeaponViewPoseTuningValues values)
+        private static WeaponViewPoseTuningValues DrawValuesEditor(WeaponViewPoseTuningValues values, bool usesMagnifiedScopedAlignment)
         {
             values.HipLocalPosition = DrawDelayedVector3Field("Hip Local Position", values.HipLocalPosition);
             values.HipLocalEuler = DrawDelayedVector3Field("Hip Local Euler", values.HipLocalEuler);
@@ -157,18 +157,49 @@ namespace Reloader.World.Editor
             values.AdsLocalEuler = DrawDelayedVector3Field("Ads Local Euler", values.AdsLocalEuler);
             values.BlendSpeed = EditorGUILayout.DelayedFloatField("Blend Speed", values.BlendSpeed);
             values.RifleLocalEulerOffset = DrawDelayedVector3Field("Rifle Local Euler Offset", values.RifleLocalEulerOffset);
-            values.ScopedAdsEyeReliefBackOffset = EditorGUILayout.DelayedFloatField("Scoped Eye Relief Back Offset", values.ScopedAdsEyeReliefBackOffset);
+            if (usesMagnifiedScopedAlignment)
+            {
+                var moveRifleAwayFromCamera = EditorGUILayout.DelayedFloatField(
+                    new GUIContent(
+                        "Move Rifle Away From Camera",
+                        "Positive values move the scoped rifle farther away from the camera during full magnified ADS."),
+                    -values.ScopedAdsEyeReliefBackOffset);
+                values.ScopedAdsEyeReliefBackOffset = -moveRifleAwayFromCamera;
+            }
+            else
+            {
+                values.ScopedAdsEyeReliefBackOffset = EditorGUILayout.DelayedFloatField("Scoped Eye Relief Back Offset", values.ScopedAdsEyeReliefBackOffset);
+            }
+
             return values;
         }
 
         private static Vector3 DrawDelayedVector3Field(string label, Vector3 value)
         {
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.PrefixLabel(label);
-            value.x = EditorGUILayout.DelayedFloatField("X", value.x);
-            value.y = EditorGUILayout.DelayedFloatField("Y", value.y);
-            value.z = EditorGUILayout.DelayedFloatField("Z", value.z);
-            EditorGUILayout.EndHorizontal();
+            var rect = EditorGUILayout.GetControlRect();
+            var contentRect = EditorGUI.PrefixLabel(rect, new GUIContent(label));
+            var previousIndent = EditorGUI.indentLevel;
+            EditorGUI.indentLevel = 0;
+
+            var labelWidth = EditorGUIUtility.labelWidth;
+            EditorGUIUtility.labelWidth = 14f;
+            value = DrawDelayedMultiFloatField(contentRect, value);
+            EditorGUIUtility.labelWidth = labelWidth;
+            EditorGUI.indentLevel = previousIndent;
+            return value;
+        }
+
+        private static Vector3 DrawDelayedMultiFloatField(Rect rect, Vector3 value)
+        {
+            var spacing = 4f;
+            var fieldWidth = (rect.width - (spacing * 2f)) / 3f;
+            var xRect = new Rect(rect.x, rect.y, fieldWidth, rect.height);
+            var yRect = new Rect(xRect.xMax + spacing, rect.y, fieldWidth, rect.height);
+            var zRect = new Rect(yRect.xMax + spacing, rect.y, fieldWidth, rect.height);
+
+            value.x = EditorGUI.DelayedFloatField(xRect, "X", value.x);
+            value.y = EditorGUI.DelayedFloatField(yRect, "Y", value.y);
+            value.z = EditorGUI.DelayedFloatField(zRect, "Z", value.z);
             return value;
         }
 
