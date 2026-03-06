@@ -3256,6 +3256,14 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(GetField(aimAlignerType, aimAligner, "_adsPivot"), Is.SameAs(runtimeAdsPivot));
                 Assert.That(GetField(aimAlignerType, aimAligner, "_pivotParent"), Is.SameAs(equippedView.transform), "Runtime-wired aim aligner should refresh its cached pivot parent after AdsPivot assignment.");
                 Assert.That((Vector3)GetField(aimAlignerType, aimAligner, "_restLocalPosition"), Is.EqualTo(new Vector3(0.11f, -0.07f, 0.23f)));
+
+                controller.SetScopedAdsPresentationEyeReliefOffset(0.19f);
+                yield return null;
+
+                Assert.That(
+                    GetField(aimAlignerType, aimAligner, "_runtimeEyeReliefBackOffset"),
+                    Is.EqualTo(0.19f).Within(0.001f),
+                    "Scoped pose tuning should forward attachment-specific eye-relief offsets into the live WeaponAimAligner bridge.");
             }
             finally
             {

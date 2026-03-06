@@ -6,6 +6,7 @@ using UnityEditor;
 
 namespace Reloader.Game.Weapons
 {
+    [DefaultExecutionOrder(11000)]
     public sealed class WeaponAimAligner : MonoBehaviour
     {
         [Header("References")]
@@ -32,9 +33,11 @@ namespace Reloader.Game.Weapons
         private float _nextMainCameraRefreshTime;
         private bool _loggedMissingPivot;
         private bool _loggedMissingAnchorSource;
+        private float _runtimeEyeReliefBackOffset;
 
         public float DebugAlignmentErrorDistance { get; private set; }
         public float DebugAlignmentErrorAngleDegrees { get; private set; }
+        public float RuntimeEyeReliefBackOffset => _runtimeEyeReliefBackOffset;
 
         private void Awake()
         {
@@ -57,6 +60,11 @@ namespace Reloader.Game.Weapons
             _attachmentManager = attachmentManager;
             _adsStateController = adsStateController;
             RefreshRuntimeCaches();
+        }
+
+        public void SetRuntimeEyeReliefBackOffset(float value)
+        {
+            _runtimeEyeReliefBackOffset = value;
         }
 
         private void LateUpdate()
@@ -104,7 +112,7 @@ namespace Reloader.Game.Weapons
                 opticEyeRelief = activeOptic.EyeReliefBackOffset;
             }
 
-            var totalEyeRelief = opticEyeRelief + _extraEyeReliefBackOffset;
+            var totalEyeRelief = opticEyeRelief + _extraEyeReliefBackOffset + _runtimeEyeReliefBackOffset;
             targetWorldPosition += (-sightAnchor.forward) * totalEyeRelief;
 
             Vector3 targetLocalPosition;
