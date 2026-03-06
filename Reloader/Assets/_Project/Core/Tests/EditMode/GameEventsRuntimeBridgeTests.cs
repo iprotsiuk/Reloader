@@ -167,6 +167,39 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void RaiseHeatChanged_TypedPortInvokesConfiguredRuntimeHub()
+        {
+            var hub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), hub);
+
+            var receivedState = default(PoliceHeatState);
+            var raised = false;
+
+            void Handler(PoliceHeatState state)
+            {
+                raised = true;
+                receivedState = state;
+            }
+
+            hub.OnHeatChanged += Handler;
+            try
+            {
+                RuntimeKernelBootstrapper.LawEnforcementEvents.RaiseHeatChanged(
+                    new PoliceHeatState(PoliceHeatLevel.Search, CrimeType.Murder, 30f, false));
+            }
+            finally
+            {
+                hub.OnHeatChanged -= Handler;
+            }
+
+            Assert.That(raised, Is.True);
+            Assert.That(receivedState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+            Assert.That(receivedState.LastCrimeType, Is.EqualTo(CrimeType.Murder));
+            Assert.That(receivedState.SearchTimeRemainingSeconds, Is.EqualTo(30f));
+            Assert.That(receivedState.HasLineOfSightToPlayer, Is.False);
+        }
+
+        [Test]
         public void MenuVisibilityFlags_ArePreservedOnRuntimeHub()
         {
             var hub = new DefaultRuntimeEvents();

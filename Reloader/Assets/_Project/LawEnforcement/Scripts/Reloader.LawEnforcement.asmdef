@@ -1,0 +1,16 @@
+{
+  "name": "Reloader.LawEnforcement",
+  "rootNamespace": "Reloader.LawEnforcement",
+  "references": [
+    "Reloader.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

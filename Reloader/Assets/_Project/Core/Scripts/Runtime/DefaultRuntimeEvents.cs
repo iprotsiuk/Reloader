@@ -7,6 +7,7 @@ namespace Reloader.Core.Runtime
     public sealed class DefaultRuntimeEvents : IGameEventsRuntimeHub
     {
         public IContractEvents ContractEvents => this;
+        public ILawEnforcementEvents LawEnforcementEvents => this;
         public IInventoryEvents InventoryEvents => this;
         public IWeaponEvents WeaponEvents => this;
         public IShopEvents ShopEvents => this;
@@ -59,6 +60,7 @@ namespace Reloader.Core.Runtime
         public event Action<string> OnContractAccepted;
         public event Action<string> OnContractFailed;
         public event Action<string, int> OnContractCompleted;
+        public event Action<PoliceHeatState> OnHeatChanged;
 
         public void RaiseSaveStarted() => OnSaveStarted?.Invoke();
         public void RaiseSaveCompleted() => OnSaveCompleted?.Invoke();
@@ -143,6 +145,7 @@ namespace Reloader.Core.Runtime
         public void RaiseContractAccepted(string contractId) => OnContractAccepted?.Invoke(contractId);
         public void RaiseContractFailed(string contractId) => OnContractFailed?.Invoke(contractId);
         public void RaiseContractCompleted(string contractId, int payout) => OnContractCompleted?.Invoke(contractId, payout);
+        public void RaiseHeatChanged(PoliceHeatState state) => OnHeatChanged?.Invoke(state);
 
         public void RaiseInteractionHintShown(InteractionHintPayload payload)
         {

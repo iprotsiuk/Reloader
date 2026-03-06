@@ -26,6 +26,7 @@ namespace Reloader.Core.Runtime
         }
 
         public static IContractEvents ContractEvents => kernel.Events;
+        public static ILawEnforcementEvents LawEnforcementEvents => kernel.Events;
         public static IInventoryEvents InventoryEvents => kernel.Events;
         public static IWeaponEvents WeaponEvents => kernel.Events;
         public static IShopEvents ShopEvents => kernel.Events;
