@@ -17,8 +17,10 @@ namespace Reloader.Weapons.Tests.PlayMode
         public IEnumerator EquipOptic_RealKar98kAsset_MountsWithoutEditorFallbackAndResolvesSightAnchor()
         {
             var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var scopeLensDisplayType = ResolveType("Reloader.Game.Weapons.ScopeLensDisplay");
             var opticDefinition = ResolveOpticDefinitionById("att-kar98k-scope-remote-a");
             Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(scopeLensDisplayType, Is.Not.Null);
             Assert.That(opticDefinition, Is.Not.Null, "Expected the real Kar98k optic definition asset to be loaded.");
 
             var root = new GameObject("AttachmentRoot");
@@ -46,10 +48,13 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That((bool)Invoke(manager, "EquipOptic", opticDefinition), Is.True);
 
                 var activeAnchor = Invoke(manager, "GetActiveSightAnchor") as Transform;
+                var activeOpticInstance = GetProperty(manager, "ActiveOpticInstance") as GameObject;
                 Assert.That(activeAnchor, Is.Not.Null);
+                Assert.That(activeOpticInstance, Is.Not.Null);
                 Assert.That(activeAnchor.name, Is.EqualTo("SightAnchor"), "Real Kar98k optic should resolve an authored sight anchor.");
                 Assert.That(scopeSlot.childCount, Is.EqualTo(1));
                 Assert.That(activeAnchor, Is.Not.EqualTo(scopeSlot.GetChild(0)), "Sight anchor should not fall back to optic root.");
+                Assert.That(GetComponentInChildren(activeOpticInstance, scopeLensDisplayType), Is.Not.Null, "Real Kar98k optic should expose a ScopeLensDisplay for PiP rendering.");
                 Assert.That(
                     warnings.Exists(message => message.Contains("Used editor fallback optic prefab", StringComparison.Ordinal)),
                     Is.False,

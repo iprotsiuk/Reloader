@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 5137711122186616543}
   - component: {fileID: 6981974052022582770}
   - component: {fileID: 6379749452625415218}
+  - component: {fileID: 2670341455139284412}
   m_Layer: 0
   m_Name: WWII_Optic_Remote_Range_A_Lens
   m_TagString: Untagged
@@ -86,6 +87,19 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &2670341455139284412
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5700527204250208448}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5fb4c2b0e92146c9a1c1efecc5c2a23, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _targetRenderer: {fileID: 6379749452625415218}
 --- !u!1 &9098247942822831858
 GameObject:
   m_ObjectHideFlags: 0
