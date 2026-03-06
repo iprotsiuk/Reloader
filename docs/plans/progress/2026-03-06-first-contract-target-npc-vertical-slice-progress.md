@@ -4,8 +4,8 @@
 
 - [x] Design locked
 - [x] Implementation plan written
-- [ ] Non-draft PR opened to `main`
-- [ ] `@codex` tagged for review
+- [x] Non-draft PR opened to `main`
+- [x] `@codex` tagged for review
 
 ## Execution Checklist
 
@@ -24,3 +24,4 @@
 
 - Scope is intentionally narrow: one contract, one target NPC, one `MainTown` loop.
 - Handler NPC intake, portraits, confiscation/respawn, and broad civilian spawning are deferred.
+- PR: `#25` `feat: first contract target NPC vertical slice`
