@@ -104,7 +104,9 @@ namespace Reloader.Weapons.Controllers
         private Component _adsStateRuntimeBridge;
         private Component _adsAttachmentManagerRuntimeBridge;
         private Component _weaponAimAlignerRuntimeBridge;
+        private float _scopedAdsPresentationEyeReliefOffset;
         private PropertyInfo _adsActiveOpticProperty;
+        private PropertyInfo _adsBlendProperty;
         private MethodInfo _adsSetHeldMethod;
         private MethodInfo _adsSetMagnificationMethod;
         private PropertyInfo _adsCurrentMagnificationProperty;
@@ -121,6 +123,7 @@ namespace Reloader.Weapons.Controllers
         public Transform EquippedWeaponViewTransform => _equippedWeaponView != null ? _equippedWeaponView.transform : null;
         public bool IsAiming => _isAiming;
         public bool IsAimInputHeld => _inputSource != null && _inputSource.AimHeld;
+        public float CurrentAdsBlendT => ResolveCurrentAdsBlendT();
 
         private void Awake()
         {
@@ -881,6 +884,30 @@ namespace Reloader.Weapons.Controllers
             }
 
             return _adsActiveOpticProperty.GetValue(_adsAttachmentManagerRuntimeBridge) != null;
+        }
+
+        public bool HasActiveScopedAdsAlignment => HasScopedAdsBridgeActive() && _weaponAimAlignerRuntimeBridge != null;
+        public float ScopedAdsPresentationEyeReliefOffset => _scopedAdsPresentationEyeReliefOffset;
+
+        public void SetScopedAdsPresentationEyeReliefOffset(float value)
+        {
+            _scopedAdsPresentationEyeReliefOffset = value;
+            ApplyScopedAdsPresentationEyeReliefOffset();
+        }
+
+        private float ResolveCurrentAdsBlendT()
+        {
+            if (_adsStateRuntimeBridge != null)
+            {
+                var bridgeType = _adsStateRuntimeBridge.GetType();
+                _adsBlendProperty ??= bridgeType.GetProperty("AdsT", BindingFlags.Instance | BindingFlags.Public);
+                if (_adsBlendProperty != null && _adsBlendProperty.GetValue(_adsStateRuntimeBridge) is float adsBlend)
+                {
+                    return Mathf.Clamp01(adsBlend);
+                }
+            }
+
+            return _inputSource != null && _inputSource.AimHeld ? 1f : 0f;
         }
 
         public bool TryGetActiveOpticMagnification(out float minMagnification, out float maxMagnification)
@@ -1752,6 +1779,7 @@ namespace Reloader.Weapons.Controllers
             {
                 _adsStateRuntimeBridge = null;
                 _weaponAimAlignerRuntimeBridge = null;
+                _scopedAdsPresentationEyeReliefOffset = 0f;
                 _adsActiveOpticProperty = null;
                 return;
             }
@@ -1761,6 +1789,7 @@ namespace Reloader.Weapons.Controllers
             {
                 _adsStateRuntimeBridge = null;
                 _weaponAimAlignerRuntimeBridge = null;
+                _scopedAdsPresentationEyeReliefOffset = 0f;
                 _adsActiveOpticProperty = null;
                 return;
             }
@@ -1842,6 +1871,7 @@ namespace Reloader.Weapons.Controllers
             }
 
             _weaponAimAlignerRuntimeBridge = aligner;
+            ApplyScopedAdsPresentationEyeReliefOffset();
         }
 
         private void EnsureRenderTextureScopeRuntimeBridge(Type adsType, Camera worldCamera)
@@ -2255,10 +2285,25 @@ namespace Reloader.Weapons.Controllers
 
             _adsStateRuntimeBridge = null;
             _adsAttachmentManagerRuntimeBridge = null;
+            _weaponAimAlignerRuntimeBridge = null;
+            _scopedAdsPresentationEyeReliefOffset = 0f;
             _adsActiveOpticProperty = null;
+            _adsBlendProperty = null;
             _adsSetHeldMethod = null;
             _adsSetMagnificationMethod = null;
             _adsCurrentMagnificationProperty = null;
+        }
+
+        private void ApplyScopedAdsPresentationEyeReliefOffset()
+        {
+            if (_weaponAimAlignerRuntimeBridge == null)
+            {
+                return;
+            }
+
+            var alignerType = _weaponAimAlignerRuntimeBridge.GetType();
+            var setter = alignerType.GetMethod("SetRuntimeEyeReliefBackOffset", BindingFlags.Instance | BindingFlags.Public);
+            setter?.Invoke(_weaponAimAlignerRuntimeBridge, new object[] { _scopedAdsPresentationEyeReliefOffset });
         }
 
         private static void ClearAttachmentSlots(WeaponRuntimeState state)

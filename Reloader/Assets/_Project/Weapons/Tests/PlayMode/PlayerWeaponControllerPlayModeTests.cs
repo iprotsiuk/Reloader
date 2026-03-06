@@ -3703,6 +3703,88 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator WeaponViewPoseTuningHelper_WithZeroAuthoredPose_DoesNotInjectKar98kDefaultsAtRuntime()
+        {
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Kar98k", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+
+                viewPrefab = new GameObject("Kar98kView");
+                ConfigureTestWeaponViewMounts(viewPrefab);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
+
+                var poseHelper = root.AddComponent<WeaponViewPoseTuningHelper>();
+                var helperType = typeof(WeaponViewPoseTuningHelper);
+                SetField(helperType, poseHelper, "_weaponController", controller);
+                SetField(helperType, poseHelper, "_targetWeaponItemId", "weapon-kar98k");
+                SetField(helperType, poseHelper, "_hipLocalPosition", Vector3.zero);
+                SetField(helperType, poseHelper, "_adsLocalPosition", Vector3.zero);
+                SetField(helperType, poseHelper, "_hipLocalEuler", Vector3.zero);
+                SetField(helperType, poseHelper, "_adsLocalEuler", Vector3.zero);
+                SetField(helperType, poseHelper, "_rifleLocalEulerOffset", Vector3.zero);
+                SetField(helperType, poseHelper, "_blendSpeed", 24f);
+
+                yield return null;
+
+                var baseValues = poseHelper.GetBasePoseValues();
+                Assert.That(baseValues.HipLocalPosition, Is.EqualTo(Vector3.zero));
+                Assert.That(baseValues.AdsLocalPosition, Is.EqualTo(Vector3.zero));
+
+                var equippedView = controller.EquippedWeaponViewTransform;
+                Assert.That(equippedView, Is.Not.Null);
+                Assert.That(equippedView.localPosition, Is.EqualTo(Vector3.zero));
+                Assert.That(equippedView.localRotation, Is.EqualTo(Quaternion.identity));
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator WeaponViewPoseTuningHelper_AimingWithOneXOptic_StillAppliesAdsPose()
         {
             var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
@@ -3831,7 +3913,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator WeaponViewPoseTuningHelper_AimingWithMagnifiedScope_UsesAttachmentSpecificAdsPose()
+        public IEnumerator WeaponViewPoseTuningHelper_AimingWithMagnifiedScope_UsesAttachmentSpecificEyeReliefOffset()
         {
             var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
             Assert.That(opticDefinitionType, Is.Not.Null);
@@ -3919,6 +4001,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetField(overrideType, entry, "_adsLocalEuler", Vector3.zero);
                 SetField(overrideType, entry, "_rifleLocalEulerOffset", Vector3.zero);
                 SetField(overrideType, entry, "_blendSpeed", 1000f);
+                SetField(overrideType, entry, "_scopedAdsEyeReliefBackOffset", 0.18f);
                 overrides.SetValue(entry, 0);
                 SetField(helperType, poseHelper, "_attachmentPoseOverrides", overrides);
 
@@ -3938,7 +4021,176 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 yield return null;
 
-                Assert.That(equippedView.localPosition.x, Is.GreaterThan(0.3f), "Magnified optics should be able to drive an attachment-specific ADS pose override.");
+                Assert.That(
+                    controller.ScopedAdsPresentationEyeReliefOffset,
+                    Is.EqualTo(0.18f).Within(0.001f),
+                    "Magnified scoped optics should drive their attachment-specific full-ADS presentation through the scoped aligner eye-relief offset.");
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (scopedOpticDefinition != null)
+                {
+                    Object.Destroy(scopedOpticDefinition);
+                }
+
+                if (scopedOpticPrefab != null)
+                {
+                    Object.Destroy(scopedOpticPrefab);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator WeaponViewPoseTuningHelper_RuntimeScopeOverrideApi_CanInspectAndRetuneActiveOverride()
+        {
+            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            Assert.That(opticDefinitionType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            UnityEngine.Object scopedOpticDefinition = null;
+            GameObject scopedOpticPrefab = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Kar98k", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x" })
+                });
+
+                viewPrefab = new GameObject("Kar98kView");
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(viewPrefab.transform, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(viewPrefab.transform, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
+
+                scopedOpticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+                scopedOpticPrefab = new GameObject("OpticFourXPrefab");
+                new GameObject("SightAnchor").transform.SetParent(scopedOpticPrefab.transform, false);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_opticId", "att-optic-4x");
+                SetField(opticDefinitionType, scopedOpticDefinition, "_isVariableZoom", false);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_magnificationMin", 4f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_magnificationMax", 4f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_magnificationStep", 1f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_opticPrefab", scopedOpticPrefab);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests(
+                        "att-optic-4x",
+                        WeaponAttachmentSlotType.Scope,
+                        scopedOpticDefinition)
+                });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
+
+                var poseHelper = root.AddComponent<WeaponViewPoseTuningHelper>();
+                var helperType = typeof(WeaponViewPoseTuningHelper);
+                SetField(helperType, poseHelper, "_weaponController", controller);
+                SetField(helperType, poseHelper, "_targetWeaponItemId", "weapon-kar98k");
+                SetField(helperType, poseHelper, "_hipLocalPosition", Vector3.zero);
+                SetField(helperType, poseHelper, "_adsLocalPosition", new Vector3(0.1f, 0f, 0f));
+                SetField(helperType, poseHelper, "_hipLocalEuler", Vector3.zero);
+                SetField(helperType, poseHelper, "_adsLocalEuler", Vector3.zero);
+                SetField(helperType, poseHelper, "_rifleLocalEulerOffset", Vector3.zero);
+                SetField(helperType, poseHelper, "_blendSpeed", 1000f);
+
+                var overrideType = helperType.GetNestedType("AttachmentPoseOverride", BindingFlags.NonPublic);
+                Assert.That(overrideType, Is.Not.Null);
+                var overrides = Array.CreateInstance(overrideType, 1);
+                var entry = Activator.CreateInstance(overrideType);
+                SetField(overrideType, entry, "_slotType", WeaponAttachmentSlotType.Scope);
+                SetField(overrideType, entry, "_attachmentItemId", "att-optic-4x");
+                SetField(overrideType, entry, "_hipLocalPosition", Vector3.zero);
+                SetField(overrideType, entry, "_hipLocalEuler", Vector3.zero);
+                SetField(overrideType, entry, "_adsLocalPosition", new Vector3(0.4f, 0f, 0f));
+                SetField(overrideType, entry, "_adsLocalEuler", Vector3.zero);
+                SetField(overrideType, entry, "_rifleLocalEulerOffset", Vector3.zero);
+                SetField(overrideType, entry, "_blendSpeed", 1000f);
+                SetField(overrideType, entry, "_scopedAdsEyeReliefBackOffset", 0.16f);
+                overrides.SetValue(entry, 0);
+                SetField(helperType, poseHelper, "_attachmentPoseOverrides", overrides);
+
+                yield return null;
+                Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+                state.SetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope, "att-optic-4x");
+
+                runtime.SelectBeltSlot(1);
+                yield return null;
+                runtime.SelectBeltSlot(0);
+                yield return null;
+
+                var equippedView = controller.EquippedWeaponViewTransform;
+                Assert.That(equippedView, Is.Not.Null);
+                input.AimHeldValue = true;
+                yield return null;
+
+                Assert.That(
+                    poseHelper.TryGetActiveAttachmentPoseOverride(out var activeSlot, out var activeAttachmentItemId, out var activeValues),
+                    Is.True,
+                    "Play-mode tuning needs to inspect the active scoped override without relying on fragile inspector serialization.");
+                Assert.That(activeSlot, Is.EqualTo(WeaponAttachmentSlotType.Scope));
+                Assert.That(activeAttachmentItemId, Is.EqualTo("att-optic-4x"));
+                Assert.That(activeValues.AdsLocalPosition.x, Is.EqualTo(0.4f).Within(0.001f));
+                Assert.That(activeValues.ScopedAdsEyeReliefBackOffset, Is.EqualTo(0.16f).Within(0.001f));
+                Assert.That(poseHelper.TryGetRuntimeTuningContext(out var context), Is.True);
+                Assert.That(context.HasActiveAttachmentOverride, Is.True);
+                Assert.That(context.UsesMagnifiedScopedAlignment, Is.True);
+                Assert.That(context.AttachmentItemId, Is.EqualTo("att-optic-4x"));
+
+                activeValues.AdsLocalPosition = new Vector3(0.6f, 0f, 0f);
+                activeValues.ScopedAdsEyeReliefBackOffset = 0.33f;
+                Assert.That(
+                    poseHelper.TrySetAttachmentPoseOverride(activeSlot, activeAttachmentItemId, activeValues),
+                    Is.True,
+                    "Play-mode tuning needs to push edited values back into the active scoped override.");
+
+                equippedView.localPosition = Vector3.zero;
+                yield return null;
+
+                Assert.That(controller.ScopedAdsPresentationEyeReliefOffset, Is.EqualTo(0.33f).Within(0.001f));
             }
             finally
             {
