@@ -568,8 +568,8 @@ namespace Reloader.UI.Toolkit.Runtime
 
         private sealed class TabDeviceControllerAdapter : TabInventoryController.IDeviceController
         {
-            private const string HooksInstalledText = "Hooks installed.";
-            private const string HooksNotInstalledText = "Hooks are not installed.";
+            private const string HooksInstalledText = "Recon hooks installed.";
+            private const string HooksNotInstalledText = "Recon hooks are not installed.";
             private readonly PlayerDeviceController _deviceController;
             private readonly PlayerDeviceTargetSelectionController _targetSelectionController;
             private string _attachmentFeedbackText = string.Empty;
@@ -664,7 +664,7 @@ namespace Reloader.UI.Toolkit.Runtime
                 var installed = _deviceController.TryInstallSelectedAttachmentFromInventory();
                 _attachmentFeedbackText = installed
                     ? HooksInstalledText
-                    : "Select hooks in your belt to install.";
+                    : "Select recon hooks in your belt to install.";
                 return installed;
             }
 
@@ -678,7 +678,7 @@ namespace Reloader.UI.Toolkit.Runtime
 
                 var uninstalled = _deviceController.TryUninstallAttachment(DeviceAttachmentType.Rangefinder);
                 _attachmentFeedbackText = uninstalled
-                    ? "Hooks uninstalled."
+                    ? "Recon hooks removed."
                     : HooksNotInstalledText;
                 return uninstalled;
             }

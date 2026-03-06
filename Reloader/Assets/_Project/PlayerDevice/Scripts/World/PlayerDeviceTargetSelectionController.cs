@@ -12,9 +12,9 @@ namespace Reloader.PlayerDevice.World
     public sealed class PlayerDeviceTargetSelectionController : MonoBehaviour
     {
         private const string PendingHintContextId = "player-device.target-selection.pending";
-        private const string PendingHintActionText = "Click target";
+        private const string PendingHintActionText = "Mark target";
         private const string ConfirmedHintContextId = "player-device.target-selection.confirmed";
-        private const string ConfirmedHintActionText = "Target selected";
+        private const string ConfirmedHintActionText = "Target marked";
 
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private Camera _selectionCamera;
@@ -53,7 +53,7 @@ namespace Reloader.PlayerDevice.World
             _clearConfirmedHintAt = -1f;
             ResolveUiStateEvents()?.RaiseTabInventoryVisibilityChanged(false);
             RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintShown(
-                new InteractionHintPayload(PendingHintContextId, PendingHintActionText, "Awaiting target selection"));
+                new InteractionHintPayload(PendingHintContextId, PendingHintActionText, "Awaiting marked target"));
         }
 
         public void Tick()

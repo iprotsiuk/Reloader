@@ -55,6 +55,7 @@ namespace Reloader.PlayerDevice.Tests.PlayMode
 
                 Assert.That(runtimeHub.IsTabInventoryVisible, Is.False);
                 Assert.That(runtimeHub.CurrentInteractionHint.ContextId, Is.EqualTo("player-device.target-selection.pending"));
+                Assert.That(runtimeHub.CurrentInteractionHint.ActionText, Is.EqualTo("Mark target"));
 
                 input.PickupPressedThisFrame = true;
                 InvokeMethod(controllerType, controller, "Tick");
@@ -66,7 +67,7 @@ namespace Reloader.PlayerDevice.Tests.PlayMode
                 Assert.That(runtimeState.SelectedTargetBinding.DistanceMeters, Is.LessThan(20f));
 
                 Assert.That(runtimeHub.CurrentInteractionHint.ContextId, Is.EqualTo("player-device.target-selection.confirmed"));
-                Assert.That(runtimeHub.CurrentInteractionHint.ActionText, Is.EqualTo("Target selected"));
+                Assert.That(runtimeHub.CurrentInteractionHint.ActionText, Is.EqualTo("Target marked"));
                 Assert.That(runtimeHub.CurrentInteractionHint.SubjectText, Does.Contain("Lane01/RoundDummyTarget"));
             }
             finally

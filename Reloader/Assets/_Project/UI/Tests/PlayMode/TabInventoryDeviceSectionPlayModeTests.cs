@@ -203,14 +203,14 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(history, Is.Not.Null);
             Assert.That(historyRow, Is.Not.Null);
             Assert.That(targetText.text, Is.EqualTo("TargetLane_2 (100.0 m)"));
-            Assert.That(shotCountText.text, Is.EqualTo("3 shots"));
+            Assert.That(shotCountText.text, Is.EqualTo("3 validation shots"));
             Assert.That(spreadText.text, Is.EqualTo("2.9 cm"));
             Assert.That(moaText.text, Is.EqualTo("1.24 MOA"));
             Assert.That(savedGroupsText.text, Is.EqualTo("1"));
             Assert.That(feedbackText.text, Is.EqualTo("Install hooks to enable marker tracking."));
             Assert.That(saveGroupButton.enabledSelf, Is.True);
             Assert.That(uninstallButton.enabledSelf, Is.False);
-            Assert.That(historyRow.text, Is.EqualTo("#1 - 3 shots - 1.24 MOA - 2.9 cm"));
+            Assert.That(historyRow.text, Is.EqualTo("#1 - 3 validation shots - 1.24 MOA - 2.9 cm"));
 
             UnityEngine.Object.DestroyImmediate(go);
         }
@@ -261,7 +261,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(savedGroupsText, Is.Not.Null);
             Assert.That(historyRow, Is.Not.Null);
             Assert.That(savedGroupsText.text, Is.EqualTo("1"));
-            Assert.That(historyRow.text, Is.EqualTo("#1 - 3 shots - 1.24 MOA - 2.9 cm"));
+            Assert.That(historyRow.text, Is.EqualTo("#1 - 3 validation shots - 1.24 MOA - 2.9 cm"));
 
             UnityEngine.Object.DestroyImmediate(go);
         }
@@ -498,7 +498,7 @@ namespace Reloader.UI.Tests.PlayMode
                 Assert.That(ok, Is.True);
 
                 var status = (TabInventoryController.DeviceStatus)args[0];
-                Assert.That(status.AttachmentFeedbackText, Is.EqualTo("Hooks installed."));
+                Assert.That(status.AttachmentFeedbackText, Is.EqualTo("Recon hooks installed."));
             }
             finally
             {
@@ -663,7 +663,7 @@ namespace Reloader.UI.Tests.PlayMode
                 var savedGroupsText = root.Q<Label>("inventory__device-saved-groups-value");
 
                 Assert.That(targetText.text, Does.StartWith("Acceptance Lane ("));
-                Assert.That(shotCountText.text, Is.EqualTo("2 shots"));
+                Assert.That(shotCountText.text, Is.EqualTo("2 validation shots"));
                 Assert.That(spreadText.text, Is.Not.EqualTo("--"));
                 Assert.That(moaText.text, Is.Not.EqualTo("--"));
                 Assert.That(savedGroupsText.text, Is.EqualTo("0"));
@@ -672,10 +672,10 @@ namespace Reloader.UI.Tests.PlayMode
                 var historyRow = root.Q<Label>("inventory__device-session-row-0");
                 Assert.That(savedGroupsText.text, Is.EqualTo("1"));
                 Assert.That(historyRow, Is.Not.Null);
-                Assert.That(historyRow.text, Does.StartWith("#1 - 2 shots"));
+                Assert.That(historyRow.text, Does.StartWith("#1 - 2 validation shots"));
 
                 tabController.HandleIntent(new UiIntent("tab.inventory.device.clear-group"));
-                Assert.That(shotCountText.text, Is.EqualTo("0 shots"));
+                Assert.That(shotCountText.text, Is.EqualTo("0 validation shots"));
                 Assert.That(target.GetComponentsInChildren(targetImpactMarkerType, includeInactive: true).Length, Is.EqualTo(0));
 
                 inputSource.MenuTogglePressedThisFrame = true;
@@ -684,7 +684,7 @@ namespace Reloader.UI.Tests.PlayMode
                 tabController.Tick();
 
                 Assert.That(savedGroupsText.text, Is.EqualTo("1"));
-                Assert.That(shotCountText.text, Is.EqualTo("0 shots"));
+                Assert.That(shotCountText.text, Is.EqualTo("0 validation shots"));
                 Assert.That(targetText.text, Does.StartWith("Acceptance Lane ("));
             }
             finally
@@ -723,8 +723,8 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(deviceTab, Is.Not.Null);
             Assert.That(deviceSection.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(deviceNotes.style.display.value, Is.EqualTo(DisplayStyle.Flex));
-            Assert.That(targetValue.text, Is.EqualTo("No target selected"));
-            Assert.That(shotCountValue.text, Is.EqualTo("0 shots"));
+            Assert.That(targetValue.text, Is.EqualTo("No target marked"));
+            Assert.That(shotCountValue.text, Is.EqualTo("0 validation shots"));
             Assert.That(spreadValue.text, Is.EqualTo("--"));
             Assert.That(moaValue.text, Is.EqualTo("--"));
             Assert.That(savedGroupsValue.text, Is.EqualTo("0"));
@@ -745,7 +745,7 @@ namespace Reloader.UI.Tests.PlayMode
                 tooltipVisible: false,
                 deviceCanInstallHooks: false,
                 deviceCanUninstallHooks: false,
-                deviceInstallFeedbackText: "Select hooks in your belt to install.",
+                deviceInstallFeedbackText: "Select recon hooks in your belt to install.",
                 deviceSessionHistoryEntries: Array.Empty<string>()));
 
             var installButton = root.Q<Button>("inventory__device-install-hooks");
@@ -753,7 +753,7 @@ namespace Reloader.UI.Tests.PlayMode
             var feedback = root.Q<Label>("inventory__device-install-feedback-text");
             Assert.That(installButton.enabledSelf, Is.False);
             Assert.That(uninstallButton.enabledSelf, Is.False);
-            Assert.That(feedback.text, Is.EqualTo("Select hooks in your belt to install."));
+            Assert.That(feedback.text, Is.EqualTo("Select recon hooks in your belt to install."));
         }
 
         [Test]
