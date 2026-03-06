@@ -10,22 +10,25 @@ Current implemented v0.1 world slice uses:
 - `Bootstrap` (runtime entrypoint) -> `MainTown` hub -> `IndoorRangeInstance` activity scene.
 - `MainWorld` is a temporary compatibility scene during migration and is not the primary runtime topology source of truth.
 
-MainTown target layout continues to represent the core town experience:
+`MainTown` is the player's operating sandbox for assassination contracts. It still contains the house/workshop and commerce loop, but the town must also support target routines, witnesses, police response, and clean escape routes.
 
-- **Player's House** — bedroom (sleep/save), kitchen, office with computer (online catalog orders), garage/spare room as starter workshop
-- **Town** — streets, buildings, NPCs walking around
-- **Gun Store** — enter through door (no loading screen), buy weapons/ammo/accessories
-- **Reloading Supply** — components, equipment, dies, tools
+MainTown target layout:
+- **Player's House** — bedroom (sleep/save), kitchen, office with computer/terminal, garage or spare room as starter workshop
+- **Town** — streets, buildings, civilians, police presence, target routines, and witness lines
+- **Gun Store** — buy weapons, factory ammo, accessories, optics
+- **Reloading Supply** — buy components, dies, tools, and bench upgrades
 - **General Store** — food, cleaning supplies, miscellaneous
 - **Gas Station** — refuel vehicles, buy snacks/drinks
-- **Town Hall** — purchase hunting licenses, tags, and permits
-- **Shooting Range access** — indoor range currently reached via travel flow into `IndoorRangeInstance`
+- **Contract access point** — handler, terminal, or board for assassination jobs and payouts
+- **Shooting Range access** — indoor range currently reached via travel flow into `IndoorRangeInstance` and used as a prep/validation space
+- **Police station** — arrest respawn and confiscation-recovery anchor
+- **Sniper vantage structure** — rooftops, windows, alleys, parking lots, and sightlines that support remote execution plus escape
 - **Roads** — forward target for driveable links between locations
-- **Checkpoints** — forward target for edge transitions to additional instanced areas
+- **Checkpoints** — forward target for edge transitions to additional instanced contract areas or escape routes
 
 In the current implemented slice, travel between MainTown and indoor range uses explicit scene travel. Seamless no-load interiors remain a design target for broader town coverage.
 
-**Hospital** — the player is taken here after catastrophic reloading failures or severe injuries. Not a player-navigable location in v0.1; planned as a future time-skip consequence event with medical bills/debuff hooks.
+**Hospital** — the player is taken here after severe injury or a failed police encounter. In the contract fantasy it is a respawn/consequence anchor, not just a reloading-failure note.
 
 ---
 
@@ -33,8 +36,8 @@ In the current implemented slice, travel between MainTown and indoor range uses 
 
 Checkpoint-driven separate scenes loaded when the player reaches a world-edge checkpoint and chooses to enter:
 
-- **Hunting Grounds** — multiple biomes (forest, plains, mountains), each a separate scene (v1+ gameplay)
-- **Competition Venues** — for major/special competitions that need unique layouts
+- **Indoor Range** — current validation/test space for the precision-prep loop
+- **Contract Spaces** — authored scenes for special targets, protected compounds, industrial yards, or remote overwatch jobs
 - **Future expansion areas** — new towns, wilderness areas, etc.
 
 Current implemented transition: player interacts with authored travel triggers for `MainTown <-> IndoorRangeInstance`.
@@ -49,15 +52,15 @@ Vehicle scope rule:
 
 ## Building Interiors [v0.1]
 
-Current slice includes both authored in-scene spaces and scene-travel based interiors (IndoorRangeInstance). For future expansion buildings, additive scene loading or reusable instance scenes are valid.
+Current slice includes both authored in-scene spaces and scene-travel based interiors (`IndoorRangeInstance`). For future expansion buildings, additive scene loading or reusable instance scenes are valid.
 
 ---
 
 ## Workshop Evolution [v1+]
 
-- **Starter:** Garage or spare room in the player's house (part of house interior, same scene)
-- **Upgraded:** Purchase a dedicated workshop building in town (separate interior in main world)
-- **Premium:** Large workshop with multiple benches, storage, employee workspace
+- **Starter:** garage or spare room in the player's house (part of house interior, same scene)
+- **Upgraded:** purchase a dedicated workshop building in town
+- **Premium:** large workshop with multiple benches, storage, and contract-prep space
 
 Workshop equipment is physically placed by the player. Tools sit on benches. Shelves hold components. Everything is a physical object with a position.
 
@@ -65,10 +68,10 @@ Workshop equipment is physically placed by the player. Tools sit on benches. She
 
 ## Vehicles [v0.2]
 
-Vehicles provide transportation between locations in town-world routes and serve as the travel mechanism for checkpoint transitions once driving is in scope.
+Vehicles provide transportation between locations in town-world routes and later become part of contract staging and escape.
 
 **VehicleDefinition (SO):**
-- Capacity (cargo space for hauling game, equipment, ammo)
+- Capacity (cargo space for gear, evidence, and ammo)
 - Speed
 - Fuel consumption
 - Price
@@ -76,7 +79,7 @@ Vehicles provide transportation between locations in town-world routes and serve
 **VehicleInstance (runtime):**
 - Fuel level
 - Condition (wear, damage)
-- Cargo contents (list of ItemInstance)
+- Cargo contents (list of `ItemInstance`)
 - Parked location (transform data)
 
 **Driving mechanics:**
@@ -88,6 +91,6 @@ Vehicles provide transportation between locations in town-world routes and serve
 - Instanced destinations can reference vehicle cargo state without enabling full in-scene driving
 
 **Integration points:**
-- Runtime hub vehicle events `OnVehicleParked` / `OnVehicleDriven` for other systems (formerly `GameEvents` hooks)
+- Runtime hub vehicle events `OnVehicleParked` / `OnVehicleDriven`
 - Law enforcement can perform vehicle stops on roads when that system is active (see [law-enforcement.md](law-enforcement.md))
-- Carry capacity limits what you can bring to/from hunting once hunting gameplay is enabled (see [hunting-and-competitions.md](hunting-and-competitions.md))
+- Vehicle routes can later become part of contract staging and escape planning

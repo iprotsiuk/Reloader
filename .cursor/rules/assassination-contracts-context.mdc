@@ -1,0 +1,21 @@
+---
+description: Context for agents working on assassination contracts, target generation, or long-range job flow
+globs: Reloader/Assets/_Project/Contracts/**,Reloader/Assets/_Project/Targets/**,Reloader/Assets/_Project/PlayerDevice/**
+alwaysApply: false
+---
+
+# Assassination Contracts Context
+
+You are working on the core fantasy of the game: assassination contracts, target generation, or long-range contract execution. Read these docs:
+
+1. `docs/design/core-architecture.md` — shared patterns and cross-system communication
+2. `docs/design/assassination-contracts.md` — contract loop, target model, premium long-range jobs
+3. `docs/design/law-enforcement.md` — police heat, search, arrest, confiscation
+4. `docs/design/world-and-vehicles.md` — world topology, vantage structure, escape geography
+
+If your task changes rifles, optics, ammo quality, or hit evaluation, also load:
+
+5. `docs/design/weapons-and-ballistics.md`
+6. `docs/design/reloading-system.md`
+
+Do NOT load unrelated deep domain docs unless the task explicitly crosses boundaries.

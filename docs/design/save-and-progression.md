@@ -146,8 +146,8 @@ SaveData (logical domain content carried by modules)
 │   ├── health
 │   ├── activeDebuffs[] (shaky hands, tinnitus, blurry vision + duration)
 │   ├── money
-│   ├── reputation scores (competition, hunting, ammo crafting, legal standing)
-│   └── licenses and permits owned
+│   ├── reputation scores (contract reliability, ammo crafting, fixer trust, legal heat)
+│   └── arrest/death recovery metadata
 ├── ItemRegistry
 │   └── uniqueId -> full ItemInstance payload (single source of truth)
 ├── ItemLocation
@@ -175,12 +175,15 @@ SaveData (logical domain content carried by modules)
 ├── QuestState[]
 │   ├── active, completed, failed quests with progress
 │   └── timed quest deadlines
+├── ContractState[]
+│   ├── activeContractId
+│   ├── generatedContracts[]
+│   └── completedContractHistory[]
 ├── WorldState
 │   ├── dayCount, timeOfDay
-│   ├── animalPopulation per hunting area (v1+ when hunting is active)
 │   ├── weather state + seed
 │   ├── shop restock timers
-│   └── law enforcement alert level (v1+)
+│   └── police heat / search state
 ├── WorkshopState
 │   ├── equipment placement (position, rotation per tool)
 │   ├── in-progress reload batches
@@ -196,7 +199,7 @@ SaveData (logical domain content carried by modules)
 
 Field naming convention for payload examples: use lowerCamelCase with `Id`/`Ids` suffixes (for example `carriedItemIds`, `containerId`, `magazineAmmoIds`) to match serialized JSON naming style.
 
-Forward-compatibility rule: target schema blocks for later-phase systems (for example `NPCState`, hunting population fields, and law-enforcement state) are defined from v0.1 so save files stay migratable. In phases where those systems are not active yet, these blocks can remain empty/default when modules exist, and may be absent in earlier implementation slices.
+Forward-compatibility rule: target schema blocks for later-phase systems (for example `NPCState`, `ContractState`, and advanced law-enforcement state) are defined from v0.1 so save files stay migratable. In phases where those systems are not active yet, these blocks can remain empty/default when modules exist, and may be absent in earlier implementation slices.
 
 **Exact restore target contract [v0.1]:** Loading a save should restore the same world state the player left for every active system in the current phase: player transform, dropped item transforms (including floor items), inventory/container contents, weapon/vehicle state, and progression flags. If NPC simulation is active, NPC transforms/state should restore exactly as well. **Current implemented scope is partial** (`CoreWorld`, `Inventory`, `Weapons`, `WorldObjectState`) and full exact restoration remains in progress per `v0.1-demo-status-and-milestones.md`.
 
@@ -208,23 +211,23 @@ Forward-compatibility rule: target schema blocks for later-phase systems (for ex
 
 ```
 WAKE UP     → At home (bed), or wherever the player fell asleep,
-              or jail (if arrested the previous day).
+              or at a police station / hospital after a failed job.
               Check debuffs, check quest deadlines.
 
 MORNING     → Decide what to do today:
+              - Accept or review a contract
               - Reload ammo at the workshop bench
-              - Drive to town for supplies
-              - Head to the range to practice or compete
-              - Drive to hunting checkpoint (v1+)
-              - Fill NPC orders for custom ammo
-              - Do odd jobs for cash
+              - Buy parts and supplies
+              - Head to the range to validate the setup
+              - Scout a route or firing position
+              - Do side work for cash
 
 DAYTIME     → Execute the plan. Multiple activities in one day
               are possible depending on time management.
               Time passes during activities.
 
 EVENING     → Return home (or don't — player choice).
-              Sell goods, organize inventory, review earnings.
+              Collect payout, organize inventory, review heat and earnings.
               Clean weapons, prep brass for tomorrow.
 
 NIGHT       → Sleep (time skip to next morning) or stay up
@@ -244,8 +247,8 @@ The player is never forced into this loop. They can do whatever they want in wha
 |-------|-------------|-----|
 | Start | Grandpa's rifle + old press + one caliber | Story intro |
 | Early | Case trimmer, tumbler, calipers, second caliber | Buy from shop or quest reward |
-| Mid | Digital scale, powder measure, multiple calibers, better press | Earn from competitions + hunting |
-| Late | Progressive press, electronic dispenser, chronograph | Major purchase or quest chain |
+| Mid | Better optics, digital scale, powder measure, contract-intel tools | Earn from clean contracts |
+| Late | Progressive press, electronic dispenser, chronograph, premium optics | Major purchase or high-tier contract chain |
 | Endgame | Bullet casting, custom dies, automated systems, employees | Long-term investment |
 
 ## Weapon Progression [v1+]
@@ -253,27 +256,27 @@ The player is never forced into this loop. They can do whatever they want in wha
 | Phase | Weapons |
 |-------|---------|
 | Start | Grandpa's bolt-action rifle (one caliber, worn but functional) |
-| Early | Buy a .22 LR for small game, or a pistol for competition |
-| Mid | Precision rifle for long range, AR-platform for 3-gun |
-| Late | Multiple specialized weapons for different competition types |
-| Endgame | Custom-built rifles, wildcat chamberings, full competition arsenal |
+| Early | Buy a sidearm, basic optics, or support gear for lower-risk jobs |
+| Mid | Precision rifle for long range and cleaner contract execution |
+| Late | Multiple specialized weapons for different contract types |
+| Endgame | Custom-built rifles, wildcat chamberings, full premium contract arsenal |
 
 ## World Progression [v1+]
 
 | Phase | Access |
 |-------|--------|
-| Start | House + town + local range + nearby hunting area |
-| Mid | Regional competition venues, more hunting areas |
-| Late | National venues, premium hunting grounds, second property |
-| Endgame | Full map access, all competition tiers, hire employees |
+| Start | House + town + local range |
+| Mid | More contract spaces, better vantage routes, wider town access |
+| Late | Premium job locations, second property, stronger escape infrastructure |
+| Endgame | Full map access, multiple operating spaces, hire employees |
 
 ## Reputation Progression [v1+]
 
 | Reputation | Effect |
 |-----------|--------|
-| Ammo quality rep | NPCs seek you out, pay more, refer others |
-| Competition rep | Invitations to higher tiers, sponsorship offers |
-| Hunting rep | Access to better grounds, tips from veterans |
-| Legal standing | Affects police suspicion, NPC trust |
+| Ammo quality rep | Better trust in your contract-prep competence |
+| Contract reliability | Higher-tier jobs, cleaner intros, better payouts |
+| Fixer trust | Access to safer intel and gear sources |
+| Legal heat | Affects police suspicion, search intensity, NPC caution |
 
 **Implementation note:** Precision systems (component sorting, annealing tracking, per-lot powder variance, fire-forming) are designed into the data model from v0.1 even though full gameplay implementation is phased. The data fields exist on SOs and instances from day one — the gameplay UI and interactions that expose them may come in later versions. See prototype-scope.md for version targets.

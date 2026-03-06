@@ -1,57 +1,87 @@
 # Law Enforcement & Black Market Design
 
 > **Prerequisites:** Read [core-architecture.md](core-architecture.md) first.
+> **Related:** [assassination-contracts.md](assassination-contracts.md) for the contract loop that feeds police heat.
 
 ---
 
-## Legal System [v1+]
+## Police Heat Model [v0.1]
 
-| Regulation | Details |
-|-----------|---------|
-| Hunting license | Required, purchased at town hall |
-| Hunting tags | Per-animal, per-season, limited quantity |
-| Weapon legality | Some items restricted (suppressors, SBRs, full-auto) |
-| NFA tax stamps | Required for suppressors, SBRs, etc. (legal path = expensive + slow) |
-| Ammo restrictions | Some types restricted in certain contexts |
-| Carry permits | May be required for concealed carry in town |
+The first police loop should be simple and readable:
+
+`Clear -> Alerted -> Active Pursuit -> Search -> Clear`
+
+Heat sources:
+- witnessed murder
+- corpse discovery
+- visible weapon brandishing
+- gunshots in populated areas
+- police line of sight during escape
+
+Resolution rule:
+- once police lose direct line of sight, a cooldown starts
+- if the player stays hidden long enough, the search collapses and active pursuit ends
+- the exact timer can ship as a simple tuned value (`30-60` seconds) before more advanced suspicion systems exist
+
+---
+
+## Arrest, Death, and Confiscation [v0.1]
+
+Failure needs a concrete resource penalty.
+
+Rules:
+- If police arrest the player, carried inventory is confiscated.
+- If police kill the player, carried inventory is also lost.
+- The player respawns at either hospital or police station depending on failure type.
+- Home/workshop storage remains intact unless a later system explicitly introduces stash raids.
+
+---
+
+## Policing Surface [v0.2]
+
+| Authority | Where | Checks For |
+|-----------|-------|-----------|
+| Town police | Town, roads | Murder response, visible weapons, wanted suspects |
+| Patrol units | Streets, parking lots, major intersections | Search pressure and active pursuit |
+| Road units | Roads, exits, checkpoints | Escape routes, vehicle stops, last-known-direction sweeps |
 
 ---
 
 ## Black Market [v1+]
 
 - Shady NPC dealers in specific locations (back alleys, remote areas)
-- Sell restricted/illegal items: unregistered suppressors, full-auto parts, stolen weapons
+- Sell restricted/illegal items and contract support gear
 - Higher risk: can be caught during transaction
-- No warranty: items may be defective or traceable (serial numbers)
-- Higher profit margins when selling illegal ammo/items
+- No warranty: items may be defective or traceable
+- Useful for dangerous high-payout jobs, but never safer than legal prep
 
 ---
 
-## Law Enforcement [v1+]
-
-| Authority | Where | Checks For |
-|-----------|-------|-----------|
-| Game warden | Hunting areas | License, tags, legal caliber, season compliance |
-| Town police | Town, roads | Illegal weapons/attachments, stolen items, warrants |
-| Random stops | Roads | Vehicle search (if probable cause), weapon inspection |
-
----
-
-## Consequences [v1+]
+## Consequences [v0.1]
 
 | Offense | Consequence |
 |---------|-------------|
-| Minor violation | Fine, confiscation of item |
-| Hunting violation | Fine + hunting license suspension (days) |
-| Illegal weapon possession | Large fine, weapon confiscated, possible arrest |
-| Resisting / fleeing | Chase sequence (car or foot), additional charges |
-| Arrest | Jail time (time skip), heavy fine, reputation damage |
-| Repeat offenses | Escalating penalties, NPCs become wary |
+| Random public murder | Immediate high heat, rapid police response |
+| Weapon brandish in public | Low-to-medium heat, witness-driven escalation |
+| Resisting / fleeing | Extended pursuit, larger search radius |
+| Arrest | Carried inventory confiscated, respawn at police station, money/time penalty |
+| Killed by police | Carried inventory confiscated, respawn at hospital |
+| Repeat chaos | Faster police escalation and worse civilian reactions |
 
 ---
 
 ## Data Model [v1+]
 
-`CrimeType` enum: Poaching / HuntingWithoutLicense / IllegalWeapon / IllegalAttachment / IllegalAmmo / Trespassing / Resisting / Fleeing / BlackMarketTransaction
+`CrimeType` enum:
+- `Murder`
+- `AttemptedMurder`
+- `Brandishing`
+- `IllegalWeapon`
+- `IllegalAttachment`
+- `IllegalAmmo`
+- `Trespassing`
+- `Resisting`
+- `Fleeing`
+- `BlackMarketTransaction`
 
-Each offense maps to a consequence tier (minor violation, hunting violation, illegal possession, arrest). The law enforcement system emits `OnCrimeCommitted(CrimeType)` through the runtime event hub (`IGameEventsRuntimeHub`) so other systems can react (reputation, NPC relationships, quest state; formerly `GameEvents.OnCrimeCommitted`).
+Each offense maps to a consequence tier and can raise police heat. The law enforcement system emits `OnCrimeCommitted(CrimeType)` through the runtime event hub (`IGameEventsRuntimeHub`) so other systems can react (heat state, NPC relationships, contract failure, economy penalties; formerly `GameEvents.OnCrimeCommitted`).

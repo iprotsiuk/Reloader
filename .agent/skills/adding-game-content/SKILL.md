@@ -1,6 +1,6 @@
 ---
 name: adding-game-content
-description: Guides creation of new weapons, ammo components, equipment, NPCs, and other game content via ScriptableObjects. Use when adding new items, calibers, powders, bullets, weapons, equipment, or any data-driven game content to Reloader.
+description: Guides creation of new weapons, ammo components, equipment, NPCs, contract assets, and other game content via ScriptableObjects. Use when adding new items, calibers, powders, bullets, weapons, equipment, or other data-driven content to Reloader's precision-contract sandbox.
 ---
 
 # Adding Game Content
@@ -9,6 +9,7 @@ description: Guides creation of new weapons, ammo components, equipment, NPCs, a
 
 - Adding a new weapon, caliber, powder, bullet, case, primer, or equipment
 - Creating NPC definitions, quest data, or shop inventories (SO definitions for these are specified in their respective domain design docs — see docs/design/README.md)
+- Creating contract, target-intel, or role-support data assets once those SOs exist
 - Any task that involves creating ScriptableObject data assets
 - NOT appropriate when: modifying game logic, fixing bugs, or changing UI behavior
 
@@ -16,11 +17,12 @@ description: Guides creation of new weapons, ammo components, equipment, NPCs, a
 
 Read these docs first (in order):
 1. `docs/design/core-architecture.md` — shared patterns, SO system, project structure
-2. `docs/design/reloading-system.md` — reloading data models and mechanics (if adding reloading components)
-3. `docs/design/weapons-and-ballistics.md` — weapon data models (if adding weapons/parts)
-4. `docs/design/ads-optics-framework.md` — implemented ADS/optics runtime + data contract (if adding optics/sights/ADS content)
-5. `.agent/skills/unity-project-conventions/SKILL.md` — coding standards
-6. `.agent/skills/weapon-view-attachment-framework/SKILL.md` — required when the content includes first-person weapon views, attachment slots, scopes, muzzles, magazines, slides, or other mountable upgrades
+2. `docs/design/assassination-contracts.md` — if the content affects contracts, targets, or premium long-range jobs
+3. `docs/design/reloading-system.md` — reloading data models and mechanics (if adding reloading components)
+4. `docs/design/weapons-and-ballistics.md` — weapon data models (if adding weapons/parts)
+5. `docs/design/ads-optics-framework.md` — implemented ADS/optics runtime + data contract (if adding optics/sights/ADS content)
+6. `.agent/skills/unity-project-conventions/SKILL.md` — coding standards
+7. `.agent/skills/weapon-view-attachment-framework/SKILL.md` — required when the content includes first-person weapon views, attachment slots, scopes, muzzles, magazines, slides, or other mountable upgrades
 
 See `docs/design/README.md` for the full routing index.
 

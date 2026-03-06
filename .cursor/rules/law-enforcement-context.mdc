@@ -11,9 +11,9 @@ You are working on law-enforcement/legal systems. Read these docs:
 1. `docs/design/core-architecture.md` — shared cross-system contracts
 2. `docs/design/law-enforcement.md` — legal model, offense taxonomy, consequences
 
-If your task touches hunting checks or vehicle-stop flows, also load:
+If your task touches contract exposure, target elimination, or escape geography, also load:
 
-3. `docs/design/hunting-and-competitions.md`
+3. `docs/design/assassination-contracts.md`
 4. `docs/design/world-and-vehicles.md`
 
 Do NOT load unrelated deep domain docs unless the task explicitly crosses boundaries.
