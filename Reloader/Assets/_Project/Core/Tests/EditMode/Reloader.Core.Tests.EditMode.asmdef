@@ -3,6 +3,7 @@
   "rootNamespace": "Reloader.Core.Tests",
   "references": [
     "Reloader.Core",
+    "Reloader.Contracts",
     "Reloader.Inventory",
     "Reloader.Weapons",
     "Reloader.Player"

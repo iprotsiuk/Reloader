@@ -163,6 +163,7 @@ namespace Reloader.Core.Tests.EditMode
         [Test]
         public void RuntimeKernelBootstrapper_Surface_ExposesTypedDomainChannels()
         {
+            AssertTypedChannel("ContractEvents", typeof(IContractEvents));
             AssertTypedChannel("InventoryEvents", typeof(IInventoryEvents));
             AssertTypedChannel("WeaponEvents", typeof(IWeaponEvents));
             AssertTypedChannel("ShopEvents", typeof(IShopEvents));
@@ -176,6 +177,7 @@ namespace Reloader.Core.Tests.EditMode
             var hub = new DefaultRuntimeEvents();
             RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), hub);
 
+            Assert.That(ReadTypedChannel("ContractEvents"), Is.SameAs(hub));
             Assert.That(ReadTypedChannel("InventoryEvents"), Is.SameAs(hub));
             Assert.That(ReadTypedChannel("WeaponEvents"), Is.SameAs(hub));
             Assert.That(ReadTypedChannel("ShopEvents"), Is.SameAs(hub));
@@ -192,6 +194,7 @@ namespace Reloader.Core.Tests.EditMode
             RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>());
 
             Assert.That(RuntimeKernelBootstrapper.Events, Is.SameAs(initialHub));
+            Assert.That(ReadTypedChannel("ContractEvents"), Is.SameAs(initialHub));
             Assert.That(ReadTypedChannel("InventoryEvents"), Is.SameAs(initialHub));
             Assert.That(ReadTypedChannel("WeaponEvents"), Is.SameAs(initialHub));
             Assert.That(ReadTypedChannel("ShopEvents"), Is.SameAs(initialHub));
@@ -215,6 +218,7 @@ namespace Reloader.Core.Tests.EditMode
         [Test]
         public void IRuntimeEvents_Surface_ExposesDomainPortAccessors()
         {
+            AssertRuntimePortAccessor("ContractEvents", typeof(IContractEvents));
             AssertRuntimePortAccessor("InventoryEvents", typeof(IInventoryEvents));
             AssertRuntimePortAccessor("WeaponEvents", typeof(IWeaponEvents));
             AssertRuntimePortAccessor("ShopEvents", typeof(IShopEvents));
@@ -227,6 +231,7 @@ namespace Reloader.Core.Tests.EditMode
         {
             IRuntimeEvents runtimeEvents = new DefaultRuntimeEvents();
 
+            Assert.That(ReadRuntimePort(runtimeEvents, "ContractEvents"), Is.SameAs(runtimeEvents));
             Assert.That(ReadRuntimePort(runtimeEvents, "InventoryEvents"), Is.SameAs(runtimeEvents));
             Assert.That(ReadRuntimePort(runtimeEvents, "WeaponEvents"), Is.SameAs(runtimeEvents));
             Assert.That(ReadRuntimePort(runtimeEvents, "ShopEvents"), Is.SameAs(runtimeEvents));

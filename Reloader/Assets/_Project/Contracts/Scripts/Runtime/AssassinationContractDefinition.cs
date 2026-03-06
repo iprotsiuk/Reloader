@@ -11,12 +11,12 @@ namespace Reloader.Contracts.Runtime
         [SerializeField] private string _targetId = string.Empty;
         [SerializeField] private AssassinationContractArchetype _archetype = AssassinationContractArchetype.StreetRoutineTarget;
         [SerializeField] private float _distanceBand;
-        [SerializeField] private float _payout;
+        [SerializeField] private int _payout;
 
         public string ContractId => _contractId;
         public string TargetId => _targetId;
         public AssassinationContractArchetype Archetype => _archetype;
         public float DistanceBand => _distanceBand;
-        public float Payout => _payout;
+        public int Payout => _payout;
     }
 }

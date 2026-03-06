@@ -2,7 +2,7 @@ namespace Reloader.Contracts.Runtime
 {
     public sealed class AssassinationContractRuntimeState
     {
-        public AssassinationContractRuntimeState(string contractId, string targetId, float distanceBand, float payout)
+        public AssassinationContractRuntimeState(string contractId, string targetId, float distanceBand, int payout)
         {
             ContractId = contractId ?? string.Empty;
             TargetId = targetId ?? string.Empty;
@@ -13,6 +13,6 @@ namespace Reloader.Contracts.Runtime
         public string ContractId { get; }
         public string TargetId { get; }
         public float DistanceBand { get; }
-        public float Payout { get; }
+        public int Payout { get; }
     }
 }

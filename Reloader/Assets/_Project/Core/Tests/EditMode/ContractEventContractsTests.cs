@@ -1,6 +1,6 @@
 using System;
-using System.Reflection;
 using NUnit.Framework;
+using Reloader.Contracts.Runtime;
 using Reloader.Core.Runtime;
 
 namespace Reloader.Core.Tests.EditMode
@@ -20,99 +20,65 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void GameEventsRuntimeHub_ExposesContractLifecycleEvents()
+        public void IRuntimeEvents_ExposesContractEventsPort()
         {
-            var hubType = typeof(IGameEventsRuntimeHub);
+            var runtimeEventsType = typeof(IRuntimeEvents);
+            var property = runtimeEventsType.GetProperty("ContractEvents");
 
-            AssertEvent(hubType, "OnContractAccepted", typeof(Action<string>));
-            AssertMethod(hubType, "RaiseContractAccepted", typeof(string));
-
-            AssertEvent(hubType, "OnContractFailed", typeof(Action<string>));
-            AssertMethod(hubType, "RaiseContractFailed", typeof(string));
-
-            AssertEvent(hubType, "OnContractCompleted", typeof(Action<string, float>));
-            AssertMethod(hubType, "RaiseContractCompleted", typeof(string), typeof(float));
+            Assert.That(property, Is.Not.Null, "IRuntimeEvents should expose a ContractEvents typed port.");
+            Assert.That(property!.PropertyType, Is.EqualTo(typeof(IContractEvents)));
         }
 
         [Test]
-        public void DefaultRuntimeEvents_RaisesContractLifecycleEvents()
+        public void ContractEventsPort_RaisesContractLifecycleEvents()
         {
             var hub = new DefaultRuntimeEvents();
-            var hubType = hub.GetType();
 
             var acceptedContractId = string.Empty;
             var failedContractId = string.Empty;
             var completedContractId = string.Empty;
-            var completedPayout = -1f;
+            var completedPayout = -1;
 
             Action<string> acceptedHandler = contractId => acceptedContractId = contractId;
             Action<string> failedHandler = contractId => failedContractId = contractId;
-            Action<string, float> completedHandler = (contractId, payout) =>
+            Action<string, int> completedHandler = (contractId, payout) =>
             {
                 completedContractId = contractId;
                 completedPayout = payout;
             };
 
-            var acceptedEvent = AssertEvent(hubType, "OnContractAccepted", typeof(Action<string>));
-            var failedEvent = AssertEvent(hubType, "OnContractFailed", typeof(Action<string>));
-            var completedEvent = AssertEvent(hubType, "OnContractCompleted", typeof(Action<string, float>));
-
-            acceptedEvent.AddEventHandler(hub, acceptedHandler);
-            failedEvent.AddEventHandler(hub, failedHandler);
-            completedEvent.AddEventHandler(hub, completedHandler);
+            RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), hub);
+            RuntimeKernelBootstrapper.ContractEvents.OnContractAccepted += acceptedHandler;
+            RuntimeKernelBootstrapper.ContractEvents.OnContractFailed += failedHandler;
+            RuntimeKernelBootstrapper.ContractEvents.OnContractCompleted += completedHandler;
 
             try
             {
-                AssertMethod(hubType, "RaiseContractAccepted", typeof(string)).Invoke(hub, new object[] { "contract.alpha" });
-                AssertMethod(hubType, "RaiseContractFailed", typeof(string)).Invoke(hub, new object[] { "contract.bravo" });
-                AssertMethod(hubType, "RaiseContractCompleted", typeof(string), typeof(float)).Invoke(hub, new object[] { "contract.charlie", 1500f });
+                RuntimeKernelBootstrapper.ContractEvents.RaiseContractAccepted("contract.alpha");
+                RuntimeKernelBootstrapper.ContractEvents.RaiseContractFailed("contract.bravo");
+                RuntimeKernelBootstrapper.ContractEvents.RaiseContractCompleted("contract.charlie", 1500);
             }
             finally
             {
-                acceptedEvent.RemoveEventHandler(hub, acceptedHandler);
-                failedEvent.RemoveEventHandler(hub, failedHandler);
-                completedEvent.RemoveEventHandler(hub, completedHandler);
+                RuntimeKernelBootstrapper.ContractEvents.OnContractAccepted -= acceptedHandler;
+                RuntimeKernelBootstrapper.ContractEvents.OnContractFailed -= failedHandler;
+                RuntimeKernelBootstrapper.ContractEvents.OnContractCompleted -= completedHandler;
             }
 
             Assert.That(acceptedContractId, Is.EqualTo("contract.alpha"));
             Assert.That(failedContractId, Is.EqualTo("contract.bravo"));
             Assert.That(completedContractId, Is.EqualTo("contract.charlie"));
-            Assert.That(completedPayout, Is.EqualTo(1500f));
+            Assert.That(completedPayout, Is.EqualTo(1500));
         }
 
         [Test]
         public void AssassinationContractRuntimeState_HoldsCoreContractFields()
         {
-            var runtimeStateType = Type.GetType("Reloader.Contracts.Runtime.AssassinationContractRuntimeState, Reloader.Contracts");
-            Assert.That(runtimeStateType, Is.Not.Null, "Expected AssassinationContractRuntimeState in the Reloader.Contracts assembly.");
-
-            var state = Activator.CreateInstance(runtimeStateType, "contract.alpha", "target.window", 420f, 1500f);
-            Assert.That(ReadProperty<string>(runtimeStateType, state, "ContractId"), Is.EqualTo("contract.alpha"));
-            Assert.That(ReadProperty<string>(runtimeStateType, state, "TargetId"), Is.EqualTo("target.window"));
-            Assert.That(ReadProperty<float>(runtimeStateType, state, "DistanceBand"), Is.EqualTo(420f));
-            Assert.That(ReadProperty<float>(runtimeStateType, state, "Payout"), Is.EqualTo(1500f));
-        }
-
-        private static EventInfo AssertEvent(Type declaringType, string eventName, Type expectedHandlerType)
-        {
-            var eventInfo = declaringType.GetEvent(eventName);
-            Assert.That(eventInfo, Is.Not.Null, $"{declaringType.Name} should declare {eventName}.");
-            Assert.That(eventInfo.EventHandlerType, Is.EqualTo(expectedHandlerType));
-            return eventInfo;
-        }
-
-        private static MethodInfo AssertMethod(Type declaringType, string methodName, params Type[] parameterTypes)
-        {
-            var methodInfo = declaringType.GetMethod(methodName, parameterTypes);
-            Assert.That(methodInfo, Is.Not.Null, $"{declaringType.Name} should declare {methodName}.");
-            return methodInfo;
-        }
-
-        private static T ReadProperty<T>(Type declaringType, object instance, string propertyName)
-        {
-            var propertyInfo = declaringType.GetProperty(propertyName);
-            Assert.That(propertyInfo, Is.Not.Null, $"{declaringType.Name} should declare {propertyName}.");
-            return (T)propertyInfo.GetValue(instance);
+            var state = new AssassinationContractRuntimeState("contract.alpha", "target.window", 420f, 1500);
+            Assert.That(state.ContractId, Is.EqualTo("contract.alpha"));
+            Assert.That(state.TargetId, Is.EqualTo("target.window"));
+            Assert.That(state.DistanceBand, Is.EqualTo(420f));
+            Assert.That(state.Payout, Is.EqualTo(1500));
         }
     }
 }
