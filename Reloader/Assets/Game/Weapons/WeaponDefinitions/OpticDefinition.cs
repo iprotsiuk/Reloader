@@ -28,6 +28,7 @@ namespace Reloader.Game.Weapons
         [SerializeField] private AdsVisualMode _visualModePolicy = AdsVisualMode.Auto;
         [SerializeField, Min(0f)] private float _eyeReliefBackOffset;
         [SerializeField] private Sprite _reticleUiSprite;
+        [SerializeField] private ScopeReticleDefinition _scopeReticleDefinition;
         [SerializeField] private bool _hasScopeRenderProfile;
         [SerializeField] private ScopeRenderProfile _scopeRenderProfile;
 
@@ -45,6 +46,7 @@ namespace Reloader.Game.Weapons
         public AdsVisualMode VisualModePolicy => _visualModePolicy;
         public float EyeReliefBackOffset => Mathf.Max(0f, _eyeReliefBackOffset);
         public Sprite ReticleUiSprite => _reticleUiSprite;
+        public ScopeReticleDefinition ScopeReticleDefinition => _scopeReticleDefinition;
         public bool HasScopeRenderProfile => _hasScopeRenderProfile;
         public ScopeRenderProfile RenderProfile => _scopeRenderProfile;
 

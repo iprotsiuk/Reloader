@@ -25,6 +25,7 @@ namespace Reloader.Game.Weapons
         public event Action<OpticDefinition> ActiveOpticChanged;
         public OpticDefinition ActiveOpticDefinition => _activeOpticDefinition;
         public MuzzleAttachmentDefinition ActiveMuzzleDefinition => _activeMuzzleDefinition;
+        public GameObject ActiveOpticInstance => _equippedOpticInstance;
         public Transform ScopeSlot => _scopeSlot;
         public Transform MuzzleSlot => _muzzleSlot;
 
@@ -104,7 +105,15 @@ namespace Reloader.Game.Weapons
                 return false;
             }
 
-            _activeSightAnchor = ResolveOrCreateSightAnchor(_equippedOpticInstance.transform);
+            _activeSightAnchor = ResolveSightAnchor(_equippedOpticInstance.transform);
+            if (_activeSightAnchor == null)
+            {
+                Debug.LogWarning(
+                    $"AttachmentManager: Scoped optic '{optic.OpticId}' is missing an authored {SightAnchorName}. Equip rejected.",
+                    optic);
+                DisposeInvalidOpticInstance();
+                return false;
+            }
             ApplySlotLayer(_scopeSlot);
 
             if (_verboseOpticLogs)
@@ -131,6 +140,25 @@ namespace Reloader.Game.Weapons
             if (_verboseOpticLogs)
             {
                 Debug.Log("AttachmentManager: UnequipOptic complete.", this);
+            }
+            RaiseActiveOpticChanged();
+        }
+
+        private void DisposeInvalidOpticInstance()
+        {
+            if (_equippedOpticInstance != null)
+            {
+                _equippedOpticInstance.SetActive(false);
+                _equippedOpticInstance.transform.SetParent(null, false);
+                Destroy(_equippedOpticInstance);
+                _equippedOpticInstance = null;
+            }
+
+            _activeOpticDefinition = null;
+            RefreshSightAnchor();
+            if (_verboseOpticLogs)
+            {
+                Debug.Log("AttachmentManager: Invalid optic instance disposed during equip.", this);
             }
             RaiseActiveOpticChanged();
         }
@@ -275,29 +303,6 @@ namespace Reloader.Game.Weapons
             }
 
             return null;
-        }
-
-        private Transform ResolveOrCreateSightAnchor(Transform opticRoot)
-        {
-            var existingAnchor = ResolveSightAnchor(opticRoot);
-            if (existingAnchor != null)
-            {
-                return existingAnchor;
-            }
-
-            if (opticRoot == null)
-            {
-                return null;
-            }
-
-            var syntheticAnchor = new GameObject(SightAnchorName).transform;
-            syntheticAnchor.SetParent(opticRoot, false);
-            syntheticAnchor.gameObject.layer = opticRoot.gameObject.layer;
-
-            syntheticAnchor.localPosition = Vector3.zero;
-            syntheticAnchor.localRotation = Quaternion.identity;
-            syntheticAnchor.localScale = Vector3.one;
-            return syntheticAnchor;
         }
 
         private static void ApplySlotLayer(Transform slot)

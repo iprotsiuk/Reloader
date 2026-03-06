@@ -6,6 +6,7 @@ using UnityEditor;
 
 namespace Reloader.Game.Weapons
 {
+    [DefaultExecutionOrder(11000)]
     public sealed class WeaponAimAligner : MonoBehaviour
     {
         [Header("References")]
@@ -32,19 +33,38 @@ namespace Reloader.Game.Weapons
         private float _nextMainCameraRefreshTime;
         private bool _loggedMissingPivot;
         private bool _loggedMissingAnchorSource;
+        private float _runtimeEyeReliefBackOffset;
 
         public float DebugAlignmentErrorDistance { get; private set; }
         public float DebugAlignmentErrorAngleDegrees { get; private set; }
+        public float RuntimeEyeReliefBackOffset => _runtimeEyeReliefBackOffset;
 
         private void Awake()
         {
-            CacheRestPose();
-            CacheMainCameraTransform();
+            RefreshRuntimeCaches();
         }
 
         private void OnEnable()
         {
             CacheMainCameraTransform();
+        }
+
+        public void BindRuntimeReferences(
+            Transform adsPivot,
+            Transform cameraTransform,
+            AttachmentManager attachmentManager,
+            AdsStateController adsStateController)
+        {
+            _adsPivot = adsPivot;
+            _cameraTransform = cameraTransform;
+            _attachmentManager = attachmentManager;
+            _adsStateController = adsStateController;
+            RefreshRuntimeCaches();
+        }
+
+        public void SetRuntimeEyeReliefBackOffset(float value)
+        {
+            _runtimeEyeReliefBackOffset = value;
         }
 
         private void LateUpdate()
@@ -92,7 +112,7 @@ namespace Reloader.Game.Weapons
                 opticEyeRelief = activeOptic.EyeReliefBackOffset;
             }
 
-            var totalEyeRelief = opticEyeRelief + _extraEyeReliefBackOffset;
+            var totalEyeRelief = opticEyeRelief + _extraEyeReliefBackOffset + _runtimeEyeReliefBackOffset;
             targetWorldPosition += (-sightAnchor.forward) * totalEyeRelief;
 
             Vector3 targetLocalPosition;
@@ -108,14 +128,11 @@ namespace Reloader.Game.Weapons
                 targetLocalRotation = targetWorldRotation;
             }
 
-            var blendedLocalPosition = Vector3.Lerp(_restLocalPosition, targetLocalPosition, adsT);
-            var blendedLocalRotation = Quaternion.Slerp(_restLocalRotation, targetLocalRotation, adsT);
-
-            var positionStep = 1f - Mathf.Exp(-Mathf.Max(0.001f, _positionLerpSpeed) * Time.deltaTime);
-            var rotationStep = 1f - Mathf.Exp(-Mathf.Max(0.001f, _rotationLerpSpeed) * Time.deltaTime);
-
-            _adsPivot.localPosition = Vector3.Lerp(_adsPivot.localPosition, blendedLocalPosition, positionStep);
-            _adsPivot.localRotation = Quaternion.Slerp(_adsPivot.localRotation, blendedLocalRotation, rotationStep);
+            // Scoped ADS timing already comes from AdsStateController.AdsT.
+            // Apply the solved pivot pose directly from that blend so the optic
+            // is fully aligned when ADS completes instead of continuing to settle.
+            _adsPivot.localPosition = Vector3.Lerp(_restLocalPosition, targetLocalPosition, adsT);
+            _adsPivot.localRotation = Quaternion.Slerp(_restLocalRotation, targetLocalRotation, adsT);
 
             DebugAlignmentErrorDistance = Vector3.Distance(sightAnchor.position, cameraTx.position);
             DebugAlignmentErrorAngleDegrees = Quaternion.Angle(sightAnchor.rotation, cameraTx.rotation);
@@ -151,8 +168,20 @@ namespace Reloader.Game.Weapons
             _cachedMainCameraTransform = main != null ? main.transform : null;
         }
 
+        private void RefreshRuntimeCaches()
+        {
+            CacheRestPose();
+            CacheMainCameraTransform();
+            _loggedMissingPivot = false;
+            _loggedMissingAnchorSource = false;
+        }
+
         private void CacheRestPose()
         {
+            _pivotParent = null;
+            _restLocalPosition = Vector3.zero;
+            _restLocalRotation = Quaternion.identity;
+
             if (_adsPivot == null)
             {
                 return;

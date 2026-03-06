@@ -3,7 +3,8 @@
   "rootNamespace": "Reloader.World.Tests",
   "references": [
     "Reloader.World",
-    "Reloader.World.Editor"
+    "Reloader.World.Editor",
+    "Reloader.Weapons"
   ],
   "includePlatforms": [
     "Editor"

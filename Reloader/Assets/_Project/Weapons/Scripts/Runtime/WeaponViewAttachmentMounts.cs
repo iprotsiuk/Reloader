@@ -18,6 +18,7 @@ namespace Reloader.Weapons.Runtime
         }
 
         [Header("Reference Points")]
+        [SerializeField] private Transform _adsPivot;
         [SerializeField] private Transform _ironSightAnchor;
         [SerializeField] private Transform _muzzleTransform;
         [SerializeField] private Transform _magazineSocket;
@@ -26,7 +27,8 @@ namespace Reloader.Weapons.Runtime
         [Header("Attachment Slots")]
         [SerializeField] private AttachmentSlotMount[] _attachmentSlots = Array.Empty<AttachmentSlotMount>();
 
-        public Transform IronSightAnchor => _ironSightAnchor != null ? _ironSightAnchor : transform;
+        public Transform AdsPivot => _adsPivot;
+        public Transform IronSightAnchor => _ironSightAnchor;
         public Transform MuzzleTransform => _muzzleTransform;
         public Transform MagazineSocket => _magazineSocket;
         public Transform MagazineDropSocket => _magazineDropSocket;

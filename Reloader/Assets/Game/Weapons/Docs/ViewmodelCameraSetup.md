@@ -3,6 +3,7 @@
 This setup uses a strict two-camera FPS pipeline:
 - `WorldCamera`: renders world geometry.
 - `ViewmodelCamera`: renders only weapon/arms on `Viewmodel` layer.
+- `ScopeCamera`: renders PiP scope imagery and must exclude `Viewmodel`.
 
 ADS alignment is camera-driven:
 - Weapon `SightAnchor` is aligned to the `WorldCamera` transform by moving `AdsPivot` in code.
@@ -23,6 +24,16 @@ ADS alignment is camera-driven:
 
 3. Put weapon and arms meshes on `Viewmodel` layer.
 
+4. Create or runtime-spawn `ScopeCamera`.
+- Parent: `WorldCamera`
+- Local pose: identity
+- Culling mask: `WorldCamera` mask with `Viewmodel` removed
+- Clear flags/background: match `WorldCamera`
+- Enabled only while PiP scoped ADS is active
+
+Strict rule:
+- if `ScopeCamera` renders `Viewmodel`, the PiP setup is broken
+
 ## 2. Required Weapon Prefab Layout
 
 ```text
@@ -40,7 +51,7 @@ Attach these components on the viewmodel rig root (or a controller object):
 - `AttachmentManager`
 - `AdsStateController`
 - `WeaponAimAligner`
-- Optional: `RenderTextureScopeController`
+- `RenderTextureScopeController` for PiP optics
 
 ## 3. Required Optic Prefab Layout
 
@@ -51,11 +62,17 @@ OpticPrefab
 
 `SightAnchor` must represent the player eye position behind the optic, not the lens surface.
 
+For PiP optics also author:
+- `ScopeLensDisplay` on the eyepiece display surface
+- optional `ScopeReticleController`
+
 ## 4. Runtime Wiring
 
 `AttachmentManager`
 - `ScopeSlot` -> `ViewModelRoot/Attachments/ScopeSlot`
 - `IronSightAnchor` -> `ViewModelRoot/Defaults/IronSightAnchor`
+- resolves explicit authored optic `SightAnchor`
+- must not synthesize a generic anchor for misconfigured optics during development
 
 `AdsStateController`
 - `WorldCamera` -> world camera
@@ -70,6 +87,13 @@ OpticPrefab
 - `CameraTransform` -> `WorldCamera.transform`
 - `AttachmentManager` -> same object reference
 - `AdsStateController` -> same object reference
+- applies `OpticDefinition.eyeReliefBackOffset`
+
+`RenderTextureScopeController`
+- `ScopeCamera` -> dedicated scope camera
+- active optic must expose `ScopeLensDisplay`
+- PiP optics should bind explicit reticle data when present
+- pipeline should stay compatible with future persistent optic windage/elevation adjustments
 
 ## 5. Scope Mask UI Setup
 
@@ -124,6 +148,7 @@ Mask behavior:
 Expected:
 - ADS alignment is correct.
 - No scope mask.
+- No PiP lens rendering required.
 
 ## 7. Example Setup: ELR Rifle + 5-25x Scope
 
@@ -153,9 +178,11 @@ Expected:
 - `ScopeRenderProfile` optional for PiP migration
 
 Expected:
-- Scope mask activates in ADS.
+- PiP lens rendering activates in ADS when configured for `RenderTexturePiP`.
+- `SightAnchor` and eye relief define final scoped eye position.
 - Mouse wheel smoothly changes zoom.
 - Sensitivity and sway scales reduce with magnification.
+- Scope camera never renders the rifle or scope body.
 
 ## 8. Validation Checklist
 
@@ -168,7 +195,8 @@ Use one test scene with player, arms, and both cameras.
 
 2. Equip ELR + 5-25x scope, hold ADS.
 - `SightAnchor` aligns with camera.
-- Scope mask appears.
+- PiP lens output appears if configured.
+- Scope camera excludes `Viewmodel`.
 
 3. Scroll wheel while ADS on ELR.
 - Magnification changes smoothly.
@@ -177,13 +205,22 @@ Use one test scene with player, arms, and both cameras.
 4. Swap optics at runtime.
 - New `SightAnchor` takes effect immediately.
 
-5. Confirm debug alignment output.
+5. Pull scoped weapon close with authored pose tuning.
+- scope image stays visible
+- optic body does not black out PiP view
+- eye relief remains stable
+
+Future extensibility note:
+- user scope zeroing (windage/elevation) should persist on the configured optic and must not depend on ad hoc scene tuning or per-session camera hacks
+- persistence should serialize optic adjustment snapshots (`zoom`, `zero`, `windage`, `elevation`) as optic runtime state rather than mutating `AdsPivot`, `SightAnchor`, or scope-camera transforms
+
+6. Confirm debug alignment output.
 - `WeaponAimAligner` gizmos show camera axis, sight axis, and error line.
 - Error decreases to near zero when fully ADS.
 
 ## 9. PiP Note
 
-`RenderTextureScopeController` is a lightweight stub:
-- disabled by default
+`RenderTextureScopeController` is the PiP scope-image owner:
 - enabled only while ADS and when optic policy is `RenderTexturePiP`
-- intended as migration path to full PiP scopes
+- owns scope-camera FOV and render-texture binding
+- depends on explicit optic prefab authoring (`SightAnchor`, `ScopeLensDisplay`, reticle wiring when needed)

@@ -14,6 +14,7 @@ namespace Reloader.Game.Weapons
         [SerializeField] private AttachmentManager _attachmentManager;
         [SerializeField] private ScopeMaskController _scopeMaskController;
         [SerializeField] private RenderTextureScopeController _renderTextureScopeController;
+        [SerializeField] private PeripheralScopeEffects _peripheralScopeEffects;
         [SerializeField] private WeaponDefinition _weaponDefinition;
 
         [Header("Input")]
@@ -56,6 +57,7 @@ namespace Reloader.Game.Weapons
         private bool _loggedInputWarning;
         private bool _legacyInputUnavailable;
         private bool _adsButtonUnavailable;
+        private bool _capturedRuntimeCameraDefaults;
         private float _baseWorldFov = 75f;
         private float _baseViewmodelFov = 60f;
         private float _targetMagnification = 1f;
@@ -105,6 +107,7 @@ namespace Reloader.Game.Weapons
         private void Update()
         {
             EnsureAttachmentManagerSubscription();
+            EnsureRuntimeCameraDefaults();
             TickInput();
             TickAdsBlend();
             TickMagnification();
@@ -131,6 +134,7 @@ namespace Reloader.Game.Weapons
             _lastLegacyAdsHeld = false;
             _lastMaskOpticDefinition = null;
             _lastMaskPolicy = AdsVisualMode.Auto;
+            _capturedRuntimeCameraDefaults = false;
 
             if (_worldCamera != null)
             {
@@ -149,7 +153,12 @@ namespace Reloader.Game.Weapons
 
             if (_renderTextureScopeController != null)
             {
-                _renderTextureScopeController.SetScopeActive(false, null);
+                _renderTextureScopeController.SetScopeActive(false, null, null, _baseWorldFov, 1f);
+            }
+
+            if (_peripheralScopeEffects != null)
+            {
+                _peripheralScopeEffects.SetState(false, 0f);
             }
         }
 
@@ -292,10 +301,21 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
-            var adsFov = Mathf.Clamp(_baseWorldFov / Mathf.Max(MinMagnification, CurrentMagnification), _minimumWorldFov, _baseWorldFov);
+            var optic = _attachmentManager != null ? _attachmentManager.ActiveOpticDefinition : null;
+            var usesScopedPip = UsesScopedPip(optic);
+            var adsFov = usesScopedPip
+                ? _baseWorldFov
+                : Mathf.Clamp(_baseWorldFov / Mathf.Max(MinMagnification, CurrentMagnification), _minimumWorldFov, _baseWorldFov);
             TargetWorldFov = Mathf.Lerp(_baseWorldFov, adsFov, AdsT);
-            var worldLerp = 1f - Mathf.Exp(-Mathf.Max(0.01f, _worldFovLerpSpeed) * Time.deltaTime);
-            _worldCamera.fieldOfView = Mathf.Lerp(_worldCamera.fieldOfView, TargetWorldFov, worldLerp);
+            if (usesScopedPip)
+            {
+                _worldCamera.fieldOfView = _baseWorldFov;
+            }
+            else
+            {
+                var worldLerp = 1f - Mathf.Exp(-Mathf.Max(0.01f, _worldFovLerpSpeed) * Time.deltaTime);
+                _worldCamera.fieldOfView = Mathf.Lerp(_worldCamera.fieldOfView, TargetWorldFov, worldLerp);
+            }
 
             if (_viewmodelCamera != null)
             {
@@ -340,7 +360,15 @@ namespace Reloader.Game.Weapons
             if (_renderTextureScopeController != null)
             {
                 var usePip = adsVisible && policy == AdsVisualMode.RenderTexturePiP;
-                _renderTextureScopeController.SetScopeActive(usePip, optic);
+                var scopeReferenceFov = _baseWorldFov;
+                var scopeMagnification = Mathf.Max(MinMagnification, CurrentMagnification);
+                var activeOpticInstance = _attachmentManager != null ? _attachmentManager.ActiveOpticInstance : null;
+                _renderTextureScopeController.SetScopeActive(usePip, optic, activeOpticInstance, scopeReferenceFov, scopeMagnification);
+
+                if (_peripheralScopeEffects != null)
+                {
+                    _peripheralScopeEffects.SetState(usePip, AdsT);
+                }
             }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -415,6 +443,26 @@ namespace Reloader.Game.Weapons
             }
         }
 
+        private void EnsureRuntimeCameraDefaults()
+        {
+            if (_capturedRuntimeCameraDefaults || _weaponDefinition != null)
+            {
+                return;
+            }
+
+            if (_worldCamera != null)
+            {
+                _baseWorldFov = Mathf.Clamp(_worldCamera.fieldOfView, 1f, 179f);
+            }
+
+            if (_viewmodelCamera != null)
+            {
+                _baseViewmodelFov = Mathf.Clamp(_viewmodelCamera.fieldOfView, 1f, 179f);
+            }
+
+            _capturedRuntimeCameraDefaults = _worldCamera != null || _viewmodelCamera != null;
+        }
+
         private void ResetMaskLatchForContext(AdsVisualMode policy, float magnification)
         {
             if (policy == AdsVisualMode.Mask)
@@ -455,6 +503,11 @@ namespace Reloader.Game.Weapons
             }
 
             return _maskLatch;
+        }
+
+        private bool UsesScopedPip(OpticDefinition optic)
+        {
+            return optic != null && optic.VisualModePolicy == AdsVisualMode.RenderTexturePiP;
         }
 
         private bool SafeGetKey(KeyCode key)

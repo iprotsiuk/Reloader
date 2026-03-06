@@ -103,7 +103,10 @@ namespace Reloader.Weapons.Controllers
         private GameObject _equippedWeaponView;
         private Component _adsStateRuntimeBridge;
         private Component _adsAttachmentManagerRuntimeBridge;
+        private Component _weaponAimAlignerRuntimeBridge;
+        private float _scopedAdsPresentationEyeReliefOffset;
         private PropertyInfo _adsActiveOpticProperty;
+        private PropertyInfo _adsBlendProperty;
         private MethodInfo _adsSetHeldMethod;
         private MethodInfo _adsSetMagnificationMethod;
         private PropertyInfo _adsCurrentMagnificationProperty;
@@ -120,6 +123,7 @@ namespace Reloader.Weapons.Controllers
         public Transform EquippedWeaponViewTransform => _equippedWeaponView != null ? _equippedWeaponView.transform : null;
         public bool IsAiming => _isAiming;
         public bool IsAimInputHeld => _inputSource != null && _inputSource.AimHeld;
+        public float CurrentAdsBlendT => ResolveCurrentAdsBlendT();
 
         private void Awake()
         {
@@ -882,6 +886,30 @@ namespace Reloader.Weapons.Controllers
             return _adsActiveOpticProperty.GetValue(_adsAttachmentManagerRuntimeBridge) != null;
         }
 
+        public bool HasActiveScopedAdsAlignment => HasScopedAdsBridgeActive() && _weaponAimAlignerRuntimeBridge != null;
+        public float ScopedAdsPresentationEyeReliefOffset => _scopedAdsPresentationEyeReliefOffset;
+
+        public void SetScopedAdsPresentationEyeReliefOffset(float value)
+        {
+            _scopedAdsPresentationEyeReliefOffset = value;
+            ApplyScopedAdsPresentationEyeReliefOffset();
+        }
+
+        private float ResolveCurrentAdsBlendT()
+        {
+            if (_adsStateRuntimeBridge != null)
+            {
+                var bridgeType = _adsStateRuntimeBridge.GetType();
+                _adsBlendProperty ??= bridgeType.GetProperty("AdsT", BindingFlags.Instance | BindingFlags.Public);
+                if (_adsBlendProperty != null && _adsBlendProperty.GetValue(_adsStateRuntimeBridge) is float adsBlend)
+                {
+                    return Mathf.Clamp01(adsBlend);
+                }
+            }
+
+            return _inputSource != null && _inputSource.AimHeld ? 1f : 0f;
+        }
+
         public bool TryGetActiveOpticMagnification(out float minMagnification, out float maxMagnification)
         {
             minMagnification = 1f;
@@ -1522,6 +1550,7 @@ namespace Reloader.Weapons.Controllers
             _equippedWeaponView.transform.localPosition = Vector3.zero;
             _equippedWeaponView.transform.localRotation = Quaternion.identity;
             _equippedWeaponView.transform.localScale = Vector3.one;
+            ApplyViewmodelLayer(_equippedWeaponView.transform);
             StripViewPhysicsComponents(_equippedWeaponView);
             StripViewRuntimeComponents(_equippedWeaponView);
             NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
@@ -1708,22 +1737,23 @@ namespace Reloader.Weapons.Controllers
             }
 
             var mounts = viewRoot.GetComponent<WeaponViewAttachmentMounts>();
-            var ironSightAnchor = mounts != null
-                ? (mounts.IronSightAnchor != null ? mounts.IronSightAnchor : viewRoot.transform)
-                : FindDescendantByName(viewRoot.transform, "IronSightAnchor")
-                    ?? FindDescendantByName(viewRoot.transform, "SightAnchor")
-                    ?? viewRoot.transform;
-            Transform scopeSlot = null;
-            Transform muzzleSlot = null;
-            if (mounts != null)
+            if (mounts == null)
             {
-                mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Scope, out scopeSlot);
-                mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Muzzle, out muzzleSlot);
+                Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing WeaponViewAttachmentMounts.", this);
+                return null;
             }
 
-            scopeSlot ??= FindDescendantByName(viewRoot.transform, "ScopeSlot")
-                ?? FindDescendantByName(viewRoot.transform, "OpticSlot");
-            muzzleSlot ??= FindDescendantByName(viewRoot.transform, "MuzzleAttachmentSlot");
+            var ironSightAnchor = mounts.IronSightAnchor;
+            if (ironSightAnchor == null)
+            {
+                Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing an authored IronSightAnchor.", this);
+                return null;
+            }
+
+            Transform scopeSlot = null;
+            Transform muzzleSlot = null;
+            mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Scope, out scopeSlot);
+            mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Muzzle, out muzzleSlot);
 
             if (scopeSlot == null && muzzleSlot == null)
             {
@@ -1748,6 +1778,8 @@ namespace Reloader.Weapons.Controllers
             if (viewRoot == null || attachmentManager == null)
             {
                 _adsStateRuntimeBridge = null;
+                _weaponAimAlignerRuntimeBridge = null;
+                _scopedAdsPresentationEyeReliefOffset = 0f;
                 _adsActiveOpticProperty = null;
                 return;
             }
@@ -1756,6 +1788,8 @@ namespace Reloader.Weapons.Controllers
             if (adsType == null)
             {
                 _adsStateRuntimeBridge = null;
+                _weaponAimAlignerRuntimeBridge = null;
+                _scopedAdsPresentationEyeReliefOffset = 0f;
                 _adsActiveOpticProperty = null;
                 return;
             }
@@ -1780,10 +1814,114 @@ namespace Reloader.Weapons.Controllers
             _adsAttachmentManagerRuntimeBridge = attachmentManager;
             _adsActiveOpticProperty = null;
 
+            EnsureWeaponAimAlignerRuntimeBridge(viewRoot, attachmentManager, adsType, worldCamera);
+            EnsureRenderTextureScopeRuntimeBridge(adsType, worldCamera);
+            EnsurePeripheralScopeEffectsRuntimeBridge(adsType);
             TryAssignScopedAdsWeaponDefinition(adsType);
 
             var legacyInputField = adsType.GetField("_useLegacyInput", BindingFlags.Instance | BindingFlags.NonPublic);
             legacyInputField?.SetValue(_adsStateRuntimeBridge, false);
+        }
+
+        private void EnsureWeaponAimAlignerRuntimeBridge(GameObject viewRoot, Component attachmentManager, Type adsType, Camera worldCamera)
+        {
+            _weaponAimAlignerRuntimeBridge = null;
+            if (viewRoot == null || attachmentManager == null || adsType == null)
+            {
+                return;
+            }
+
+            var alignerType = ResolveTypeByName("Reloader.Game.Weapons.WeaponAimAligner");
+            if (alignerType == null)
+            {
+                return;
+            }
+
+            var mounts = viewRoot.GetComponent<WeaponViewAttachmentMounts>();
+            var adsPivot = mounts != null ? mounts.AdsPivot : null;
+            if (adsPivot == null)
+            {
+                Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing an authored AdsPivot required for scoped ADS alignment.", this);
+                return;
+            }
+
+            var aligner = gameObject.GetComponent(alignerType) ?? gameObject.AddComponent(alignerType);
+            if (aligner == null)
+            {
+                return;
+            }
+
+            var bindRuntimeReferences = alignerType.GetMethod("BindRuntimeReferences", BindingFlags.Instance | BindingFlags.Public);
+            if (bindRuntimeReferences != null)
+            {
+                bindRuntimeReferences.Invoke(aligner, new object[]
+                {
+                    adsPivot,
+                    worldCamera != null ? worldCamera.transform : null,
+                    attachmentManager,
+                    _adsStateRuntimeBridge
+                });
+            }
+            else
+            {
+                alignerType.GetField("_adsPivot", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, adsPivot);
+                alignerType.GetField("_cameraTransform", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, worldCamera != null ? worldCamera.transform : null);
+                alignerType.GetField("_attachmentManager", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, attachmentManager);
+                alignerType.GetField("_adsStateController", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, _adsStateRuntimeBridge);
+            }
+
+            _weaponAimAlignerRuntimeBridge = aligner;
+            ApplyScopedAdsPresentationEyeReliefOffset();
+        }
+
+        private void EnsureRenderTextureScopeRuntimeBridge(Type adsType, Camera worldCamera)
+        {
+            if (adsType == null || _adsStateRuntimeBridge == null)
+            {
+                return;
+            }
+
+            var renderScopeType = ResolveTypeByName("Reloader.Game.Weapons.RenderTextureScopeController");
+            if (renderScopeType == null)
+            {
+                return;
+            }
+
+            var renderScopeController = gameObject.GetComponent(renderScopeType) ?? gameObject.AddComponent(renderScopeType);
+            if (renderScopeController == null)
+            {
+                return;
+            }
+
+            var scopeCamera = EnsureScopeCamera(worldCamera);
+            var scopeCameraField = renderScopeType.GetField("_scopeCamera", BindingFlags.Instance | BindingFlags.NonPublic);
+            scopeCameraField?.SetValue(renderScopeController, scopeCamera);
+
+            var renderScopeField = adsType.GetField("_renderTextureScopeController", BindingFlags.Instance | BindingFlags.NonPublic);
+            renderScopeField?.SetValue(_adsStateRuntimeBridge, renderScopeController);
+        }
+
+        private void EnsurePeripheralScopeEffectsRuntimeBridge(Type adsType)
+        {
+            if (adsType == null || _adsStateRuntimeBridge == null)
+            {
+                return;
+            }
+
+            var peripheralEffectsType = ResolveTypeByName("Reloader.Game.Weapons.PeripheralScopeEffects");
+            if (peripheralEffectsType == null)
+            {
+                return;
+            }
+
+            var peripheralEffects = gameObject.GetComponent(peripheralEffectsType) ?? gameObject.AddComponent(peripheralEffectsType);
+            if (peripheralEffects == null)
+            {
+                return;
+            }
+
+            var peripheralEffectsField = adsType.GetField("_peripheralScopeEffects", BindingFlags.Instance | BindingFlags.NonPublic);
+            peripheralEffectsField?.SetValue(_adsStateRuntimeBridge, peripheralEffects);
         }
 
         private void TryAssignScopedAdsWeaponDefinition(Type adsType)
@@ -1873,6 +2011,73 @@ namespace Reloader.Weapons.Controllers
 
             var child = worldCamera.transform.Find("ViewmodelCamera");
             return child != null ? child.GetComponent<Camera>() : null;
+        }
+
+        private static Camera EnsureScopeCamera(Camera worldCamera)
+        {
+            if (worldCamera == null)
+            {
+                return null;
+            }
+
+            var scopeTransform = worldCamera.transform.Find("ScopeCamera");
+            Camera scopeCamera;
+            if (scopeTransform != null)
+            {
+                scopeCamera = scopeTransform.GetComponent<Camera>();
+            }
+            else
+            {
+                var scopeCameraGo = new GameObject("ScopeCamera");
+                scopeTransform = scopeCameraGo.transform;
+                scopeTransform.SetParent(worldCamera.transform, false);
+                scopeCamera = scopeCameraGo.AddComponent<Camera>();
+            }
+
+            if (scopeCamera == null)
+            {
+                return null;
+            }
+
+            scopeTransform.localPosition = Vector3.zero;
+            scopeTransform.localRotation = Quaternion.identity;
+            scopeTransform.localScale = Vector3.one;
+
+            scopeCamera.enabled = false;
+            scopeCamera.clearFlags = worldCamera.clearFlags;
+            scopeCamera.backgroundColor = worldCamera.backgroundColor;
+            scopeCamera.cullingMask = ExcludeViewmodelLayer(worldCamera.cullingMask);
+            scopeCamera.nearClipPlane = worldCamera.nearClipPlane;
+            scopeCamera.farClipPlane = worldCamera.farClipPlane;
+            scopeCamera.allowHDR = worldCamera.allowHDR;
+            scopeCamera.allowMSAA = worldCamera.allowMSAA;
+            scopeCamera.orthographic = worldCamera.orthographic;
+            scopeCamera.depthTextureMode = worldCamera.depthTextureMode;
+            scopeCamera.fieldOfView = worldCamera.fieldOfView;
+            scopeCamera.targetTexture = null;
+            return scopeCamera;
+        }
+
+        private static int ExcludeViewmodelLayer(int cullingMask)
+        {
+            var viewmodelLayer = LayerMask.NameToLayer("Viewmodel");
+            if (viewmodelLayer < 0)
+            {
+                return cullingMask;
+            }
+
+            return cullingMask & ~(1 << viewmodelLayer);
+        }
+
+        private static void ApplyViewmodelLayer(Transform root)
+        {
+            var viewmodelLayer = LayerMask.NameToLayer("Viewmodel");
+            if (root == null || viewmodelLayer < 0)
+            {
+                return;
+            }
+
+            SetLayerRecursively(root, viewmodelLayer);
         }
 
         private static void SetLayerRecursively(Transform root, int layer)
@@ -2080,10 +2285,25 @@ namespace Reloader.Weapons.Controllers
 
             _adsStateRuntimeBridge = null;
             _adsAttachmentManagerRuntimeBridge = null;
+            _weaponAimAlignerRuntimeBridge = null;
+            _scopedAdsPresentationEyeReliefOffset = 0f;
             _adsActiveOpticProperty = null;
+            _adsBlendProperty = null;
             _adsSetHeldMethod = null;
             _adsSetMagnificationMethod = null;
             _adsCurrentMagnificationProperty = null;
+        }
+
+        private void ApplyScopedAdsPresentationEyeReliefOffset()
+        {
+            if (_weaponAimAlignerRuntimeBridge == null)
+            {
+                return;
+            }
+
+            var alignerType = _weaponAimAlignerRuntimeBridge.GetType();
+            var setter = alignerType.GetMethod("SetRuntimeEyeReliefBackOffset", BindingFlags.Instance | BindingFlags.Public);
+            setter?.Invoke(_weaponAimAlignerRuntimeBridge, new object[] { _scopedAdsPresentationEyeReliefOffset });
         }
 
         private static void ClearAttachmentSlots(WeaponRuntimeState state)

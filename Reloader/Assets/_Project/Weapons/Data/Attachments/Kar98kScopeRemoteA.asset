@@ -19,9 +19,10 @@ MonoBehaviour:
   _magnificationMin: 4
   _magnificationMax: 8
   _magnificationStep: 1
-  _visualModePolicy: 1
+  _visualModePolicy: 2
   _eyeReliefBackOffset: 0
-  _reticleUiSprite: {fileID: 0}
+  _reticleUiSprite: {fileID: 21300000, guid: b6b38010a34c907438bccaf68cad56f1, type: 3}
+  _scopeReticleDefinition: {fileID: 11400000, guid: fa23f39f258244bd9b91e1f238d74efb, type: 2}
   _hasScopeRenderProfile: 0
   _scopeRenderProfile:
     _renderTextureResolution: 1024

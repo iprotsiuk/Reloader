@@ -293,6 +293,8 @@ GameObject:
   - component: {fileID: 8875462904680293238}
   - component: {fileID: 6140062576640911298}
   - component: {fileID: 7999831991638637002}
+  - component: {fileID: 7999831991638637003}
+  - component: {fileID: 7999831991638637004}
   m_Layer: 0
   m_Name: PlayerRoot_MainTown
   m_TagString: Player
@@ -715,6 +717,36 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Animations.PlayerWeaponAnimationBinder
   _animator: {fileID: 7562842590407840843}
   _animationProfile: {fileID: 11400000, guid: 052fe1896bea14619ab66cde169b093a, type: 2}
+--- !u!114 &7999831991638637003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8805273355277606564}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2044c11f87f86430aaf8b134d12ee18a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _scopedBehaviours:
+  - {fileID: 7999831991638637004}
+--- !u!114 &7999831991638637004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8805273355277606564}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2708d690d7d7429ea23c5712ff3d537, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _centerWidthNormalized: 0.32
+  _centerHeightNormalized: 0.32
+  _maxPeripheralAlpha: 0.82
+  _maskColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1001 &4151765724084627930
 PrefabInstance:
   m_ObjectHideFlags: 0
