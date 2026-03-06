@@ -26,7 +26,7 @@ namespace Reloader.LawEnforcement
                 return;
             }
 
-            SetState(CurrentState.Level, crimeType, CurrentState.SearchTimeRemainingSeconds, CurrentState.HasLineOfSightToPlayer);
+            SetState(CurrentState.Level, crimeType, _searchDurationSeconds, CurrentState.HasLineOfSightToPlayer);
         }
 
         public void ReportLineOfSightAcquired()

@@ -44,5 +44,24 @@ namespace Reloader.LawEnforcement.Tests.EditMode
             Assert.That(controller.CurrentState.Level, Is.EqualTo(PoliceHeatLevel.Search));
             Assert.That(controller.CurrentState.SearchTimeRemainingSeconds, Is.EqualTo(25f));
         }
+
+        [Test]
+        public void PoliceHeatController_RepeatCrimeRefreshesActiveHeatTimer()
+        {
+            var controller = new PoliceHeatController(searchDurationSeconds: 45f);
+
+            controller.ReportCrime(CrimeType.Murder);
+            controller.ReportLineOfSightLost();
+            controller.Advance(40f);
+
+            Assert.That(controller.CurrentState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+            Assert.That(controller.CurrentState.SearchTimeRemainingSeconds, Is.EqualTo(5f));
+
+            controller.ReportCrime(CrimeType.Resisting);
+
+            Assert.That(controller.CurrentState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+            Assert.That(controller.CurrentState.LastCrimeType, Is.EqualTo(CrimeType.Resisting));
+            Assert.That(controller.CurrentState.SearchTimeRemainingSeconds, Is.EqualTo(45f));
+        }
     }
 }

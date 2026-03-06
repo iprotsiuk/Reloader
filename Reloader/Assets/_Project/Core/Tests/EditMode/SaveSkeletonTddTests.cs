@@ -310,6 +310,25 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void ContractStateModule_Validate_RejectsPartialActiveContractIdentity()
+        {
+            var missingTarget = new ContractStateModule
+            {
+                ActiveContractId = "contract.alpha",
+                ActiveTargetId = string.Empty
+            };
+
+            var missingContract = new ContractStateModule
+            {
+                ActiveContractId = string.Empty,
+                ActiveTargetId = "target.window"
+            };
+
+            Assert.Throws<InvalidOperationException>(() => missingTarget.ValidateModuleState());
+            Assert.Throws<InvalidOperationException>(() => missingContract.ValidateModuleState());
+        }
+
+        [Test]
         public void PoliceHeatStateModule_RoundTrip_PreservesSearchState()
         {
             var module = new PoliceHeatStateModule

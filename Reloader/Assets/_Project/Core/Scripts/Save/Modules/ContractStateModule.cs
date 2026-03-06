@@ -109,14 +109,23 @@ namespace Reloader.Core.Save.Modules
 
         public void ValidateModuleState()
         {
-            if (!string.IsNullOrEmpty(ActiveContractId) && string.IsNullOrWhiteSpace(ActiveContractId))
+            var hasContractId = !string.IsNullOrWhiteSpace(ActiveContractId);
+            var hasTargetId = !string.IsNullOrWhiteSpace(ActiveTargetId);
+
+            if (!string.IsNullOrEmpty(ActiveContractId) && !hasContractId)
             {
                 throw new InvalidOperationException("ContractState requires a non-empty contractId.");
             }
 
-            if (!string.IsNullOrEmpty(ActiveTargetId) && string.IsNullOrWhiteSpace(ActiveTargetId))
+            if (!string.IsNullOrEmpty(ActiveTargetId) && !hasTargetId)
             {
                 throw new InvalidOperationException("ContractState requires a non-empty targetId.");
+            }
+
+            if (hasContractId != hasTargetId)
+            {
+                throw new InvalidOperationException(
+                    "ContractState active contract identity requires both contractId and targetId.");
             }
 
             if (ActiveDistanceBand < 0f)
