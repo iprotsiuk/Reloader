@@ -38,13 +38,25 @@ namespace Reloader.Game.Weapons
 
         private void Awake()
         {
-            CacheRestPose();
-            CacheMainCameraTransform();
+            RefreshRuntimeCaches();
         }
 
         private void OnEnable()
         {
             CacheMainCameraTransform();
+        }
+
+        public void BindRuntimeReferences(
+            Transform adsPivot,
+            Transform cameraTransform,
+            AttachmentManager attachmentManager,
+            AdsStateController adsStateController)
+        {
+            _adsPivot = adsPivot;
+            _cameraTransform = cameraTransform;
+            _attachmentManager = attachmentManager;
+            _adsStateController = adsStateController;
+            RefreshRuntimeCaches();
         }
 
         private void LateUpdate()
@@ -151,8 +163,20 @@ namespace Reloader.Game.Weapons
             _cachedMainCameraTransform = main != null ? main.transform : null;
         }
 
+        private void RefreshRuntimeCaches()
+        {
+            CacheRestPose();
+            CacheMainCameraTransform();
+            _loggedMissingPivot = false;
+            _loggedMissingAnchorSource = false;
+        }
+
         private void CacheRestPose()
         {
+            _pivotParent = null;
+            _restLocalPosition = Vector3.zero;
+            _restLocalRotation = Quaternion.identity;
+
             if (_adsPivot == null)
             {
                 return;

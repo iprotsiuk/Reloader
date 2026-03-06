@@ -3204,11 +3204,14 @@ namespace Reloader.Weapons.Tests.PlayMode
                 });
 
                 viewPrefab = new GameObject("Kar98kView");
+                var adsPivot = new GameObject("AdsPivot").transform;
+                adsPivot.SetParent(viewPrefab.transform, false);
+                adsPivot.localPosition = new Vector3(0.11f, -0.07f, 0.23f);
                 var scopeSlot = new GameObject("ScopeSlot").transform;
-                scopeSlot.SetParent(viewPrefab.transform, false);
+                scopeSlot.SetParent(adsPivot, false);
                 var ironSightAnchor = new GameObject("IronSightAnchor").transform;
-                ironSightAnchor.SetParent(viewPrefab.transform, false);
-                ConfigureTestWeaponViewMounts(viewPrefab, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
+                ironSightAnchor.SetParent(adsPivot, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, adsPivot: adsPivot, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
 
                 var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.That(iconPrefabField, Is.Not.Null);
@@ -3248,7 +3251,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(GetField(aimAlignerType, aimAligner, "_attachmentManager"), Is.SameAs(attachmentManager));
                 Assert.That(GetField(aimAlignerType, aimAligner, "_adsStateController"), Is.SameAs(adsBridge));
                 Assert.That(GetField(aimAlignerType, aimAligner, "_cameraTransform"), Is.SameAs(worldCamera.transform));
-                Assert.That(GetField(aimAlignerType, aimAligner, "_adsPivot"), Is.SameAs(equippedView.transform));
+                var runtimeAdsPivot = equippedView.transform.Find("AdsPivot");
+                Assert.That(runtimeAdsPivot, Is.Not.Null);
+                Assert.That(GetField(aimAlignerType, aimAligner, "_adsPivot"), Is.SameAs(runtimeAdsPivot));
+                Assert.That(GetField(aimAlignerType, aimAligner, "_pivotParent"), Is.SameAs(equippedView.transform), "Runtime-wired aim aligner should refresh its cached pivot parent after AdsPivot assignment.");
+                Assert.That((Vector3)GetField(aimAlignerType, aimAligner, "_restLocalPosition"), Is.EqualTo(new Vector3(0.11f, -0.07f, 0.23f)));
             }
             finally
             {
