@@ -54,7 +54,7 @@ namespace Reloader.World.Editor
         private void DrawPlayModeRuntimeTuning(WeaponViewPoseTuningHelper helper)
         {
             EditorGUILayout.HelpBox(
-                "Use this play-mode section for live pose tuning. It writes directly into the runtime helper and caches the values so they can be applied back in edit mode after play stops.",
+                "Use this play-mode section for live pose tuning. Changes are applied to the runtime helper immediately and cached so they can be applied back in edit mode after play stops.",
                 MessageType.Info);
 
             if (!helper.TryGetRuntimeTuningContext(out var context))
@@ -80,13 +80,14 @@ namespace Reloader.World.Editor
                         MessageType.None);
                 }
 
+                EditorGUI.BeginChangeCheck();
                 _playModeBufferValues = DrawValuesEditor(_playModeBufferValues, context.UsesMagnifiedScopedAlignment);
-
-                if (GUILayout.Button("Apply Runtime Override Values"))
+                if (EditorGUI.EndChangeCheck())
                 {
                     helper.TrySetAttachmentPoseOverride(context.SlotType, context.AttachmentItemId, _playModeBufferValues);
                     CacheCapturedPayload(CreateAttachmentPayload(helper, context.SlotType, context.AttachmentItemId, _playModeBufferValues));
                     EditorUtility.SetDirty(helper);
+                    Repaint();
                 }
 
                 if (GUILayout.Button("Capture Current Runtime Override"))
@@ -98,13 +99,14 @@ namespace Reloader.World.Editor
             }
 
             SyncPlayModeBaseBuffer(context.Values);
+            EditorGUI.BeginChangeCheck();
             _playModeBufferValues = DrawValuesEditor(_playModeBufferValues, context.UsesMagnifiedScopedAlignment);
-
-            if (GUILayout.Button("Apply Runtime Base Pose Values"))
+            if (EditorGUI.EndChangeCheck())
             {
                 helper.SetBasePoseValues(_playModeBufferValues);
                 CacheCapturedPayload(CreateBasePayload(helper, _playModeBufferValues));
                 EditorUtility.SetDirty(helper);
+                Repaint();
             }
 
             if (GUILayout.Button("Capture Current Runtime Base Pose"))
@@ -151,15 +153,15 @@ namespace Reloader.World.Editor
 
         private static WeaponViewPoseTuningValues DrawValuesEditor(WeaponViewPoseTuningValues values, bool usesMagnifiedScopedAlignment)
         {
-            values.HipLocalPosition = DrawDelayedVector3Field("Hip Local Position", values.HipLocalPosition);
-            values.HipLocalEuler = DrawDelayedVector3Field("Hip Local Euler", values.HipLocalEuler);
-            values.AdsLocalPosition = DrawDelayedVector3Field("Ads Local Position", values.AdsLocalPosition);
-            values.AdsLocalEuler = DrawDelayedVector3Field("Ads Local Euler", values.AdsLocalEuler);
-            values.BlendSpeed = EditorGUILayout.DelayedFloatField("Blend Speed", values.BlendSpeed);
-            values.RifleLocalEulerOffset = DrawDelayedVector3Field("Rifle Local Euler Offset", values.RifleLocalEulerOffset);
+            values.HipLocalPosition = EditorGUILayout.Vector3Field("Hip Local Position", values.HipLocalPosition);
+            values.HipLocalEuler = EditorGUILayout.Vector3Field("Hip Local Euler", values.HipLocalEuler);
+            values.AdsLocalPosition = EditorGUILayout.Vector3Field("Ads Local Position", values.AdsLocalPosition);
+            values.AdsLocalEuler = EditorGUILayout.Vector3Field("Ads Local Euler", values.AdsLocalEuler);
+            values.BlendSpeed = EditorGUILayout.FloatField("Blend Speed", values.BlendSpeed);
+            values.RifleLocalEulerOffset = EditorGUILayout.Vector3Field("Rifle Local Euler Offset", values.RifleLocalEulerOffset);
             if (usesMagnifiedScopedAlignment)
             {
-                var moveRifleAwayFromCamera = EditorGUILayout.DelayedFloatField(
+                var moveRifleAwayFromCamera = EditorGUILayout.FloatField(
                     new GUIContent(
                         "Move Rifle Away From Camera",
                         "Positive values move the scoped rifle farther away from the camera during full magnified ADS."),
@@ -168,39 +170,10 @@ namespace Reloader.World.Editor
             }
             else
             {
-                values.ScopedAdsEyeReliefBackOffset = EditorGUILayout.DelayedFloatField("Scoped Eye Relief Back Offset", values.ScopedAdsEyeReliefBackOffset);
+                values.ScopedAdsEyeReliefBackOffset = EditorGUILayout.FloatField("Scoped Eye Relief Back Offset", values.ScopedAdsEyeReliefBackOffset);
             }
 
             return values;
-        }
-
-        private static Vector3 DrawDelayedVector3Field(string label, Vector3 value)
-        {
-            var rect = EditorGUILayout.GetControlRect();
-            var contentRect = EditorGUI.PrefixLabel(rect, new GUIContent(label));
-            var previousIndent = EditorGUI.indentLevel;
-            EditorGUI.indentLevel = 0;
-
-            var labelWidth = EditorGUIUtility.labelWidth;
-            EditorGUIUtility.labelWidth = 14f;
-            value = DrawDelayedMultiFloatField(contentRect, value);
-            EditorGUIUtility.labelWidth = labelWidth;
-            EditorGUI.indentLevel = previousIndent;
-            return value;
-        }
-
-        private static Vector3 DrawDelayedMultiFloatField(Rect rect, Vector3 value)
-        {
-            var spacing = 4f;
-            var fieldWidth = (rect.width - (spacing * 2f)) / 3f;
-            var xRect = new Rect(rect.x, rect.y, fieldWidth, rect.height);
-            var yRect = new Rect(xRect.xMax + spacing, rect.y, fieldWidth, rect.height);
-            var zRect = new Rect(yRect.xMax + spacing, rect.y, fieldWidth, rect.height);
-
-            value.x = EditorGUI.DelayedFloatField(xRect, "X", value.x);
-            value.y = EditorGUI.DelayedFloatField(yRect, "Y", value.y);
-            value.z = EditorGUI.DelayedFloatField(zRect, "Z", value.z);
-            return value;
         }
 
         private static void DrawValuesReadOnly(WeaponViewPoseTuningValues values)

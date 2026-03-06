@@ -4713,6 +4713,197 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator WeaponViewPoseTuningHelper_RuntimeScopeOverrideApi_RetuneMovesScopedAdsPivot()
+        {
+            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            var adsVisualModeType = ResolveType("Reloader.Game.Weapons.AdsVisualMode");
+            Assert.That(opticDefinitionType, Is.Not.Null);
+            Assert.That(adsVisualModeType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            GameObject worldCameraGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            UnityEngine.Object scopedOpticDefinition = null;
+            GameObject scopedOpticPrefab = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                worldCameraGo = new GameObject("WorldCam");
+                var worldCamera = worldCameraGo.AddComponent<Camera>();
+                worldCamera.tag = "MainCamera";
+                var viewmodelCameraGo = new GameObject("ViewmodelCamera");
+                viewmodelCameraGo.transform.SetParent(worldCamera.transform, false);
+                viewmodelCameraGo.AddComponent<Camera>();
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Kar98k", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x" })
+                });
+
+                viewPrefab = new GameObject("Kar98kView");
+                var adsPivot = new GameObject("AdsPivot").transform;
+                adsPivot.SetParent(viewPrefab.transform, false);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(adsPivot, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(adsPivot, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, adsPivot: adsPivot, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
+
+                scopedOpticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+                scopedOpticPrefab = new GameObject("OpticFourXPrefab");
+                var sightAnchor = new GameObject("SightAnchor").transform;
+                sightAnchor.SetParent(scopedOpticPrefab.transform, false);
+                sightAnchor.localPosition = new Vector3(0f, 0f, 0.4f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_opticId", "att-optic-4x");
+                SetField(opticDefinitionType, scopedOpticDefinition, "_isVariableZoom", false);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_magnificationMin", 4f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_magnificationMax", 4f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_magnificationStep", 1f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_visualModePolicy", Enum.Parse(adsVisualModeType, "RenderTexturePiP"));
+                SetField(opticDefinitionType, scopedOpticDefinition, "_opticPrefab", scopedOpticPrefab);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_adsCamera", worldCamera);
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests(
+                        "att-optic-4x",
+                        WeaponAttachmentSlotType.Scope,
+                        scopedOpticDefinition)
+                });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
+
+                var poseHelper = root.AddComponent<WeaponViewPoseTuningHelper>();
+                var helperType = typeof(WeaponViewPoseTuningHelper);
+                SetField(helperType, poseHelper, "_weaponController", controller);
+                SetField(helperType, poseHelper, "_targetWeaponItemId", "weapon-kar98k");
+                SetField(helperType, poseHelper, "_hipLocalPosition", Vector3.zero);
+                SetField(helperType, poseHelper, "_adsLocalPosition", Vector3.zero);
+                SetField(helperType, poseHelper, "_hipLocalEuler", Vector3.zero);
+                SetField(helperType, poseHelper, "_adsLocalEuler", Vector3.zero);
+                SetField(helperType, poseHelper, "_rifleLocalEulerOffset", Vector3.zero);
+                SetField(helperType, poseHelper, "_blendSpeed", 1000f);
+
+                var overrideType = helperType.GetNestedType("AttachmentPoseOverride", BindingFlags.NonPublic);
+                Assert.That(overrideType, Is.Not.Null);
+                var overrides = Array.CreateInstance(overrideType, 1);
+                var entry = Activator.CreateInstance(overrideType);
+                SetField(overrideType, entry, "_slotType", WeaponAttachmentSlotType.Scope);
+                SetField(overrideType, entry, "_attachmentItemId", "att-optic-4x");
+                SetField(overrideType, entry, "_hipLocalPosition", Vector3.zero);
+                SetField(overrideType, entry, "_hipLocalEuler", Vector3.zero);
+                SetField(overrideType, entry, "_adsLocalPosition", Vector3.zero);
+                SetField(overrideType, entry, "_adsLocalEuler", Vector3.zero);
+                SetField(overrideType, entry, "_rifleLocalEulerOffset", Vector3.zero);
+                SetField(overrideType, entry, "_blendSpeed", 1000f);
+                SetField(overrideType, entry, "_scopedAdsEyeReliefBackOffset", 0f);
+                overrides.SetValue(entry, 0);
+                SetField(helperType, poseHelper, "_attachmentPoseOverrides", overrides);
+
+                yield return null;
+                Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+                state.SetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope, "att-optic-4x");
+
+                runtime.SelectBeltSlot(1);
+                yield return null;
+                runtime.SelectBeltSlot(0);
+                yield return null;
+
+                input.AimHeldValue = true;
+
+                var adsBridge = GetControllerField<Component>(controller, "_adsStateRuntimeBridge");
+                Assert.That(adsBridge, Is.Not.Null);
+
+                var frames = 0;
+                while ((float)GetProperty(adsBridge, "AdsT") < 0.999f && frames < 60)
+                {
+                    frames++;
+                    yield return null;
+                    yield return new WaitForEndOfFrame();
+                }
+
+                var equippedView = controller.EquippedWeaponViewTransform;
+                Assert.That(equippedView, Is.Not.Null);
+                var runtimeAdsPivot = equippedView.Find("AdsPivot");
+                Assert.That(runtimeAdsPivot, Is.Not.Null);
+                var beforeRetune = runtimeAdsPivot.localPosition;
+
+                Assert.That(
+                    poseHelper.TryGetActiveAttachmentPoseOverride(out var activeSlot, out var activeAttachmentItemId, out var activeValues),
+                    Is.True);
+                activeValues.ScopedAdsEyeReliefBackOffset = 0.33f;
+                Assert.That(poseHelper.TrySetAttachmentPoseOverride(activeSlot, activeAttachmentItemId, activeValues), Is.True);
+
+                yield return null;
+                yield return new WaitForEndOfFrame();
+
+                var afterRetune = runtimeAdsPivot.localPosition;
+                Assert.That(
+                    Vector3.Distance(beforeRetune, afterRetune),
+                    Is.GreaterThan(0.05f),
+                    "Changing the active scoped eye-relief offset in play mode should move the live AdsPivot, not just update cached numbers.");
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (worldCameraGo != null)
+                {
+                    Object.Destroy(worldCameraGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (scopedOpticDefinition != null)
+                {
+                    Object.Destroy(scopedOpticDefinition);
+                }
+
+                if (scopedOpticPrefab != null)
+                {
+                    Object.Destroy(scopedOpticPrefab);
+                }
+            }
+        }
+
         private static object Invoke(object instance, string methodName, params object[] args)
         {
             var method = instance.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
