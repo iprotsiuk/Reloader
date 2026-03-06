@@ -56,6 +56,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(activeAnchor.name, Is.EqualTo("SightAnchor"), "Real Kar98k optic should resolve an authored sight anchor.");
                 Assert.That(scopeSlot.childCount, Is.EqualTo(1));
                 Assert.That(activeAnchor, Is.Not.EqualTo(scopeSlot.GetChild(0)), "Sight anchor should not fall back to optic root.");
+                Assert.That(
+                    activeAnchor.localPosition.sqrMagnitude,
+                    Is.GreaterThan(0.0001f),
+                    "Real Kar98k optic should author a specific eye-box sight anchor instead of relying on a synthetic root anchor.");
                 Assert.That(GetComponentInChildren(activeOpticInstance, scopeLensDisplayType), Is.Not.Null, "Real Kar98k optic should expose a ScopeLensDisplay for PiP rendering.");
                 Assert.That(GetComponentInChildren(activeOpticInstance, scopeReticleControllerType), Is.Not.Null, "Real Kar98k optic should expose a ScopeReticleController for PiP reticle rendering.");
                 Assert.That(
@@ -67,6 +71,47 @@ namespace Reloader.Weapons.Tests.PlayMode
             {
                 Application.logMessageReceived -= CaptureLog;
                 Cleanup(root);
+            }
+
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator EquipOptic_RenderTexturePipOpticWithoutAuthoredSightAnchor_FailsWithoutSyntheticFallback()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+
+            var root = new GameObject("AttachmentRoot");
+            ScriptableObject opticDefinition = null;
+            GameObject opticPrefab = null;
+
+            try
+            {
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                opticDefinition = CreateOpticDefinition("scope-pip-missing-anchor", 4f, 12f, true, "RenderTexturePiP");
+                opticPrefab = new GameObject("OpticMissingAuthoredSightAnchor");
+                SetField(opticDefinition, "_opticPrefab", opticPrefab);
+
+                Assert.That(
+                    (bool)Invoke(manager, "EquipOptic", opticDefinition),
+                    Is.False,
+                    "PiP optics should reject prefabs without an authored SightAnchor instead of synthesizing one at runtime.");
+                Assert.That(scopeSlot.childCount, Is.EqualTo(0), "Rejected optics should not remain mounted in the scope slot.");
+                Assert.That(GetProperty(manager, "ActiveOpticInstance"), Is.Null);
+                Assert.That(Invoke(manager, "GetActiveSightAnchor"), Is.SameAs(ironAnchor));
+            }
+            finally
+            {
+                Cleanup(root, opticDefinition, opticPrefab);
             }
 
             yield return null;
@@ -140,6 +185,49 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(GetProperty(manager, "ActiveOpticDefinition"), Is.EqualTo(highMag));
 
             Cleanup(root, lpvo, highMag);
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator EquipOptic_PipOpticWithoutSightAnchor_FailsWithoutSyntheticFallback()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            var adsVisualModeType = ResolveType("Reloader.Game.Weapons.AdsVisualMode");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(opticDefinitionType, Is.Not.Null);
+            Assert.That(adsVisualModeType, Is.Not.Null);
+
+            var root = new GameObject("AttachmentRoot");
+            var manager = root.AddComponent(attachmentManagerType);
+            var scopeSlot = new GameObject("ScopeSlot").transform;
+            scopeSlot.SetParent(root.transform, false);
+            var ironAnchor = new GameObject("IronSightAnchor").transform;
+            ironAnchor.SetParent(root.transform, false);
+
+            SetField(manager, "_scopeSlot", scopeSlot);
+            SetField(manager, "_ironSightAnchor", ironAnchor);
+
+            var opticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+            var opticPrefab = new GameObject("BrokenPipOptic");
+            SetField(opticDefinition, "_opticId", "att-broken-pip");
+            SetField(opticDefinition, "_magnificationMin", 4f);
+            SetField(opticDefinition, "_magnificationMax", 4f);
+            SetField(opticDefinition, "_magnificationStep", 1f);
+            SetField(opticDefinition, "_visualModePolicy", Enum.Parse(adsVisualModeType, "RenderTexturePiP"));
+            SetField(opticDefinition, "_opticPrefab", opticPrefab);
+
+            try
+            {
+                Assert.That((bool)Invoke(manager, "EquipOptic", opticDefinition), Is.False, "PiP optics without authored SightAnchor should fail instead of synthesizing a fallback anchor.");
+                Assert.That(scopeSlot.childCount, Is.EqualTo(0));
+                Assert.That(Invoke(manager, "GetActiveSightAnchor"), Is.EqualTo(ironAnchor));
+            }
+            finally
+            {
+                Cleanup(root, opticDefinition, opticPrefab);
+            }
+
             yield return null;
         }
 
@@ -857,9 +945,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Invoke(ads, "SetAdsHeld", true);
                 Invoke(ads, "SetMagnification", 6f);
 
-                yield return null;
-                yield return null;
-
+                yield return WaitUntil(
+                    () => (bool)GetProperty(peripheralEffects, "IsActive"),
+                    60,
+                    "Peripheral effects did not activate after entering ADS.");
                 Assert.That((bool)GetProperty(peripheralEffects, "IsActive"), Is.True);
 
                 Invoke(ads, "SetAdsHeld", false);
@@ -1413,6 +1502,13 @@ namespace Reloader.Weapons.Tests.PlayMode
         {
             var field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found on {instance.GetType().Name}.");
+            field.SetValue(instance, value);
+        }
+
+        private static void SetField(Type type, object instance, string fieldName, object value)
+        {
+            var field = type.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found on {type.Name}.");
             field.SetValue(instance, value);
         }
     }

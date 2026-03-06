@@ -103,6 +103,7 @@ namespace Reloader.Weapons.Controllers
         private GameObject _equippedWeaponView;
         private Component _adsStateRuntimeBridge;
         private Component _adsAttachmentManagerRuntimeBridge;
+        private Component _weaponAimAlignerRuntimeBridge;
         private PropertyInfo _adsActiveOpticProperty;
         private MethodInfo _adsSetHeldMethod;
         private MethodInfo _adsSetMagnificationMethod;
@@ -1522,6 +1523,7 @@ namespace Reloader.Weapons.Controllers
             _equippedWeaponView.transform.localPosition = Vector3.zero;
             _equippedWeaponView.transform.localRotation = Quaternion.identity;
             _equippedWeaponView.transform.localScale = Vector3.one;
+            ApplyViewmodelLayer(_equippedWeaponView.transform);
             StripViewPhysicsComponents(_equippedWeaponView);
             StripViewRuntimeComponents(_equippedWeaponView);
             NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
@@ -1708,22 +1710,23 @@ namespace Reloader.Weapons.Controllers
             }
 
             var mounts = viewRoot.GetComponent<WeaponViewAttachmentMounts>();
-            var ironSightAnchor = mounts != null
-                ? (mounts.IronSightAnchor != null ? mounts.IronSightAnchor : viewRoot.transform)
-                : FindDescendantByName(viewRoot.transform, "IronSightAnchor")
-                    ?? FindDescendantByName(viewRoot.transform, "SightAnchor")
-                    ?? viewRoot.transform;
-            Transform scopeSlot = null;
-            Transform muzzleSlot = null;
-            if (mounts != null)
+            if (mounts == null)
             {
-                mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Scope, out scopeSlot);
-                mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Muzzle, out muzzleSlot);
+                Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing WeaponViewAttachmentMounts.", this);
+                return null;
             }
 
-            scopeSlot ??= FindDescendantByName(viewRoot.transform, "ScopeSlot")
-                ?? FindDescendantByName(viewRoot.transform, "OpticSlot");
-            muzzleSlot ??= FindDescendantByName(viewRoot.transform, "MuzzleAttachmentSlot");
+            var ironSightAnchor = mounts.IronSightAnchor;
+            if (ironSightAnchor == null)
+            {
+                Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing an authored IronSightAnchor.", this);
+                return null;
+            }
+
+            Transform scopeSlot = null;
+            Transform muzzleSlot = null;
+            mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Scope, out scopeSlot);
+            mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Muzzle, out muzzleSlot);
 
             if (scopeSlot == null && muzzleSlot == null)
             {
@@ -1748,6 +1751,7 @@ namespace Reloader.Weapons.Controllers
             if (viewRoot == null || attachmentManager == null)
             {
                 _adsStateRuntimeBridge = null;
+                _weaponAimAlignerRuntimeBridge = null;
                 _adsActiveOpticProperty = null;
                 return;
             }
@@ -1756,6 +1760,7 @@ namespace Reloader.Weapons.Controllers
             if (adsType == null)
             {
                 _adsStateRuntimeBridge = null;
+                _weaponAimAlignerRuntimeBridge = null;
                 _adsActiveOpticProperty = null;
                 return;
             }
@@ -1780,12 +1785,48 @@ namespace Reloader.Weapons.Controllers
             _adsAttachmentManagerRuntimeBridge = attachmentManager;
             _adsActiveOpticProperty = null;
 
+            EnsureWeaponAimAlignerRuntimeBridge(viewRoot, attachmentManager, adsType, worldCamera);
             EnsureRenderTextureScopeRuntimeBridge(adsType, worldCamera);
             EnsurePeripheralScopeEffectsRuntimeBridge(adsType);
             TryAssignScopedAdsWeaponDefinition(adsType);
 
             var legacyInputField = adsType.GetField("_useLegacyInput", BindingFlags.Instance | BindingFlags.NonPublic);
             legacyInputField?.SetValue(_adsStateRuntimeBridge, false);
+        }
+
+        private void EnsureWeaponAimAlignerRuntimeBridge(GameObject viewRoot, Component attachmentManager, Type adsType, Camera worldCamera)
+        {
+            _weaponAimAlignerRuntimeBridge = null;
+            if (viewRoot == null || attachmentManager == null || adsType == null)
+            {
+                return;
+            }
+
+            var alignerType = ResolveTypeByName("Reloader.Game.Weapons.WeaponAimAligner");
+            if (alignerType == null)
+            {
+                return;
+            }
+
+            var mounts = viewRoot.GetComponent<WeaponViewAttachmentMounts>();
+            var adsPivot = mounts != null ? mounts.AdsPivot : null;
+            if (adsPivot == null)
+            {
+                Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing an authored AdsPivot required for scoped ADS alignment.", this);
+                return;
+            }
+
+            var aligner = gameObject.GetComponent(alignerType) ?? gameObject.AddComponent(alignerType);
+            if (aligner == null)
+            {
+                return;
+            }
+
+            alignerType.GetField("_adsPivot", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, adsPivot);
+            alignerType.GetField("_cameraTransform", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, worldCamera != null ? worldCamera.transform : null);
+            alignerType.GetField("_attachmentManager", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, attachmentManager);
+            alignerType.GetField("_adsStateController", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, _adsStateRuntimeBridge);
+            _weaponAimAlignerRuntimeBridge = aligner;
         }
 
         private void EnsureRenderTextureScopeRuntimeBridge(Type adsType, Camera worldCamera)
@@ -1960,7 +2001,7 @@ namespace Reloader.Weapons.Controllers
             scopeCamera.enabled = false;
             scopeCamera.clearFlags = worldCamera.clearFlags;
             scopeCamera.backgroundColor = worldCamera.backgroundColor;
-            scopeCamera.cullingMask = worldCamera.cullingMask;
+            scopeCamera.cullingMask = ExcludeViewmodelLayer(worldCamera.cullingMask);
             scopeCamera.nearClipPlane = worldCamera.nearClipPlane;
             scopeCamera.farClipPlane = worldCamera.farClipPlane;
             scopeCamera.allowHDR = worldCamera.allowHDR;
@@ -1970,6 +2011,28 @@ namespace Reloader.Weapons.Controllers
             scopeCamera.fieldOfView = worldCamera.fieldOfView;
             scopeCamera.targetTexture = null;
             return scopeCamera;
+        }
+
+        private static int ExcludeViewmodelLayer(int cullingMask)
+        {
+            var viewmodelLayer = LayerMask.NameToLayer("Viewmodel");
+            if (viewmodelLayer < 0)
+            {
+                return cullingMask;
+            }
+
+            return cullingMask & ~(1 << viewmodelLayer);
+        }
+
+        private static void ApplyViewmodelLayer(Transform root)
+        {
+            var viewmodelLayer = LayerMask.NameToLayer("Viewmodel");
+            if (root == null || viewmodelLayer < 0)
+            {
+                return;
+            }
+
+            SetLayerRecursively(root, viewmodelLayer);
         }
 
         private static void SetLayerRecursively(Transform root, int layer)
