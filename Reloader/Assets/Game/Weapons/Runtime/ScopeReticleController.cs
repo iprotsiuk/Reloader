@@ -6,6 +6,8 @@ namespace Reloader.Game.Weapons
     {
         [SerializeField] private Transform _reticleRoot;
         [SerializeField] private SpriteRenderer _spriteRenderer;
+        private Vector3 _authoredReticleRootScale = Vector3.one;
+        private bool _hasAuthoredReticleRootScale;
 
         public ScopeReticleDefinition CurrentReticleDefinition { get; private set; }
         public float CurrentScale { get; private set; } = 1f;
@@ -21,6 +23,8 @@ namespace Reloader.Game.Weapons
             {
                 _spriteRenderer = GetComponent<SpriteRenderer>();
             }
+
+            CaptureAuthoredReticleScale();
         }
 
         public void ApplyReticle(ScopeReticleDefinition reticleDefinition, float magnification)
@@ -35,9 +39,10 @@ namespace Reloader.Game.Weapons
                 _spriteRenderer = GetComponent<SpriteRenderer>();
             }
 
+            CaptureAuthoredReticleScale();
             CurrentReticleDefinition = reticleDefinition;
             CurrentScale = ResolveScale(reticleDefinition, magnification);
-            _reticleRoot.localScale = Vector3.one * CurrentScale;
+            _reticleRoot.localScale = _authoredReticleRootScale * CurrentScale;
             ApplySprite(reticleDefinition);
         }
 
@@ -50,7 +55,8 @@ namespace Reloader.Game.Weapons
                 _reticleRoot = transform;
             }
 
-            _reticleRoot.localScale = Vector3.one;
+            CaptureAuthoredReticleScale();
+            _reticleRoot.localScale = _authoredReticleRootScale;
             ApplySprite(null);
         }
 
@@ -79,6 +85,17 @@ namespace Reloader.Game.Weapons
             var sprite = reticleDefinition != null ? reticleDefinition.ReticleSprite : null;
             _spriteRenderer.sprite = sprite;
             _spriteRenderer.enabled = sprite != null;
+        }
+
+        private void CaptureAuthoredReticleScale()
+        {
+            if (_hasAuthoredReticleRootScale || _reticleRoot == null)
+            {
+                return;
+            }
+
+            _authoredReticleRootScale = _reticleRoot.localScale;
+            _hasAuthoredReticleRootScale = true;
         }
     }
 }

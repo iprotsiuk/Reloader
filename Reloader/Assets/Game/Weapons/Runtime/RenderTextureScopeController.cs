@@ -14,6 +14,7 @@ namespace Reloader.Game.Weapons
         private ScopeLensDisplay _lastLensDisplay;
         private ScopeReticleController _lastReticleController;
         private int _lastResolution = -1;
+        private float _lastMagnification = -1f;
 
         private void Awake()
         {
@@ -41,19 +42,29 @@ namespace Reloader.Game.Weapons
                 && _lastIsActive == isActive
                 && Mathf.Approximately(_lastAppliedFov, requestedFov)
                 && _lastResolution == requestedResolution
+                && Mathf.Approximately(_lastMagnification, magnification)
                 && ReferenceEquals(_lastLensDisplay, lensDisplay)
                 && ReferenceEquals(_lastReticleController, reticleController))
             {
                 return;
             }
 
-            EnsureRenderTexture(requestedResolution);
+            if (isActive)
+            {
+                EnsureRenderTexture(requestedResolution);
+            }
+            else
+            {
+                ReleaseRenderTexture();
+            }
+
             BindLensDisplay(isActive, lensDisplay);
             BindReticle(isActive, reticleController, optic, magnification);
             ApplyState(isActive, requestedFov);
             _lastIsActive = isActive;
             _lastAppliedFov = requestedFov;
             _lastResolution = requestedResolution;
+            _lastMagnification = magnification;
             _lastLensDisplay = lensDisplay;
             _lastReticleController = reticleController;
             _initialized = true;
@@ -176,6 +187,11 @@ namespace Reloader.Game.Weapons
             {
                 Debug.LogWarning("RenderTextureScopeController: Active scoped optic is missing a ScopeReticleController binding.", this);
                 return;
+            }
+
+            if (optic == null || optic.ScopeReticleDefinition == null)
+            {
+                Debug.LogWarning("RenderTextureScopeController: Active scoped optic is missing a ScopeReticleDefinition binding.", this);
             }
 
             reticleController.ApplyReticle(optic != null ? optic.ScopeReticleDefinition : null, magnification);
