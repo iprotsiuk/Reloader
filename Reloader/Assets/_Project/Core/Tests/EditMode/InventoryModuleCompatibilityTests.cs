@@ -3,7 +3,7 @@ using Reloader.Core.Save.Modules;
 
 namespace Reloader.Core.Tests.EditMode
 {
-    public class InventoryModuleCompatibilityTests
+    public class InventoryModuleStateTests
     {
         [Test]
         public void InventoryModule_RoundTrip_PreservesBeltBackpackCapacityAndSelection()
@@ -37,12 +37,12 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void InventoryModule_Restore_LegacyPayload_DefaultsNewFieldsSafely()
+        public void InventoryModule_Restore_MinimalPayload_DefaultsOptionalFieldsSafely()
         {
-            var legacyPayload = "{\"carriedItemIds\":[\"c-1\",\"c-2\"]}";
+            var minimalPayload = "{\"carriedItemIds\":[\"c-1\",\"c-2\"]}";
 
             var restored = new InventoryModule();
-            restored.RestoreModuleStateFromJson(legacyPayload);
+            restored.RestoreModuleStateFromJson(minimalPayload);
 
             Assert.That(restored.CarriedItemIds, Is.EqualTo(new[] { "c-1", "c-2" }));
             Assert.That(restored.BeltSlotItemIds.Count, Is.EqualTo(InventoryModule.BeltSlotCount));

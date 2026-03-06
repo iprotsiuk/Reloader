@@ -149,7 +149,7 @@ Managers survive scene transitions via `DontDestroyOnLoad`:
 |--------------------|---------------|
 | `GameManager` | Game state, time of day, day cycle, pause, game-over |
 | `SceneLoader` | Scene transitions, loading screens, additive loading |
-| `SaveCoordinator` (service) | Save envelope capture/load orchestration, migration chain, deterministic module restore order |
+| `SaveCoordinator` (service) | Save envelope capture/load orchestration, schema validation, deterministic module restore order |
 | `InventoryManager` | Player carried items, weight, capacity |
 | `EconomyManager` | Money, transactions, price fluctuations |
 | `QuestManager` | Active quests, progress tracking, rewards |
@@ -165,9 +165,9 @@ Manager entries provide a static `Instance` property (singleton pattern). `SaveC
 
 Systems communicate through runtime event ports + a runtime hub.
 
-### Current `GameEvents` surface (implemented in repository) — legacy compatibility note
+### Current `GameEvents` surface (implemented in repository)
 
-`GameEvents` is retired. Keep this heading for guardrail compatibility only; runtime code must use `IGameEventsRuntimeHub` and related event-port interfaces.
+`GameEvents` is removed from the repository. Runtime code must use `IGameEventsRuntimeHub` and related event-port interfaces.
 
 ### Current runtime event contract (implemented in repository)
 
@@ -177,7 +177,7 @@ Systems communicate through runtime event ports + a runtime hub.
 - `RuntimeKernelBootstrapper.Events` is the runtime access point used by modules/adapters.
 - Cross-domain extension guardrails are defined in [extensible-development-contracts.md](extensible-development-contracts.md).
 
-### Target cross-domain `GameEvents` surface (planned) — represented as runtime hub contracts
+### Target cross-domain `GameEvents` surface (planned)
 
 ```csharp
 public interface IGameEventsRuntimeHub
@@ -242,11 +242,11 @@ All instance subclasses use explicit typed fields for runtime state only. The `c
 
 ## Persistence Contract and Evolution [v0.1]
 
-Save/load uses a versioned envelope contract so milestone evolution stays compatible:
+Save/load uses a versioned envelope contract with strict current-schema validation:
 
-- `SaveEnvelope.schemaVersion` is the migration source/target.
+- `SaveEnvelope.schemaVersion` must exactly match the runtime schema.
 - `SaveEnvelope.modules` stores per-domain `ModuleSaveBlock` payloads (`moduleVersion` + `payloadJson`).
-- Compatibility is guaranteed milestone-to-milestone (`v0.1` -> `v0.2`) via explicit migration steps.
+- Experiment builds are not guaranteed to remain save-compatible across schema changes.
 - Unknown module blocks are ignored safely; missing required blocks fail before module restore.
 
 Deterministic restore order is mandatory. Baseline ordering is:

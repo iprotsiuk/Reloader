@@ -16,9 +16,6 @@ namespace Reloader.Core.Save
         [JsonProperty("createdAtUtc")]
         public string CreatedAtUtc { get; set; } = string.Empty;
 
-        [JsonProperty("featureFlags")]
-        public SaveFeatureFlags FeatureFlags { get; set; } = new SaveFeatureFlags();
-
         [JsonProperty("modules")]
         public Dictionary<string, ModuleSaveBlock> Modules { get; set; } = new Dictionary<string, ModuleSaveBlock>();
     }

@@ -5,7 +5,6 @@ using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Save;
 using Reloader.Core.Save.IO;
-using Reloader.Core.Save.Migrations;
 using Reloader.Core.Save.Modules;
 using Reloader.Reloading.Runtime;
 using Reloader.Reloading.World;
@@ -133,7 +132,7 @@ namespace Reloader.Reloading.Tests.EditMode
             var module = new WorkbenchLoadoutModule();
             var coordinator = CreateCoordinator(module);
 
-            var envelope = coordinator.CaptureEnvelope("0.5.0-dev", new SaveFeatureFlags());
+            var envelope = coordinator.CaptureEnvelope("0.5.0-dev");
             module.RestoreModuleStateFromJson(envelope.Modules["WorkbenchLoadout"].PayloadJson);
 
             Assert.That(module.Workbenches.Count, Is.EqualTo(1));
@@ -188,7 +187,6 @@ namespace Reloader.Reloading.Tests.EditMode
                     SchemaVersion = 1,
                     BuildVersion = "0.5.0-dev",
                     CreatedAtUtc = "2026-03-01T00:00:00Z",
-                    FeatureFlags = new SaveFeatureFlags(),
                     Modules = new Dictionary<string, ModuleSaveBlock>
                     {
                         {
@@ -341,7 +339,6 @@ namespace Reloader.Reloading.Tests.EditMode
         {
             return new SaveCoordinator(
                 new SaveFileRepository(),
-                new MigrationRunner(new ISaveMigration[] { new SchemaV1ToV1NoOpMigration() }),
                 new[]
                 {
                     new SaveModuleRegistration(0, module)

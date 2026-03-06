@@ -386,10 +386,6 @@ namespace Reloader.UI.Tests.PlayMode
             public event System.Action<ShopCheckoutRequest> OnShopSellCheckoutRequested;
             public event System.Action<ShopTradeResultPayload> OnShopTradeResultReceived;
 
-#pragma warning disable CS0618
-            public event System.Action<string, int, bool, bool, string> OnShopTradeResult;
-#pragma warning restore CS0618
-
             public void RaiseShopTradeOpenRequested(string vendorId) => OnShopTradeOpenRequested?.Invoke(vendorId);
             public void RaiseShopTradeOpened(string vendorId) => OnShopTradeOpened?.Invoke(vendorId);
             public void RaiseShopTradeClosed() => OnShopTradeClosed?.Invoke();
@@ -408,27 +404,7 @@ namespace Reloader.UI.Tests.PlayMode
             public void RaiseShopTradeResult(ShopTradeResultPayload payload)
             {
                 OnShopTradeResultReceived?.Invoke(payload);
-#pragma warning disable CS0618
-                OnShopTradeResult?.Invoke(
-                    payload.ItemId,
-                    payload.Quantity,
-                    payload.IsBuy,
-                    payload.Success,
-                    payload.Success ? string.Empty : payload.FailureReason.ToString());
-#pragma warning restore CS0618
             }
-
-#pragma warning disable CS0618
-            public void RaiseShopTradeResult(string itemId, int quantity, bool isBuy, bool success, string failureReason)
-            {
-                RaiseShopTradeResult(new ShopTradeResultPayload(
-                    itemId,
-                    quantity,
-                    isBuy,
-                    success,
-                    ShopTradeResultPayload.ParseLegacyFailureReason(failureReason, success)));
-            }
-#pragma warning restore CS0618
         }
     }
 }

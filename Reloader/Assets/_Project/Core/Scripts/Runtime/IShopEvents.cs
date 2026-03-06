@@ -14,9 +14,6 @@ namespace Reloader.Core.Runtime
         event Action<ShopCheckoutRequest> OnShopSellCheckoutRequested;
         event Action<ShopTradeResultPayload> OnShopTradeResultReceived;
 
-        [Obsolete("Use OnShopTradeResultReceived with ShopTradeResultPayload.")]
-        event Action<string, int, bool, bool, string> OnShopTradeResult;
-
         void RaiseShopTradeOpenRequested(string vendorId);
         void RaiseShopTradeOpened(string vendorId);
         void RaiseShopTradeClosed();
@@ -25,8 +22,5 @@ namespace Reloader.Core.Runtime
         void RaiseShopBuyCheckoutRequested(ShopCheckoutRequest request);
         void RaiseShopSellCheckoutRequested(ShopCheckoutRequest request);
         void RaiseShopTradeResult(ShopTradeResultPayload payload);
-
-        [Obsolete("Use RaiseShopTradeResult(ShopTradeResultPayload payload).")]
-        void RaiseShopTradeResult(string itemId, int quantity, bool isBuy, bool success, string failureReason);
     }
 }

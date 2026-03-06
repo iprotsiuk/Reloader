@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -7,16 +5,6 @@ namespace Reloader.UI.Toolkit.Runtime
 {
     public sealed class UiToolkitRuntimeInstaller : MonoBehaviour
     {
-        private static readonly HashSet<string> LegacyRuntimePresenterTypes = new(StringComparer.Ordinal)
-        {
-            "Reloader.UI.BeltHudPresenter",
-            "Reloader.UI.AmmoHudPresenter",
-            "Reloader.UI.TabUiPresenter",
-            "Reloader.UI.InventoryTooltipPresenter",
-            "Reloader.Economy.TradeUiPresenter",
-            "Reloader.Reloading.UI.ReloadingWorkbenchPresenter"
-        };
-
         [SerializeField] private PanelSettings _panelSettings;
         [SerializeField] private VisualTreeAsset _beltHudTree;
         [SerializeField] private VisualTreeAsset _ammoHudTree;
@@ -26,8 +14,6 @@ namespace Reloader.UI.Toolkit.Runtime
         [SerializeField] private VisualTreeAsset _tradeTree;
         [SerializeField] private VisualTreeAsset _reloadingTree;
         [SerializeField] private VisualTreeAsset _interactionHintTree;
-
-        [SerializeField] private bool _disableLegacyRuntimePresenters = true;
 
         private UiToolkitRuntimeRoot _runtimeRoot;
 
@@ -44,34 +30,7 @@ namespace Reloader.UI.Toolkit.Runtime
             EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.ReloadingWorkbench, _reloadingTree);
             EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.InteractionHint, _interactionHintTree);
 
-            if (_disableLegacyRuntimePresenters)
-            {
-                DisableLegacyPresenters();
-            }
-
             EnsureRuntimeBridge();
-        }
-
-        public int ActiveLegacyPresenterCountForTests()
-        {
-            var behaviours = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            var count = 0;
-            for (var i = 0; i < behaviours.Length; i++)
-            {
-                var behaviour = behaviours[i];
-                if (behaviour == null)
-                {
-                    continue;
-                }
-
-                var typeName = behaviour.GetType().FullName;
-                if (typeName != null && LegacyRuntimePresenterTypes.Contains(typeName) && behaviour.enabled)
-                {
-                    count++;
-                }
-            }
-
-            return count;
         }
 
         private UiToolkitRuntimeRoot EnsureRuntimeRoot()
@@ -135,25 +94,6 @@ namespace Reloader.UI.Toolkit.Runtime
             if (treeAsset != null)
             {
                 document.visualTreeAsset = treeAsset;
-            }
-        }
-
-        private void DisableLegacyPresenters()
-        {
-            var behaviours = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            for (var i = 0; i < behaviours.Length; i++)
-            {
-                var behaviour = behaviours[i];
-                if (behaviour == null || behaviour == this)
-                {
-                    continue;
-                }
-
-                var typeName = behaviour.GetType().FullName;
-                if (typeName != null && LegacyRuntimePresenterTypes.Contains(typeName))
-                {
-                    behaviour.enabled = false;
-                }
             }
         }
 

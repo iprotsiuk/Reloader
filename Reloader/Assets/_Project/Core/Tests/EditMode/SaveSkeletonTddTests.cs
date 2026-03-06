@@ -6,7 +6,6 @@ using Reloader.Contracts.Runtime;
 using Reloader.Core.Events;
 using Reloader.Core.Save;
 using Reloader.Core.Save.IO;
-using Reloader.Core.Save.Migrations;
 using Reloader.Core.Save.Modules;
 
 namespace Reloader.Core.Tests.EditMode
@@ -41,14 +40,6 @@ namespace Reloader.Core.Tests.EditMode
                 SchemaVersion = 1,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags
-                {
-                    NpcStateEnabled = false,
-                    HuntingStateEnabled = false,
-                    LawStateEnabled = false,
-                    ContractStateEnabled = true,
-                    PoliceHeatStateEnabled = true
-                },
                 Modules = new Dictionary<string, ModuleSaveBlock>
                 {
                     {
@@ -70,32 +61,32 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(restored.SchemaVersion, Is.EqualTo(1));
             Assert.That(restored.Modules.ContainsKey("CoreWorld"), Is.True);
             Assert.That(restored.Modules["CoreWorld"].PayloadJson, Is.EqualTo("{\"day\":3,\"timeOfDay\":15.25}"));
-            Assert.That(restored.FeatureFlags.ContractStateEnabled, Is.True);
-            Assert.That(restored.FeatureFlags.PoliceHeatStateEnabled, Is.True);
         }
 
         [Test]
-        public void MigrationRunner_MigratesToCurrentSchema_WithBaselineNoOpMigration()
+        public void SaveCoordinator_Load_ThrowsWhenSchemaVersionDoesNotMatchRuntimeSchema()
         {
-            var runner = new MigrationRunner(new ISaveMigration[]
+            var coreWorld = new RecordingModule("CoreWorld");
+            var inventory = new RecordingModule("Inventory");
+            var coordinator = CreateCoordinator(coreWorld, inventory);
+            var repository = new SaveFileRepository();
+            var envelope = new SaveEnvelope
             {
-                new SchemaV1ToV1NoOpMigration()
-            });
-
-            runner.ValidateConfiguration();
-
-            var input = new SaveEnvelope
-            {
-                SchemaVersion = 1,
+                SchemaVersion = 2,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
-                Modules = new Dictionary<string, ModuleSaveBlock>()
+                Modules = new Dictionary<string, ModuleSaveBlock>
+                {
+                    { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = coreWorld.CaptureModuleStateJson() } },
+                    { "Inventory", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = inventory.CaptureModuleStateJson() } }
+                }
             };
+            repository.WriteEnvelope(_savePath, envelope);
 
-            var migrated = runner.MigrateTo(input, 1);
-
-            Assert.That(migrated.SchemaVersion, Is.EqualTo(1));
+            var ex = Assert.Throws<InvalidDataException>(() => coordinator.Load(_savePath));
+            Assert.That(ex.Message, Does.Contain("does not match runtime schema"));
+            Assert.That(coreWorld.RestoreCallCount, Is.EqualTo(0));
+            Assert.That(inventory.RestoreCallCount, Is.EqualTo(0));
         }
 
         [Test]
@@ -131,7 +122,6 @@ namespace Reloader.Core.Tests.EditMode
                 SchemaVersion = 1,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
                 Modules = new Dictionary<string, ModuleSaveBlock>
                 {
                     { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = coreWorld.CaptureModuleStateJson() } }
@@ -158,7 +148,6 @@ namespace Reloader.Core.Tests.EditMode
                 SchemaVersion = 1,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
                 Modules = new Dictionary<string, ModuleSaveBlock>
                 {
                     { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = coreWorld.CaptureModuleStateJson() } },
@@ -182,7 +171,6 @@ namespace Reloader.Core.Tests.EditMode
 
             var coordinator = new SaveCoordinator(
                 new SaveFileRepository(),
-                new MigrationRunner(new ISaveMigration[] { new SchemaV1ToV1NoOpMigration() }),
                 new[]
                 {
                     new SaveModuleRegistration(1, inventory),
@@ -214,7 +202,6 @@ namespace Reloader.Core.Tests.EditMode
                 SchemaVersion = 1,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
                 Modules = new Dictionary<string, ModuleSaveBlock>
                 {
                     { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{\"name\":\"core-after\"}" } },
@@ -240,7 +227,6 @@ namespace Reloader.Core.Tests.EditMode
                 SchemaVersion = 1,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
                 Modules = new Dictionary<string, ModuleSaveBlock>
                 {
                     { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{\"name\":\"core-after\"}" } },
@@ -267,7 +253,7 @@ namespace Reloader.Core.Tests.EditMode
         {
             var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
 
-            var envelope = coordinator.CaptureEnvelope("0.6.0-dev", new SaveFeatureFlags());
+            var envelope = coordinator.CaptureEnvelope("0.6.0-dev");
 
             Assert.That(envelope.SchemaVersion, Is.EqualTo(6));
             Assert.That(envelope.Modules.ContainsKey("ContractState"), Is.True);
@@ -275,15 +261,15 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void SchemaV5ToV6AddContractAndPoliceHeatStateMigration_InsertsMissingModuleBlocks()
+        public void SaveBootstrapper_DefaultCoordinatorLoad_RejectsLegacySchemaSave()
         {
-            var migration = new SchemaV5ToV6AddContractAndPoliceHeatStateMigration();
+            var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
+            var repository = new SaveFileRepository();
             var envelope = new SaveEnvelope
             {
                 SchemaVersion = 5,
                 BuildVersion = "0.6.0-dev",
                 CreatedAtUtc = "2026-03-06T00:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
                 Modules = new Dictionary<string, ModuleSaveBlock>
                 {
                     { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
@@ -295,16 +281,10 @@ namespace Reloader.Core.Tests.EditMode
                     { "WorkbenchLoadout", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } }
                 }
             };
+            repository.WriteEnvelope(_savePath, envelope);
 
-            var migrated = migration.Apply(envelope);
-
-            Assert.That(migrated.SchemaVersion, Is.EqualTo(6));
-            Assert.That(migrated.Modules.ContainsKey("ContractState"), Is.True);
-            Assert.That(migrated.Modules["ContractState"].ModuleVersion, Is.EqualTo(1));
-            Assert.That(migrated.Modules["ContractState"].PayloadJson, Is.EqualTo("{}"));
-            Assert.That(migrated.Modules.ContainsKey("PoliceHeatState"), Is.True);
-            Assert.That(migrated.Modules["PoliceHeatState"].ModuleVersion, Is.EqualTo(1));
-            Assert.That(migrated.Modules["PoliceHeatState"].PayloadJson, Is.EqualTo("{}"));
+            var ex = Assert.Throws<InvalidDataException>(() => coordinator.Load(_savePath));
+            Assert.That(ex.Message, Does.Contain("does not match runtime schema"));
         }
 
         [Test]
@@ -350,7 +330,6 @@ namespace Reloader.Core.Tests.EditMode
         {
             return new SaveCoordinator(
                 new SaveFileRepository(),
-                new MigrationRunner(new ISaveMigration[] { new SchemaV1ToV1NoOpMigration() }),
                 new[]
                 {
                     new SaveModuleRegistration(0, coreWorld),
@@ -366,7 +345,6 @@ namespace Reloader.Core.Tests.EditMode
                 SchemaVersion = 1,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
                 Modules = new Dictionary<string, ModuleSaveBlock>
                 {
                     { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{\"name\":\"core\"}" } },
@@ -383,7 +361,6 @@ namespace Reloader.Core.Tests.EditMode
                 SchemaVersion = 1,
                 BuildVersion = "0.1.0-dev",
                 CreatedAtUtc = "2026-02-23T18:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
                 Modules = new Dictionary<string, ModuleSaveBlock>
                 {
                     { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{\"name\":\"core\"}" } },

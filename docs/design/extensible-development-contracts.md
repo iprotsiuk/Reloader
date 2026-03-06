@@ -97,7 +97,7 @@ Current status:
 - Full runtime module support is still partial in current implemented save slice.
 
 Guardrails:
-- Any new dropped-item runtime implementation must ship with matching save module payload contracts and migration notes.
+- Any new dropped-item runtime implementation must ship with matching save module payload contracts and current-schema documentation updates.
 
 ## Save and Persistence Contract [v0.1]
 
@@ -108,12 +108,8 @@ Implemented now required modules:
 - `Inventory`
 - `Weapons`
 
-Feature-flag contract:
-- `SaveFeatureFlags` may only enable features that have registered module support in runtime.
-- If a feature flag exists but no module is registered, flag must remain disabled until module lands.
-
 Persistence rules:
-- Update payload contract + module implementation + migration notes together.
+- Update payload contract + module implementation + current-schema docs together.
 - Keep deterministic restore ordering stable unless explicitly versioned and documented.
 - Keep save sizes within policy (`500 KB` soft, `1 MB` hard).
 

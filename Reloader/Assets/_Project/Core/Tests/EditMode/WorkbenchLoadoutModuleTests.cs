@@ -4,7 +4,6 @@ using System.IO;
 using NUnit.Framework;
 using Reloader.Core.Save;
 using Reloader.Core.Save.IO;
-using Reloader.Core.Save.Migrations;
 using Reloader.Core.Save.Modules;
 
 namespace Reloader.Core.Tests.EditMode
@@ -35,7 +34,7 @@ namespace Reloader.Core.Tests.EditMode
         public void SaveBootstrapper_DefaultCoordinatorCapture_IncludesWorkbenchLoadoutModule()
         {
             var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
-            var envelope = coordinator.CaptureEnvelope("0.5.0-dev", new SaveFeatureFlags());
+            var envelope = coordinator.CaptureEnvelope("0.5.0-dev");
 
             Assert.That(envelope.SchemaVersion, Is.EqualTo(6));
             Assert.That(envelope.Modules.ContainsKey("WorkbenchLoadout"), Is.True);
@@ -43,82 +42,17 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void SaveBootstrapper_DefaultCoordinatorLoad_MigratesSchemaV4SaveMissingWorkbenchLoadout_AndRestoresSuccessfully()
+        public void SaveBootstrapper_DefaultCoordinatorLoad_RejectsSaveMissingWorkbenchLoadoutModule()
         {
             var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
             var repository = new SaveFileRepository();
-            var envelope = coordinator.CaptureEnvelope("0.5.0-dev", new SaveFeatureFlags());
-            envelope.SchemaVersion = 4;
+            var envelope = coordinator.CaptureEnvelope("0.5.0-dev");
             envelope.Modules.Remove("WorkbenchLoadout");
 
             repository.WriteEnvelope(_savePath, envelope);
 
-            Assert.DoesNotThrow(() => coordinator.Load(_savePath));
-        }
-
-        [Test]
-        public void SchemaV4ToV5AddWorkbenchLoadoutMigration_InsertsMissingModuleBlock()
-        {
-            var migration = new SchemaV4ToV5AddWorkbenchLoadoutMigration();
-            var envelope = new SaveEnvelope
-            {
-                SchemaVersion = 4,
-                BuildVersion = "0.4.0-dev",
-                CreatedAtUtc = "2026-03-01T00:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
-                Modules = new Dictionary<string, ModuleSaveBlock>
-                {
-                    { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "Inventory", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "Weapons", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "WorldObjectState", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "ContainerStorage", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "PlayerDevice", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } }
-                }
-            };
-
-            var migrated = migration.Apply(envelope);
-
-            Assert.That(migrated.SchemaVersion, Is.EqualTo(5));
-            Assert.That(migrated.Modules.ContainsKey("WorkbenchLoadout"), Is.True);
-            Assert.That(migrated.Modules["WorkbenchLoadout"].ModuleVersion, Is.EqualTo(1));
-            Assert.That(migrated.Modules["WorkbenchLoadout"].PayloadJson, Is.EqualTo("{}"));
-        }
-
-        [Test]
-        public void SchemaV4ToV5AddWorkbenchLoadoutMigration_LeavesExistingModuleBlockUnchanged()
-        {
-            var migration = new SchemaV4ToV5AddWorkbenchLoadoutMigration();
-            var existingBlock = new ModuleSaveBlock
-            {
-                ModuleVersion = 8,
-                PayloadJson = "{\"preserve\":true}"
-            };
-
-            var envelope = new SaveEnvelope
-            {
-                SchemaVersion = 4,
-                BuildVersion = "0.4.0-dev",
-                CreatedAtUtc = "2026-03-01T00:00:00Z",
-                FeatureFlags = new SaveFeatureFlags(),
-                Modules = new Dictionary<string, ModuleSaveBlock>
-                {
-                    { "CoreWorld", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "Inventory", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "Weapons", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "WorldObjectState", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "ContainerStorage", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "PlayerDevice", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
-                    { "WorkbenchLoadout", existingBlock }
-                }
-            };
-
-            var migrated = migration.Apply(envelope);
-
-            Assert.That(migrated.SchemaVersion, Is.EqualTo(5));
-            Assert.That(migrated.Modules["WorkbenchLoadout"], Is.SameAs(existingBlock));
-            Assert.That(migrated.Modules["WorkbenchLoadout"].ModuleVersion, Is.EqualTo(8));
-            Assert.That(migrated.Modules["WorkbenchLoadout"].PayloadJson, Is.EqualTo("{\"preserve\":true}"));
+            var ex = Assert.Throws<InvalidDataException>(() => coordinator.Load(_savePath));
+            Assert.That(ex.Message, Does.Contain("Missing required module block"));
         }
 
         [Test]

@@ -335,59 +335,25 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void RaiseShopTradeResult_TypedRaiseStillInvokesLegacyEventForCompatibility()
+        public void ShopTradeResult_RuntimeContractUsesTypedPayloadOnly()
         {
-            string failureReason = null;
+            var legacyInterfaceEvent = typeof(IShopEvents).GetEvent("OnShopTradeResult");
+            var legacyInterfaceMethod = typeof(IShopEvents).GetMethod(
+                "RaiseShopTradeResult",
+                new[] { typeof(string), typeof(int), typeof(bool), typeof(bool), typeof(string) });
+            var legacyRuntimeEvent = typeof(DefaultRuntimeEvents).GetEvent("OnShopTradeResult");
+            var legacyRuntimeMethod = typeof(DefaultRuntimeEvents).GetMethod(
+                "RaiseShopTradeResult",
+                new[] { typeof(string), typeof(int), typeof(bool), typeof(bool), typeof(string) });
+            var legacyFailureParser = typeof(ShopTradeResultPayload).GetMethod(
+                "ParseLegacyFailureReason",
+                new[] { typeof(string), typeof(bool) });
 
-#pragma warning disable CS0618
-            void Handler(string _, int __, bool ___, bool success, string reason)
-            {
-                if (!success)
-                {
-                    failureReason = reason;
-                }
-            }
-
-            RuntimeKernelBootstrapper.ShopEvents.OnShopTradeResult += Handler;
-            try
-            {
-                RuntimeKernelBootstrapper.ShopEvents.RaiseShopTradeResult(new ShopTradeResultPayload(
-                    "primer-cci",
-                    100,
-                    true,
-                    false,
-                    ShopTradeFailureReason.InsufficientFunds));
-            }
-            finally
-            {
-                RuntimeKernelBootstrapper.ShopEvents.OnShopTradeResult -= Handler;
-            }
-#pragma warning restore CS0618
-
-            Assert.That(failureReason, Is.EqualTo("InsufficientFunds"));
-        }
-
-        [Test]
-        public void RaiseShopTradeResult_LegacyRaiseStillInvokesTypedEventForCompatibility()
-        {
-            ShopTradeResultPayload? received = null;
-
-            void Handler(ShopTradeResultPayload payload) => received = payload;
-
-            RuntimeKernelBootstrapper.ShopEvents.OnShopTradeResultReceived += Handler;
-            try
-            {
-#pragma warning disable CS0618
-                RuntimeKernelBootstrapper.ShopEvents.RaiseShopTradeResult("primer-cci", 100, true, false, "InsufficientFunds");
-#pragma warning restore CS0618
-            }
-            finally
-            {
-                RuntimeKernelBootstrapper.ShopEvents.OnShopTradeResultReceived -= Handler;
-            }
-
-            Assert.That(received.HasValue, Is.True);
-            Assert.That(received.Value.FailureReason, Is.EqualTo(ShopTradeFailureReason.InsufficientFunds));
+            Assert.That(legacyInterfaceEvent, Is.Null);
+            Assert.That(legacyInterfaceMethod, Is.Null);
+            Assert.That(legacyRuntimeEvent, Is.Null);
+            Assert.That(legacyRuntimeMethod, Is.Null);
+            Assert.That(legacyFailureParser, Is.Null);
         }
 
         [Test]

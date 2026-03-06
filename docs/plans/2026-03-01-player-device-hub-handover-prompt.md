@@ -7,7 +7,7 @@ Use this prompt to continue the Player Device Hub implementation safely from cur
 Requested next steps status:
 
 1. `Persist player device state in save/load`:
-   - Implemented in save schema/module path via `PlayerDeviceModule` + `SchemaV3ToV4AddPlayerDeviceMigration` + `SaveBootstrapper` registration.
+   - Implemented in save schema/module path via `PlayerDeviceModule` + `SaveBootstrapper` registration.
    - Coverage added in `PlayerDeviceSaveModuleTests`.
 2. `Replace static notes text with structured fields + format polish`:
    - Implemented in TAB Device UI/controller/binder (`selected target`, `shot count`, `spread`, `MOA`, `saved groups`).

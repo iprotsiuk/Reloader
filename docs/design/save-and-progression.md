@@ -15,14 +15,13 @@
 
 ## Save Envelope and Versioning [v0.1]
 
-All save files use a versioned envelope so payload contracts can evolve without breaking milestone compatibility:
+All save files use a versioned envelope so payload contracts stay explicit and debuggable:
 
 ```
 SaveEnvelope
-├── schemaVersion   (int, migration source/target)
+├── schemaVersion   (int, must match current runtime schema)
 ├── buildVersion    (string, diagnostic only)
 ├── createdAtUtc    (ISO-8601 timestamp)
-├── featureFlags    (which optional systems were active when saved)
 └── modules         (Dictionary<string, ModuleSaveBlock>)
     └── ModuleSaveBlock
         ├── moduleVersion
@@ -30,9 +29,9 @@ SaveEnvelope
 ```
 
 Compatibility policy:
-- Guaranteed compatibility is milestone-to-milestone (`v0.1` -> `v0.2`) through explicit migrations.
+- Runtime only loads saves whose `schemaVersion` exactly matches the current schema.
 - Intermediate experiment builds are not guaranteed to remain compatible.
-- New schema versions must include migration steps from prior milestone schemas.
+- Schema bumps must update docs/tests in the same change.
 
 Forward-compatibility behavior:
 - Unknown module keys are ignored safely during load.
@@ -60,7 +59,7 @@ Data-shape rules for staying within budget:
 Load order is deterministic and must stay stable:
 
 1. Read and deserialize `SaveEnvelope`.
-2. Run migration chain from `schemaVersion` -> current runtime schema.
+2. Reject the load if `schemaVersion` does not equal the current runtime schema.
 3. Validate required module presence and payload JSON well-formedness.
 4. Restore modules in explicit registration order (`CoreWorld`, `Inventory`, `Weapons`, `WorldObjectState` in current v0.1 implemented baseline).
 5. Run post-restore module validation.
@@ -90,24 +89,14 @@ In-flight projectile state is intentionally out-of-scope for v0.1 saves.
 
 Schema note:
 - Runtime save schema is now `v6`.
-- `SchemaV1ToV2AddWorldObjectStateMigration` inserts a default `WorldObjectState` block when loading older saves.
-- `SchemaV2ToV3AddContainerStorageMigration` inserts a default `ContainerStorage` block when loading older saves.
-- `SchemaV3ToV4AddPlayerDeviceMigration` inserts a default `PlayerDevice` block when loading older saves.
-- `SchemaV4ToV5AddWorkbenchLoadoutMigration` inserts a default `WorkbenchLoadout` block when loading older saves.
-- `SchemaV5ToV6AddContractAndPoliceHeatStateMigration` inserts default `ContractState` and `PoliceHeatState` blocks when loading older saves.
+- Loads fail fast when schema does not exactly match `v6`.
 - Load remains transactional: missing required module blocks still fail before restore.
 
 Implementation note:
-- `ContractState` and `PoliceHeatState` are now registered schema/module blocks with migration coverage.
+- `ContractState` and `PoliceHeatState` are now registered schema/module blocks in the current runtime schema.
 - Live capture/restore of current contract execution and police pursuit state still requires dedicated runtime save bridges; until those land, these blocks serialize their module state correctly but default save capture does not yet mirror gameplay state automatically.
 
-The broader schema below is the v0.1 design target and forward schema contract. Treat it as planned module scope until those modules are registered and migration-backed in runtime.
-
-### Feature Flags and Module Registration Coherence [v0.1]
-
-- `SaveFeatureFlags` are declarative capability toggles, not runtime guarantees by themselves.
-- A flag may be enabled only when the corresponding module is registered in `SaveBootstrapper` and covered by migration-aware payload handling.
-- Introducing a new enabled save feature requires all of: registration, payload contract, restore validation, and migration notes in the same change.
+The broader schema below is the v0.1 design target and forward schema contract. Treat it as planned module scope until those modules are registered in runtime.
 
 ### Save Module Readiness Matrix [v0.1]
 
@@ -120,8 +109,8 @@ The broader schema below is the v0.1 design target and forward schema contract. 
 | `ContainerStorage` | Implemented now | Yes | Persists stored item-instance IDs for containers/chests. |
 | `PlayerDevice` | Implemented now | Yes | Persists selected target, shot groups, notes, and installed hooks. |
 | `WorkbenchLoadout` | Implemented now | Yes | Persists nested workbench slot loadouts by `workbenchId`. |
-| `ContractState` | Schema/module implemented | Partial | Module + migration are in place; runtime bridge wiring for live contract state is still pending. |
-| `PoliceHeatState` | Schema/module implemented | Partial | Module + migration are in place; runtime bridge wiring for live heat/search state is still pending. |
+| `ContractState` | Schema/module implemented | Partial | Module is registered; runtime bridge wiring for live contract state is still pending. |
+| `PoliceHeatState` | Schema/module implemented | Partial | Module is registered; runtime bridge wiring for live heat/search state is still pending. |
 | `PlayerState` | Planned target | No | Listed in target schema only. |
 | `ItemRegistry` | Planned target | No | Listed in target schema only. |
 | `ItemLocation` | Planned target | No | Listed in target schema only. |
@@ -148,7 +137,7 @@ Use this matrix as the implementation source of truth for v0.1 feature work: onl
 
 When this contract changes, expected suites include:
 
-- Core save EditMode coverage (`WorldObjectStateSaveModuleTests`, migration + module registration/load invariants).
+- Core save EditMode coverage (`WorldObjectStateSaveModuleTests`, save coordinator + module registration/load invariants).
 - Core persistence PlayMode coverage (`WorldObjectPersistenceRuntimeBridgePlayModeTests`, including `DailyReset` cleanup + reclaim behavior).
 - World travel PlayMode coverage (`RoundTripTravelPlayModeTests`, including no ownership-based hide workaround).
 - Pickup flow coverage impacted by world identity/state capture (`PlayerInventoryControllerPlayModeTests`, `PickupTargetWorldIdentity*` tests).
@@ -217,11 +206,11 @@ SaveData (logical domain content carried by modules)
 
 Field naming convention for payload examples: use lowerCamelCase with `Id`/`Ids` suffixes (for example `carriedItemIds`, `containerId`, `magazineAmmoIds`) to match serialized JSON naming style.
 
-Forward-compatibility rule: target schema blocks for later-phase systems (for example `NPCState`, `ContractState`, and advanced law-enforcement state) are defined from v0.1 so save files stay migratable. In phases where those systems are not active yet, these blocks can remain empty/default when modules exist, and may be absent in earlier implementation slices.
+Forward-compatibility rule: target schema blocks for later-phase systems (for example `NPCState`, `ContractState`, and advanced law-enforcement state) are defined from v0.1 so schema growth stays explicit. In phases where those systems are not active yet, these blocks can remain empty/default when modules exist, and may be absent in earlier implementation slices.
 
 **Exact restore target contract [v0.1]:** Loading a save should restore the same world state the player left for every active system in the current phase: player transform, dropped item transforms (including floor items), inventory/container contents, weapon/vehicle state, and progression flags. If NPC simulation is active, NPC transforms/state should restore exactly as well. **Current implemented scope is partial** (`CoreWorld`, `Inventory`, `Weapons`, `WorldObjectState`) and full exact restoration remains in progress per `v0.1-demo-status-and-milestones.md`.
 
-**Save format:** JSON envelope + per-module payload JSON. Each domain module serializes its own payload contract; migration code evolves schema versions explicitly.
+**Save format:** JSON envelope + per-module payload JSON. Each domain module serializes its own payload contract; schema changes update the current runtime contract explicitly.
 
 ---
 

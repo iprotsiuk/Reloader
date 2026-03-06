@@ -124,26 +124,28 @@ git commit -m "feat: add police heat and search runtime"
 ### Task 3: Persist contract and police-heat state, then apply arrest/death confiscation
 
 **Files:**
-- Modify: `Reloader/Assets/_Project/Core/Scripts/Save/SaveFeatureFlags.cs`
 - Modify: `Reloader/Assets/_Project/Core/Scripts/Save/SaveBootstrapper.cs`
 - Modify: `Reloader/Assets/_Project/Core/Scripts/Save/SaveCoordinator.cs`
 - Create: `Reloader/Assets/_Project/Core/Scripts/Save/Modules/ContractStateModule.cs`
 - Create: `Reloader/Assets/_Project/Core/Scripts/Save/Modules/PoliceHeatStateModule.cs`
-- Create: `Reloader/Assets/_Project/Core/Scripts/Save/Migrations/SchemaV5ToV6AddContractAndPoliceHeatStateMigration.cs`
 - Test: `Reloader/Assets/_Project/Core/Tests/EditMode/SaveSkeletonTddTests.cs`
 - Test: `Reloader/Assets/_Project/Core/Tests/EditMode/PlayerInventoryRuntimeTests.cs`
 
 **Step 1: Write the failing test**
 
 Add EditMode assertions for:
-- save feature flags containing contract + police heat modules
+- save envelope capture including contract + police heat modules
+- load rejecting schema mismatches instead of migrating
 - carried inventory being cleared on arrest/death penalty application
 
 ```csharp
 [Test]
-public void SaveFeatureFlags_ExposeContractAndPoliceHeatFlags()
+public void SaveBootstrapper_DefaultCoordinatorCapture_IncludesContractAndPoliceHeatModules()
 {
-    Assert.That(SaveFeatureFlags.Contracts, Is.Not.EqualTo(0));
+    var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
+    var envelope = coordinator.CaptureEnvelope("0.6.0-dev");
+    Assert.That(envelope.Modules.ContainsKey("ContractState"), Is.True);
+    Assert.That(envelope.Modules.ContainsKey("PoliceHeatState"), Is.True);
 }
 ```
 
@@ -151,12 +153,13 @@ public void SaveFeatureFlags_ExposeContractAndPoliceHeatFlags()
 
 Run: `./.venv/bin/python -m ivan --unity-editmode-filter "SaveSkeletonTddTests|PlayerInventoryRuntimeTests"`
 Expected: FAIL because the new flags/modules/penalty behavior do not exist.
+Expected: FAIL because the new modules/penalty behavior do not exist.
 
 **Step 3: Write minimal implementation**
 
 Add:
-- new save feature flags
-- registered save modules and migration
+- registered save modules in the current schema
+- exact-schema validation on load
 - a small confiscation helper that removes carried inventory on arrest/death while leaving non-carried storage alone
 
 **Step 4: Run test to verify it passes**

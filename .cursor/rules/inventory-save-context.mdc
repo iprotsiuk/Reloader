@@ -1,15 +1,15 @@
 ---
 description: Context for agents changing save pipeline orchestration in Core/Scripts/Save
-globs: Reloader/Assets/_Project/Core/Scripts/Save/SaveCoordinator.cs,Reloader/Assets/_Project/Core/Scripts/Save/SaveBootstrapper.cs,Reloader/Assets/_Project/Core/Scripts/Save/MigrationRunner.cs,Reloader/Assets/_Project/Core/Scripts/Save/SaveModuleRegistration.cs,Reloader/Assets/_Project/Core/Scripts/Save/ISaveDomainModule.cs,Reloader/Assets/_Project/Core/Scripts/Save/ISaveMigration.cs,Reloader/Assets/_Project/Core/Scripts/Save/IO/SaveFileRepository.cs,Reloader/Assets/_Project/Core/Scripts/Save/Modules/**/*.cs
+globs: Reloader/Assets/_Project/Core/Scripts/Save/SaveCoordinator.cs,Reloader/Assets/_Project/Core/Scripts/Save/SaveBootstrapper.cs,Reloader/Assets/_Project/Core/Scripts/Save/SaveModuleRegistration.cs,Reloader/Assets/_Project/Core/Scripts/Save/ISaveDomainModule.cs,Reloader/Assets/_Project/Core/Scripts/Save/IO/SaveFileRepository.cs,Reloader/Assets/_Project/Core/Scripts/Save/Modules/**/*.cs
 alwaysApply: false
 ---
 
 # Save Pipeline Context
 
-You are touching save pipeline orchestration or migration/load plumbing. Read these docs before changing flow, ordering, or validation behavior:
+You are touching save pipeline orchestration or load validation/plumbing. Read these docs before changing flow, ordering, or validation behavior:
 
 1. `docs/design/core-architecture.md` — shared patterns and terminology
 2. `docs/design/save-contract-quick-reference.md` — fast contract reference + size policy
-3. `docs/design/save-and-progression.md` — full save schema and restore guarantees (required for schema/migration changes)
+3. `docs/design/save-and-progression.md` — full save schema and restore guarantees (required for schema or validation-contract changes)
 
 If your change only touches one domain module payload, also load that domain doc and avoid unrelated docs.

@@ -91,7 +91,6 @@ namespace Reloader.Core.Save.IO
                 }
 
                 envelope.Modules ??= new System.Collections.Generic.Dictionary<string, ModuleSaveBlock>();
-                envelope.FeatureFlags ??= new SaveFeatureFlags();
                 return envelope;
             }
             catch (JsonException ex)

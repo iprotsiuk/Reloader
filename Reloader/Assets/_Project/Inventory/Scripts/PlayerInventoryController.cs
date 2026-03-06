@@ -563,12 +563,6 @@ namespace Reloader.Inventory
 
         private string ResolvePickupDisplayName(IInventoryPickupTarget pickupTarget)
         {
-            if (pickupTarget is IInventoryDisplayNamePickupTarget displayNameTarget
-                && !string.IsNullOrWhiteSpace(displayNameTarget.DisplayName))
-            {
-                return displayNameTarget.DisplayName;
-            }
-
             if (pickupTarget is IInventoryDefinitionPickupTarget definitionTarget
                 && definitionTarget.SpawnDefinition != null
                 && definitionTarget.SpawnDefinition.ItemDefinition != null
