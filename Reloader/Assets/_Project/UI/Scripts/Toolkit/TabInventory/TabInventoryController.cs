@@ -40,7 +40,7 @@ namespace Reloader.UI.Toolkit.TabInventory
         private IUiStateEvents _uiStateEvents;
         private bool _useRuntimeKernelUiStateEvents = true;
         private bool _isOpen;
-        private string _activeSection = "inventory";
+        private string _activeSection = "device";
         private string _attachmentsWeaponItemId;
         private string _attachmentsWeaponDisplayName = string.Empty;
         private WeaponDefinition _attachmentsWeaponDefinition;
@@ -223,7 +223,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 }
 
                 SetMenuOpen(true);
-                _activeSection = "inventory";
+                _activeSection = "device";
                 Refresh();
             }
         }
@@ -566,12 +566,14 @@ namespace Reloader.UI.Toolkit.TabInventory
         {
             if (!TryResolvePayloadItemId(payload, out var itemId))
             {
+                _activeSection = "inventory";
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(payload.ItemId)
                 || !TryResolveWeaponDefinition(itemId, out var definition))
             {
+                _activeSection = "inventory";
                 return;
             }
 

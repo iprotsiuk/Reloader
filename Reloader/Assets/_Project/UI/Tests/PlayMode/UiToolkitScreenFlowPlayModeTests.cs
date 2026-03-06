@@ -582,7 +582,7 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
-        public void TabInventoryController_Tick_MenuToggleInput_OpensInventorySectionByDefault()
+        public void TabInventoryController_Tick_MenuToggleInput_OpensDeviceSectionByDefault()
         {
             var go = new GameObject("TabInventoryControllerDefaultSection");
             var inventoryController = go.AddComponent<PlayerInventoryController>();
@@ -605,7 +605,7 @@ namespace Reloader.UI.Tests.PlayMode
 
             var activeSectionField = typeof(TabInventoryController).GetField("_activeSection", BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(activeSectionField, Is.Not.Null);
-            Assert.That(activeSectionField.GetValue(controller) as string, Is.EqualTo("inventory"));
+            Assert.That(activeSectionField.GetValue(controller) as string, Is.EqualTo("device"));
 
             UnityEngine.Object.DestroyImmediate(go);
         }
