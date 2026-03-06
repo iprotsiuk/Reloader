@@ -30,8 +30,7 @@ namespace Reloader.UI.Tests.PlayMode
             runtime.TryStoreItem("att-muzzle-a", out _, out _, out _);
             inventoryController.Configure(null, null, runtime);
 
-            var registryOwner = new GameObject("TabInventoryWeaponRegistry");
-            var registry = registryOwner.AddComponent<WeaponRegistry>();
+            var registry = owner.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
             definition.SetRuntimeValuesForTests(
                 itemId: "weapon-kar98k",
@@ -77,7 +76,6 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(weaponLabel.text, Is.EqualTo("Rifle 01"));
 
             UnityEngine.Object.DestroyImmediate(definition);
-            UnityEngine.Object.DestroyImmediate(registryOwner);
             UnityEngine.Object.DestroyImmediate(owner);
         }
 
@@ -116,7 +114,7 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
-        public void Controller_AttachmentsIntent_FallsBackToAnotherWeaponRegistry_WhenPrimaryRegistryLacksDefinition()
+        public void Controller_AttachmentsIntent_DoesNotResolveFromAnotherWeaponRegistry_WhenPrimaryRegistryLacksDefinition()
         {
             var owner = new GameObject("TabInventoryAttachmentsRegistryFallbackController");
             var inventoryController = owner.AddComponent<PlayerInventoryController>();
@@ -175,7 +173,8 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(resolveMethod, Is.Not.Null);
             var args = new object[] { "weapon-pistol-01", null };
             var resolved = (bool)resolveMethod.Invoke(controller, args);
-            Assert.That(resolved, Is.True, "Expected fallback registry lookup to resolve pistol definition.");
+            Assert.That(resolved, Is.False, "Expected strict registry lookup to reject cross-registry resolution.");
+            Assert.That(args[1], Is.Null);
 
             inputSource.MenuTogglePressedThisFrame = true;
             controller.Tick();
@@ -183,9 +182,8 @@ namespace Reloader.UI.Tests.PlayMode
                 "tab.inventory.item.context.attachments",
                 new TabInventoryAttachmentContextIntentPayload("belt", 0, "weapon-pistol-01")));
 
-            var resolvedDefinition = args[1] as WeaponDefinition;
-            Assert.That(resolvedDefinition, Is.Not.Null);
-            Assert.That(resolvedDefinition.ItemId, Is.EqualTo("weapon-pistol-01"));
+            Assert.That(root.Q<Label>("inventory__attachments-weapon-name")?.text, Is.EqualTo("No weapon selected"));
+            Assert.That(root.Q<Label>("inventory__attachments-status")?.text, Is.EqualTo("Select a weapon to manage attachments."));
 
             UnityEngine.Object.DestroyImmediate(primaryDefinition);
             UnityEngine.Object.DestroyImmediate(fallbackDefinition);
@@ -206,8 +204,7 @@ namespace Reloader.UI.Tests.PlayMode
             runtime.TryStoreItem("weapon-kar98k", out _, out _, out _);
             inventoryController.Configure(inventoryInputSource, null, runtime);
 
-            var registryOwner = new GameObject("TabInventoryWeaponRegistryRemoveFlow");
-            var registry = registryOwner.AddComponent<WeaponRegistry>();
+            var registry = owner.AddComponent<WeaponRegistry>();
             var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
             definition.SetRuntimeValuesForTests(
                 itemId: "weapon-kar98k",
@@ -270,7 +267,6 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.EqualTo(string.Empty));
 
             UnityEngine.Object.DestroyImmediate(definition);
-            UnityEngine.Object.DestroyImmediate(registryOwner);
             UnityEngine.Object.DestroyImmediate(owner);
         }
 

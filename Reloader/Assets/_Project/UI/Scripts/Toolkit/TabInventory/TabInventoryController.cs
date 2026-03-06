@@ -792,31 +792,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             var registry = ResolveWeaponRegistry();
-            if (registry != null && registry.TryGetWeaponDefinition(itemId, out definition))
-            {
-                return true;
-            }
-
-            var registries = FindObjectsByType<WeaponRegistry>(FindObjectsSortMode.None);
-            for (var i = 0; i < registries.Length; i++)
-            {
-                var candidate = registries[i];
-                if (candidate == null || candidate == registry)
-                {
-                    continue;
-                }
-
-                if (!candidate.TryGetWeaponDefinition(itemId, out definition))
-                {
-                    continue;
-                }
-
-                _weaponRegistry = candidate;
-                return true;
-            }
-
-            definition = null;
-            return false;
+            return registry != null && registry.TryGetWeaponDefinition(itemId, out definition);
         }
 
         private bool TryGetContextWeaponRuntimeState(out WeaponRuntimeState state)
