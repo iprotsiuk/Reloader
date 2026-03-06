@@ -46,6 +46,12 @@ namespace Reloader.LawEnforcement
                 return;
             }
 
+            if (CurrentState.Level == PoliceHeatLevel.Search
+                && !CurrentState.HasLineOfSightToPlayer)
+            {
+                return;
+            }
+
             SetState(PoliceHeatLevel.Search, CurrentState.LastCrimeType, _searchDurationSeconds, false);
         }
 
