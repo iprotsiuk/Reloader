@@ -4,6 +4,7 @@ using System.Globalization;
 using Reloader.Core;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using Reloader.Economy;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.Weapons.Controllers;
@@ -42,8 +43,12 @@ namespace Reloader.UI.Toolkit.TabInventory
         private bool _useRuntimeKernelInventoryEvents = true;
         private IUiStateEvents _uiStateEvents;
         private bool _useRuntimeKernelUiStateEvents = true;
+        private EconomyController _economyController;
+        private CoreWorldController _coreWorldController;
+        private CoreWorldController _subscribedCoreWorldController;
         private bool _isOpen;
         private string _activeSection = "device";
+        private int _lastKnownMoney = 500;
         private string _attachmentsWeaponItemId;
         private string _attachmentsWeaponDisplayName = string.Empty;
         private WeaponDefinition _attachmentsWeaponDefinition;
@@ -133,6 +138,7 @@ namespace Reloader.UI.Toolkit.TabInventory
         {
             SubscribeToRuntimeHubReconfigure();
             SubscribeToInventoryEvents(ResolveInventoryEvents());
+            SubscribeToCoreWorldController(ResolveCoreWorldController());
             Refresh();
         }
 
@@ -198,6 +204,24 @@ namespace Reloader.UI.Toolkit.TabInventory
         public void SetWeaponController(PlayerWeaponController weaponController)
         {
             _weaponController = weaponController;
+        }
+
+        public void SetEconomyController(EconomyController economyController)
+        {
+            _economyController = economyController;
+            if (_economyController?.Runtime != null)
+            {
+                _lastKnownMoney = Mathf.Max(0, _economyController.Runtime.Money);
+            }
+
+            Refresh();
+        }
+
+        public void SetCoreWorldController(CoreWorldController coreWorldController)
+        {
+            _coreWorldController = coreWorldController;
+            SubscribeToCoreWorldController(_coreWorldController);
+            Refresh();
         }
 
         public void Tick()
@@ -311,6 +335,7 @@ public void HandleIntent(UiIntent intent)
         {
             UnsubscribeFromRuntimeHubReconfigure();
             UnsubscribeFromInventoryEvents();
+            UnsubscribeFromCoreWorldController();
             if (_isOpen)
             {
                 SetMenuOpen(false);
@@ -330,6 +355,7 @@ private void Refresh()
             }
 
             var contractPanel = BuildContractPanelFields();
+            var headerMetaText = BuildHeaderMetaText();
 
             if (_inventoryController?.Runtime == null)
             {
@@ -338,6 +364,7 @@ private void Refresh()
                     _isOpen,
                     new TabInventoryUiState.SlotState[PlayerInventoryRuntime.BeltSlotCount],
                     new TabInventoryUiState.SlotState[MinimumBackpackUiSlots],
+                    headerMetaText,
                     string.Empty,
                     false,
                     _activeSection,
@@ -391,6 +418,7 @@ private void Refresh()
                 _isOpen,
                 belt,
                 backpack,
+                headerMetaText,
                 string.Empty,
                 false,
                 _activeSection,
@@ -465,6 +493,37 @@ private void Refresh()
             Refresh();
         }
 
+        private void HandleMoneyChanged(int amount)
+        {
+            _lastKnownMoney = Mathf.Max(0, amount);
+            Refresh();
+        }
+
+        private void HandleCoreWorldStateChanged()
+        {
+            Refresh();
+        }
+
+        private string BuildHeaderMetaText()
+        {
+            var worldController = ResolveCoreWorldController();
+            var snapshot = worldController != null
+                ? worldController.CaptureSnapshot()
+                : new CoreWorldRuntime.Snapshot(dayCount: 0, timeOfDay: 8f);
+
+            var economyController = ResolveEconomyController();
+            var money = economyController?.Runtime != null
+                ? Mathf.Max(0, economyController.Runtime.Money)
+                : Mathf.Max(0, _lastKnownMoney);
+
+            return string.Format(
+                CultureInfo.InvariantCulture,
+                "{0} • {1} • ${2:N0}",
+                snapshot.GetDayOfWeekName(),
+                snapshot.GetFormattedTimeOfDay(),
+                money);
+        }
+
         private TabInventoryUiState.ContractPanelState BuildContractPanelFields()
         {
             var contractController = ResolveContractController();
@@ -477,39 +536,73 @@ private void Refresh()
                 ? (status.HasActiveContract ? "Active contract" : "No active contract")
                 : status.ContractTitle;
             var targetText = string.IsNullOrWhiteSpace(status.TargetDisplayName)
-                ? "Target: --"
-                : $"Target: {status.TargetDisplayName}";
-            var distanceText = status.DistanceBandMeters > 0f
-                ? string.Format(CultureInfo.InvariantCulture, "Distance: {0:0} m", status.DistanceBandMeters)
-                : "Distance: --";
+                ? "--"
+                : status.TargetDisplayName;
             var payoutText = status.Payout > 0
                 ? string.Format(CultureInfo.InvariantCulture, "Payout: ${0:N0}", status.Payout)
                 : "Payout: --";
             var briefing = string.IsNullOrWhiteSpace(status.BriefingText)
                 ? status.TargetDescription
                 : status.BriefingText;
+            var summary = string.IsNullOrWhiteSpace(status.TargetDescription)
+                ? briefing
+                : status.TargetDescription;
+            var mode = status.HasActiveContract
+                ? TabInventoryUiState.ContractPanelMode.ActiveContract
+                : status.HasAvailableContract
+                    ? TabInventoryUiState.ContractPanelMode.PostedOffer
+                    : TabInventoryUiState.ContractPanelMode.None;
+            var rewardStateText = status.CanClaimReward
+                ? "Reward ready to claim."
+                : status.HasActiveContract
+                    ? "Reward locked until the target is eliminated."
+                    : status.HasAvailableContract
+                        ? "Reward pending contract acceptance."
+                        : "No contract selected";
 
             return new TabInventoryUiState.ContractPanelState(
+                mode: mode,
                 statusText: string.IsNullOrWhiteSpace(status.StatusText) ? "No contracts available" : status.StatusText,
                 titleText: titleText,
+                summaryText: string.IsNullOrWhiteSpace(summary) ? "Check back later for fresh contract offers." : summary,
                 targetText: targetText,
-                distanceText: distanceText,
                 payoutText: payoutText,
                 briefingText: string.IsNullOrWhiteSpace(briefing) ? "Check back later for fresh contract offers." : briefing,
-                canAccept: status.CanAccept);
+                basePayoutText: payoutText,
+                bonusConditionsText: "None",
+                restrictionsText: "None",
+                failureConditionsText: "Wrong target • Manual cancel",
+                rewardStateText: rewardStateText,
+                canAccept: status.CanAccept,
+                canCancel: status.CanCancel,
+                canClaimReward: status.CanClaimReward);
         }
 
         private bool TryHandleContractIntent(UiIntent intent)
         {
-            if (!string.Equals(intent.Key, "tab.inventory.contracts.accept", StringComparison.Ordinal))
+            var contractController = ResolveContractController();
+            if (contractController == null)
             {
                 return false;
             }
 
-            var contractController = ResolveContractController();
-            contractController?.AcceptAvailableContract();
-            Refresh();
-            return true;
+            switch (intent.Key)
+            {
+                case "tab.inventory.contracts.accept":
+                    contractController.AcceptAvailableContract();
+                    Refresh();
+                    return true;
+                case "tab.inventory.contracts.cancel":
+                    contractController.CancelActiveContract();
+                    Refresh();
+                    return true;
+                case "tab.inventory.contracts.claim":
+                    contractController.ClaimCompletedContractReward();
+                    Refresh();
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         private static InventoryArea ResolveArea(string container)
@@ -1250,6 +1343,7 @@ private void Refresh()
             UnsubscribeFromInventoryEvents();
             _subscribedInventoryEvents = inventoryEvents;
             _subscribedInventoryEvents.OnInventoryChanged += HandleInventoryChanged;
+            _subscribedInventoryEvents.OnMoneyChanged += HandleMoneyChanged;
         }
 
         private void UnsubscribeFromInventoryEvents()
@@ -1260,7 +1354,60 @@ private void Refresh()
             }
 
             _subscribedInventoryEvents.OnInventoryChanged -= HandleInventoryChanged;
+            _subscribedInventoryEvents.OnMoneyChanged -= HandleMoneyChanged;
             _subscribedInventoryEvents = null;
+        }
+
+        private EconomyController ResolveEconomyController()
+        {
+            if (_economyController == null)
+            {
+                _economyController = FindFirstObjectByType<EconomyController>(FindObjectsInactive.Include);
+            }
+
+            if (_economyController?.Runtime != null)
+            {
+                _lastKnownMoney = Mathf.Max(0, _economyController.Runtime.Money);
+            }
+
+            return _economyController;
+        }
+
+        private CoreWorldController ResolveCoreWorldController()
+        {
+            if (_coreWorldController == null)
+            {
+                _coreWorldController = FindFirstObjectByType<CoreWorldController>(FindObjectsInactive.Include);
+            }
+
+            SubscribeToCoreWorldController(_coreWorldController);
+            return _coreWorldController;
+        }
+
+        private void SubscribeToCoreWorldController(CoreWorldController coreWorldController)
+        {
+            if (ReferenceEquals(_subscribedCoreWorldController, coreWorldController))
+            {
+                return;
+            }
+
+            UnsubscribeFromCoreWorldController();
+            _subscribedCoreWorldController = coreWorldController;
+            if (_subscribedCoreWorldController != null)
+            {
+                _subscribedCoreWorldController.WorldStateChanged += HandleCoreWorldStateChanged;
+            }
+        }
+
+        private void UnsubscribeFromCoreWorldController()
+        {
+            if (_subscribedCoreWorldController == null)
+            {
+                return;
+            }
+
+            _subscribedCoreWorldController.WorldStateChanged -= HandleCoreWorldStateChanged;
+            _subscribedCoreWorldController = null;
         }
 
         private void SubscribeToRuntimeHubReconfigure()

@@ -23,7 +23,7 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void ReportTargetEliminated_CorrectTargetExposed_AwardsPayoutAfterSearchClears()
+        public void ReportTargetEliminated_CorrectTargetExposed_RequiresExplicitClaimAfterSearchClears()
         {
             var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
             var payoutReceiver = new RecordingPayoutReceiver();
@@ -52,8 +52,17 @@ namespace Reloader.Core.Tests.EditMode
                 Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(0));
 
                 runtime.Advance(0.6f);
-                Assert.That(runtime.ActiveContract, Is.Null);
+                Assert.That(runtime.ActiveContract, Is.Not.Null);
                 Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Clear));
+                Assert.That(runtime.HasPendingPayout, Is.True);
+                Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(0));
+                Assert.That(runtime.TryGetSnapshot(out var claimSnapshot), Is.True);
+                Assert.That(claimSnapshot.StatusText, Is.EqualTo("Ready to claim"));
+                Assert.That(claimSnapshot.CanClaimReward, Is.True);
+
+                Assert.That(runtime.ClaimCompletedContractReward(), Is.True);
+
+                Assert.That(runtime.ActiveContract, Is.Null);
                 Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(1500));
                 Assert.That(completedContractId, Is.EqualTo("contract.alpha"));
             }
@@ -70,7 +79,7 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void ReportTargetEliminated_CorrectTargetHidden_AwardsPayoutImmediately()
+        public void ReportTargetEliminated_CorrectTargetHidden_RequiresExplicitClaimBeforePayout()
         {
             var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
             var payoutReceiver = new RecordingPayoutReceiver();
@@ -83,9 +92,49 @@ namespace Reloader.Core.Tests.EditMode
                 var eliminated = runtime.ReportTargetEliminated("target.alpha", wasExposed: false);
 
                 Assert.That(eliminated, Is.True);
-                Assert.That(runtime.ActiveContract, Is.Null);
+                Assert.That(runtime.ActiveContract, Is.Not.Null);
                 Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Clear));
+                Assert.That(runtime.TryGetSnapshot(out var claimSnapshot), Is.True);
+                Assert.That(claimSnapshot.StatusText, Is.EqualTo("Ready to claim"));
+                Assert.That(claimSnapshot.CanClaimReward, Is.True);
+                Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(0));
+
+                Assert.That(runtime.ClaimCompletedContractReward(), Is.True);
+
+                Assert.That(runtime.ActiveContract, Is.Null);
                 Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(1500));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+            }
+        }
+
+        [Test]
+        public void CancelActiveContract_BeforeTargetElimination_RestoresPostedOfferWithoutAwardingPayout()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            var payoutReceiver = new RecordingPayoutReceiver();
+            var runtime = new ContractEscapeResolutionRuntime(contract, payoutReceiver: payoutReceiver);
+
+            try
+            {
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+                Assert.That(runtime.TryGetSnapshot(out var activeSnapshot), Is.True);
+                Assert.That(activeSnapshot.HasActiveContract, Is.True);
+                Assert.That(activeSnapshot.CanCancel, Is.True);
+
+                Assert.That(runtime.CancelActiveContract(), Is.True);
+
+                Assert.That(runtime.ActiveContract, Is.Null);
+                Assert.That(runtime.HasPendingPayout, Is.False);
+                Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(0));
+                Assert.That(runtime.TryGetSnapshot(out var repostedSnapshot), Is.True);
+                Assert.That(repostedSnapshot.HasAvailableContract, Is.True);
+                Assert.That(repostedSnapshot.HasActiveContract, Is.False);
+                Assert.That(repostedSnapshot.CanAccept, Is.True);
+                Assert.That(repostedSnapshot.CanCancel, Is.False);
+                Assert.That(repostedSnapshot.CanClaimReward, Is.False);
             }
             finally
             {
@@ -143,6 +192,8 @@ namespace Reloader.Core.Tests.EditMode
                 Assert.That(runtime.TryGetSnapshot(out var availableSnapshot), Is.True);
                 Assert.That(availableSnapshot.HasAvailableContract, Is.True);
                 Assert.That(availableSnapshot.CanAccept, Is.True);
+                Assert.That(availableSnapshot.CanCancel, Is.False);
+                Assert.That(availableSnapshot.CanClaimReward, Is.False);
 
                 var handled = runtime.ReportTargetEliminated("target.alpha", wasExposed: true);
 

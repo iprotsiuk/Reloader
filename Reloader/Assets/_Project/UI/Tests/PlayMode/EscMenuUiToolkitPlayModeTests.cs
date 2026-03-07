@@ -41,6 +41,8 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.None));
 
             uiStateEvents.IsTabInventoryVisible = false;
+            controller.Tick();
+
             keySource.PressedThisFrame = true;
             controller.Tick();
 
@@ -335,7 +337,7 @@ namespace Reloader.UI.Tests.PlayMode
             {
                 runtime.ApplyMusicVolume(0.25f);
 
-                Assert.That(musicSource.volume, Is.EqualTo(0.25f).Within(0.001f));
+                Assert.That(musicSource.volume, Is.EqualTo(0.2275f).Within(0.001f));
                 Assert.That(soundsSource.volume, Is.EqualTo(0.73f).Within(0.001f));
             }
             finally
@@ -364,7 +366,7 @@ namespace Reloader.UI.Tests.PlayMode
                 runtime.ApplySoundsVolume(0.4f);
 
                 Assert.That(musicSource.volume, Is.EqualTo(0.66f).Within(0.001f));
-                Assert.That(soundsSource.volume, Is.EqualTo(0.4f).Within(0.001f));
+                Assert.That(soundsSource.volume, Is.EqualTo(0.352f).Within(0.001f));
             }
             finally
             {

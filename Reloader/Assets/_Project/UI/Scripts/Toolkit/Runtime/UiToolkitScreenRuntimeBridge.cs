@@ -5,6 +5,7 @@ using Reloader.Contracts.Runtime;
 using Reloader.Core;
 using Reloader.Core.Items;
 using Reloader.Core.Runtime;
+using Reloader.Economy;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.PlayerDevice.Runtime;
@@ -224,6 +225,8 @@ namespace Reloader.UI.Toolkit.Runtime
             var controller = GetOrAddController<TabInventoryController>(controllerName);
             controller.SetInventoryController(inventoryController);
             controller.SetWeaponController(FindFirstObjectByType<PlayerWeaponController>(FindObjectsInactive.Include));
+            controller.SetEconomyController(FindFirstObjectByType<EconomyController>(FindObjectsInactive.Include));
+            controller.SetCoreWorldController(FindFirstObjectByType<CoreWorldController>(FindObjectsInactive.Include));
             controller.SetInputSource(inputSource);
             controller.SetDeviceController(ResolveTabDeviceControllerAdapter(inventoryController, inputSource));
             controller.SetContractController(ResolveTabContractControllerAdapter());
@@ -615,6 +618,8 @@ namespace Reloader.UI.Toolkit.Runtime
                     distanceBandMeters: snapshot.DistanceBandMeters,
                     payout: snapshot.Payout,
                     canAccept: snapshot.CanAccept,
+                    canCancel: snapshot.CanCancel,
+                    canClaimReward: snapshot.CanClaimReward,
                     statusText: statusText);
                 return true;
             }
@@ -623,6 +628,18 @@ namespace Reloader.UI.Toolkit.Runtime
             {
                 var provider = ResolveProvider();
                 return provider != null && provider.AcceptAvailableContract();
+            }
+
+            public bool CancelActiveContract()
+            {
+                var provider = ResolveProvider();
+                return provider != null && provider.CancelActiveContract();
+            }
+
+            public bool ClaimCompletedContractReward()
+            {
+                var provider = ResolveProvider();
+                return provider != null && provider.ClaimCompletedContractReward();
             }
 
             private IContractRuntimeProvider ResolveProvider()

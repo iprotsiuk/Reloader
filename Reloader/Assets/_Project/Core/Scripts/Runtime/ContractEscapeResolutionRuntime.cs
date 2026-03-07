@@ -76,7 +76,6 @@ namespace Reloader.Contracts.Runtime
         public void ConfigurePayoutReceiver(IContractPayoutReceiver payoutReceiver)
         {
             _payoutReceiver = payoutReceiver;
-            TryResolvePendingPayout();
         }
 
         public bool TryGetSnapshot(out ContractOfferSnapshot snapshot)
@@ -103,6 +102,8 @@ namespace Reloader.Contracts.Runtime
                 distanceBandMeters: activeContract != null ? activeContract.DistanceBand : definition.DistanceBand,
                 payout: activeContract != null ? activeContract.Payout : definition.Payout,
                 canAccept: hasAvailableContract,
+                canCancel: CanCancelActiveContract(),
+                canClaimReward: CanClaimCompletedContractReward(),
                 statusText: BuildStatusText(hasAvailableContract, activeContract != null));
             return true;
         }
@@ -123,6 +124,39 @@ namespace Reloader.Contracts.Runtime
             }
 
             return accepted;
+        }
+
+        public bool CancelActiveContract()
+        {
+            if (!CanCancelActiveContract())
+            {
+                return false;
+            }
+
+            ResetPendingResolution();
+            _policeHeatRuntime.ForceClear();
+            _offerConsumed = false;
+            return _contractController.TryFailActiveContract();
+        }
+
+        public bool ClaimCompletedContractReward()
+        {
+            if (!CanClaimCompletedContractReward())
+            {
+                return false;
+            }
+
+            if (_pendingPayoutAmount > 0)
+            {
+                if (_payoutReceiver == null || !_payoutReceiver.TryAwardContractPayout(_pendingPayoutAmount))
+                {
+                    return false;
+                }
+            }
+
+            _completionPending = false;
+            _pendingPayoutAmount = 0;
+            return _contractController.TryCompleteActiveContract();
         }
 
         public bool ReportTargetEliminated(string targetId, bool wasExposed)
@@ -147,6 +181,12 @@ namespace Reloader.Contracts.Runtime
                 return false;
             }
 
+            if (_completionPending || _awaitingSearchClear)
+            {
+                RaiseMurderHeatIfNeeded(wasExposed);
+                return true;
+            }
+
             var isCorrectTarget = string.Equals(activeContract.TargetId, targetId, StringComparison.Ordinal);
             if (!isCorrectTarget)
             {
@@ -154,11 +194,6 @@ namespace Reloader.Contracts.Runtime
                 ResetPendingResolution();
                 _contractController.TryFailActiveContract();
                 return false;
-            }
-
-            if (_completionPending || _awaitingSearchClear)
-            {
-                return true;
             }
 
             _completionPending = true;
@@ -170,7 +205,6 @@ namespace Reloader.Contracts.Runtime
                 return true;
             }
 
-            TryResolvePendingPayout();
             return true;
         }
 
@@ -181,8 +215,6 @@ namespace Reloader.Contracts.Runtime
             {
                 _awaitingSearchClear = false;
             }
-
-            TryResolvePendingPayout();
         }
 
         internal RuntimeStateSnapshot CaptureRuntimeState()
@@ -229,9 +261,9 @@ namespace Reloader.Contracts.Runtime
                     CurrentHeatState.SearchTimeRemainingSeconds);
             }
 
-            if (_pendingPayoutAmount > 0)
+            if (_completionPending)
             {
-                return "Processing payout";
+                return "Ready to claim";
             }
 
             if (hasActiveContract)
@@ -240,26 +272,6 @@ namespace Reloader.Contracts.Runtime
             }
 
             return hasAvailableContract ? "Available contract" : "No contracts available";
-        }
-
-        private void TryResolvePendingPayout()
-        {
-            if (_awaitingSearchClear || !_completionPending || _contractController.ActiveContract == null)
-            {
-                return;
-            }
-
-            if (_pendingPayoutAmount > 0)
-            {
-                if (_payoutReceiver == null || !_payoutReceiver.TryAwardContractPayout(_pendingPayoutAmount))
-                {
-                    return;
-                }
-            }
-
-            _completionPending = false;
-            _pendingPayoutAmount = 0;
-            _contractController.TryCompleteActiveContract();
         }
 
         private void RaiseMurderHeatIfNeeded(bool wasExposed)
@@ -279,6 +291,21 @@ namespace Reloader.Contracts.Runtime
             _awaitingSearchClear = false;
             _completionPending = false;
             _pendingPayoutAmount = 0;
+        }
+
+        private bool CanCancelActiveContract()
+        {
+            return _contractController.ActiveContract != null
+                   && !_completionPending
+                   && !_awaitingSearchClear;
+        }
+
+        private bool CanClaimCompletedContractReward()
+        {
+            return _contractController.ActiveContract != null
+                   && _completionPending
+                   && !_awaitingSearchClear
+                   && (_pendingPayoutAmount <= 0 || _payoutReceiver != null);
         }
     }
 }

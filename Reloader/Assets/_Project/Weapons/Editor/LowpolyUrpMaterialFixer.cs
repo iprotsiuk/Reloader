@@ -10,7 +10,8 @@ namespace Reloader.Weapons.Editor
         private static readonly string[] TargetRoots =
         {
             "Assets/ThirdParty/Polygon-Mega Weapone Kit",
-            "Assets/Polygon-Mega Survival"
+            "Assets/Polygon-Mega Survival",
+            "Assets/STYLE - Character Customization Kit"
         };
 
         private const string DummyMaterialsDir = "Assets/_Project/Weapons/Materials";

@@ -22,6 +22,63 @@
     flex-shrink: 1;
 }
 
+.inventory__shell {
+    flex-direction: row;
+    flex-grow: 1;
+    min-width: 0;
+    min-height: 0;
+    margin-top: 8px;
+}
+
+.inventory__rail {
+    width: 52px;
+    min-width: 48px;
+    max-width: 56px;
+    min-height: 0;
+    margin-right: 4px;
+    padding-top: 2px;
+    padding-right: 2px;
+    padding-bottom: 2px;
+    padding-left: 0;
+    border-right-width: 1px;
+    border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+.inventory__workspace {
+    flex-direction: column;
+    flex-grow: 1;
+    min-width: 0;
+    min-height: 0;
+    margin-right: 6px;
+}
+
+.inventory__detail-pane {
+    width: 136px;
+    min-width: 116px;
+    max-width: 144px;
+    min-height: 0;
+    padding-top: 6px;
+    padding-right: 6px;
+    padding-bottom: 6px;
+    padding-left: 6px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.08);
+    border-right-color: rgba(255, 255, 255, 0.08);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    border-left-color: rgba(255, 255, 255, 0.08);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
 .inventory__header-row {
     flex-direction: row;
     align-items: center;
@@ -29,30 +86,74 @@
 }
 
 .inventory__header-hint {
-    font-size: 10px;
+    font-size: 9px;
 }
 
 .inventory__tabbar {
-    flex-direction: row;
+    flex-direction: column;
     flex-wrap: nowrap;
-    align-items: center;
+    align-items: stretch;
     justify-content: flex-start;
-    margin-top: 6px;
-    overflow-x: auto;
-    overflow-y: hidden;
+    gap: 4px;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
-.inventory__tab {
+.inventory__action-button {
     min-height: 24px;
-    height: 24px;
     min-width: 56px;
     padding-left: 8px;
     padding-right: 8px;
     font-size: 10px;
     -unity-font-style: normal;
+}
+
+.inventory__tabbar--icon-rail .inventory__tab {
+    min-height: 38px;
+    height: 38px;
+    min-width: 38px;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 0;
+    -unity-font-style: normal;
     flex-shrink: 1;
-    margin-right: 6px;
-    margin-bottom: 6px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0;
+}
+
+.inventory__tabbar--icon-rail .inventory__tab-icon {
+    width: 14px;
+    height: 14px;
+    -unity-background-scale-mode: scale-to-fit;
+    opacity: 0.76;
+}
+
+.inventory__tabbar--icon-rail .inventory__tab.is-active .inventory__tab-icon {
+    opacity: 1;
+}
+
+.inventory__tab-icon--inventory {
+    background-image: url("project://database/Assets/_Project/UI/Toolkit/Images/TabRail/tab_inventory.png");
+}
+
+.inventory__tab-icon--contracts {
+    background-image: url("project://database/Assets/_Project/UI/Toolkit/Images/TabRail/tab_contracts.png");
+}
+
+.inventory__tab-icon--journal {
+    background-image: url("project://database/Assets/_Project/UI/Toolkit/Images/TabRail/tab_journal.png");
+}
+
+.inventory__tab-icon--calendar {
+    background-image: url("project://database/Assets/_Project/UI/Toolkit/Images/TabRail/tab_calendar.png");
+}
+
+.inventory__tab-icon--device {
+    background-image: url("project://database/Assets/_Project/UI/Toolkit/Images/TabRail/tab_device.png");
 }
 
 .inventory__section {
@@ -65,6 +166,218 @@
 
 .inventory__section--hidden {
     display: none;
+}
+
+.inventory__contracts-status {
+    margin-top: 2px;
+    margin-bottom: 4px;
+    font-size: 9px;
+}
+
+.inventory__contracts-feed {
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.inventory__contracts-row {
+    min-height: 60px;
+    padding-top: 4px;
+    padding-right: 6px;
+    padding-bottom: 4px;
+    padding-left: 6px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.08);
+    border-right-color: rgba(255, 255, 255, 0.08);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    border-left-color: rgba(255, 255, 255, 0.08);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.03);
+    flex-direction: row;
+    align-items: center;
+}
+
+.inventory__contracts-row-preview {
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    height: 36px;
+    margin-right: 4px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.04);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+
+.inventory__contracts-row-portrait {
+    width: 18px;
+    height: 18px;
+    border-top-left-radius: 9px;
+    border-top-right-radius: 9px;
+    border-bottom-right-radius: 9px;
+    border-bottom-left-radius: 9px;
+    background-color: rgba(238, 242, 248, 0.14);
+}
+
+.inventory__contracts-row-copy {
+    flex-direction: column;
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 0;
+    margin-right: 4px;
+}
+
+.inventory__contracts-title {
+    color: rgba(238, 242, 248, 0.95);
+    font-size: 10px;
+    -unity-font-style: bold;
+}
+
+.inventory__contracts-summary {
+    margin-top: 1px;
+    color: rgba(215, 223, 236, 0.8);
+    font-size: 8px;
+    white-space: normal;
+}
+
+.inventory__contracts-payout {
+    width: 58px;
+    min-width: 58px;
+    max-width: 58px;
+    margin-right: 4px;
+    color: rgba(238, 242, 248, 0.95);
+    font-size: 9px;
+    unity-text-align: middle-right;
+    flex-shrink: 0;
+}
+
+.inventory__contracts-primary-action {
+    width: 52px;
+    min-width: 52px;
+    max-width: 52px;
+    height: 24px;
+    font-size: 8px;
+    flex-shrink: 0;
+}
+
+.inventory__contracts-active {
+    flex-direction: column;
+    gap: 5px;
+    padding-top: 1px;
+    padding-right: 2px;
+    padding-bottom: 2px;
+    padding-left: 2px;
+}
+
+.inventory__contracts-active-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.inventory__contracts-active-status {
+    flex-grow: 1;
+    font-size: 9px;
+}
+
+.inventory__contracts-active-payout {
+    color: rgba(238, 242, 248, 0.95);
+    font-size: 9px;
+    -unity-font-style: bold;
+    unity-text-align: middle-right;
+}
+
+.inventory__contracts-active-target-block {
+    flex-direction: column;
+    gap: 1px;
+}
+
+.inventory__contracts-target {
+    color: rgba(238, 242, 248, 0.95);
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+.inventory__contracts-target-summary {
+    color: rgba(215, 223, 236, 0.76);
+    font-size: 8px;
+    white-space: normal;
+}
+
+.inventory__contracts-active-card {
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 4px;
+    padding-right: 5px;
+    padding-bottom: 4px;
+    padding-left: 5px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.08);
+    border-right-color: rgba(255, 255, 255, 0.08);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    border-left-color: rgba(255, 255, 255, 0.08);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.inventory__contracts-active-card-title {
+    font-size: 9px;
+}
+
+.inventory__contracts-active-card-copy {
+    white-space: normal;
+    color: rgba(215, 223, 236, 0.82);
+    font-size: 9px;
+}
+
+.inventory__contracts-active-footer {
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 1px;
+}
+
+.inventory__contracts-active-primary-action {
+    min-width: 84px;
+    height: 24px;
+    font-size: 8px;
+}
+
+.inventory__detail-pane-contracts {
+    flex-direction: column;
+    gap: 4px;
+}
+
+.inventory__detail-pane-contracts .inventory__details-title {
+    margin-bottom: 2px;
+}
+
+.inventory__detail-pane-field {
+    flex-direction: column;
+    gap: 1px;
+}
+
+.inventory__detail-pane-field-label {
+    font-size: 9px;
+    color: rgba(215, 223, 236, 0.72);
 }
 
 .inventory__content {

@@ -12,8 +12,19 @@ namespace Reloader.UI.Toolkit.TabInventory
     public sealed class TabInventoryViewBinder : IUiViewBinder
     {
         private VisualElement _panel;
+        private VisualElement _rail;
         private VisualElement _tabBar;
+        private VisualElement _workspace;
         private VisualElement _gridArea;
+        private VisualElement _detailPane;
+        private VisualElement _detailPaneGeneric;
+        private VisualElement _detailPaneContracts;
+        private Label _detailPaneBasePayout;
+        private Label _detailPaneBonusConditions;
+        private Label _detailPaneRestrictions;
+        private Label _detailPaneFailureConditions;
+        private Label _detailPaneRewardState;
+        private Label _headerMeta;
         private VisualElement _backpackGrid;
         private VisualElement _beltGrid;
         private VisualElement[] _beltSlots = Array.Empty<VisualElement>();
@@ -26,12 +37,25 @@ namespace Reloader.UI.Toolkit.TabInventory
         private Label _tooltipTitle;
         private Label _tooltipSpecs;
         private VisualElement _inventorySection;
+        private VisualElement _contractsFeed;
+        private VisualElement _contractsRow;
+        private VisualElement _contractsActive;
+        private VisualElement _contractsActiveHeader;
+        private VisualElement _contractsActiveTargetBlock;
+        private VisualElement _contractsBriefingCard;
+        private VisualElement _contractsIntelCard;
+        private VisualElement _contractsActiveFooter;
         private Label _contractsStatus;
+        private Label _contractsActiveStatus;
+        private Label _contractsActivePayout;
         private Label _contractsTitle;
+        private Label _contractsSummary;
         private Label _contractsTarget;
-        private Label _contractsDistance;
+        private Label _contractsTargetSummary;
         private Label _contractsPayout;
         private Label _contractsBriefing;
+        private Label _contractsIntel;
+        private Button _contractsActivePrimaryActionButton;
         private VisualElement _questsSection;
         private VisualElement _journalSection;
         private VisualElement _calendarSection;
@@ -52,6 +76,7 @@ namespace Reloader.UI.Toolkit.TabInventory
         private Button _tabInventory;
         private Button _contractsAcceptButton;
         private Button _boundContractsAcceptButton;
+        private Button _boundContractsActivePrimaryActionButton;
         private Button _tabQuests;
         private Button _tabJournal;
         private Button _tabCalendar;
@@ -86,6 +111,7 @@ namespace Reloader.UI.Toolkit.TabInventory
         private int _hoverTooltipQuantity;
         private int _hoverTooltipMaxStack = 1;
         private Vector2 _hoverTooltipPanelPosition;
+        private string _contractsActiveActionIntentKey;
 
         private const float MinSlotSize = 16.5f;
         private const float MaxSlotSize = 42f;
@@ -96,14 +122,30 @@ namespace Reloader.UI.Toolkit.TabInventory
         private const float MinDeviceButtonWidth = 82f;
         private const float MaxDeviceButtonWidth = 220f;
         private const float InventoryVerticalChrome = 56f;
+        private const float MinDetailPaneWidth = 116f;
+        private const float MinWorkspaceWidthWithDetailPane = 180f;
+        private const float MinPanelWidthForDetailPane = 380f;
+        private const float DefaultRailGap = 4f;
+        private const float DefaultWorkspaceGap = 6f;
 
         public event Action<UiIntent> IntentRaised;
 
         public void Initialize(VisualElement root, int beltSlotCount, int backpackSlotCount)
         {
             _panel = root?.Q<VisualElement>("inventory__panel");
+            _rail = root?.Q<VisualElement>("inventory__rail");
             _tabBar = root?.Q<VisualElement>("inventory__tabbar");
+            _workspace = root?.Q<VisualElement>("inventory__workspace");
             _gridArea = root?.Q<VisualElement>(className: "inventory__grid-area");
+            _detailPane = root?.Q<VisualElement>("inventory__detail-pane");
+            _detailPaneGeneric = root?.Q<VisualElement>("inventory__detail-pane-generic");
+            _detailPaneContracts = root?.Q<VisualElement>("inventory__detail-pane-contracts");
+            _detailPaneBasePayout = root?.Q<Label>("inventory__detail-pane-base-payout");
+            _detailPaneBonusConditions = root?.Q<Label>("inventory__detail-pane-bonus-conditions");
+            _detailPaneRestrictions = root?.Q<Label>("inventory__detail-pane-restrictions");
+            _detailPaneFailureConditions = root?.Q<Label>("inventory__detail-pane-failure-conditions");
+            _detailPaneRewardState = root?.Q<Label>("inventory__detail-pane-reward-state");
+            _headerMeta = root?.Q<Label>("inventory__header-meta");
             _backpackGrid = root?.Q<VisualElement>("inventory__backpack-grid");
             _beltGrid = root?.Q<VisualElement>("inventory__grid-row--belt")
                 ?? root?.Q<VisualElement>(className: "inventory__grid-row--belt");
@@ -164,6 +206,18 @@ namespace Reloader.UI.Toolkit.TabInventory
             if (_deviceSection != null)
             {
                 var buttonRows = _deviceSection.Query<VisualElement>(className: "inventory__device-button-row").ToList();
+                for (var i = 0; i < buttonRows.Count; i++)
+                {
+                    if (buttonRows[i] != null)
+                    {
+                        _deviceButtonRows.Add(buttonRows[i]);
+                    }
+                }
+            }
+
+            if (_attachmentsSection != null)
+            {
+                var buttonRows = _attachmentsSection.Query<VisualElement>(className: "inventory__device-button-row").ToList();
                 for (var i = 0; i < buttonRows.Count; i++)
                 {
                     if (buttonRows[i] != null)
@@ -265,6 +319,11 @@ namespace Reloader.UI.Toolkit.TabInventory
             ApplyOccupancy(_backpackSlots, inventoryState.BackpackSlots);
             RenderSlotVisuals(_beltSlots, inventoryState.BeltSlots, "belt");
             RenderSlotVisuals(_backpackSlots, inventoryState.BackpackSlots, "backpack");
+            if (_headerMeta != null)
+            {
+                _headerMeta.text = inventoryState.HeaderMetaText;
+            }
+
             CacheSlotItemIds(_beltSlotItemIds, inventoryState.BeltSlots);
             CacheSlotStackData(_beltSlotMaxStacks, _beltSlotQuantities, inventoryState.BeltSlots);
             CacheSlotItemIds(_backpackSlotItemIds, inventoryState.BackpackSlots);
@@ -275,9 +334,26 @@ namespace Reloader.UI.Toolkit.TabInventory
                 _contractsStatus.text = inventoryState.ContractPanel.StatusText;
             }
 
+            if (_contractsActiveStatus != null)
+            {
+                _contractsActiveStatus.text = string.IsNullOrWhiteSpace(inventoryState.ContractPanel.StatusText)
+                    ? "Mission Status: --"
+                    : string.Concat("Mission Status: ", inventoryState.ContractPanel.StatusText);
+            }
+
+            if (_contractsActivePayout != null)
+            {
+                _contractsActivePayout.text = inventoryState.ContractPanel.PayoutText;
+            }
+
             if (_contractsTitle != null)
             {
                 _contractsTitle.text = inventoryState.ContractPanel.TitleText;
+            }
+
+            if (_contractsSummary != null)
+            {
+                _contractsSummary.text = inventoryState.ContractPanel.SummaryText;
             }
 
             if (_contractsTarget != null)
@@ -285,9 +361,9 @@ namespace Reloader.UI.Toolkit.TabInventory
                 _contractsTarget.text = inventoryState.ContractPanel.TargetText;
             }
 
-            if (_contractsDistance != null)
+            if (_contractsTargetSummary != null)
             {
-                _contractsDistance.text = inventoryState.ContractPanel.DistanceText;
+                _contractsTargetSummary.text = inventoryState.ContractPanel.SummaryText;
             }
 
             if (_contractsPayout != null)
@@ -300,7 +376,105 @@ namespace Reloader.UI.Toolkit.TabInventory
                 _contractsBriefing.text = inventoryState.ContractPanel.BriefingText;
             }
 
+            if (_detailPaneBasePayout != null)
+            {
+                _detailPaneBasePayout.text = inventoryState.ContractPanel.BasePayoutText;
+            }
+
+            if (_detailPaneBonusConditions != null)
+            {
+                _detailPaneBonusConditions.text = inventoryState.ContractPanel.BonusConditionsText;
+            }
+
+            if (_detailPaneRestrictions != null)
+            {
+                _detailPaneRestrictions.text = inventoryState.ContractPanel.RestrictionsText;
+            }
+
+            if (_detailPaneFailureConditions != null)
+            {
+                _detailPaneFailureConditions.text = inventoryState.ContractPanel.FailureConditionsText;
+            }
+
+            if (_detailPaneRewardState != null)
+            {
+                _detailPaneRewardState.text = inventoryState.ContractPanel.RewardStateText;
+            }
+
+            if (_contractsIntel != null)
+            {
+                _contractsIntel.text = inventoryState.ContractPanel.SummaryText;
+            }
+
+            var isPostedOffer = inventoryState.ContractPanel.Mode == TabInventoryUiState.ContractPanelMode.PostedOffer;
+            var isActiveContract = inventoryState.ContractPanel.Mode == TabInventoryUiState.ContractPanelMode.ActiveContract;
+            if (_contractsStatus != null)
+            {
+                _contractsStatus.style.display = isActiveContract ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+
+            if (_contractsFeed != null)
+            {
+                _contractsFeed.style.display = isPostedOffer ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (_contractsRow != null)
+            {
+                _contractsRow.style.display = isPostedOffer ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (_contractsActive != null)
+            {
+                _contractsActive.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (_contractsActiveHeader != null)
+            {
+                _contractsActiveHeader.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (_contractsActiveTargetBlock != null)
+            {
+                _contractsActiveTargetBlock.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (_contractsBriefingCard != null)
+            {
+                _contractsBriefingCard.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (_contractsIntelCard != null)
+            {
+                _contractsIntelCard.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (_contractsAcceptButton != null)
+            {
+                _contractsAcceptButton.style.display = isPostedOffer ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
             _contractsAcceptButton?.SetEnabled(inventoryState.ContractPanel.CanAccept);
+            var showActivePrimaryAction = isActiveContract
+                && (inventoryState.ContractPanel.CanCancel || inventoryState.ContractPanel.CanClaimReward);
+            _contractsActiveActionIntentKey = inventoryState.ContractPanel.CanClaimReward
+                ? "tab.inventory.contracts.claim"
+                : inventoryState.ContractPanel.CanCancel
+                    ? "tab.inventory.contracts.cancel"
+                    : null;
+            if (_contractsActivePrimaryActionButton != null)
+            {
+                _contractsActivePrimaryActionButton.style.display = showActivePrimaryAction ? DisplayStyle.Flex : DisplayStyle.None;
+                _contractsActivePrimaryActionButton.text = inventoryState.ContractPanel.CanClaimReward
+                    ? "Claim Reward"
+                    : "Cancel Contract";
+                _contractsActivePrimaryActionButton.SetEnabled(showActivePrimaryAction);
+            }
+
+            if (_contractsActiveFooter != null)
+            {
+                _contractsActiveFooter.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
             if (_deviceNotes != null)
             {
                 _deviceNotes.style.display = inventoryState.DeviceNotesVisible ? DisplayStyle.Flex : DisplayStyle.None;
@@ -389,7 +563,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
         }
 
-private void RegisterTabIntents()
+        private void RegisterTabIntents()
         {
             RegisterIntent(_tabInventory, "test.tab.inventory", "tab.menu.select", "inventory");
             RegisterIntent(_tabQuests, "test.tab.contracts", "tab.menu.select", "contracts");
@@ -398,7 +572,7 @@ private void RegisterTabIntents()
             RegisterIntent(_tabDevice, "test.tab.device", "tab.menu.select", "device");
         }
 
-private void EnsureContractsSectionBindings()
+        private void EnsureContractsSectionBindings()
         {
             if (_tabQuests != null)
             {
@@ -410,49 +584,123 @@ private void EnsureContractsSectionBindings()
                 return;
             }
 
+            _contractsFeed = _questsSection.Q<VisualElement>("inventory__contracts-feed");
+            _contractsRow = _questsSection.Q<VisualElement>("inventory__contracts-row");
+            _contractsActive = _questsSection.Q<VisualElement>("inventory__contracts-active");
+            _contractsActiveHeader = _questsSection.Q<VisualElement>("inventory__contracts-active-header");
+            _contractsActiveTargetBlock = _questsSection.Q<VisualElement>("inventory__contracts-active-target-block");
+            _contractsBriefingCard = _questsSection.Q<VisualElement>("inventory__contracts-briefing-card");
+            _contractsIntelCard = _questsSection.Q<VisualElement>("inventory__contracts-intel-card");
+            _contractsActiveFooter = _questsSection.Q<VisualElement>("inventory__contracts-active-footer");
             _contractsStatus = _questsSection.Q<Label>("inventory__contracts-status");
+            _contractsActiveStatus = _questsSection.Q<Label>("inventory__contracts-active-status");
+            _contractsActivePayout = _questsSection.Q<Label>("inventory__contracts-active-payout");
             _contractsTitle = _questsSection.Q<Label>("inventory__contracts-title");
+            _contractsSummary = _questsSection.Q<Label>("inventory__contracts-summary");
             _contractsTarget = _questsSection.Q<Label>("inventory__contracts-target");
-            _contractsDistance = _questsSection.Q<Label>("inventory__contracts-distance");
+            _contractsTargetSummary = _questsSection.Q<Label>("inventory__contracts-target-summary");
             _contractsPayout = _questsSection.Q<Label>("inventory__contracts-payout");
             _contractsBriefing = _questsSection.Q<Label>("inventory__contracts-briefing");
-            _contractsAcceptButton = _questsSection.Q<Button>("inventory__contracts-accept");
-            if (_contractsStatus != null
+            _contractsIntel = _questsSection.Q<Label>("inventory__contracts-intel");
+            _contractsAcceptButton = _questsSection.Q<Button>("inventory__contracts-primary-action");
+            _contractsActivePrimaryActionButton = _questsSection.Q<Button>("inventory__contracts-active-primary-action");
+            if (_contractsFeed != null
+                && _contractsRow != null
+                && _contractsActive != null
+                && _contractsActiveHeader != null
+                && _contractsActiveTargetBlock != null
+                && _contractsBriefingCard != null
+                && _contractsIntelCard != null
+                && _contractsActiveFooter != null
+                && _contractsStatus != null
+                && _contractsActiveStatus != null
+                && _contractsActivePayout != null
                 && _contractsTitle != null
+                && _contractsSummary != null
                 && _contractsTarget != null
-                && _contractsDistance != null
+                && _contractsTargetSummary != null
                 && _contractsPayout != null
                 && _contractsBriefing != null
-                && _contractsAcceptButton != null)
+                && _contractsIntel != null
+                && _contractsAcceptButton != null
+                && _contractsActivePrimaryActionButton != null)
             {
                 EnsureContractsAcceptIntentBinding();
+                EnsureContractsActivePrimaryActionIntentBinding();
                 return;
             }
 
             _questsSection.Clear();
-            var panel = new VisualElement { name = "inventory__contracts-panel" };
+            var panel = new VisualElement { name = "inventory__contracts-shell" };
             panel.style.flexDirection = FlexDirection.Column;
             panel.style.marginTop = 4f;
 
-            var heading = new Label("Contracts") { name = "inventory__contracts-heading" };
             _contractsStatus = new Label { name = "inventory__contracts-status" };
+            _contractsActiveStatus = new Label { name = "inventory__contracts-active-status" };
+            _contractsActivePayout = new Label { name = "inventory__contracts-active-payout" };
+            _contractsFeed = new VisualElement { name = "inventory__contracts-feed" };
+            _contractsFeed.style.flexDirection = FlexDirection.Column;
+            _contractsRow = new VisualElement { name = "inventory__contracts-row" };
+            _contractsRow.style.flexDirection = FlexDirection.Row;
             _contractsTitle = new Label { name = "inventory__contracts-title" };
+            _contractsSummary = new Label { name = "inventory__contracts-summary" };
             _contractsTarget = new Label { name = "inventory__contracts-target" };
-            _contractsDistance = new Label { name = "inventory__contracts-distance" };
+            _contractsTargetSummary = new Label { name = "inventory__contracts-target-summary" };
             _contractsPayout = new Label { name = "inventory__contracts-payout" };
+            _contractsActive = new VisualElement { name = "inventory__contracts-active" };
+            _contractsActive.style.flexDirection = FlexDirection.Column;
+            _contractsActiveHeader = new VisualElement { name = "inventory__contracts-active-header" };
+            _contractsActiveHeader.style.flexDirection = FlexDirection.Row;
+            _contractsActiveTargetBlock = new VisualElement { name = "inventory__contracts-active-target-block" };
+            _contractsActiveTargetBlock.style.flexDirection = FlexDirection.Column;
+            _contractsBriefingCard = new VisualElement { name = "inventory__contracts-briefing-card" };
+            _contractsBriefingCard.style.flexDirection = FlexDirection.Column;
+            _contractsIntelCard = new VisualElement { name = "inventory__contracts-intel-card" };
+            _contractsIntelCard.style.flexDirection = FlexDirection.Column;
+            _contractsActiveFooter = new VisualElement { name = "inventory__contracts-active-footer" };
+            _contractsActiveFooter.style.flexDirection = FlexDirection.Row;
             _contractsBriefing = new Label { name = "inventory__contracts-briefing" };
             _contractsBriefing.style.whiteSpace = WhiteSpace.Normal;
-            _contractsAcceptButton = new Button { name = "inventory__contracts-accept", text = "Accept Contract" };
+            _contractsIntel = new Label { name = "inventory__contracts-intel" };
+            _contractsIntel.style.whiteSpace = WhiteSpace.Normal;
+            _contractsAcceptButton = new Button { name = "inventory__contracts-primary-action", text = "Accept Contract" };
+            _contractsAcceptButton.AddToClassList("inventory__contracts-primary-action");
+            _contractsActivePrimaryActionButton = new Button { name = "inventory__contracts-active-primary-action", text = "Cancel Contract" };
+            _contractsActivePrimaryActionButton.AddToClassList("inventory__contracts-active-primary-action");
             EnsureContractsAcceptIntentBinding();
+            EnsureContractsActivePrimaryActionIntentBinding();
 
-            panel.Add(heading);
             panel.Add(_contractsStatus);
-            panel.Add(_contractsTitle);
-            panel.Add(_contractsTarget);
-            panel.Add(_contractsDistance);
-            panel.Add(_contractsPayout);
-            panel.Add(_contractsBriefing);
-            panel.Add(_contractsAcceptButton);
+
+            var postedCopy = new VisualElement();
+            postedCopy.style.flexDirection = FlexDirection.Column;
+            postedCopy.style.flexGrow = 1f;
+            postedCopy.Add(_contractsTitle);
+            postedCopy.Add(_contractsSummary);
+
+            _contractsRow.Add(postedCopy);
+            _contractsRow.Add(_contractsPayout);
+            _contractsRow.Add(_contractsAcceptButton);
+            _contractsFeed.Add(_contractsRow);
+
+            _contractsActiveHeader.Add(_contractsActiveStatus);
+            _contractsActiveHeader.Add(_contractsActivePayout);
+
+            _contractsActiveTargetBlock.Add(_contractsTarget);
+            _contractsActiveTargetBlock.Add(_contractsTargetSummary);
+
+            _contractsBriefingCard.Add(_contractsBriefing);
+            _contractsIntelCard.Add(_contractsIntel);
+            _contractsActiveFooter.Add(_contractsActivePrimaryActionButton);
+
+            _contractsActive.Add(_contractsActiveHeader);
+            _contractsActive.Add(_contractsActiveTargetBlock);
+            _contractsActive.Add(_contractsBriefingCard);
+            _contractsActive.Add(_contractsIntelCard);
+            _contractsActive.Add(_contractsActiveFooter);
+
+            panel.Add(_contractsFeed);
+            panel.Add(_contractsActive);
             _questsSection.Add(panel);
         }
 
@@ -470,6 +718,28 @@ private void EnsureContractsSectionBindings()
         private void RaiseContractsAcceptIntent()
         {
             IntentRaised?.Invoke(new UiIntent("tab.inventory.contracts.accept", null));
+        }
+
+        private void EnsureContractsActivePrimaryActionIntentBinding()
+        {
+            if (_contractsActivePrimaryActionButton == null
+                || ReferenceEquals(_boundContractsActivePrimaryActionButton, _contractsActivePrimaryActionButton))
+            {
+                return;
+            }
+
+            _contractsActivePrimaryActionButton.clicked += RaiseContractsActivePrimaryActionIntent;
+            _boundContractsActivePrimaryActionButton = _contractsActivePrimaryActionButton;
+        }
+
+        private void RaiseContractsActivePrimaryActionIntent()
+        {
+            if (string.IsNullOrWhiteSpace(_contractsActiveActionIntentKey))
+            {
+                return;
+            }
+
+            IntentRaised?.Invoke(new UiIntent(_contractsActiveActionIntentKey, null));
         }
 
 
@@ -531,10 +801,95 @@ private void EnsureContractsSectionBindings()
 
         private void ApplyResponsiveLayout()
         {
+            ApplyResponsiveDetailPane();
             ApplyResponsiveSlots(_backpackGrid, _backpackSlotElements, preferredColumns: 8, verticalRowsInLayout: 3);
             ApplyResponsiveBeltSlots();
             ApplyResponsiveTabs();
             ApplyResponsiveDeviceButtons();
+        }
+
+        private void ApplyResponsiveDetailPane()
+        {
+            if (_panel == null || _workspace == null || _detailPane == null)
+            {
+                return;
+            }
+
+            var panelWidth = ResolveAssignedWidth(_panel);
+            if (panelWidth <= 0f)
+            {
+                return;
+            }
+
+            var railWidth = ResolveAssignedWidth(_rail);
+            var railGap = ResolveResolvedMarginRight(_rail, DefaultRailGap);
+            var detailGap = ResolveResolvedMarginRight(_workspace, DefaultWorkspaceGap);
+            var requiredPanelWidth = Mathf.Max(
+                MinPanelWidthForDetailPane,
+                railWidth
+                + railGap
+                + detailGap
+                + ResolveAssignedWidth(_detailPane, MinDetailPaneWidth)
+                + MinWorkspaceWidthWithDetailPane);
+            var shouldCollapse = panelWidth < requiredPanelWidth;
+
+            _detailPane.style.display = shouldCollapse ? DisplayStyle.None : DisplayStyle.Flex;
+            _workspace.style.marginRight = shouldCollapse ? 0f : StyleKeyword.Null;
+        }
+
+        private static float ResolveAssignedWidth(VisualElement element, float fallbackWidth = 0f)
+        {
+            if (element == null)
+            {
+                return fallbackWidth;
+            }
+
+            var styledWidth = element.style.width;
+            if (styledWidth.keyword == StyleKeyword.Null
+                || styledWidth.keyword == StyleKeyword.Auto)
+            {
+                var resolvedWidth = Mathf.Max(element.contentRect.width, element.resolvedStyle.width);
+                if (resolvedWidth > 0f)
+                {
+                    return resolvedWidth;
+                }
+
+                var styledMinWidth = element.style.minWidth;
+                if (styledMinWidth.keyword != StyleKeyword.Null
+                    && styledMinWidth.keyword != StyleKeyword.Auto
+                    && styledMinWidth.value.value > 0f)
+                {
+                    return styledMinWidth.value.value;
+                }
+
+                return fallbackWidth;
+            }
+
+            return styledWidth.value.value;
+        }
+
+        private static float ResolveAssignedLength(StyleLength length)
+        {
+            return length.keyword == StyleKeyword.Null || length.keyword == StyleKeyword.Auto
+                ? 0f
+                : length.value.value;
+        }
+
+        private static float ResolveResolvedMarginRight(VisualElement element, float authoredFallback)
+        {
+            if (element == null)
+            {
+                return authoredFallback;
+            }
+
+            var resolvedMarginRight = element.resolvedStyle.marginRight;
+            if (resolvedMarginRight > 0f)
+            {
+                return resolvedMarginRight;
+            }
+
+            var assignedMarginRight = ResolveAssignedLength(element.style.marginRight);
+            return assignedMarginRight > 0f ? assignedMarginRight : authoredFallback;
         }
 
         private void ApplyResponsiveBeltSlots()
@@ -619,17 +974,24 @@ private void EnsureContractsSectionBindings()
                 return;
             }
 
-            var barWidth = _tabBar.contentRect.width;
+            var barWidth = ResolveAssignedWidth(_tabBar);
             if (barWidth <= 0f)
             {
                 return;
             }
 
+            var isRailLayout = barWidth <= 180f;
             var totalGap = (_tabs.Count - 1) * 6f;
             var perTabWidth = (barWidth - totalGap) / _tabs.Count;
-            var resolvedWidth = Mathf.Clamp(perTabWidth, MinTabWidth, MaxTabWidth);
-            var resolvedHeight = Mathf.Clamp(_resolvedSlotSize * 0.56f, 20f, 28f);
-            var resolvedFontSize = Mathf.Clamp(_resolvedSlotSize * 0.24f, 9f, 12f);
+            var resolvedWidth = isRailLayout
+                ? Mathf.Clamp(barWidth, 42f, 60f)
+                : Mathf.Clamp(perTabWidth, MinTabWidth, MaxTabWidth);
+            var resolvedHeight = isRailLayout
+                ? Mathf.Clamp(_resolvedSlotSize * 0.88f, 38f, 46f)
+                : Mathf.Clamp(_resolvedSlotSize * 0.56f, 20f, 28f);
+            var resolvedFontSize = isRailLayout
+                ? 0f
+                : Mathf.Clamp(_resolvedSlotSize * 0.24f, 9f, 12f);
 
             for (var i = 0; i < _tabs.Count; i++)
             {
@@ -637,6 +999,8 @@ private void EnsureContractsSectionBindings()
                 tab.style.width = resolvedWidth;
                 tab.style.height = resolvedHeight;
                 tab.style.fontSize = resolvedFontSize;
+                tab.style.paddingLeft = isRailLayout ? 0f : StyleKeyword.Null;
+                tab.style.paddingRight = isRailLayout ? 0f : StyleKeyword.Null;
             }
         }
 
@@ -720,7 +1084,7 @@ private void EnsureContractsSectionBindings()
         }
 
 
-private void ApplySectionVisibility(string activeSection)
+        private void ApplySectionVisibility(string activeSection)
         {
             var section = string.IsNullOrWhiteSpace(activeSection) ? "inventory" : activeSection;
             SetSectionVisibility(_inventorySection, section == "inventory");
@@ -729,6 +1093,8 @@ private void ApplySectionVisibility(string activeSection)
             SetSectionVisibility(_calendarSection, section == "calendar");
             SetSectionVisibility(_deviceSection, section == "device");
             SetSectionVisibility(_attachmentsSection, section == "attachments");
+            SetSectionVisibility(_detailPaneGeneric, section != "contracts");
+            SetSectionVisibility(_detailPaneContracts, section == "contracts");
 
             _tabInventory?.EnableInClassList("is-active", section == "inventory");
             _tabQuests?.EnableInClassList("is-active", section == "contracts");

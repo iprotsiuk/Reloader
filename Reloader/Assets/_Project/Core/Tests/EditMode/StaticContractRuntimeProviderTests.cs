@@ -22,7 +22,7 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void ReportTargetEliminated_WithoutExplicitPayoutReceiver_DoesNotAwardUnrelatedSceneReceiver()
+        public void ReportTargetEliminated_WithoutExplicitPayoutReceiver_KeepsRewardClaimPendingOnProvider()
         {
             var providerGo = new GameObject("ContractProvider");
             var probeGo = new GameObject("UnrelatedPayoutProbe");
@@ -40,7 +40,8 @@ namespace Reloader.Core.Tests.EditMode
                 Assert.That(probe.TotalAwarded, Is.EqualTo(0));
                 Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True);
                 Assert.That(snapshot.HasActiveContract, Is.True);
-                Assert.That(snapshot.StatusText, Is.EqualTo("Processing payout"));
+                Assert.That(snapshot.StatusText, Is.EqualTo("Ready to claim"));
+                Assert.That(snapshot.CanClaimReward, Is.False, "Claim should stay disabled until a payout receiver is configured.");
             }
             finally
             {
@@ -51,7 +52,7 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void ReportTargetEliminated_WithExplicitPayoutReceiver_AwardsConfiguredReceiver()
+        public void ReportTargetEliminated_WithExplicitPayoutReceiver_RequiresExplicitClaim()
         {
             var providerGo = new GameObject("ContractProvider");
             var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
@@ -65,6 +66,13 @@ namespace Reloader.Core.Tests.EditMode
                 Assert.That(provider.AcceptAvailableContract(), Is.True);
 
                 provider.ReportContractTargetEliminated("target.alpha", wasExposed: false);
+
+                Assert.That(probe.TotalAwarded, Is.EqualTo(0));
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True);
+                Assert.That(snapshot.HasActiveContract, Is.True);
+                Assert.That(snapshot.CanClaimReward, Is.True);
+
+                Assert.That(provider.ClaimCompletedContractReward(), Is.True);
 
                 Assert.That(probe.TotalAwarded, Is.EqualTo(1500));
                 Assert.That(provider.TryGetContractSnapshot(out _), Is.False);

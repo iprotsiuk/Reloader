@@ -1,3 +1,4 @@
+using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.UI;
 using Reloader.UI.Toolkit.Contracts;
@@ -148,6 +149,32 @@ namespace Reloader.UI.Tests.PlayMode
 
             Assert.That(tooltip.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(title.text, Is.EqualTo("Tooltip Title"));
+        }
+
+        [Test]
+        public void ApplyResponsiveLayout_NarrowPanel_CollapsesDetailPane()
+        {
+            var root = BuildResponsiveRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 0, backpackSlotCount: 0);
+
+            var panel = root.Q<VisualElement>("inventory__panel");
+            var workspace = root.Q<VisualElement>("inventory__workspace");
+            var detailPane = root.Q<VisualElement>("inventory__detail-pane");
+
+            Assert.That(panel, Is.Not.Null);
+            Assert.That(workspace, Is.Not.Null);
+            Assert.That(detailPane, Is.Not.Null);
+
+            panel.style.width = 960f;
+            InvokeResponsiveLayout(binder);
+            Assert.That(detailPane.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+
+            panel.style.width = 320f;
+            InvokeResponsiveLayout(binder);
+
+            Assert.That(detailPane.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(workspace.style.marginRight.value.value, Is.EqualTo(0f));
         }
 
         [Test]
@@ -441,6 +468,71 @@ namespace Reloader.UI.Tests.PlayMode
             panel.Add(tooltip);
 
             return root;
+        }
+
+        private static VisualElement BuildResponsiveRoot()
+        {
+            var root = new VisualElement { name = "inventory__root" };
+            var panel = new VisualElement { name = "inventory__panel" };
+            root.Add(panel);
+
+            panel.Add(new VisualElement { name = "inventory__tabbar" });
+            panel.Add(new Button { name = "inventory__tab-inventory", text = "Inventory" });
+            panel.Add(new Button { name = "inventory__tab-quests", text = "Contracts" });
+            panel.Add(new Button { name = "inventory__tab-journal", text = "Journal" });
+            panel.Add(new Button { name = "inventory__tab-calendar", text = "Calendar" });
+            panel.Add(new Button { name = "inventory__tab-device", text = "Device" });
+
+            var workspace = new VisualElement { name = "inventory__workspace" };
+            panel.Add(workspace);
+
+            var inventorySection = new VisualElement { name = "inventory__section-inventory" };
+            workspace.Add(inventorySection);
+
+            var content = new VisualElement();
+            content.AddToClassList("inventory__content");
+            inventorySection.Add(content);
+
+            var gridArea = new VisualElement();
+            gridArea.AddToClassList("inventory__grid-area");
+            content.Add(gridArea);
+
+            gridArea.Add(new VisualElement { name = "inventory__backpack-grid" });
+            gridArea.Add(new VisualElement { name = "inventory__grid-row--belt" });
+            panel.Add(new VisualElement { name = "inventory__detail-pane" });
+
+            panel.Add(new VisualElement { name = "inventory__section-quests" });
+            panel.Add(new VisualElement { name = "inventory__section-journal" });
+            panel.Add(new VisualElement { name = "inventory__section-calendar" });
+            panel.Add(new VisualElement { name = "inventory__section-device" });
+            panel.Add(new VisualElement { name = "inventory__section-attachments" });
+            panel.Add(new VisualElement { name = "inventory__device-notes" });
+            panel.Add(new Label { name = "inventory__device-selected-target-value" });
+            panel.Add(new Label { name = "inventory__device-shot-count-value" });
+            panel.Add(new Label { name = "inventory__device-spread-value" });
+            panel.Add(new Label { name = "inventory__device-moa-value" });
+            panel.Add(new Label { name = "inventory__device-saved-groups-value" });
+            panel.Add(new Label { name = "inventory__device-install-feedback-text" });
+            panel.Add(new VisualElement { name = "inventory__device-session-history" });
+
+            panel.Add(new Button { name = "inventory__device-choose-target" });
+            panel.Add(new Button { name = "inventory__device-save-group" });
+            panel.Add(new Button { name = "inventory__device-clear-group" });
+            panel.Add(new Button { name = "inventory__device-install-hooks" });
+            panel.Add(new Button { name = "inventory__device-uninstall-hooks" });
+
+            var tooltip = new VisualElement { name = "inventory__tooltip" };
+            tooltip.Add(new Label { name = "inventory__tooltip-title" });
+            panel.Add(tooltip);
+
+            return root;
+        }
+
+        private static void InvokeResponsiveLayout(TabInventoryViewBinder binder)
+        {
+            var method = typeof(TabInventoryViewBinder).GetMethod("ApplyResponsiveLayout", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null);
+            method!.Invoke(binder, null);
         }
     }
 }

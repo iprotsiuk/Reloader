@@ -4,5 +4,7 @@ namespace Reloader.Contracts.Runtime
     {
         bool TryGetContractSnapshot(out ContractOfferSnapshot snapshot);
         bool AcceptAvailableContract();
+        bool CancelActiveContract();
+        bool ClaimCompletedContractReward();
     }
 }

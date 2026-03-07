@@ -1,0 +1,159 @@
+# TAB Overlay Contracts Redesign Progress
+
+## Status
+
+- [x] Design direction approved
+- [x] Implementation plan written
+- [x] Non-draft PR opened to `main`
+- [x] `@codex` tagged for review
+
+## Execution Checklist
+
+- [ ] Baseline screenshots captured
+- [x] Icon source selected
+- [x] Three-region shell landed
+- [x] Icon-first left rail landed
+- [x] Posted contract feed landed
+- [x] Active contract workspace landed
+- [x] Cancel contract action landed
+- [x] Ready-to-claim / claim reward flow landed
+- [x] Right-side terms pane landed
+- [x] Header world time / balance landed
+- [x] Density tightening pass landed
+- [ ] Final screenshot set captured
+
+## Notes
+
+- The overlay remains an immersive in-world panel, not a separate full-screen scene.
+- The approved shell is `left rail + center workspace + right terms/detail pane`.
+- The center pane must serve two distinct modes:
+  - posted-contract feed when no contract is active
+  - focused mission workspace when one contract is active
+- Posted contracts use a dense forum/slack-like row layout with fixed row height and explicit scrolling.
+- Active contracts must show mission status above the target name.
+- Contract completion must become an explicit `Ready to Claim` -> `Claim Reward` flow.
+- The right pane should prioritize payout logic, restrictions, bonus conditions, and failure rules instead of weak metadata like distance labels.
+- Validate layout decisions with Unity MCP screenshots at each major step, not just code review.
+- Baseline shell audit:
+  - current `TabInventory.uxml` still uses a horizontal text tab bar plus stacked section blocks
+  - `inventory__panel` already fills most of the screen (`92%` width, `88%` height), so the problem is density and zoning, not overall panel size
+  - the contracts section is still a synthesized flat column (`status`, `title`, `target`, `distance`, `payout`, `briefing`, `accept`) created through `EnsureContractsSectionBindings()`
+  - the binder is the lowest-risk shell seam because it already owns section wiring and responsive sizing
+- Lowest-risk first shell test:
+  - extend `UiRuntimeCutoverPlayModeTests.ExecuteCutover_CreatesToolkitDocumentsAndRuntimeBridge`
+  - reason: it already boots the real `UiToolkitRuntimeRoot` and `UIDocument` stack, so it can assert named shell containers on the live TAB document before contract-specific rendering changes
+- Selected icon source:
+  - external source pack used during authoring: `Post-apocalyptic Survival UI`
+  - selected icons must be imported into a repo-tracked UI images folder before the implementation depends on them
+  - strongest candidates from asset path metadata:
+    - `c66e974f4efd2f545bc747499036a9c2` -> `Assets/Post-apocalyptic Survival UI/Sprites/Icons/Inventory_Icon.png`
+    - `2f6df2fefd6bb96488bb0da5dad5cbd5` -> `Assets/Post-apocalyptic Survival UI/Sprites/Icons/Daily_Icon.png`
+    - `a2a0ff7c11096f4439110bae98df44f6` -> `Assets/Post-apocalyptic Survival UI/Sprites/Icons/Message_Icon.png`
+    - `895ec163d0ac7e549b06bf2a2d45a50f` -> `Assets/Post-apocalyptic Survival UI/Sprites/Icons/Settings_Icon.png`
+    - fallback inventory silhouette: `d677d3d72ce8b7d4d912727b5de70547` -> `Assets/Post-apocalyptic Survival UI/Sprites/Backpack_Icon.png`
+  - visual direction fits the grounded survival UI better than the fantasy card pack also present under `LOWPOLY`
+- Baseline density problems to eliminate:
+  - top-level text tabs are too wide for the amount of state they carry
+  - inventory and contracts compete inside one loose vertical flow instead of fixed work regions
+  - the contracts view spends space on labels without creating hierarchy
+  - the current contract panel cannot scale to portrait, terms, and claim-state content without becoming taller and more cramped
+- Unity MCP baseline capture:
+  - scene discovery is working (`MainTown` active scene)
+  - baseline screenshot capture hit transient Unity MCP transport failures (`Unity is reloading`, then `Could not connect to Unity` / `Connection closed before reading expected bytes`)
+  - next attempt will use a deterministic UI shell checkpoint after the first test-driven layout change instead of treating the current unstable screenshot pass as authoritative
+- Shell checkpoint status:
+  - added a new PlayMode shell test: `UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesThreeRegionShell`
+  - verified the test fails red against the old `TabInventory` document because the shell regions were absent
+  - implemented the minimal green phase in `TabInventory.uxml`, `TabInventory.uss`, and `TabInventoryViewBinder.cs`
+  - local non-Unity verification passed: `xmllint --noout` on `TabInventory.uxml`, `git diff --check`
+  - after restarting Unity, the targeted PlayMode rerun passed cleanly
+  - the shell scaffold is now verified and closed for this checkpoint
+- Icon rail checkpoint status:
+  - replaced the wide text tab rail with icon-first navigation using repo-tracked `TabRail/tab_*.png` assets
+  - added a structural runtime check: `UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesIconRailNavigation`
+  - tightened the rail width and per-tab sizing so the left rail now returns more usable width to the workspace
+- Minimum-width fallback checkpoint status:
+  - verified the new PR review about minimum-width collapse was still valid against the shell scaffold
+  - added `TabInventoryResponsiveLayoutEditModeTests.ApplyResponsiveLayout_HidesDetailPane_WhenPanelWidthDropsBelowMinimum`
+  - updated `TabInventoryViewBinder.ApplyResponsiveDetailPane()` to collapse the outer detail pane when the panel cannot sustain both the rail and a usable workspace width
+  - the fallback now zeroes the workspace right margin when collapsed so the center pane reclaims the lost space
+  - Unity CLI verification is currently blocked on inconsistent test-result emission and a flaky post-restart MCP bridge, so the checkpoint remains pending screenshot validation once the editor session is healthy again
+- Contracts feed/workspace checkpoint status:
+  - replaced the old synthesized flat contracts column with authored `TabInventory.uxml` shells for a posted-offer feed row and an active-contract workspace
+  - extended `TabInventoryUiState.ContractPanelState` with explicit `Mode` and `SummaryText` so the controller can switch the center pane between posted-offer and active-contract layouts without inventing new runtime controller dependencies
+  - updated `TabInventoryController.BuildContractPanelFields()` so posted offers use the target description as the dense row summary while active contracts surface the target name and briefing in the dedicated workspace
+  - added coverage for the authored contracts shell in `TabInventoryUxmlCopyEditModeTests.ContractsSection_AuthorsPostedFeedAndActiveWorkspaceShell`
+  - updated `TabInventoryContractsSectionPlayModeTests` to lock the expected center-pane mode switch (`feed` when available, `active workspace` after accept)
+  - runtime screenshot and Unity test-runner verification are still pending until the editor session reliably reconnects to Unity MCP
+- Density tightening checkpoint status:
+  - applied the first screenshot-driven compression pass after user feedback that the left rail, payout segment, and accept button were still consuming too much width
+  - narrowed the shell proportions again: icon rail `52px` authored width, tighter inter-pane gaps, and a smaller placeholder detail pane so the center pane gets more real contract width
+  - tightened the posted-contract row itself by shrinking the preview tile, portrait, payout segment, and accept button while forcing the summary column to own the remaining width (`flex-basis: 0`)
+  - compacted the right contracts pane by replacing repeated section-title blocks with five authored `inventory__detail-pane-field` rows, which preserves the same payout/restriction/reward data while reducing vertical chrome
+  - updated `TabInventoryViewBinder` responsive fallback constants to match the narrower authored rail/detail widths so collapse behavior stays honest in edit-mode and runtime
+  - added `TabInventoryStyleCopyEditModeTests.ContractsLayout_UsesCompactDensityTokens` and `TabInventoryUxmlCopyEditModeTests.ContractsDetailPane_UsesCompactFieldRows` to lock the authored density contract instead of relying on screenshots alone
+  - live screenshot capture is still blocked on the current editor session: entering Play Mode succeeds, but Unity MCP `manage_scene screenshot` remains stuck in `Unity is reloading; please retry` and the console reports a bare `NullReferenceException`, so this checkpoint is verified by targeted tests only for now
+- Cancel / claim contract flow checkpoint status:
+  - extended the contract runtime/provider surface with explicit `CancelActiveContract()` and `ClaimCompletedContractReward()` actions plus snapshot flags for `CanCancel` and `CanClaimReward`
+  - changed successful contract resolution so search clear no longer auto-awards payout; authored contracts now sit in `Ready to claim` until the reward is explicitly collected
+  - canceling an active contract before the kill restores the posted offer for this one-contract slice so the TAB loop does not dead-end
+  - updated the TAB contracts active workspace to switch its single primary action between `Cancel Contract` and `Claim Reward` based on the new runtime snapshot state
+  - added/updated coverage across core runtime, provider, bridge, TAB controller, and MainTown authored smoke tests to lock the explicit-claim lifecycle end to end
+- Header / terms next checkpoint:
+  - approved header format is `Monday • 18:40 • $2,450`
+  - balance should bind to `EconomyController.Runtime.Money`
+  - date/time should bind to a lightweight live `CoreWorld` runtime, not fake UI text
+  - the right pane remains contracts-only for this slice and should surface payout logic, restrictions, failure conditions, and reward state
+  - design and implementation docs for this slice are now tracked in `docs/plans/2026-03-07-tab-overlay-header-terms-design.md` and `docs/plans/2026-03-07-tab-overlay-header-terms.md`
+- Header / terms checkpoint status:
+  - added `CoreWorldRuntime` plus a lightweight `CoreWorldController` so the TAB header can bind to a live world snapshot instead of static placeholder copy
+  - wired `TabInventoryController` and `UiToolkitScreenRuntimeBridge` to render the approved header format `Monday • 18:40 • $2,450` from world time plus current money
+  - extended the right contracts pane to swap between generic context copy and contracts-only terms, including base payout, placeholder bonus/restriction text, static failure rules, and reward-state messaging
+  - added coverage in `CoreWorldRuntimeTests`, `CoreWorldControllerTests`, `TabInventoryContractsSectionPlayModeTests`, `TabInventoryContractsBridgePlayModeTests`, and the UXML copy guards
+- UI verification hardening checkpoint status:
+  - investigated the previously noisy full `Reloader.UI.Tests.PlayMode` run instead of continuing to scope verification down to contracts-only tests
+  - fixed stale `AmmoHudControllerWeaponEventsPlayModeTests` expectations to match the fixture-seeded magazine/reserve counts already rendered by `AmmoHudController`
+  - fixed stale `EscMenuUiToolkitPlayModeTests` expectations to match the current ESC same-frame close guard and the existing channel-scaling audio behavior
+  - updated the handcrafted `UiToolkitScreenFlowPlayModeTests` TAB root helper to the current three-region shell and contracts/device/detail-pane structure, so generic TAB flow tests no longer exercised an obsolete pre-redesign layout
+  - fixed `UiToolkitScreenFlowPlayModeTests.TabInventoryController_HandleDropIntent_RemovesSourceSlotItem` by giving the dropped item fixture an `IconSourcePrefab`, matching the current runtime dropped-item factory contract
+  - fixed one real runtime issue in `PlayerInventoryController.Configure(...)`: injected `PlayerInventoryRuntime` instances now preserve their authored backpack capacity instead of being reset to the serialized default
+  - result: the full UI PlayMode assembly is green again, so broader verification can include `Reloader.UI.Tests.PlayMode` instead of only the contracts-specific subset
+- Active contract workspace density checkpoint status:
+  - lifted the active mission workspace to the approved hierarchy: explicit mission-status header, payout in the header, target identity block, briefing card, intel card, and a dedicated footer action row
+  - hid the generic top contracts status label while an active mission is shown so the center pane no longer repeats state in two places
+  - kept the existing runtime/controller surface unchanged by binding the new authored labels from the existing `StatusText`, `PayoutText`, `TargetText`, `SummaryText`, and `BriefingText`
+  - updated the binder fallback shell and both local synthetic test roots (`TabInventoryContractsSectionPlayModeTests` and `UiToolkitScreenFlowPlayModeTests`) so authored UXML, runtime fallback, and PlayMode harnesses stay aligned
+  - screenshot validation is still blocked by Unity MCP transport instability in this editor session: `manage_scene screenshot` first reports `Unity is reloading; please retry` and then drops to `Could not connect to Unity`, so this checkpoint is test-verified but not screenshot-verified
+- Review hardening checkpoint status:
+  - verified the new PR `P1` on manual-claim reward loss in `ContractEscapeResolutionRuntime` against the current code and confirmed the failure window was real: once `_completionPending` was set, a later wrong-target kill still ran the fail path before the pending-claim guard
+  - reordered `ReportTargetEliminated(...)` so once reward claim is pending, later eliminations can still raise exposed murder heat but can no longer clear the earned payout or fail the contract
+  - the existing regression `ContractEscapeResolutionRuntimeTests.ReportTargetEliminated_WhenRewardIsPending_WrongTargetDoesNotFailOrClearPendingPayout` now matches the intended terminal-claimable state, but a fresh green rerun is currently blocked by a stale Unity MCP test job id that survives reconnects even when `editor_state.tests.is_running=false`
+
+## Verification
+
+- `bash scripts/verify-docs-and-context.sh`: passed
+- `git diff --check` on redesign docs: passed
+- `xmllint --noout Reloader/Assets/_Project/UI/Toolkit/UXML/TabInventory.uxml`: passed
+- repo-wide `git diff --check`: passed
+- PR / review status: PR `#26` opened and `@codex` requested
+- Unity MCP read-back:
+  - initial shell red-phase test failed for the expected missing-shell reason
+  - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesThreeRegionShell`: passed (`1/1`)
+  - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesIconRailNavigation`: passed (`1/1`)
+  - `Reloader.UI.Tests.EditMode.TabInventoryResponsiveLayoutEditModeTests`: passed (`4/4`)
+  - `Reloader.UI.Tests.EditMode.TabInventoryUxmlCopyEditModeTests`: passed (`5/5`)
+  - `Reloader.UI.Tests.EditMode.TabInventoryStyleCopyEditModeTests`: passed (`1/1`)
+  - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests`: passed (`5/5`)
+  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests`: passed (`7/7`)
+  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests`: passed (`3/3`)
+  - `Reloader.UI.Tests.PlayMode.AmmoHudControllerWeaponEventsPlayModeTests`: passed (`2/2`)
+  - `Reloader.UI.Tests.PlayMode.EscMenuUiToolkitPlayModeTests`: passed (`15/15`)
+  - `Reloader.UI.Tests.PlayMode.UiToolkitScreenFlowPlayModeTests`: passed (`30/30`)
+  - `Reloader.UI.Tests.PlayMode`: passed (`120/120`)
+  - `Reloader.UI.Tests.PlayMode.TabInventoryAttachmentsPlayModeTests`: passed (`4/4`)
+  - `Reloader.Core.Tests.EditMode.CoreWorldRuntimeTests`: passed (`2/2`)
+  - `Reloader.Core.Tests.EditMode.CoreWorldControllerTests`: passed (`1/1`)
+  - `Reloader.Core.Tests.EditMode.ContractEscapeResolutionRuntimeTests`: passed (`6/6`)
+  - `Reloader.Core.Tests.EditMode.StaticContractRuntimeProviderTests`: passed (`2/2`)
+  - `Reloader.Core.Tests.PlayMode.StaticContractRuntimeProviderPlayModeTests`: passed (`3/3`)
+  - `Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests`: passed (`2/2`)

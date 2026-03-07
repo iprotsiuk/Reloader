@@ -4,130 +4,207 @@
         <ui:VisualElement name="inventory__panel" class="inventory__panel ui-kit__panel">
             <ui:VisualElement class="inventory__header-row">
                 <ui:Label text="Player Menu" class="ui-kit__title"/>
-                <ui:Label text="Inventory" class="inventory__header-hint ui-kit__hint"/>
+                <ui:Label name="inventory__header-meta" text="Monday • 08:00 • $500" class="inventory__header-hint ui-kit__hint"/>
             </ui:VisualElement>
-            <ui:VisualElement name="inventory__tabbar" class="inventory__tabbar">
-                <ui:Button name="inventory__tab-inventory" text="Inventory" class="inventory__tab ui-kit__tab is-active"/>
-                <ui:Button name="inventory__tab-quests" text="Quests" class="inventory__tab ui-kit__tab"/>
-                <ui:Button name="inventory__tab-journal" text="Journal" class="inventory__tab ui-kit__tab"/>
-                <ui:Button name="inventory__tab-calendar" text="Calendar" class="inventory__tab ui-kit__tab"/>
-                <ui:Button name="inventory__tab-device" text="Device" class="inventory__tab ui-kit__tab"/>
-            </ui:VisualElement>
-            <ui:VisualElement name="inventory__section-inventory" class="inventory__section">
-                <ui:VisualElement class="inventory__content">
-                    <ui:VisualElement class="inventory__grid-area">
-                        <ui:VisualElement class="inventory__section-title-row">
-                            <ui:VisualElement class="ui-kit__icon ui-kit__icon--backpack"/>
-                            <ui:Label text="Inventory Grid" class="inventory__section-title ui-kit__hint"/>
-                        </ui:VisualElement>
-                        <ui:VisualElement name="inventory__backpack-grid" class="inventory__grid-row inventory__backpack-grid">
-                            <ui:VisualElement name="inventory__backpack-slot-0" class="inventory__slot ui-kit__slot"/>
-                            <ui:VisualElement name="inventory__backpack-slot-1" class="inventory__slot ui-kit__slot"/>
-                            <ui:VisualElement name="inventory__backpack-slot-2" class="inventory__slot ui-kit__slot"/>
-                            <ui:VisualElement name="inventory__backpack-slot-3" class="inventory__slot ui-kit__slot"/>
-                            <ui:VisualElement name="inventory__backpack-slot-4" class="inventory__slot ui-kit__slot"/>
-                            <ui:VisualElement name="inventory__backpack-slot-5" class="inventory__slot ui-kit__slot"/>
-                            <ui:VisualElement name="inventory__backpack-slot-6" class="inventory__slot ui-kit__slot"/>
-                            <ui:VisualElement name="inventory__backpack-slot-7" class="inventory__slot ui-kit__slot"/>
-                            <ui:VisualElement name="inventory__backpack-slot-8" class="inventory__slot ui-kit__slot"/>
-                            <ui:VisualElement name="inventory__backpack-slot-9" class="inventory__slot ui-kit__slot"/>
-                            <ui:VisualElement name="inventory__backpack-slot-10" class="inventory__slot ui-kit__slot"/>
-                            <ui:VisualElement name="inventory__backpack-slot-11" class="inventory__slot ui-kit__slot"/>
-                            <ui:VisualElement name="inventory__backpack-slot-12" class="inventory__slot ui-kit__slot"/>
-                            <ui:VisualElement name="inventory__backpack-slot-13" class="inventory__slot ui-kit__slot"/>
-                            <ui:VisualElement name="inventory__backpack-slot-14" class="inventory__slot ui-kit__slot"/>
-                            <ui:VisualElement name="inventory__backpack-slot-15" class="inventory__slot ui-kit__slot"/>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="inventory__belt-divider"/>
-                        <ui:Label text="Toolbelt" class="inventory__section-title ui-kit__hint"/>
-                        <ui:VisualElement class="inventory__grid-row inventory__grid-row--belt">
-                            <ui:VisualElement name="inventory__belt-slot-0" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
-                            <ui:VisualElement name="inventory__belt-slot-1" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
-                            <ui:VisualElement name="inventory__belt-slot-2" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
-                            <ui:VisualElement name="inventory__belt-slot-3" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
-                            <ui:VisualElement name="inventory__belt-slot-4" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
+            <ui:VisualElement name="inventory__shell" class="inventory__shell">
+                <ui:VisualElement name="inventory__rail" class="inventory__rail">
+                    <ui:VisualElement name="inventory__tabbar" class="inventory__tabbar inventory__tabbar--icon-rail">
+                        <ui:Button name="inventory__tab-inventory" text="Inventory" class="inventory__tab inventory__tab--inventory ui-kit__tab is-active">
+                            <ui:VisualElement name="inventory__tab-inventory-icon" class="inventory__tab-icon inventory__tab-icon--inventory"/>
+                        </ui:Button>
+                        <ui:Button name="inventory__tab-quests" text="Quests" class="inventory__tab inventory__tab--contracts ui-kit__tab">
+                            <ui:VisualElement name="inventory__tab-quests-icon" class="inventory__tab-icon inventory__tab-icon--contracts"/>
+                        </ui:Button>
+                        <ui:Button name="inventory__tab-journal" text="Journal" class="inventory__tab inventory__tab--journal ui-kit__tab">
+                            <ui:VisualElement name="inventory__tab-journal-icon" class="inventory__tab-icon inventory__tab-icon--journal"/>
+                        </ui:Button>
+                        <ui:Button name="inventory__tab-calendar" text="Calendar" class="inventory__tab inventory__tab--calendar ui-kit__tab">
+                            <ui:VisualElement name="inventory__tab-calendar-icon" class="inventory__tab-icon inventory__tab-icon--calendar"/>
+                        </ui:Button>
+                        <ui:Button name="inventory__tab-device" text="Device" class="inventory__tab inventory__tab--device ui-kit__tab">
+                            <ui:VisualElement name="inventory__tab-device-icon" class="inventory__tab-icon inventory__tab-icon--device"/>
+                        </ui:Button>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement name="inventory__workspace" class="inventory__workspace">
+                    <ui:VisualElement name="inventory__section-inventory" class="inventory__section">
+                        <ui:VisualElement class="inventory__content">
+                            <ui:VisualElement class="inventory__grid-area">
+                                <ui:VisualElement class="inventory__section-title-row">
+                                    <ui:VisualElement class="ui-kit__icon ui-kit__icon--backpack"/>
+                                    <ui:Label text="Inventory Grid" class="inventory__section-title ui-kit__hint"/>
+                                </ui:VisualElement>
+                                <ui:VisualElement name="inventory__backpack-grid" class="inventory__grid-row inventory__backpack-grid">
+                                    <ui:VisualElement name="inventory__backpack-slot-0" class="inventory__slot ui-kit__slot"/>
+                                    <ui:VisualElement name="inventory__backpack-slot-1" class="inventory__slot ui-kit__slot"/>
+                                    <ui:VisualElement name="inventory__backpack-slot-2" class="inventory__slot ui-kit__slot"/>
+                                    <ui:VisualElement name="inventory__backpack-slot-3" class="inventory__slot ui-kit__slot"/>
+                                    <ui:VisualElement name="inventory__backpack-slot-4" class="inventory__slot ui-kit__slot"/>
+                                    <ui:VisualElement name="inventory__backpack-slot-5" class="inventory__slot ui-kit__slot"/>
+                                    <ui:VisualElement name="inventory__backpack-slot-6" class="inventory__slot ui-kit__slot"/>
+                                    <ui:VisualElement name="inventory__backpack-slot-7" class="inventory__slot ui-kit__slot"/>
+                                    <ui:VisualElement name="inventory__backpack-slot-8" class="inventory__slot ui-kit__slot"/>
+                                    <ui:VisualElement name="inventory__backpack-slot-9" class="inventory__slot ui-kit__slot"/>
+                                    <ui:VisualElement name="inventory__backpack-slot-10" class="inventory__slot ui-kit__slot"/>
+                                    <ui:VisualElement name="inventory__backpack-slot-11" class="inventory__slot ui-kit__slot"/>
+                                    <ui:VisualElement name="inventory__backpack-slot-12" class="inventory__slot ui-kit__slot"/>
+                                    <ui:VisualElement name="inventory__backpack-slot-13" class="inventory__slot ui-kit__slot"/>
+                                    <ui:VisualElement name="inventory__backpack-slot-14" class="inventory__slot ui-kit__slot"/>
+                                    <ui:VisualElement name="inventory__backpack-slot-15" class="inventory__slot ui-kit__slot"/>
+                                </ui:VisualElement>
+                                <ui:VisualElement class="inventory__belt-divider"/>
+                                <ui:Label text="Toolbelt" class="inventory__section-title ui-kit__hint"/>
+                                <ui:VisualElement class="inventory__grid-row inventory__grid-row--belt">
+                                    <ui:VisualElement name="inventory__belt-slot-0" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
+                                    <ui:VisualElement name="inventory__belt-slot-1" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
+                                    <ui:VisualElement name="inventory__belt-slot-2" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
+                                    <ui:VisualElement name="inventory__belt-slot-3" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
+                                    <ui:VisualElement name="inventory__belt-slot-4" class="inventory__slot ui-kit__slot inventory__slot--belt"/>
+                                </ui:VisualElement>
+                            </ui:VisualElement>
+                            <ui:VisualElement class="inventory__details" style="min-width: auto; width: auto;">
+                                <ui:Label text="Item Details" class="inventory__details-title"/>
+                                <ui:Label text="Select an item to inspect description and stack information." class="inventory__mock-line"/>
+                                <ui:VisualElement name="inventory__tooltip" class="inventory__tooltip">
+                                    <ui:Label name="inventory__tooltip-title" text=""/>
+                                </ui:VisualElement>
+                            </ui:VisualElement>
                         </ui:VisualElement>
                     </ui:VisualElement>
-                    <ui:VisualElement class="inventory__details" style="min-width: auto; width: auto;">
-                        <ui:Label text="Item Details" class="inventory__details-title"/>
-                        <ui:Label text="Select an item to inspect description and stack information." class="inventory__mock-line"/>
-                        <ui:VisualElement name="inventory__tooltip" class="inventory__tooltip">
-                            <ui:Label name="inventory__tooltip-title" text=""/>
+                    <ui:VisualElement name="inventory__section-quests" class="inventory__section inventory__section--hidden">
+                        <ui:Label name="inventory__contracts-status" text="No contracts currently posted" class="inventory__contracts-status ui-kit__hint"/>
+                        <ui:VisualElement name="inventory__contracts-feed" class="inventory__contracts-feed">
+                            <ui:VisualElement name="inventory__contracts-row" class="inventory__contracts-row">
+                                <ui:VisualElement class="inventory__contracts-row-preview">
+                                    <ui:VisualElement class="inventory__contracts-row-portrait"/>
+                                </ui:VisualElement>
+                                <ui:VisualElement class="inventory__contracts-row-copy">
+                                    <ui:Label name="inventory__contracts-title" text="No posted contracts" class="inventory__contracts-title"/>
+                                    <ui:Label name="inventory__contracts-summary" text="Check back later for fresh contract offers." class="inventory__contracts-summary"/>
+                                </ui:VisualElement>
+                                <ui:Label name="inventory__contracts-payout" text="Payout: --" class="inventory__contracts-payout"/>
+                                <ui:Button name="inventory__contracts-primary-action" text="Accept" class="inventory__contracts-primary-action ui-kit__tab"/>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement name="inventory__contracts-active" class="inventory__contracts-active inventory__section--hidden">
+                            <ui:VisualElement name="inventory__contracts-active-header" class="inventory__contracts-active-header">
+                                <ui:Label name="inventory__contracts-active-status" text="Mission Status: Active contract" class="inventory__contracts-active-status ui-kit__hint"/>
+                                <ui:Label name="inventory__contracts-active-payout" text="Payout: --" class="inventory__contracts-active-payout"/>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="inventory__contracts-active-target-block" class="inventory__contracts-active-target-block">
+                                <ui:Label name="inventory__contracts-target" text="--" class="inventory__contracts-target"/>
+                                <ui:Label name="inventory__contracts-target-summary" text="No target intel available." class="inventory__contracts-target-summary"/>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="inventory__contracts-briefing-card" class="inventory__contracts-active-card inventory__contracts-briefing-card">
+                                <ui:Label text="Briefing" class="inventory__contracts-active-card-title ui-kit__hint"/>
+                                <ui:Label name="inventory__contracts-briefing" text="Check back later for fresh contract offers." class="inventory__contracts-active-card-copy inventory__contracts-briefing"/>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="inventory__contracts-intel-card" class="inventory__contracts-active-card inventory__contracts-intel-card">
+                                <ui:Label text="Intel" class="inventory__contracts-active-card-title ui-kit__hint"/>
+                                <ui:Label name="inventory__contracts-intel" text="No target intel available." class="inventory__contracts-active-card-copy inventory__contracts-intel"/>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="inventory__contracts-active-footer" class="inventory__contracts-active-footer">
+                                <ui:Button name="inventory__contracts-active-primary-action" text="Cancel Contract" class="inventory__contracts-active-primary-action ui-kit__tab"/>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="inventory__section-journal" class="inventory__section inventory__section--hidden">
+                        <ui:Label text="Journal" class="inventory__section-title ui-kit__hint"/>
+                        <ui:Label text="- New entry: pressure ladder session notes" class="inventory__mock-line"/>
+                        <ui:Label text="- Remember to verify primer pocket prep" class="inventory__mock-line"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="inventory__section-calendar" class="inventory__section inventory__section--hidden">
+                        <ui:Label text="Calendar" class="inventory__section-title ui-kit__hint"/>
+                        <ui:Label text="- Thu: Range practice 18:00" class="inventory__mock-line"/>
+                        <ui:Label text="- Sat: Local competition 11:00" class="inventory__mock-line"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="inventory__section-device" class="inventory__section inventory__section--hidden">
+                        <ui:VisualElement class="inventory__device-content">
+                            <ui:Label text="Field Device" class="inventory__section-title ui-kit__hint"/>
+                            <ui:VisualElement name="inventory__device-notes" class="inventory__device-notes">
+                                <ui:Label text="Contract Prep" class="inventory__details-title"/>
+                                <ui:VisualElement class="inventory__device-field-row">
+                                    <ui:Label text="Marked Target" class="inventory__device-field-label"/>
+                                    <ui:Label name="inventory__device-selected-target-value" text="No target marked" class="inventory__device-field-value"/>
+                                </ui:VisualElement>
+                                <ui:VisualElement class="inventory__device-field-row">
+                                    <ui:Label text="Validation Shots" class="inventory__device-field-label"/>
+                                    <ui:Label name="inventory__device-shot-count-value" text="0 validation shots" class="inventory__device-field-value"/>
+                                </ui:VisualElement>
+                                <ui:VisualElement class="inventory__device-field-row">
+                                    <ui:Label text="Spread" class="inventory__device-field-label"/>
+                                    <ui:Label name="inventory__device-spread-value" text="--" class="inventory__device-field-value"/>
+                                </ui:VisualElement>
+                                <ui:VisualElement class="inventory__device-field-row">
+                                    <ui:Label text="MOA" class="inventory__device-field-label"/>
+                                    <ui:Label name="inventory__device-moa-value" text="--" class="inventory__device-field-value"/>
+                                </ui:VisualElement>
+                                <ui:VisualElement class="inventory__device-field-row">
+                                    <ui:Label text="Logged Groups" class="inventory__device-field-label"/>
+                                    <ui:Label name="inventory__device-saved-groups-value" text="0" class="inventory__device-field-value"/>
+                                </ui:VisualElement>
+                            </ui:VisualElement>
+                            <ui:VisualElement class="inventory__device-button-row">
+                                <ui:Button name="inventory__device-choose-target" text="Mark Target" class="inventory__action-button ui-kit__tab"/>
+                                <ui:Button name="inventory__device-save-group" text="Log Group" class="inventory__action-button ui-kit__tab"/>
+                                <ui:Button name="inventory__device-clear-group" text="Reset Group" class="inventory__action-button ui-kit__tab"/>
+                            </ui:VisualElement>
+                            <ui:VisualElement class="inventory__device-button-row">
+                                <ui:Button name="inventory__device-install-hooks" text="Install Hooks" class="inventory__action-button ui-kit__tab"/>
+                                <ui:Button name="inventory__device-uninstall-hooks" text="Uninstall Hooks" class="inventory__action-button ui-kit__tab"/>
+                            </ui:VisualElement>
+                            <ui:Label name="inventory__device-install-feedback-text" text="Recon hooks are not installed." class="inventory__device-feedback"/>
+                            <ui:VisualElement class="inventory__device-history">
+                                <ui:Label text="Validation History" class="inventory__details-title"/>
+                                <ui:VisualElement name="inventory__device-session-history" class="inventory__device-session-history"/>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="inventory__section-attachments" class="inventory__section inventory__section--hidden">
+                        <ui:VisualElement class="inventory__attachments-content">
+                            <ui:Label text="Weapon Attachments" class="inventory__section-title ui-kit__hint"/>
+                            <ui:VisualElement class="inventory__attachments-header">
+                                <ui:Label text="Weapon" class="inventory__device-field-label"/>
+                                <ui:Label name="inventory__attachments-weapon-name" text="-" class="inventory__device-field-value"/>
+                            </ui:VisualElement>
+                            <ui:DropdownField name="inventory__attachments-slot-dropdown" label="Slot"/>
+                            <ui:DropdownField name="inventory__attachments-item-dropdown" label="Attachment"/>
+                            <ui:VisualElement class="inventory__device-button-row">
+                                <ui:Button name="inventory__attachments-apply" text="Apply" class="inventory__action-button ui-kit__tab"/>
+                                <ui:Button name="inventory__attachments-back" text="Back" class="inventory__action-button ui-kit__tab"/>
+                            </ui:VisualElement>
+                            <ui:Label name="inventory__attachments-status" text="" class="inventory__device-feedback"/>
                         </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
-            </ui:VisualElement>
-            <ui:VisualElement name="inventory__section-quests" class="inventory__section inventory__section--hidden">
-                <ui:Label text="Quests" class="inventory__section-title ui-kit__hint"/>
-                <ui:Label text="- Main Goal: Build Match-Grade .308 batch" class="inventory__mock-line"/>
-                <ui:Label text="- Side Task: Visit Town Gun Store" class="inventory__mock-line"/>
-            </ui:VisualElement>
-            <ui:VisualElement name="inventory__section-journal" class="inventory__section inventory__section--hidden">
-                <ui:Label text="Journal" class="inventory__section-title ui-kit__hint"/>
-                <ui:Label text="- New entry: pressure ladder session notes" class="inventory__mock-line"/>
-                <ui:Label text="- Remember to verify primer pocket prep" class="inventory__mock-line"/>
-            </ui:VisualElement>
-            <ui:VisualElement name="inventory__section-calendar" class="inventory__section inventory__section--hidden">
-                <ui:Label text="Calendar" class="inventory__section-title ui-kit__hint"/>
-                <ui:Label text="- Thu: Range practice 18:00" class="inventory__mock-line"/>
-                <ui:Label text="- Sat: Local competition 11:00" class="inventory__mock-line"/>
-            </ui:VisualElement>
-            <ui:VisualElement name="inventory__section-device" class="inventory__section inventory__section--hidden">
-                <ui:VisualElement class="inventory__device-content">
-                    <ui:Label text="Field Device" class="inventory__section-title ui-kit__hint"/>
-                    <ui:VisualElement name="inventory__device-notes" class="inventory__device-notes">
-                        <ui:Label text="Contract Prep" class="inventory__details-title"/>
-                        <ui:VisualElement class="inventory__device-field-row">
-                            <ui:Label text="Marked Target" class="inventory__device-field-label"/>
-                            <ui:Label name="inventory__device-selected-target-value" text="No target marked" class="inventory__device-field-value"/>
+                <ui:VisualElement name="inventory__detail-pane" class="inventory__detail-pane">
+                    <ui:VisualElement name="inventory__detail-pane-generic" class="inventory__detail-pane-generic">
+                        <ui:Label text="Context Panel" class="inventory__details-title"/>
+                        <ui:Label text="Mission rules, rewards, and contextual details will live here as the redesign progresses." class="inventory__mock-line"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="inventory__detail-pane-contracts" class="inventory__detail-pane-contracts inventory__section--hidden">
+                        <ui:Label text="Contract Terms" class="inventory__details-title"/>
+                        <ui:VisualElement class="inventory__detail-pane-field">
+                            <ui:Label text="Base payout" class="inventory__detail-pane-field-label ui-kit__hint"/>
+                            <ui:Label name="inventory__detail-pane-base-payout" text="Payout: --" class="inventory__mock-line"/>
                         </ui:VisualElement>
-                        <ui:VisualElement class="inventory__device-field-row">
-                            <ui:Label text="Validation Shots" class="inventory__device-field-label"/>
-                            <ui:Label name="inventory__device-shot-count-value" text="0 validation shots" class="inventory__device-field-value"/>
+                        <ui:VisualElement class="inventory__detail-pane-field">
+                            <ui:Label text="Bonus conditions" class="inventory__detail-pane-field-label ui-kit__hint"/>
+                            <ui:Label name="inventory__detail-pane-bonus-conditions" text="None" class="inventory__mock-line"/>
                         </ui:VisualElement>
-                        <ui:VisualElement class="inventory__device-field-row">
-                            <ui:Label text="Spread" class="inventory__device-field-label"/>
-                            <ui:Label name="inventory__device-spread-value" text="--" class="inventory__device-field-value"/>
+                        <ui:VisualElement class="inventory__detail-pane-field">
+                            <ui:Label text="Restrictions" class="inventory__detail-pane-field-label ui-kit__hint"/>
+                            <ui:Label name="inventory__detail-pane-restrictions" text="None" class="inventory__mock-line"/>
                         </ui:VisualElement>
-                        <ui:VisualElement class="inventory__device-field-row">
-                            <ui:Label text="MOA" class="inventory__device-field-label"/>
-                            <ui:Label name="inventory__device-moa-value" text="--" class="inventory__device-field-value"/>
+                        <ui:VisualElement class="inventory__detail-pane-field">
+                            <ui:Label text="Failure conditions" class="inventory__detail-pane-field-label ui-kit__hint"/>
+                            <ui:Label name="inventory__detail-pane-failure-conditions" text="Wrong target" class="inventory__mock-line"/>
                         </ui:VisualElement>
-                        <ui:VisualElement class="inventory__device-field-row">
-                            <ui:Label text="Logged Groups" class="inventory__device-field-label"/>
-                            <ui:Label name="inventory__device-saved-groups-value" text="0" class="inventory__device-field-value"/>
+                        <ui:VisualElement class="inventory__detail-pane-field">
+                            <ui:Label text="Reward state" class="inventory__detail-pane-field-label ui-kit__hint"/>
+                            <ui:Label name="inventory__detail-pane-reward-state" text="No contract selected" class="inventory__mock-line"/>
                         </ui:VisualElement>
                     </ui:VisualElement>
-                    <ui:VisualElement class="inventory__device-button-row">
-                        <ui:Button name="inventory__device-choose-target" text="Mark Target" class="inventory__tab ui-kit__tab"/>
-                        <ui:Button name="inventory__device-save-group" text="Log Group" class="inventory__tab ui-kit__tab"/>
-                        <ui:Button name="inventory__device-clear-group" text="Reset Group" class="inventory__tab ui-kit__tab"/>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="inventory__device-button-row">
-                        <ui:Button name="inventory__device-install-hooks" text="Install Hooks" class="inventory__tab ui-kit__tab"/>
-                        <ui:Button name="inventory__device-uninstall-hooks" text="Uninstall Hooks" class="inventory__tab ui-kit__tab"/>
-                    </ui:VisualElement>
-                    <ui:Label name="inventory__device-install-feedback-text" text="Recon hooks are not installed." class="inventory__device-feedback"/>
-                    <ui:VisualElement class="inventory__device-history">
-                        <ui:Label text="Validation History" class="inventory__details-title"/>
-                        <ui:VisualElement name="inventory__device-session-history" class="inventory__device-session-history"/>
-                    </ui:VisualElement>
-                </ui:VisualElement>
-            </ui:VisualElement>
-            <ui:VisualElement name="inventory__section-attachments" class="inventory__section inventory__section--hidden">
-                <ui:VisualElement class="inventory__attachments-content">
-                    <ui:Label text="Weapon Attachments" class="inventory__section-title ui-kit__hint"/>
-                    <ui:VisualElement class="inventory__attachments-header">
-                        <ui:Label text="Weapon" class="inventory__device-field-label"/>
-                        <ui:Label name="inventory__attachments-weapon-name" text="-" class="inventory__device-field-value"/>
-                    </ui:VisualElement>
-                    <ui:DropdownField name="inventory__attachments-slot-dropdown" label="Slot"/>
-                    <ui:DropdownField name="inventory__attachments-item-dropdown" label="Attachment"/>
-                    <ui:VisualElement class="inventory__device-button-row">
-                        <ui:Button name="inventory__attachments-apply" text="Apply" class="inventory__tab ui-kit__tab"/>
-                        <ui:Button name="inventory__attachments-back" text="Back" class="inventory__tab ui-kit__tab"/>
-                    </ui:VisualElement>
-                    <ui:Label name="inventory__attachments-status" text="" class="inventory__device-feedback"/>
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

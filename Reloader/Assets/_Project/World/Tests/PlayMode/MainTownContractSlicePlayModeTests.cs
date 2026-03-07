@@ -16,7 +16,7 @@ namespace Reloader.World.Tests.PlayMode
         private const float SceneSwitchTimeoutSeconds = 8f;
 
         [UnityTest]
-        public IEnumerator MainTownContractSlice_AcceptsTargetEliminationAndAwardsPayoutAfterSearchClears()
+        public IEnumerator MainTownContractSlice_AcceptsTargetEliminationAndRequiresExplicitClaimAfterSearchClears()
         {
             yield return LoadScene(MainTownSceneName);
             yield return null;
@@ -57,8 +57,16 @@ namespace Reloader.World.Tests.PlayMode
             yield return null;
 
             Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Clear));
-            Assert.That(ReadActiveContract(runtime), Is.Null, "Contract should complete once the search timer clears.");
-            Assert.That(provider.TryGetContractSnapshot(out _), Is.False, "Authored offer should be consumed after the scene contract completes.");
+            Assert.That(ReadActiveContract(runtime), Is.Not.Null, "Contract should stay claimable until the reward is explicitly collected.");
+            Assert.That(provider.TryGetContractSnapshot(out var readySnapshot), Is.True);
+            Assert.That(readySnapshot.StatusText, Is.EqualTo("Ready to claim"));
+            Assert.That(readySnapshot.CanClaimReward, Is.True);
+            Assert.That(ReadEconomyMoney(), Is.EqualTo(startingMoney));
+
+            Assert.That(provider.ClaimCompletedContractReward(), Is.True);
+
+            Assert.That(ReadActiveContract(runtime), Is.Null, "Claiming the reward should complete the active contract.");
+            Assert.That(provider.TryGetContractSnapshot(out _), Is.False, "Authored offer should stay consumed after the scene contract reward is claimed.");
             Assert.That(ReadEconomyMoney(), Is.EqualTo(startingMoney + activeSnapshot.Payout));
         }
 

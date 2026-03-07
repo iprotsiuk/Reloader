@@ -58,7 +58,7 @@ namespace Reloader.Core.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator RuntimeKernelReconfigure_DuringSearchClearWait_PreservesPendingPayoutProgress()
+        public IEnumerator RuntimeKernelReconfigure_DuringSearchClearWait_PreservesPendingRewardUntilClaimed()
         {
             var providerGo = new GameObject("ContractProvider");
             var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
@@ -93,6 +93,15 @@ namespace Reloader.Core.Tests.PlayMode
                 Assert.That(snapshot.StatusText, Does.StartWith("Escape search:"));
 
                 provider.AdvanceRuntime(36f);
+
+                Assert.That(provider.TryGetContractSnapshot(out var readySnapshot), Is.True);
+                Assert.That(readySnapshot.HasActiveContract, Is.True);
+                Assert.That(readySnapshot.StatusText, Is.EqualTo("Ready to claim"));
+                Assert.That(readySnapshot.CanClaimReward, Is.True);
+                Assert.That(probe.TotalAwarded, Is.EqualTo(0));
+                Assert.That(ReadActiveContract(runtimeAfter), Is.Not.Null);
+
+                Assert.That(provider.ClaimCompletedContractReward(), Is.True);
 
                 Assert.That(probe.TotalAwarded, Is.EqualTo(1500));
                 Assert.That(ReadActiveContract(runtimeAfter), Is.Null);

@@ -112,7 +112,10 @@ namespace Reloader.Inventory
             }
 
             Runtime = runtime ?? new PlayerInventoryRuntime();
-            Runtime.SetBackpackCapacity(ResolveStartingBackpackCapacity());
+            if (runtime == null)
+            {
+                Runtime.SetBackpackCapacity(ResolveStartingBackpackCapacity());
+            }
         }
 
         public void Tick()

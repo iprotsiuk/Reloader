@@ -147,6 +147,74 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(bridge.IsScreenBoundForTests(EscMenuScreenId), Is.True);
         }
 
+        [UnityTest]
+        public IEnumerator ExecuteCutover_TabInventoryUsesThreeRegionShell()
+        {
+            var installerGo = new GameObject("Installer");
+            installerGo.AddComponent<UiToolkitRuntimeInstaller>();
+
+            var bootstrapGo = new GameObject("Bootstrap");
+            var bootstrap = bootstrapGo.AddComponent<BeltHudBootstrap>();
+            bootstrap.ExecuteCutover();
+
+            yield return null;
+
+            var runtimeRoot = Object.FindFirstObjectByType<UiToolkitRuntimeRoot>(FindObjectsInactive.Include);
+            Assert.That(runtimeRoot, Is.Not.Null);
+
+            var documentTransform = runtimeRoot.transform.Find(TabInventoryScreenId);
+            Assert.That(documentTransform, Is.Not.Null);
+
+            var document = documentTransform.GetComponent<UIDocument>();
+            Assert.That(document, Is.Not.Null);
+
+            var root = document.rootVisualElement;
+            Assert.That(root, Is.Not.Null);
+            Assert.That(root.Q<VisualElement>("inventory__shell"), Is.Not.Null);
+            Assert.That(root.Q<VisualElement>("inventory__rail"), Is.Not.Null);
+            Assert.That(root.Q<VisualElement>("inventory__workspace"), Is.Not.Null);
+            Assert.That(root.Q<VisualElement>("inventory__detail-pane"), Is.Not.Null);
+        }
+
+        [UnityTest]
+        public IEnumerator ExecuteCutover_TabInventoryUsesIconRailNavigation()
+        {
+            var installerGo = new GameObject("Installer");
+            installerGo.AddComponent<UiToolkitRuntimeInstaller>();
+
+            var bootstrapGo = new GameObject("Bootstrap");
+            var bootstrap = bootstrapGo.AddComponent<BeltHudBootstrap>();
+            bootstrap.ExecuteCutover();
+
+            yield return null;
+
+            var runtimeRoot = Object.FindFirstObjectByType<UiToolkitRuntimeRoot>(FindObjectsInactive.Include);
+            Assert.That(runtimeRoot, Is.Not.Null);
+
+            var documentTransform = runtimeRoot.transform.Find(TabInventoryScreenId);
+            Assert.That(documentTransform, Is.Not.Null);
+
+            var document = documentTransform.GetComponent<UIDocument>();
+            Assert.That(document, Is.Not.Null);
+
+            var root = document.rootVisualElement;
+            Assert.That(root, Is.Not.Null);
+
+            var tabBar = root.Q<VisualElement>("inventory__tabbar");
+            var inventoryTab = root.Q<Button>("inventory__tab-inventory");
+            var contractsTab = root.Q<Button>("inventory__tab-quests");
+            var journalTab = root.Q<Button>("inventory__tab-journal");
+            var calendarTab = root.Q<Button>("inventory__tab-calendar");
+            var deviceTab = root.Q<Button>("inventory__tab-device");
+
+            Assert.That(tabBar.ClassListContains("inventory__tabbar--icon-rail"), Is.True);
+            Assert.That(inventoryTab.ClassListContains("inventory__tab--inventory"), Is.True);
+            Assert.That(contractsTab.ClassListContains("inventory__tab--contracts"), Is.True);
+            Assert.That(journalTab.ClassListContains("inventory__tab--journal"), Is.True);
+            Assert.That(calendarTab.ClassListContains("inventory__tab--calendar"), Is.True);
+            Assert.That(deviceTab.ClassListContains("inventory__tab--device"), Is.True);
+        }
+
         private static void CleanupScene()
         {
             DestroyOwnersOfType<UiToolkitRuntimeRoot>();
