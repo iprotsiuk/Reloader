@@ -1,3 +1,5 @@
+using System;
+using System.Reflection;
 using NUnit.Framework;
 using Reloader.Inventory;
 using Reloader.Player;
@@ -5,6 +7,7 @@ using Reloader.UI.Toolkit.Contracts;
 using Reloader.UI.Toolkit.TabInventory;
 using UnityEngine;
 using UnityEngine.UIElements;
+using Object = UnityEngine.Object;
 
 namespace Reloader.UI.Tests.PlayMode
 {
@@ -119,6 +122,48 @@ namespace Reloader.UI.Tests.PlayMode
             Object.DestroyImmediate(go);
         }
 
+        [Test]
+        public void Initialize_WhenContractsControlsAlreadyExist_RebindsAcceptButtonToCurrentBinder()
+        {
+            var root = BuildRoot();
+            var firstBinder = new TabInventoryViewBinder();
+            var firstAcceptCount = 0;
+            Action<UiIntent> firstHandler = intent =>
+            {
+                if (string.Equals(intent.Key, "tab.inventory.contracts.accept", StringComparison.Ordinal))
+                {
+                    firstAcceptCount++;
+                }
+            };
+
+            firstBinder.IntentRaised += firstHandler;
+            firstBinder.Initialize(root, beltSlotCount: 0, backpackSlotCount: 0);
+
+            var acceptButton = root.Q<Button>("inventory__contracts-accept");
+            Assert.That(acceptButton, Is.Not.Null);
+
+            InvokeClick(acceptButton);
+            Assert.That(firstAcceptCount, Is.EqualTo(1));
+
+            firstBinder.IntentRaised -= firstHandler;
+
+            var secondBinder = new TabInventoryViewBinder();
+            var secondAcceptCount = 0;
+            secondBinder.IntentRaised += intent =>
+            {
+                if (string.Equals(intent.Key, "tab.inventory.contracts.accept", StringComparison.Ordinal))
+                {
+                    secondAcceptCount++;
+                }
+            };
+            secondBinder.Initialize(root, beltSlotCount: 0, backpackSlotCount: 0);
+
+            InvokeClick(acceptButton);
+
+            Assert.That(firstAcceptCount, Is.EqualTo(1));
+            Assert.That(secondAcceptCount, Is.EqualTo(1));
+        }
+
         private static VisualElement BuildRoot()
         {
             var root = new VisualElement { name = "inventory__root" };
@@ -161,6 +206,24 @@ namespace Reloader.UI.Tests.PlayMode
             panel.Add(tooltip);
 
             return root;
+        }
+
+        private static void InvokeClick(Button button)
+        {
+            Assert.That(button, Is.Not.Null);
+
+            var clickableField = typeof(Button).GetField("m_Clickable", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(clickableField, Is.Not.Null);
+
+            var clickable = clickableField.GetValue(button);
+            Assert.That(clickable, Is.Not.Null);
+
+            var clickedField = clickable.GetType().GetField("clicked", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(clickedField, Is.Not.Null);
+
+            var clicked = clickedField.GetValue(clickable) as Action;
+            Assert.That(clicked, Is.Not.Null);
+            clicked.Invoke();
         }
 
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource

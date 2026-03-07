@@ -29,15 +29,18 @@
 - Contract runtime and target resolution no longer scene-scan for unrelated payout or elimination sinks; `MainTown` is authored with explicit references.
 - The UI runtime bridge now prefers local device/target-selection controllers over scene-global fallbacks to keep contract/device flows deterministic.
 - Review fix: `ContractEscapeResolutionRuntime` now requires a real target-elimination resolution before `Advance()` can complete the active contract.
+- Review fix: `TabInventoryViewBinder` now rebinds the reused `inventory__contracts-accept` button to the current binder instance, so `UiToolkitScreenRuntimeBridge` teardown/rebind cycles do not strand the Contracts accept action.
 - PR: `#25` `feat: first contract target NPC vertical slice`
 
 ## Verification
 
 - Full EditMode suite: `307/307` passed
 - Targeted regression: `Reloader.Core.Tests.EditMode.ContractEscapeResolutionRuntimeTests` `4/4` passed
+- Targeted PlayMode class: `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests` `3/3` passed, including `Initialize_WhenContractsControlsAlreadyExist_RebindsAcceptButtonToCurrentBinder`
 - Full PlayMode suite remains red in unrelated preexisting subsystems (`Audio`, `Economy`, `Player`, `EscMenu`, broad `UI` flows)
 - Latest full PlayMode failure list does not include:
   - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests.RuntimeBridge_BindTabInventory_AcceptsAvailableContractThroughContractsTab`
+  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests.Initialize_WhenContractsControlsAlreadyExist_RebindsAcceptButtonToCurrentBinder`
   - `Reloader.Weapons.Tests.PlayMode.ContractTargetDamageablePlayModeTests`
   - `Reloader.UI.Tests.PlayMode.TabInventoryDeviceSectionPlayModeTests.Acceptance_DeviceFullLoop_ChooseTargetFireSaveClearReopenTab_PreservesSavedSessionAndClearsMarkers`
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests`

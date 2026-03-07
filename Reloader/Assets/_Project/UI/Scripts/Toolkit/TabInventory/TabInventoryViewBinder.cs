@@ -51,6 +51,7 @@ namespace Reloader.UI.Toolkit.TabInventory
         private VisualElement _deviceSessionHistory;
         private Button _tabInventory;
         private Button _contractsAcceptButton;
+        private Button _boundContractsAcceptButton;
         private Button _tabQuests;
         private Button _tabJournal;
         private Button _tabCalendar;
@@ -424,6 +425,7 @@ private void EnsureContractsSectionBindings()
                 && _contractsBriefing != null
                 && _contractsAcceptButton != null)
             {
+                EnsureContractsAcceptIntentBinding();
                 return;
             }
 
@@ -441,7 +443,7 @@ private void EnsureContractsSectionBindings()
             _contractsBriefing = new Label { name = "inventory__contracts-briefing" };
             _contractsBriefing.style.whiteSpace = WhiteSpace.Normal;
             _contractsAcceptButton = new Button { name = "inventory__contracts-accept", text = "Accept Contract" };
-            _contractsAcceptButton.clicked += () => IntentRaised?.Invoke(new UiIntent("tab.inventory.contracts.accept", null));
+            EnsureContractsAcceptIntentBinding();
 
             panel.Add(heading);
             panel.Add(_contractsStatus);
@@ -452,6 +454,22 @@ private void EnsureContractsSectionBindings()
             panel.Add(_contractsBriefing);
             panel.Add(_contractsAcceptButton);
             _questsSection.Add(panel);
+        }
+
+        private void EnsureContractsAcceptIntentBinding()
+        {
+            if (_contractsAcceptButton == null || ReferenceEquals(_boundContractsAcceptButton, _contractsAcceptButton))
+            {
+                return;
+            }
+
+            _contractsAcceptButton.clicked += RaiseContractsAcceptIntent;
+            _boundContractsAcceptButton = _contractsAcceptButton;
+        }
+
+        private void RaiseContractsAcceptIntent()
+        {
+            IntentRaised?.Invoke(new UiIntent("tab.inventory.contracts.accept", null));
         }
 
 
