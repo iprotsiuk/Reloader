@@ -2,9 +2,9 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Generate a persistent `MainTown` civilian roster on save creation, respawn those civilians from save data on load, and retire/queue replacements when civilians die.
+**Goal:** Generate a persistent, map-wide `MainTown` civilian roster on save creation, respawn those civilians from save data on load, and retire/queue replacements when civilians die.
 
-**Architecture:** Add a data-first civilian roster module that stores generated appearance records instead of scene object state. Use a curated appearance-part library plus free random slot selection to build initial civilians, then spawn runtime NPC instances from those persisted records when `MainTown` loads. Death updates only the civilian roster state in this slice; Monday refresh execution and contract targeting land later.
+**Architecture:** Add a data-first civilian roster module that stores generated appearance records instead of scene object state. Use a curated appearance-part library plus free random slot selection to build initial civilians, then spawn runtime NPC instances from those persisted records when `MainTown` loads. The roster should evolve toward stable `populationSlotId` + pool ownership so future replacements inherit the same role slot. Death updates only the civilian roster state in this slice; Monday refresh execution and contract targeting land later.
 
 **Tech Stack:** Unity ScriptableObjects, runtime save modules, NPC foundation prefabs/runtime, world scene load hooks, EditMode/PlayMode tests, docs progress tracking
 
@@ -251,7 +251,8 @@ git commit -m "docs: update persistent civilian population progress"
 
 Once this plan is complete, the next implementation slice should add:
 
-- random contract-target selection from the living civilian population
+- a `MainTownPopulationDefinition` that owns map-wide pools and stable `populationSlotId`s
+- generated occupant assignment into those slots for the whole `MainTown` scene
+- random contract-target selection from the living civilian population, excluding dead occupants and protected roles
 - appearance-derived contract descriptions and portrait data
-- vendor / protected-role exclusion enforcement inside target selection
-- Monday `08:00` replacement execution so owed civilians actually arrive into town
+- Monday `08:00` replacement execution so owed civilians refill their slots correctly

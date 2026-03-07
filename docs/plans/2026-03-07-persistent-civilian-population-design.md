@@ -5,22 +5,22 @@
 
 ## Goal
 
-Create the foundation for a save-persistent civilian population in `MainTown` so contracts can later target real town citizens instead of one-off authored placeholders.
+Create the foundation for a save-persistent, map-wide civilian population in `MainTown` so contracts can later target real town citizens instead of one-off authored placeholders.
 
 ## Chosen Approach
 
-Generate a civilian roster when a save is created, persist that roster as data, and respawn runtime civilians from the saved records whenever the town loads. Dead civilians remain retired in that save, and their vacancies are queued for a scheduled population refresh every Monday at `08:00` at the bus stop.
+Generate a `MainTown`-wide civilian roster when a save is created, persist that roster as data, and respawn runtime civilians from the saved records whenever the scene loads. Dead civilians remain retired in that save, and their vacancies are queued for a scheduled population refresh every Monday at `08:00` at the bus stop.
 
 ## Why This Approach
 
 - The town feels stable within a save instead of rerolling randomly on each load.
-- Contract targets can later be selected randomly from real living civilians without fake descriptions.
+- Contract targets can later be selected randomly from real living civilians anywhere in `MainTown` without fake descriptions.
 - Replacements happen on a believable cadence instead of instant respawns.
 - The foundation separates appearance generation from later behavior systems like schedules, voices, and dialogue.
 
 ## Population Lifecycle
 
-- On new save creation, generate a persistent civilian roster for `MainTown`.
+- On new save creation, generate a persistent civilian roster for the whole `MainTown` scene.
 - Vendors and other protected authored roles are excluded from the generated civilian pool and from future contract targeting.
 - Loading `MainTown` spawns civilians from the saved roster rather than regenerating them.
 - When a civilian dies, that record stays dead in the save and becomes ineligible for future contracts.
@@ -29,13 +29,32 @@ Generate a civilian roster when a save is created, persist that roster as data, 
   - every Monday at `08:00`
   - replacement civilians enter through the bus stop / arrival point
 
+## Map-Wide Population Slots And Pools
+
+- `MainTown` owns one persistent population roster for the whole scene rather than separate settlement-local rosters.
+- The roster is partitioned into authored pools such as `townsfolk`, `quarry_workers`, `hobos`, and `cops`.
+- Each pool owns one or more stable `populationSlotId` entries.
+- A `populationSlotId` represents the durable world role for that occupant:
+  - pool membership
+  - future profession / routine binding
+  - future area or zone ownership
+- Civilians occupy slots; slots do not belong to a specific person.
+- When a civilian dies, the slot remains and the future replacement fills that same slot with:
+  - a new `civilianId`
+  - a new appearance
+  - the same pool / role purpose
+- Later behavior systems should attach to the slot definition rather than to the current civilian identity.
+
 ## Civilian Appearance Record
 
 Each generated civilian record should persist enough appearance data to rebuild the same visible person on load and to describe them accurately in future contracts. Initial appearance fields should cover:
 
+- `populationSlotId`
+- `poolId`
 - `civilianId`
 - `isAlive`
 - `isContractEligible`
+- `isProtectedFromContracts`
 - `baseBodyId`
 - `presentationType`
 - `hairId`
@@ -47,6 +66,7 @@ Each generated civilian record should persist enough appearance data to rebuild 
 - `materialColorIds`
 - `generatedDescriptionTags`
 - `spawnAnchorId`
+- `areaTag`
 - `createdAtDay`
 - `retiredAtDay`
 
@@ -65,6 +85,7 @@ Behavioral extensions like professions, dialogue, voices, wandering zones, and s
 ### Persisted Civilian Record
 
 - Save data stores the selected appearance choices and core lifecycle flags for each civilian.
+- Save data stores the stable `populationSlotId` so replacements can inherit the same role slot later.
 - Save data should not depend on live scene references.
 
 ### Runtime Civilian Instance
@@ -90,6 +111,14 @@ This slice should not implement:
 - wandering zones, professions, dialogue, voices, or schedules
 - Monday refresh execution beyond recording the owed replacement
 
+## Contract Targeting Guardrails For The Next Slice
+
+- Contract targets should be selected from the whole living `MainTown` population rather than one sub-area.
+- Vendors are the only protected exclusion in the initial targeting pass.
+- Dead occupants must never be eligible for contract selection.
+- Future replacements should become targetable only after they occupy the slot as a live current civilian.
+- If the Monday refresh is processed while `MainTown` is not loaded, the replacement should already be in place by the next scene load rather than performing a delayed on-screen arrival.
+
 ## Validation Targets
 
 - generator creates structurally valid civilian appearance records
@@ -100,4 +129,4 @@ This slice should not implement:
 
 ## Next Step After This Slice
 
-Once this foundation is stable, the next slice should add random contract-target selection from the persistent living population plus appearance-derived contract descriptions so the posted contract text always matches the actual chosen civilian.
+Once this foundation is stable, the next slice should add a `MainTownPopulationDefinition` with stable pools and `populationSlotId`s, fill those slots with generated occupants, and then add random contract-target selection from the persistent living population plus appearance-derived contract descriptions so the posted contract text always matches the actual chosen civilian.
