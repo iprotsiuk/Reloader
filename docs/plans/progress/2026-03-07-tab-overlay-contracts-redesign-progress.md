@@ -11,7 +11,7 @@
 
 - [ ] Baseline screenshots captured
 - [x] Icon source selected
-- [ ] Three-region shell landed
+- [x] Three-region shell landed
 - [ ] Icon-first left rail landed
 - [ ] Posted contract feed landed
 - [ ] Active contract workspace landed
@@ -67,14 +67,15 @@
   - Unity test rerun is currently blocked by a Unity test-framework/editor-state failure after the first PlayMode run:
     - `InvalidOperationException: This cannot be used during play mode, please use SceneManager.CreateScene() instead.`
     - follow-on symptom: the editor was left on an `InitTestScene...` bootstrap scene and the Unity MCP bridge intermittently lost the active editor instance
-  - the shell code is checkpointed for review, but the `Three-region shell landed` checklist item stays open until a clean rerun is recorded
+  - the shell code is checkpointed for review, but fresh PlayMode verification still needs to be re-established once the editor recovers
 
 ## Verification
 
 - `bash scripts/verify-docs-and-context.sh`: passed
 - `git diff --check` on redesign docs: passed
+- `xmllint --noout Reloader/Assets/_Project/UI/Toolkit/UXML/TabInventory.uxml`: passed
+- repo-wide `git diff --check`: passed
 - PR / review status: PR `#26` opened and `@codex` requested
 - Unity MCP read-back:
-  - active instance: `Reloader@1f51a703`
-  - active scene: `MainTown`
-  - editor state: idle / ready for tools
+  - initial shell red-phase test failed for the expected missing-shell reason
+  - green-phase rerun is currently blocked by Unity test-runner/editor-state failure
