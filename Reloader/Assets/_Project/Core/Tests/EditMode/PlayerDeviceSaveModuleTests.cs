@@ -36,7 +36,7 @@ namespace Reloader.Core.Tests.EditMode
             var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
             var envelope = coordinator.CaptureEnvelope("0.4.0-dev");
 
-            Assert.That(envelope.SchemaVersion, Is.EqualTo(6));
+            Assert.That(envelope.SchemaVersion, Is.EqualTo(7));
             Assert.That(envelope.Modules.ContainsKey("PlayerDevice"), Is.True);
             Assert.That(envelope.Modules["PlayerDevice"].ModuleVersion, Is.EqualTo(1));
         }

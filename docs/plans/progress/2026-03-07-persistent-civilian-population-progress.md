@@ -4,7 +4,22 @@
 
 - [x] Design direction approved
 - [x] Implementation plan written
-- [ ] Runtime implementation started
+- [x] Runtime implementation started
+
+## 2026-03-07 Checkpoint
+
+- Added the first green runtime checkpoint for the data foundation:
+  - registered `CivilianPopulation` as a required save module
+  - bumped the runtime save schema from `v6` to `v7`
+  - added persistent civilian + queued-replacement payload DTOs
+  - added a minimal civilian appearance generator contract in `Reloader.NPCs`
+- Verified the red-first tests passed after implementation:
+  - `Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests`
+  - `Reloader.NPCs.Tests.EditMode.CivilianAppearanceGeneratorTests`
+- Follow-up still pending in this slice:
+  - save-creation roster generation
+  - MainTown spawn-from-records bridge
+  - civilian retirement + replacement queue runtime wiring
 
 ## Scope Notes
 

@@ -61,7 +61,7 @@ Load order is deterministic and must stay stable:
 1. Read and deserialize `SaveEnvelope`.
 2. Reject the load if `schemaVersion` does not equal the current runtime schema.
 3. Validate required module presence and payload JSON well-formedness.
-4. Restore modules in explicit registration order (`CoreWorld`, `Inventory`, `Weapons`, `WorldObjectState` in current v0.1 implemented baseline).
+4. Restore modules in explicit registration order (`CoreWorld`, `CivilianPopulation`, `Inventory`, `Weapons`, `WorldObjectState` in current v0.1 implemented baseline).
 5. Run post-restore module validation.
 6. Publish load-complete events.
 
@@ -72,6 +72,9 @@ This ordering prevents partial loads and keeps cross-system dependencies predict
 Current repository implementation requires these registered module payloads:
 
 - `CoreWorld` module payload: `dayCount`, `timeOfDay`
+- `CivilianPopulation` module payload:
+  - `civilians[]` with persistent appearance/lifecycle records (`civilianId`, `isAlive`, `isContractEligible`, appearance slot ids, `spawnAnchorId`, `createdAtDay`, `retiredAtDay`)
+  - `pendingReplacements[]` with queued vacancy records (`vacatedCivilianId`, `queuedAtDay`, `spawnAnchorId`)
 - `Inventory` module payload: `carriedItemIds`, `beltSlotItemIds`, `backpackItemIds`, `backpackCapacity`, `selectedBeltIndex`
 - `Weapons` module payload: `itemId`, `chamberLoaded`, `magCount`, `reserveCount`, `chamberRound`, `magazineRounds[]`
 - `WorldObjectState` module payload:
@@ -88,8 +91,8 @@ Current repository implementation requires these registered module payloads:
 In-flight projectile state is intentionally out-of-scope for v0.1 saves.
 
 Schema note:
-- Runtime save schema is now `v6`.
-- Loads fail fast when schema does not exactly match `v6`.
+- Runtime save schema is now `v7`.
+- Loads fail fast when schema does not exactly match `v7`.
 - Load remains transactional: missing required module blocks still fail before restore.
 
 Implementation note:
@@ -103,6 +106,7 @@ The broader schema below is the v0.1 design target and forward schema contract. 
 | Module / Payload Block | Readiness | Runtime Registration (v0.1) | Notes |
 |------------------------|-----------|------------------------------|-------|
 | `CoreWorld` | Implemented now | Yes | Persists `dayCount`, `timeOfDay`. |
+| `CivilianPopulation` | Schema/module implemented | Partial | Module is registered; runtime roster generation/spawn bridges land in the current slice. |
 | `Inventory` | Implemented now | Yes | Persists carried/belt/backpack ids + capacity + belt selection. |
 | `Weapons` | Implemented now | Yes | Persists active weapon loadout + chamber/mag ammo ballistic snapshots. |
 | `WorldObjectState` | Implemented now | Yes | Unified world-object state + reclaim entries for daily cleanup. |
