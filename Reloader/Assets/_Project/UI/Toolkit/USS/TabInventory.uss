@@ -100,7 +100,16 @@
     overflow-y: auto;
 }
 
-.inventory__tab {
+.inventory__action-button {
+    min-height: 24px;
+    min-width: 56px;
+    padding-left: 8px;
+    padding-right: 8px;
+    font-size: 10px;
+    -unity-font-style: normal;
+}
+
+.inventory__tabbar--icon-rail .inventory__tab {
     min-height: 54px;
     height: 54px;
     min-width: 54px;
@@ -116,14 +125,14 @@
     margin-bottom: 0;
 }
 
-.inventory__tab-icon {
+.inventory__tabbar--icon-rail .inventory__tab-icon {
     width: 22px;
     height: 22px;
     -unity-background-scale-mode: scale-to-fit;
     opacity: 0.76;
 }
 
-.inventory__tab.is-active .inventory__tab-icon {
+.inventory__tabbar--icon-rail .inventory__tab.is-active .inventory__tab-icon {
     opacity: 1;
 }
 

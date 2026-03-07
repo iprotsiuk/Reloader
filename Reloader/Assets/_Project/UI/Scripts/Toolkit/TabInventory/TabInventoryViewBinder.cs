@@ -183,6 +183,18 @@ namespace Reloader.UI.Toolkit.TabInventory
                 }
             }
 
+            if (_attachmentsSection != null)
+            {
+                var buttonRows = _attachmentsSection.Query<VisualElement>(className: "inventory__device-button-row").ToList();
+                for (var i = 0; i < buttonRows.Count; i++)
+                {
+                    if (buttonRows[i] != null)
+                    {
+                        _deviceButtonRows.Add(buttonRows[i]);
+                    }
+                }
+            }
+
             RegisterTabIntents();
             RegisterDeviceActionIntents();
             RegisterAttachmentActionIntents();

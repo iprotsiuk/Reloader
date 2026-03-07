@@ -47,5 +47,27 @@ namespace Reloader.UI.Tests.EditMode
             Assert.That(contractsSection.Q<VisualElement>("inventory__contracts-active"), Is.Not.Null);
             Assert.That(contractsSection.Q<Button>("inventory__contracts-primary-action"), Is.Not.Null);
         }
+
+        [Test]
+        public void DeviceAndAttachmentsActions_UseActionButtonClass_NotNavigationTabClass()
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(TabInventoryUxmlPath);
+            Assert.That(asset, Is.Not.Null, $"Expected UXML asset at '{TabInventoryUxmlPath}'.");
+
+            var root = asset.CloneTree();
+            var attachmentsApply = root.Q<Button>("inventory__attachments-apply");
+            var attachmentsBack = root.Q<Button>("inventory__attachments-back");
+            var deviceChooseTarget = root.Q<Button>("inventory__device-choose-target");
+            Assert.That(attachmentsApply, Is.Not.Null);
+            Assert.That(attachmentsBack, Is.Not.Null);
+            Assert.That(deviceChooseTarget, Is.Not.Null);
+
+            Assert.That(attachmentsApply.ClassListContains("inventory__action-button"), Is.True);
+            Assert.That(attachmentsBack.ClassListContains("inventory__action-button"), Is.True);
+            Assert.That(deviceChooseTarget.ClassListContains("inventory__action-button"), Is.True);
+            Assert.That(attachmentsApply.ClassListContains("inventory__tab"), Is.False);
+            Assert.That(attachmentsBack.ClassListContains("inventory__tab"), Is.False);
+            Assert.That(deviceChooseTarget.ClassListContains("inventory__tab"), Is.False);
+        }
     }
 }

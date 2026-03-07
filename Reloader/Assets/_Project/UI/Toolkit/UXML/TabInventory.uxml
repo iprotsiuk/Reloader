@@ -129,13 +129,13 @@
                                 </ui:VisualElement>
                             </ui:VisualElement>
                             <ui:VisualElement class="inventory__device-button-row">
-                                <ui:Button name="inventory__device-choose-target" text="Mark Target" class="inventory__tab ui-kit__tab"/>
-                                <ui:Button name="inventory__device-save-group" text="Log Group" class="inventory__tab ui-kit__tab"/>
-                                <ui:Button name="inventory__device-clear-group" text="Reset Group" class="inventory__tab ui-kit__tab"/>
+                                <ui:Button name="inventory__device-choose-target" text="Mark Target" class="inventory__action-button ui-kit__tab"/>
+                                <ui:Button name="inventory__device-save-group" text="Log Group" class="inventory__action-button ui-kit__tab"/>
+                                <ui:Button name="inventory__device-clear-group" text="Reset Group" class="inventory__action-button ui-kit__tab"/>
                             </ui:VisualElement>
                             <ui:VisualElement class="inventory__device-button-row">
-                                <ui:Button name="inventory__device-install-hooks" text="Install Hooks" class="inventory__tab ui-kit__tab"/>
-                                <ui:Button name="inventory__device-uninstall-hooks" text="Uninstall Hooks" class="inventory__tab ui-kit__tab"/>
+                                <ui:Button name="inventory__device-install-hooks" text="Install Hooks" class="inventory__action-button ui-kit__tab"/>
+                                <ui:Button name="inventory__device-uninstall-hooks" text="Uninstall Hooks" class="inventory__action-button ui-kit__tab"/>
                             </ui:VisualElement>
                             <ui:Label name="inventory__device-install-feedback-text" text="Recon hooks are not installed." class="inventory__device-feedback"/>
                             <ui:VisualElement class="inventory__device-history">
@@ -154,8 +154,8 @@
                             <ui:DropdownField name="inventory__attachments-slot-dropdown" label="Slot"/>
                             <ui:DropdownField name="inventory__attachments-item-dropdown" label="Attachment"/>
                             <ui:VisualElement class="inventory__device-button-row">
-                                <ui:Button name="inventory__attachments-apply" text="Apply" class="inventory__tab ui-kit__tab"/>
-                                <ui:Button name="inventory__attachments-back" text="Back" class="inventory__tab ui-kit__tab"/>
+                                <ui:Button name="inventory__attachments-apply" text="Apply" class="inventory__action-button ui-kit__tab"/>
+                                <ui:Button name="inventory__attachments-back" text="Back" class="inventory__action-button ui-kit__tab"/>
                             </ui:VisualElement>
                             <ui:Label name="inventory__attachments-status" text="" class="inventory__device-feedback"/>
                         </ui:VisualElement>
