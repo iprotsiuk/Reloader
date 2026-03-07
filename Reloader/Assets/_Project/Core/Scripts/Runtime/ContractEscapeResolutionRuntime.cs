@@ -6,6 +6,38 @@ namespace Reloader.Contracts.Runtime
 {
     public sealed class ContractEscapeResolutionRuntime
     {
+        internal readonly struct RuntimeStateSnapshot
+        {
+            public RuntimeStateSnapshot(
+                AssassinationContractDefinition availableContract,
+                AssassinationContractDefinition activeDefinition,
+                AssassinationContractRuntimeState activeContract,
+                PoliceHeatState heatState,
+                bool offerConsumed,
+                bool awaitingSearchClear,
+                bool completionPending,
+                int pendingPayoutAmount)
+            {
+                AvailableContract = availableContract;
+                ActiveDefinition = activeDefinition;
+                ActiveContract = activeContract;
+                HeatState = heatState;
+                OfferConsumed = offerConsumed;
+                AwaitingSearchClear = awaitingSearchClear;
+                CompletionPending = completionPending;
+                PendingPayoutAmount = pendingPayoutAmount;
+            }
+
+            public AssassinationContractDefinition AvailableContract { get; }
+            public AssassinationContractDefinition ActiveDefinition { get; }
+            public AssassinationContractRuntimeState ActiveContract { get; }
+            public PoliceHeatState HeatState { get; }
+            public bool OfferConsumed { get; }
+            public bool AwaitingSearchClear { get; }
+            public bool CompletionPending { get; }
+            public int PendingPayoutAmount { get; }
+        }
+
         private readonly ContractRuntimeController _contractController = new ContractRuntimeController();
         private readonly PoliceHeatRuntime _policeHeatRuntime;
         private AssassinationContractDefinition _availableContract;
@@ -137,6 +169,40 @@ namespace Reloader.Contracts.Runtime
             }
 
             TryResolvePendingPayout();
+        }
+
+        internal RuntimeStateSnapshot CaptureRuntimeState()
+        {
+            return new RuntimeStateSnapshot(
+                _availableContract,
+                _contractController.ActiveDefinition,
+                _contractController.ActiveContract,
+                _policeHeatRuntime.CurrentState,
+                _offerConsumed,
+                _awaitingSearchClear,
+                _completionPending,
+                _pendingPayoutAmount);
+        }
+
+        internal static ContractEscapeResolutionRuntime RestoreRuntimeState(
+            RuntimeStateSnapshot state,
+            float searchDurationSeconds,
+            IContractPayoutReceiver payoutReceiver = null,
+            ILawEnforcementEvents lawEnforcementEvents = null)
+        {
+            var runtime = new ContractEscapeResolutionRuntime(
+                state.AvailableContract,
+                searchDurationSeconds,
+                payoutReceiver,
+                lawEnforcementEvents);
+
+            runtime._offerConsumed = state.OfferConsumed;
+            runtime._awaitingSearchClear = state.AwaitingSearchClear;
+            runtime._completionPending = state.CompletionPending;
+            runtime._pendingPayoutAmount = Math.Max(0, state.PendingPayoutAmount);
+            runtime._contractController.RestoreState(state.ActiveDefinition, state.ActiveContract);
+            runtime._policeHeatRuntime.RestoreState(state.HeatState);
+            return runtime;
         }
 
         private string BuildStatusText(bool hasAvailableContract, bool hasActiveContract)

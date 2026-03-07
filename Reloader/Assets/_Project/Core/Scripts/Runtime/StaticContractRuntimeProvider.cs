@@ -104,8 +104,19 @@ namespace Reloader.Contracts.Runtime
         private void RebuildRuntime()
         {
             _payoutReceiver = ResolvePayoutReceiver();
-            _runtime = new ContractEscapeResolutionRuntime(
-                _availableContract,
+            if (_runtime == null)
+            {
+                _runtime = new ContractEscapeResolutionRuntime(
+                    _availableContract,
+                    _searchDurationSeconds,
+                    _payoutReceiver,
+                    RuntimeKernelBootstrapper.LawEnforcementEvents);
+                return;
+            }
+
+            var state = _runtime.CaptureRuntimeState();
+            _runtime = ContractEscapeResolutionRuntime.RestoreRuntimeState(
+                state,
                 _searchDurationSeconds,
                 _payoutReceiver,
                 RuntimeKernelBootstrapper.LawEnforcementEvents);

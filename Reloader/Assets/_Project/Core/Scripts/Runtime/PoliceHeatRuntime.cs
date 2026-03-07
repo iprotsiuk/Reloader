@@ -78,6 +78,15 @@ namespace Reloader.Core.Runtime
             SetState(PoliceHeatLevel.Clear, CurrentState.LastCrimeType, 0f, false);
         }
 
+        internal void RestoreState(PoliceHeatState state)
+        {
+            CurrentState = new PoliceHeatState(
+                state.Level,
+                state.LastCrimeType,
+                state.SearchTimeRemainingSeconds,
+                state.HasLineOfSightToPlayer);
+        }
+
         private void SetState(
             PoliceHeatLevel level,
             CrimeType lastCrimeType,

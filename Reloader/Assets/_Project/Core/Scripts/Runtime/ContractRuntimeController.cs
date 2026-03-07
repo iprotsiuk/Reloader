@@ -58,5 +58,13 @@ namespace Reloader.Contracts.Runtime
             ActiveContract = null;
             ActiveDefinition = null;
         }
+
+        internal void RestoreState(
+            AssassinationContractDefinition activeDefinition,
+            AssassinationContractRuntimeState activeContract)
+        {
+            ActiveDefinition = activeDefinition;
+            ActiveContract = activeContract;
+        }
     }
 }
