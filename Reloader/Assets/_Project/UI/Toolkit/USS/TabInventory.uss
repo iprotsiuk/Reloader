@@ -22,6 +22,63 @@
     flex-shrink: 1;
 }
 
+.inventory__shell {
+    flex-direction: row;
+    flex-grow: 1;
+    min-width: 0;
+    min-height: 0;
+    margin-top: 8px;
+}
+
+.inventory__rail {
+    width: 136px;
+    min-width: 120px;
+    max-width: 152px;
+    min-height: 0;
+    margin-right: 12px;
+    padding-top: 4px;
+    padding-right: 8px;
+    padding-bottom: 4px;
+    padding-left: 0;
+    border-right-width: 1px;
+    border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+.inventory__workspace {
+    flex-direction: column;
+    flex-grow: 1;
+    min-width: 0;
+    min-height: 0;
+    margin-right: 12px;
+}
+
+.inventory__detail-pane {
+    width: 220px;
+    min-width: 184px;
+    max-width: 240px;
+    min-height: 0;
+    padding-top: 10px;
+    padding-right: 10px;
+    padding-bottom: 10px;
+    padding-left: 10px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.08);
+    border-right-color: rgba(255, 255, 255, 0.08);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    border-left-color: rgba(255, 255, 255, 0.08);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
 .inventory__header-row {
     flex-direction: row;
     align-items: center;
@@ -33,13 +90,13 @@
 }
 
 .inventory__tabbar {
-    flex-direction: row;
+    flex-direction: column;
     flex-wrap: nowrap;
-    align-items: center;
+    align-items: stretch;
     justify-content: flex-start;
-    margin-top: 6px;
-    overflow-x: auto;
-    overflow-y: hidden;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .inventory__tab {
@@ -51,7 +108,6 @@
     font-size: 10px;
     -unity-font-style: normal;
     flex-shrink: 1;
-    margin-right: 6px;
     margin-bottom: 6px;
 }
 

@@ -625,9 +625,12 @@ private void EnsureContractsSectionBindings()
                 return;
             }
 
+            var isRailLayout = barWidth <= 180f;
             var totalGap = (_tabs.Count - 1) * 6f;
             var perTabWidth = (barWidth - totalGap) / _tabs.Count;
-            var resolvedWidth = Mathf.Clamp(perTabWidth, MinTabWidth, MaxTabWidth);
+            var resolvedWidth = isRailLayout
+                ? Mathf.Clamp(barWidth, MinTabWidth, MaxTabWidth)
+                : Mathf.Clamp(perTabWidth, MinTabWidth, MaxTabWidth);
             var resolvedHeight = Mathf.Clamp(_resolvedSlotSize * 0.56f, 20f, 28f);
             var resolvedFontSize = Mathf.Clamp(_resolvedSlotSize * 0.24f, 9f, 12f);
 

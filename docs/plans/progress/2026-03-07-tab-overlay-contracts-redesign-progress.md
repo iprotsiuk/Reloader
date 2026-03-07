@@ -59,6 +59,15 @@
   - scene discovery is working (`MainTown` active scene)
   - baseline screenshot capture hit transient Unity MCP transport failures (`Unity is reloading`, then `Could not connect to Unity` / `Connection closed before reading expected bytes`)
   - next attempt will use a deterministic UI shell checkpoint after the first test-driven layout change instead of treating the current unstable screenshot pass as authoritative
+- Shell checkpoint status:
+  - added a new PlayMode shell test: `UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesThreeRegionShell`
+  - verified the test fails red against the old `TabInventory` document because the shell regions were absent
+  - implemented the minimal green phase in `TabInventory.uxml`, `TabInventory.uss`, and `TabInventoryViewBinder.cs`
+  - local non-Unity verification passed: `xmllint --noout` on `TabInventory.uxml`, `git diff --check`
+  - Unity test rerun is currently blocked by a Unity test-framework/editor-state failure after the first PlayMode run:
+    - `InvalidOperationException: This cannot be used during play mode, please use SceneManager.CreateScene() instead.`
+    - follow-on symptom: the editor was left on an `InitTestScene...` bootstrap scene and the Unity MCP bridge intermittently lost the active editor instance
+  - the shell code is checkpointed for review, but the `Three-region shell landed` checklist item stays open until a clean rerun is recorded
 
 ## Verification
 

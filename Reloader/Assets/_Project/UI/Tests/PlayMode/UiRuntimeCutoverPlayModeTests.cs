@@ -147,6 +147,35 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(bridge.IsScreenBoundForTests(EscMenuScreenId), Is.True);
         }
 
+        [UnityTest]
+        public IEnumerator ExecuteCutover_TabInventoryUsesThreeRegionShell()
+        {
+            var installerGo = new GameObject("Installer");
+            installerGo.AddComponent<UiToolkitRuntimeInstaller>();
+
+            var bootstrapGo = new GameObject("Bootstrap");
+            var bootstrap = bootstrapGo.AddComponent<BeltHudBootstrap>();
+            bootstrap.ExecuteCutover();
+
+            yield return null;
+
+            var runtimeRoot = Object.FindFirstObjectByType<UiToolkitRuntimeRoot>(FindObjectsInactive.Include);
+            Assert.That(runtimeRoot, Is.Not.Null);
+
+            var documentTransform = runtimeRoot.transform.Find(TabInventoryScreenId);
+            Assert.That(documentTransform, Is.Not.Null);
+
+            var document = documentTransform.GetComponent<UIDocument>();
+            Assert.That(document, Is.Not.Null);
+
+            var root = document.rootVisualElement;
+            Assert.That(root, Is.Not.Null);
+            Assert.That(root.Q<VisualElement>("inventory__shell"), Is.Not.Null);
+            Assert.That(root.Q<VisualElement>("inventory__rail"), Is.Not.Null);
+            Assert.That(root.Q<VisualElement>("inventory__workspace"), Is.Not.Null);
+            Assert.That(root.Q<VisualElement>("inventory__detail-pane"), Is.Not.Null);
+        }
+
         private static void CleanupScene()
         {
             DestroyOwnersOfType<UiToolkitRuntimeRoot>();
