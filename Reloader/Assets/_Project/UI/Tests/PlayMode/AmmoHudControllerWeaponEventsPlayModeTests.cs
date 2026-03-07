@@ -38,7 +38,7 @@ namespace Reloader.UI.Tests.PlayMode
 
                 injectedWeaponEvents.RaiseWeaponEquipped("weapon-injected");
                 Assert.That(visualRoot.style.display.value, Is.EqualTo(DisplayStyle.Flex));
-                Assert.That(label.text, Is.EqualTo("Injected Round 0/14"));
+                Assert.That(label.text, Is.EqualTo("Injected Round 3/14"));
             }
             finally
             {
@@ -67,7 +67,7 @@ namespace Reloader.UI.Tests.PlayMode
             {
                 initialHub.RaiseWeaponEquipped("weapon-fallback");
                 Assert.That(visualRoot.style.display.value, Is.EqualTo(DisplayStyle.Flex));
-                Assert.That(label.text, Is.EqualTo("Initial Round 0/18"));
+                Assert.That(label.text, Is.EqualTo("Initial Round 4/18"));
 
                 RuntimeKernelBootstrapper.Events = replacementHub;
                 weaponController.ApplyRuntimeState("weapon-fallback", 1, 7, true);
@@ -77,10 +77,10 @@ namespace Reloader.UI.Tests.PlayMode
                     Array.Empty<AmmoBallisticSnapshot>());
 
                 initialHub.RaiseWeaponFired("weapon-fallback", Vector3.zero, Vector3.forward);
-                Assert.That(label.text, Is.EqualTo("Initial Round 0/18"));
+                Assert.That(label.text, Is.EqualTo("Initial Round 4/18"));
 
                 replacementHub.RaiseWeaponFired("weapon-fallback", Vector3.zero, Vector3.forward);
-                Assert.That(label.text, Is.EqualTo("Replacement Round 0/7"));
+                Assert.That(label.text, Is.EqualTo("Replacement Round 1/7"));
             }
             finally
             {

@@ -140,7 +140,8 @@ namespace Reloader.UI.Tests.PlayMode
             runtime.BeltSlotItemIds[4] = "slot-4";
 
             var itemDefinition = ScriptableObject.CreateInstance<Reloader.Core.Items.ItemDefinition>();
-            itemDefinition.SetValuesForTests("item-belt", Reloader.Core.Items.ItemCategory.Misc, "Item Belt", Reloader.Core.Items.ItemStackPolicy.NonStackable, 1);
+            var iconPrefab = new GameObject("item-belt-icon");
+            itemDefinition.SetValuesForTests("item-belt", Reloader.Core.Items.ItemCategory.Misc, "Item Belt", Reloader.Core.Items.ItemStackPolicy.NonStackable, 1, iconPrefab);
             var registryField = typeof(PlayerInventoryController).GetField("_itemDefinitionRegistry", BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(registryField, Is.Not.Null);
             registryField.SetValue(inventoryController, new System.Collections.Generic.List<Reloader.Core.Items.ItemDefinition> { itemDefinition });
@@ -168,6 +169,7 @@ namespace Reloader.UI.Tests.PlayMode
             }
 
             UnityEngine.Object.DestroyImmediate(itemDefinition);
+            UnityEngine.Object.DestroyImmediate(iconPrefab);
             UnityEngine.Object.DestroyImmediate(go);
         }
 
@@ -239,7 +241,7 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
-        public void UiToolkitScreenRuntimeBridge_BindTabInventory_FallsBackToMinimumBackpackUiSlotFloor_WhenRuntimeIsUnavailable()
+        public void UiToolkitScreenRuntimeBridge_BindTabInventory_UsesControllerOwnedRuntimeCapacity_WhenControllerWasNotExplicitlyConfigured()
         {
             var bridgeGo = new GameObject("UiBridge");
             var inventoryGo = new GameObject("InventoryController");
@@ -270,7 +272,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(backpackSlotsField, Is.Not.Null);
             var backpackSlots = backpackSlotsField.GetValue(viewBinder) as VisualElement[];
             Assert.That(backpackSlots, Is.Not.Null);
-            Assert.That(backpackSlots.Length, Is.EqualTo(16));
+            Assert.That(backpackSlots.Length, Is.EqualTo(9));
 
             subscription.Dispose();
             UnityEngine.Object.DestroyImmediate(inventoryGo);
@@ -404,7 +406,7 @@ namespace Reloader.UI.Tests.PlayMode
                 backpackSlots: new TabInventoryUiState.SlotState[2],
                 tooltipTitle: string.Empty,
                 tooltipVisible: false,
-                activeSection: "quests"));
+                activeSection: "contracts"));
 
             var inventoryPanel = root.Q<VisualElement>("inventory__section-inventory");
             var questsPanel = root.Q<VisualElement>("inventory__section-quests");
@@ -1131,34 +1133,107 @@ namespace Reloader.UI.Tests.PlayMode
         {
             var root = new VisualElement { name = "inventory__root" };
             var panel = new VisualElement { name = "inventory__panel" };
-            root.Add(panel);
-
+            var shell = new VisualElement { name = "inventory__shell" };
+            var rail = new VisualElement { name = "inventory__rail" };
             var tabBar = new VisualElement { name = "inventory__tabbar" };
+            var workspace = new VisualElement { name = "inventory__workspace" };
+            var detailPane = new VisualElement { name = "inventory__detail-pane" };
+            root.Add(panel);
+            panel.Add(new Label { name = "inventory__header-meta", text = "Monday • 08:00 • $500" });
+            panel.Add(shell);
+            shell.Add(rail);
+            rail.Add(tabBar);
+            shell.Add(workspace);
+            shell.Add(detailPane);
+
             tabBar.Add(new Button { name = "inventory__tab-inventory", text = "Inventory" });
             tabBar.Add(new Button { name = "inventory__tab-quests", text = "Quests" });
             tabBar.Add(new Button { name = "inventory__tab-journal", text = "Journal" });
             tabBar.Add(new Button { name = "inventory__tab-calendar", text = "Calendar" });
-            panel.Add(tabBar);
+            tabBar.Add(new Button { name = "inventory__tab-device", text = "Device" });
 
             var inventorySection = new VisualElement { name = "inventory__section-inventory" };
-            panel.Add(inventorySection);
-            for (var i = 0; i < 5; i++)
-            {
-                inventorySection.Add(new VisualElement { name = $"inventory__belt-slot-{i}" });
-            }
+            var questsSection = new VisualElement { name = "inventory__section-quests" };
+            var journalSection = new VisualElement { name = "inventory__section-journal" };
+            var calendarSection = new VisualElement { name = "inventory__section-calendar" };
+            var deviceSection = new VisualElement { name = "inventory__section-device" };
+            var attachmentsSection = new VisualElement { name = "inventory__section-attachments" };
+            workspace.Add(inventorySection);
+            workspace.Add(questsSection);
+            workspace.Add(journalSection);
+            workspace.Add(calendarSection);
+            workspace.Add(deviceSection);
+            workspace.Add(attachmentsSection);
+
+            var gridArea = new VisualElement { name = "inventory__grid-area" };
+            var backpackGrid = new VisualElement { name = "inventory__backpack-grid" };
+            var beltGrid = new VisualElement { name = "inventory__grid-row--belt" };
+            inventorySection.Add(gridArea);
+            gridArea.Add(backpackGrid);
+            gridArea.Add(beltGrid);
 
             for (var i = 0; i < backpackSlotCount; i++)
             {
-                inventorySection.Add(new VisualElement { name = $"inventory__backpack-slot-{i}" });
+                backpackGrid.Add(new VisualElement { name = $"inventory__backpack-slot-{i}" });
             }
 
-            panel.Add(new VisualElement { name = "inventory__section-quests" });
-            panel.Add(new VisualElement { name = "inventory__section-journal" });
-            panel.Add(new VisualElement { name = "inventory__section-calendar" });
+            for (var i = 0; i < 5; i++)
+            {
+                beltGrid.Add(new VisualElement { name = $"inventory__belt-slot-{i}" });
+            }
+
+            questsSection.Add(new Label { name = "inventory__contracts-status" });
+            var contractsFeed = new VisualElement { name = "inventory__contracts-feed" };
+            var contractsRow = new VisualElement { name = "inventory__contracts-row" };
+            var rowPreview = new VisualElement();
+            rowPreview.Add(new VisualElement());
+            var rowCopy = new VisualElement();
+            rowCopy.Add(new Label { name = "inventory__contracts-title" });
+            rowCopy.Add(new Label { name = "inventory__contracts-summary" });
+            contractsRow.Add(rowPreview);
+            contractsRow.Add(rowCopy);
+            contractsRow.Add(new Label { name = "inventory__contracts-payout" });
+            contractsRow.Add(new Button { name = "inventory__contracts-primary-action" });
+            contractsFeed.Add(contractsRow);
+            questsSection.Add(contractsFeed);
+            var contractsActive = new VisualElement { name = "inventory__contracts-active" };
+            contractsActive.Add(new Label { name = "inventory__contracts-target" });
+            contractsActive.Add(new Label { name = "inventory__contracts-briefing" });
+            contractsActive.Add(new Button { name = "inventory__contracts-active-primary-action" });
+            questsSection.Add(contractsActive);
+
+            deviceSection.Add(new VisualElement { name = "inventory__device-notes" });
+            deviceSection.Add(new VisualElement { name = "inventory__device-session-history" });
+            deviceSection.Add(new Button { name = "inventory__device-choose-target" });
+            deviceSection.Add(new Button { name = "inventory__device-save-group" });
+            deviceSection.Add(new Button { name = "inventory__device-clear-group" });
+            deviceSection.Add(new Button { name = "inventory__device-install-hooks" });
+            deviceSection.Add(new Button { name = "inventory__device-uninstall-hooks" });
+            attachmentsSection.Add(new Button { name = "inventory__attachments-apply" });
+            attachmentsSection.Add(new Button { name = "inventory__attachments-back" });
+            attachmentsSection.Add(new DropdownField { name = "inventory__attachments-slot-dropdown" });
+            attachmentsSection.Add(new DropdownField { name = "inventory__attachments-item-dropdown" });
+            attachmentsSection.Add(new Label { name = "inventory__attachments-weapon-name" });
+            attachmentsSection.Add(new Label { name = "inventory__attachments-status" });
+
+            detailPane.Add(new VisualElement { name = "inventory__detail-pane-generic" });
+            detailPane.Add(new VisualElement { name = "inventory__detail-pane-contracts" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-base-payout" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-bonus-conditions" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-restrictions" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-failure-conditions" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-reward-state" });
+
+            panel.Add(new Label { name = "inventory__device-selected-target-value" });
+            panel.Add(new Label { name = "inventory__device-shot-count-value" });
+            panel.Add(new Label { name = "inventory__device-spread-value" });
+            panel.Add(new Label { name = "inventory__device-moa-value" });
+            panel.Add(new Label { name = "inventory__device-saved-groups-value" });
+            panel.Add(new Label { name = "inventory__device-install-feedback-text" });
 
             var tooltip = new VisualElement { name = "inventory__tooltip" };
             tooltip.Add(new Label { name = "inventory__tooltip-title" });
-            inventorySection.Add(tooltip);
+            panel.Add(tooltip);
 
             return root;
         }

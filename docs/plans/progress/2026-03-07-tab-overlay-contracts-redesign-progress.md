@@ -110,6 +110,14 @@
   - wired `TabInventoryController` and `UiToolkitScreenRuntimeBridge` to render the approved header format `Monday • 18:40 • $2,450` from world time plus current money
   - extended the right contracts pane to swap between generic context copy and contracts-only terms, including base payout, placeholder bonus/restriction text, static failure rules, and reward-state messaging
   - added coverage in `CoreWorldRuntimeTests`, `CoreWorldControllerTests`, `TabInventoryContractsSectionPlayModeTests`, `TabInventoryContractsBridgePlayModeTests`, and the UXML copy guards
+- UI verification hardening checkpoint status:
+  - investigated the previously noisy full `Reloader.UI.Tests.PlayMode` run instead of continuing to scope verification down to contracts-only tests
+  - fixed stale `AmmoHudControllerWeaponEventsPlayModeTests` expectations to match the fixture-seeded magazine/reserve counts already rendered by `AmmoHudController`
+  - fixed stale `EscMenuUiToolkitPlayModeTests` expectations to match the current ESC same-frame close guard and the existing channel-scaling audio behavior
+  - updated the handcrafted `UiToolkitScreenFlowPlayModeTests` TAB root helper to the current three-region shell and contracts/device/detail-pane structure, so generic TAB flow tests no longer exercised an obsolete pre-redesign layout
+  - fixed `UiToolkitScreenFlowPlayModeTests.TabInventoryController_HandleDropIntent_RemovesSourceSlotItem` by giving the dropped item fixture an `IconSourcePrefab`, matching the current runtime dropped-item factory contract
+  - fixed one real runtime issue in `PlayerInventoryController.Configure(...)`: injected `PlayerInventoryRuntime` instances now preserve their authored backpack capacity instead of being reset to the serialized default
+  - result: the full UI PlayMode assembly is green again, so broader verification can include `Reloader.UI.Tests.PlayMode` instead of only the contracts-specific subset
 
 ## Verification
 
@@ -128,6 +136,10 @@
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests`: passed (`5/5`)
   - `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests`: passed (`7/7`)
   - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests`: passed (`3/3`)
+  - `Reloader.UI.Tests.PlayMode.AmmoHudControllerWeaponEventsPlayModeTests`: passed (`2/2`)
+  - `Reloader.UI.Tests.PlayMode.EscMenuUiToolkitPlayModeTests`: passed (`15/15`)
+  - `Reloader.UI.Tests.PlayMode.UiToolkitScreenFlowPlayModeTests`: passed (`30/30`)
+  - `Reloader.UI.Tests.PlayMode`: passed (`120/120`)
   - `Reloader.UI.Tests.PlayMode.TabInventoryAttachmentsPlayModeTests`: passed (`4/4`)
   - `Reloader.Core.Tests.EditMode.CoreWorldRuntimeTests`: passed (`2/2`)
   - `Reloader.Core.Tests.EditMode.CoreWorldControllerTests`: passed (`1/1`)
