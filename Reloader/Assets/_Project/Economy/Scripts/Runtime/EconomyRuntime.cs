@@ -154,6 +154,18 @@ namespace Reloader.Economy
             }
         }
 
+public bool AwardMoney(int amount)
+        {
+            if (amount <= 0)
+            {
+                return false;
+            }
+
+            Money += amount;
+            return true;
+        }
+
+
         public bool TryBuy(string itemId, int quantity, out int totalPrice, out TradeFailureReason reason)
         {
             totalPrice = 0;

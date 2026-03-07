@@ -26,6 +26,12 @@ namespace Reloader.UI.Toolkit.TabInventory
         private Label _tooltipTitle;
         private Label _tooltipSpecs;
         private VisualElement _inventorySection;
+        private Label _contractsStatus;
+        private Label _contractsTitle;
+        private Label _contractsTarget;
+        private Label _contractsDistance;
+        private Label _contractsPayout;
+        private Label _contractsBriefing;
         private VisualElement _questsSection;
         private VisualElement _journalSection;
         private VisualElement _calendarSection;
@@ -44,6 +50,7 @@ namespace Reloader.UI.Toolkit.TabInventory
         private Label _deviceInstallFeedbackText;
         private VisualElement _deviceSessionHistory;
         private Button _tabInventory;
+        private Button _contractsAcceptButton;
         private Button _tabQuests;
         private Button _tabJournal;
         private Button _tabCalendar;
@@ -143,6 +150,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             _deviceUninstallHooksButton = root?.Q<Button>("inventory__device-uninstall-hooks");
             _attachmentsApplyButton = root?.Q<Button>("inventory__attachments-apply");
             _attachmentsBackButton = root?.Q<Button>("inventory__attachments-back");
+            EnsureContractsSectionBindings();
             _intentInvokeByTestId.Clear();
             _tabs.Clear();
             _deviceButtonRows.Clear();
@@ -261,6 +269,37 @@ namespace Reloader.UI.Toolkit.TabInventory
             CacheSlotItemIds(_backpackSlotItemIds, inventoryState.BackpackSlots);
             CacheSlotStackData(_backpackSlotMaxStacks, _backpackSlotQuantities, inventoryState.BackpackSlots);
             ApplySectionVisibility(inventoryState.ActiveSection);
+            if (_contractsStatus != null)
+            {
+                _contractsStatus.text = inventoryState.ContractPanel.StatusText;
+            }
+
+            if (_contractsTitle != null)
+            {
+                _contractsTitle.text = inventoryState.ContractPanel.TitleText;
+            }
+
+            if (_contractsTarget != null)
+            {
+                _contractsTarget.text = inventoryState.ContractPanel.TargetText;
+            }
+
+            if (_contractsDistance != null)
+            {
+                _contractsDistance.text = inventoryState.ContractPanel.DistanceText;
+            }
+
+            if (_contractsPayout != null)
+            {
+                _contractsPayout.text = inventoryState.ContractPanel.PayoutText;
+            }
+
+            if (_contractsBriefing != null)
+            {
+                _contractsBriefing.text = inventoryState.ContractPanel.BriefingText;
+            }
+
+            _contractsAcceptButton?.SetEnabled(inventoryState.ContractPanel.CanAccept);
             if (_deviceNotes != null)
             {
                 _deviceNotes.style.display = inventoryState.DeviceNotesVisible ? DisplayStyle.Flex : DisplayStyle.None;
@@ -349,14 +388,72 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
         }
 
-        private void RegisterTabIntents()
+private void RegisterTabIntents()
         {
             RegisterIntent(_tabInventory, "test.tab.inventory", "tab.menu.select", "inventory");
-            RegisterIntent(_tabQuests, "test.tab.quests", "tab.menu.select", "quests");
+            RegisterIntent(_tabQuests, "test.tab.contracts", "tab.menu.select", "contracts");
             RegisterIntent(_tabCalendar, "test.tab.calendar", "tab.menu.select", "calendar");
             RegisterIntent(_tabJournal, "test.tab.journal", "tab.menu.select", "journal");
             RegisterIntent(_tabDevice, "test.tab.device", "tab.menu.select", "device");
         }
+
+private void EnsureContractsSectionBindings()
+        {
+            if (_tabQuests != null)
+            {
+                _tabQuests.text = "Contracts";
+            }
+
+            if (_questsSection == null)
+            {
+                return;
+            }
+
+            _contractsStatus = _questsSection.Q<Label>("inventory__contracts-status");
+            _contractsTitle = _questsSection.Q<Label>("inventory__contracts-title");
+            _contractsTarget = _questsSection.Q<Label>("inventory__contracts-target");
+            _contractsDistance = _questsSection.Q<Label>("inventory__contracts-distance");
+            _contractsPayout = _questsSection.Q<Label>("inventory__contracts-payout");
+            _contractsBriefing = _questsSection.Q<Label>("inventory__contracts-briefing");
+            _contractsAcceptButton = _questsSection.Q<Button>("inventory__contracts-accept");
+            if (_contractsStatus != null
+                && _contractsTitle != null
+                && _contractsTarget != null
+                && _contractsDistance != null
+                && _contractsPayout != null
+                && _contractsBriefing != null
+                && _contractsAcceptButton != null)
+            {
+                return;
+            }
+
+            _questsSection.Clear();
+            var panel = new VisualElement { name = "inventory__contracts-panel" };
+            panel.style.flexDirection = FlexDirection.Column;
+            panel.style.marginTop = 4f;
+
+            var heading = new Label("Contracts") { name = "inventory__contracts-heading" };
+            _contractsStatus = new Label { name = "inventory__contracts-status" };
+            _contractsTitle = new Label { name = "inventory__contracts-title" };
+            _contractsTarget = new Label { name = "inventory__contracts-target" };
+            _contractsDistance = new Label { name = "inventory__contracts-distance" };
+            _contractsPayout = new Label { name = "inventory__contracts-payout" };
+            _contractsBriefing = new Label { name = "inventory__contracts-briefing" };
+            _contractsBriefing.style.whiteSpace = WhiteSpace.Normal;
+            _contractsAcceptButton = new Button { name = "inventory__contracts-accept", text = "Accept Contract" };
+            _contractsAcceptButton.clicked += () => IntentRaised?.Invoke(new UiIntent("tab.inventory.contracts.accept", null));
+
+            panel.Add(heading);
+            panel.Add(_contractsStatus);
+            panel.Add(_contractsTitle);
+            panel.Add(_contractsTarget);
+            panel.Add(_contractsDistance);
+            panel.Add(_contractsPayout);
+            panel.Add(_contractsBriefing);
+            panel.Add(_contractsAcceptButton);
+            _questsSection.Add(panel);
+        }
+
 
         private void RegisterDeviceActionIntents()
         {
@@ -605,18 +702,18 @@ namespace Reloader.UI.Toolkit.TabInventory
         }
 
 
-        private void ApplySectionVisibility(string activeSection)
+private void ApplySectionVisibility(string activeSection)
         {
             var section = string.IsNullOrWhiteSpace(activeSection) ? "inventory" : activeSection;
             SetSectionVisibility(_inventorySection, section == "inventory");
-            SetSectionVisibility(_questsSection, section == "quests");
+            SetSectionVisibility(_questsSection, section == "contracts");
             SetSectionVisibility(_journalSection, section == "journal");
             SetSectionVisibility(_calendarSection, section == "calendar");
             SetSectionVisibility(_deviceSection, section == "device");
             SetSectionVisibility(_attachmentsSection, section == "attachments");
 
             _tabInventory?.EnableInClassList("is-active", section == "inventory");
-            _tabQuests?.EnableInClassList("is-active", section == "quests");
+            _tabQuests?.EnableInClassList("is-active", section == "contracts");
             _tabJournal?.EnableInClassList("is-active", section == "journal");
             _tabCalendar?.EnableInClassList("is-active", section == "calendar");
             _tabDevice?.EnableInClassList("is-active", section == "device");
@@ -763,12 +860,12 @@ namespace Reloader.UI.Toolkit.TabInventory
             return TryPointerUpOutsideSlots();
         }
 
-        public bool TryInvokeTabSelectionForTests(string section)
+public bool TryInvokeTabSelectionForTests(string section)
         {
             var testId = section switch
             {
                 "inventory" => "test.tab.inventory",
-                "quests" => "test.tab.quests",
+                "contracts" => "test.tab.contracts",
                 "journal" => "test.tab.journal",
                 "calendar" => "test.tab.calendar",
                 "device" => "test.tab.device",

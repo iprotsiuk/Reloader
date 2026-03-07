@@ -184,5 +184,66 @@ namespace Reloader.World.Tests.EditMode
 
             return null;
         }
-    }
+
+
+[Test]
+        public void MainTownScene_HasAuthoredContractRuntimeAndHumanTargetSlice()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var providerType = Type.GetType("Reloader.Contracts.Runtime.StaticContractRuntimeProvider, Reloader.Core");
+                var payoutReceiverType = Type.GetType("Reloader.Economy.EconomyContractPayoutReceiver, Reloader.Economy");
+                var npcAgentType = Type.GetType("Reloader.NPCs.Runtime.NpcAgent, Reloader.NPCs");
+                var targetDamageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons");
+                var patrolType = Type.GetType("Reloader.NPCs.Runtime.ContractTargetPatrolMotion, Reloader.NPCs");
+
+                Assert.That(providerType, Is.Not.Null);
+                Assert.That(payoutReceiverType, Is.Not.Null);
+                Assert.That(npcAgentType, Is.Not.Null);
+                Assert.That(targetDamageableType, Is.Not.Null);
+                Assert.That(patrolType, Is.Not.Null);
+
+                var runtimeRoot = FindRoot(scene, "MainTownContractRuntime");
+                Assert.That(runtimeRoot, Is.Not.Null, "Expected an authored contract runtime root in MainTown.");
+                var provider = runtimeRoot!.GetComponent(providerType!);
+                Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+
+                var providerSerializedObject = new SerializedObject((UnityEngine.Object)provider);
+                Assert.That(providerSerializedObject.FindProperty("_availableContract")!.objectReferenceValue, Is.Not.Null, "Contract runtime should point at an authored contract asset.");
+                Assert.That(providerSerializedObject.FindProperty("_payoutReceiverBehaviour")!.objectReferenceValue, Is.Not.Null, "Contract runtime should point at the payout receiver bridge.");
+                Assert.That(providerSerializedObject.FindProperty("_searchDurationSeconds")!.floatValue, Is.EqualTo(30f).Within(0.01f));
+
+                var economyController = FindRoot(scene, "EconomyController");
+                Assert.That(economyController, Is.Not.Null);
+                Assert.That(economyController!.GetComponent(payoutReceiverType!), Is.Not.Null, "EconomyController should expose the contract payout receiver bridge.");
+
+                var targetRoot = FindRoot(scene, "ContractTarget_Volkov");
+                Assert.That(targetRoot, Is.Not.Null, "Expected authored contract target root in MainTown.");
+                Assert.That(targetRoot!.GetComponent(npcAgentType!), Is.Not.Null, "Contract target should stay on the NPC foundation shell.");
+
+                var targetDamageable = targetRoot.GetComponent(targetDamageableType!);
+                Assert.That(targetDamageable, Is.Not.Null, "Contract target should expose the authored damageable/runtime target contract.");
+                var targetSerializedObject = new SerializedObject((UnityEngine.Object)targetDamageable);
+                Assert.That(targetSerializedObject.FindProperty("_targetId")!.stringValue, Is.EqualTo("target.maintown.volkov"));
+                Assert.That(targetSerializedObject.FindProperty("_displayName")!.stringValue, Is.EqualTo("Maksim Volkov"));
+                Assert.That(targetSerializedObject.FindProperty("_eliminationSinkBehaviour")!.objectReferenceValue, Is.SameAs(provider), "Contract target should point explicitly at the authored contract runtime provider.");
+
+                var patrol = targetRoot.GetComponent(patrolType!);
+                Assert.That(patrol, Is.Not.Null, "Contract target should keep authored patrol motion.");
+                var patrolSerializedObject = new SerializedObject((UnityEngine.Object)patrol);
+                Assert.That(patrolSerializedObject.FindProperty("_waypoints")!.arraySize, Is.EqualTo(2), "Contract target patrol should keep two authored waypoint anchors.");
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+}
 }

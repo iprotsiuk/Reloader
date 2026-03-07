@@ -8,15 +8,21 @@
 
 **Tech Stack:** Unity 6.3, C#, UI Toolkit, ScriptableObject data assets, NUnit EditMode tests, Unity PlayMode tests.
 
+**Implementation Note:** The current repo assembly layout makes `Contracts` runtime types awkward to host entirely under the `Reloader.Contracts` asmdef. Until that assembly boundary is cleaned up, the runtime controller/provider seam for this slice lives in `Reloader/Assets/_Project/Core/Scripts/Runtime/` under the `Reloader.Contracts.Runtime` namespace, and the old `Quests` tab shell is repointed to a runtime-rendered `Contracts` panel instead of a broad UXML rewrite.
+
+**Unity Version Note:** Command examples below assume the repo-pinned Unity editor `6000.3.8f1`. When possible, prefer `scripts/run-unity-tests.sh` so the editor version stays aligned with `Reloader/ProjectSettings/ProjectVersion.txt`.
+
 ---
 
 ### Task 1: Add Contract Runtime State And Event Tests
 
 **Files:**
-- Create: `Reloader/Assets/_Project/Contracts/Tests/EditMode/ContractRuntimeControllerTests.cs`
+- Create: `Reloader/Assets/_Project/Core/Tests/EditMode/ContractRuntimeControllerTests.cs`
 - Modify: `Reloader/Assets/_Project/Core/Tests/EditMode/ContractEventContractsTests.cs`
-- Modify: `Reloader/Assets/_Project/Contracts/Scripts/Reloader.Contracts.asmdef`
-- Create or modify test asmdef if needed: `Reloader/Assets/_Project/Contracts/Tests/EditMode/Reloader.Contracts.Tests.EditMode.asmdef`
+- Create: `Reloader/Assets/_Project/Core/Scripts/Runtime/ContractRuntimeController.cs`
+- Create: `Reloader/Assets/_Project/Core/Scripts/Runtime/IContractRuntimeProvider.cs`
+- Create: `Reloader/Assets/_Project/Core/Scripts/Runtime/StaticContractRuntimeProvider.cs`
+- Create: `Reloader/Assets/_Project/Core/Scripts/Runtime/ContractOfferSnapshot.cs`
 
 **Step 1: Write the failing tests**
 
@@ -32,7 +38,7 @@ Cover:
 Run:
 
 ```bash
-/Applications/Unity/Hub/Editor/6000.3.0f1/Unity.app/Contents/MacOS/Unity \
+/Applications/Unity/Hub/Editor/6000.3.8f1/Unity.app/Contents/MacOS/Unity \
   -batchmode -projectPath Reloader \
   -runTests -testPlatform EditMode \
   -testFilter Reloader.Contracts.Tests.EditMode.ContractRuntimeControllerTests \
@@ -45,7 +51,7 @@ Expected:
 
 **Step 3: Write minimal implementation**
 
-Create a small contract runtime controller/service under `Reloader/Assets/_Project/Contracts/Scripts/Runtime/` that:
+Create a small contract runtime controller/service under `Reloader/Assets/_Project/Core/Scripts/Runtime/` that:
 - accepts one `AssassinationContractDefinition`
 - exposes the active `AssassinationContractRuntimeState`
 - raises `RuntimeKernelBootstrapper.ContractEvents`
@@ -60,8 +66,8 @@ Run the same EditMode command and expect PASS.
 **Step 5: Commit**
 
 ```bash
-git add Reloader/Assets/_Project/Contracts/Scripts/Runtime \
-        Reloader/Assets/_Project/Contracts/Tests/EditMode \
+git add Reloader/Assets/_Project/Core/Scripts/Runtime \
+        Reloader/Assets/_Project/Core/Tests/EditMode/ContractRuntimeControllerTests.cs \
         Reloader/Assets/_Project/Core/Tests/EditMode/ContractEventContractsTests.cs
 git commit -m "feat: add contract runtime controller"
 ```
@@ -69,11 +75,12 @@ git commit -m "feat: add contract runtime controller"
 ### Task 2: Add Contracts Tab UI Tests First
 
 **Files:**
-- Modify: `Reloader/Assets/_Project/UI/Toolkit/UXML/TabInventory.uxml`
 - Modify: `Reloader/Assets/_Project/UI/Scripts/Toolkit/TabInventory/TabInventoryController.cs`
 - Modify: `Reloader/Assets/_Project/UI/Scripts/Toolkit/TabInventory/TabInventoryViewBinder.cs`
-- Create: `Reloader/Assets/_Project/UI/Tests/PlayMode/TabInventoryContractsPlayModeTests.cs`
-- Modify: `Reloader/Assets/_Project/UI/Tests/EditMode/TabInventoryUxmlCopyEditModeTests.cs`
+- Modify: `Reloader/Assets/_Project/UI/Scripts/Toolkit/TabInventory/TabInventoryUiState.cs`
+- Create: `Reloader/Assets/_Project/UI/Scripts/Toolkit/TabInventory/ITabInventoryContractController.cs`
+- Create: `Reloader/Assets/_Project/UI/Scripts/Toolkit/TabInventory/TabInventoryContractStatus.cs`
+- Create: `Reloader/Assets/_Project/UI/Tests/PlayMode/TabInventoryContractsSectionPlayModeTests.cs`
 
 **Step 1: Write the failing tests**
 
@@ -89,7 +96,7 @@ Cover:
 Run:
 
 ```bash
-/Applications/Unity/Hub/Editor/6000.3.0f1/Unity.app/Contents/MacOS/Unity \
+/Applications/Unity/Hub/Editor/6000.3.8f1/Unity.app/Contents/MacOS/Unity \
   -batchmode -projectPath Reloader \
   -runTests -testPlatform PlayMode \
   -testFilter Reloader.UI.Tests.PlayMode.TabInventoryContractsPlayModeTests \
@@ -109,18 +116,16 @@ Add a `Contracts` section to the TAB UI with:
 - active-state text
 - result-state text
 
-Keep it read-only except for `Accept` in the first pass.
+Keep it read-only except for `Accept` in the first pass. Reuse the existing `inventory__tab-quests` / `inventory__section-quests` shell and repoint it to runtime-rendered `Contracts` content to avoid a wider UXML churn in this PR.
 
 **Step 4: Run tests to verify they pass**
 
 Run the PlayMode command above plus:
 
 ```bash
-/Applications/Unity/Hub/Editor/6000.3.0f1/Unity.app/Contents/MacOS/Unity \
-  -batchmode -projectPath Reloader \
-  -runTests -testPlatform EditMode \
-  -testFilter Reloader.UI.Tests.EditMode.TabInventoryUxmlCopyEditModeTests \
-  -logFile -
+Unity PlayMode tests for:
+- `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests.Controller_ContractsTab_RenamesQuestsTabAndShowsAvailableContract`
+- `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests.Controller_ContractsAcceptIntent_DelegatesAndRefreshesActiveContractState`
 ```
 
 Expected: PASS
@@ -128,10 +133,8 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add Reloader/Assets/_Project/UI/Toolkit/UXML/TabInventory.uxml \
-        Reloader/Assets/_Project/UI/Scripts/Toolkit/TabInventory \
-        Reloader/Assets/_Project/UI/Tests/PlayMode/TabInventoryContractsPlayModeTests.cs \
-        Reloader/Assets/_Project/UI/Tests/EditMode/TabInventoryUxmlCopyEditModeTests.cs
+git add Reloader/Assets/_Project/UI/Scripts/Toolkit/TabInventory \
+        Reloader/Assets/_Project/UI/Tests/PlayMode/TabInventoryContractsSectionPlayModeTests.cs
 git commit -m "feat: add contracts tab to tab inventory"
 ```
 
@@ -140,8 +143,10 @@ git commit -m "feat: add contracts tab to tab inventory"
 **Files:**
 - Modify: `Reloader/Assets/_Project/UI/Scripts/Toolkit/TabInventory/TabInventoryController.cs`
 - Modify: `Reloader/Assets/_Project/UI/Scripts/Toolkit/Runtime/UiToolkitScreenRuntimeBridge.cs`
-- Modify or create: `Reloader/Assets/_Project/Contracts/Scripts/Runtime/*UiAdapter*.cs`
-- Test: `Reloader/Assets/_Project/UI/Tests/PlayMode/TabInventoryContractsPlayModeTests.cs`
+- Modify or create: `Reloader/Assets/_Project/Core/Scripts/Runtime/IContractRuntimeProvider.cs`
+- Modify or create: `Reloader/Assets/_Project/Core/Scripts/Runtime/StaticContractRuntimeProvider.cs`
+- Modify or create: `Reloader/Assets/_Project/Core/Scripts/Runtime/ContractOfferSnapshot.cs`
+- Test: `Reloader/Assets/_Project/UI/Tests/PlayMode/TabInventoryContractsBridgePlayModeTests.cs`
 
 **Step 1: Write the failing tests**
 
@@ -161,18 +166,19 @@ Add a narrow UI-facing adapter interface similar to the existing device adapter 
 - query active contract status
 - accept available contract
 
-Wire it into `TabInventoryController` through the runtime bridge.
+Wire it into `TabInventoryController` through the runtime bridge. Keep the bridge/UI side assembly-clean by adapting from a snapshot/provider seam rather than referencing contract asset types directly.
 
 **Step 4: Run tests to verify it passes**
 
-Run the same `TabInventoryContractsPlayModeTests` command and expect PASS.
+Run the bridge acceptance PlayMode test and expect PASS.
 
 **Step 5: Commit**
 
 ```bash
 git add Reloader/Assets/_Project/UI/Scripts/Toolkit/TabInventory/TabInventoryController.cs \
         Reloader/Assets/_Project/UI/Scripts/Toolkit/Runtime/UiToolkitScreenRuntimeBridge.cs \
-        Reloader/Assets/_Project/Contracts/Scripts/Runtime
+        Reloader/Assets/_Project/Core/Scripts/Runtime \
+        Reloader/Assets/_Project/UI/Tests/PlayMode/TabInventoryContractsBridgePlayModeTests.cs
 git commit -m "feat: wire contracts runtime into tab ui"
 ```
 
@@ -198,7 +204,7 @@ Cover:
 Run:
 
 ```bash
-/Applications/Unity/Hub/Editor/6000.3.0f1/Unity.app/Contents/MacOS/Unity \
+/Applications/Unity/Hub/Editor/6000.3.8f1/Unity.app/Contents/MacOS/Unity \
   -batchmode -projectPath Reloader \
   -runTests -testPlatform EditMode \
   -testFilter Reloader.NPCs.Tests.EditMode.ContractTargetNpcTests \
@@ -248,7 +254,7 @@ Cover:
 Run:
 
 ```bash
-/Applications/Unity/Hub/Editor/6000.3.0f1/Unity.app/Contents/MacOS/Unity \
+/Applications/Unity/Hub/Editor/6000.3.8f1/Unity.app/Contents/MacOS/Unity \
   -batchmode -projectPath Reloader \
   -runTests -testPlatform PlayMode \
   -testFilter Reloader.NPCs.Tests.PlayMode.ContractTargetKillPlayModeTests \
@@ -298,7 +304,7 @@ Cover:
 Run:
 
 ```bash
-/Applications/Unity/Hub/Editor/6000.3.0f1/Unity.app/Contents/MacOS/Unity \
+/Applications/Unity/Hub/Editor/6000.3.8f1/Unity.app/Contents/MacOS/Unity \
   -batchmode -projectPath Reloader \
   -runTests -testPlatform EditMode \
   -testFilter "Reloader.Contracts.Tests.EditMode.ContractPayoutAfterHeatTests,Reloader.LawEnforcement.Tests.EditMode.PoliceHeatControllerTests" \
@@ -354,7 +360,7 @@ Cover:
 Run:
 
 ```bash
-/Applications/Unity/Hub/Editor/6000.3.0f1/Unity.app/Contents/MacOS/Unity \
+/Applications/Unity/Hub/Editor/6000.3.8f1/Unity.app/Contents/MacOS/Unity \
   -batchmode -projectPath Reloader \
   -runTests -testPlatform EditMode \
   -testFilter Reloader.World.Tests.EditMode.MainTownCombatWiringEditModeTests \
@@ -364,7 +370,7 @@ Run:
 and
 
 ```bash
-/Applications/Unity/Hub/Editor/6000.3.0f1/Unity.app/Contents/MacOS/Unity \
+/Applications/Unity/Hub/Editor/6000.3.8f1/Unity.app/Contents/MacOS/Unity \
   -batchmode -projectPath Reloader \
   -runTests -testPlatform PlayMode \
   -testFilter Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests \
@@ -442,4 +448,3 @@ git add docs/design/v0.1-demo-status-and-milestones.md \
         docs/plans/progress/2026-03-06-first-contract-target-npc-vertical-slice-progress.md
 git commit -m "docs: update contract slice progress"
 ```
-

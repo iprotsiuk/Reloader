@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 81ff39dcb0a084307bcaf16548c4e422, type: 3}
+  m_Name: MainTown_FirstContract
+  m_EditorClassIdentifier: Reloader.Contracts::Reloader.Contracts.Runtime.AssassinationContractDefinition
+  _contractId: contract.maintown.first
+  _targetId: target.maintown.volkov
+  _archetype: 0
+  _title: Cafe Exit
+  _targetDisplayName: Maksim Volkov
+  _targetDescription: Gray coat, smoker, paces across the concrete pad east of your
+    house.
+  _briefingText: Mark the target from cover, wait for a clean window, then break
+    contact until the police search expires.
+  _distanceBand: 85
+  _payout: 1500

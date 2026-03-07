@@ -35,6 +35,7 @@ namespace Reloader.UI.Toolkit.TabInventory
         private TabInventoryViewBinder _viewBinder;
         private TabInventoryDragController _dragController;
         private IPlayerInputSource _inputSource;
+        private ITabInventoryContractController _contractController;
         private IDeviceController _deviceController;
         private IInventoryEvents _inventoryEvents;
         private IInventoryEvents _subscribedInventoryEvents;
@@ -189,6 +190,11 @@ namespace Reloader.UI.Toolkit.TabInventory
             _deviceController = deviceController;
         }
 
+        public void SetContractController(ITabInventoryContractController contractController)
+        {
+            _contractController = contractController;
+        }
+
         public void SetWeaponController(PlayerWeaponController weaponController)
         {
             _weaponController = weaponController;
@@ -230,12 +236,17 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
         }
 
-        public void HandleIntent(UiIntent intent)
+public void HandleIntent(UiIntent intent)
         {
             if (intent.Key == "tab.menu.select" && intent.Payload is string sectionId)
             {
                 _activeSection = NormalizeSection(sectionId);
                 Refresh();
+                return;
+            }
+
+            if (TryHandleContractIntent(intent))
+            {
                 return;
             }
 
@@ -311,12 +322,14 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
         }
 
-        private void Refresh()
+private void Refresh()
         {
             if (_viewBinder == null)
             {
                 return;
             }
+
+            var contractPanel = BuildContractPanelFields();
 
             if (_inventoryController?.Runtime == null)
             {
@@ -328,6 +341,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                     string.Empty,
                     false,
                     _activeSection,
+                    contractPanel: contractPanel,
                     deviceNotesVisible: true,
                     deviceSelectedTargetText: emptyPanelFields.SelectedTargetText,
                     deviceShotCountText: emptyPanelFields.ShotCountText,
@@ -380,6 +394,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 string.Empty,
                 false,
                 _activeSection,
+                contractPanel: contractPanel,
                 deviceNotesVisible: true,
                 deviceSelectedTargetText: panelFields.SelectedTargetText,
                 deviceShotCountText: panelFields.ShotCountText,
@@ -450,6 +465,53 @@ namespace Reloader.UI.Toolkit.TabInventory
             Refresh();
         }
 
+        private TabInventoryUiState.ContractPanelState BuildContractPanelFields()
+        {
+            var contractController = ResolveContractController();
+            if (contractController == null || !contractController.TryGetStatus(out var status))
+            {
+                return TabInventoryUiState.ContractPanelState.CreateDefault();
+            }
+
+            var titleText = string.IsNullOrWhiteSpace(status.ContractTitle)
+                ? (status.HasActiveContract ? "Active contract" : "No active contract")
+                : status.ContractTitle;
+            var targetText = string.IsNullOrWhiteSpace(status.TargetDisplayName)
+                ? "Target: --"
+                : $"Target: {status.TargetDisplayName}";
+            var distanceText = status.DistanceBandMeters > 0f
+                ? string.Format(CultureInfo.InvariantCulture, "Distance: {0:0} m", status.DistanceBandMeters)
+                : "Distance: --";
+            var payoutText = status.Payout > 0
+                ? string.Format(CultureInfo.InvariantCulture, "Payout: ${0:N0}", status.Payout)
+                : "Payout: --";
+            var briefing = string.IsNullOrWhiteSpace(status.BriefingText)
+                ? status.TargetDescription
+                : status.BriefingText;
+
+            return new TabInventoryUiState.ContractPanelState(
+                statusText: string.IsNullOrWhiteSpace(status.StatusText) ? "No contracts available" : status.StatusText,
+                titleText: titleText,
+                targetText: targetText,
+                distanceText: distanceText,
+                payoutText: payoutText,
+                briefingText: string.IsNullOrWhiteSpace(briefing) ? "Check back later for fresh contract offers." : briefing,
+                canAccept: status.CanAccept);
+        }
+
+        private bool TryHandleContractIntent(UiIntent intent)
+        {
+            if (!string.Equals(intent.Key, "tab.inventory.contracts.accept", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var contractController = ResolveContractController();
+            contractController?.AcceptAvailableContract();
+            Refresh();
+            return true;
+        }
+
         private static InventoryArea ResolveArea(string container)
         {
             return container == "backpack" ? InventoryArea.Backpack : InventoryArea.Belt;
@@ -460,7 +522,8 @@ namespace Reloader.UI.Toolkit.TabInventory
             return sectionId switch
             {
                 "inventory" => "inventory",
-                "quests" => "quests",
+                "contracts" => "contracts",
+                "quests" => "contracts",
                 "journal" => "journal",
                 "calendar" => "calendar",
                 "device" => "device",
@@ -980,6 +1043,28 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+        }
+
+        private ITabInventoryContractController ResolveContractController()
+        {
+            if (!IsReferenceAlive(_contractController))
+            {
+                _contractController = null;
+            }
+
+            if (_contractController != null)
+            {
+                return _contractController;
+            }
+
+            _contractController = DependencyResolutionGuard.FindInterface<ITabInventoryContractController>(GetComponents<MonoBehaviour>());
+            if (_contractController != null)
+            {
+                return _contractController;
+            }
+
+            _contractController = DependencyResolutionGuard.FindInterface<ITabInventoryContractController>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+            return _contractController;
         }
 
         private IDeviceController ResolveDeviceController()

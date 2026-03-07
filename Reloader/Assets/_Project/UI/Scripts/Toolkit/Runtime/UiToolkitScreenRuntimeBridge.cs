@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using Reloader.Contracts.Runtime;
 using Reloader.Core;
 using Reloader.Core.Items;
 using Reloader.Core.Runtime;
@@ -225,6 +226,7 @@ namespace Reloader.UI.Toolkit.Runtime
             controller.SetWeaponController(FindFirstObjectByType<PlayerWeaponController>(FindObjectsInactive.Include));
             controller.SetInputSource(inputSource);
             controller.SetDeviceController(ResolveTabDeviceControllerAdapter(inventoryController, inputSource));
+            controller.SetContractController(ResolveTabContractControllerAdapter());
             controller.Configure(viewBinder, null);
             return UiContractGuard.Bind(controller, viewBinder);
         }
@@ -234,7 +236,7 @@ namespace Reloader.UI.Toolkit.Runtime
             IPlayerInputSource inputSource)
         {
             var existing = DependencyResolutionGuard.FindInterface<TabInventoryController.IDeviceController>(
-                FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+                GetComponents<MonoBehaviour>());
             if (existing != null)
             {
                 ReleasePlayerDeviceController();
@@ -258,6 +260,14 @@ namespace Reloader.UI.Toolkit.Runtime
 
             return new TabDeviceControllerAdapter(_playerDeviceController, targetSelectionController);
         }
+
+private ITabInventoryContractController ResolveTabContractControllerAdapter()
+        {
+            var provider = DependencyResolutionGuard.FindInterface<IContractRuntimeProvider>(
+                FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+            return provider == null ? null : new TabContractControllerAdapter(provider);
+        }
+
 
         private static DeviceAttachmentCatalog BuildAttachmentCatalog(PlayerInventoryController inventoryController)
         {
@@ -315,7 +325,10 @@ namespace Reloader.UI.Toolkit.Runtime
 
         private PlayerDeviceTargetSelectionController ResolveOrCreateTargetSelectionController(IPlayerInputSource inputSource)
         {
-            var targetSelectionController = FindAnyObjectByType<PlayerDeviceTargetSelectionController>();
+            var targetSelectionTransform = transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.DeviceTargetSelection);
+            var targetSelectionController = targetSelectionTransform != null
+                ? targetSelectionTransform.GetComponent<PlayerDeviceTargetSelectionController>()
+                : null;
             if (targetSelectionController == null)
             {
                 var go = new GameObject(UiRuntimeCompositionIds.ControllerObjectNames.DeviceTargetSelection);
@@ -564,6 +577,47 @@ namespace Reloader.UI.Toolkit.Runtime
             public PlayerInventoryController InventoryController { get; }
             public PlayerWeaponController WeaponController { get; }
             public IPlayerInputSource InputSource { get; }
+        }
+
+        private sealed class TabContractControllerAdapter : ITabInventoryContractController
+        {
+            private readonly IContractRuntimeProvider _provider;
+
+            public TabContractControllerAdapter(IContractRuntimeProvider provider)
+            {
+                _provider = provider;
+            }
+
+public bool TryGetStatus(out TabInventoryContractStatus status)
+            {
+                if (_provider == null || !_provider.TryGetContractSnapshot(out var snapshot))
+                {
+                    status = default;
+                    return false;
+                }
+
+                var statusText = string.IsNullOrWhiteSpace(snapshot.StatusText)
+                    ? (snapshot.HasActiveContract ? "Active contract" : "Available contract")
+                    : snapshot.StatusText;
+
+                status = new TabInventoryContractStatus(
+                    hasAvailableContract: snapshot.HasAvailableContract,
+                    hasActiveContract: snapshot.HasActiveContract,
+                    contractTitle: snapshot.Title,
+                    targetDisplayName: snapshot.TargetDisplayName,
+                    targetDescription: snapshot.TargetDescription,
+                    briefingText: snapshot.BriefingText,
+                    distanceBandMeters: snapshot.DistanceBandMeters,
+                    payout: snapshot.Payout,
+                    canAccept: snapshot.CanAccept,
+                    statusText: statusText);
+                return true;
+            }
+
+            public bool AcceptAvailableContract()
+            {
+                return _provider != null && _provider.AcceptAvailableContract();
+            }
         }
 
         private sealed class TabDeviceControllerAdapter : TabInventoryController.IDeviceController
