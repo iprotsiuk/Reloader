@@ -3,6 +3,7 @@
   "rootNamespace": "Reloader.NPCs.Tests",
   "references": [
     "Reloader.NPCs",
+    "Reloader.Core",
     "Reloader.Player"
   ],
   "includePlatforms": [

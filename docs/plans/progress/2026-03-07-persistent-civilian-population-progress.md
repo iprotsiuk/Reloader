@@ -21,6 +21,17 @@
   - MainTown spawn-from-records bridge
   - civilian retirement + replacement queue runtime wiring
 
+## 2026-03-07 Checkpoint 2
+
+- Added `CivilianPopulationRuntimeBridge` under `Reloader.NPCs.Runtime`.
+- The bridge now handles the first runtime seam for this slice:
+  - seeds the initial civilian roster when a fresh runtime/module pair is empty during save capture
+  - restores the in-memory civilian roster and queued replacements from `CivilianPopulationModule` after load
+- Added focused EditMode coverage in `CivilianPopulationRuntimeBridgeTests`.
+- This checkpoint still stops short of scene spawning:
+  - civilians are persisted and mirrored into runtime memory
+  - `MainTown` does not yet instantiate civilians from that runtime roster
+
 ## Scope Notes
 
 - New saves should generate a persistent `MainTown` civilian roster.
