@@ -261,11 +261,15 @@ namespace Reloader.UI.Toolkit.Runtime
             return new TabDeviceControllerAdapter(_playerDeviceController, targetSelectionController);
         }
 
-private ITabInventoryContractController ResolveTabContractControllerAdapter()
+        private ITabInventoryContractController ResolveTabContractControllerAdapter()
         {
-            var provider = DependencyResolutionGuard.FindInterface<IContractRuntimeProvider>(
+            return new TabContractControllerAdapter(ResolveContractRuntimeProvider);
+        }
+
+        private IContractRuntimeProvider ResolveContractRuntimeProvider()
+        {
+            return DependencyResolutionGuard.FindInterface<IContractRuntimeProvider>(
                 FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
-            return provider == null ? null : new TabContractControllerAdapter(provider);
         }
 
 
@@ -581,16 +585,17 @@ private ITabInventoryContractController ResolveTabContractControllerAdapter()
 
         private sealed class TabContractControllerAdapter : ITabInventoryContractController
         {
-            private readonly IContractRuntimeProvider _provider;
+            private readonly Func<IContractRuntimeProvider> _providerResolver;
 
-            public TabContractControllerAdapter(IContractRuntimeProvider provider)
+            public TabContractControllerAdapter(Func<IContractRuntimeProvider> providerResolver)
             {
-                _provider = provider;
+                _providerResolver = providerResolver;
             }
 
-public bool TryGetStatus(out TabInventoryContractStatus status)
+            public bool TryGetStatus(out TabInventoryContractStatus status)
             {
-                if (_provider == null || !_provider.TryGetContractSnapshot(out var snapshot))
+                var provider = ResolveProvider();
+                if (provider == null || !provider.TryGetContractSnapshot(out var snapshot))
                 {
                     status = default;
                     return false;
@@ -616,7 +621,13 @@ public bool TryGetStatus(out TabInventoryContractStatus status)
 
             public bool AcceptAvailableContract()
             {
-                return _provider != null && _provider.AcceptAvailableContract();
+                var provider = ResolveProvider();
+                return provider != null && provider.AcceptAvailableContract();
+            }
+
+            private IContractRuntimeProvider ResolveProvider()
+            {
+                return _providerResolver?.Invoke();
             }
         }
 

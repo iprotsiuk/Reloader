@@ -30,6 +30,7 @@
 - The UI runtime bridge now prefers local device/target-selection controllers over scene-global fallbacks to keep contract/device flows deterministic.
 - Review fix: `ContractEscapeResolutionRuntime` now requires a real target-elimination resolution before `Advance()` can complete the active contract.
 - Review fix: `ContractEscapeResolutionRuntime` now consumes the offered contract when its authored target is eliminated before acceptance, preventing dead-target soft-locks while still raising exposed murder heat.
+- Review fix: `UiToolkitScreenRuntimeBridge` now injects a lazy contract adapter into `TabInventoryController`, so the Contracts tab can recover when `IContractRuntimeProvider` appears after the initial bind without needing a full UI rebind.
 - Review fix: `TabInventoryViewBinder` now rebinds the reused `inventory__contracts-accept` button to the current binder instance, so `UiToolkitScreenRuntimeBridge` teardown/rebind cycles do not strand the Contracts accept action.
 - Review fix: `StaticContractRuntimeProvider` now snapshots and restores its live `ContractEscapeResolutionRuntime` state when `RuntimeKernelBootstrapper.EventsReconfigured` swaps event hubs, and `OnEnable` now refreshes that runtime binding on re-enable so disabled providers still publish police-heat changes into the current hub.
 - Added `MainTownContractSlicePlayModeTests` as the authored world-scene smoke for the first contract loop; it now covers both the happy path and the pre-accept target-kill path, verifying payout stays gated until the search timer clears and dead authored targets consume the scene offer instead of leaving an unwinnable contract.
@@ -40,11 +41,13 @@
 - Full EditMode suite: `307/307` passed
 - Targeted regression: `Reloader.Core.Tests.EditMode.ContractEscapeResolutionRuntimeTests` `5/5` passed
 - Targeted PlayMode regression: `Reloader.Core.Tests.PlayMode.StaticContractRuntimeProviderPlayModeTests` `3/3` passed
+- Targeted PlayMode bridge: `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests` `2/2` passed, including `RuntimeBridge_BindTabInventory_WhenProviderAppearsAfterBind_RecoversContractsAdapter`
 - Targeted PlayMode class: `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests` `3/3` passed, including `Initialize_WhenContractsControlsAlreadyExist_RebindsAcceptButtonToCurrentBinder`
 - Targeted PlayMode smoke: `Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests` `2/2` passed, including `MainTownContractSlice_TargetEliminatedBeforeAccept_ConsumesOfferAndStartsSearch`
 - Full PlayMode suite remains red in unrelated preexisting subsystems (`Audio`, `Economy`, `Player`, `EscMenu`, broad `UI` flows)
 - Latest full PlayMode failure list does not include:
   - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests.RuntimeBridge_BindTabInventory_AcceptsAvailableContractThroughContractsTab`
+  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests.RuntimeBridge_BindTabInventory_WhenProviderAppearsAfterBind_RecoversContractsAdapter`
   - `Reloader.Core.Tests.PlayMode.StaticContractRuntimeProviderPlayModeTests.RuntimeKernelReconfigure_AfterAccept_PreservesActiveContractAndConsumedOffer`
   - `Reloader.Core.Tests.PlayMode.StaticContractRuntimeProviderPlayModeTests.RuntimeKernelReconfigure_DuringSearchClearWait_PreservesPendingPayoutProgress`
   - `Reloader.Core.Tests.PlayMode.StaticContractRuntimeProviderPlayModeTests.OnEnable_AfterHubSwapWhileDisabled_RebindsLawEnforcementEvents`
