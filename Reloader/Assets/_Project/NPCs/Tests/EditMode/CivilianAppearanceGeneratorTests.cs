@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Reflection;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace Reloader.NPCs.Tests.EditMode
 {
@@ -60,6 +61,24 @@ namespace Reloader.NPCs.Tests.EditMode
             Assert.That(GetProperty<string>(record, "SpawnAnchorId"), Is.EqualTo("spawn.busstop.a"));
             Assert.That(GetProperty<int>(record, "CreatedAtDay"), Is.EqualTo(4));
             Assert.That(GetProperty<int>(record, "RetiredAtDay"), Is.EqualTo(-1));
+        }
+
+        [Test]
+        public void CivilianAppearanceLibrary_JsonRoundTrip_PreservesConfiguredArrays()
+        {
+            var libraryType = ResolveRequiredType(LibraryTypeName);
+            var library = Activator.CreateInstance(libraryType);
+
+            SetProperty(library, "BaseBodyIds", new[] { "body.male.a" });
+            SetProperty(library, "PresentationTypes", new[] { "masculine" });
+            SetProperty(library, "HairIds", new[] { "hair.short.01" });
+
+            var json = JsonUtility.ToJson(library);
+            var restored = JsonUtility.FromJson(json, libraryType);
+
+            CollectionAssert.AreEqual(new[] { "body.male.a" }, (IEnumerable)GetProperty<object>(restored, "BaseBodyIds"));
+            CollectionAssert.AreEqual(new[] { "masculine" }, (IEnumerable)GetProperty<object>(restored, "PresentationTypes"));
+            CollectionAssert.AreEqual(new[] { "hair.short.01" }, (IEnumerable)GetProperty<object>(restored, "HairIds"));
         }
 
         private static Type ResolveRequiredType(string assemblyQualifiedName)

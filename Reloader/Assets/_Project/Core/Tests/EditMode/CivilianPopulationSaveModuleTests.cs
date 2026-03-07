@@ -95,6 +95,26 @@ namespace Reloader.Core.Tests.EditMode
             AssertReplacement(restoredReplacements[0]);
         }
 
+        [Test]
+        public void CivilianPopulationModule_ValidateModuleState_RejectsCitizensMissingSpawnAnchor()
+        {
+            var moduleType = ResolveRequiredType(ModuleTypeName);
+            var recordType = ResolveRequiredType(RecordTypeName);
+
+            var module = Activator.CreateInstance(moduleType);
+            var civilians = GetRequiredList(module, "Civilians");
+            var record = CreateCivilianRecord(recordType);
+            SetProperty(record, "SpawnAnchorId", string.Empty);
+            civilians.Add(record);
+
+            var validateMethod = moduleType.GetMethod("ValidateModuleState", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(validateMethod, Is.Not.Null);
+
+            var ex = Assert.Throws<TargetInvocationException>(() => validateMethod!.Invoke(module, Array.Empty<object>()));
+            Assert.That(ex?.InnerException, Is.Not.Null);
+            Assert.That(ex!.InnerException!.Message, Does.Contain("spawnAnchorId"));
+        }
+
         private static object CreateCivilianRecord(Type recordType)
         {
             var record = Activator.CreateInstance(recordType);

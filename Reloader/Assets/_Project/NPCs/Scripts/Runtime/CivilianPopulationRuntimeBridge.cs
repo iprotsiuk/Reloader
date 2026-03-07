@@ -37,6 +37,7 @@ namespace Reloader.NPCs.Runtime
                 return;
             }
 
+            HydrateRuntimeFromModuleIfNeeded(module);
             SeedInitialRosterIfNeeded(module);
             CopyRuntimeToModule(module);
         }
@@ -154,6 +155,21 @@ namespace Reloader.NPCs.Runtime
             {
                 _runtime.PendingReplacements.Add(CloneReplacement(module.PendingReplacements[i]));
             }
+        }
+
+        private void HydrateRuntimeFromModuleIfNeeded(CivilianPopulationModule module)
+        {
+            if (_runtime.Civilians.Count > 0 || _runtime.PendingReplacements.Count > 0)
+            {
+                return;
+            }
+
+            if (module.Civilians.Count == 0 && module.PendingReplacements.Count == 0)
+            {
+                return;
+            }
+
+            CopyModuleToRuntime(module);
         }
 
         private List<string> NormalizeSpawnAnchors()

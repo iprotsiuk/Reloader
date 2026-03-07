@@ -106,6 +106,15 @@ namespace Reloader.Core.Save.Modules
                         $"CivilianPopulation civilians[{i}] must record retiredAtDay when the civilian is dead.");
                 }
 
+                ValidateRequiredString(record.BaseBodyId, $"civilians[{i}].baseBodyId");
+                ValidateRequiredString(record.PresentationType, $"civilians[{i}].presentationType");
+                ValidateRequiredString(record.HairId, $"civilians[{i}].hairId");
+                ValidateRequiredString(record.HairColorId, $"civilians[{i}].hairColorId");
+                ValidateRequiredString(record.BeardId, $"civilians[{i}].beardId");
+                ValidateRequiredString(record.OutfitTopId, $"civilians[{i}].outfitTopId");
+                ValidateRequiredString(record.OutfitBottomId, $"civilians[{i}].outfitBottomId");
+                ValidateRequiredString(record.OuterwearId, $"civilians[{i}].outerwearId");
+                ValidateRequiredString(record.SpawnAnchorId, $"civilians[{i}].spawnAnchorId");
                 ValidateStringList(record.MaterialColorIds, $"civilians[{i}].materialColorIds");
                 ValidateStringList(record.GeneratedDescriptionTags, $"civilians[{i}].generatedDescriptionTags");
             }
@@ -204,6 +213,14 @@ namespace Reloader.Core.Save.Modules
                 {
                     throw new InvalidOperationException($"CivilianPopulation {fieldName}[{i}] is invalid.");
                 }
+            }
+        }
+
+        private static void ValidateRequiredString(string value, string fieldName)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new InvalidOperationException($"CivilianPopulation {fieldName} is invalid.");
             }
         }
     }

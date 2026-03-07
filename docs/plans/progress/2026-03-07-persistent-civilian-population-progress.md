@@ -44,6 +44,14 @@
   - correct dead/retired state after retirement
   - no duplicate replacement debt when retirement is reported twice
 
+## 2026-03-07 Checkpoint 4
+
+- Hardened the initial foundation after PR review:
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects civilians missing required appearance identifiers or `spawnAnchorId`
+  - `CivilianAppearanceLibrary` now uses Unity-serializable backing fields so configured arrays persist through inspector/runtime serialization
+  - `CivilianPopulationRuntimeBridge.PrepareForSave(...)` now preserves loaded module data by hydrating the runtime roster before capture when runtime state is still empty
+- Added focused regression coverage for those review fixes in the existing save-module, appearance-generator, and runtime-bridge suites
+
 ## Scope Notes
 
 - New saves should generate a persistent `MainTown` civilian roster.

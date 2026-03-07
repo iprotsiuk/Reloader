@@ -97,6 +97,55 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void PrepareForSave_WhenRuntimeIsEmpty_PreservesLoadedModuleData()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                var module = new CivilianPopulationModule();
+                module.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0042",
+                    IsAlive = true,
+                    IsContractEligible = false,
+                    BaseBodyId = "body.female.a",
+                    PresentationType = "feminine",
+                    HairId = "hair.long.01",
+                    HairColorId = "hair.red",
+                    BeardId = "beard.none",
+                    OutfitTopId = "top.jacket.01",
+                    OutfitBottomId = "bottom.jeans.01",
+                    OuterwearId = "outer.red.jacket",
+                    MaterialColorIds = new List<string> { "color.red" },
+                    GeneratedDescriptionTags = new List<string> { "red jacket" },
+                    SpawnAnchorId = "spawn.busstop.b",
+                    CreatedAtDay = 6,
+                    RetiredAtDay = -1
+                });
+                module.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.0004",
+                    QueuedAtDay = 7,
+                    SpawnAnchorId = "spawn.busstop.b"
+                });
+
+                bridge.PrepareForSave(new[] { new SaveModuleRegistration(1, module) });
+
+                Assert.That(module.Civilians.Count, Is.EqualTo(1));
+                Assert.That(module.Civilians[0].CivilianId, Is.EqualTo("citizen.mainTown.0042"));
+                Assert.That(module.PendingReplacements.Count, Is.EqualTo(1));
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(1));
+                Assert.That(bridge.Runtime.Civilians[0].CivilianId, Is.EqualTo("citizen.mainTown.0042"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void TryRetireCivilian_MarksCitizenDeadAndQueuesReplacement()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");
