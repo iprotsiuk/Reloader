@@ -53,6 +53,26 @@ namespace Reloader.UI.Tests.EditMode
         }
 
         [Test]
+        public void ContractsDetailPane_UsesCompactFieldRows()
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(TabInventoryUxmlPath);
+            Assert.That(asset, Is.Not.Null, $"Expected UXML asset at '{TabInventoryUxmlPath}'.");
+
+            var root = asset.CloneTree();
+            var contractsDetailPane = root.Q<VisualElement>("inventory__detail-pane-contracts");
+            Assert.That(contractsDetailPane, Is.Not.Null);
+
+            var fieldRows = contractsDetailPane.Query<VisualElement>(className: "inventory__detail-pane-field").ToList();
+            Assert.That(fieldRows, Has.Count.EqualTo(5));
+
+            foreach (var fieldRow in fieldRows)
+            {
+                Assert.That(fieldRow.Q<Label>(className: "inventory__detail-pane-field-label"), Is.Not.Null);
+                Assert.That(fieldRow.Q<Label>(className: "inventory__mock-line"), Is.Not.Null);
+            }
+        }
+
+        [Test]
         public void DeviceAndAttachmentsActions_UseActionButtonClass_NotNavigationTabClass()
         {
             var asset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(TabInventoryUxmlPath);

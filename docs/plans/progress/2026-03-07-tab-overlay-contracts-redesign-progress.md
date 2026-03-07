@@ -87,10 +87,12 @@
   - runtime screenshot and Unity test-runner verification are still pending until the editor session reliably reconnects to Unity MCP
 - Density tightening checkpoint status:
   - applied the first screenshot-driven compression pass after user feedback that the left rail, payout segment, and accept button were still consuming too much width
-  - narrowed the shell proportions again: icon rail `60px` authored width, tighter workspace gap, and a smaller placeholder detail pane so the center pane gets more real contract width
+  - narrowed the shell proportions again: icon rail `52px` authored width, tighter inter-pane gaps, and a smaller placeholder detail pane so the center pane gets more real contract width
   - tightened the posted-contract row itself by shrinking the preview tile, portrait, payout segment, and accept button while forcing the summary column to own the remaining width (`flex-basis: 0`)
-  - updated `TabInventoryViewBinder.ApplyResponsiveTabs()` to fall back to assigned tab-bar width during deterministic tests instead of depending only on live `contentRect`
-  - added `TabInventoryResponsiveLayoutEditModeTests.ApplyResponsiveLayout_ClampsIconRailTabsToCompactWidth_WhenTabBarStaysNarrow` to lock the compact rail sizing contract
+  - compacted the right contracts pane by replacing repeated section-title blocks with five authored `inventory__detail-pane-field` rows, which preserves the same payout/restriction/reward data while reducing vertical chrome
+  - updated `TabInventoryViewBinder` responsive fallback constants to match the narrower authored rail/detail widths so collapse behavior stays honest in edit-mode and runtime
+  - added `TabInventoryStyleCopyEditModeTests.ContractsLayout_UsesCompactDensityTokens` and `TabInventoryUxmlCopyEditModeTests.ContractsDetailPane_UsesCompactFieldRows` to lock the authored density contract instead of relying on screenshots alone
+  - live screenshot capture is still blocked on the current editor session: entering Play Mode succeeds, but Unity MCP `manage_scene screenshot` remains stuck in `Unity is reloading; please retry` and the console reports a bare `NullReferenceException`, so this checkpoint is verified by targeted tests only for now
 - Cancel / claim contract flow checkpoint status:
   - extended the contract runtime/provider surface with explicit `CancelActiveContract()` and `ClaimCompletedContractReward()` actions plus snapshot flags for `CanCancel` and `CanClaimReward`
   - changed successful contract resolution so search clear no longer auto-awards payout; authored contracts now sit in `Ready to claim` until the reward is explicitly collected
@@ -121,7 +123,8 @@
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesThreeRegionShell`: passed (`1/1`)
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesIconRailNavigation`: passed (`1/1`)
   - `Reloader.UI.Tests.EditMode.TabInventoryResponsiveLayoutEditModeTests`: passed (`4/4`)
-  - `Reloader.UI.Tests.EditMode.TabInventoryUxmlCopyEditModeTests`: passed (`3/3`)
+  - `Reloader.UI.Tests.EditMode.TabInventoryUxmlCopyEditModeTests`: passed (`4/4`)
+  - `Reloader.UI.Tests.EditMode.TabInventoryStyleCopyEditModeTests`: passed (`1/1`)
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests`: passed (`5/5`)
   - `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests`: passed (`7/7`)
   - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests`: passed (`3/3`)

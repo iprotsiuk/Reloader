@@ -169,16 +169,26 @@
                     </ui:VisualElement>
                     <ui:VisualElement name="inventory__detail-pane-contracts" class="inventory__detail-pane-contracts inventory__section--hidden">
                         <ui:Label text="Contract Terms" class="inventory__details-title"/>
-                        <ui:Label text="Base payout" class="inventory__section-title ui-kit__hint"/>
-                        <ui:Label name="inventory__detail-pane-base-payout" text="Payout: --" class="inventory__mock-line"/>
-                        <ui:Label text="Bonus conditions" class="inventory__section-title ui-kit__hint"/>
-                        <ui:Label name="inventory__detail-pane-bonus-conditions" text="None" class="inventory__mock-line"/>
-                        <ui:Label text="Restrictions" class="inventory__section-title ui-kit__hint"/>
-                        <ui:Label name="inventory__detail-pane-restrictions" text="None" class="inventory__mock-line"/>
-                        <ui:Label text="Failure conditions" class="inventory__section-title ui-kit__hint"/>
-                        <ui:Label name="inventory__detail-pane-failure-conditions" text="Wrong target" class="inventory__mock-line"/>
-                        <ui:Label text="Reward state" class="inventory__section-title ui-kit__hint"/>
-                        <ui:Label name="inventory__detail-pane-reward-state" text="No contract selected" class="inventory__mock-line"/>
+                        <ui:VisualElement class="inventory__detail-pane-field">
+                            <ui:Label text="Base payout" class="inventory__detail-pane-field-label ui-kit__hint"/>
+                            <ui:Label name="inventory__detail-pane-base-payout" text="Payout: --" class="inventory__mock-line"/>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="inventory__detail-pane-field">
+                            <ui:Label text="Bonus conditions" class="inventory__detail-pane-field-label ui-kit__hint"/>
+                            <ui:Label name="inventory__detail-pane-bonus-conditions" text="None" class="inventory__mock-line"/>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="inventory__detail-pane-field">
+                            <ui:Label text="Restrictions" class="inventory__detail-pane-field-label ui-kit__hint"/>
+                            <ui:Label name="inventory__detail-pane-restrictions" text="None" class="inventory__mock-line"/>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="inventory__detail-pane-field">
+                            <ui:Label text="Failure conditions" class="inventory__detail-pane-field-label ui-kit__hint"/>
+                            <ui:Label name="inventory__detail-pane-failure-conditions" text="Wrong target" class="inventory__mock-line"/>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="inventory__detail-pane-field">
+                            <ui:Label text="Reward state" class="inventory__detail-pane-field-label ui-kit__hint"/>
+                            <ui:Label name="inventory__detail-pane-reward-state" text="No contract selected" class="inventory__mock-line"/>
+                        </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>

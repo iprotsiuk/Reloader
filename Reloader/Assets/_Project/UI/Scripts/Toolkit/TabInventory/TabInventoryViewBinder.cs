@@ -113,11 +113,11 @@ namespace Reloader.UI.Toolkit.TabInventory
         private const float MinDeviceButtonWidth = 82f;
         private const float MaxDeviceButtonWidth = 220f;
         private const float InventoryVerticalChrome = 56f;
-        private const float MinDetailPaneWidth = 132f;
+        private const float MinDetailPaneWidth = 116f;
         private const float MinWorkspaceWidthWithDetailPane = 180f;
-        private const float MinPanelWidthForDetailPane = 390f;
-        private const float DefaultRailGap = 6f;
-        private const float DefaultWorkspaceGap = 8f;
+        private const float MinPanelWidthForDetailPane = 380f;
+        private const float DefaultRailGap = 4f;
+        private const float DefaultWorkspaceGap = 6f;
 
         public event Action<UiIntent> IntentRaised;
 

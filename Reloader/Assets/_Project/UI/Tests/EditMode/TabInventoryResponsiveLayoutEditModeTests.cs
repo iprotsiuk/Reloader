@@ -107,7 +107,7 @@ namespace Reloader.UI.Tests.EditMode
             workspace.style.marginRight = StyleKeyword.Null;
             detailPane.style.width = 152f;
             detailPane.style.minWidth = 132f;
-            panel.style.width = 404f;
+            panel.style.width = 400f;
 
             InvokeApplyResponsiveLayout(binder);
 
