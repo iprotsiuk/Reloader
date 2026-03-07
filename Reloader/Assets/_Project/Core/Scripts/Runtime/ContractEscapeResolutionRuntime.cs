@@ -12,6 +12,7 @@ namespace Reloader.Contracts.Runtime
         private IContractPayoutReceiver _payoutReceiver;
         private bool _offerConsumed;
         private bool _awaitingSearchClear;
+        private bool _completionPending;
         private int _pendingPayoutAmount;
 
         public ContractEscapeResolutionRuntime(
@@ -109,11 +110,12 @@ namespace Reloader.Contracts.Runtime
                 return false;
             }
 
-            if (_pendingPayoutAmount > 0 || _awaitingSearchClear)
+            if (_completionPending || _awaitingSearchClear)
             {
                 return true;
             }
 
+            _completionPending = true;
             _pendingPayoutAmount = Math.Max(0, activeContract.Payout);
             if (wasExposed)
             {
@@ -162,7 +164,7 @@ namespace Reloader.Contracts.Runtime
 
         private void TryResolvePendingPayout()
         {
-            if (_awaitingSearchClear || _contractController.ActiveContract == null)
+            if (_awaitingSearchClear || !_completionPending || _contractController.ActiveContract == null)
             {
                 return;
             }
@@ -175,6 +177,7 @@ namespace Reloader.Contracts.Runtime
                 }
             }
 
+            _completionPending = false;
             _pendingPayoutAmount = 0;
             _contractController.TryCompleteActiveContract();
         }
@@ -194,6 +197,7 @@ namespace Reloader.Contracts.Runtime
         private void ResetPendingResolution()
         {
             _awaitingSearchClear = false;
+            _completionPending = false;
             _pendingPayoutAmount = 0;
         }
     }

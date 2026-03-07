@@ -28,11 +28,13 @@
 - The UI bridge now resolves a narrow contract snapshot/provider seam so the UI assembly does not depend directly on contract asset types.
 - Contract runtime and target resolution no longer scene-scan for unrelated payout or elimination sinks; `MainTown` is authored with explicit references.
 - The UI runtime bridge now prefers local device/target-selection controllers over scene-global fallbacks to keep contract/device flows deterministic.
+- Review fix: `ContractEscapeResolutionRuntime` now requires a real target-elimination resolution before `Advance()` can complete the active contract.
 - PR: `#25` `feat: first contract target NPC vertical slice`
 
 ## Verification
 
 - Full EditMode suite: `307/307` passed
+- Targeted regression: `Reloader.Core.Tests.EditMode.ContractEscapeResolutionRuntimeTests` `4/4` passed
 - Full PlayMode suite remains red in unrelated preexisting subsystems (`Audio`, `Economy`, `Player`, `EscMenu`, broad `UI` flows)
 - Latest full PlayMode failure list does not include:
   - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests.RuntimeBridge_BindTabInventory_AcceptsAvailableContractThroughContractsTab`

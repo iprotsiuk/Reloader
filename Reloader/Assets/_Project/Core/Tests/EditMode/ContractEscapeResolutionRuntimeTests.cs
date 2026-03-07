@@ -94,6 +94,39 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void Advance_AfterAcceptBeforeElimination_DoesNotCompleteContractOrAwardPayout()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            var payoutReceiver = new RecordingPayoutReceiver();
+            var runtime = new ContractEscapeResolutionRuntime(contract, payoutReceiver: payoutReceiver);
+
+            var completedContractId = string.Empty;
+            RuntimeKernelBootstrapper.ContractEvents.OnContractCompleted += HandleCompleted;
+
+            try
+            {
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+
+                runtime.Advance(1f);
+
+                Assert.That(runtime.ActiveContract, Is.Not.Null);
+                Assert.That(runtime.ActiveContract.ContractId, Is.EqualTo("contract.alpha"));
+                Assert.That(runtime.HasPendingPayout, Is.False);
+                Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(0));
+                Assert.That(completedContractId, Is.Empty);
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.ContractEvents.OnContractCompleted -= HandleCompleted;
+                UnityEngine.Object.DestroyImmediate(contract);
+            }
+
+            void HandleCompleted(string contractId, int payout)
+            {
+                completedContractId = contractId;
+            }
+        }
+        [Test]
         public void ReportTargetEliminated_WrongTargetFailsContractAndDoesNotAwardPayout()
         {
             var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
