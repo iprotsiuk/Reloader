@@ -181,6 +181,12 @@ namespace Reloader.Contracts.Runtime
                 return false;
             }
 
+            if (_completionPending || _awaitingSearchClear)
+            {
+                RaiseMurderHeatIfNeeded(wasExposed);
+                return true;
+            }
+
             var isCorrectTarget = string.Equals(activeContract.TargetId, targetId, StringComparison.Ordinal);
             if (!isCorrectTarget)
             {
@@ -188,11 +194,6 @@ namespace Reloader.Contracts.Runtime
                 ResetPendingResolution();
                 _contractController.TryFailActiveContract();
                 return false;
-            }
-
-            if (_completionPending || _awaitingSearchClear)
-            {
-                return true;
             }
 
             _completionPending = true;

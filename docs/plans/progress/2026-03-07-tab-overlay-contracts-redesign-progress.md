@@ -124,6 +124,10 @@
   - kept the existing runtime/controller surface unchanged by binding the new authored labels from the existing `StatusText`, `PayoutText`, `TargetText`, `SummaryText`, and `BriefingText`
   - updated the binder fallback shell and both local synthetic test roots (`TabInventoryContractsSectionPlayModeTests` and `UiToolkitScreenFlowPlayModeTests`) so authored UXML, runtime fallback, and PlayMode harnesses stay aligned
   - screenshot validation is still blocked by Unity MCP transport instability in this editor session: `manage_scene screenshot` first reports `Unity is reloading; please retry` and then drops to `Could not connect to Unity`, so this checkpoint is test-verified but not screenshot-verified
+- Review hardening checkpoint status:
+  - verified the new PR `P1` on manual-claim reward loss in `ContractEscapeResolutionRuntime` against the current code and confirmed the failure window was real: once `_completionPending` was set, a later wrong-target kill still ran the fail path before the pending-claim guard
+  - reordered `ReportTargetEliminated(...)` so once reward claim is pending, later eliminations can still raise exposed murder heat but can no longer clear the earned payout or fail the contract
+  - the existing regression `ContractEscapeResolutionRuntimeTests.ReportTargetEliminated_WhenRewardIsPending_WrongTargetDoesNotFailOrClearPendingPayout` now matches the intended terminal-claimable state, but a fresh green rerun is currently blocked by a stale Unity MCP test job id that survives reconnects even when `editor_state.tests.is_running=false`
 
 ## Verification
 
