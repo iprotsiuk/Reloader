@@ -65,12 +65,13 @@ Create a non-draft PR to `main` with:
 ### Task 3: Gather visual references and icon candidates
 
 **Files:**
-- Inspect: `/Users/ivanprotsiuk/Documents/assets/LOWPOLY/**`
+- Inspect: repo-tracked UI icon candidates under `Reloader/Assets/_Project/UI/Toolkit/Images/**`
 - Modify: `docs/plans/progress/2026-03-07-tab-overlay-contracts-redesign-progress.md`
 
 **Step 1: Inspect icon sources**
 
-- search the `LOWPOLY` packs for inventory/device/journal/calendar-compatible icons
+- search repo-tracked icon candidates first
+- if stronger external candidate art is needed, inspect an optional developer-local source pack by pack name only and import selected icons into a repo-tracked UI images folder before depending on them
 - note whether the assets fit the current visual language
 
 **Step 2: Capture current baseline screenshots**

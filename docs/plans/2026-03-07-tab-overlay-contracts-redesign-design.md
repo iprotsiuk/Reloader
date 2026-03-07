@@ -85,7 +85,7 @@ Initial sections:
 
 Icon sourcing:
 
-- first pass should inspect available icon candidates under `/Users/ivanprotsiuk/Documents/assets/LOWPOLY`
+- first pass should inspect repo-tracked UI icon candidates first, then optionally evaluate external source packs by pack name only before importing any selected icons into a repo-tracked folder
 - if those assets do not fit, fall back to simple, readable vector-style glyphs or lightweight placeholder icons
 
 ---
