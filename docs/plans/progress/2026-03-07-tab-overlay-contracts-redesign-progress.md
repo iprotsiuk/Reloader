@@ -118,6 +118,12 @@
   - fixed `UiToolkitScreenFlowPlayModeTests.TabInventoryController_HandleDropIntent_RemovesSourceSlotItem` by giving the dropped item fixture an `IconSourcePrefab`, matching the current runtime dropped-item factory contract
   - fixed one real runtime issue in `PlayerInventoryController.Configure(...)`: injected `PlayerInventoryRuntime` instances now preserve their authored backpack capacity instead of being reset to the serialized default
   - result: the full UI PlayMode assembly is green again, so broader verification can include `Reloader.UI.Tests.PlayMode` instead of only the contracts-specific subset
+- Active contract workspace density checkpoint status:
+  - lifted the active mission workspace to the approved hierarchy: explicit mission-status header, payout in the header, target identity block, briefing card, intel card, and a dedicated footer action row
+  - hid the generic top contracts status label while an active mission is shown so the center pane no longer repeats state in two places
+  - kept the existing runtime/controller surface unchanged by binding the new authored labels from the existing `StatusText`, `PayoutText`, `TargetText`, `SummaryText`, and `BriefingText`
+  - updated the binder fallback shell and both local synthetic test roots (`TabInventoryContractsSectionPlayModeTests` and `UiToolkitScreenFlowPlayModeTests`) so authored UXML, runtime fallback, and PlayMode harnesses stay aligned
+  - screenshot validation is still blocked by Unity MCP transport instability in this editor session: `manage_scene screenshot` first reports `Unity is reloading; please retry` and then drops to `Could not connect to Unity`, so this checkpoint is test-verified but not screenshot-verified
 
 ## Verification
 
@@ -131,7 +137,7 @@
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesThreeRegionShell`: passed (`1/1`)
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesIconRailNavigation`: passed (`1/1`)
   - `Reloader.UI.Tests.EditMode.TabInventoryResponsiveLayoutEditModeTests`: passed (`4/4`)
-  - `Reloader.UI.Tests.EditMode.TabInventoryUxmlCopyEditModeTests`: passed (`4/4`)
+  - `Reloader.UI.Tests.EditMode.TabInventoryUxmlCopyEditModeTests`: passed (`5/5`)
   - `Reloader.UI.Tests.EditMode.TabInventoryStyleCopyEditModeTests`: passed (`1/1`)
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests`: passed (`5/5`)
   - `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests`: passed (`7/7`)

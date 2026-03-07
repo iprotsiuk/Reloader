@@ -40,12 +40,21 @@ namespace Reloader.UI.Toolkit.TabInventory
         private VisualElement _contractsFeed;
         private VisualElement _contractsRow;
         private VisualElement _contractsActive;
+        private VisualElement _contractsActiveHeader;
+        private VisualElement _contractsActiveTargetBlock;
+        private VisualElement _contractsBriefingCard;
+        private VisualElement _contractsIntelCard;
+        private VisualElement _contractsActiveFooter;
         private Label _contractsStatus;
+        private Label _contractsActiveStatus;
+        private Label _contractsActivePayout;
         private Label _contractsTitle;
         private Label _contractsSummary;
         private Label _contractsTarget;
+        private Label _contractsTargetSummary;
         private Label _contractsPayout;
         private Label _contractsBriefing;
+        private Label _contractsIntel;
         private Button _contractsActivePrimaryActionButton;
         private VisualElement _questsSection;
         private VisualElement _journalSection;
@@ -325,6 +334,18 @@ namespace Reloader.UI.Toolkit.TabInventory
                 _contractsStatus.text = inventoryState.ContractPanel.StatusText;
             }
 
+            if (_contractsActiveStatus != null)
+            {
+                _contractsActiveStatus.text = string.IsNullOrWhiteSpace(inventoryState.ContractPanel.StatusText)
+                    ? "Mission Status: --"
+                    : string.Concat("Mission Status: ", inventoryState.ContractPanel.StatusText);
+            }
+
+            if (_contractsActivePayout != null)
+            {
+                _contractsActivePayout.text = inventoryState.ContractPanel.PayoutText;
+            }
+
             if (_contractsTitle != null)
             {
                 _contractsTitle.text = inventoryState.ContractPanel.TitleText;
@@ -338,6 +359,11 @@ namespace Reloader.UI.Toolkit.TabInventory
             if (_contractsTarget != null)
             {
                 _contractsTarget.text = inventoryState.ContractPanel.TargetText;
+            }
+
+            if (_contractsTargetSummary != null)
+            {
+                _contractsTargetSummary.text = inventoryState.ContractPanel.SummaryText;
             }
 
             if (_contractsPayout != null)
@@ -375,8 +401,18 @@ namespace Reloader.UI.Toolkit.TabInventory
                 _detailPaneRewardState.text = inventoryState.ContractPanel.RewardStateText;
             }
 
+            if (_contractsIntel != null)
+            {
+                _contractsIntel.text = inventoryState.ContractPanel.SummaryText;
+            }
+
             var isPostedOffer = inventoryState.ContractPanel.Mode == TabInventoryUiState.ContractPanelMode.PostedOffer;
             var isActiveContract = inventoryState.ContractPanel.Mode == TabInventoryUiState.ContractPanelMode.ActiveContract;
+            if (_contractsStatus != null)
+            {
+                _contractsStatus.style.display = isActiveContract ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+
             if (_contractsFeed != null)
             {
                 _contractsFeed.style.display = isPostedOffer ? DisplayStyle.Flex : DisplayStyle.None;
@@ -390,6 +426,26 @@ namespace Reloader.UI.Toolkit.TabInventory
             if (_contractsActive != null)
             {
                 _contractsActive.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (_contractsActiveHeader != null)
+            {
+                _contractsActiveHeader.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (_contractsActiveTargetBlock != null)
+            {
+                _contractsActiveTargetBlock.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (_contractsBriefingCard != null)
+            {
+                _contractsBriefingCard.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (_contractsIntelCard != null)
+            {
+                _contractsIntelCard.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             if (_contractsAcceptButton != null)
@@ -412,6 +468,11 @@ namespace Reloader.UI.Toolkit.TabInventory
                     ? "Claim Reward"
                     : "Cancel Contract";
                 _contractsActivePrimaryActionButton.SetEnabled(showActivePrimaryAction);
+            }
+
+            if (_contractsActiveFooter != null)
+            {
+                _contractsActiveFooter.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             if (_deviceNotes != null)
@@ -526,23 +587,41 @@ namespace Reloader.UI.Toolkit.TabInventory
             _contractsFeed = _questsSection.Q<VisualElement>("inventory__contracts-feed");
             _contractsRow = _questsSection.Q<VisualElement>("inventory__contracts-row");
             _contractsActive = _questsSection.Q<VisualElement>("inventory__contracts-active");
+            _contractsActiveHeader = _questsSection.Q<VisualElement>("inventory__contracts-active-header");
+            _contractsActiveTargetBlock = _questsSection.Q<VisualElement>("inventory__contracts-active-target-block");
+            _contractsBriefingCard = _questsSection.Q<VisualElement>("inventory__contracts-briefing-card");
+            _contractsIntelCard = _questsSection.Q<VisualElement>("inventory__contracts-intel-card");
+            _contractsActiveFooter = _questsSection.Q<VisualElement>("inventory__contracts-active-footer");
             _contractsStatus = _questsSection.Q<Label>("inventory__contracts-status");
+            _contractsActiveStatus = _questsSection.Q<Label>("inventory__contracts-active-status");
+            _contractsActivePayout = _questsSection.Q<Label>("inventory__contracts-active-payout");
             _contractsTitle = _questsSection.Q<Label>("inventory__contracts-title");
             _contractsSummary = _questsSection.Q<Label>("inventory__contracts-summary");
             _contractsTarget = _questsSection.Q<Label>("inventory__contracts-target");
+            _contractsTargetSummary = _questsSection.Q<Label>("inventory__contracts-target-summary");
             _contractsPayout = _questsSection.Q<Label>("inventory__contracts-payout");
             _contractsBriefing = _questsSection.Q<Label>("inventory__contracts-briefing");
+            _contractsIntel = _questsSection.Q<Label>("inventory__contracts-intel");
             _contractsAcceptButton = _questsSection.Q<Button>("inventory__contracts-primary-action");
             _contractsActivePrimaryActionButton = _questsSection.Q<Button>("inventory__contracts-active-primary-action");
             if (_contractsFeed != null
                 && _contractsRow != null
                 && _contractsActive != null
+                && _contractsActiveHeader != null
+                && _contractsActiveTargetBlock != null
+                && _contractsBriefingCard != null
+                && _contractsIntelCard != null
+                && _contractsActiveFooter != null
                 && _contractsStatus != null
+                && _contractsActiveStatus != null
+                && _contractsActivePayout != null
                 && _contractsTitle != null
                 && _contractsSummary != null
                 && _contractsTarget != null
+                && _contractsTargetSummary != null
                 && _contractsPayout != null
                 && _contractsBriefing != null
+                && _contractsIntel != null
                 && _contractsAcceptButton != null
                 && _contractsActivePrimaryActionButton != null)
             {
@@ -557,6 +636,8 @@ namespace Reloader.UI.Toolkit.TabInventory
             panel.style.marginTop = 4f;
 
             _contractsStatus = new Label { name = "inventory__contracts-status" };
+            _contractsActiveStatus = new Label { name = "inventory__contracts-active-status" };
+            _contractsActivePayout = new Label { name = "inventory__contracts-active-payout" };
             _contractsFeed = new VisualElement { name = "inventory__contracts-feed" };
             _contractsFeed.style.flexDirection = FlexDirection.Column;
             _contractsRow = new VisualElement { name = "inventory__contracts-row" };
@@ -564,11 +645,24 @@ namespace Reloader.UI.Toolkit.TabInventory
             _contractsTitle = new Label { name = "inventory__contracts-title" };
             _contractsSummary = new Label { name = "inventory__contracts-summary" };
             _contractsTarget = new Label { name = "inventory__contracts-target" };
+            _contractsTargetSummary = new Label { name = "inventory__contracts-target-summary" };
             _contractsPayout = new Label { name = "inventory__contracts-payout" };
             _contractsActive = new VisualElement { name = "inventory__contracts-active" };
             _contractsActive.style.flexDirection = FlexDirection.Column;
+            _contractsActiveHeader = new VisualElement { name = "inventory__contracts-active-header" };
+            _contractsActiveHeader.style.flexDirection = FlexDirection.Row;
+            _contractsActiveTargetBlock = new VisualElement { name = "inventory__contracts-active-target-block" };
+            _contractsActiveTargetBlock.style.flexDirection = FlexDirection.Column;
+            _contractsBriefingCard = new VisualElement { name = "inventory__contracts-briefing-card" };
+            _contractsBriefingCard.style.flexDirection = FlexDirection.Column;
+            _contractsIntelCard = new VisualElement { name = "inventory__contracts-intel-card" };
+            _contractsIntelCard.style.flexDirection = FlexDirection.Column;
+            _contractsActiveFooter = new VisualElement { name = "inventory__contracts-active-footer" };
+            _contractsActiveFooter.style.flexDirection = FlexDirection.Row;
             _contractsBriefing = new Label { name = "inventory__contracts-briefing" };
             _contractsBriefing.style.whiteSpace = WhiteSpace.Normal;
+            _contractsIntel = new Label { name = "inventory__contracts-intel" };
+            _contractsIntel.style.whiteSpace = WhiteSpace.Normal;
             _contractsAcceptButton = new Button { name = "inventory__contracts-primary-action", text = "Accept Contract" };
             _contractsAcceptButton.AddToClassList("inventory__contracts-primary-action");
             _contractsActivePrimaryActionButton = new Button { name = "inventory__contracts-active-primary-action", text = "Cancel Contract" };
@@ -589,9 +683,21 @@ namespace Reloader.UI.Toolkit.TabInventory
             _contractsRow.Add(_contractsAcceptButton);
             _contractsFeed.Add(_contractsRow);
 
-            _contractsActive.Add(_contractsTarget);
-            _contractsActive.Add(_contractsBriefing);
-            _contractsActive.Add(_contractsActivePrimaryActionButton);
+            _contractsActiveHeader.Add(_contractsActiveStatus);
+            _contractsActiveHeader.Add(_contractsActivePayout);
+
+            _contractsActiveTargetBlock.Add(_contractsTarget);
+            _contractsActiveTargetBlock.Add(_contractsTargetSummary);
+
+            _contractsBriefingCard.Add(_contractsBriefing);
+            _contractsIntelCard.Add(_contractsIntel);
+            _contractsActiveFooter.Add(_contractsActivePrimaryActionButton);
+
+            _contractsActive.Add(_contractsActiveHeader);
+            _contractsActive.Add(_contractsActiveTargetBlock);
+            _contractsActive.Add(_contractsBriefingCard);
+            _contractsActive.Add(_contractsIntelCard);
+            _contractsActive.Add(_contractsActiveFooter);
 
             panel.Add(_contractsFeed);
             panel.Add(_contractsActive);

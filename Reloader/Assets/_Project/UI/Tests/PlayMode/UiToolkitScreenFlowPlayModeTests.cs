@@ -1197,9 +1197,23 @@ namespace Reloader.UI.Tests.PlayMode
             contractsFeed.Add(contractsRow);
             questsSection.Add(contractsFeed);
             var contractsActive = new VisualElement { name = "inventory__contracts-active" };
-            contractsActive.Add(new Label { name = "inventory__contracts-target" });
-            contractsActive.Add(new Label { name = "inventory__contracts-briefing" });
-            contractsActive.Add(new Button { name = "inventory__contracts-active-primary-action" });
+            var contractsActiveHeader = new VisualElement { name = "inventory__contracts-active-header" };
+            contractsActiveHeader.Add(new Label { name = "inventory__contracts-active-status" });
+            contractsActiveHeader.Add(new Label { name = "inventory__contracts-active-payout" });
+            contractsActive.Add(contractsActiveHeader);
+            var contractsActiveTargetBlock = new VisualElement { name = "inventory__contracts-active-target-block" };
+            contractsActiveTargetBlock.Add(new Label { name = "inventory__contracts-target" });
+            contractsActiveTargetBlock.Add(new Label { name = "inventory__contracts-target-summary" });
+            contractsActive.Add(contractsActiveTargetBlock);
+            var contractsBriefingCard = new VisualElement { name = "inventory__contracts-briefing-card" };
+            contractsBriefingCard.Add(new Label { name = "inventory__contracts-briefing" });
+            contractsActive.Add(contractsBriefingCard);
+            var contractsIntelCard = new VisualElement { name = "inventory__contracts-intel-card" };
+            contractsIntelCard.Add(new Label { name = "inventory__contracts-intel" });
+            contractsActive.Add(contractsIntelCard);
+            var contractsActiveFooter = new VisualElement { name = "inventory__contracts-active-footer" };
+            contractsActiveFooter.Add(new Button { name = "inventory__contracts-active-primary-action" });
+            contractsActive.Add(contractsActiveFooter);
             questsSection.Add(contractsActive);
 
             deviceSection.Add(new VisualElement { name = "inventory__device-notes" });

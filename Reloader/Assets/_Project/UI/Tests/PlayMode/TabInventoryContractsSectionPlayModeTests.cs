@@ -121,17 +121,36 @@ namespace Reloader.UI.Tests.PlayMode
             var postedFeed = root.Q<VisualElement>("inventory__contracts-feed");
             var activeWorkspace = root.Q<VisualElement>("inventory__contracts-active");
             var contractsStatus = root.Q<Label>("inventory__contracts-status");
+            var activeStatus = root.Q<Label>("inventory__contracts-active-status");
+            var activePayout = root.Q<Label>("inventory__contracts-active-payout");
+            var activeTargetBlock = root.Q<VisualElement>("inventory__contracts-active-target-block");
             var contractsTarget = root.Q<Label>("inventory__contracts-target");
+            var contractsSummary = root.Q<Label>("inventory__contracts-target-summary");
+            var briefingCard = root.Q<VisualElement>("inventory__contracts-briefing-card");
             var contractsBriefing = root.Q<Label>("inventory__contracts-briefing");
+            var intelCard = root.Q<VisualElement>("inventory__contracts-intel-card");
+            var activeHeader = root.Q<VisualElement>("inventory__contracts-active-header");
+            var activeFooter = root.Q<VisualElement>("inventory__contracts-active-footer");
             var acceptButton = root.Q<Button>("inventory__contracts-primary-action");
             var activeActionButton = root.Q<Button>("inventory__contracts-active-primary-action");
 
             Assert.That(contractController.AcceptCalls, Is.EqualTo(1));
             Assert.That(postedFeed.style.display.value, Is.EqualTo(DisplayStyle.None));
             Assert.That(activeWorkspace.style.display.value, Is.EqualTo(DisplayStyle.Flex));
-            Assert.That(contractsStatus.text, Is.EqualTo("Active contract"));
+            Assert.That(contractsStatus.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(activeHeader, Is.Not.Null);
+            Assert.That(activeFooter, Is.Not.Null);
+            Assert.That(activeStatus, Is.Not.Null);
+            Assert.That(activeStatus.text, Is.EqualTo("Mission Status: Active contract"));
+            Assert.That(activePayout, Is.Not.Null);
+            Assert.That(activePayout.text, Is.EqualTo("Payout: $2,400"));
+            Assert.That(activeTargetBlock, Is.Not.Null);
             Assert.That(contractsTarget.text, Is.EqualTo("Yuri Antonov"));
+            Assert.That(contractsSummary, Is.Not.Null);
+            Assert.That(contractsSummary.text, Is.EqualTo("Black cap, waits near the river checkpoint."));
+            Assert.That(briefingCard, Is.Not.Null);
             Assert.That(contractsBriefing.text, Does.Contain("Target becomes exposed"));
+            Assert.That(intelCard, Is.Not.Null);
             Assert.That(acceptButton.style.display.value, Is.EqualTo(DisplayStyle.None));
             Assert.That(activeActionButton.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(activeActionButton.text, Is.EqualTo("Cancel Contract"));
@@ -347,18 +366,26 @@ namespace Reloader.UI.Tests.PlayMode
             controller.Tick();
             controller.HandleIntent(new UiIntent("tab.menu.select", "contracts"));
 
+            var activeWorkspace = root.Q<VisualElement>("inventory__contracts-active");
+            var activeStatus = root.Q<Label>("inventory__contracts-active-status");
+            var contractsBriefing = root.Q<Label>("inventory__contracts-briefing");
             var activeActionButton = root.Q<Button>("inventory__contracts-active-primary-action");
+            Assert.That(activeWorkspace.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(activeStatus, Is.Not.Null);
+            Assert.That(activeStatus.text, Is.EqualTo("Mission Status: Ready to claim"));
+            Assert.That(contractsBriefing, Is.Not.Null);
+            Assert.That(contractsBriefing.text, Is.EqualTo("Objective complete. Reward is ready to collect."));
             Assert.That(activeActionButton.text, Is.EqualTo("Claim Reward"));
 
             controller.HandleIntent(new UiIntent("tab.inventory.contracts.claim"));
 
             var postedFeed = root.Q<VisualElement>("inventory__contracts-feed");
-            var activeWorkspace = root.Q<VisualElement>("inventory__contracts-active");
+            var claimedWorkspace = root.Q<VisualElement>("inventory__contracts-active");
             var contractsStatus = root.Q<Label>("inventory__contracts-status");
 
             Assert.That(contractController.ClaimCalls, Is.EqualTo(1));
             Assert.That(postedFeed.style.display.value, Is.EqualTo(DisplayStyle.None));
-            Assert.That(activeWorkspace.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(claimedWorkspace.style.display.value, Is.EqualTo(DisplayStyle.None));
             Assert.That(contractsStatus.text, Is.EqualTo("No contracts currently posted"));
 
             Object.DestroyImmediate(go);
@@ -421,7 +448,42 @@ namespace Reloader.UI.Tests.PlayMode
             panel.Add(new Button { name = "inventory__tab-device", text = "Device" });
 
             panel.Add(new VisualElement { name = "inventory__section-inventory" });
-            panel.Add(new VisualElement { name = "inventory__section-quests" });
+            var questsSection = new VisualElement { name = "inventory__section-quests" };
+            questsSection.Add(new Label { name = "inventory__contracts-status" });
+            var contractsFeed = new VisualElement { name = "inventory__contracts-feed" };
+            var contractsRow = new VisualElement { name = "inventory__contracts-row" };
+            var rowPreview = new VisualElement();
+            rowPreview.Add(new VisualElement());
+            var rowCopy = new VisualElement();
+            rowCopy.Add(new Label { name = "inventory__contracts-title" });
+            rowCopy.Add(new Label { name = "inventory__contracts-summary" });
+            contractsRow.Add(rowPreview);
+            contractsRow.Add(rowCopy);
+            contractsRow.Add(new Label { name = "inventory__contracts-payout" });
+            contractsRow.Add(new Button { name = "inventory__contracts-primary-action" });
+            contractsFeed.Add(contractsRow);
+            questsSection.Add(contractsFeed);
+
+            var contractsActive = new VisualElement { name = "inventory__contracts-active" };
+            var contractsActiveHeader = new VisualElement { name = "inventory__contracts-active-header" };
+            contractsActiveHeader.Add(new Label { name = "inventory__contracts-active-status" });
+            contractsActiveHeader.Add(new Label { name = "inventory__contracts-active-payout" });
+            contractsActive.Add(contractsActiveHeader);
+            var contractsActiveTargetBlock = new VisualElement { name = "inventory__contracts-active-target-block" };
+            contractsActiveTargetBlock.Add(new Label { name = "inventory__contracts-target" });
+            contractsActiveTargetBlock.Add(new Label { name = "inventory__contracts-target-summary" });
+            contractsActive.Add(contractsActiveTargetBlock);
+            var contractsBriefingCard = new VisualElement { name = "inventory__contracts-briefing-card" };
+            contractsBriefingCard.Add(new Label { name = "inventory__contracts-briefing" });
+            contractsActive.Add(contractsBriefingCard);
+            var contractsIntelCard = new VisualElement { name = "inventory__contracts-intel-card" };
+            contractsIntelCard.Add(new Label { name = "inventory__contracts-intel" });
+            contractsActive.Add(contractsIntelCard);
+            var contractsActiveFooter = new VisualElement { name = "inventory__contracts-active-footer" };
+            contractsActiveFooter.Add(new Button { name = "inventory__contracts-active-primary-action" });
+            contractsActive.Add(contractsActiveFooter);
+            questsSection.Add(contractsActive);
+            panel.Add(questsSection);
             panel.Add(new VisualElement { name = "inventory__section-journal" });
             panel.Add(new VisualElement { name = "inventory__section-calendar" });
             panel.Add(new VisualElement { name = "inventory__section-device" });
@@ -440,7 +502,6 @@ namespace Reloader.UI.Tests.PlayMode
             panel.Add(new Button { name = "inventory__device-clear-group" });
             panel.Add(new Button { name = "inventory__device-install-hooks" });
             panel.Add(new Button { name = "inventory__device-uninstall-hooks" });
-
             panel.Add(new VisualElement { name = "inventory__backpack-grid" });
             panel.Add(new VisualElement { name = "inventory__grid-row--belt" });
             var detailPane = new VisualElement { name = "inventory__detail-pane" };

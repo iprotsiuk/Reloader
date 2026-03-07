@@ -274,35 +274,91 @@
 
 .inventory__contracts-active {
     flex-direction: column;
-    gap: 6px;
-    padding-top: 2px;
+    gap: 5px;
+    padding-top: 1px;
     padding-right: 2px;
     padding-bottom: 2px;
     padding-left: 2px;
 }
 
+.inventory__contracts-active-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.inventory__contracts-active-status {
+    flex-grow: 1;
+    font-size: 9px;
+}
+
+.inventory__contracts-active-payout {
+    color: rgba(238, 242, 248, 0.95);
+    font-size: 9px;
+    -unity-font-style: bold;
+    unity-text-align: middle-right;
+}
+
+.inventory__contracts-active-target-block {
+    flex-direction: column;
+    gap: 1px;
+}
+
 .inventory__contracts-target {
     color: rgba(238, 242, 248, 0.95);
-    font-size: 14px;
+    font-size: 12px;
     -unity-font-style: bold;
 }
 
-.inventory__contracts-briefing-title {
-    margin-top: 2px;
+.inventory__contracts-target-summary {
+    color: rgba(215, 223, 236, 0.76);
+    font-size: 8px;
+    white-space: normal;
 }
 
-.inventory__contracts-briefing {
+.inventory__contracts-active-card {
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 4px;
+    padding-right: 5px;
+    padding-bottom: 4px;
+    padding-left: 5px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.08);
+    border-right-color: rgba(255, 255, 255, 0.08);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    border-left-color: rgba(255, 255, 255, 0.08);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.inventory__contracts-active-card-title {
+    font-size: 9px;
+}
+
+.inventory__contracts-active-card-copy {
     white-space: normal;
     color: rgba(215, 223, 236, 0.82);
-    font-size: 10px;
+    font-size: 9px;
+}
+
+.inventory__contracts-active-footer {
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 1px;
 }
 
 .inventory__contracts-active-primary-action {
-    align-self: flex-end;
     min-width: 84px;
     height: 24px;
     font-size: 8px;
-    margin-top: 4px;
 }
 
 .inventory__detail-pane-contracts {

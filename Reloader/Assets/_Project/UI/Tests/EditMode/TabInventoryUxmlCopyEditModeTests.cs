@@ -45,11 +45,40 @@ namespace Reloader.UI.Tests.EditMode
             Assert.That(contractsSection.Q<VisualElement>("inventory__contracts-feed"), Is.Not.Null);
             Assert.That(contractsSection.Q<VisualElement>("inventory__contracts-row"), Is.Not.Null);
             Assert.That(contractsSection.Q<VisualElement>("inventory__contracts-active"), Is.Not.Null);
+            Assert.That(contractsSection.Q<VisualElement>("inventory__contracts-active-header"), Is.Not.Null);
+            Assert.That(contractsSection.Q<Label>("inventory__contracts-active-status"), Is.Not.Null);
+            Assert.That(contractsSection.Q<Label>("inventory__contracts-active-payout"), Is.Not.Null);
+            Assert.That(contractsSection.Q<VisualElement>("inventory__contracts-active-target-block"), Is.Not.Null);
+            Assert.That(contractsSection.Q<Label>("inventory__contracts-target-summary"), Is.Not.Null);
+            Assert.That(contractsSection.Q<VisualElement>("inventory__contracts-briefing-card"), Is.Not.Null);
+            Assert.That(contractsSection.Q<VisualElement>("inventory__contracts-intel-card"), Is.Not.Null);
+            Assert.That(contractsSection.Q<VisualElement>("inventory__contracts-active-footer"), Is.Not.Null);
             Assert.That(contractsSection.Q<Button>("inventory__contracts-primary-action"), Is.Not.Null);
             Assert.That(contractsSection.Q<Button>("inventory__contracts-active-primary-action"), Is.Not.Null);
             Assert.That(root.Q<Label>("inventory__header-meta"), Is.Not.Null);
             Assert.That(root.Q<VisualElement>("inventory__detail-pane-contracts"), Is.Not.Null);
             Assert.That(root.Q<Label>("inventory__detail-pane-reward-state"), Is.Not.Null);
+        }
+
+        [Test]
+        public void ContractsActiveWorkspace_AuthorsStructuredMissionWorkspace()
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(TabInventoryUxmlPath);
+            Assert.That(asset, Is.Not.Null, $"Expected UXML asset at '{TabInventoryUxmlPath}'.");
+
+            var root = asset.CloneTree();
+            var activeWorkspace = root.Q<VisualElement>("inventory__contracts-active");
+            Assert.That(activeWorkspace, Is.Not.Null);
+            Assert.That(activeWorkspace.Q<VisualElement>("inventory__contracts-active-header"), Is.Not.Null);
+            Assert.That(activeWorkspace.Q<Label>("inventory__contracts-active-status"), Is.Not.Null);
+            Assert.That(activeWorkspace.Q<Label>("inventory__contracts-active-payout"), Is.Not.Null);
+            Assert.That(activeWorkspace.Q<VisualElement>("inventory__contracts-active-target-block"), Is.Not.Null);
+            Assert.That(activeWorkspace.Q<Label>("inventory__contracts-target"), Is.Not.Null);
+            Assert.That(activeWorkspace.Q<Label>("inventory__contracts-target-summary"), Is.Not.Null);
+            Assert.That(activeWorkspace.Q<VisualElement>("inventory__contracts-briefing-card"), Is.Not.Null);
+            Assert.That(activeWorkspace.Q<VisualElement>("inventory__contracts-intel-card"), Is.Not.Null);
+            Assert.That(activeWorkspace.Q<VisualElement>("inventory__contracts-active-footer"), Is.Not.Null);
+            Assert.That(activeWorkspace.Q<Button>("inventory__contracts-active-primary-action"), Is.Not.Null);
         }
 
         [Test]

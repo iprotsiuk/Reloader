@@ -87,10 +87,25 @@
                             </ui:VisualElement>
                         </ui:VisualElement>
                         <ui:VisualElement name="inventory__contracts-active" class="inventory__contracts-active inventory__section--hidden">
-                            <ui:Label name="inventory__contracts-target" text="--" class="inventory__contracts-target"/>
-                            <ui:Label text="Briefing" class="inventory__contracts-briefing-title ui-kit__hint"/>
-                            <ui:Label name="inventory__contracts-briefing" text="Check back later for fresh contract offers." class="inventory__contracts-briefing"/>
-                            <ui:Button name="inventory__contracts-active-primary-action" text="Cancel Contract" class="inventory__contracts-active-primary-action ui-kit__tab"/>
+                            <ui:VisualElement name="inventory__contracts-active-header" class="inventory__contracts-active-header">
+                                <ui:Label name="inventory__contracts-active-status" text="Mission Status: Active contract" class="inventory__contracts-active-status ui-kit__hint"/>
+                                <ui:Label name="inventory__contracts-active-payout" text="Payout: --" class="inventory__contracts-active-payout"/>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="inventory__contracts-active-target-block" class="inventory__contracts-active-target-block">
+                                <ui:Label name="inventory__contracts-target" text="--" class="inventory__contracts-target"/>
+                                <ui:Label name="inventory__contracts-target-summary" text="No target intel available." class="inventory__contracts-target-summary"/>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="inventory__contracts-briefing-card" class="inventory__contracts-active-card inventory__contracts-briefing-card">
+                                <ui:Label text="Briefing" class="inventory__contracts-active-card-title ui-kit__hint"/>
+                                <ui:Label name="inventory__contracts-briefing" text="Check back later for fresh contract offers." class="inventory__contracts-active-card-copy inventory__contracts-briefing"/>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="inventory__contracts-intel-card" class="inventory__contracts-active-card inventory__contracts-intel-card">
+                                <ui:Label text="Intel" class="inventory__contracts-active-card-title ui-kit__hint"/>
+                                <ui:Label name="inventory__contracts-intel" text="No target intel available." class="inventory__contracts-active-card-copy inventory__contracts-intel"/>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="inventory__contracts-active-footer" class="inventory__contracts-active-footer">
+                                <ui:Button name="inventory__contracts-active-primary-action" text="Cancel Contract" class="inventory__contracts-active-primary-action ui-kit__tab"/>
+                            </ui:VisualElement>
                         </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement name="inventory__section-journal" class="inventory__section inventory__section--hidden">
