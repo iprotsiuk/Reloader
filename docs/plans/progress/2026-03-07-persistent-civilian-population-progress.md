@@ -52,9 +52,20 @@
   - `CivilianPopulationRuntimeBridge.PrepareForSave(...)` now preserves loaded module data by hydrating the runtime roster before capture when runtime state is still empty
 - Added focused regression coverage for those review fixes in the existing save-module, appearance-generator, and runtime-bridge suites
 
+## 2026-03-07 Checkpoint 5
+
+- Clarified the approved model before the next implementation slice:
+  - `MainTown` should own one map-wide persistent population roster
+  - the roster should later be partitioned into stable pools like `townsfolk`, `quarry_workers`, `hobos`, and `cops`
+  - each occupant should eventually live in a stable `populationSlotId` so replacements inherit the same world role
+  - contract targets must later be selected only from living current occupants, never from dead civilians
+  - vendors remain the only protected contract exclusion for the first targeting pass
+  - if the Monday `08:00` refresh happens while `MainTown` is unloaded, replacements should already be in place on the next load rather than arriving late on-screen
+
 ## Scope Notes
 
 - New saves should generate a persistent `MainTown` civilian roster.
+- That roster should evolve toward one scene-wide `MainTown` population with stable slots and pools rather than settlement-local ownership.
 - Save/load must preserve the same generated civilians within one save.
 - Vendors and other protected authored roles stay outside the generated civilian pool.
 - Civilian death retires the civilian from the save instead of rerolling the entire town.
@@ -72,7 +83,10 @@
 
 Once the persistent population foundation is stable, the next slice should wire contracts to it:
 
+- define a `MainTownPopulationDefinition` with stable pools and `populationSlotId`s
+- fill map-wide `MainTown` slots with generated occupants
 - pick random living civilians as contract targets
 - derive contract descriptions from the selected civilian appearance snapshot
 - preserve vendor/protected-role exclusions in target selection
+- exclude dead civilians from target selection
 - execute the Monday `08:00` replacement queue so vacancies eventually refill in-world
