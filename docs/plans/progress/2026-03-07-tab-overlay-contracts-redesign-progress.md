@@ -12,7 +12,7 @@
 - [ ] Baseline screenshots captured
 - [x] Icon source selected
 - [x] Three-region shell landed
-- [ ] Icon-first left rail landed
+- [x] Icon-first left rail landed
 - [ ] Posted contract feed landed
 - [ ] Active contract workspace landed
 - [ ] Cancel contract action landed
@@ -67,6 +67,16 @@
   - local non-Unity verification passed: `xmllint --noout` on `TabInventory.uxml`, `git diff --check`
   - after restarting Unity, the targeted PlayMode rerun passed cleanly
   - the shell scaffold is now verified and closed for this checkpoint
+- Icon rail checkpoint status:
+  - replaced the wide text tab rail with icon-first navigation using repo-tracked `TabRail/tab_*.png` assets
+  - added a structural runtime check: `UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesIconRailNavigation`
+  - tightened the rail width and per-tab sizing so the left rail now returns more usable width to the workspace
+- Minimum-width fallback checkpoint status:
+  - verified the new PR review about minimum-width collapse was still valid against the shell scaffold
+  - added `TabInventoryResponsiveLayoutEditModeTests.ApplyResponsiveLayout_HidesDetailPane_WhenPanelWidthDropsBelowMinimum`
+  - updated `TabInventoryViewBinder.ApplyResponsiveDetailPane()` to collapse the outer detail pane when the panel cannot sustain both the rail and a usable workspace width
+  - the fallback now zeroes the workspace right margin when collapsed so the center pane reclaims the lost space
+  - Unity CLI verification is currently blocked on inconsistent test-result emission and a flaky post-restart MCP bridge, so the checkpoint remains pending screenshot validation once the editor session is healthy again
 
 ## Verification
 
@@ -78,3 +88,4 @@
 - Unity MCP read-back:
   - initial shell red-phase test failed for the expected missing-shell reason
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesThreeRegionShell`: passed (`1/1`)
+  - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesIconRailNavigation`: passed (`1/1`)

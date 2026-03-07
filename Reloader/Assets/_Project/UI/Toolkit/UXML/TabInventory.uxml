@@ -8,12 +8,22 @@
             </ui:VisualElement>
             <ui:VisualElement name="inventory__shell" class="inventory__shell">
                 <ui:VisualElement name="inventory__rail" class="inventory__rail">
-                    <ui:VisualElement name="inventory__tabbar" class="inventory__tabbar">
-                        <ui:Button name="inventory__tab-inventory" text="Inventory" class="inventory__tab ui-kit__tab is-active"/>
-                        <ui:Button name="inventory__tab-quests" text="Quests" class="inventory__tab ui-kit__tab"/>
-                        <ui:Button name="inventory__tab-journal" text="Journal" class="inventory__tab ui-kit__tab"/>
-                        <ui:Button name="inventory__tab-calendar" text="Calendar" class="inventory__tab ui-kit__tab"/>
-                        <ui:Button name="inventory__tab-device" text="Device" class="inventory__tab ui-kit__tab"/>
+                    <ui:VisualElement name="inventory__tabbar" class="inventory__tabbar inventory__tabbar--icon-rail">
+                        <ui:Button name="inventory__tab-inventory" text="Inventory" class="inventory__tab inventory__tab--inventory ui-kit__tab is-active">
+                            <ui:VisualElement name="inventory__tab-inventory-icon" class="inventory__tab-icon inventory__tab-icon--inventory"/>
+                        </ui:Button>
+                        <ui:Button name="inventory__tab-quests" text="Quests" class="inventory__tab inventory__tab--contracts ui-kit__tab">
+                            <ui:VisualElement name="inventory__tab-quests-icon" class="inventory__tab-icon inventory__tab-icon--contracts"/>
+                        </ui:Button>
+                        <ui:Button name="inventory__tab-journal" text="Journal" class="inventory__tab inventory__tab--journal ui-kit__tab">
+                            <ui:VisualElement name="inventory__tab-journal-icon" class="inventory__tab-icon inventory__tab-icon--journal"/>
+                        </ui:Button>
+                        <ui:Button name="inventory__tab-calendar" text="Calendar" class="inventory__tab inventory__tab--calendar ui-kit__tab">
+                            <ui:VisualElement name="inventory__tab-calendar-icon" class="inventory__tab-icon inventory__tab-icon--calendar"/>
+                        </ui:Button>
+                        <ui:Button name="inventory__tab-device" text="Device" class="inventory__tab inventory__tab--device ui-kit__tab">
+                            <ui:VisualElement name="inventory__tab-device-icon" class="inventory__tab-icon inventory__tab-icon--device"/>
+                        </ui:Button>
                     </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:VisualElement name="inventory__workspace" class="inventory__workspace">

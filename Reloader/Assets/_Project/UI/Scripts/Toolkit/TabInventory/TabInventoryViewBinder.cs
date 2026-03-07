@@ -13,7 +13,9 @@ namespace Reloader.UI.Toolkit.TabInventory
     {
         private VisualElement _panel;
         private VisualElement _tabBar;
+        private VisualElement _workspace;
         private VisualElement _gridArea;
+        private VisualElement _detailPane;
         private VisualElement _backpackGrid;
         private VisualElement _beltGrid;
         private VisualElement[] _beltSlots = Array.Empty<VisualElement>();
@@ -96,6 +98,9 @@ namespace Reloader.UI.Toolkit.TabInventory
         private const float MinDeviceButtonWidth = 82f;
         private const float MaxDeviceButtonWidth = 220f;
         private const float InventoryVerticalChrome = 56f;
+        private const float MinDetailPaneWidth = 184f;
+        private const float MinWorkspaceWidthWithDetailPane = 180f;
+        private const float MinPanelWidthForDetailPane = 474f;
 
         public event Action<UiIntent> IntentRaised;
 
@@ -103,7 +108,9 @@ namespace Reloader.UI.Toolkit.TabInventory
         {
             _panel = root?.Q<VisualElement>("inventory__panel");
             _tabBar = root?.Q<VisualElement>("inventory__tabbar");
+            _workspace = root?.Q<VisualElement>("inventory__workspace");
             _gridArea = root?.Q<VisualElement>(className: "inventory__grid-area");
+            _detailPane = root?.Q<VisualElement>("inventory__detail-pane");
             _backpackGrid = root?.Q<VisualElement>("inventory__backpack-grid");
             _beltGrid = root?.Q<VisualElement>("inventory__grid-row--belt")
                 ?? root?.Q<VisualElement>(className: "inventory__grid-row--belt");
@@ -531,10 +538,64 @@ private void EnsureContractsSectionBindings()
 
         private void ApplyResponsiveLayout()
         {
+            ApplyResponsiveDetailPane();
             ApplyResponsiveSlots(_backpackGrid, _backpackSlotElements, preferredColumns: 8, verticalRowsInLayout: 3);
             ApplyResponsiveBeltSlots();
             ApplyResponsiveTabs();
             ApplyResponsiveDeviceButtons();
+        }
+
+        private void ApplyResponsiveDetailPane()
+        {
+            if (_panel == null || _workspace == null || _detailPane == null)
+            {
+                return;
+            }
+
+            var panelWidth = ResolveAssignedWidth(_panel);
+            if (panelWidth <= 0f)
+            {
+                return;
+            }
+
+            var requiredPanelWidth = Mathf.Max(
+                MinPanelWidthForDetailPane,
+                ResolveAssignedWidth(_detailPane, MinDetailPaneWidth) + MinWorkspaceWidthWithDetailPane);
+            var shouldCollapse = panelWidth < requiredPanelWidth;
+
+            _detailPane.style.display = shouldCollapse ? DisplayStyle.None : DisplayStyle.Flex;
+            _workspace.style.marginRight = shouldCollapse ? 0f : StyleKeyword.Null;
+        }
+
+        private static float ResolveAssignedWidth(VisualElement element, float fallbackWidth = 0f)
+        {
+            if (element == null)
+            {
+                return fallbackWidth;
+            }
+
+            var styledWidth = element.style.width;
+            if (styledWidth.keyword == StyleKeyword.Null
+                || styledWidth.keyword == StyleKeyword.Auto)
+            {
+                var resolvedWidth = Mathf.Max(element.contentRect.width, element.resolvedStyle.width);
+                if (resolvedWidth > 0f)
+                {
+                    return resolvedWidth;
+                }
+
+                var styledMinWidth = element.style.minWidth;
+                if (styledMinWidth.keyword != StyleKeyword.Null
+                    && styledMinWidth.keyword != StyleKeyword.Auto
+                    && styledMinWidth.value.value > 0f)
+                {
+                    return styledMinWidth.value.value;
+                }
+
+                return fallbackWidth;
+            }
+
+            return styledWidth.value.value;
         }
 
         private void ApplyResponsiveBeltSlots()
@@ -629,10 +690,14 @@ private void EnsureContractsSectionBindings()
             var totalGap = (_tabs.Count - 1) * 6f;
             var perTabWidth = (barWidth - totalGap) / _tabs.Count;
             var resolvedWidth = isRailLayout
-                ? Mathf.Clamp(barWidth, MinTabWidth, MaxTabWidth)
+                ? Mathf.Clamp(barWidth, 54f, 88f)
                 : Mathf.Clamp(perTabWidth, MinTabWidth, MaxTabWidth);
-            var resolvedHeight = Mathf.Clamp(_resolvedSlotSize * 0.56f, 20f, 28f);
-            var resolvedFontSize = Mathf.Clamp(_resolvedSlotSize * 0.24f, 9f, 12f);
+            var resolvedHeight = isRailLayout
+                ? Mathf.Clamp(_resolvedSlotSize * 1.1f, 48f, 60f)
+                : Mathf.Clamp(_resolvedSlotSize * 0.56f, 20f, 28f);
+            var resolvedFontSize = isRailLayout
+                ? 0f
+                : Mathf.Clamp(_resolvedSlotSize * 0.24f, 9f, 12f);
 
             for (var i = 0; i < _tabs.Count; i++)
             {
@@ -640,6 +705,8 @@ private void EnsureContractsSectionBindings()
                 tab.style.width = resolvedWidth;
                 tab.style.height = resolvedHeight;
                 tab.style.fontSize = resolvedFontSize;
+                tab.style.paddingLeft = isRailLayout ? 0f : StyleKeyword.Null;
+                tab.style.paddingRight = isRailLayout ? 0f : StyleKeyword.Null;
             }
         }
 
