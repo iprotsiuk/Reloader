@@ -62,6 +62,46 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(ReadEconomyMoney(), Is.EqualTo(startingMoney + activeSnapshot.Payout));
         }
 
+        [UnityTest]
+        public IEnumerator MainTownContractSlice_TargetEliminatedBeforeAccept_ConsumesOfferAndStartsSearch()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True, "Expected authored MainTown contract offer.");
+            Assert.That(availableSnapshot.HasAvailableContract, Is.True);
+            Assert.That(availableSnapshot.CanAccept, Is.True);
+
+            var targetRoot = GameObject.Find("ContractTarget_Volkov");
+            Assert.That(targetRoot, Is.Not.Null, "Expected authored contract target root in MainTown.");
+
+            var startingMoney = ReadEconomyMoney();
+
+            ApplyLethalDamage(targetRoot!);
+            yield return null;
+
+            var runtime = GetRuntime(provider);
+            Assert.That(targetRoot.activeSelf, Is.False, "Contract target should disable itself after the lethal hit.");
+            Assert.That(provider.TryGetContractSnapshot(out _), Is.False, "Dead authored targets must consume the scene offer before acceptance.");
+            Assert.That(provider.AcceptAvailableContract(), Is.False, "The scene offer must not remain acceptible once the authored target is dead.");
+            Assert.That(ReadActiveContract(runtime), Is.Null);
+            Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+            Assert.That(ReadEconomyMoney(), Is.EqualTo(startingMoney), "Pre-accept target kills must not award contract payout.");
+
+            provider.AdvanceRuntime(31f);
+            yield return null;
+
+            Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Clear));
+            Assert.That(provider.TryGetContractSnapshot(out _), Is.False);
+            Assert.That(ReadActiveContract(runtime), Is.Null);
+            Assert.That(ReadEconomyMoney(), Is.EqualTo(startingMoney));
+        }
+
         private static ContractEscapeResolutionRuntime GetRuntime(StaticContractRuntimeProvider provider)
         {
             var runtimeField = typeof(StaticContractRuntimeProvider).GetField("_runtime", BindingFlags.Instance | BindingFlags.NonPublic);

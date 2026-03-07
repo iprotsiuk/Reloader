@@ -126,6 +126,39 @@ namespace Reloader.Core.Tests.EditMode
                 completedContractId = contractId;
             }
         }
+
+        [Test]
+        public void ReportTargetEliminated_BeforeAccept_ConsumesOfferAndRaisesHeatWhenExposed()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            var payoutReceiver = new RecordingPayoutReceiver();
+            var runtime = new ContractEscapeResolutionRuntime(
+                contract,
+                searchDurationSeconds: 10f,
+                payoutReceiver: payoutReceiver,
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            try
+            {
+                Assert.That(runtime.TryGetSnapshot(out var availableSnapshot), Is.True);
+                Assert.That(availableSnapshot.HasAvailableContract, Is.True);
+                Assert.That(availableSnapshot.CanAccept, Is.True);
+
+                var handled = runtime.ReportTargetEliminated("target.alpha", wasExposed: true);
+
+                Assert.That(handled, Is.True);
+                Assert.That(runtime.TryGetSnapshot(out _), Is.False, "Offer should disappear once its target is already dead.");
+                Assert.That(runtime.AcceptAvailableContract(), Is.False, "A consumed offer must not become acceptible after a pre-accept kill.");
+                Assert.That(runtime.ActiveContract, Is.Null);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+                Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(0));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+            }
+        }
+
         [Test]
         public void ReportTargetEliminated_WrongTargetFailsContractAndDoesNotAwardPayout()
         {

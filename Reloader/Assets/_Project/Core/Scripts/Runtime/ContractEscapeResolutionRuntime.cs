@@ -127,9 +127,23 @@ namespace Reloader.Contracts.Runtime
 
         public bool ReportTargetEliminated(string targetId, bool wasExposed)
         {
-            var activeContract = _contractController.ActiveContract;
-            if (activeContract == null || string.IsNullOrWhiteSpace(targetId))
+            if (string.IsNullOrWhiteSpace(targetId))
             {
+                return false;
+            }
+
+            var activeContract = _contractController.ActiveContract;
+            if (activeContract == null)
+            {
+                if (!_offerConsumed &&
+                    _availableContract != null &&
+                    string.Equals(_availableContract.TargetId, targetId, StringComparison.Ordinal))
+                {
+                    _offerConsumed = true;
+                    RaiseMurderHeatIfNeeded(wasExposed);
+                    return true;
+                }
+
                 return false;
             }
 
