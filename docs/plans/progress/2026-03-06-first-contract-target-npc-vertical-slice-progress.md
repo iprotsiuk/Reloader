@@ -18,7 +18,7 @@
 - [x] `MainTown` authored target slice landed
 - [x] EditMode contract tests green
 - [x] Contract-specific PlayMode bridge/target tests landed
-- [ ] Scene smoke tests green
+- [x] Scene smoke tests green
 
 ## Notes
 
@@ -30,6 +30,7 @@
 - The UI runtime bridge now prefers local device/target-selection controllers over scene-global fallbacks to keep contract/device flows deterministic.
 - Review fix: `ContractEscapeResolutionRuntime` now requires a real target-elimination resolution before `Advance()` can complete the active contract.
 - Review fix: `TabInventoryViewBinder` now rebinds the reused `inventory__contracts-accept` button to the current binder instance, so `UiToolkitScreenRuntimeBridge` teardown/rebind cycles do not strand the Contracts accept action.
+- Added `MainTownContractSlicePlayModeTests` as the authored world-scene smoke for the first contract loop; it boots `MainTown`, accepts the authored contract, eliminates the authored target, and verifies payout stays gated until the search timer clears.
 - PR: `#25` `feat: first contract target NPC vertical slice`
 
 ## Verification
@@ -37,10 +38,12 @@
 - Full EditMode suite: `307/307` passed
 - Targeted regression: `Reloader.Core.Tests.EditMode.ContractEscapeResolutionRuntimeTests` `4/4` passed
 - Targeted PlayMode class: `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests` `3/3` passed, including `Initialize_WhenContractsControlsAlreadyExist_RebindsAcceptButtonToCurrentBinder`
+- Targeted PlayMode smoke: `Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests` `1/1` passed
 - Full PlayMode suite remains red in unrelated preexisting subsystems (`Audio`, `Economy`, `Player`, `EscMenu`, broad `UI` flows)
 - Latest full PlayMode failure list does not include:
   - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests.RuntimeBridge_BindTabInventory_AcceptsAvailableContractThroughContractsTab`
   - `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests.Initialize_WhenContractsControlsAlreadyExist_RebindsAcceptButtonToCurrentBinder`
+  - `Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_AcceptsTargetEliminationAndAwardsPayoutAfterSearchClears`
   - `Reloader.Weapons.Tests.PlayMode.ContractTargetDamageablePlayModeTests`
   - `Reloader.UI.Tests.PlayMode.TabInventoryDeviceSectionPlayModeTests.Acceptance_DeviceFullLoop_ChooseTargetFireSaveClearReopenTab_PreservesSavedSessionAndClearsMarkers`
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests`
