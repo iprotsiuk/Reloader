@@ -4,8 +4,8 @@
 
 - [x] Design direction approved
 - [x] Implementation plan written
-- [ ] Non-draft PR opened to `main`
-- [ ] `@codex` tagged for review
+- [x] Non-draft PR opened to `main`
+- [x] `@codex` tagged for review
 
 ## Execution Checklist
 
@@ -36,5 +36,6 @@
 
 ## Verification
 
-- `bash scripts/verify-docs-and-context.sh`: pending
-- PR / review status: pending
+- `bash scripts/verify-docs-and-context.sh`: passed
+- `git diff --check` on redesign docs: passed
+- PR / review status: PR `#26` opened and `@codex` requested
