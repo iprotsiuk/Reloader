@@ -108,6 +108,8 @@ namespace Reloader.UI.Toolkit.TabInventory
         private const float MinDetailPaneWidth = 132f;
         private const float MinWorkspaceWidthWithDetailPane = 180f;
         private const float MinPanelWidthForDetailPane = 390f;
+        private const float DefaultRailGap = 6f;
+        private const float DefaultWorkspaceGap = 8f;
 
         public event Action<UiIntent> IntentRaised;
 
@@ -668,8 +670,8 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             var railWidth = ResolveAssignedWidth(_rail);
-            var railGap = _rail == null ? 0f : ResolveAssignedLength(_rail.style.marginRight);
-            var detailGap = ResolveAssignedLength(_workspace.style.marginRight);
+            var railGap = ResolveResolvedMarginRight(_rail, DefaultRailGap);
+            var detailGap = ResolveResolvedMarginRight(_workspace, DefaultWorkspaceGap);
             var requiredPanelWidth = Mathf.Max(
                 MinPanelWidthForDetailPane,
                 railWidth
@@ -719,6 +721,23 @@ namespace Reloader.UI.Toolkit.TabInventory
             return length.keyword == StyleKeyword.Null || length.keyword == StyleKeyword.Auto
                 ? 0f
                 : length.value.value;
+        }
+
+        private static float ResolveResolvedMarginRight(VisualElement element, float authoredFallback)
+        {
+            if (element == null)
+            {
+                return authoredFallback;
+            }
+
+            var resolvedMarginRight = element.resolvedStyle.marginRight;
+            if (resolvedMarginRight > 0f)
+            {
+                return resolvedMarginRight;
+            }
+
+            var assignedMarginRight = ResolveAssignedLength(element.style.marginRight);
+            return assignedMarginRight > 0f ? assignedMarginRight : authoredFallback;
         }
 
         private void ApplyResponsiveBeltSlots()
