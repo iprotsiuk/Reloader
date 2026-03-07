@@ -42,7 +42,8 @@
   - extend `UiRuntimeCutoverPlayModeTests.ExecuteCutover_CreatesToolkitDocumentsAndRuntimeBridge`
   - reason: it already boots the real `UiToolkitRuntimeRoot` and `UIDocument` stack, so it can assert named shell containers on the live TAB document before contract-specific rendering changes
 - Selected icon source:
-  - `/Users/ivanprotsiuk/Documents/assets/LOWPOLY/Post-apocalyptic Survival UI`
+  - external source pack used during authoring: `Post-apocalyptic Survival UI`
+  - selected icons must be imported into a repo-tracked UI images folder before the implementation depends on them
   - strongest candidates from asset path metadata:
     - `c66e974f4efd2f545bc747499036a9c2` -> `Assets/Post-apocalyptic Survival UI/Sprites/Icons/Inventory_Icon.png`
     - `2f6df2fefd6bb96488bb0da5dad5cbd5` -> `Assets/Post-apocalyptic Survival UI/Sprites/Icons/Daily_Icon.png`
@@ -64,10 +65,8 @@
   - verified the test fails red against the old `TabInventory` document because the shell regions were absent
   - implemented the minimal green phase in `TabInventory.uxml`, `TabInventory.uss`, and `TabInventoryViewBinder.cs`
   - local non-Unity verification passed: `xmllint --noout` on `TabInventory.uxml`, `git diff --check`
-  - Unity test rerun is currently blocked by a Unity test-framework/editor-state failure after the first PlayMode run:
-    - `InvalidOperationException: This cannot be used during play mode, please use SceneManager.CreateScene() instead.`
-    - follow-on symptom: the editor was left on an `InitTestScene...` bootstrap scene and the Unity MCP bridge intermittently lost the active editor instance
-  - the shell code is checkpointed for review, but fresh PlayMode verification still needs to be re-established once the editor recovers
+  - after restarting Unity, the targeted PlayMode rerun passed cleanly
+  - the shell scaffold is now verified and closed for this checkpoint
 
 ## Verification
 
@@ -78,4 +77,4 @@
 - PR / review status: PR `#26` opened and `@codex` requested
 - Unity MCP read-back:
   - initial shell red-phase test failed for the expected missing-shell reason
-  - green-phase rerun is currently blocked by Unity test-runner/editor-state failure
+  - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesThreeRegionShell`: passed (`1/1`)
