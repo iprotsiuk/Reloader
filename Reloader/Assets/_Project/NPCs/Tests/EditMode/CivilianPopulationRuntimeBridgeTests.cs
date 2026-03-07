@@ -96,6 +96,70 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
+        [Test]
+        public void TryRetireCivilian_MarksCitizenDeadAndQueuesReplacement()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0007",
+                    IsAlive = true,
+                    IsContractEligible = true,
+                    SpawnAnchorId = "spawn.busstop.c",
+                    CreatedAtDay = 2,
+                    RetiredAtDay = -1
+                });
+
+                Assert.That(bridge.TryRetireCivilian("citizen.mainTown.0007", retiredAtDay: 9), Is.True);
+
+                Assert.That(bridge.Runtime.Civilians[0].IsAlive, Is.False);
+                Assert.That(bridge.Runtime.Civilians[0].IsContractEligible, Is.False);
+                Assert.That(bridge.Runtime.Civilians[0].RetiredAtDay, Is.EqualTo(9));
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(1));
+                Assert.That(bridge.Runtime.PendingReplacements[0].VacatedCivilianId, Is.EqualTo("citizen.mainTown.0007"));
+                Assert.That(bridge.Runtime.PendingReplacements[0].QueuedAtDay, Is.EqualTo(9));
+                Assert.That(bridge.Runtime.PendingReplacements[0].SpawnAnchorId, Is.EqualTo("spawn.busstop.c"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void TryRetireCivilian_WhenCalledAgain_DoesNotDuplicateReplacementDebt()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0008",
+                    IsAlive = true,
+                    IsContractEligible = true,
+                    SpawnAnchorId = "spawn.busstop.a",
+                    CreatedAtDay = 2,
+                    RetiredAtDay = -1
+                });
+
+                Assert.That(bridge.TryRetireCivilian("citizen.mainTown.0008", retiredAtDay: 10), Is.True);
+                Assert.That(bridge.TryRetireCivilian("citizen.mainTown.0008", retiredAtDay: 11), Is.False);
+
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(1));
+                Assert.That(bridge.Runtime.Civilians[0].RetiredAtDay, Is.EqualTo(10));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
         private static CivilianAppearanceLibrary CreateLibrary()
         {
             return new CivilianAppearanceLibrary

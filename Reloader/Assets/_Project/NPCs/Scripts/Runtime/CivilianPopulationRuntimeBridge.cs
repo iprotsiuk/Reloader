@@ -52,6 +52,46 @@ namespace Reloader.NPCs.Runtime
             CopyModuleToRuntime(module);
         }
 
+        public bool TryRetireCivilian(string civilianId, int retiredAtDay)
+        {
+            if (string.IsNullOrWhiteSpace(civilianId))
+            {
+                return false;
+            }
+
+            for (var i = 0; i < _runtime.Civilians.Count; i++)
+            {
+                var record = _runtime.Civilians[i];
+                if (record == null || !string.Equals(record.CivilianId, civilianId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (!record.IsAlive)
+                {
+                    return false;
+                }
+
+                record.IsAlive = false;
+                record.IsContractEligible = false;
+                record.RetiredAtDay = Math.Max(0, retiredAtDay);
+
+                if (!HasPendingReplacement(civilianId))
+                {
+                    _runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                    {
+                        VacatedCivilianId = record.CivilianId,
+                        QueuedAtDay = record.RetiredAtDay,
+                        SpawnAnchorId = record.SpawnAnchorId ?? string.Empty
+                    });
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+
         private void SeedInitialRosterIfNeeded(CivilianPopulationModule module)
         {
             if (_runtime.Civilians.Count > 0 || module.Civilians.Count > 0)
@@ -185,6 +225,20 @@ namespace Reloader.NPCs.Runtime
                 QueuedAtDay = source?.QueuedAtDay ?? 0,
                 SpawnAnchorId = source?.SpawnAnchorId ?? string.Empty
             };
+        }
+
+        private bool HasPendingReplacement(string civilianId)
+        {
+            for (var i = 0; i < _runtime.PendingReplacements.Count; i++)
+            {
+                var replacement = _runtime.PendingReplacements[i];
+                if (replacement != null && string.Equals(replacement.VacatedCivilianId, civilianId, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 

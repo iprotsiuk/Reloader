@@ -32,6 +32,18 @@
   - civilians are persisted and mirrored into runtime memory
   - `MainTown` does not yet instantiate civilians from that runtime roster
 
+## 2026-03-07 Checkpoint 3
+
+- Extended `CivilianPopulationRuntimeBridge` with retirement handling for persistent civilians.
+- `TryRetireCivilian(...)` now:
+  - marks the civilian dead
+  - disables contract eligibility
+  - records `retiredAtDay`
+  - queues exactly one replacement-debt record using the retired civilian's spawn anchor
+- Added focused EditMode coverage to lock:
+  - correct dead/retired state after retirement
+  - no duplicate replacement debt when retirement is reported twice
+
 ## Scope Notes
 
 - New saves should generate a persistent `MainTown` civilian roster.
