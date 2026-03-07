@@ -46,6 +46,7 @@ namespace Reloader.UI.Tests.EditMode
             Assert.That(contractsSection.Q<VisualElement>("inventory__contracts-row"), Is.Not.Null);
             Assert.That(contractsSection.Q<VisualElement>("inventory__contracts-active"), Is.Not.Null);
             Assert.That(contractsSection.Q<Button>("inventory__contracts-primary-action"), Is.Not.Null);
+            Assert.That(contractsSection.Q<Button>("inventory__contracts-active-primary-action"), Is.Not.Null);
         }
 
         [Test]

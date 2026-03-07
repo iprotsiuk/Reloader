@@ -506,20 +506,36 @@ private void Refresh()
                 distanceText: distanceText,
                 payoutText: payoutText,
                 briefingText: string.IsNullOrWhiteSpace(briefing) ? "Check back later for fresh contract offers." : briefing,
-                canAccept: status.CanAccept);
+                canAccept: status.CanAccept,
+                canCancel: status.CanCancel,
+                canClaimReward: status.CanClaimReward);
         }
 
         private bool TryHandleContractIntent(UiIntent intent)
         {
-            if (!string.Equals(intent.Key, "tab.inventory.contracts.accept", StringComparison.Ordinal))
+            var contractController = ResolveContractController();
+            if (contractController == null)
             {
                 return false;
             }
 
-            var contractController = ResolveContractController();
-            contractController?.AcceptAvailableContract();
-            Refresh();
-            return true;
+            switch (intent.Key)
+            {
+                case "tab.inventory.contracts.accept":
+                    contractController.AcceptAvailableContract();
+                    Refresh();
+                    return true;
+                case "tab.inventory.contracts.cancel":
+                    contractController.CancelActiveContract();
+                    Refresh();
+                    return true;
+                case "tab.inventory.contracts.claim":
+                    contractController.ClaimCompletedContractReward();
+                    Refresh();
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         private static InventoryArea ResolveArea(string container)

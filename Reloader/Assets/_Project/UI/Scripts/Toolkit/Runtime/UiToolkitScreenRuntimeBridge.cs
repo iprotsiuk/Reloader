@@ -615,6 +615,8 @@ namespace Reloader.UI.Toolkit.Runtime
                     distanceBandMeters: snapshot.DistanceBandMeters,
                     payout: snapshot.Payout,
                     canAccept: snapshot.CanAccept,
+                    canCancel: snapshot.CanCancel,
+                    canClaimReward: snapshot.CanClaimReward,
                     statusText: statusText);
                 return true;
             }
@@ -623,6 +625,18 @@ namespace Reloader.UI.Toolkit.Runtime
             {
                 var provider = ResolveProvider();
                 return provider != null && provider.AcceptAvailableContract();
+            }
+
+            public bool CancelActiveContract()
+            {
+                var provider = ResolveProvider();
+                return provider != null && provider.CancelActiveContract();
+            }
+
+            public bool ClaimCompletedContractReward()
+            {
+                var provider = ResolveProvider();
+                return provider != null && provider.ClaimCompletedContractReward();
             }
 
             private IContractRuntimeProvider ResolveProvider()

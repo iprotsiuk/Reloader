@@ -14,6 +14,8 @@ namespace Reloader.Contracts.Runtime
             float distanceBandMeters,
             int payout,
             bool canAccept,
+            bool canCancel,
+            bool canClaimReward,
             string statusText)
         {
             HasAvailableContract = hasAvailableContract;
@@ -27,6 +29,8 @@ namespace Reloader.Contracts.Runtime
             DistanceBandMeters = distanceBandMeters;
             Payout = payout;
             CanAccept = canAccept;
+            CanCancel = canCancel;
+            CanClaimReward = canClaimReward;
             StatusText = statusText ?? string.Empty;
         }
 
@@ -41,6 +45,8 @@ namespace Reloader.Contracts.Runtime
         public float DistanceBandMeters { get; }
         public int Payout { get; }
         public bool CanAccept { get; }
+        public bool CanCancel { get; }
+        public bool CanClaimReward { get; }
         public string StatusText { get; }
     }
 }

@@ -57,6 +57,35 @@ namespace Reloader.UI.Tests.EditMode
             Assert.That(inventoryTab.style.height.value.value, Is.InRange(38f, 46f));
         }
 
+        [Test]
+        public void ApplyResponsiveLayout_HidesDetailPane_WhenRailWidthConsumesWorkspaceBudget()
+        {
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 0, backpackSlotCount: 0);
+
+            var panel = root.Q<VisualElement>("inventory__panel");
+            var rail = root.Q<VisualElement>("inventory__rail");
+            var workspace = root.Q<VisualElement>("inventory__workspace");
+            var detailPane = root.Q<VisualElement>("inventory__detail-pane");
+            Assert.That(panel, Is.Not.Null);
+            Assert.That(rail, Is.Not.Null);
+            Assert.That(workspace, Is.Not.Null);
+            Assert.That(detailPane, Is.Not.Null);
+
+            rail.style.width = 120f;
+            rail.style.marginRight = 12f;
+            workspace.style.marginRight = 10f;
+            detailPane.style.width = 152f;
+            detailPane.style.minWidth = 132f;
+            panel.style.width = 420f;
+
+            InvokeApplyResponsiveLayout(binder);
+
+            Assert.That(detailPane.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(workspace.style.marginRight.value.value, Is.EqualTo(0f));
+        }
+
         private static void InvokeApplyResponsiveLayout(TabInventoryViewBinder binder)
         {
             var method = typeof(TabInventoryViewBinder).GetMethod("ApplyResponsiveLayout", BindingFlags.Instance | BindingFlags.NonPublic);

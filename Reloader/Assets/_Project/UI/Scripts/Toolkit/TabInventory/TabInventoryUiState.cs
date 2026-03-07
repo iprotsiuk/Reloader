@@ -46,7 +46,9 @@ namespace Reloader.UI.Toolkit.TabInventory
                 string distanceText,
                 string payoutText,
                 string briefingText,
-                bool canAccept)
+                bool canAccept,
+                bool canCancel,
+                bool canClaimReward)
             {
                 Mode = mode;
                 StatusText = statusText ?? string.Empty;
@@ -57,6 +59,8 @@ namespace Reloader.UI.Toolkit.TabInventory
                 PayoutText = payoutText ?? string.Empty;
                 BriefingText = briefingText ?? string.Empty;
                 CanAccept = canAccept;
+                CanCancel = canCancel;
+                CanClaimReward = canClaimReward;
             }
 
             public ContractPanelMode Mode { get; }
@@ -68,6 +72,8 @@ namespace Reloader.UI.Toolkit.TabInventory
             public string PayoutText { get; }
             public string BriefingText { get; }
             public bool CanAccept { get; }
+            public bool CanCancel { get; }
+            public bool CanClaimReward { get; }
 
             public static ContractPanelState CreateDefault()
             {
@@ -80,7 +86,9 @@ namespace Reloader.UI.Toolkit.TabInventory
                     distanceText: "Distance: --",
                     payoutText: "Payout: --",
                     briefingText: "Check back later for fresh contract offers.",
-                    canAccept: false);
+                    canAccept: false,
+                    canCancel: false,
+                    canClaimReward: false);
             }
         }
 

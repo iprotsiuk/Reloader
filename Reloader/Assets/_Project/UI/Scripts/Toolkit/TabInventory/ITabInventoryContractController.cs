@@ -4,5 +4,7 @@ namespace Reloader.UI.Toolkit.TabInventory
     {
         bool TryGetStatus(out TabInventoryContractStatus status);
         bool AcceptAvailableContract();
+        bool CancelActiveContract();
+        bool ClaimCompletedContractReward();
     }
 }

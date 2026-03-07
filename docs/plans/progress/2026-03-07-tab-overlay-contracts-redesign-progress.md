@@ -15,8 +15,8 @@
 - [x] Icon-first left rail landed
 - [x] Posted contract feed landed
 - [x] Active contract workspace landed
-- [ ] Cancel contract action landed
-- [ ] Ready-to-claim / claim reward flow landed
+- [x] Cancel contract action landed
+- [x] Ready-to-claim / claim reward flow landed
 - [ ] Right-side terms pane landed
 - [x] Density tightening pass landed
 - [ ] Final screenshot set captured
@@ -90,6 +90,12 @@
   - tightened the posted-contract row itself by shrinking the preview tile, portrait, payout segment, and accept button while forcing the summary column to own the remaining width (`flex-basis: 0`)
   - updated `TabInventoryViewBinder.ApplyResponsiveTabs()` to fall back to assigned tab-bar width during deterministic tests instead of depending only on live `contentRect`
   - added `TabInventoryResponsiveLayoutEditModeTests.ApplyResponsiveLayout_ClampsIconRailTabsToCompactWidth_WhenTabBarStaysNarrow` to lock the compact rail sizing contract
+- Cancel / claim contract flow checkpoint status:
+  - extended the contract runtime/provider surface with explicit `CancelActiveContract()` and `ClaimCompletedContractReward()` actions plus snapshot flags for `CanCancel` and `CanClaimReward`
+  - changed successful contract resolution so search clear no longer auto-awards payout; authored contracts now sit in `Ready to claim` until the reward is explicitly collected
+  - canceling an active contract before the kill restores the posted offer for this one-contract slice so the TAB loop does not dead-end
+  - updated the TAB contracts active workspace to switch its single primary action between `Cancel Contract` and `Claim Reward` based on the new runtime snapshot state
+  - added/updated coverage across core runtime, provider, bridge, TAB controller, and MainTown authored smoke tests to lock the explicit-claim lifecycle end to end
 
 ## Verification
 
@@ -105,5 +111,10 @@
   - `Reloader.UI.Tests.EditMode.TabInventoryResponsiveLayoutEditModeTests`: passed (`2/2`)
   - `Reloader.UI.Tests.EditMode.TabInventoryUxmlCopyEditModeTests`: passed (`3/3`)
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests`: passed (`5/5`)
-  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests`: passed (`3/3`)
+  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests`: passed (`5/5`)
+  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests`: passed (`2/2`)
   - `Reloader.UI.Tests.PlayMode.TabInventoryAttachmentsPlayModeTests`: passed (`4/4`)
+  - `Reloader.Core.Tests.EditMode.ContractEscapeResolutionRuntimeTests`: passed (`6/6`)
+  - `Reloader.Core.Tests.EditMode.StaticContractRuntimeProviderTests`: passed (`2/2`)
+  - `Reloader.Core.Tests.PlayMode.StaticContractRuntimeProviderPlayModeTests`: passed (`3/3`)
+  - `Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests`: passed (`2/2`)

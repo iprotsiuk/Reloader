@@ -50,6 +50,16 @@ namespace Reloader.Contracts.Runtime
             return EnsureRuntime().AcceptAvailableContract();
         }
 
+        public bool CancelActiveContract()
+        {
+            return EnsureRuntime().CancelActiveContract();
+        }
+
+        public bool ClaimCompletedContractReward()
+        {
+            return EnsureRuntime().ClaimCompletedContractReward();
+        }
+
         public void ReportContractTargetEliminated(string targetId, bool wasExposed)
         {
             EnsureRuntime().ReportTargetEliminated(targetId, wasExposed);

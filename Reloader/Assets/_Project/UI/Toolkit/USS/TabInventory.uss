@@ -297,6 +297,14 @@
     font-size: 11px;
 }
 
+.inventory__contracts-active-primary-action {
+    align-self: flex-end;
+    min-width: 96px;
+    height: 28px;
+    font-size: 9px;
+    margin-top: 6px;
+}
+
 .inventory__content {
     flex-direction: row;
     flex-wrap: wrap;

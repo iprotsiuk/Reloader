@@ -12,6 +12,8 @@ namespace Reloader.UI.Toolkit.TabInventory
             float distanceBandMeters,
             int payout,
             bool canAccept,
+            bool canCancel,
+            bool canClaimReward,
             string statusText)
         {
             HasAvailableContract = hasAvailableContract;
@@ -23,6 +25,8 @@ namespace Reloader.UI.Toolkit.TabInventory
             DistanceBandMeters = distanceBandMeters;
             Payout = payout;
             CanAccept = canAccept;
+            CanCancel = canCancel;
+            CanClaimReward = canClaimReward;
             StatusText = statusText ?? string.Empty;
         }
 
@@ -35,6 +39,25 @@ namespace Reloader.UI.Toolkit.TabInventory
         public float DistanceBandMeters { get; }
         public int Payout { get; }
         public bool CanAccept { get; }
+        public bool CanCancel { get; }
+        public bool CanClaimReward { get; }
         public string StatusText { get; }
+
+        public static TabInventoryContractStatus CreateDefault()
+        {
+            return new TabInventoryContractStatus(
+                hasAvailableContract: false,
+                hasActiveContract: false,
+                contractTitle: "No posted contracts",
+                targetDisplayName: "--",
+                targetDescription: "Check back later for fresh contract offers.",
+                briefingText: "Check back later for fresh contract offers.",
+                distanceBandMeters: 0f,
+                payout: 0,
+                canAccept: false,
+                canCancel: false,
+                canClaimReward: false,
+                statusText: "No contracts currently posted");
+        }
     }
 }
