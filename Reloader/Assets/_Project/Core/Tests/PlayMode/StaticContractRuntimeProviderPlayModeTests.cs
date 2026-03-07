@@ -105,6 +105,53 @@ namespace Reloader.Core.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator OnEnable_AfterHubSwapWhileDisabled_RebindsLawEnforcementEvents()
+        {
+            var providerGo = new GameObject("ContractProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            var definition = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+
+            try
+            {
+                yield return null;
+
+                SetAvailableContract(provider, definition);
+                Assert.That(provider.AcceptAvailableContract(), Is.True);
+
+                provider.enabled = false;
+                yield return null;
+
+                var replacementHub = new DefaultRuntimeEvents();
+                var heatRaised = false;
+                var receivedState = default(PoliceHeatState);
+                replacementHub.OnHeatChanged += state =>
+                {
+                    heatRaised = true;
+                    receivedState = state;
+                };
+
+                RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), replacementHub);
+
+                provider.enabled = true;
+                yield return null;
+
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True);
+                Assert.That(snapshot.HasActiveContract, Is.True);
+
+                provider.ReportContractTargetEliminated("target.alpha", wasExposed: true);
+                yield return null;
+
+                Assert.That(heatRaised, Is.True, "Re-enabled provider should publish heat updates to the replacement runtime hub.");
+                Assert.That(receivedState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+            }
+            finally
+            {
+                UnityEngine.Object.Destroy(providerGo);
+                DestroyDefinition(definition);
+            }
+        }
+
         private static void SetAvailableContract(StaticContractRuntimeProvider provider, UnityEngine.Object definition)
         {
             var contractType = definition.GetType();

@@ -20,7 +20,7 @@ namespace Reloader.Contracts.Runtime
 
         private void OnEnable()
         {
-            EnsureRuntime();
+            RebuildRuntime();
             RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
             RuntimeKernelBootstrapper.EventsReconfigured += HandleRuntimeEventsReconfigured;
         }
