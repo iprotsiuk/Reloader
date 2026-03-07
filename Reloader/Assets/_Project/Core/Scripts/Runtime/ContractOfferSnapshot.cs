@@ -1,0 +1,46 @@
+namespace Reloader.Contracts.Runtime
+{
+    public readonly struct ContractOfferSnapshot
+    {
+        public ContractOfferSnapshot(
+            bool hasAvailableContract,
+            bool hasActiveContract,
+            string contractId,
+            string title,
+            string targetId,
+            string targetDisplayName,
+            string targetDescription,
+            string briefingText,
+            float distanceBandMeters,
+            int payout,
+            bool canAccept,
+            string statusText)
+        {
+            HasAvailableContract = hasAvailableContract;
+            HasActiveContract = hasActiveContract;
+            ContractId = contractId ?? string.Empty;
+            Title = title ?? string.Empty;
+            TargetId = targetId ?? string.Empty;
+            TargetDisplayName = targetDisplayName ?? string.Empty;
+            TargetDescription = targetDescription ?? string.Empty;
+            BriefingText = briefingText ?? string.Empty;
+            DistanceBandMeters = distanceBandMeters;
+            Payout = payout;
+            CanAccept = canAccept;
+            StatusText = statusText ?? string.Empty;
+        }
+
+        public bool HasAvailableContract { get; }
+        public bool HasActiveContract { get; }
+        public string ContractId { get; }
+        public string Title { get; }
+        public string TargetId { get; }
+        public string TargetDisplayName { get; }
+        public string TargetDescription { get; }
+        public string BriefingText { get; }
+        public float DistanceBandMeters { get; }
+        public int Payout { get; }
+        public bool CanAccept { get; }
+        public string StatusText { get; }
+    }
+}

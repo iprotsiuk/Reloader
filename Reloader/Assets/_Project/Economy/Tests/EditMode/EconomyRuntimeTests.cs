@@ -13,6 +13,18 @@ namespace Reloader.Economy.Tests.EditMode
             Assert.That(runtime.Money, Is.EqualTo(500));
         }
 
+[Test]
+        public void AwardMoney_WithPositiveAmount_IncreasesMoney()
+        {
+            var runtime = new EconomyRuntime(500);
+
+            var awarded = runtime.AwardMoney(275);
+
+            Assert.That(awarded, Is.True);
+            Assert.That(runtime.Money, Is.EqualTo(775));
+        }
+
+
         [Test]
         public void BuyAndSell_MutatesMoneyAndStock()
         {

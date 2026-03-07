@@ -1,4 +1,3 @@
-using System;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 
@@ -6,88 +5,33 @@ namespace Reloader.LawEnforcement
 {
     public sealed class PoliceHeatController
     {
-        private readonly float _searchDurationSeconds;
-        private readonly ILawEnforcementEvents _lawEnforcementEvents;
+        private readonly PoliceHeatRuntime _runtime;
 
         public PoliceHeatController(float searchDurationSeconds = 45f, ILawEnforcementEvents lawEnforcementEvents = null)
         {
-            _searchDurationSeconds = Math.Max(0f, searchDurationSeconds);
-            _lawEnforcementEvents = lawEnforcementEvents;
-            CurrentState = new PoliceHeatState(PoliceHeatLevel.Clear, CrimeType.Murder, 0f, false);
+            _runtime = new PoliceHeatRuntime(searchDurationSeconds, lawEnforcementEvents);
         }
 
-        public PoliceHeatState CurrentState { get; private set; }
+        public PoliceHeatState CurrentState => _runtime.CurrentState;
 
         public void ReportCrime(CrimeType crimeType)
         {
-            if (CurrentState.Level == PoliceHeatLevel.Clear)
-            {
-                SetState(PoliceHeatLevel.Alerted, crimeType, _searchDurationSeconds, false);
-                return;
-            }
-
-            SetState(CurrentState.Level, crimeType, _searchDurationSeconds, CurrentState.HasLineOfSightToPlayer);
+            _runtime.ReportCrime(crimeType);
         }
 
         public void ReportLineOfSightAcquired()
         {
-            if (CurrentState.Level == PoliceHeatLevel.Clear)
-            {
-                return;
-            }
-
-            SetState(PoliceHeatLevel.ActivePursuit, CurrentState.LastCrimeType, _searchDurationSeconds, true);
+            _runtime.ReportLineOfSightAcquired();
         }
 
         public void ReportLineOfSightLost()
         {
-            if (CurrentState.Level == PoliceHeatLevel.Clear)
-            {
-                return;
-            }
-
-            if (CurrentState.Level == PoliceHeatLevel.Search
-                && !CurrentState.HasLineOfSightToPlayer)
-            {
-                return;
-            }
-
-            SetState(PoliceHeatLevel.Search, CurrentState.LastCrimeType, _searchDurationSeconds, false);
+            _runtime.ReportLineOfSightLost();
         }
 
         public void Advance(float deltaTimeSeconds)
         {
-            if (deltaTimeSeconds <= 0f
-                || CurrentState.Level != PoliceHeatLevel.Search
-                || CurrentState.HasLineOfSightToPlayer)
-            {
-                return;
-            }
-
-            var remaining = Math.Max(0f, CurrentState.SearchTimeRemainingSeconds - deltaTimeSeconds);
-            if (remaining <= 0f)
-            {
-                SetState(PoliceHeatLevel.Clear, CurrentState.LastCrimeType, 0f, false);
-                return;
-            }
-
-            SetState(PoliceHeatLevel.Search, CurrentState.LastCrimeType, remaining, false);
-        }
-
-        private void SetState(
-            PoliceHeatLevel level,
-            CrimeType lastCrimeType,
-            float searchTimeRemainingSeconds,
-            bool hasLineOfSightToPlayer)
-        {
-            var nextState = new PoliceHeatState(
-                level,
-                lastCrimeType,
-                Math.Max(0f, searchTimeRemainingSeconds),
-                hasLineOfSightToPlayer);
-
-            CurrentState = nextState;
-            _lawEnforcementEvents?.RaiseHeatChanged(nextState);
+            _runtime.Advance(deltaTimeSeconds);
         }
     }
 }

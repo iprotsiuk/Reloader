@@ -4,7 +4,9 @@ using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Items;
 using Reloader.Inventory;
-using Reloader.Player;
+using Reloader.Player;using Reloader.Weapons.Controllers;
+using Reloader.Weapons.Runtime;
+
 using Reloader.UI.Toolkit.Contracts;
 using Reloader.UI.Toolkit.Runtime;
 using Reloader.UI.Toolkit.TabInventory;
@@ -15,6 +17,19 @@ namespace Reloader.UI.Tests.PlayMode
 {
     public class TabInventoryDeviceSectionPlayModeTests
     {
+
+[SetUp]
+        public void SetUp()
+        {
+            CleanupScene();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            CleanupScene();
+        }
+
         [Test]
         public void Controller_MenuToggleOpensDeviceSectionFromT0()
         {
@@ -957,5 +972,30 @@ namespace Reloader.UI.Tests.PlayMode
                 return true;
             }
         }
-    }
+
+
+private static void CleanupScene()
+        {
+            DestroyOwnersOfType<UiToolkitScreenRuntimeBridge>();
+            DestroyOwnersOfType<PlayerInventoryController>();
+            DestroyOwnersOfType<PlayerWeaponController>();
+            DestroyOwnersOfType<WeaponRegistry>();
+            DestroyOwnersOfType<Camera>();
+            DestroyOwnersOfType<TestInputSource>();
+            DestroyOwnersOfType<TestDeviceController>();
+        }
+
+        private static void DestroyOwnersOfType<T>() where T : Component
+        {
+            var components = UnityEngine.Object.FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < components.Length; i++)
+            {
+                var component = components[i];
+                if (component != null && component.gameObject != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(component.gameObject);
+                }
+            }
+        }
+}
 }

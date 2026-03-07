@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System.Collections.Generic;
-using Reloader.Inventory;
+using Reloader.Inventory;using Reloader.Contracts.Runtime;
+
 using Reloader.Player;
 using Reloader.Player.Viewmodel;
 using Reloader.Core.Items;
@@ -262,6 +263,7 @@ namespace Reloader.World.Editor
 
             animationBinder.Configure(armsAnimator, weaponAnimationProfile);
 
+            WireContractTargetsToRuntimeProvider();
             CleanupStarterWorldObjects();
 
             if (lookController != null)
@@ -603,6 +605,32 @@ namespace Reloader.World.Editor
             child.localScale = Vector3.one;
             return child;
         }
-    }
+
+
+private static void WireContractTargetsToRuntimeProvider()
+        {
+            var provider = Object.FindFirstObjectByType<StaticContractRuntimeProvider>();
+            var targets = Object.FindObjectsByType<ContractTargetDamageable>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < targets.Length; i++)
+            {
+                var target = targets[i];
+                if (target == null)
+                {
+                    continue;
+                }
+
+                var serializedObject = new SerializedObject(target);
+                var sinkProperty = serializedObject.FindProperty("_eliminationSinkBehaviour");
+                if (sinkProperty == null)
+                {
+                    continue;
+                }
+
+                sinkProperty.objectReferenceValue = provider;
+                serializedObject.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(target);
+            }
+        }
+}
 }
 #endif

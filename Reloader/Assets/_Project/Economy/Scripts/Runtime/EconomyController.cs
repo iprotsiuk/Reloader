@@ -71,6 +71,18 @@ namespace Reloader.Economy
             }
         }
 
+public bool TryAwardMoney(int amount)
+        {
+            if (_runtime == null || !_runtime.AwardMoney(amount))
+            {
+                return false;
+            }
+
+            ResolveInventoryEvents()?.RaiseMoneyChanged(_runtime.Money);
+            return true;
+        }
+
+
         private void HandleTradeOpenRequested(string vendorId)
         {
             if (!TryGetCatalog(vendorId, out var catalog) || !_runtime.OpenVendor(vendorId, catalog))

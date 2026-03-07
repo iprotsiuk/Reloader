@@ -28,6 +28,47 @@ namespace Reloader.UI.Toolkit.TabInventory
             public int MaxStack { get; }
         }
 
+        public readonly struct ContractPanelState
+        {
+            public ContractPanelState(
+                string statusText,
+                string titleText,
+                string targetText,
+                string distanceText,
+                string payoutText,
+                string briefingText,
+                bool canAccept)
+            {
+                StatusText = statusText ?? string.Empty;
+                TitleText = titleText ?? string.Empty;
+                TargetText = targetText ?? string.Empty;
+                DistanceText = distanceText ?? string.Empty;
+                PayoutText = payoutText ?? string.Empty;
+                BriefingText = briefingText ?? string.Empty;
+                CanAccept = canAccept;
+            }
+
+            public string StatusText { get; }
+            public string TitleText { get; }
+            public string TargetText { get; }
+            public string DistanceText { get; }
+            public string PayoutText { get; }
+            public string BriefingText { get; }
+            public bool CanAccept { get; }
+
+            public static ContractPanelState CreateDefault()
+            {
+                return new ContractPanelState(
+                    statusText: "No contracts available",
+                    titleText: "No active contract",
+                    targetText: "Target: --",
+                    distanceText: "Distance: --",
+                    payoutText: "Payout: --",
+                    briefingText: "Check back later for fresh contract offers.",
+                    canAccept: false);
+            }
+        }
+
         private readonly SlotState[] _beltSlots;
         private readonly SlotState[] _backpackSlots;
 
@@ -38,6 +79,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             string tooltipTitle,
             bool tooltipVisible,
             string activeSection,
+            ContractPanelState contractPanel,
             bool deviceNotesVisible,
             string deviceSelectedTargetText,
             string deviceShotCountText,
@@ -65,6 +107,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             TooltipTitle = tooltipTitle ?? string.Empty;
             TooltipVisible = tooltipVisible;
             ActiveSection = string.IsNullOrWhiteSpace(activeSection) ? "device" : activeSection;
+            ContractPanel = contractPanel;
             DeviceNotesVisible = deviceNotesVisible;
             DeviceSelectedTargetText = deviceSelectedTargetText ?? string.Empty;
             DeviceShotCountText = deviceShotCountText ?? string.Empty;
@@ -92,6 +135,7 @@ namespace Reloader.UI.Toolkit.TabInventory
         public string TooltipTitle { get; }
         public bool TooltipVisible { get; }
         public string ActiveSection { get; }
+        public ContractPanelState ContractPanel { get; }
         public bool DeviceNotesVisible { get; }
         public string DeviceSelectedTargetText { get; }
         public string DeviceShotCountText { get; }
@@ -122,6 +166,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             string tooltipTitle,
             bool tooltipVisible,
             string activeSection = "device",
+            ContractPanelState? contractPanel = null,
             bool deviceNotesVisible = true,
             string deviceSelectedTargetText = NoTargetMarkedText,
             string deviceShotCountText = ZeroValidationShotsText,
@@ -160,6 +205,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 tooltipTitle,
                 tooltipVisible,
                 activeSection,
+                contractPanel ?? ContractPanelState.CreateDefault(),
                 deviceNotesVisible,
                 deviceSelectedTargetText,
                 deviceShotCountText,
