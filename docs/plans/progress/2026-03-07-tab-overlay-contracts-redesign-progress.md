@@ -13,8 +13,8 @@
 - [x] Icon source selected
 - [x] Three-region shell landed
 - [x] Icon-first left rail landed
-- [ ] Posted contract feed landed
-- [ ] Active contract workspace landed
+- [x] Posted contract feed landed
+- [x] Active contract workspace landed
 - [ ] Cancel contract action landed
 - [ ] Ready-to-claim / claim reward flow landed
 - [ ] Right-side terms pane landed
@@ -77,6 +77,13 @@
   - updated `TabInventoryViewBinder.ApplyResponsiveDetailPane()` to collapse the outer detail pane when the panel cannot sustain both the rail and a usable workspace width
   - the fallback now zeroes the workspace right margin when collapsed so the center pane reclaims the lost space
   - Unity CLI verification is currently blocked on inconsistent test-result emission and a flaky post-restart MCP bridge, so the checkpoint remains pending screenshot validation once the editor session is healthy again
+- Contracts feed/workspace checkpoint status:
+  - replaced the old synthesized flat contracts column with authored `TabInventory.uxml` shells for a posted-offer feed row and an active-contract workspace
+  - extended `TabInventoryUiState.ContractPanelState` with explicit `Mode` and `SummaryText` so the controller can switch the center pane between posted-offer and active-contract layouts without inventing new runtime controller dependencies
+  - updated `TabInventoryController.BuildContractPanelFields()` so posted offers use the target description as the dense row summary while active contracts surface the target name and briefing in the dedicated workspace
+  - added coverage for the authored contracts shell in `TabInventoryUxmlCopyEditModeTests.ContractsSection_AuthorsPostedFeedAndActiveWorkspaceShell`
+  - updated `TabInventoryContractsSectionPlayModeTests` to lock the expected center-pane mode switch (`feed` when available, `active workspace` after accept)
+  - runtime screenshot and Unity test-runner verification are still pending until the editor session reliably reconnects to Unity MCP
 
 ## Verification
 

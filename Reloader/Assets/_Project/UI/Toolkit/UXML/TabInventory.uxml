@@ -72,9 +72,25 @@
                         </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement name="inventory__section-quests" class="inventory__section inventory__section--hidden">
-                        <ui:Label text="Quests" class="inventory__section-title ui-kit__hint"/>
-                        <ui:Label text="- Main Goal: Build Match-Grade .308 batch" class="inventory__mock-line"/>
-                        <ui:Label text="- Side Task: Visit Town Gun Store" class="inventory__mock-line"/>
+                        <ui:Label name="inventory__contracts-status" text="No contracts currently posted" class="inventory__contracts-status ui-kit__hint"/>
+                        <ui:VisualElement name="inventory__contracts-feed" class="inventory__contracts-feed">
+                            <ui:VisualElement name="inventory__contracts-row" class="inventory__contracts-row">
+                                <ui:VisualElement class="inventory__contracts-row-preview">
+                                    <ui:VisualElement class="inventory__contracts-row-portrait"/>
+                                </ui:VisualElement>
+                                <ui:VisualElement class="inventory__contracts-row-copy">
+                                    <ui:Label name="inventory__contracts-title" text="No posted contracts" class="inventory__contracts-title"/>
+                                    <ui:Label name="inventory__contracts-summary" text="Check back later for fresh contract offers." class="inventory__contracts-summary"/>
+                                </ui:VisualElement>
+                                <ui:Label name="inventory__contracts-payout" text="Payout: --" class="inventory__contracts-payout"/>
+                                <ui:Button name="inventory__contracts-primary-action" text="Accept" class="inventory__contracts-primary-action ui-kit__tab"/>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement name="inventory__contracts-active" class="inventory__contracts-active inventory__section--hidden">
+                            <ui:Label name="inventory__contracts-target" text="--" class="inventory__contracts-target"/>
+                            <ui:Label text="Briefing" class="inventory__contracts-briefing-title ui-kit__hint"/>
+                            <ui:Label name="inventory__contracts-briefing" text="Check back later for fresh contract offers." class="inventory__contracts-briefing"/>
+                        </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement name="inventory__section-journal" class="inventory__section inventory__section--hidden">
                         <ui:Label text="Journal" class="inventory__section-title ui-kit__hint"/>

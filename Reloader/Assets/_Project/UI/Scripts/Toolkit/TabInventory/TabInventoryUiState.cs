@@ -10,6 +10,13 @@ namespace Reloader.UI.Toolkit.TabInventory
         private const string ZeroValidationShotsText = "0 validation shots";
         private const string ReconHooksNotInstalledText = "Recon hooks are not installed.";
 
+        public enum ContractPanelMode
+        {
+            None = 0,
+            PostedOffer = 1,
+            ActiveContract = 2
+        }
+
         public readonly struct SlotState
         {
             public SlotState(int index, string itemId, bool isOccupied, int quantity = 1, int maxStack = 1)
@@ -31,16 +38,20 @@ namespace Reloader.UI.Toolkit.TabInventory
         public readonly struct ContractPanelState
         {
             public ContractPanelState(
+                ContractPanelMode mode,
                 string statusText,
                 string titleText,
+                string summaryText,
                 string targetText,
                 string distanceText,
                 string payoutText,
                 string briefingText,
                 bool canAccept)
             {
+                Mode = mode;
                 StatusText = statusText ?? string.Empty;
                 TitleText = titleText ?? string.Empty;
+                SummaryText = summaryText ?? string.Empty;
                 TargetText = targetText ?? string.Empty;
                 DistanceText = distanceText ?? string.Empty;
                 PayoutText = payoutText ?? string.Empty;
@@ -48,8 +59,10 @@ namespace Reloader.UI.Toolkit.TabInventory
                 CanAccept = canAccept;
             }
 
+            public ContractPanelMode Mode { get; }
             public string StatusText { get; }
             public string TitleText { get; }
+            public string SummaryText { get; }
             public string TargetText { get; }
             public string DistanceText { get; }
             public string PayoutText { get; }
@@ -59,9 +72,11 @@ namespace Reloader.UI.Toolkit.TabInventory
             public static ContractPanelState CreateDefault()
             {
                 return new ContractPanelState(
-                    statusText: "No contracts available",
-                    titleText: "No active contract",
-                    targetText: "Target: --",
+                    mode: ContractPanelMode.None,
+                    statusText: "No contracts currently posted",
+                    titleText: "No posted contracts",
+                    summaryText: "Check back later for fresh contract offers.",
+                    targetText: "--",
                     distanceText: "Distance: --",
                     payoutText: "Payout: --",
                     briefingText: "Check back later for fresh contract offers.",

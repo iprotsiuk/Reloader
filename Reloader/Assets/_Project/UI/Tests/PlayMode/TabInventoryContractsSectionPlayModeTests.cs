@@ -14,7 +14,7 @@ namespace Reloader.UI.Tests.PlayMode
     public class TabInventoryContractsSectionPlayModeTests
     {
         [Test]
-        public void Controller_ContractsTab_RenamesQuestsTabAndShowsAvailableContract()
+        public void Controller_ContractsTab_RendersPostedContractRowWhenOfferIsAvailable()
         {
             var go = new GameObject("TabInventoryControllerContractsSection");
             var inventoryController = go.AddComponent<PlayerInventoryController>();
@@ -52,30 +52,32 @@ namespace Reloader.UI.Tests.PlayMode
 
             var contractsTab = root.Q<Button>("inventory__tab-quests");
             var contractsSection = root.Q<VisualElement>("inventory__section-quests");
+            var postedFeed = root.Q<VisualElement>("inventory__contracts-feed");
+            var postedRow = root.Q<VisualElement>("inventory__contracts-row");
+            var activeWorkspace = root.Q<VisualElement>("inventory__contracts-active");
             var contractsStatus = root.Q<Label>("inventory__contracts-status");
             var contractsTitle = root.Q<Label>("inventory__contracts-title");
-            var contractsTarget = root.Q<Label>("inventory__contracts-target");
-            var contractsDistance = root.Q<Label>("inventory__contracts-distance");
+            var contractsSummary = root.Q<Label>("inventory__contracts-summary");
             var contractsPayout = root.Q<Label>("inventory__contracts-payout");
-            var contractsBriefing = root.Q<Label>("inventory__contracts-briefing");
-            var acceptButton = root.Q<Button>("inventory__contracts-accept");
+            var acceptButton = root.Q<Button>("inventory__contracts-primary-action");
 
             Assert.That(contractsTab, Is.Not.Null);
             Assert.That(contractsTab.text, Is.EqualTo("Contracts"));
             Assert.That(contractsSection.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(postedFeed.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(postedRow.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(activeWorkspace.style.display.value, Is.EqualTo(DisplayStyle.None));
             Assert.That(contractsStatus.text, Is.EqualTo("Available contract"));
             Assert.That(contractsTitle.text, Is.EqualTo("First Bloodline Job"));
-            Assert.That(contractsTarget.text, Is.EqualTo("Target: Maksim Volkov"));
-            Assert.That(contractsDistance.text, Is.EqualTo("Distance: 420 m"));
+            Assert.That(contractsSummary.text, Is.EqualTo("Gray coat, smoker, exits the cafe at dusk."));
             Assert.That(contractsPayout.text, Is.EqualTo("Payout: $1,500"));
-            Assert.That(contractsBriefing.text, Does.Contain("Observe from the ridge"));
             Assert.That(acceptButton.enabledSelf, Is.True);
 
             Object.DestroyImmediate(go);
         }
 
         [Test]
-        public void Controller_ContractsAcceptIntent_DelegatesAndRefreshesActiveContractState()
+        public void Controller_ContractsAcceptIntent_SwitchesContractsTabIntoActiveWorkspace()
         {
             var go = new GameObject("TabInventoryControllerContractsAccept");
             var inventoryController = go.AddComponent<PlayerInventoryController>();
@@ -112,12 +114,20 @@ namespace Reloader.UI.Tests.PlayMode
             controller.HandleIntent(new UiIntent("tab.menu.select", "contracts"));
             controller.HandleIntent(new UiIntent("tab.inventory.contracts.accept"));
 
+            var postedFeed = root.Q<VisualElement>("inventory__contracts-feed");
+            var activeWorkspace = root.Q<VisualElement>("inventory__contracts-active");
             var contractsStatus = root.Q<Label>("inventory__contracts-status");
-            var acceptButton = root.Q<Button>("inventory__contracts-accept");
+            var contractsTarget = root.Q<Label>("inventory__contracts-target");
+            var contractsBriefing = root.Q<Label>("inventory__contracts-briefing");
+            var acceptButton = root.Q<Button>("inventory__contracts-primary-action");
 
             Assert.That(contractController.AcceptCalls, Is.EqualTo(1));
+            Assert.That(postedFeed.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(activeWorkspace.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(contractsStatus.text, Is.EqualTo("Active contract"));
-            Assert.That(acceptButton.enabledSelf, Is.False);
+            Assert.That(contractsTarget.text, Is.EqualTo("Yuri Antonov"));
+            Assert.That(contractsBriefing.text, Does.Contain("Target becomes exposed"));
+            Assert.That(acceptButton.style.display.value, Is.EqualTo(DisplayStyle.None));
 
             Object.DestroyImmediate(go);
         }
@@ -139,7 +149,7 @@ namespace Reloader.UI.Tests.PlayMode
             firstBinder.IntentRaised += firstHandler;
             firstBinder.Initialize(root, beltSlotCount: 0, backpackSlotCount: 0);
 
-            var acceptButton = root.Q<Button>("inventory__contracts-accept");
+            var acceptButton = root.Q<Button>("inventory__contracts-primary-action");
             Assert.That(acceptButton, Is.Not.Null);
 
             InvokeClick(acceptButton);

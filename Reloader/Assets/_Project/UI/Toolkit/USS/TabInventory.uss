@@ -159,6 +159,126 @@
     display: none;
 }
 
+.inventory__contracts-status {
+    margin-top: 2px;
+    margin-bottom: 8px;
+    font-size: 11px;
+}
+
+.inventory__contracts-feed {
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.inventory__contracts-row {
+    min-height: 94px;
+    padding-top: 8px;
+    padding-right: 10px;
+    padding-bottom: 8px;
+    padding-left: 10px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.08);
+    border-right-color: rgba(255, 255, 255, 0.08);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    border-left-color: rgba(255, 255, 255, 0.08);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.03);
+    flex-direction: row;
+    align-items: center;
+}
+
+.inventory__contracts-row-preview {
+    width: 72px;
+    min-width: 72px;
+    height: 72px;
+    margin-right: 10px;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.04);
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+
+.inventory__contracts-row-portrait {
+    width: 42px;
+    height: 42px;
+    border-top-left-radius: 21px;
+    border-top-right-radius: 21px;
+    border-bottom-right-radius: 21px;
+    border-bottom-left-radius: 21px;
+    background-color: rgba(238, 242, 248, 0.14);
+}
+
+.inventory__contracts-row-copy {
+    flex-direction: column;
+    flex-grow: 1;
+    min-width: 0;
+    margin-right: 10px;
+}
+
+.inventory__contracts-title {
+    color: rgba(238, 242, 248, 0.95);
+    font-size: 13px;
+    -unity-font-style: bold;
+}
+
+.inventory__contracts-summary {
+    margin-top: 3px;
+    color: rgba(215, 223, 236, 0.8);
+    font-size: 10px;
+    white-space: normal;
+}
+
+.inventory__contracts-payout {
+    min-width: 110px;
+    margin-right: 10px;
+    color: rgba(238, 242, 248, 0.95);
+    font-size: 11px;
+    unity-text-align: middle-right;
+}
+
+.inventory__contracts-primary-action {
+    min-width: 92px;
+    height: 32px;
+    font-size: 10px;
+}
+
+.inventory__contracts-active {
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 2px;
+    padding-right: 2px;
+    padding-bottom: 2px;
+    padding-left: 2px;
+}
+
+.inventory__contracts-target {
+    color: rgba(238, 242, 248, 0.95);
+    font-size: 16px;
+    -unity-font-style: bold;
+}
+
+.inventory__contracts-briefing-title {
+    margin-top: 4px;
+}
+
+.inventory__contracts-briefing {
+    white-space: normal;
+    color: rgba(215, 223, 236, 0.82);
+    font-size: 11px;
+}
+
 .inventory__content {
     flex-direction: row;
     flex-wrap: wrap;

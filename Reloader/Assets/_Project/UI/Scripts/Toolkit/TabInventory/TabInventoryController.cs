@@ -477,8 +477,8 @@ private void Refresh()
                 ? (status.HasActiveContract ? "Active contract" : "No active contract")
                 : status.ContractTitle;
             var targetText = string.IsNullOrWhiteSpace(status.TargetDisplayName)
-                ? "Target: --"
-                : $"Target: {status.TargetDisplayName}";
+                ? "--"
+                : status.TargetDisplayName;
             var distanceText = status.DistanceBandMeters > 0f
                 ? string.Format(CultureInfo.InvariantCulture, "Distance: {0:0} m", status.DistanceBandMeters)
                 : "Distance: --";
@@ -488,10 +488,20 @@ private void Refresh()
             var briefing = string.IsNullOrWhiteSpace(status.BriefingText)
                 ? status.TargetDescription
                 : status.BriefingText;
+            var summary = string.IsNullOrWhiteSpace(status.TargetDescription)
+                ? briefing
+                : status.TargetDescription;
+            var mode = status.HasActiveContract
+                ? TabInventoryUiState.ContractPanelMode.ActiveContract
+                : status.HasAvailableContract
+                    ? TabInventoryUiState.ContractPanelMode.PostedOffer
+                    : TabInventoryUiState.ContractPanelMode.None;
 
             return new TabInventoryUiState.ContractPanelState(
+                mode: mode,
                 statusText: string.IsNullOrWhiteSpace(status.StatusText) ? "No contracts available" : status.StatusText,
                 titleText: titleText,
+                summaryText: string.IsNullOrWhiteSpace(summary) ? "Check back later for fresh contract offers." : summary,
                 targetText: targetText,
                 distanceText: distanceText,
                 payoutText: payoutText,

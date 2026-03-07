@@ -28,10 +28,13 @@ namespace Reloader.UI.Toolkit.TabInventory
         private Label _tooltipTitle;
         private Label _tooltipSpecs;
         private VisualElement _inventorySection;
+        private VisualElement _contractsFeed;
+        private VisualElement _contractsRow;
+        private VisualElement _contractsActive;
         private Label _contractsStatus;
         private Label _contractsTitle;
+        private Label _contractsSummary;
         private Label _contractsTarget;
-        private Label _contractsDistance;
         private Label _contractsPayout;
         private Label _contractsBriefing;
         private VisualElement _questsSection;
@@ -287,14 +290,14 @@ namespace Reloader.UI.Toolkit.TabInventory
                 _contractsTitle.text = inventoryState.ContractPanel.TitleText;
             }
 
+            if (_contractsSummary != null)
+            {
+                _contractsSummary.text = inventoryState.ContractPanel.SummaryText;
+            }
+
             if (_contractsTarget != null)
             {
                 _contractsTarget.text = inventoryState.ContractPanel.TargetText;
-            }
-
-            if (_contractsDistance != null)
-            {
-                _contractsDistance.text = inventoryState.ContractPanel.DistanceText;
             }
 
             if (_contractsPayout != null)
@@ -305,6 +308,28 @@ namespace Reloader.UI.Toolkit.TabInventory
             if (_contractsBriefing != null)
             {
                 _contractsBriefing.text = inventoryState.ContractPanel.BriefingText;
+            }
+
+            var isPostedOffer = inventoryState.ContractPanel.Mode == TabInventoryUiState.ContractPanelMode.PostedOffer;
+            var isActiveContract = inventoryState.ContractPanel.Mode == TabInventoryUiState.ContractPanelMode.ActiveContract;
+            if (_contractsFeed != null)
+            {
+                _contractsFeed.style.display = isPostedOffer ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (_contractsRow != null)
+            {
+                _contractsRow.style.display = isPostedOffer ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (_contractsActive != null)
+            {
+                _contractsActive.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (_contractsAcceptButton != null)
+            {
+                _contractsAcceptButton.style.display = isPostedOffer ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             _contractsAcceptButton?.SetEnabled(inventoryState.ContractPanel.CanAccept);
@@ -396,7 +421,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
         }
 
-private void RegisterTabIntents()
+        private void RegisterTabIntents()
         {
             RegisterIntent(_tabInventory, "test.tab.inventory", "tab.menu.select", "inventory");
             RegisterIntent(_tabQuests, "test.tab.contracts", "tab.menu.select", "contracts");
@@ -405,7 +430,7 @@ private void RegisterTabIntents()
             RegisterIntent(_tabDevice, "test.tab.device", "tab.menu.select", "device");
         }
 
-private void EnsureContractsSectionBindings()
+        private void EnsureContractsSectionBindings()
         {
             if (_tabQuests != null)
             {
@@ -417,17 +442,23 @@ private void EnsureContractsSectionBindings()
                 return;
             }
 
+            _contractsFeed = _questsSection.Q<VisualElement>("inventory__contracts-feed");
+            _contractsRow = _questsSection.Q<VisualElement>("inventory__contracts-row");
+            _contractsActive = _questsSection.Q<VisualElement>("inventory__contracts-active");
             _contractsStatus = _questsSection.Q<Label>("inventory__contracts-status");
             _contractsTitle = _questsSection.Q<Label>("inventory__contracts-title");
+            _contractsSummary = _questsSection.Q<Label>("inventory__contracts-summary");
             _contractsTarget = _questsSection.Q<Label>("inventory__contracts-target");
-            _contractsDistance = _questsSection.Q<Label>("inventory__contracts-distance");
             _contractsPayout = _questsSection.Q<Label>("inventory__contracts-payout");
             _contractsBriefing = _questsSection.Q<Label>("inventory__contracts-briefing");
-            _contractsAcceptButton = _questsSection.Q<Button>("inventory__contracts-accept");
-            if (_contractsStatus != null
+            _contractsAcceptButton = _questsSection.Q<Button>("inventory__contracts-primary-action");
+            if (_contractsFeed != null
+                && _contractsRow != null
+                && _contractsActive != null
+                && _contractsStatus != null
                 && _contractsTitle != null
+                && _contractsSummary != null
                 && _contractsTarget != null
-                && _contractsDistance != null
                 && _contractsPayout != null
                 && _contractsBriefing != null
                 && _contractsAcceptButton != null)
@@ -437,29 +468,44 @@ private void EnsureContractsSectionBindings()
             }
 
             _questsSection.Clear();
-            var panel = new VisualElement { name = "inventory__contracts-panel" };
+            var panel = new VisualElement { name = "inventory__contracts-shell" };
             panel.style.flexDirection = FlexDirection.Column;
             panel.style.marginTop = 4f;
 
-            var heading = new Label("Contracts") { name = "inventory__contracts-heading" };
             _contractsStatus = new Label { name = "inventory__contracts-status" };
+            _contractsFeed = new VisualElement { name = "inventory__contracts-feed" };
+            _contractsFeed.style.flexDirection = FlexDirection.Column;
+            _contractsRow = new VisualElement { name = "inventory__contracts-row" };
+            _contractsRow.style.flexDirection = FlexDirection.Row;
             _contractsTitle = new Label { name = "inventory__contracts-title" };
+            _contractsSummary = new Label { name = "inventory__contracts-summary" };
             _contractsTarget = new Label { name = "inventory__contracts-target" };
-            _contractsDistance = new Label { name = "inventory__contracts-distance" };
             _contractsPayout = new Label { name = "inventory__contracts-payout" };
+            _contractsActive = new VisualElement { name = "inventory__contracts-active" };
+            _contractsActive.style.flexDirection = FlexDirection.Column;
             _contractsBriefing = new Label { name = "inventory__contracts-briefing" };
             _contractsBriefing.style.whiteSpace = WhiteSpace.Normal;
-            _contractsAcceptButton = new Button { name = "inventory__contracts-accept", text = "Accept Contract" };
+            _contractsAcceptButton = new Button { name = "inventory__contracts-primary-action", text = "Accept Contract" };
             EnsureContractsAcceptIntentBinding();
 
-            panel.Add(heading);
             panel.Add(_contractsStatus);
-            panel.Add(_contractsTitle);
-            panel.Add(_contractsTarget);
-            panel.Add(_contractsDistance);
-            panel.Add(_contractsPayout);
-            panel.Add(_contractsBriefing);
-            panel.Add(_contractsAcceptButton);
+
+            var postedCopy = new VisualElement();
+            postedCopy.style.flexDirection = FlexDirection.Column;
+            postedCopy.style.flexGrow = 1f;
+            postedCopy.Add(_contractsTitle);
+            postedCopy.Add(_contractsSummary);
+
+            _contractsRow.Add(postedCopy);
+            _contractsRow.Add(_contractsPayout);
+            _contractsRow.Add(_contractsAcceptButton);
+            _contractsFeed.Add(_contractsRow);
+
+            _contractsActive.Add(_contractsTarget);
+            _contractsActive.Add(_contractsBriefing);
+
+            panel.Add(_contractsFeed);
+            panel.Add(_contractsActive);
             _questsSection.Add(panel);
         }
 

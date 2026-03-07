@@ -129,7 +129,7 @@ namespace Reloader.UI.Tests.PlayMode
 
                 var contractsStatus = root.Q<Label>("inventory__contracts-status");
                 Assert.That(contractsStatus, Is.Not.Null);
-                Assert.That(contractsStatus.text, Is.EqualTo("No contracts available"));
+                Assert.That(contractsStatus.text, Is.EqualTo("No contracts currently posted"));
 
                 providerGo = new GameObject("StaticContractRuntimeProviderLate");
                 var provider = providerGo.AddComponent(providerType);

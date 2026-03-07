@@ -32,5 +32,20 @@ namespace Reloader.UI.Tests.EditMode
             Assert.That(buttonTexts, Does.Contain("Log Group"));
             Assert.That(buttonTexts, Does.Contain("Reset Group"));
         }
+
+        [Test]
+        public void ContractsSection_AuthorsPostedFeedAndActiveWorkspaceShell()
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(TabInventoryUxmlPath);
+            Assert.That(asset, Is.Not.Null, $"Expected UXML asset at '{TabInventoryUxmlPath}'.");
+
+            var root = asset.CloneTree();
+            var contractsSection = root.Q<VisualElement>("inventory__section-quests");
+            Assert.That(contractsSection, Is.Not.Null);
+            Assert.That(contractsSection.Q<VisualElement>("inventory__contracts-feed"), Is.Not.Null);
+            Assert.That(contractsSection.Q<VisualElement>("inventory__contracts-row"), Is.Not.Null);
+            Assert.That(contractsSection.Q<VisualElement>("inventory__contracts-active"), Is.Not.Null);
+            Assert.That(contractsSection.Q<Button>("inventory__contracts-primary-action"), Is.Not.Null);
+        }
     }
 }
