@@ -175,6 +175,55 @@ namespace Reloader.UI.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void RuntimeBridge_BindTabInventory_RendersWorldClockAndBalanceInHeader()
+        {
+            var economyControllerType = Type.GetType("Reloader.Economy.EconomyController, Reloader.Economy");
+            var coreWorldControllerType = Type.GetType("Reloader.Core.Runtime.CoreWorldController, Reloader.Core");
+            Assert.That(economyControllerType, Is.Not.Null);
+            Assert.That(coreWorldControllerType, Is.Not.Null);
+
+            var bridgeGo = new GameObject("UiToolkitBridgeHeader");
+            var bridge = bridgeGo.AddComponent<UiToolkitScreenRuntimeBridge>();
+            var inventoryController = bridgeGo.AddComponent<PlayerInventoryController>();
+            var inventoryRuntime = new PlayerInventoryRuntime();
+            inventoryRuntime.SetBackpackCapacity(0);
+            inventoryController.Configure(null, null, inventoryRuntime);
+
+            var economyController = bridgeGo.AddComponent(economyControllerType);
+            var tryAwardMoneyMethod = economyControllerType.GetMethod("TryAwardMoney", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(tryAwardMoneyMethod, Is.Not.Null);
+            Assert.That((bool)tryAwardMoneyMethod!.Invoke(economyController, new object[] { 1950 }), Is.True);
+
+            var coreWorldController = bridgeGo.AddComponent(coreWorldControllerType);
+            var setWorldStateMethod = coreWorldControllerType.GetMethod("SetWorldState", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(setWorldStateMethod, Is.Not.Null);
+            setWorldStateMethod!.Invoke(coreWorldController, new object[] { 0, 18.6667f });
+
+            var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
+                "BindTabInventory",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(bindMethod, Is.Not.Null);
+
+            var root = BuildRoot();
+            var subscription = bindMethod!.Invoke(
+                bridge,
+                new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, null }) as IDisposable;
+            Assert.That(subscription, Is.Not.Null);
+
+            try
+            {
+                var headerMeta = root.Q<Label>("inventory__header-meta");
+                Assert.That(headerMeta, Is.Not.Null);
+                Assert.That(headerMeta.text, Is.EqualTo("Monday • 18:40 • $2,450"));
+            }
+            finally
+            {
+                subscription.Dispose();
+                UnityEngine.Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
         private static void SetPrivateField(Type type, object target, string fieldName, object value)
         {
             var field = type.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
@@ -195,6 +244,7 @@ namespace Reloader.UI.Tests.PlayMode
             var panel = new VisualElement { name = "inventory__panel" };
             root.Add(panel);
 
+            panel.Add(new Label { name = "inventory__header-meta", text = "Monday • 08:00 • $500" });
             panel.Add(new VisualElement { name = "inventory__tabbar" });
             panel.Add(new Button { name = "inventory__tab-inventory", text = "Inventory" });
             panel.Add(new Button { name = "inventory__tab-quests", text = "Quests" });
@@ -216,6 +266,15 @@ namespace Reloader.UI.Tests.PlayMode
             panel.Add(new Label { name = "inventory__device-saved-groups-value" });
             panel.Add(new Label { name = "inventory__device-install-feedback-text" });
             panel.Add(new VisualElement { name = "inventory__device-session-history" });
+            var detailPane = new VisualElement { name = "inventory__detail-pane" };
+            detailPane.Add(new VisualElement { name = "inventory__detail-pane-generic" });
+            detailPane.Add(new VisualElement { name = "inventory__detail-pane-contracts" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-base-payout", text = "Payout: --" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-bonus-conditions", text = "None" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-restrictions", text = "None" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-failure-conditions", text = "Wrong target" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-reward-state", text = "No contract selected" });
+            panel.Add(detailPane);
             panel.Add(new Button { name = "inventory__device-choose-target" });
             panel.Add(new Button { name = "inventory__device-save-group" });
             panel.Add(new Button { name = "inventory__device-clear-group" });

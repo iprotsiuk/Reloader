@@ -4,7 +4,7 @@
         <ui:VisualElement name="inventory__panel" class="inventory__panel ui-kit__panel">
             <ui:VisualElement class="inventory__header-row">
                 <ui:Label text="Player Menu" class="ui-kit__title"/>
-                <ui:Label text="Inventory" class="inventory__header-hint ui-kit__hint"/>
+                <ui:Label name="inventory__header-meta" text="Monday • 08:00 • $500" class="inventory__header-hint ui-kit__hint"/>
             </ui:VisualElement>
             <ui:VisualElement name="inventory__shell" class="inventory__shell">
                 <ui:VisualElement name="inventory__rail" class="inventory__rail">
@@ -163,8 +163,23 @@
                     </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:VisualElement name="inventory__detail-pane" class="inventory__detail-pane">
-                    <ui:Label text="Context Panel" class="inventory__details-title"/>
-                    <ui:Label text="Mission rules, rewards, and contextual details will live here as the redesign progresses." class="inventory__mock-line"/>
+                    <ui:VisualElement name="inventory__detail-pane-generic" class="inventory__detail-pane-generic">
+                        <ui:Label text="Context Panel" class="inventory__details-title"/>
+                        <ui:Label text="Mission rules, rewards, and contextual details will live here as the redesign progresses." class="inventory__mock-line"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="inventory__detail-pane-contracts" class="inventory__detail-pane-contracts inventory__section--hidden">
+                        <ui:Label text="Contract Terms" class="inventory__details-title"/>
+                        <ui:Label text="Base payout" class="inventory__section-title ui-kit__hint"/>
+                        <ui:Label name="inventory__detail-pane-base-payout" text="Payout: --" class="inventory__mock-line"/>
+                        <ui:Label text="Bonus conditions" class="inventory__section-title ui-kit__hint"/>
+                        <ui:Label name="inventory__detail-pane-bonus-conditions" text="None" class="inventory__mock-line"/>
+                        <ui:Label text="Restrictions" class="inventory__section-title ui-kit__hint"/>
+                        <ui:Label name="inventory__detail-pane-restrictions" text="None" class="inventory__mock-line"/>
+                        <ui:Label text="Failure conditions" class="inventory__section-title ui-kit__hint"/>
+                        <ui:Label name="inventory__detail-pane-failure-conditions" text="Wrong target" class="inventory__mock-line"/>
+                        <ui:Label text="Reward state" class="inventory__section-title ui-kit__hint"/>
+                        <ui:Label name="inventory__detail-pane-reward-state" text="No contract selected" class="inventory__mock-line"/>
+                    </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

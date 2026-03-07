@@ -5,6 +5,7 @@ using Reloader.Contracts.Runtime;
 using Reloader.Core;
 using Reloader.Core.Items;
 using Reloader.Core.Runtime;
+using Reloader.Economy;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.PlayerDevice.Runtime;
@@ -224,6 +225,8 @@ namespace Reloader.UI.Toolkit.Runtime
             var controller = GetOrAddController<TabInventoryController>(controllerName);
             controller.SetInventoryController(inventoryController);
             controller.SetWeaponController(FindFirstObjectByType<PlayerWeaponController>(FindObjectsInactive.Include));
+            controller.SetEconomyController(FindFirstObjectByType<EconomyController>(FindObjectsInactive.Include));
+            controller.SetCoreWorldController(FindFirstObjectByType<CoreWorldController>(FindObjectsInactive.Include));
             controller.SetInputSource(inputSource);
             controller.SetDeviceController(ResolveTabDeviceControllerAdapter(inventoryController, inputSource));
             controller.SetContractController(ResolveTabContractControllerAdapter());

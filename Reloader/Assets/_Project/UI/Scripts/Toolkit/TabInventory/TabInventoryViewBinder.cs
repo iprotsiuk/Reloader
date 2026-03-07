@@ -17,6 +17,14 @@ namespace Reloader.UI.Toolkit.TabInventory
         private VisualElement _workspace;
         private VisualElement _gridArea;
         private VisualElement _detailPane;
+        private VisualElement _detailPaneGeneric;
+        private VisualElement _detailPaneContracts;
+        private Label _detailPaneBasePayout;
+        private Label _detailPaneBonusConditions;
+        private Label _detailPaneRestrictions;
+        private Label _detailPaneFailureConditions;
+        private Label _detailPaneRewardState;
+        private Label _headerMeta;
         private VisualElement _backpackGrid;
         private VisualElement _beltGrid;
         private VisualElement[] _beltSlots = Array.Empty<VisualElement>();
@@ -121,6 +129,14 @@ namespace Reloader.UI.Toolkit.TabInventory
             _workspace = root?.Q<VisualElement>("inventory__workspace");
             _gridArea = root?.Q<VisualElement>(className: "inventory__grid-area");
             _detailPane = root?.Q<VisualElement>("inventory__detail-pane");
+            _detailPaneGeneric = root?.Q<VisualElement>("inventory__detail-pane-generic");
+            _detailPaneContracts = root?.Q<VisualElement>("inventory__detail-pane-contracts");
+            _detailPaneBasePayout = root?.Q<Label>("inventory__detail-pane-base-payout");
+            _detailPaneBonusConditions = root?.Q<Label>("inventory__detail-pane-bonus-conditions");
+            _detailPaneRestrictions = root?.Q<Label>("inventory__detail-pane-restrictions");
+            _detailPaneFailureConditions = root?.Q<Label>("inventory__detail-pane-failure-conditions");
+            _detailPaneRewardState = root?.Q<Label>("inventory__detail-pane-reward-state");
+            _headerMeta = root?.Q<Label>("inventory__header-meta");
             _backpackGrid = root?.Q<VisualElement>("inventory__backpack-grid");
             _beltGrid = root?.Q<VisualElement>("inventory__grid-row--belt")
                 ?? root?.Q<VisualElement>(className: "inventory__grid-row--belt");
@@ -294,6 +310,11 @@ namespace Reloader.UI.Toolkit.TabInventory
             ApplyOccupancy(_backpackSlots, inventoryState.BackpackSlots);
             RenderSlotVisuals(_beltSlots, inventoryState.BeltSlots, "belt");
             RenderSlotVisuals(_backpackSlots, inventoryState.BackpackSlots, "backpack");
+            if (_headerMeta != null)
+            {
+                _headerMeta.text = inventoryState.HeaderMetaText;
+            }
+
             CacheSlotItemIds(_beltSlotItemIds, inventoryState.BeltSlots);
             CacheSlotStackData(_beltSlotMaxStacks, _beltSlotQuantities, inventoryState.BeltSlots);
             CacheSlotItemIds(_backpackSlotItemIds, inventoryState.BackpackSlots);
@@ -327,6 +348,31 @@ namespace Reloader.UI.Toolkit.TabInventory
             if (_contractsBriefing != null)
             {
                 _contractsBriefing.text = inventoryState.ContractPanel.BriefingText;
+            }
+
+            if (_detailPaneBasePayout != null)
+            {
+                _detailPaneBasePayout.text = inventoryState.ContractPanel.BasePayoutText;
+            }
+
+            if (_detailPaneBonusConditions != null)
+            {
+                _detailPaneBonusConditions.text = inventoryState.ContractPanel.BonusConditionsText;
+            }
+
+            if (_detailPaneRestrictions != null)
+            {
+                _detailPaneRestrictions.text = inventoryState.ContractPanel.RestrictionsText;
+            }
+
+            if (_detailPaneFailureConditions != null)
+            {
+                _detailPaneFailureConditions.text = inventoryState.ContractPanel.FailureConditionsText;
+            }
+
+            if (_detailPaneRewardState != null)
+            {
+                _detailPaneRewardState.text = inventoryState.ContractPanel.RewardStateText;
             }
 
             var isPostedOffer = inventoryState.ContractPanel.Mode == TabInventoryUiState.ContractPanelMode.PostedOffer;
@@ -932,7 +978,7 @@ namespace Reloader.UI.Toolkit.TabInventory
         }
 
 
-private void ApplySectionVisibility(string activeSection)
+        private void ApplySectionVisibility(string activeSection)
         {
             var section = string.IsNullOrWhiteSpace(activeSection) ? "inventory" : activeSection;
             SetSectionVisibility(_inventorySection, section == "inventory");
@@ -941,6 +987,8 @@ private void ApplySectionVisibility(string activeSection)
             SetSectionVisibility(_calendarSection, section == "calendar");
             SetSectionVisibility(_deviceSection, section == "device");
             SetSectionVisibility(_attachmentsSection, section == "attachments");
+            SetSectionVisibility(_detailPaneGeneric, section != "contracts");
+            SetSectionVisibility(_detailPaneContracts, section == "contracts");
 
             _tabInventory?.EnableInClassList("is-active", section == "inventory");
             _tabQuests?.EnableInClassList("is-active", section == "contracts");

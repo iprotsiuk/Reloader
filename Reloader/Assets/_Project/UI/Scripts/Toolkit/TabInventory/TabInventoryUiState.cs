@@ -6,6 +6,7 @@ namespace Reloader.UI.Toolkit.TabInventory
 {
     public sealed class TabInventoryUiState : UiRenderState
     {
+        private const string DefaultHeaderMetaText = "Monday • 08:00 • $500";
         private const string NoTargetMarkedText = "No target marked";
         private const string ZeroValidationShotsText = "0 validation shots";
         private const string ReconHooksNotInstalledText = "Recon hooks are not installed.";
@@ -43,9 +44,13 @@ namespace Reloader.UI.Toolkit.TabInventory
                 string titleText,
                 string summaryText,
                 string targetText,
-                string distanceText,
                 string payoutText,
                 string briefingText,
+                string basePayoutText,
+                string bonusConditionsText,
+                string restrictionsText,
+                string failureConditionsText,
+                string rewardStateText,
                 bool canAccept,
                 bool canCancel,
                 bool canClaimReward)
@@ -55,9 +60,13 @@ namespace Reloader.UI.Toolkit.TabInventory
                 TitleText = titleText ?? string.Empty;
                 SummaryText = summaryText ?? string.Empty;
                 TargetText = targetText ?? string.Empty;
-                DistanceText = distanceText ?? string.Empty;
                 PayoutText = payoutText ?? string.Empty;
                 BriefingText = briefingText ?? string.Empty;
+                BasePayoutText = basePayoutText ?? string.Empty;
+                BonusConditionsText = bonusConditionsText ?? string.Empty;
+                RestrictionsText = restrictionsText ?? string.Empty;
+                FailureConditionsText = failureConditionsText ?? string.Empty;
+                RewardStateText = rewardStateText ?? string.Empty;
                 CanAccept = canAccept;
                 CanCancel = canCancel;
                 CanClaimReward = canClaimReward;
@@ -68,9 +77,13 @@ namespace Reloader.UI.Toolkit.TabInventory
             public string TitleText { get; }
             public string SummaryText { get; }
             public string TargetText { get; }
-            public string DistanceText { get; }
             public string PayoutText { get; }
             public string BriefingText { get; }
+            public string BasePayoutText { get; }
+            public string BonusConditionsText { get; }
+            public string RestrictionsText { get; }
+            public string FailureConditionsText { get; }
+            public string RewardStateText { get; }
             public bool CanAccept { get; }
             public bool CanCancel { get; }
             public bool CanClaimReward { get; }
@@ -83,9 +96,13 @@ namespace Reloader.UI.Toolkit.TabInventory
                     titleText: "No posted contracts",
                     summaryText: "Check back later for fresh contract offers.",
                     targetText: "--",
-                    distanceText: "Distance: --",
                     payoutText: "Payout: --",
                     briefingText: "Check back later for fresh contract offers.",
+                    basePayoutText: "Payout: --",
+                    bonusConditionsText: "None",
+                    restrictionsText: "None",
+                    failureConditionsText: "Wrong target • Manual cancel",
+                    rewardStateText: "No contract selected",
                     canAccept: false,
                     canCancel: false,
                     canClaimReward: false);
@@ -99,6 +116,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             bool isOpen,
             SlotState[] beltSlots,
             SlotState[] backpackSlots,
+            string headerMetaText,
             string tooltipTitle,
             bool tooltipVisible,
             string activeSection,
@@ -127,6 +145,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             IsOpen = isOpen;
             _beltSlots = beltSlots ?? Array.Empty<SlotState>();
             _backpackSlots = backpackSlots ?? Array.Empty<SlotState>();
+            HeaderMetaText = string.IsNullOrWhiteSpace(headerMetaText) ? DefaultHeaderMetaText : headerMetaText;
             TooltipTitle = tooltipTitle ?? string.Empty;
             TooltipVisible = tooltipVisible;
             ActiveSection = string.IsNullOrWhiteSpace(activeSection) ? "device" : activeSection;
@@ -155,6 +174,7 @@ namespace Reloader.UI.Toolkit.TabInventory
         public bool IsOpen { get; }
         public IReadOnlyList<SlotState> BeltSlots => _beltSlots;
         public IReadOnlyList<SlotState> BackpackSlots => _backpackSlots;
+        public string HeaderMetaText { get; }
         public string TooltipTitle { get; }
         public bool TooltipVisible { get; }
         public string ActiveSection { get; }
@@ -210,6 +230,65 @@ namespace Reloader.UI.Toolkit.TabInventory
             IEnumerable<string> attachmentSlotOptions = null,
             IEnumerable<string> attachmentItemOptions = null)
         {
+            return Create(
+                isOpen,
+                beltSlots,
+                backpackSlots,
+                DefaultHeaderMetaText,
+                tooltipTitle,
+                tooltipVisible,
+                activeSection,
+                contractPanel,
+                deviceNotesVisible,
+                deviceSelectedTargetText,
+                deviceShotCountText,
+                deviceSpreadText,
+                deviceMoaText,
+                deviceSavedGroupsText,
+                deviceCanSaveGroup,
+                deviceCanClearGroup,
+                deviceCanInstallHooks,
+                deviceCanUninstallHooks,
+                deviceInstallFeedbackText,
+                deviceSessionHistoryEntries,
+                attachmentsWeaponName,
+                attachmentsStatusText,
+                attachmentsSelectedSlot,
+                attachmentsSelectedItem,
+                attachmentsCanApply,
+                attachmentSlotOptions,
+                attachmentItemOptions);
+        }
+
+        public static TabInventoryUiState Create(
+            bool isOpen,
+            IEnumerable<SlotState> beltSlots,
+            IEnumerable<SlotState> backpackSlots,
+            string headerMetaText,
+            string tooltipTitle,
+            bool tooltipVisible,
+            string activeSection = "device",
+            ContractPanelState? contractPanel = null,
+            bool deviceNotesVisible = true,
+            string deviceSelectedTargetText = NoTargetMarkedText,
+            string deviceShotCountText = ZeroValidationShotsText,
+            string deviceSpreadText = "--",
+            string deviceMoaText = "--",
+            string deviceSavedGroupsText = "0",
+            bool deviceCanSaveGroup = false,
+            bool deviceCanClearGroup = false,
+            bool deviceCanInstallHooks = false,
+            bool deviceCanUninstallHooks = false,
+            string deviceInstallFeedbackText = ReconHooksNotInstalledText,
+            IEnumerable<string> deviceSessionHistoryEntries = null,
+            string attachmentsWeaponName = "",
+            string attachmentsStatusText = "",
+            string attachmentsSelectedSlot = "",
+            string attachmentsSelectedItem = "",
+            bool attachmentsCanApply = false,
+            IEnumerable<string> attachmentSlotOptions = null,
+            IEnumerable<string> attachmentItemOptions = null)
+        {
             var belt = beltSlots == null ? Array.Empty<SlotState>() : new List<SlotState>(beltSlots).ToArray();
             var backpack = backpackSlots == null ? Array.Empty<SlotState>() : new List<SlotState>(backpackSlots).ToArray();
             var historyEntries = deviceSessionHistoryEntries == null
@@ -225,6 +304,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 isOpen,
                 belt,
                 backpack,
+                headerMetaText,
                 tooltipTitle,
                 tooltipVisible,
                 activeSection,

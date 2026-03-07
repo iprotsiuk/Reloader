@@ -17,8 +17,8 @@
 - [x] Active contract workspace landed
 - [x] Cancel contract action landed
 - [x] Ready-to-claim / claim reward flow landed
-- [ ] Right-side terms pane landed
-- [ ] Header world time / balance landed
+- [x] Right-side terms pane landed
+- [x] Header world time / balance landed
 - [x] Density tightening pass landed
 - [ ] Final screenshot set captured
 
@@ -103,6 +103,11 @@
   - date/time should bind to a lightweight live `CoreWorld` runtime, not fake UI text
   - the right pane remains contracts-only for this slice and should surface payout logic, restrictions, failure conditions, and reward state
   - design and implementation docs for this slice are now tracked in `docs/plans/2026-03-07-tab-overlay-header-terms-design.md` and `docs/plans/2026-03-07-tab-overlay-header-terms.md`
+- Header / terms checkpoint status:
+  - added `CoreWorldRuntime` plus a lightweight `CoreWorldController` so the TAB header can bind to a live world snapshot instead of static placeholder copy
+  - wired `TabInventoryController` and `UiToolkitScreenRuntimeBridge` to render the approved header format `Monday • 18:40 • $2,450` from world time plus current money
+  - extended the right contracts pane to swap between generic context copy and contracts-only terms, including base payout, placeholder bonus/restriction text, static failure rules, and reward-state messaging
+  - added coverage in `CoreWorldRuntimeTests`, `CoreWorldControllerTests`, `TabInventoryContractsSectionPlayModeTests`, `TabInventoryContractsBridgePlayModeTests`, and the UXML copy guards
 
 ## Verification
 
@@ -115,12 +120,14 @@
   - initial shell red-phase test failed for the expected missing-shell reason
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesThreeRegionShell`: passed (`1/1`)
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesIconRailNavigation`: passed (`1/1`)
-  - `Reloader.UI.Tests.EditMode.TabInventoryResponsiveLayoutEditModeTests`: passed (`2/2`)
+  - `Reloader.UI.Tests.EditMode.TabInventoryResponsiveLayoutEditModeTests`: passed (`4/4`)
   - `Reloader.UI.Tests.EditMode.TabInventoryUxmlCopyEditModeTests`: passed (`3/3`)
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests`: passed (`5/5`)
-  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests`: passed (`5/5`)
-  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests`: passed (`2/2`)
+  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests`: passed (`7/7`)
+  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests`: passed (`3/3`)
   - `Reloader.UI.Tests.PlayMode.TabInventoryAttachmentsPlayModeTests`: passed (`4/4`)
+  - `Reloader.Core.Tests.EditMode.CoreWorldRuntimeTests`: passed (`2/2`)
+  - `Reloader.Core.Tests.EditMode.CoreWorldControllerTests`: passed (`1/1`)
   - `Reloader.Core.Tests.EditMode.ContractEscapeResolutionRuntimeTests`: passed (`6/6`)
   - `Reloader.Core.Tests.EditMode.StaticContractRuntimeProviderTests`: passed (`2/2`)
   - `Reloader.Core.Tests.PlayMode.StaticContractRuntimeProviderPlayModeTests`: passed (`3/3`)

@@ -140,6 +140,65 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void Controller_HeaderMeta_RendersWorldTimeAndBalance()
+        {
+            var worldControllerType = Type.GetType("Reloader.Core.Runtime.CoreWorldController, Reloader.Core");
+            var economyControllerType = Type.GetType("Reloader.Economy.EconomyController, Reloader.Economy");
+            Assert.That(worldControllerType, Is.Not.Null);
+            Assert.That(economyControllerType, Is.Not.Null);
+
+            var go = new GameObject("TabInventoryControllerHeaderMeta");
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(0);
+            inventoryController.Configure(null, null, runtime);
+
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 0, backpackSlotCount: 0);
+
+            var inputSource = go.AddComponent<TestInputSource>();
+            var contractController = go.AddComponent<TestContractController>();
+            var worldController = go.AddComponent(worldControllerType);
+            var economyController = go.AddComponent(economyControllerType);
+
+            var setWorldStateMethod = worldControllerType.GetMethod("SetWorldState", BindingFlags.Instance | BindingFlags.Public);
+            var tryAwardMoneyMethod = economyControllerType.GetMethod("TryAwardMoney", BindingFlags.Instance | BindingFlags.Public);
+            var setCoreWorldControllerMethod = typeof(TabInventoryController).GetMethod("SetCoreWorldController", BindingFlags.Instance | BindingFlags.Public);
+            var setEconomyControllerMethod = typeof(TabInventoryController).GetMethod("SetEconomyController", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(setWorldStateMethod, Is.Not.Null);
+            Assert.That(tryAwardMoneyMethod, Is.Not.Null);
+            Assert.That(setCoreWorldControllerMethod, Is.Not.Null);
+            Assert.That(setEconomyControllerMethod, Is.Not.Null);
+
+            setWorldStateMethod!.Invoke(worldController, new object[] { 4, 18.6667f });
+            var awarded = (bool)tryAwardMoneyMethod!.Invoke(economyController, new object[] { 1950 });
+            Assert.That(awarded, Is.True);
+
+            var controller = go.AddComponent<TabInventoryController>();
+            controller.SetInventoryController(inventoryController);
+            controller.SetInputSource(inputSource);
+            controller.SetContractController(contractController);
+            setCoreWorldControllerMethod!.Invoke(controller, new[] { worldController });
+            setEconomyControllerMethod!.Invoke(controller, new[] { economyController });
+            controller.Configure(binder, new TabInventoryDragController());
+
+            inputSource.MenuTogglePressedThisFrame = true;
+            controller.Tick();
+
+            var headerMeta = root.Q<Label>("inventory__header-meta");
+            Assert.That(headerMeta, Is.Not.Null);
+            Assert.That(headerMeta.text, Is.EqualTo("Friday • 18:40 • $2,450"));
+
+            setWorldStateMethod.Invoke(worldController, new object[] { 6, 5.5f });
+            awarded = (bool)tryAwardMoneyMethod.Invoke(economyController, new object[] { 50 });
+            Assert.That(awarded, Is.True);
+            Assert.That(headerMeta.text, Is.EqualTo("Sunday • 05:30 • $2,500"));
+
+            Object.DestroyImmediate(go);
+        }
+
+        [Test]
         public void Controller_ContractsCancelIntent_ReturnsContractsTabToPostedOffer()
         {
             var go = new GameObject("TabInventoryControllerContractsCancel");
@@ -187,6 +246,64 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(postedFeed.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(activeWorkspace.style.display.value, Is.EqualTo(DisplayStyle.None));
             Assert.That(contractsStatus.text, Is.EqualTo("Available contract"));
+
+            Object.DestroyImmediate(go);
+        }
+
+        [Test]
+        public void Controller_ContractsTab_RendersTermsPaneForPostedOffer()
+        {
+            var go = new GameObject("TabInventoryControllerContractsTerms");
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(0);
+            inventoryController.Configure(null, null, runtime);
+
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 0, backpackSlotCount: 0);
+
+            var inputSource = go.AddComponent<TestInputSource>();
+            var contractController = go.AddComponent<TestContractController>();
+            contractController.Status = new TabInventoryContractStatus(
+                hasAvailableContract: true,
+                hasActiveContract: false,
+                contractTitle: "Cafe Exit",
+                targetDisplayName: "Maksim Volkov",
+                targetDescription: "Gray coat, smoker, exits the cafe at dusk.",
+                briefingText: "Observe from the ridge and confirm the target before taking the shot.",
+                distanceBandMeters: 420f,
+                payout: 1500,
+                canAccept: true,
+                canCancel: false,
+                canClaimReward: false,
+                statusText: "Available contract");
+
+            var controller = go.AddComponent<TabInventoryController>();
+            controller.SetInventoryController(inventoryController);
+            controller.SetInputSource(inputSource);
+            controller.SetContractController(contractController);
+            controller.Configure(binder, new TabInventoryDragController());
+
+            inputSource.MenuTogglePressedThisFrame = true;
+            controller.Tick();
+            controller.HandleIntent(new UiIntent("tab.menu.select", "contracts"));
+
+            var genericDetailPane = root.Q<VisualElement>("inventory__detail-pane-generic");
+            var contractsDetailPane = root.Q<VisualElement>("inventory__detail-pane-contracts");
+            var basePayout = root.Q<Label>("inventory__detail-pane-base-payout");
+            var bonusConditions = root.Q<Label>("inventory__detail-pane-bonus-conditions");
+            var restrictions = root.Q<Label>("inventory__detail-pane-restrictions");
+            var failureConditions = root.Q<Label>("inventory__detail-pane-failure-conditions");
+            var rewardState = root.Q<Label>("inventory__detail-pane-reward-state");
+
+            Assert.That(genericDetailPane.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(contractsDetailPane.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(basePayout.text, Is.EqualTo("Payout: $1,500"));
+            Assert.That(bonusConditions.text, Is.EqualTo("None"));
+            Assert.That(restrictions.text, Is.EqualTo("None"));
+            Assert.That(failureConditions.text, Is.EqualTo("Wrong target • Manual cancel"));
+            Assert.That(rewardState.text, Is.EqualTo("Reward pending contract acceptance."));
 
             Object.DestroyImmediate(go);
         }
@@ -295,6 +412,7 @@ namespace Reloader.UI.Tests.PlayMode
             var panel = new VisualElement { name = "inventory__panel" };
             root.Add(panel);
 
+            panel.Add(new Label { name = "inventory__header-meta", text = "Monday • 08:00 • $500" });
             panel.Add(new VisualElement { name = "inventory__tabbar" });
             panel.Add(new Button { name = "inventory__tab-inventory", text = "Inventory" });
             panel.Add(new Button { name = "inventory__tab-quests", text = "Quests" });
@@ -325,6 +443,15 @@ namespace Reloader.UI.Tests.PlayMode
 
             panel.Add(new VisualElement { name = "inventory__backpack-grid" });
             panel.Add(new VisualElement { name = "inventory__grid-row--belt" });
+            var detailPane = new VisualElement { name = "inventory__detail-pane" };
+            detailPane.Add(new VisualElement { name = "inventory__detail-pane-generic" });
+            detailPane.Add(new VisualElement { name = "inventory__detail-pane-contracts" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-base-payout", text = "Payout: --" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-bonus-conditions", text = "None" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-restrictions", text = "None" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-failure-conditions", text = "Wrong target" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-reward-state", text = "No contract selected" });
+            panel.Add(detailPane);
 
             var tooltip = new VisualElement { name = "inventory__tooltip" };
             tooltip.Add(new Label { name = "inventory__tooltip-title" });
