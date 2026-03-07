@@ -18,6 +18,7 @@
 - [x] Cancel contract action landed
 - [x] Ready-to-claim / claim reward flow landed
 - [ ] Right-side terms pane landed
+- [ ] Header world time / balance landed
 - [x] Density tightening pass landed
 - [ ] Final screenshot set captured
 
@@ -96,6 +97,12 @@
   - canceling an active contract before the kill restores the posted offer for this one-contract slice so the TAB loop does not dead-end
   - updated the TAB contracts active workspace to switch its single primary action between `Cancel Contract` and `Claim Reward` based on the new runtime snapshot state
   - added/updated coverage across core runtime, provider, bridge, TAB controller, and MainTown authored smoke tests to lock the explicit-claim lifecycle end to end
+- Header / terms next checkpoint:
+  - approved header format is `Monday • 18:40 • $2,450`
+  - balance should bind to `EconomyController.Runtime.Money`
+  - date/time should bind to a lightweight live `CoreWorld` runtime, not fake UI text
+  - the right pane remains contracts-only for this slice and should surface payout logic, restrictions, failure conditions, and reward state
+  - design and implementation docs for this slice are now tracked in `docs/plans/2026-03-07-tab-overlay-header-terms-design.md` and `docs/plans/2026-03-07-tab-overlay-header-terms.md`
 
 ## Verification
 
