@@ -668,7 +668,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             var railWidth = ResolveAssignedWidth(_rail);
-            var railGap = ResolveAssignedLength(_rail?.style.marginRight);
+            var railGap = _rail == null ? 0f : ResolveAssignedLength(_rail.style.marginRight);
             var detailGap = ResolveAssignedLength(_workspace.style.marginRight);
             var requiredPanelWidth = Mathf.Max(
                 MinPanelWidthForDetailPane,
