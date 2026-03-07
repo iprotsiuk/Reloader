@@ -101,9 +101,9 @@ namespace Reloader.UI.Toolkit.TabInventory
         private const float MinDeviceButtonWidth = 82f;
         private const float MaxDeviceButtonWidth = 220f;
         private const float InventoryVerticalChrome = 56f;
-        private const float MinDetailPaneWidth = 184f;
+        private const float MinDetailPaneWidth = 132f;
         private const float MinWorkspaceWidthWithDetailPane = 180f;
-        private const float MinPanelWidthForDetailPane = 474f;
+        private const float MinPanelWidthForDetailPane = 390f;
 
         public event Action<UiIntent> IntentRaised;
 
@@ -738,7 +738,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 return;
             }
 
-            var barWidth = _tabBar.contentRect.width;
+            var barWidth = ResolveAssignedWidth(_tabBar);
             if (barWidth <= 0f)
             {
                 return;
@@ -748,10 +748,10 @@ namespace Reloader.UI.Toolkit.TabInventory
             var totalGap = (_tabs.Count - 1) * 6f;
             var perTabWidth = (barWidth - totalGap) / _tabs.Count;
             var resolvedWidth = isRailLayout
-                ? Mathf.Clamp(barWidth, 54f, 88f)
+                ? Mathf.Clamp(barWidth, 42f, 60f)
                 : Mathf.Clamp(perTabWidth, MinTabWidth, MaxTabWidth);
             var resolvedHeight = isRailLayout
-                ? Mathf.Clamp(_resolvedSlotSize * 1.1f, 48f, 60f)
+                ? Mathf.Clamp(_resolvedSlotSize * 0.88f, 38f, 46f)
                 : Mathf.Clamp(_resolvedSlotSize * 0.56f, 20f, 28f);
             var resolvedFontSize = isRailLayout
                 ? 0f

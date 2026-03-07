@@ -36,6 +36,27 @@ namespace Reloader.UI.Tests.EditMode
             Assert.That(workspace.style.marginRight.value.value, Is.EqualTo(0f));
         }
 
+        [Test]
+        public void ApplyResponsiveLayout_ClampsIconRailTabsToCompactWidth_WhenTabBarStaysNarrow()
+        {
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 0, backpackSlotCount: 0);
+
+            var tabBar = root.Q<VisualElement>("inventory__tabbar");
+            var inventoryTab = root.Q<Button>("inventory__tab-inventory");
+            Assert.That(tabBar, Is.Not.Null);
+            Assert.That(inventoryTab, Is.Not.Null);
+
+            tabBar.style.width = 72f;
+
+            InvokeApplyResponsiveLayout(binder);
+
+            Assert.That(inventoryTab.style.width.value.value, Is.EqualTo(60f));
+            Assert.That(inventoryTab.style.fontSize.value.value, Is.EqualTo(0f));
+            Assert.That(inventoryTab.style.height.value.value, Is.InRange(38f, 46f));
+        }
+
         private static void InvokeApplyResponsiveLayout(TabInventoryViewBinder binder)
         {
             var method = typeof(TabInventoryViewBinder).GetMethod("ApplyResponsiveLayout", BindingFlags.Instance | BindingFlags.NonPublic);

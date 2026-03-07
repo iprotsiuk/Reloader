@@ -31,13 +31,13 @@
 }
 
 .inventory__rail {
-    width: 96px;
-    min-width: 88px;
-    max-width: 104px;
+    width: 60px;
+    min-width: 56px;
+    max-width: 64px;
     min-height: 0;
-    margin-right: 10px;
+    margin-right: 6px;
     padding-top: 2px;
-    padding-right: 6px;
+    padding-right: 4px;
     padding-bottom: 2px;
     padding-left: 0;
     border-right-width: 1px;
@@ -49,18 +49,18 @@
     flex-grow: 1;
     min-width: 0;
     min-height: 0;
-    margin-right: 12px;
+    margin-right: 8px;
 }
 
 .inventory__detail-pane {
-    width: 220px;
-    min-width: 184px;
-    max-width: 240px;
+    width: 152px;
+    min-width: 132px;
+    max-width: 168px;
     min-height: 0;
-    padding-top: 10px;
-    padding-right: 10px;
-    padding-bottom: 10px;
-    padding-left: 10px;
+    padding-top: 8px;
+    padding-right: 8px;
+    padding-bottom: 8px;
+    padding-left: 8px;
     background-color: rgba(255, 255, 255, 0.03);
     border-top-width: 1px;
     border-right-width: 1px;
@@ -94,7 +94,7 @@
     flex-wrap: nowrap;
     align-items: stretch;
     justify-content: flex-start;
-    gap: 6px;
+    gap: 4px;
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
@@ -110,9 +110,9 @@
 }
 
 .inventory__tabbar--icon-rail .inventory__tab {
-    min-height: 54px;
-    height: 54px;
-    min-width: 54px;
+    min-height: 42px;
+    height: 42px;
+    min-width: 42px;
     padding-left: 0;
     padding-right: 0;
     padding-top: 0;
@@ -126,8 +126,8 @@
 }
 
 .inventory__tabbar--icon-rail .inventory__tab-icon {
-    width: 22px;
-    height: 22px;
+    width: 16px;
+    height: 16px;
     -unity-background-scale-mode: scale-to-fit;
     opacity: 0.76;
 }
@@ -170,8 +170,8 @@
 
 .inventory__contracts-status {
     margin-top: 2px;
-    margin-bottom: 8px;
-    font-size: 11px;
+    margin-bottom: 6px;
+    font-size: 10px;
 }
 
 .inventory__contracts-feed {
@@ -183,11 +183,11 @@
 }
 
 .inventory__contracts-row {
-    min-height: 94px;
-    padding-top: 8px;
-    padding-right: 10px;
-    padding-bottom: 8px;
-    padding-left: 10px;
+    min-height: 72px;
+    padding-top: 6px;
+    padding-right: 8px;
+    padding-bottom: 6px;
+    padding-left: 8px;
     border-top-width: 1px;
     border-right-width: 1px;
     border-bottom-width: 1px;
@@ -206,10 +206,12 @@
 }
 
 .inventory__contracts-row-preview {
-    width: 72px;
-    min-width: 72px;
-    height: 72px;
-    margin-right: 10px;
+    width: 48px;
+    min-width: 48px;
+    max-width: 48px;
+    height: 48px;
+    margin-right: 8px;
+    flex-shrink: 0;
     align-items: center;
     justify-content: center;
     background-color: rgba(255, 255, 255, 0.04);
@@ -220,47 +222,54 @@
 }
 
 .inventory__contracts-row-portrait {
-    width: 42px;
-    height: 42px;
-    border-top-left-radius: 21px;
-    border-top-right-radius: 21px;
-    border-bottom-right-radius: 21px;
-    border-bottom-left-radius: 21px;
+    width: 24px;
+    height: 24px;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+    border-bottom-left-radius: 12px;
     background-color: rgba(238, 242, 248, 0.14);
 }
 
 .inventory__contracts-row-copy {
     flex-direction: column;
     flex-grow: 1;
+    flex-basis: 0;
     min-width: 0;
-    margin-right: 10px;
+    margin-right: 8px;
 }
 
 .inventory__contracts-title {
     color: rgba(238, 242, 248, 0.95);
-    font-size: 13px;
+    font-size: 11px;
     -unity-font-style: bold;
 }
 
 .inventory__contracts-summary {
-    margin-top: 3px;
+    margin-top: 2px;
     color: rgba(215, 223, 236, 0.8);
-    font-size: 10px;
+    font-size: 9px;
     white-space: normal;
 }
 
 .inventory__contracts-payout {
-    min-width: 110px;
-    margin-right: 10px;
+    width: 74px;
+    min-width: 74px;
+    max-width: 74px;
+    margin-right: 8px;
     color: rgba(238, 242, 248, 0.95);
-    font-size: 11px;
+    font-size: 10px;
     unity-text-align: middle-right;
+    flex-shrink: 0;
 }
 
 .inventory__contracts-primary-action {
-    min-width: 92px;
-    height: 32px;
-    font-size: 10px;
+    width: 64px;
+    min-width: 64px;
+    max-width: 64px;
+    height: 28px;
+    font-size: 9px;
+    flex-shrink: 0;
 }
 
 .inventory__contracts-active {

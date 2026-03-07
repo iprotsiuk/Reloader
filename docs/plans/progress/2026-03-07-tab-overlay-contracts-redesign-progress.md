@@ -18,7 +18,7 @@
 - [ ] Cancel contract action landed
 - [ ] Ready-to-claim / claim reward flow landed
 - [ ] Right-side terms pane landed
-- [ ] Density tightening pass landed
+- [x] Density tightening pass landed
 - [ ] Final screenshot set captured
 
 ## Notes
@@ -84,6 +84,12 @@
   - added coverage for the authored contracts shell in `TabInventoryUxmlCopyEditModeTests.ContractsSection_AuthorsPostedFeedAndActiveWorkspaceShell`
   - updated `TabInventoryContractsSectionPlayModeTests` to lock the expected center-pane mode switch (`feed` when available, `active workspace` after accept)
   - runtime screenshot and Unity test-runner verification are still pending until the editor session reliably reconnects to Unity MCP
+- Density tightening checkpoint status:
+  - applied the first screenshot-driven compression pass after user feedback that the left rail, payout segment, and accept button were still consuming too much width
+  - narrowed the shell proportions again: icon rail `60px` authored width, tighter workspace gap, and a smaller placeholder detail pane so the center pane gets more real contract width
+  - tightened the posted-contract row itself by shrinking the preview tile, portrait, payout segment, and accept button while forcing the summary column to own the remaining width (`flex-basis: 0`)
+  - updated `TabInventoryViewBinder.ApplyResponsiveTabs()` to fall back to assigned tab-bar width during deterministic tests instead of depending only on live `contentRect`
+  - added `TabInventoryResponsiveLayoutEditModeTests.ApplyResponsiveLayout_ClampsIconRailTabsToCompactWidth_WhenTabBarStaysNarrow` to lock the compact rail sizing contract
 
 ## Verification
 
@@ -96,3 +102,8 @@
   - initial shell red-phase test failed for the expected missing-shell reason
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesThreeRegionShell`: passed (`1/1`)
   - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests.ExecuteCutover_TabInventoryUsesIconRailNavigation`: passed (`1/1`)
+  - `Reloader.UI.Tests.EditMode.TabInventoryResponsiveLayoutEditModeTests`: passed (`2/2`)
+  - `Reloader.UI.Tests.EditMode.TabInventoryUxmlCopyEditModeTests`: passed (`3/3`)
+  - `Reloader.UI.Tests.PlayMode.UiRuntimeCutoverPlayModeTests`: passed (`5/5`)
+  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsSectionPlayModeTests`: passed (`3/3`)
+  - `Reloader.UI.Tests.PlayMode.TabInventoryAttachmentsPlayModeTests`: passed (`4/4`)
