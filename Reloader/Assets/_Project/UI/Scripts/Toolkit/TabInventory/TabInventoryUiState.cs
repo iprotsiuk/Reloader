@@ -55,7 +55,8 @@ namespace Reloader.UI.Toolkit.TabInventory
                 string rewardStateText,
                 bool canAccept,
                 bool canCancel,
-                bool canClaimReward)
+                bool canClaimReward,
+                bool canClearFailed)
             {
                 Mode = mode;
                 StatusText = statusText ?? string.Empty;
@@ -73,6 +74,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 CanAccept = canAccept;
                 CanCancel = canCancel;
                 CanClaimReward = canClaimReward;
+                CanClearFailed = canClearFailed;
             }
 
             public ContractPanelMode Mode { get; }
@@ -91,6 +93,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             public bool CanAccept { get; }
             public bool CanCancel { get; }
             public bool CanClaimReward { get; }
+            public bool CanClearFailed { get; }
 
             public static ContractPanelState CreateDefault()
             {
@@ -110,7 +113,8 @@ namespace Reloader.UI.Toolkit.TabInventory
                     rewardStateText: "No contract selected",
                     canAccept: false,
                     canCancel: false,
-                    canClaimReward: false);
+                    canClaimReward: false,
+                    canClearFailed: false);
             }
         }
 

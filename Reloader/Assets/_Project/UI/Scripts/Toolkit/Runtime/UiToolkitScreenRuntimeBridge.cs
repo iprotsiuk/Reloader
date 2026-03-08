@@ -664,7 +664,10 @@ namespace Reloader.UI.Toolkit.Runtime
                     canAccept: snapshot.CanAccept,
                     canCancel: snapshot.CanCancel,
                     canClaimReward: snapshot.CanClaimReward,
+                    canClearFailed: snapshot.CanClearFailed,
                     statusText: statusText,
+                    restrictionsText: snapshot.RestrictionsText,
+                    failureConditionsText: snapshot.FailureConditionsText,
                     trackingText: BuildContractTrackingText(snapshot));
                 return true;
             }
@@ -679,6 +682,12 @@ namespace Reloader.UI.Toolkit.Runtime
             {
                 var provider = ResolveProvider();
                 return provider != null && provider.CancelActiveContract();
+            }
+
+            public bool ClearFailedContract()
+            {
+                var provider = ResolveProvider();
+                return provider != null && provider.ClearFailedContract();
             }
 
             public bool ClaimCompletedContractReward()

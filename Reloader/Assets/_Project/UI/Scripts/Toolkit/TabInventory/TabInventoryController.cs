@@ -559,7 +559,7 @@ private void Refresh()
                     ? TabInventoryUiState.ContractPanelMode.PostedOffer
                     : TabInventoryUiState.ContractPanelMode.None;
             var rewardStateText = status.HasFailedContract
-                ? "Contract failed."
+                ? "Contract failed. Clear it to accept a new job."
                 : status.CanClaimReward
                 ? "Reward ready to claim."
                 : status.HasActiveContract
@@ -579,12 +579,13 @@ private void Refresh()
                 briefingText: string.IsNullOrWhiteSpace(briefing) ? "Check back later for fresh contract offers." : briefing,
                 basePayoutText: payoutText,
                 bonusConditionsText: "None",
-                restrictionsText: "None",
-                failureConditionsText: "Wrong target • Manual cancel",
+                restrictionsText: string.IsNullOrWhiteSpace(status.RestrictionsText) ? "None" : status.RestrictionsText,
+                failureConditionsText: string.IsNullOrWhiteSpace(status.FailureConditionsText) ? "Manual cancel" : status.FailureConditionsText,
                 rewardStateText: rewardStateText,
                 canAccept: status.CanAccept,
                 canCancel: status.CanCancel,
-                canClaimReward: status.CanClaimReward);
+                canClaimReward: status.CanClaimReward,
+                canClearFailed: status.CanClearFailed);
         }
 
         private bool TryHandleContractIntent(UiIntent intent)
@@ -603,6 +604,10 @@ private void Refresh()
                     return true;
                 case "tab.inventory.contracts.cancel":
                     contractController.CancelActiveContract();
+                    Refresh();
+                    return true;
+                case "tab.inventory.contracts.clear":
+                    contractController.ClearFailedContract();
                     Refresh();
                     return true;
                 case "tab.inventory.contracts.claim":

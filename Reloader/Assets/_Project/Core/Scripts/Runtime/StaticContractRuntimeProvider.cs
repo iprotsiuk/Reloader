@@ -55,6 +55,11 @@ namespace Reloader.Contracts.Runtime
             return EnsureRuntime().CancelActiveContract();
         }
 
+        public bool ClearFailedContract()
+        {
+            return EnsureRuntime().ClearFailedContract();
+        }
+
         public bool ClaimCompletedContractReward()
         {
             return EnsureRuntime().ClaimCompletedContractReward();

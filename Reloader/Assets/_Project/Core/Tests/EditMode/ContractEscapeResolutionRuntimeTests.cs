@@ -313,6 +313,37 @@ namespace Reloader.Core.Tests.EditMode
             }
         }
 
+        [Test]
+        public void ClearFailedContract_AfterStrictFailure_ClearsSnapshotWithoutClearingPoliceSearch()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            ConfigureWrongTargetFailureRule(contract);
+            var runtime = new ContractEscapeResolutionRuntime(
+                contract,
+                searchDurationSeconds: 10f,
+                payoutReceiver: new RecordingPayoutReceiver(),
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            try
+            {
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+                Assert.That(runtime.ReportTargetEliminated("target.bravo", wasExposed: true), Is.False);
+                Assert.That(runtime.TryGetSnapshot(out var failedSnapshot), Is.True);
+                Assert.That(failedSnapshot.HasFailedContract, Is.True);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+
+                Assert.That(runtime.ClearFailedContract(), Is.True);
+
+                Assert.That(runtime.TryGetSnapshot(out _), Is.False, "Clearing a failed contract should remove the mission snapshot.");
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search),
+                    "Clearing a failed contract must not clear police search state.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+            }
+        }
+
         private static AssassinationContractDefinition CreateDefinition(
             string contractId,
             string targetId,

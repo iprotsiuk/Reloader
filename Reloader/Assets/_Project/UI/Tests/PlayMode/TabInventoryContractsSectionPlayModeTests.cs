@@ -199,7 +199,10 @@ namespace Reloader.UI.Tests.PlayMode
                 canAccept: false,
                 canCancel: false,
                 canClaimReward: false,
+                canClearFailed: true,
                 statusText: "Failed: wrong target • Escape search: 28s",
+                restrictionsText: "Wrong target fails contract",
+                failureConditionsText: "Wrong target kill • Manual cancel",
                 trackingText: string.Empty,
                 hasFailedContract: true);
 
@@ -231,7 +234,8 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(activeTargetBlock, Is.Not.Null);
             Assert.That(contractsTarget.text, Is.EqualTo("Yuri Antonov"));
             Assert.That(acceptButton.style.display.value, Is.EqualTo(DisplayStyle.None));
-            Assert.That(activeActionButton.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(activeActionButton.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(activeActionButton.text, Is.EqualTo("Clear Contract"));
 
             Object.DestroyImmediate(go);
         }
@@ -374,7 +378,10 @@ namespace Reloader.UI.Tests.PlayMode
                 canAccept: true,
                 canCancel: false,
                 canClaimReward: false,
-                statusText: "Available contract");
+                canClearFailed: false,
+                statusText: "Available contract",
+                restrictionsText: "Wrong target fails contract",
+                failureConditionsText: "Wrong target kill • Manual cancel");
 
             var controller = go.AddComponent<TabInventoryController>();
             controller.SetInventoryController(inventoryController);
@@ -398,9 +405,66 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(contractsDetailPane.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(basePayout.text, Is.EqualTo("Payout: $1,500"));
             Assert.That(bonusConditions.text, Is.EqualTo("None"));
-            Assert.That(restrictions.text, Is.EqualTo("None"));
-            Assert.That(failureConditions.text, Is.EqualTo("Wrong target • Manual cancel"));
+            Assert.That(restrictions.text, Is.EqualTo("Wrong target fails contract"));
+            Assert.That(failureConditions.text, Is.EqualTo("Wrong target kill • Manual cancel"));
             Assert.That(rewardState.text, Is.EqualTo("Reward pending contract acceptance."));
+
+            Object.DestroyImmediate(go);
+        }
+
+        [Test]
+        public void Controller_ContractsClearIntent_ClearsFailedWorkspaceWithoutRepostingOffer()
+        {
+            var go = new GameObject("TabInventoryControllerContractsClear");
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(0);
+            inventoryController.Configure(null, null, runtime);
+
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 0, backpackSlotCount: 0);
+
+            var inputSource = go.AddComponent<TestInputSource>();
+            var contractController = go.AddComponent<TestContractController>();
+            contractController.Status = new TabInventoryContractStatus(
+                hasAvailableContract: false,
+                hasActiveContract: false,
+                contractTitle: "Bridge Glass",
+                targetDisplayName: "Yuri Antonov",
+                targetDescription: "Black cap, waits near the river checkpoint.",
+                briefingText: "Target becomes exposed for roughly thirty seconds each loop.",
+                distanceBandMeters: 610f,
+                payout: 2400,
+                canAccept: false,
+                canCancel: false,
+                canClaimReward: false,
+                canClearFailed: true,
+                statusText: "Failed: wrong target • Escape search: 28s",
+                restrictionsText: "Wrong target fails contract",
+                failureConditionsText: "Wrong target kill • Manual cancel",
+                trackingText: string.Empty,
+                hasFailedContract: true);
+
+            var controller = go.AddComponent<TabInventoryController>();
+            controller.SetInventoryController(inventoryController);
+            controller.SetInputSource(inputSource);
+            controller.SetContractController(contractController);
+            controller.Configure(binder, new TabInventoryDragController());
+
+            inputSource.MenuTogglePressedThisFrame = true;
+            controller.Tick();
+            controller.HandleIntent(new UiIntent("tab.menu.select", "contracts"));
+            controller.HandleIntent(new UiIntent("tab.inventory.contracts.clear"));
+
+            var postedFeed = root.Q<VisualElement>("inventory__contracts-feed");
+            var activeWorkspace = root.Q<VisualElement>("inventory__contracts-active");
+            var contractsStatus = root.Q<Label>("inventory__contracts-status");
+
+            Assert.That(contractController.ClearFailedCalls, Is.EqualTo(1));
+            Assert.That(postedFeed.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(activeWorkspace.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(contractsStatus.text, Is.EqualTo("No contracts currently posted"));
 
             Object.DestroyImmediate(go);
         }
@@ -681,6 +745,7 @@ namespace Reloader.UI.Tests.PlayMode
             public int AcceptCalls { get; private set; }
             public int CancelCalls { get; private set; }
             public int ClaimCalls { get; private set; }
+            public int ClearFailedCalls { get; private set; }
             public TabInventoryContractStatus Status { get; set; }
 
             public bool TryGetStatus(out TabInventoryContractStatus status)
@@ -709,7 +774,10 @@ namespace Reloader.UI.Tests.PlayMode
                     canAccept: false,
                     canCancel: true,
                     canClaimReward: false,
-                    statusText: "Active contract");
+                    canClearFailed: false,
+                    statusText: "Active contract",
+                    restrictionsText: Status.RestrictionsText,
+                    failureConditionsText: Status.FailureConditionsText);
                 return true;
             }
 
@@ -733,7 +801,10 @@ namespace Reloader.UI.Tests.PlayMode
                     canAccept: true,
                     canCancel: false,
                     canClaimReward: false,
-                    statusText: "Available contract");
+                    canClearFailed: false,
+                    statusText: "Available contract",
+                    restrictionsText: Status.RestrictionsText,
+                    failureConditionsText: Status.FailureConditionsText);
                 return true;
             }
 
@@ -741,6 +812,18 @@ namespace Reloader.UI.Tests.PlayMode
             {
                 ClaimCalls++;
                 if (!Status.CanClaimReward)
+                {
+                    return false;
+                }
+
+                Status = TabInventoryContractStatus.CreateDefault();
+                return true;
+            }
+
+            public bool ClearFailedContract()
+            {
+                ClearFailedCalls++;
+                if (!Status.CanClearFailed)
                 {
                     return false;
                 }

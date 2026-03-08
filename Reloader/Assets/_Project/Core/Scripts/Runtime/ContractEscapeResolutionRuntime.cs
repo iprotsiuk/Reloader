@@ -187,6 +187,17 @@ namespace Reloader.Contracts.Runtime
             return _contractController.TryCompleteActiveContract();
         }
 
+        public bool ClearFailedContract()
+        {
+            if (!CanClearFailedContract())
+            {
+                return false;
+            }
+
+            ClearFailedContractState();
+            return true;
+        }
+
         public bool ReportTargetEliminated(string targetId, bool wasExposed)
         {
             if (string.IsNullOrWhiteSpace(targetId))
