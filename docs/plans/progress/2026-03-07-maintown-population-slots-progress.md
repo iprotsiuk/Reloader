@@ -686,3 +686,23 @@ The next slice should formalize the actual Monday `08:00` scheduler rule on top 
   - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests`: `4/4` passed
   - `Reloader.UI.Tests.PlayMode.TabInventoryDeviceSectionPlayModeTests`: `16/16` passed
   - `Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests`: `6/6` passed
+
+## Checkpoint: Same-Frame Rebuild Lookup Guard
+
+- Addressed the latest PR review follow-up on same-frame rebuild visibility:
+  - `CivilianPopulationRuntimeBridge.ClearSpawnedScenePopulation()` now detaches spawned civilians from the bridge hierarchy and deactivates them before deferred `Destroy(...)` in play mode
+  - this keeps `TryResolveSpawnedCivilian(...)` and bridge-local child scans from seeing stale civilians during the same frame that `RebuildScenePopulation()` respawns replacements
+- Added focused PlayMode coverage for that seam:
+  - `MainTownPopulationInfrastructurePlayModeTests` now verifies same-frame bridge lookups stop resolving the prior civilian immediately after rebuild and only see the replacement civilian
+- Scope note:
+  - this is review-driven runtime-state hardening only
+  - it does not change slot assignment, contract selection, or replacement scheduling rules
+
+## Verification
+
+- Unity MCP `run_tests` / `get_test_job`:
+  - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_RebuildScenePopulation_SameFrameLookupsOnlySeeReplacementCivilian`: `1/1` passed
+  - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `7/7` passed
+  - `Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests`: `6/6` passed
+  - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `22/22` passed
+- `git diff --check`: clean

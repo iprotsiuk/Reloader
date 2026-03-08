@@ -161,6 +161,57 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator MainTownPopulationRuntime_RebuildScenePopulation_SameFrameLookupsOnlySeeReplacementCivilian()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var root = GameObject.Find("MainTownPopulationRuntime");
+            Assert.That(root, Is.Not.Null, "Expected authored MainTown population runtime root.");
+
+            var bridge = root!.GetComponent<CivilianPopulationRuntimeBridge>();
+            Assert.That(bridge, Is.Not.Null, "Expected CivilianPopulationRuntimeBridge on MainTownPopulationRuntime.");
+
+            bridge!.Runtime.Civilians.Clear();
+            bridge.Runtime.PendingReplacements.Clear();
+            bridge.Runtime.Civilians.Add(CreateRecord(
+                civilianId: "citizen.mainTown.0001",
+                populationSlotId: "townsfolk.001",
+                poolId: "townsfolk",
+                spawnAnchorId: "Anchor_Townsfolk_01",
+                areaTag: "maintown.square",
+                isAlive: true,
+                retiredAtDay: -1));
+
+            bridge.RebuildScenePopulation();
+            yield return null;
+
+            Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0001", out _), Is.True,
+                "Expected the initial rebuild to resolve the first civilian.");
+
+            bridge.Runtime.Civilians.Clear();
+            bridge.Runtime.Civilians.Add(CreateRecord(
+                civilianId: "citizen.mainTown.0002",
+                populationSlotId: "cops.001",
+                poolId: "cops",
+                spawnAnchorId: "Anchor_Cop_01",
+                areaTag: "maintown.watch",
+                isAlive: true,
+                retiredAtDay: -1));
+
+            bridge.RebuildScenePopulation();
+
+            var spawned = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            Assert.That(spawned.Select(component => component.CivilianId).ToArray(), Is.EqualTo(new[] { "citizen.mainTown.0002" }),
+                "Expected same-frame bridge children to exclude civilians scheduled for deferred destruction.");
+            Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0001", out _), Is.False,
+                "Expected same-frame lookups to stop resolving the prior civilian after rebuild.");
+            Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0002", out var resolved), Is.True,
+                "Expected same-frame lookups to resolve the replacement civilian immediately after rebuild.");
+            Assert.That(resolved!.CivilianId, Is.EqualTo("citizen.mainTown.0002"));
+        }
+
+        [UnityTest]
         public IEnumerator MainTownPopulationRuntime_SaveCoordinatorLoad_RebuildsAuthoredSceneFromLoadedPopulationModule()
         {
             yield return LoadScene(MainTownSceneName);

@@ -482,6 +482,8 @@ namespace Reloader.NPCs.Runtime
 
                 if (Application.isPlaying)
                 {
+                    target.transform.SetParent(null, false);
+                    target.gameObject.SetActive(false);
                     Destroy(target.gameObject);
                 }
                 else
