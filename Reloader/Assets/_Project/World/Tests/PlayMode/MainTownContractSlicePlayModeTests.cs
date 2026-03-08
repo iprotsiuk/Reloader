@@ -1,9 +1,14 @@
 using System;
 using System.Collections;
+using System.IO;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Contracts.Runtime;
 using Reloader.Core.Events;
+using Reloader.Core.Save;
+using Reloader.Core.Save.IO;
+using Reloader.Core.Save.Modules;
+using Reloader.NPCs.Runtime;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -29,10 +34,10 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True, "Expected authored MainTown contract offer.");
             Assert.That(availableSnapshot.HasAvailableContract, Is.True);
             Assert.That(availableSnapshot.HasActiveContract, Is.False);
-            Assert.That(availableSnapshot.TargetId, Is.EqualTo("target.maintown.volkov"));
+            Assert.That(availableSnapshot.TargetId, Does.StartWith("citizen.mainTown."), "Expected MainTown to offer a live procedural civilian target on scene load.");
 
-            var targetRoot = GameObject.Find("ContractTarget_Volkov");
-            Assert.That(targetRoot, Is.Not.Null, "Expected authored contract target root in MainTown.");
+            var targetRoot = FindProceduralCivilianTarget(availableSnapshot.TargetId);
+            Assert.That(targetRoot, Is.Not.Null, "Expected the available contract target to resolve to a spawned procedural civilian.");
 
             var startingMoney = ReadEconomyMoney();
 
@@ -85,8 +90,8 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(availableSnapshot.HasAvailableContract, Is.True);
             Assert.That(availableSnapshot.CanAccept, Is.True);
 
-            var targetRoot = GameObject.Find("ContractTarget_Volkov");
-            Assert.That(targetRoot, Is.Not.Null, "Expected authored contract target root in MainTown.");
+            var targetRoot = FindProceduralCivilianTarget(availableSnapshot.TargetId);
+            Assert.That(targetRoot, Is.Not.Null, "Expected the available contract target to resolve to a spawned procedural civilian.");
 
             var startingMoney = ReadEconomyMoney();
 
@@ -108,6 +113,266 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(provider.TryGetContractSnapshot(out _), Is.False);
             Assert.That(ReadActiveContract(runtime), Is.Null);
             Assert.That(ReadEconomyMoney(), Is.EqualTo(startingMoney));
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownContractSlice_ProceduralCivilianTarget_CanBeAcceptedAndCompleted()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+            Assert.That(availableSnapshot.HasAvailableContract, Is.True);
+            Assert.That(availableSnapshot.TargetId, Does.StartWith("citizen.mainTown."));
+
+            var offeredTarget = FindProceduralCivilianTarget(availableSnapshot.TargetId);
+            Assert.That(offeredTarget, Is.Not.Null, "Expected the scene's available contract to target a spawned procedural civilian.");
+
+            var targetDamageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons");
+            Assert.That(targetDamageableType, Is.Not.Null, "Expected contract target damageable type to resolve.");
+            var targetDamageable = offeredTarget!.GetComponent(targetDamageableType!);
+            Assert.That(targetDamageable, Is.Not.Null, "Expected procedural offer target to expose the existing contract-target damageable seam.");
+            Assert.That(GetProperty<string>(targetDamageable!, "TargetId"), Is.EqualTo(availableSnapshot.TargetId));
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownContractSlice_WhenIdle_NonOfferedProceduralCivilianDoesNotExposeContractTargetDamageable()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+            Assert.That(availableSnapshot.TargetId, Does.StartWith("citizen.mainTown."));
+
+            var bridge = FindPopulationBridge();
+            var nonOfferedCivilian = bridge.Runtime.Civilians
+                .Find(record => record != null
+                    && record.IsAlive
+                    && record.IsContractEligible
+                    && !record.IsProtectedFromContracts
+                    && !string.Equals(record.CivilianId, availableSnapshot.TargetId, StringComparison.Ordinal));
+            Assert.That(nonOfferedCivilian, Is.Not.Null, "Expected MainTown starter population to include another live eligible civilian besides the offered target.");
+
+            Assert.That(bridge.TryResolveSpawnedCivilian(nonOfferedCivilian!.CivilianId, out var spawnedCivilian), Is.True);
+            Assert.That(spawnedCivilian, Is.Not.Null, "Expected the non-offered civilian to be present in the scene.");
+
+            var damageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons");
+            Assert.That(damageableType, Is.Not.Null, "Expected contract target damageable type to resolve.");
+            Assert.That(spawnedCivilian!.GetComponent(damageableType!), Is.Null,
+                "Expected idle non-offered civilians to stay outside the contract-target seam.");
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownContractSlice_WhenAccepted_OnlyActiveProceduralTargetExposesContractTargetDamageable()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+            Assert.That(availableSnapshot.TargetId, Does.StartWith("citizen.mainTown."));
+
+            Assert.That(provider.AcceptAvailableContract(), Is.True, "Expected the scene contract provider to accept the live procedural offer.");
+            Assert.That(provider.TryGetContractSnapshot(out var activeSnapshot), Is.True);
+            Assert.That(activeSnapshot.HasActiveContract, Is.True);
+
+            var bridge = FindPopulationBridge();
+            var damageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons");
+            Assert.That(damageableType, Is.Not.Null, "Expected contract target damageable type to resolve.");
+
+            var spawned = bridge.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            var activeSpawn = Array.Find(spawned, candidate => candidate != null && string.Equals(candidate.CivilianId, activeSnapshot.TargetId, StringComparison.Ordinal));
+            Assert.That(activeSpawn, Is.Not.Null, "Expected the accepted procedural target to remain spawned in-scene.");
+
+            var damageableHolders = Array.FindAll(spawned, candidate => candidate != null && candidate.GetComponent(damageableType!) != null);
+            Assert.That(damageableHolders.Length, Is.EqualTo(1), "Expected only one spawned procedural civilian to expose ContractTargetDamageable after accepting the contract.");
+            Assert.That(damageableHolders[0].CivilianId, Is.EqualTo(activeSnapshot.TargetId), "Expected the active contract target to be the only spawned civilian on the contract-target damage seam.");
+
+            var nonTargetSpawn = Array.Find(spawned, candidate => candidate != null
+                && !string.Equals(candidate.CivilianId, activeSnapshot.TargetId, StringComparison.Ordinal)
+                && bridge.Runtime.Civilians.Exists(record => record != null
+                    && record.IsAlive
+                    && record.IsContractEligible
+                    && !record.IsProtectedFromContracts
+                    && string.Equals(record.CivilianId, candidate.CivilianId, StringComparison.Ordinal)));
+            Assert.That(nonTargetSpawn, Is.Not.Null, "Expected another live eligible procedural civilian besides the active target.");
+            Assert.That(nonTargetSpawn!.GetComponent(damageableType!), Is.Null, "Expected non-target civilians to stay outside the contract-target damage seam after acceptance.");
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownContractSlice_WhenWrongTargetIsEliminated_KeepsFailureSnapshotVisible()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+            Assert.That(provider.AcceptAvailableContract(), Is.True);
+            Assert.That(provider.TryGetContractSnapshot(out var activeSnapshot), Is.True);
+
+            var wrongTargetRoot = GameObject.Find("ContractTarget_Volkov");
+            Assert.That(wrongTargetRoot, Is.Not.Null, "Expected authored wrong-target damageable in MainTown.");
+
+            ApplyLethalDamage(wrongTargetRoot!);
+            yield return null;
+
+            var runtime = GetRuntime(provider);
+            Assert.That(ReadActiveContract(runtime), Is.Null, "Expected wrong-target elimination to fail the active contract.");
+            Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+            Assert.That(provider.TryGetContractSnapshot(out var failedSnapshot), Is.True,
+                "Expected the Contracts runtime to keep a visible failure snapshot instead of collapsing to no contract.");
+            Assert.That(failedSnapshot.HasFailedContract, Is.True);
+            Assert.That(failedSnapshot.TargetId, Is.EqualTo(activeSnapshot.TargetId),
+                "Expected the failure snapshot to continue describing the contract that was just failed.");
+            Assert.That(failedSnapshot.StatusText, Does.StartWith("Failed: wrong target"));
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownContractSlice_TargetEliminatedBeforeAccept_RebuildPublishesDifferentLiveTarget()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+
+            var bridge = FindPopulationBridge();
+            var consumedTargetId = availableSnapshot.TargetId;
+            var targetRoot = FindProceduralCivilianTarget(consumedTargetId);
+            Assert.That(targetRoot, Is.Not.Null, "Expected the available contract target to resolve to a spawned procedural civilian.");
+
+            ApplyLethalDamage(targetRoot!);
+            yield return null;
+
+            provider.AdvanceRuntime(31f);
+            yield return null;
+
+            Assert.That(provider.TryGetContractSnapshot(out _), Is.False, "Expected the consumed pre-accept offer to stay unavailable until the bridge rebuilds.");
+
+            bridge.RebuildScenePopulation();
+            yield return null;
+
+            Assert.That(bridge.TryResolveSpawnedCivilian(consumedTargetId, out _), Is.False, "Expected the killed procedural civilian to be retired from the live population before the next rebuild.");
+            Assert.That(provider.TryGetContractSnapshot(out var refreshedSnapshot), Is.True, "Expected a later rebuild to publish a replacement live offer from the remaining population.");
+            Assert.That(refreshedSnapshot.TargetId, Does.StartWith("citizen.mainTown."));
+            Assert.That(refreshedSnapshot.TargetId, Is.Not.EqualTo(consumedTargetId), "Expected the rebuilt offer to move away from the consumed dead target.");
+
+            var refreshedTarget = FindProceduralCivilianTarget(refreshedSnapshot.TargetId);
+            Assert.That(refreshedTarget, Is.Not.Null, "Expected the rebuilt contract offer to resolve to a different live procedural civilian.");
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownContractSlice_SaveLoad_PreservesAcceptedProceduralContractTarget()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+            Assert.That(availableSnapshot.TargetId, Does.StartWith("citizen.mainTown."));
+
+            var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
+            var repository = new SaveFileRepository();
+            var tempDir = Path.Combine(Path.GetTempPath(), "reloader-maintown-contract-tests-" + Guid.NewGuid().ToString("N"));
+            var savePath = Path.Combine(tempDir, "maintown-contract-load.json");
+            Directory.CreateDirectory(tempDir);
+
+            try
+            {
+                Assert.That(provider.AcceptAvailableContract(), Is.True);
+                Assert.That(provider.TryGetContractSnapshot(out var activeSnapshot), Is.True);
+                Assert.That(activeSnapshot.HasActiveContract, Is.True);
+
+                var targetBeforeSave = FindProceduralCivilianTarget(activeSnapshot.TargetId);
+                Assert.That(targetBeforeSave, Is.Not.Null, "Expected accepted procedural contract target to exist before save.");
+
+                var envelope = coordinator.CaptureEnvelope("0.6.0-dev");
+                repository.WriteEnvelope(savePath, envelope);
+
+                coordinator.Load(savePath);
+                yield return null;
+
+                Assert.That(provider.TryGetContractSnapshot(out var restoredSnapshot), Is.True);
+                Assert.That(restoredSnapshot.HasActiveContract, Is.True, "Expected accepted procedural contract to survive save/load.");
+                Assert.That(restoredSnapshot.TargetId, Is.EqualTo(activeSnapshot.TargetId));
+
+                var targetAfterLoad = FindProceduralCivilianTarget(restoredSnapshot.TargetId);
+                Assert.That(targetAfterLoad, Is.Not.Null, "Expected restored active contract target to still resolve to a live procedural civilian.");
+            }
+            finally
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownContractSlice_AcceptedProceduralContract_ResolvesLiveTargetThroughPopulationBridge()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+            Assert.That(availableSnapshot.TargetId, Does.StartWith("citizen.mainTown."));
+
+            Assert.That(provider.AcceptAvailableContract(), Is.True);
+            Assert.That(provider.TryGetContractSnapshot(out var activeSnapshot), Is.True);
+            Assert.That(activeSnapshot.HasActiveContract, Is.True);
+
+            var bridge = FindPopulationBridge();
+            var resolveMethod = typeof(CivilianPopulationRuntimeBridge).GetMethod(
+                "TryResolveSpawnedCivilian",
+                BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(resolveMethod, Is.Not.Null, "Expected a public TryResolveSpawnedCivilian(string civilianId, out MainTownPopulationSpawnedCivilian civilian) method on CivilianPopulationRuntimeBridge.");
+
+            var args = new object[] { activeSnapshot.TargetId, null };
+            var resolved = (bool)resolveMethod!.Invoke(bridge, args)!;
+            Assert.That(resolved, Is.True, "Expected the accepted procedural contract target to resolve through the population bridge.");
+
+            var resolvedCivilian = args[1] as MainTownPopulationSpawnedCivilian;
+            Assert.That(resolvedCivilian, Is.Not.Null, "Expected the population bridge to return the spawned civilian metadata component.");
+            Assert.That(resolvedCivilian!.CivilianId, Is.EqualTo(activeSnapshot.TargetId));
+            Assert.That(resolvedCivilian.PopulationSlotId, Is.Not.Empty);
+
+            var damageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons");
+            Assert.That(damageableType, Is.Not.Null, "Expected contract target damageable type to resolve.");
+            var damageable = resolvedCivilian.GetComponent(damageableType!);
+            Assert.That(damageable, Is.Not.Null, "Expected the resolved procedural target to expose the contract-target seam.");
+            Assert.That(GetProperty<string>(damageable!, "TargetId"), Is.EqualTo(activeSnapshot.TargetId));
         }
 
         private static ContractEscapeResolutionRuntime GetRuntime(StaticContractRuntimeProvider provider)
@@ -173,6 +438,38 @@ namespace Reloader.World.Tests.PlayMode
             var applyDamageMethod = damageableType!.GetMethod("ApplyDamage", BindingFlags.Instance | BindingFlags.Public);
             Assert.That(applyDamageMethod, Is.Not.Null);
             applyDamageMethod!.Invoke(damageable, new[] { payload });
+        }
+
+        private static T GetProperty<T>(object instance, string propertyName)
+        {
+            var property = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(property, Is.Not.Null, $"Expected public property '{propertyName}' on {instance.GetType().Name}.");
+            return (T)property!.GetValue(instance)!;
+        }
+
+        private static CivilianPopulationRuntimeBridge FindPopulationBridge()
+        {
+            var populationRoot = GameObject.Find("MainTownPopulationRuntime");
+            Assert.That(populationRoot, Is.Not.Null, "Expected authored MainTown population runtime root.");
+
+            var bridge = populationRoot!.GetComponent<CivilianPopulationRuntimeBridge>();
+            Assert.That(bridge, Is.Not.Null, "Expected CivilianPopulationRuntimeBridge on MainTownPopulationRuntime.");
+            return bridge!;
+        }
+
+        private static GameObject FindProceduralCivilianTarget(string targetId)
+        {
+            var bridge = FindPopulationBridge();
+            var spawned = bridge.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            for (var i = 0; i < spawned.Length; i++)
+            {
+                if (string.Equals(spawned[i].CivilianId, targetId, StringComparison.Ordinal))
+                {
+                    return spawned[i].gameObject;
+                }
+            }
+
+            return null;
         }
 
         private static IEnumerator LoadScene(string sceneName)

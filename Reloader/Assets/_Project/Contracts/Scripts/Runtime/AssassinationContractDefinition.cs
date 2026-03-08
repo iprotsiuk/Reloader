@@ -26,5 +26,27 @@ namespace Reloader.Contracts.Runtime
         public string BriefingText => _briefingText;
         public float DistanceBand => _distanceBand;
         public int Payout => _payout;
+
+        public void ConfigureRuntimeOffer(
+            string contractId,
+            string targetId,
+            string title,
+            string targetDisplayName,
+            string targetDescription,
+            string briefingText,
+            float distanceBand,
+            int payout,
+            AssassinationContractArchetype archetype = AssassinationContractArchetype.StreetRoutineTarget)
+        {
+            _contractId = contractId ?? string.Empty;
+            _targetId = targetId ?? string.Empty;
+            _archetype = archetype;
+            _title = title ?? string.Empty;
+            _targetDisplayName = targetDisplayName ?? string.Empty;
+            _targetDescription = targetDescription ?? string.Empty;
+            _briefingText = briefingText ?? string.Empty;
+            _distanceBand = distanceBand;
+            _payout = payout;
+        }
     }
 }

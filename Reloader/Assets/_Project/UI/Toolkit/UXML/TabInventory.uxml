@@ -72,7 +72,10 @@
                         </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement name="inventory__section-quests" class="inventory__section inventory__section--hidden">
-                        <ui:Label name="inventory__contracts-status" text="No contracts currently posted" class="inventory__contracts-status ui-kit__hint"/>
+                        <ui:VisualElement name="inventory__contracts-status-row" class="inventory__contracts-status-row">
+                            <ui:Label name="inventory__contracts-status" text="No contracts currently posted" class="inventory__contracts-status ui-kit__hint"/>
+                            <ui:Label name="inventory__contracts-tracking" text="" class="inventory__contracts-tracking ui-kit__hint"/>
+                        </ui:VisualElement>
                         <ui:VisualElement name="inventory__contracts-feed" class="inventory__contracts-feed">
                             <ui:VisualElement name="inventory__contracts-row" class="inventory__contracts-row">
                                 <ui:VisualElement class="inventory__contracts-row-preview">
@@ -89,6 +92,7 @@
                         <ui:VisualElement name="inventory__contracts-active" class="inventory__contracts-active inventory__section--hidden">
                             <ui:VisualElement name="inventory__contracts-active-header" class="inventory__contracts-active-header">
                                 <ui:Label name="inventory__contracts-active-status" text="Mission Status: Active contract" class="inventory__contracts-active-status ui-kit__hint"/>
+                                <ui:Label name="inventory__contracts-active-tracking" text="" class="inventory__contracts-active-tracking ui-kit__hint"/>
                                 <ui:Label name="inventory__contracts-active-payout" text="Payout: --" class="inventory__contracts-active-payout"/>
                             </ui:VisualElement>
                             <ui:VisualElement name="inventory__contracts-active-target-block" class="inventory__contracts-active-target-block">

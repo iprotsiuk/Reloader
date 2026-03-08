@@ -1,0 +1,306 @@
+# MainTown Population Slots Implementation Plan
+
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** Add slot-driven, map-wide `MainTown` population definitions so generated civilians occupy stable world-role slots instead of an anonymous roster.
+
+**Architecture:** Introduce a `MainTownPopulationDefinition` asset that defines pools and stable `populationSlotId`s for the whole scene. Extend the persistent civilian record/runtime bridge so occupants are generated into slots, preserve slot identity across save/load, and eventually spawn `MainTown` civilians from those persisted slots. Keep contracts and Monday replacement execution out of scope, but harden the model so dead occupants can never become future contract targets.
+
+**Tech Stack:** Unity ScriptableObjects, runtime save modules, NPC runtime bridges, MainTown world bootstrap hooks, EditMode/PlayMode tests, docs progress tracking
+
+---
+
+> **Plan update (2026-03-08):** Insert an infrastructure-only checkpoint before live MainTown spawning.
+> Author the scene root, starter population definition asset, and minimal serialized appearance library first.
+> Keep real visual assembly/prefab spawning deferred until the infrastructure checkpoint is green.
+
+### Task 1: Document the slot-and-pool model
+
+**Files:**
+- Create: `docs/plans/progress/2026-03-07-maintown-population-slots-progress.md`
+- Modify: `docs/plans/2026-03-07-maintown-population-slots-design.md`
+
+**Step 1: Record the approved scope**
+
+- Capture the approved `MainTown` map-wide model:
+  - fixed pools
+  - stable `populationSlotId`s
+  - slot-owned world roles
+  - occupant records keyed by slot
+
+**Step 2: Record explicit guardrails**
+
+- Note that:
+  - vendors are protected from future contracts
+  - dead occupants must later be excluded from target selection
+  - this slice does not implement contracts or Monday refresh execution
+
+**Step 3: Commit**
+
+```bash
+git add docs/plans/2026-03-07-maintown-population-slots-design.md
+git add docs/plans/progress/2026-03-07-maintown-population-slots-progress.md
+git commit -m "docs: define maintown population slots scope"
+```
+
+### Task 2: Add the failing slot-definition contract tests
+
+**Files:**
+- Create: `Reloader/Assets/_Project/NPCs/Tests/EditMode/MainTownPopulationDefinitionTests.cs`
+- Create: `Reloader/Assets/_Project/NPCs/Tests/EditMode/CivilianPopulationSlotAssignmentTests.cs`
+
+**Step 1: Write the failing definition test**
+
+- Add an EditMode test that asserts:
+  - slot IDs are unique
+  - pools own fixed counts
+  - protected vendor slots are marked correctly
+
+**Step 2: Write the failing assignment test**
+
+- Add an EditMode test that asserts:
+  - one live occupant is generated per slot
+  - each occupant preserves `populationSlotId`
+  - slot/pool metadata is copied into the occupant record
+
+**Step 3: Run the focused tests to verify they fail**
+
+Run:
+
+```bash
+bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.MainTownPopulationDefinitionTests tmp/maintown-pop-def-edit.xml tmp/maintown-pop-def-edit.log
+bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationSlotAssignmentTests tmp/maintown-slot-assign-edit.xml tmp/maintown-slot-assign-edit.log
+```
+
+Expected: failing assertions because the slot definition and slot assignment logic do not exist yet.
+
+**Step 4: Commit**
+
+```bash
+git add Reloader/Assets/_Project/NPCs/Tests/EditMode/MainTownPopulationDefinitionTests.cs
+git add Reloader/Assets/_Project/NPCs/Tests/EditMode/CivilianPopulationSlotAssignmentTests.cs
+git commit -m "test: add maintown population slot contracts"
+```
+
+### Task 3: Add MainTown pool and slot definition assets/contracts
+
+**Files:**
+- Create under: `Reloader/Assets/_Project/NPCs/Data/Population/`
+- Create under: `Reloader/Assets/_Project/NPCs/Scripts/Generation/`
+
+**Step 1: Add the definition contracts**
+
+- Create the minimal ScriptableObject/data classes for:
+  - `MainTownPopulationDefinition`
+  - pool definitions
+  - slot definitions
+
+**Step 2: Implement validation**
+
+- Validate:
+  - unique `populationSlotId`s
+  - fixed pool counts
+  - required `spawnAnchorId`
+  - required `poolId`
+
+**Step 3: Re-run the focused definition test**
+
+Run:
+
+```bash
+bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.MainTownPopulationDefinitionTests tmp/maintown-pop-def-edit.xml tmp/maintown-pop-def-edit.log
+```
+
+Expected: passing definition tests.
+
+**Step 4: Commit**
+
+```bash
+git add Reloader/Assets/_Project/NPCs/Data/Population
+git add Reloader/Assets/_Project/NPCs/Scripts/Generation
+git commit -m "feat: add maintown population slot definitions"
+```
+
+### Task 4: Extend the civilian record/runtime bridge for slot-owned occupants
+
+**Files:**
+- Modify: `Reloader/Assets/_Project/Core/Scripts/Save/Modules/CivilianPopulationRecord.cs`
+- Modify: `Reloader/Assets/_Project/Core/Scripts/Save/Modules/CivilianPopulationModule.cs`
+- Modify: `Reloader/Assets/_Project/NPCs/Scripts/Generation/CivilianAppearanceGenerator.cs`
+- Modify: `Reloader/Assets/_Project/NPCs/Scripts/Runtime/CivilianPopulationRuntimeBridge.cs`
+- Modify: `Reloader/Assets/_Project/Core/Tests/EditMode/CivilianPopulationSaveModuleTests.cs`
+- Modify: `Reloader/Assets/_Project/NPCs/Tests/EditMode/CivilianPopulationRuntimeBridgeTests.cs`
+
+**Step 1: Write the failing slot-persistence assertions**
+
+- Extend the existing save/runtime tests so they assert:
+  - `populationSlotId`
+  - `poolId`
+  - `areaTag`
+  - `isProtectedFromContracts`
+  survive save/load and runtime hydration
+
+**Step 2: Run the focused tests to verify they fail**
+
+Run:
+
+```bash
+bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-save-edit.xml tmp/civilian-save-edit.log
+bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-edit.xml tmp/civilian-runtime-bridge-edit.log
+```
+
+Expected: failing assertions because slot metadata is not persisted yet.
+
+**Step 3: Implement minimal slot-owned occupant wiring**
+
+- Extend records and runtime copy paths to preserve slot metadata.
+- Replace anonymous count-based seeding with slot-driven occupant generation from the `MainTownPopulationDefinition`.
+
+**Step 4: Re-run the focused tests**
+
+Run:
+
+```bash
+bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-save-edit.xml tmp/civilian-save-edit.log
+bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-edit.xml tmp/civilian-runtime-bridge-edit.log
+bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationSlotAssignmentTests tmp/maintown-slot-assign-edit.xml tmp/maintown-slot-assign-edit.log
+```
+
+Expected: passing slot-persistence and slot-assignment tests.
+
+**Step 5: Commit**
+
+```bash
+git add Reloader/Assets/_Project/Core/Scripts/Save/Modules
+git add Reloader/Assets/_Project/NPCs/Scripts/Generation
+git add Reloader/Assets/_Project/NPCs/Scripts/Runtime
+git add Reloader/Assets/_Project/Core/Tests/EditMode/CivilianPopulationSaveModuleTests.cs
+git add Reloader/Assets/_Project/NPCs/Tests/EditMode/CivilianPopulationRuntimeBridgeTests.cs
+git add Reloader/Assets/_Project/NPCs/Tests/EditMode/CivilianPopulationSlotAssignmentTests.cs
+git commit -m "feat: assign civilians into maintown population slots"
+```
+
+### Task 5: Spawn live occupants into MainTown from persisted slots
+
+**Files:**
+- Modify: `Reloader/Assets/_Project/NPCs/Scripts/Runtime/CivilianPopulationRuntimeBridge.cs`
+- Create: `Reloader/Assets/_Project/NPCs/Scripts/Runtime/MainTownPopulationSpawnedCivilian.cs`
+- Modify: `Reloader/Assets/_Project/World/Tests/PlayMode/MainTownPopulationInfrastructurePlayModeTests.cs`
+
+**Step 1: Write the failing scene-spawn test**
+
+- Extend the existing `MainTown` infrastructure PlayMode fixture so it boots `MainTown`, injects a slot-driven population roster, and asserts:
+  - live occupants spawn
+  - dead occupants do not spawn
+  - spawned occupants preserve `populationSlotId`
+
+**Step 2: Run the focused PlayMode test to verify it fails**
+
+Run:
+
+```bash
+bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_RebuildScenePopulation_SpawnsLiveOccupantsAndSkipsDeadSlots tmp/maintown-population-rebuild-red.xml tmp/maintown-population-rebuild-red.log
+```
+
+Expected: failing scene-spawn assertions because no slot-driven loader exists yet.
+
+**Step 3: Implement the MainTown loader/spawner**
+
+- Add a minimal `RebuildScenePopulation()` seam on `CivilianPopulationRuntimeBridge`.
+- Trigger placeholder rebuild automatically on fresh scene load from the bridge lifecycle.
+- Trigger placeholder rebuild automatically from `FinalizeAfterLoad()` after runtime save hydration.
+- Spawn placeholder civilians from persisted live records using authored anchor ids under `MainTownPopulationRuntime`.
+- Keep vendor/protected authored NPCs and final visual assembly outside this checkpoint.
+
+**Step 4: Re-run the focused PlayMode test**
+
+Run:
+
+```bash
+bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-full.xml tmp/maintown-population-infra-full.log
+bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_SaveCoordinatorLoad_RebuildsAuthoredSceneFromLoadedPopulationModule tmp/maintown-population-save-load.xml tmp/maintown-population-save-load.log
+```
+
+Expected: passing scene-spawn assertions.
+
+**Step 5: Commit**
+
+```bash
+git add Reloader/Assets/_Project/NPCs/Scripts/Runtime/CivilianPopulationRuntimeBridge.cs
+git add Reloader/Assets/_Project/NPCs/Scripts/Runtime/MainTownPopulationSpawnedCivilian.cs
+git add Reloader/Assets/_Project/World/Tests/PlayMode/MainTownPopulationInfrastructurePlayModeTests.cs
+git commit -m "feat: rebuild maintown scene population"
+```
+
+### Task 6: Run verification and update progress
+
+**Files:**
+- Modify: `docs/plans/progress/2026-03-07-maintown-population-slots-progress.md`
+
+**Step 1: Run the focused verification sweep**
+
+Run:
+
+```bash
+bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.MainTownPopulationDefinitionTests tmp/maintown-pop-def-edit.xml tmp/maintown-pop-def-edit.log
+bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationSlotAssignmentTests tmp/maintown-slot-assign-edit.xml tmp/maintown-slot-assign-edit.log
+bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-save-edit.xml tmp/civilian-save-edit.log
+bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-edit.xml tmp/civilian-runtime-bridge-edit.log
+bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-full.xml tmp/maintown-population-infra-full.log
+bash scripts/verify-docs-and-context.sh
+git diff --check
+```
+
+Expected: all targeted tests pass, docs verification passes, and the worktree has no whitespace issues.
+
+**Step 2: Update the progress doc**
+
+- Record what shipped, what remained deferred, and the exact verification results.
+
+**Step 3: Commit**
+
+```bash
+git add docs/plans/progress/2026-03-07-maintown-population-slots-progress.md
+git commit -m "docs: update maintown population slots progress"
+```
+
+## Next Slice After This Plan
+
+Once slot-driven `MainTown` population is stable, the next implementation slice should curate the first committed appearance-part pool from the STYLE kit and wire real visual assembly/prefab selection so generated civilians use approved bodies, hair, clothes, and color variants in-game.
+
+> **Plan update (2026-03-08, later):** Before visual assembly, add deterministic replacement execution for queued dead civilians.
+> The replacement path should preserve stable slot ownership (`populationSlotId`, `poolId`, anchor, area) while issuing a new civilian identity and rebuilding the scene placeholder.
+
+> **Plan update (2026-03-08, review follow-up):** Save-module validation should reject duplicate live occupants for the same `populationSlotId`, but it must keep allowing dead historical civilians to share a slot with their live replacement.
+> The runtime replacement path intentionally keeps the retired record for history while `RebuildScenePopulation()` only spawns `IsAlive` civilians, so the invariant is "one live occupant per slot," not "one record per slot forever."
+
+> **Plan update (2026-03-08, runtime hardening):** Duplicate pending replacement debts for one `vacatedCivilianId` are invalid save state and should be rejected during module validation, but the runtime replacement executor should also collapse duplicate matured debts defensively if malformed state is injected in memory.
+> This keeps the save contract strict while preventing `ExecutePendingReplacements()` from minting multiple live occupants for one slot from duplicate debt entries.
+
+> **Plan update (2026-03-08, lifecycle seam):** The first scheduler seam should be `CivilianPopulationRuntimeBridge.FinalizeAfterLoad()`, where the bridge can read `CoreWorldModule.DayCount` from the same save-load transaction and execute any matured replacement debts before rebuilding the scene.
+> Same-session day-advance hooks can come later, but load finalization is the authoritative first step because the save coordinator already restores both world time and civilian population together.
+
+> **Plan update (2026-03-08, same-session seam):** After the load seam, the next runtime step is to subscribe the bridge to `CoreWorldController.WorldStateChanged` and formalize the real weekly refresh rule instead of the temporary day-advance placeholder.
+> Replacement debt now matures only at the first Monday `08:00` strictly after `QueuedAtDay`, so a vacancy queued on a Monday waits until the following Monday because the save model does not persist time-of-death. `MainTown` must carry an authored `CoreWorldController` so the bridge has a real world-time source outside save/load.
+
+> **Plan update (2026-03-08, review follow-up):** Pending replacement debt must always reference an existing dead civilian. `CivilianPopulationModule.ValidateModuleState()` should reject missing/alive references at load time, and `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` should still purge any matured dangling/alive debt defensively if malformed state is injected after load.
+
+> **Plan update (2026-03-08, actor seam):** Procedurally spawned `MainTown` civilians should instantiate the shared `NpcFoundation` actor prefab instead of ad-hoc empty shell objects. This keeps population spawning aligned with the existing NPC interaction/collider/model contract while still deferring final STYLE-driven body/clothes/hair assembly.
+
+> **Plan update (2026-03-08, review follow-up):** Authored `MainTown` starter anchors must occupy distinct world positions so pool slots do not visually stack at the same transform. Replacement debt invariants are also slot-owned, not just civilian-owned: pending debt is invalid if its dead civilian's `populationSlotId` already has a live occupant or if multiple debts target the same slot, and runtime execution should purge malformed matured debt defensively instead of spawning duplicate occupants into one slot.
+
+> **Plan update (2026-03-08, contract seam):** Before procedural contract generation, live contract-eligible civilians must expose the existing `ContractTargetDamageable`/`targetId` path in the authored `MainTown` scene. The first vertical slice should bind contract-eligible spawned civilians to the existing `MainTownContractRuntime` using the stable `civilianId` as `targetId`, prove acceptance/elimination/claim through the existing contract runtime, and keep richer contract selection plus save/load of active procedural contracts for later slices.
+
+> **Plan update (2026-03-08, anchor consistency):** Replacement debt is slot-owned, but the stable authored spawn anchor also belongs to the vacated civilian record. `CivilianPopulationModule.ValidateModuleState()` should reject pending replacement debt whose `SpawnAnchorId` drifts away from the referenced dead civilian anchor, and `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` should still rebuild from the vacated civilian anchor defensively so malformed debt cannot migrate a slot during replacement execution.
+
+> **Plan update (2026-03-08, procedural offer source):** Once live civilians can satisfy the existing `ContractTargetDamageable` path, `MainTown` should stop surfacing the old authored Volkov offer at runtime. The first offer-generation slice should override the available contract from the live population bridge by deterministically selecting the first live contract-eligible civilian, keeping `civilianId` as `targetId`, and leaving richer board refresh heuristics plus save/load of active procedural offers for later slices.
+
+> **Plan update (2026-03-08, procedural offer safety):** Procedural offer refresh must only mutate `StaticContractRuntimeProvider` while the contract runtime is idle. Rebuild-driven offer publication must clear stale available offers once no eligible civilians remain, but it must not republish or call `SetAvailableContract(...)` during pre-accept search state because that API resets runtime contract/heat state.
+
+> **Plan update (2026-03-08, live target resolver):** Once procedural civilians are the active contract source, other systems need a production seam to resolve `civilianId` / `targetId` back to the live spawned civilian object. Add a minimal `CivilianPopulationRuntimeBridge.TryResolveSpawnedCivilian(...)` API before device markers or richer contract-target tracking work so contract consumers stop relying on test-only scene scans.
+
+> **Plan update (2026-03-08, target retirement seam):** Contract-target elimination must also retire the matching procedural civilian from population state. When a spawned `ContractTargetDamageable` dies, the population bridge should mark that `civilianId` dead and queue normal replacement debt before forwarding the elimination to the existing contract runtime, so later rebuilds cannot republish the same dead target.
+
+> **Plan update (2026-03-08, world clock save seam):** `CoreWorldController` is now the authoritative live world clock and must synchronize with `CoreWorldModule` through the save-runtime bridge registry. The controller should tick at `1 real second = 1 in-game minute`, copy its live snapshot into `CoreWorldModule` during `PrepareForSave()`, and restore from the module silently during `FinalizeAfterLoad()` so population replacement maturity evaluates against saved world time without raising a duplicate `WorldStateChanged` load event.
+
+> **Plan update (2026-03-08, normal tracking UX):** `Normal` contract tracking should stay compact and device-local. Do not draw a world marker or overload the manual selected-target slot; instead, render a small tracker line from the active contract plus live population state, showing formatted area text with `NO FIX` until the procedural target is resolvable and `LOCKED <distance>` once the live spawned civilian is found.

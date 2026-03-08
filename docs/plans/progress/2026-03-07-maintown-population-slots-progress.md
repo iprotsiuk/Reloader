@@ -1,0 +1,736 @@
+# MainTown Population Slots Progress
+
+## Status
+
+- [x] Design direction approved
+- [x] Implementation plan written
+- [x] Runtime implementation started
+
+## 2026-03-07 Checkpoint
+
+- Approved the next structural slice after the persistent population foundation:
+  - `MainTown` owns one map-wide population roster
+  - the roster is partitioned into fixed pools like `townsfolk`, `quarry_workers`, `hobos`, and `cops`
+  - each occupant should eventually live in a stable `populationSlotId`
+  - the slot owns the durable world role while the occupant can change over time
+  - replacements should later refill the same slot with a new civilian identity and appearance
+- Locked future targeting guardrails:
+  - contracts should later choose from the whole living `MainTown` population
+  - vendors are the first protected exclusion
+  - dead occupants must never be eligible for contract targeting
+- Deferred from this slice:
+  - contract target selection
+  - Monday `08:00` replacement execution
+  - professions, schedules, wandering zones, dialogue, and voices
+  - committed STYLE appearance-part curation
+
+## 2026-03-07 Checkpoint 2
+
+- Added the first green slot-model runtime checkpoint:
+  - introduced `MainTownPopulationDefinition`, pool definitions, and slot definitions under `Reloader.NPCs.Generation`
+  - extended `CivilianPopulationRecord` with:
+    - `populationSlotId`
+    - `poolId`
+    - `isProtectedFromContracts`
+    - `areaTag`
+  - taught `CivilianPopulationRuntimeBridge` to seed occupants from a `MainTownPopulationDefinition` when present instead of only using anonymous count-based spawning
+  - preserved the new slot metadata through runtime/module cloning
+- Added focused EditMode coverage for:
+  - duplicate `populationSlotId` rejection in `MainTownPopulationDefinition`
+  - protected vendor slot acceptance
+  - one-occupant-per-slot assignment through the runtime bridge
+- Updated the existing save-module fixture to include the new slot metadata so its validation still isolates the intended failure.
+
+## Verification
+
+- `Reloader.NPCs.Tests.EditMode.MainTownPopulationDefinitionTests`: `2/2` passed
+- `Reloader.NPCs.Tests.EditMode.CivilianPopulationSlotAssignmentTests`: `1/1` passed
+- `Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests`: `4/4` passed
+- `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `5/5` passed
+
+## 2026-03-08 Checkpoint
+
+- Authored the first MainTown scene infrastructure checkpoint:
+  - added `MainTownPopulationRuntime` to `MainTown`
+  - added four starter child anchors under that root for the first conservative pool placeholders
+  - created `Assets/_Project/NPCs/Data/Population/MainTownPopulationDefinition.asset`
+  - assigned starter pools: `townsfolk`, `quarry_workers`, `hobos`, `cops`
+  - serialized a minimal non-empty `CivilianAppearanceLibrary` directly on the runtime bridge to keep this slice infrastructure-focused
+  - hardened `MainTownPopulationDefinition.Validate()` so empty pool arrays fail fast instead of silently producing a zero-civilian roster
+- Kept the deferred boundary explicit:
+  - no committed STYLE appearance-part curation yet
+  - no final civilian prefab assembly/appearance pipeline yet
+  - no claim that the placeholder IDs map to final approved art content
+
+## Verification
+
+- `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `1/1` passed in `tmp/maintown-population-infra-play.xml`
+- `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-play.xml tmp/maintown-population-infra-play.log` exited `3` because Unity emitted an unrelated package GUID-conflict log during startup:
+  - `Packages/com.coplaydev.unity-mcp/Editor/Clients/Configurators/QwenCodeConfigurator.cs`
+  - `Packages/com.unity.ai.assistant/Modules/Unity.AI.Generators.IO/Srp/AssemblyInfo.cs`
+  - the target test itself still recorded `Passed` in the NUnit XML result
+
+## 2026-03-08 Checkpoint 2
+
+- Removed `com.unity.ai.assistant` from the Unity package set after confirming it was the source of the GUID collision with the pinned `com.coplaydev.unity-mcp` package.
+- Kept the newer Unity MCP pin in place while eliminating the startup log that had been contaminating batch PlayMode verification.
+
+## Verification
+
+- `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-play.xml tmp/maintown-population-infra-play.log`: exit `0`
+- `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `1/1` passed in `tmp/maintown-population-infra-play.xml`
+- `tmp/maintown-population-infra-play.log` no longer contains:
+  - `GUID [7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d]`
+  - `QwenCodeConfigurator`
+  - `UnhandledLogMessageException`
+
+## 2026-03-08 Checkpoint 3
+
+- Added the first live scene-population rebuild seam:
+  - extended `MainTownPopulationInfrastructurePlayModeTests` with a red-to-green runtime spawn assertion
+  - added `CivilianPopulationRuntimeBridge.RebuildScenePopulation()` as the minimal entry point for placeholder scene rebuilding
+  - spawned one placeholder `NpcAgent` per live persisted civilian record at the authored anchor transform
+  - skipped dead civilians during rebuilding
+  - attached `MainTownPopulationSpawnedCivilian` metadata so runtime objects preserve `civilianId`, `populationSlotId`, `poolId`, `spawnAnchorId`, and `areaTag`
+- Kept the deferred boundary explicit:
+  - `RebuildScenePopulation()` is callable infrastructure, not yet automatic scene-load hydration
+  - placeholder civilians are runtime shells, not final curated STYLE-driven art prefabs
+  - replacement execution and contract-target eligibility changes remain deferred
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_RebuildScenePopulation_SpawnsLiveOccupantsAndSkipsDeadSlots tmp/maintown-population-rebuild-red.xml tmp/maintown-population-rebuild-red.log`
+  - `tmp/maintown-population-rebuild-red.xml`: `0/1` passed
+  - failing assertion: missing public `RebuildScenePopulation()` on `CivilianPopulationRuntimeBridge`
+- Green step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_RebuildScenePopulation_SpawnsLiveOccupantsAndSkipsDeadSlots tmp/maintown-population-rebuild-green.xml tmp/maintown-population-rebuild-green.log`
+  - `tmp/maintown-population-rebuild-green.xml`: `1/1` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-full.xml tmp/maintown-population-infra-full.log`: `2/2` passed
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-edit.xml tmp/civilian-runtime-bridge-edit.log`: `5/5` passed
+
+## 2026-03-08 Checkpoint 4
+
+- Wired placeholder population rebuilding into the actual runtime lifecycle:
+  - `CivilianPopulationRuntimeBridge.Start()` now seeds starter civilians when the scene boots with no existing runtime roster and immediately rebuilds placeholder civilians into the authored anchors
+  - `CivilianPopulationRuntimeBridge.FinalizeAfterLoad()` now rebuilds the scene after copying loaded module state into runtime
+  - stale placeholder civilians are cleared before loaded live civilians are rebuilt
+- Added focused coverage for both lifecycle seams:
+  - a PlayMode `MainTown` scene-load test now verifies automatic starter seeding and placeholder rebuild on load
+  - an EditMode bridge test now verifies `FinalizeAfterLoad()` clears stale spawned civilians and rebuilds only living loaded civilians
+- Architectural note from codebase review:
+  - `FinalizeAfterLoad()` is the authoritative save-restore seam because `SaveCoordinator.Load()` already restores modules, validates them, and then dispatches runtime bridges through `SaveRuntimeBridgeRegistry`
+  - scene-start seeding remains a separate bridge-local fallback for fresh unsaved `MainTown` loads
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.FinalizeAfterLoad_RebuildsScenePopulationFromLoadedModuleAndClearsPriorSpawnedObjects tmp/civilian-runtime-finalize-red.xml tmp/civilian-runtime-finalize-red.log`
+  - `tmp/civilian-runtime-finalize-red.xml`: `0/1` passed
+  - failing assertion: stale spawned civilian remained after `FinalizeAfterLoad()`
+- Red step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_LoadScene_AutomaticallySeedsAndBuildsStarterPopulation tmp/maintown-population-auto-red.xml tmp/maintown-population-auto-red.log`
+  - `tmp/maintown-population-auto-red.xml`: `0/1` passed
+  - failing assertion: runtime roster count stayed `0` on fresh `MainTown` load
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.FinalizeAfterLoad_RebuildsScenePopulationFromLoadedModuleAndClearsPriorSpawnedObjects tmp/civilian-runtime-finalize-green.xml tmp/civilian-runtime-finalize-green.log`
+  - `tmp/civilian-runtime-finalize-green.xml`: `1/1` passed
+- Green step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_LoadScene_AutomaticallySeedsAndBuildsStarterPopulation tmp/maintown-population-auto-green.xml tmp/maintown-population-auto-green.log`
+  - `tmp/maintown-population-auto-green.xml`: `1/1` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-full.xml tmp/civilian-runtime-bridge-full.log`: `6/6` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-lifecycle.xml tmp/maintown-population-infra-lifecycle.log`: `3/3` passed
+
+## 2026-03-08 Checkpoint 5
+
+- Added a live scene-level save-restore integration harness for `MainTown`:
+  - extended `MainTownPopulationInfrastructurePlayModeTests` with a temp-save `SaveCoordinator.Load()` scenario
+  - captured a real save envelope from the authored scene, replaced only the `CivilianPopulation` payload, and reloaded it through the default save coordinator
+  - verified that the live bridge registry path clears starter placeholders and rebuilds only the living civilians from the loaded save into authored anchors
+- Scope note:
+  - this checkpoint adds end-to-end orchestration coverage without expanding runtime behavior
+  - no new production code was required because the lifecycle wiring from Checkpoint 4 already satisfied the stronger coordinator-driven path
+
+## Verification
+
+- `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_SaveCoordinatorLoad_RebuildsAuthoredSceneFromLoadedPopulationModule tmp/maintown-population-save-load.xml tmp/maintown-population-save-load.log`: `1/1` passed
+- The test verifies:
+  - `SaveCoordinator.Load()` routes through the live runtime bridge registry
+  - starter civilians are cleared after load
+  - only the living loaded civilian is rebuilt into `MainTown`
+  - loaded slot metadata and anchor positioning survive the full save/load path
+
+## 2026-03-08 Checkpoint 6
+
+- Added the first deterministic replacement execution path:
+  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements(int currentDay)` now consumes matured replacement debt
+  - replacement execution preserves stable slot ownership from the vacated civilian:
+    - `populationSlotId`
+    - `poolId`
+    - `spawnAnchorId`
+    - `areaTag`
+    - `isProtectedFromContracts`
+  - replacement execution issues a new deterministic `civilianId` using the existing `citizen.mainTown.####` sequence
+  - replacement execution rebuilds the live placeholder civilian after inserting the new occupant and clearing the debt
+- Added focused coverage for both synthetic and authored-scene seams:
+  - EditMode bridge tests now verify matured replacement debt creates a new civilian in the same slot and future-dated debt does nothing
+  - PlayMode `MainTown` infrastructure coverage now verifies queued replacement execution rebuilds the authored starter slot with the new civilian identity
+- Scope note:
+  - this is still infrastructure-level replacement behavior only
+  - no weekly scheduler or Monday `08:00` orchestration was added yet
+  - no final STYLE-driven visual assembly changes were introduced
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements tmp/civilian-runtime-replacement-red.xml tmp/civilian-runtime-replacement-red.log`
+  - `tmp/civilian-runtime-replacement-red.xml`: `0/2` passed
+  - failing assertion: missing public `ExecutePendingReplacements(int currentDay)` on `CivilianPopulationRuntimeBridge`
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements tmp/civilian-runtime-replacement-green.xml tmp/civilian-runtime-replacement-green.log`
+  - `tmp/civilian-runtime-replacement-green.xml`: `2/2` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-replacements.xml tmp/civilian-runtime-bridge-replacements.log`: `8/8` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_ExecutePendingReplacements_RebuildsStableSlotWithNewCivilian tmp/maintown-population-replacement-play.xml tmp/maintown-population-replacement-play.log`: `1/1` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-replacements-full.xml tmp/maintown-population-infra-replacements-full.log`: `5/5` passed
+
+## 2026-03-08 Checkpoint 7
+
+- Addressed the new PR review comment on duplicate slot occupants with the codebase-correct invariant:
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects duplicate live occupants for the same `populationSlotId`
+  - dead historical civilians are still allowed to share a slot with their live replacement because replacement execution intentionally preserves slot history
+- Added save-module regression coverage for both sides of that contract:
+  - duplicate live occupants in one slot are rejected at validation/load time
+  - one dead retired civilian plus one live replacement in the same slot remains valid
+- Scope note:
+  - no runtime population behavior changed here
+  - this checkpoint narrows save validation to the actual runtime contract enforced by `RebuildScenePopulation()` and replacement history retention
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-pop-save-dup-slot-red.xml tmp/civilian-pop-save-dup-slot-red.log`
+  - `tmp/civilian-pop-save-dup-slot-red.xml`: `6/7` passed
+  - failing assertion: duplicate live `populationSlotId` was not rejected by `ValidateModuleState()`
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-pop-save-dup-slot-green.xml tmp/civilian-pop-save-dup-slot-green.log`: `7/7` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-post-save-module.xml tmp/civilian-runtime-bridge-post-save-module.log`: `8/8` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-post-save-module.xml tmp/maintown-population-infra-post-save-module.log`: `5/5` passed
+
+## 2026-03-08 Checkpoint 8
+
+- Addressed the new runtime review comment on duplicate pending replacement debts:
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects duplicate `pendingReplacements` entries targeting the same `vacatedCivilianId`
+  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` now collapses duplicate matured debts defensively so malformed in-memory state cannot spawn multiple live replacements for one slot
+- Added focused regression coverage for both layers:
+  - save-module validation now fails fast on duplicate pending debts
+  - bridge replacement execution now proves duplicate matured debts still produce only one replacement civilian and one live placeholder
+- Scope note:
+  - this is save/runtime hardening only
+  - no weekly scheduler or Monday `08:00` orchestration was added yet
+  - no appearance-pipeline or final visual assembly behavior changed
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests.CivilianPopulationModule_ValidateModuleState_RejectsDuplicatePendingReplacementDebts tmp/civilian-pop-dup-debt-red.xml tmp/civilian-pop-dup-debt-red.log`
+  - `tmp/civilian-pop-dup-debt-red.xml`: `0/1` passed
+  - failing assertion: duplicate pending replacement debt was not rejected by `ValidateModuleState()`
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenDuplicateMaturedDebtsExist_SpawnsOnlyOneReplacement tmp/civilian-runtime-dup-debt-red.xml tmp/civilian-runtime-dup-debt-red.log`
+  - `tmp/civilian-runtime-dup-debt-red.xml`: `0/1` passed
+  - failing assertion: duplicate matured debt produced `2` replacements instead of `1`
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-pop-dup-debt-green.xml tmp/civilian-pop-dup-debt-green.log`: `8/8` passed
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-dup-debt-green.xml tmp/civilian-runtime-dup-debt-green.log`: `9/9` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-post-dup-debt.xml tmp/maintown-population-infra-post-dup-debt.log`: `5/5` passed
+
+## 2026-03-08 Checkpoint 9
+
+- Wired the first automatic replacement-execution lifecycle seam into load finalization:
+  - `CivilianPopulationRuntimeBridge.FinalizeAfterLoad()` now resolves `CoreWorldModule.DayCount` from the same save-load registration set
+  - matured pending replacement debt now executes during load finalization before the scene placeholder rebuild
+  - if no replacements mature, the bridge keeps the existing plain rebuild behavior
+- Added focused EditMode coverage for that seam:
+  - a loaded dead civilian plus matured pending replacement debt now rebuilds into a new live civilian using the loaded world day as `CreatedAtDay`
+  - the debt clears during load finalization and the authored anchor rebuild still produces one live placeholder
+- Scope note:
+  - this only covers save-load lifecycle execution
+  - no same-session world-time event subscription or Monday `08:00` scheduler hook was added yet
+  - no appearance-pipeline or final visual assembly behavior changed
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.FinalizeAfterLoad_WhenMaturedReplacementDebtExists_ExecutesReplacementUsingCoreWorldDay tmp/civilian-runtime-finalize-replacement-red.xml tmp/civilian-runtime-finalize-replacement-red.log`
+  - `tmp/civilian-runtime-finalize-replacement-red.xml`: `0/1` passed
+  - failing assertion: matured pending replacement debt remained queued during `FinalizeAfterLoad()`
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.FinalizeAfterLoad_WhenMaturedReplacementDebtExists_ExecutesReplacementUsingCoreWorldDay tmp/civilian-runtime-finalize-replacement-green.xml tmp/civilian-runtime-finalize-replacement-green.log`: `1/1` passed
+- Regression sweep:
+  - Unity MCP `run_tests` / `get_test_job` because a live Unity editor session already held the project lock:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `10/10` passed
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `5/5` passed
+
+## 2026-03-08 Checkpoint 10
+
+- Added the first same-session world-time replacement seam:
+  - `CivilianPopulationRuntimeBridge` now subscribes to `CoreWorldController.WorldStateChanged`
+  - the bridge caches the observed world day and executes matured pending replacements only when `DayCount` advances
+  - same-day time changes do not trigger replacement execution
+  - the bridge now exposes a direct `SetCoreWorldController(...)` seam for deterministic wiring/tests while keeping scene auto-discovery as the fallback
+- Updated authored scene infrastructure to support that seam:
+  - `MainTown` now includes an authored `CoreWorldController`
+  - PlayMode coverage now proves the real scene can execute a matured replacement after a same-session day advance without save/load
+- Scope note:
+  - this still does not implement a final Monday `08:00` scheduler rule
+  - this is a day-advance seam only
+  - no final civilian appearance assembly or contract-generation behavior changed
+
+## Verification
+
+- Red step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.WorldStateChanged_WhenDayAdvancesAndMaturedReplacementDebtExists_ExecutesReplacementWithoutReload`: `0/1` passed
+  - failing assertion: matured replacement debt remained queued after same-session day advance
+- Green step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.WorldStateChanged_WhenDayAdvancesAndMaturedReplacementDebtExists_ExecutesReplacementWithoutReload`: `1/1` passed
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_WorldStateChanged_ExecutesMaturedReplacementAfterDayAdvance`: `1/1` passed
+- Regression sweep:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `11/11` passed
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `6/6` passed
+
+## Next Step After This One
+
+The next slice should formalize the actual Monday `08:00` scheduler rule on top of the new same-session day-advance seam, then verify that only newly matured queued replacements execute while future debt remains pending. Final STYLE-driven visual assembly should still stay deferred until that scheduler path is stable.
+
+## Checkpoint: Monday 08:00 Replacement Scheduler
+
+- Replaced the temporary day-advance maturity rule with the approved weekly scheduler contract:
+  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements(int currentDay, float currentTimeOfDay)` now executes debt only at the first Monday `08:00` strictly after `QueuedAtDay`
+  - `FinalizeAfterLoad()` now evaluates replacement maturity from the loaded `CoreWorldModule` day and time, not day alone
+  - same-session `CoreWorldController.WorldStateChanged` handling now tracks full `(DayCount, TimeOfDay)` progression so Monday morning threshold crossings can execute without reload
+- Locked the day-precision edge case explicitly:
+  - vacancies queued on a Monday do not execute that same Monday at `08:00`
+  - because the save model stores only `QueuedAtDay`, Monday-queued debt waits until the following Monday refresh rather than risking a retroactive same-day spawn
+- Coverage updates:
+  - EditMode bridge tests now verify:
+    - load finalization executes debt at Monday `08:00`
+    - same-session world updates execute at the Monday morning threshold
+    - pre-threshold Monday time stays pending
+    - Monday-queued vacancies wait until the following Monday
+  - PlayMode `MainTown` infrastructure coverage now verifies the authored scene executes replacements when Monday `08:00` arrives through the real `CoreWorldController`
+- Scope note:
+  - this is still infrastructure-level placeholder spawning only
+  - no final STYLE appearance assembly or contract-generation behavior changed
+
+## Verification
+
+- Red attempt:
+  - `bash scripts/run-unity-tests.sh editmode ...`: blocked because the Unity editor already had the project open
+  - the initial live Unity MCP session also stopped servicing test requests until the editor was restarted
+- Green step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenMondayRefreshWindowHasArrived_ReplacesDeadCivilianInSameSlot`: `1/1` passed
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.FinalizeAfterLoad_WhenMondayRefreshWindowHasArrived_ExecutesReplacementUsingCoreWorldState`: `1/1` passed
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.WorldStateChanged_WhenMondayMorningThresholdIsCrossed_ExecutesReplacementWithoutReload`: `1/1` passed
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenVacancyWasQueuedOnMonday_WaitsUntilFollowingMondayRefresh`: `1/1` passed
+- Regression sweep:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `12/12` passed
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `6/6` passed
+
+## Checkpoint: Purge Invalid Matured Replacement Debt
+
+- Addressed the new PR review thread on dangling/alive replacement debt:
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects `pendingReplacements` entries that do not reference an existing dead civilian record
+  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` now purges matured debt that points to a missing civilian or a still-alive civilian instead of retrying it forever
+- Added focused coverage for both layers:
+  - save-module tests now reject pending debt referencing a missing civilian or an alive civilian
+  - bridge tests now prove matured invalid debt is removed without spawning a replacement civilian
+- Scope note:
+  - this hardens malformed-state handling only
+  - no contract-targeting or final appearance behavior changed
+
+## Verification
+
+- Red step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests.CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementReferencingMissingCivilian`: `0/1` passed
+      - failing assertion: `ValidateModuleState()` did not throw for dangling debt
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenMaturedDebtReferencesMissingCivilian_PurgesDebtWithoutSpawning`: `0/1` passed
+      - failing assertion: matured invalid debt remained queued instead of being purged
+- Green step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests.CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementReferencingMissingCivilian`: `1/1` passed
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenMaturedDebtReferencesMissingCivilian_PurgesDebtWithoutSpawning`: `1/1` passed
+- Regression sweep:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests`: `10/10` passed
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `14/14` passed
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `6/6` passed
+
+## Checkpoint: NpcFoundation-Backed Civilian Actors
+
+- Replaced the ad-hoc spawned civilian shell with the shared NPC foundation actor seam:
+  - `CivilianPopulationRuntimeBridge` now supports an authored `_npcActorPrefab`
+  - `MainTown` assigns `NpcFoundation.prefab` on the population bridge
+  - spawned civilians now preserve the shared NPC actor hierarchy/model/collider contract while still layering `MainTownPopulationSpawnedCivilian` metadata and `AmbientCitizenCapability`
+- Coverage updates:
+  - EditMode bridge coverage now proves `RebuildScenePopulation()` instantiates the assigned actor prefab and preserves its visual hierarchy while adding population metadata
+  - PlayMode `MainTown` coverage now proves starter civilians spawn from the authored NPC actor prefab rather than ad-hoc shell objects
+- Scope note:
+  - this is still not the final STYLE appearance pipeline
+  - civilians now use the shared NPC foundation body/model contract, but curated procedural body/clothes/hair assembly remains deferred
+
+## Verification
+
+- Focused checks:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenActorPrefabIsAssigned_InstantiatesActorPrefabWithPopulationMetadata`: `1/1` passed
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_LoadScene_AutomaticallySeedsAndBuildsStarterPopulation`: `1/1` passed
+- Regression sweep:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `15/15` passed
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `6/6` passed
+
+## Checkpoint: Slot-Level Review Follow-Ups
+
+- Addressed the two new PR review threads with authored-scene and state-contract fixes:
+  - moved the four starter `MainTownPopulationRuntime` anchors to distinct authored world positions so the conservative starter pools no longer stack all civilians at `(0, 0, 0)`
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects pending replacement debt when the dead civilian's `populationSlotId` already has a live occupant
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects multiple pending replacement debts targeting the same `populationSlotId`
+  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` now purges matured debt that targets an already-occupied slot and collapses same-slot duplicate matured debt defensively at runtime
+- Coverage updates:
+  - save-module tests now lock the slot-owned pending-debt invariants at validation time
+  - bridge tests now prove malformed matured debt cannot spawn duplicate replacements into one slot
+  - `MainTown` PlayMode coverage now asserts the authored starter anchors occupy four distinct world positions
+- Scope note:
+  - this does not add new population or contract behavior
+  - it closes review gaps in scene authoring and malformed-state handling while keeping the infrastructure model consistent with slot-owned civilians
+
+## Verification
+
+- `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-save-slot-debt.xml tmp/civilian-save-slot-debt.log`: `12/12` passed
+- `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-slot-guards.xml tmp/civilian-runtime-bridge-slot-guards.log`: `17/17` passed
+- `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-slot-guards.xml tmp/maintown-population-infra-slot-guards.log`: `6/6` passed
+
+## Checkpoint: Slot-Level Debt Guards And Distinct Authored Anchors
+
+- Addressed the latest PR review follow-ups on authored scene placement and replacement-debt invariants:
+  - `MainTown` starter population anchors now occupy distinct authored world positions instead of stacking at `(0,0,0)`
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects `pendingReplacements` entries that target a `populationSlotId` already occupied by a live civilian
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects multiple pending debts for the same stable `populationSlotId`, even if they reference different retired civilians
+  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` now defensively purges matured debt targeting an already-occupied slot and collapses multiple matured debts aimed at the same slot in one execution pass
+- Coverage updates:
+  - save-module tests now prove slot-level debt validation rejects both occupied-slot debt and duplicate slot-targeting debt
+  - bridge tests now prove runtime execution does not spawn replacements into already-occupied slots and only produces one replacement when malformed in-memory debt targets the same slot twice
+  - PlayMode `MainTown` infrastructure coverage now proves starter civilians spawn from four distinct authored anchor positions
+- Scope note:
+  - this is review-driven hardening only
+  - no new contract-targeting behavior or final appearance assembly was introduced
+
+## Verification
+
+- Red step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests.CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementWhenSlotAlreadyHasLiveOccupant`: `0/1` passed
+      - failing assertion: validation accepted pending debt for a slot that already had a live occupant
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenMaturedDebtTargetsOccupiedSlot_PurgesDebtWithoutSpawning`: `0/1` passed
+      - failing assertion: runtime replacement still spawned into an occupied slot
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_LoadScene_AutomaticallySeedsAndBuildsStarterPopulation`: `0/1` passed
+      - failing assertion: all authored anchors shared the same position
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-save-slot-debt.xml tmp/civilian-save-slot-debt.log`: `12/12` passed
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-slot-guards.xml tmp/civilian-runtime-bridge-slot-guards.log`: `17/17` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-slot-guards.xml tmp/maintown-population-infra-slot-guards.log`: `6/6` passed
+
+## Checkpoint: Procedural Civilian Contract Target Seam
+
+- Added the first gameplay-facing bridge from procedural civilians into the existing `MainTown` contract runtime:
+  - `CivilianPopulationRuntimeBridge.RebuildScenePopulation()` now adds `ContractTargetDamageable` to contract-eligible spawned civilians
+  - the bridge configures that damageable against the existing scene `IContractTargetEliminationSink`
+  - the stable `civilianId` now doubles as the initial procedural `targetId`, avoiding a second parallel identity system for this seam
+  - protected or otherwise contract-ineligible civilians remain outside the contract-target path
+- Extended the authored-scene contract coverage:
+  - `MainTownContractSlicePlayModeTests` now proves a runtime-authored contract can target a spawned procedural civilian in `MainTown`
+  - the existing accept -> eliminate -> search clears -> explicit claim flow now works against a rebuilt population civilian, not just the authored `ContractTarget_Volkov`
+- Scope note:
+  - this is still not procedural contract generation
+  - the contract definition is injected by the test/runtime seam, not yet selected from the living population roster
+  - active-contract save/load for procedural civilians remains a later slice
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_ProceduralCivilianTarget_CanBeAcceptedAndCompleted tmp/maintown-procedural-contract-red.xml tmp/maintown-procedural-contract-red.log`
+  - `tmp/maintown-procedural-contract-red.xml`: `0/1` passed
+  - failing assertion: spawned procedural civilian did not expose `ContractTargetDamageable`
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenCivilianIsContractEligible_AddsContractTargetDamageableUsingCivilianId tmp/civilian-contract-target-green.xml tmp/civilian-contract-target-green.log`: `1/1` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_ProceduralCivilianTarget_CanBeAcceptedAndCompleted tmp/maintown-procedural-contract-green.xml tmp/maintown-procedural-contract-green.log`: `1/1` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-contract-full.xml tmp/civilian-runtime-bridge-contract-full.log`: `18/18` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-slice-full.xml tmp/maintown-contract-slice-full.log`: `3/3` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-contract-full.xml tmp/maintown-population-infra-contract-full.log`: `6/6` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.Weapons.Tests.PlayMode.ContractTargetDamageablePlayModeTests tmp/contract-target-damageable-full.xml tmp/contract-target-damageable-full.log`: `2/2` passed
+
+## Checkpoint: Replacement Anchor Drift Guard
+
+- Addressed the new PR review thread on slot-anchor drift during replacement execution:
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects pending replacement debt when `spawnAnchorId` does not match the referenced dead civilian anchor
+  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` now always rebuilds the replacement civilian from the vacated civilian anchor instead of trusting the debt record anchor
+  - this keeps `populationSlotId` and authored anchor ownership aligned even if malformed debt is injected after load
+- Coverage updates:
+  - save-module validation now fails fast on mismatched debt-anchor state
+  - bridge runtime tests now prove malformed debt cannot migrate a replacement into the wrong authored anchor
+- Scope note:
+  - this is slot-authority hardening only
+  - no contract-generation, appearance-pipeline, or routine-behavior changes were added here
+
+## Verification
+
+- `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests.CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementWhenSpawnAnchorDiffersFromVacatedCivilian tmp/civilian-save-anchor-green.xml tmp/civilian-save-anchor-green.log`: `1/1` passed
+- `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenDebtAnchorDiffersFromVacatedCivilian_UsesVacatedCivilianAnchor tmp/civilian-runtime-anchor-green.xml tmp/civilian-runtime-anchor-green.log`: `1/1` passed
+- `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-save-anchor-full.xml tmp/civilian-save-anchor-full.log`: `13/13` passed
+- `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-anchor-full.xml tmp/civilian-runtime-anchor-full.log`: `19/19` passed
+- `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-anchor-full.xml tmp/maintown-population-infra-anchor-full.log`: `6/6` passed
+
+## Checkpoint: Procedural MainTown Contract Offer Source
+
+- Moved the live `MainTown` contract offer source from the old authored target asset to the population bridge:
+  - `CivilianPopulationRuntimeBridge.RebuildScenePopulation()` now refreshes the scene's available contract from the live population after rebuilding civilians
+  - the bridge selects the first live contract-eligible civilian, keeps `civilianId` as the contract `targetId`, and pushes a transient runtime `AssassinationContractDefinition` into `StaticContractRuntimeProvider`
+  - `AssassinationContractDefinition` now exposes `ConfigureRuntimeOffer(...)` so runtime-generated offers no longer need reflection to populate contract data
+  - the old authored MainTown contract asset remains serialized as fallback authoring data, but fresh runtime behavior now overrides it with a procedural civilian offer
+- Coverage updates:
+  - `MainTownContractSlicePlayModeTests` now assert that fresh `MainTown` load surfaces a live procedural civilian offer instead of `target.maintown.volkov`
+  - the existing accept -> eliminate -> search clears -> explicit claim flow still passes end-to-end against the procedurally offered civilian target
+- Scope note:
+  - offer selection is deterministic-first, not yet weighted or content-varied
+  - offer refresh currently rides on population rebuilds, not a richer board/scheduler refresh contract
+  - active-contract save/load against procedurally offered civilians remains a later slice
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-procedural-offer-red.xml tmp/maintown-contract-procedural-offer-red.log`
+  - `tmp/maintown-contract-procedural-offer-red.xml`: `0/3` passed
+  - failing assertions: fresh `MainTown` load still surfaced the authored `target.maintown.volkov` offer instead of a live procedural civilian target
+- Green step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-procedural-offer-green.xml tmp/maintown-contract-procedural-offer-green.log`: `3/3` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-procedural-offer-full.xml tmp/civilian-runtime-bridge-procedural-offer-full.log`: `19/19` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-procedural-offer-full.xml tmp/maintown-population-infra-procedural-offer-full.log`: `6/6` passed
+
+## Checkpoint: Procedural Contract Save/Load Proof
+
+- Added live-scene persistence coverage for accepted procedural contracts:
+  - `MainTownContractSlicePlayModeTests` now captures a real save after accepting the procedurally offered civilian contract
+  - the test reloads through `SaveCoordinator.Load()` and asserts the active contract target id still resolves to the same live procedural civilian after load
+- Scope note:
+  - this is coverage only
+  - the accepted procedural contract persistence path was already working; no production code changes were required for this checkpoint
+
+## Verification
+
+- `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_SaveLoad_PreservesAcceptedProceduralContractTarget tmp/maintown-contract-save-load-red.xml tmp/maintown-contract-save-load-red.log`: `1/1` passed
+- `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-slice-persistence-full.xml tmp/maintown-contract-slice-persistence-full.log`: `4/4` passed
+
+## Checkpoint: Procedural Offer Refresh Safety
+
+- Hardened rebuild-driven contract offer refresh so it cannot stomp runtime contract state:
+  - `ContractEscapeResolutionRuntime` now exposes an explicit idle check for available-offer publication
+  - `StaticContractRuntimeProvider` surfaces that idle check to callers
+  - `CivilianPopulationRuntimeBridge.RefreshProceduralContractOffer()` now mutates the provider only while the contract runtime is idle
+  - when the bridge becomes ineligible to publish any live civilian offer, it now clears a stale available contract instead of leaving a dead offer behind
+  - pre-accept target kills no longer allow a later population rebuild to republish a new offer and force-clear the active police search
+- Coverage updates:
+  - bridge EditMode tests now prove stale procedural offers are cleared when no eligible civilians remain
+  - bridge EditMode tests now prove rebuilds do not republish during pre-accept search state
+  - `MainTownContractSlicePlayModeTests` still passes with the additional accepted-contract save/load coverage in place
+- Scope note:
+  - this is contract-runtime safety hardening, not richer candidate selection
+  - procedural offer selection is still deterministic-first
+  - full cold-load restoration of active procedural contracts remains a later save-runtime bridge slice
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenNoEligibleCiviliansRemain_ClearsAvailableProceduralContractOffer tmp/civilian-runtime-stale-offer-red.xml tmp/civilian-runtime-stale-offer-red.log`
+  - `tmp/civilian-runtime-stale-offer-red.xml`: `0/1` passed
+  - failing assertion: stale procedural offer remained available after all civilians became ineligible
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenOfferWasConsumedByPreAcceptKill_DoesNotRepublishOrClearSearch tmp/civilian-runtime-preaccept-search-red.xml tmp/civilian-runtime-preaccept-search-red.log`
+  - `tmp/civilian-runtime-preaccept-search-red.xml`: `0/1` passed
+  - failing assertion: rebuild republished a new offer while pre-accept search state was still active
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenNoEligibleCiviliansRemain_ClearsAvailableProceduralContractOffer tmp/civilian-runtime-stale-offer-green.xml tmp/civilian-runtime-stale-offer-green.log`: `1/1` passed
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenOfferWasConsumedByPreAcceptKill_DoesNotRepublishOrClearSearch tmp/civilian-runtime-preaccept-search-green.xml tmp/civilian-runtime-preaccept-search-green.log`: `1/1` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-contract-refresh-full.xml tmp/civilian-runtime-bridge-contract-refresh-full.log`: `21/21` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-slice-full.xml tmp/maintown-contract-slice-full.log`: `4/4` passed
+
+## Checkpoint: Procedural Live Target Resolver
+
+- Added the first production bridge seam for resolving contract `targetId` back to a live spawned civilian:
+  - `CivilianPopulationRuntimeBridge` now exposes `TryResolveSpawnedCivilian(string civilianId, out MainTownPopulationSpawnedCivilian civilian)`
+  - the resolver scans the live spawned population under `MainTownPopulationRuntime` instead of requiring test-only scene traversal helpers
+  - `MainTownContractSlicePlayModeTests` now proves an accepted procedural contract target resolves through that bridge seam, keeps its stable `populationSlotId`, and still exposes `ContractTargetDamageable.TargetId == civilianId`
+- Scope note:
+  - this is a bridge lookup seam only
+  - it does not add markers, device tracking, or a new identity system
+  - `civilianId` remains the single procedural contract target identity
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_AcceptedProceduralContract_ResolvesLiveTargetThroughPopulationBridge tmp/maintown-contract-resolve-target-red.xml tmp/maintown-contract-resolve-target-red.log`
+  - `tmp/maintown-contract-resolve-target-red.xml`: `0/1` passed
+  - failing assertion: missing public `TryResolveSpawnedCivilian(...)` on `CivilianPopulationRuntimeBridge`
+- Green step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_AcceptedProceduralContract_ResolvesLiveTargetThroughPopulationBridge tmp/maintown-contract-resolve-target-green.xml tmp/maintown-contract-resolve-target-green.log`: `1/1` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-slice-resolver-full.xml tmp/maintown-contract-slice-resolver-full.log`: `5/5` passed
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-resolver-full.xml tmp/civilian-runtime-bridge-resolver-full.log`: `21/21` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-resolver-full.xml tmp/maintown-population-infra-resolver-full.log`: `6/6` passed
+
+## Checkpoint: Procedural Target Retirement
+
+- Wired lethal procedural target elimination back into population state:
+  - `CivilianPopulationRuntimeBridge` now implements `IContractTargetEliminationSink`
+  - contract-eligible spawned civilians route lethal elimination through the population bridge first
+  - the bridge retires the matching `civilianId`, queues normal replacement debt, and then forwards the elimination into `StaticContractRuntimeProvider`
+  - later rebuilds now move on to another live civilian instead of resurfacing the same dead procedural target
+- Coverage updates:
+  - `MainTownContractSlicePlayModeTests` now prove that a pre-accept kill followed by search clear and rebuild no longer resolves the dead civilian as live
+  - the rebuilt offer now points at a different live procedural civilian from the remaining population
+- Scope note:
+  - this is retirement synchronization only
+  - no Monday replacement execution timing or richer contract board refresh heuristics changed here
+  - the next contract-facing step is still live tracking/marker behavior, not a second identity system
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_TargetEliminatedBeforeAccept_RebuildPublishesDifferentLiveTarget tmp/maintown-contract-preaccept-rebuild-red.xml tmp/maintown-contract-preaccept-rebuild-red.log`
+  - `tmp/maintown-contract-preaccept-rebuild-red.xml`: `0/1` passed
+  - failing assertion: the killed procedural civilian still resolved as live after the next rebuild
+- Green step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_TargetEliminatedBeforeAccept_RebuildPublishesDifferentLiveTarget tmp/maintown-contract-preaccept-rebuild-green.xml tmp/maintown-contract-preaccept-rebuild-green.log`: `1/1` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-slice-retire-full.xml tmp/maintown-contract-slice-retire-full.log`: `6/6` passed
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-retire-full.xml tmp/civilian-runtime-bridge-retire-full.log`: `21/21` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-retire-full.xml tmp/maintown-population-infra-retire-full.log`: `6/6` passed
+
+## Checkpoint: Live World Clock Save Sync
+
+- Addressed the valid PR review comment on stale world time during replacement evaluation:
+  - `CoreWorldRuntime` now advances live time at `1 real second = 1 in-game minute`
+  - `CoreWorldController` now implements `ISaveRuntimeBridge`
+  - `CoreWorldController.PrepareForSave()` copies the live controller snapshot into `CoreWorldModule`
+  - `CoreWorldController.FinalizeAfterLoad()` restores from `CoreWorldModule` silently instead of raising `WorldStateChanged`
+- Added coverage for both the pure clock logic and the save/load seam:
+  - `CoreWorldRuntimeTests` now prove the minute-based live clock wraps across midnight and increments the day
+  - `CoreWorldControllerTests` now prove live advancement raises `WorldStateChanged`, save capture writes the module, and load restore hydrates silently
+  - `CivilianPopulationRuntimeBridgeTests` now prove `SaveCoordinator.Load()` executes matured replacement debt against the saved controller time rather than stale default world-module data
+- Scope note:
+  - this checkpoint fixes the save/runtime world-time contract, not richer weekly scheduling rules
+  - Monday `08:00` remains the first deterministic maturity gate already exercised by the population bridge
+
+## Verification
+
+- Red step:
+  - `Reloader.Core.Tests.EditMode.CoreWorldRuntimeTests` and `Reloader.Core.Tests.EditMode.CoreWorldControllerTests` initially failed to compile on missing:
+    - `CoreWorldRuntime.AdvanceRealtimeSeconds(...)`
+    - `CoreWorldController.AdvanceRealtimeSeconds(...)`
+    - `CoreWorldController.PrepareForSave(...)`
+    - `CoreWorldController.FinalizeAfterLoad(...)`
+  - Unity console errors captured those exact missing members before implementation
+- Green step:
+  - `Reloader.Core.Tests.EditMode.CoreWorldRuntimeTests`: `3/3` passed
+  - `Reloader.Core.Tests.EditMode.CoreWorldControllerTests`: `4/4` passed
+  - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.SaveCoordinator_Load_WhenLiveWorldClockWasSaved_ExecutesReplacementUsingSavedCoreWorldTime`: `1/1` passed
+- Regression sweep:
+  - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `22/22` passed
+  - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `6/6` passed
+  - `Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests`: `6/6` passed
+
+## Checkpoint: Compact Procedural Contract Tracking
+
+- Added the first `Normal` difficulty device tracker without adding a marker or a second UI surface:
+  - `UiToolkitScreenRuntimeBridge.TabDeviceControllerAdapter` now derives compact tracking text from the active contract snapshot plus `CivilianPopulationRuntimeBridge`
+  - the device feedback line now shows `TRACK: <Area> • NO FIX` until the accepted procedural target is live-resolvable
+  - once the target is resolvable, the same line shows `TRACK: <Area> • LOCKED <distance>`
+  - the manual selected-target row stays reserved for explicit rangefinder marking and is no longer overloaded for contract tracking
+- Added the first supporting metadata seam:
+  - `CivilianPopulationRuntimeBridge.TryGetCivilianAreaTag(...)` exposes population area info for the compact tracker without widening save schema or reusing device-selected-target state
+- Scope note:
+  - there is still no world marker
+  - this slice is compact status text only and intentionally leaves richer signal-loss/coarse-direction polish for later
+
+## Verification
+
+- Red step:
+  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests.RuntimeBridge_BindTabInventory_WhenProceduralContractIsActive_ShowsCompactDeviceTrackingStatus`: `0/1` passed
+  - failing assertion: device feedback still showed `Recon hooks are not installed.` instead of compact contract tracking text
+- Green step:
+  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests.RuntimeBridge_BindTabInventory_WhenProceduralContractIsActive_ShowsCompactDeviceTrackingStatus`: `1/1` passed
+- Regression sweep:
+  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests`: `4/4` passed
+  - `Reloader.UI.Tests.PlayMode.TabInventoryDeviceSectionPlayModeTests`: `16/16` passed
+  - `Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests`: `6/6` passed
+
+## Checkpoint: Same-Frame Rebuild Lookup Guard
+
+- Addressed the latest PR review follow-up on same-frame rebuild visibility:
+  - `CivilianPopulationRuntimeBridge.ClearSpawnedScenePopulation()` now detaches spawned civilians from the bridge hierarchy and deactivates them before deferred `Destroy(...)` in play mode
+  - this keeps `TryResolveSpawnedCivilian(...)` and bridge-local child scans from seeing stale civilians during the same frame that `RebuildScenePopulation()` respawns replacements
+- Added focused PlayMode coverage for that seam:
+  - `MainTownPopulationInfrastructurePlayModeTests` now verifies same-frame bridge lookups stop resolving the prior civilian immediately after rebuild and only see the replacement civilian
+- Scope note:
+  - this is review-driven runtime-state hardening only
+  - it does not change slot assignment, contract selection, or replacement scheduling rules
+
+## Verification
+
+- Unity MCP `run_tests` / `get_test_job`:
+  - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_RebuildScenePopulation_SameFrameLookupsOnlySeeReplacementCivilian`: `1/1` passed
+  - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `7/7` passed
+  - `Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests`: `6/6` passed
+  - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `22/22` passed
+- `git diff --check`: clean
+
+## Checkpoint: Offered-Target-Only Damageable Gate
+
+- Addressed the new PR review follow-up on idle unmatched procedural kills:
+  - `CivilianPopulationRuntimeBridge` no longer adds `ContractTargetDamageable` during raw civilian spawn
+  - after procedural offer refresh, the bridge now attaches the damageable seam only to the currently offered or active contract civilian resolved from `StaticContractRuntimeProvider`
+  - idle non-offered civilians still rebuild into the scene, but they no longer expose the contract-target kill path that could retire them without police search/heat
+- Added focused regression coverage for that contract seam:
+  - EditMode bridge coverage now proves that when multiple civilians are eligible, only the offered civilian exposes `ContractTargetDamageable`
+  - PlayMode `MainTown` coverage now proves an idle non-offered procedural civilian in the authored scene does not expose the contract-target seam
+- Scope note:
+  - this is review-driven contract-target gating only
+  - it does not change offer selection order, payout flow, or replacement scheduling
+
+## Verification
+
+- Red step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenMultipleEligibleCiviliansExist_OnlyOfferedCivilianGetsContractTargetDamageable`: `0/1` passed
+      - failing assertion: non-offered civilian still exposed `ContractTargetDamageable`
+- Green step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenMultipleEligibleCiviliansExist_OnlyOfferedCivilianGetsContractTargetDamageable`: `1/1` passed
+- Regression sweep:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `23/23` passed
+    - `Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests`: `7/7` passed
+- `git diff --check`: clean

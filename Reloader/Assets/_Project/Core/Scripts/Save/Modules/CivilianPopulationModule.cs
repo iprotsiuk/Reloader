@@ -16,6 +16,9 @@ namespace Reloader.Core.Save.Modules
             [JsonProperty("pendingReplacements")]
             public List<CivilianPopulationReplacementRecord> PendingReplacements { get; set; } =
                 new List<CivilianPopulationReplacementRecord>();
+
+            [JsonProperty("lastOfferedCivilianId")]
+            public string LastOfferedCivilianId { get; set; } = string.Empty;
         }
 
         public string ModuleKey => "CivilianPopulation";
@@ -24,13 +27,15 @@ namespace Reloader.Core.Save.Modules
         public List<CivilianPopulationRecord> Civilians { get; } = new List<CivilianPopulationRecord>();
         public List<CivilianPopulationReplacementRecord> PendingReplacements { get; } =
             new List<CivilianPopulationReplacementRecord>();
+        public string LastOfferedCivilianId { get; set; } = string.Empty;
 
         public string CaptureModuleStateJson()
         {
             return JsonConvert.SerializeObject(new CivilianPopulationPayload
             {
                 Civilians = Civilians.Select(CloneRecord).ToList(),
-                PendingReplacements = PendingReplacements.Select(CloneReplacement).ToList()
+                PendingReplacements = PendingReplacements.Select(CloneReplacement).ToList(),
+                LastOfferedCivilianId = LastOfferedCivilianId ?? string.Empty
             });
         }
 
@@ -67,11 +72,17 @@ namespace Reloader.Core.Save.Modules
                     PendingReplacements.Add(CloneReplacement(record));
                 }
             }
+
+            LastOfferedCivilianId = payload.LastOfferedCivilianId ?? string.Empty;
         }
 
         public void ValidateModuleState()
         {
             var seenCivilianIds = new HashSet<string>(StringComparer.Ordinal);
+            var seenAlivePopulationSlotIds = new HashSet<string>(StringComparer.Ordinal);
+            var seenPendingReplacementIds = new HashSet<string>(StringComparer.Ordinal);
+            var seenPendingReplacementSlotIds = new HashSet<string>(StringComparer.Ordinal);
+            var civiliansById = new Dictionary<string, CivilianPopulationRecord>(StringComparer.Ordinal);
             for (var i = 0; i < Civilians.Count; i++)
             {
                 var record = Civilians[i];
@@ -90,6 +101,8 @@ namespace Reloader.Core.Save.Modules
                     throw new InvalidOperationException($"CivilianPopulation duplicate civilianId '{record.CivilianId}'.");
                 }
 
+                civiliansById.Add(record.CivilianId, record);
+
                 if (record.CreatedAtDay < 0)
                 {
                     throw new InvalidOperationException($"CivilianPopulation civilians[{i}].createdAtDay cannot be negative.");
@@ -106,6 +119,15 @@ namespace Reloader.Core.Save.Modules
                         $"CivilianPopulation civilians[{i}] must record retiredAtDay when the civilian is dead.");
                 }
 
+                ValidateRequiredString(record.PopulationSlotId, $"civilians[{i}].populationSlotId");
+                ValidateRequiredString(record.PoolId, $"civilians[{i}].poolId");
+
+                if (record.IsAlive && !seenAlivePopulationSlotIds.Add(record.PopulationSlotId))
+                {
+                    throw new InvalidOperationException(
+                        $"CivilianPopulation duplicate live populationSlotId '{record.PopulationSlotId}'.");
+                }
+
                 ValidateRequiredString(record.BaseBodyId, $"civilians[{i}].baseBodyId");
                 ValidateRequiredString(record.PresentationType, $"civilians[{i}].presentationType");
                 ValidateRequiredString(record.HairId, $"civilians[{i}].hairId");
@@ -115,6 +137,7 @@ namespace Reloader.Core.Save.Modules
                 ValidateRequiredString(record.OutfitBottomId, $"civilians[{i}].outfitBottomId");
                 ValidateRequiredString(record.OuterwearId, $"civilians[{i}].outerwearId");
                 ValidateRequiredString(record.SpawnAnchorId, $"civilians[{i}].spawnAnchorId");
+                ValidateRequiredString(record.AreaTag, $"civilians[{i}].areaTag");
                 ValidateStringList(record.MaterialColorIds, $"civilians[{i}].materialColorIds");
                 ValidateStringList(record.GeneratedDescriptionTags, $"civilians[{i}].generatedDescriptionTags");
             }
@@ -133,6 +156,12 @@ namespace Reloader.Core.Save.Modules
                         $"CivilianPopulation pendingReplacements[{i}].vacatedCivilianId is invalid.");
                 }
 
+                if (!seenPendingReplacementIds.Add(record.VacatedCivilianId))
+                {
+                    throw new InvalidOperationException(
+                        $"CivilianPopulation duplicate pendingReplacement vacatedCivilianId '{record.VacatedCivilianId}'.");
+                }
+
                 if (record.QueuedAtDay < 0)
                 {
                     throw new InvalidOperationException(
@@ -144,6 +173,36 @@ namespace Reloader.Core.Save.Modules
                     throw new InvalidOperationException(
                         $"CivilianPopulation pendingReplacements[{i}].spawnAnchorId is invalid.");
                 }
+
+                if (!civiliansById.TryGetValue(record.VacatedCivilianId, out var vacatedCivilian))
+                {
+                    throw new InvalidOperationException(
+                        $"CivilianPopulation pendingReplacements[{i}] references missing dead civilian '{record.VacatedCivilianId}'.");
+                }
+
+                if (vacatedCivilian.IsAlive)
+                {
+                    throw new InvalidOperationException(
+                        $"CivilianPopulation pendingReplacements[{i}] must reference a dead civilian '{record.VacatedCivilianId}'.");
+                }
+
+                if (seenAlivePopulationSlotIds.Contains(vacatedCivilian.PopulationSlotId))
+                {
+                    throw new InvalidOperationException(
+                        $"CivilianPopulation pendingReplacements[{i}] targets populationSlotId '{vacatedCivilian.PopulationSlotId}' that already has a live occupant.");
+                }
+
+                if (!seenPendingReplacementSlotIds.Add(vacatedCivilian.PopulationSlotId))
+                {
+                    throw new InvalidOperationException(
+                        $"CivilianPopulation duplicate pendingReplacement populationSlotId '{vacatedCivilian.PopulationSlotId}'.");
+                }
+
+                if (!string.Equals(record.SpawnAnchorId, vacatedCivilian.SpawnAnchorId, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"CivilianPopulation pendingReplacements[{i}].spawnAnchorId '{record.SpawnAnchorId}' does not match dead civilian '{record.VacatedCivilianId}' anchor '{vacatedCivilian.SpawnAnchorId}'.");
+                }
             }
         }
 
@@ -151,9 +210,12 @@ namespace Reloader.Core.Save.Modules
         {
             return new CivilianPopulationRecord
             {
+                PopulationSlotId = source.PopulationSlotId ?? string.Empty,
+                PoolId = source.PoolId ?? string.Empty,
                 CivilianId = source.CivilianId ?? string.Empty,
                 IsAlive = source.IsAlive,
                 IsContractEligible = source.IsContractEligible,
+                IsProtectedFromContracts = source.IsProtectedFromContracts,
                 BaseBodyId = source.BaseBodyId ?? string.Empty,
                 PresentationType = source.PresentationType ?? string.Empty,
                 HairId = source.HairId ?? string.Empty,
@@ -165,6 +227,7 @@ namespace Reloader.Core.Save.Modules
                 MaterialColorIds = NormalizeStringList(source.MaterialColorIds),
                 GeneratedDescriptionTags = NormalizeStringList(source.GeneratedDescriptionTags),
                 SpawnAnchorId = source.SpawnAnchorId ?? string.Empty,
+                AreaTag = source.AreaTag ?? string.Empty,
                 CreatedAtDay = source.CreatedAtDay,
                 RetiredAtDay = source.RetiredAtDay
             };

@@ -65,6 +65,11 @@ namespace Reloader.Contracts.Runtime
             EnsureRuntime().ReportTargetEliminated(targetId, wasExposed);
         }
 
+        public bool CanPublishAvailableContract()
+        {
+            return EnsureRuntime().CanPublishAvailableContract();
+        }
+
         public void SetAvailableContract(AssassinationContractDefinition availableContract)
         {
             _availableContract = availableContract;

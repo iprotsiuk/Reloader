@@ -14,6 +14,31 @@ namespace Reloader.NPCs.Generation
             int seed,
             bool isContractEligible)
         {
+            return GenerateRecord(
+                library,
+                civilianId,
+                createdAtDay,
+                spawnAnchorId,
+                seed,
+                isContractEligible,
+                populationSlotId: string.Empty,
+                poolId: string.Empty,
+                areaTag: string.Empty,
+                isProtectedFromContracts: false);
+        }
+
+        public CivilianPopulationRecord GenerateRecord(
+            CivilianAppearanceLibrary library,
+            string civilianId,
+            int createdAtDay,
+            string spawnAnchorId,
+            int seed,
+            bool isContractEligible,
+            string populationSlotId,
+            string poolId,
+            string areaTag,
+            bool isProtectedFromContracts)
+        {
             if (library == null)
             {
                 throw new ArgumentNullException(nameof(library));
@@ -33,9 +58,12 @@ namespace Reloader.NPCs.Generation
 
             return new CivilianPopulationRecord
             {
+                PopulationSlotId = populationSlotId?.Trim() ?? string.Empty,
+                PoolId = poolId?.Trim() ?? string.Empty,
                 CivilianId = civilianId.Trim(),
                 IsAlive = true,
                 IsContractEligible = isContractEligible,
+                IsProtectedFromContracts = isProtectedFromContracts,
                 BaseBodyId = PickRequired(library.BaseBodyIds, nameof(library.BaseBodyIds), random),
                 PresentationType = PickRequired(library.PresentationTypes, nameof(library.PresentationTypes), random),
                 HairId = PickRequired(library.HairIds, nameof(library.HairIds), random),
@@ -47,6 +75,7 @@ namespace Reloader.NPCs.Generation
                 MaterialColorIds = PickOptionalList(library.MaterialColorIds, random),
                 GeneratedDescriptionTags = PickOptionalList(library.DescriptionTags, random),
                 SpawnAnchorId = spawnAnchorId.Trim(),
+                AreaTag = areaTag?.Trim() ?? string.Empty,
                 CreatedAtDay = Math.Max(0, createdAtDay),
                 RetiredAtDay = -1
             };

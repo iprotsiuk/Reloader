@@ -7,6 +7,7 @@ using Reloader.Core.Items;
 using Reloader.Core.Runtime;
 using Reloader.Economy;
 using Reloader.Inventory;
+using Reloader.NPCs.Runtime;
 using Reloader.Player;
 using Reloader.PlayerDevice.Runtime;
 using Reloader.PlayerDevice.World;
@@ -229,7 +230,7 @@ namespace Reloader.UI.Toolkit.Runtime
             controller.SetCoreWorldController(FindFirstObjectByType<CoreWorldController>(FindObjectsInactive.Include));
             controller.SetInputSource(inputSource);
             controller.SetDeviceController(ResolveTabDeviceControllerAdapter(inventoryController, inputSource));
-            controller.SetContractController(ResolveTabContractControllerAdapter());
+            controller.SetContractController(ResolveTabContractControllerAdapter(inventoryController));
             controller.Configure(viewBinder, null);
             return UiContractGuard.Bind(controller, viewBinder);
         }
@@ -261,18 +262,53 @@ namespace Reloader.UI.Toolkit.Runtime
 
             var targetSelectionController = ResolveOrCreateTargetSelectionController(inputSource);
 
-            return new TabDeviceControllerAdapter(_playerDeviceController, targetSelectionController);
+            return new TabDeviceControllerAdapter(
+                _playerDeviceController,
+                targetSelectionController);
         }
 
-        private ITabInventoryContractController ResolveTabContractControllerAdapter()
+        private ITabInventoryContractController ResolveTabContractControllerAdapter(PlayerInventoryController inventoryController)
         {
-            return new TabContractControllerAdapter(ResolveContractRuntimeProvider);
+            return new TabContractControllerAdapter(
+                ResolveContractRuntimeProvider,
+                ResolveCivilianPopulationRuntimeBridge,
+                () => inventoryController != null ? inventoryController.transform : null);
         }
 
         private IContractRuntimeProvider ResolveContractRuntimeProvider()
         {
             return DependencyResolutionGuard.FindInterface<IContractRuntimeProvider>(
                 FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+        }
+
+        private static string FormatContractAreaTag(string areaTag)
+        {
+            if (string.IsNullOrWhiteSpace(areaTag))
+            {
+                return "UNKNOWN";
+            }
+
+            var parts = areaTag.Split(new[] { '.', '_', '-' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0)
+            {
+                return "UNKNOWN";
+            }
+
+            for (var i = 0; i < parts.Length; i++)
+            {
+                parts[i] = parts[i] switch
+                {
+                    "maintown" => "MainTown",
+                    _ => char.ToUpperInvariant(parts[i][0]) + parts[i].Substring(1).ToLowerInvariant()
+                };
+            }
+
+            return string.Join(" ", parts);
+        }
+
+        private CivilianPopulationRuntimeBridge ResolveCivilianPopulationRuntimeBridge()
+        {
+            return FindFirstObjectByType<CivilianPopulationRuntimeBridge>(FindObjectsInactive.Include);
         }
 
 
@@ -589,10 +625,17 @@ namespace Reloader.UI.Toolkit.Runtime
         private sealed class TabContractControllerAdapter : ITabInventoryContractController
         {
             private readonly Func<IContractRuntimeProvider> _providerResolver;
+            private readonly Func<CivilianPopulationRuntimeBridge> _populationBridgeResolver;
+            private readonly Func<Transform> _viewerTransformResolver;
 
-            public TabContractControllerAdapter(Func<IContractRuntimeProvider> providerResolver)
+            public TabContractControllerAdapter(
+                Func<IContractRuntimeProvider> providerResolver,
+                Func<CivilianPopulationRuntimeBridge> populationBridgeResolver,
+                Func<Transform> viewerTransformResolver)
             {
                 _providerResolver = providerResolver;
+                _populationBridgeResolver = populationBridgeResolver;
+                _viewerTransformResolver = viewerTransformResolver;
             }
 
             public bool TryGetStatus(out TabInventoryContractStatus status)
@@ -611,6 +654,7 @@ namespace Reloader.UI.Toolkit.Runtime
                 status = new TabInventoryContractStatus(
                     hasAvailableContract: snapshot.HasAvailableContract,
                     hasActiveContract: snapshot.HasActiveContract,
+                    hasFailedContract: snapshot.HasFailedContract,
                     contractTitle: snapshot.Title,
                     targetDisplayName: snapshot.TargetDisplayName,
                     targetDescription: snapshot.TargetDescription,
@@ -620,7 +664,8 @@ namespace Reloader.UI.Toolkit.Runtime
                     canAccept: snapshot.CanAccept,
                     canCancel: snapshot.CanCancel,
                     canClaimReward: snapshot.CanClaimReward,
-                    statusText: statusText);
+                    statusText: statusText,
+                    trackingText: BuildContractTrackingText(snapshot));
                 return true;
             }
 
@@ -645,6 +690,37 @@ namespace Reloader.UI.Toolkit.Runtime
             private IContractRuntimeProvider ResolveProvider()
             {
                 return _providerResolver?.Invoke();
+            }
+
+            private string BuildContractTrackingText(ContractOfferSnapshot snapshot)
+            {
+                if (!snapshot.HasActiveContract)
+                {
+                    return string.Empty;
+                }
+
+                var populationBridge = _populationBridgeResolver?.Invoke();
+                var areaText = "UNKNOWN";
+                if (populationBridge != null && populationBridge.TryGetCivilianAreaTag(snapshot.TargetId, out var areaTag))
+                {
+                    areaText = FormatContractAreaTag(areaTag);
+                }
+
+                var viewerTransform = _viewerTransformResolver?.Invoke();
+                if (populationBridge != null
+                    && viewerTransform != null
+                    && populationBridge.TryResolveSpawnedCivilian(snapshot.TargetId, out var spawnedCivilian)
+                    && spawnedCivilian != null)
+                {
+                    var distanceMeters = Vector3.Distance(viewerTransform.position, spawnedCivilian.transform.position);
+                    return string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        "TRACK: {0} • LOCKED {1:0}m",
+                        areaText,
+                        Mathf.Max(0f, distanceMeters));
+                }
+
+                return $"TRACK: {areaText} • NO FIX";
             }
         }
 

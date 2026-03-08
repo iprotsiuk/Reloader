@@ -14,10 +14,13 @@ namespace Reloader.UI.Toolkit.TabInventory
             bool canAccept,
             bool canCancel,
             bool canClaimReward,
-            string statusText)
+            string statusText,
+            string trackingText = "",
+            bool hasFailedContract = false)
         {
             HasAvailableContract = hasAvailableContract;
             HasActiveContract = hasActiveContract;
+            HasFailedContract = hasFailedContract;
             ContractTitle = contractTitle ?? string.Empty;
             TargetDisplayName = targetDisplayName ?? string.Empty;
             TargetDescription = targetDescription ?? string.Empty;
@@ -28,10 +31,12 @@ namespace Reloader.UI.Toolkit.TabInventory
             CanCancel = canCancel;
             CanClaimReward = canClaimReward;
             StatusText = statusText ?? string.Empty;
+            TrackingText = trackingText ?? string.Empty;
         }
 
         public bool HasAvailableContract { get; }
         public bool HasActiveContract { get; }
+        public bool HasFailedContract { get; }
         public string ContractTitle { get; }
         public string TargetDisplayName { get; }
         public string TargetDescription { get; }
@@ -42,12 +47,14 @@ namespace Reloader.UI.Toolkit.TabInventory
         public bool CanCancel { get; }
         public bool CanClaimReward { get; }
         public string StatusText { get; }
+        public string TrackingText { get; }
 
         public static TabInventoryContractStatus CreateDefault()
         {
             return new TabInventoryContractStatus(
                 hasAvailableContract: false,
                 hasActiveContract: false,
+                hasFailedContract: false,
                 contractTitle: "No posted contracts",
                 targetDisplayName: "--",
                 targetDescription: "Check back later for fresh contract offers.",
@@ -57,7 +64,8 @@ namespace Reloader.UI.Toolkit.TabInventory
                 canAccept: false,
                 canCancel: false,
                 canClaimReward: false,
-                statusText: "No contracts currently posted");
+                statusText: "No contracts currently posted",
+                trackingText: string.Empty);
         }
     }
 }

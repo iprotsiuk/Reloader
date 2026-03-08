@@ -61,6 +61,27 @@ namespace Reloader.UI.Tests.EditMode
         }
 
         [Test]
+        public void ContractsSection_AuthorsDedicatedTrackingLabelBesideStatus()
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(TabInventoryUxmlPath);
+            Assert.That(asset, Is.Not.Null, $"Expected UXML asset at '{TabInventoryUxmlPath}'.");
+
+            var root = asset.CloneTree();
+            var contractsSection = root.Q<VisualElement>("inventory__section-quests");
+            Assert.That(contractsSection, Is.Not.Null);
+
+            var statusRow = contractsSection.Q<VisualElement>("inventory__contracts-status-row");
+            var statusLabel = contractsSection.Q<Label>("inventory__contracts-status");
+            var trackingLabel = contractsSection.Q<Label>("inventory__contracts-tracking");
+
+            Assert.That(statusRow, Is.Not.Null);
+            Assert.That(statusLabel, Is.Not.Null);
+            Assert.That(trackingLabel, Is.Not.Null);
+            Assert.That(statusLabel.parent, Is.SameAs(statusRow));
+            Assert.That(trackingLabel.parent, Is.SameAs(statusRow));
+        }
+
+        [Test]
         public void ContractsActiveWorkspace_AuthorsStructuredMissionWorkspace()
         {
             var asset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(TabInventoryUxmlPath);

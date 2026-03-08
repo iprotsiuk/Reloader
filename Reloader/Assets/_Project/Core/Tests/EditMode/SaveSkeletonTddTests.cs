@@ -255,7 +255,7 @@ namespace Reloader.Core.Tests.EditMode
 
             var envelope = coordinator.CaptureEnvelope("0.6.0-dev");
 
-            Assert.That(envelope.SchemaVersion, Is.EqualTo(7));
+            Assert.That(envelope.SchemaVersion, Is.EqualTo(8));
             Assert.That(envelope.Modules.ContainsKey("ContractState"), Is.True);
             Assert.That(envelope.Modules.ContainsKey("PoliceHeatState"), Is.True);
         }

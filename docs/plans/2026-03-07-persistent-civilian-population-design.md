@@ -28,6 +28,7 @@ Generate a `MainTown`-wide civilian roster when a save is created, persist that 
 - Vacancies are not filled immediately. They are queued until the scheduled refresh window:
   - every Monday at `08:00`
   - replacement civilians enter through the bus stop / arrival point
+  - with the current day-precision save model, a vacancy queued on a Monday waits until the following Monday refresh because time-of-death is not persisted
 
 ## Map-Wide Population Slots And Pools
 

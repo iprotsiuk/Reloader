@@ -248,6 +248,36 @@ namespace Reloader.Core.Tests.EditMode
             }
         }
 
+        [Test]
+        public void ReportTargetEliminated_WrongTargetKeepsFailureSnapshotVisibleDuringSearch()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            var runtime = new ContractEscapeResolutionRuntime(
+                contract,
+                searchDurationSeconds: 10f,
+                payoutReceiver: new RecordingPayoutReceiver(),
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            try
+            {
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+
+                var eliminated = runtime.ReportTargetEliminated("target.bravo", wasExposed: true);
+
+                Assert.That(eliminated, Is.False);
+                Assert.That(runtime.ActiveContract, Is.Null);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+                Assert.That(runtime.TryGetSnapshot(out var failedSnapshot), Is.True,
+                    "Expected wrong-target failures to keep a readable failure snapshot instead of collapsing the Contracts UI to 'no contracts'.");
+                Assert.That(failedSnapshot.StatusText, Does.StartWith("Failed: wrong target"),
+                    "Expected the failure snapshot to explain why the accepted contract disappeared.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+            }
+        }
+
         private static AssassinationContractDefinition CreateDefinition(
             string contractId,
             string targetId,
