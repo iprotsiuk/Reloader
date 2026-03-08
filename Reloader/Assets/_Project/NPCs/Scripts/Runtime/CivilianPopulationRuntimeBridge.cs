@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using Reloader.Contracts.Runtime;
 using Reloader.Core.Runtime;
 using Reloader.Core.Save;
 using Reloader.Core.Save.Modules;
 using Reloader.NPCs.Generation;
 using Reloader.NPCs.Runtime.Capabilities;
+using Reloader.Weapons.World;
 using UnityEngine;
 
 namespace Reloader.NPCs.Runtime
@@ -12,6 +14,8 @@ namespace Reloader.NPCs.Runtime
     public sealed class CivilianPopulationRuntimeBridge : MonoBehaviour, ISaveRuntimeBridge
     {
         private const float MondayRefreshTimeOfDay = 8f;
+        private const float ProceduralContractTargetDistanceMeters = 85f;
+        private const float ProceduralContractTargetHealth = 15f;
 
         [SerializeField] private CivilianAppearanceLibrary _appearanceLibrary;
         [SerializeField] private GameObject _npcActorPrefab;
@@ -455,6 +459,7 @@ namespace Reloader.NPCs.Runtime
             var civilian = CreateCivilianActor(record.CivilianId);
             civilian.transform.SetPositionAndRotation(anchor.position, anchor.rotation);
             EnsureCivilianActorComponents(civilian).Initialize(record);
+            ConfigureContractTargetIfEligible(civilian, record);
 
             var agent = civilian.GetComponent<NpcAgent>();
             agent?.InitializeCapabilities();
@@ -495,6 +500,55 @@ namespace Reloader.NPCs.Runtime
             }
 
             return metadata;
+        }
+
+        private static void ConfigureContractTargetIfEligible(GameObject civilian, CivilianPopulationRecord record)
+        {
+            if (civilian == null || record == null || !record.IsContractEligible || record.IsProtectedFromContracts)
+            {
+                return;
+            }
+
+            var damageable = civilian.GetComponent<ContractTargetDamageable>();
+            if (damageable == null)
+            {
+                damageable = civilian.AddComponent<ContractTargetDamageable>();
+            }
+
+            damageable.Configure(
+                ResolveContractTargetEliminationSink(civilian),
+                targetId: record.CivilianId,
+                displayName: record.CivilianId,
+                authoritativeDistanceMeters: ProceduralContractTargetDistanceMeters,
+                maxHealth: ProceduralContractTargetHealth);
+        }
+
+        private static IContractTargetEliminationSink ResolveContractTargetEliminationSink(GameObject civilian)
+        {
+            if (civilian == null)
+            {
+                return null;
+            }
+
+            var localBehaviours = civilian.GetComponents<MonoBehaviour>();
+            for (var i = 0; i < localBehaviours.Length; i++)
+            {
+                if (localBehaviours[i] is IContractTargetEliminationSink localSink)
+                {
+                    return localSink;
+                }
+            }
+
+            var sceneBehaviours = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < sceneBehaviours.Length; i++)
+            {
+                if (sceneBehaviours[i] is IContractTargetEliminationSink sceneSink)
+                {
+                    return sceneSink;
+                }
+            }
+
+            return null;
         }
 
         private List<string> NormalizeSpawnAnchors()

@@ -4,6 +4,7 @@
   "references": [
     "Reloader.Core",
     "Reloader.Player",
+    "Reloader.Weapons",
     "Unity.InputSystem"
   ],
   "includePlatforms": [],

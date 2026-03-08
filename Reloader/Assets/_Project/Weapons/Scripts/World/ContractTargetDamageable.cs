@@ -40,6 +40,27 @@ namespace Reloader.Weapons.World
             ResolveEliminationSink();
         }
 
+        public void Configure(
+            IContractTargetEliminationSink eliminationSink,
+            string targetId,
+            string displayName,
+            float authoritativeDistanceMeters,
+            float maxHealth,
+            bool reportAsExposed = true,
+            bool disableGameObjectOnElimination = true)
+        {
+            _eliminationSinkBehaviour = eliminationSink as MonoBehaviour;
+            _eliminationSink = eliminationSink;
+            _targetId = targetId ?? string.Empty;
+            _displayName = displayName ?? string.Empty;
+            _authoritativeDistanceMeters = Mathf.Max(0f, authoritativeDistanceMeters);
+            _maxHealth = Mathf.Max(0.01f, maxHealth);
+            _reportAsExposed = reportAsExposed;
+            _disableGameObjectOnElimination = disableGameObjectOnElimination;
+            ResetRuntime();
+            ResolveEliminationSink();
+        }
+
         public void ApplyDamage(ProjectileImpactPayload payload)
         {
             if (_isEliminated)

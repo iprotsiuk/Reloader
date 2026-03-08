@@ -224,6 +224,77 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void RebuildScenePopulation_WhenCivilianIsContractEligible_AddsContractTargetDamageableUsingCivilianId()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+            CreateAnchor(go.transform, "Anchor_B", new Vector3(3f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0101",
+                    populationSlotId: "townsfolk.101",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0102",
+                    PopulationSlotId = "cops.101",
+                    PoolId = "cops",
+                    SpawnAnchorId = "Anchor_B",
+                    AreaTag = "maintown.watch",
+                    IsAlive = true,
+                    IsContractEligible = false,
+                    IsProtectedFromContracts = true,
+                    BaseBodyId = "body.male.a",
+                    PresentationType = "masculine",
+                    HairId = "hair.short.01",
+                    HairColorId = "hair.black",
+                    BeardId = "beard.none",
+                    OutfitTopId = "top.coat.01",
+                    OutfitBottomId = "bottom.jeans.01",
+                    OuterwearId = "outer.gray.coat",
+                    MaterialColorIds = new List<string> { "color.gray" },
+                    GeneratedDescriptionTags = new List<string> { "gray coat" },
+                    CreatedAtDay = 4,
+                    RetiredAtDay = -1
+                });
+
+                bridge.RebuildScenePopulation();
+
+                var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                var eligibleSpawn = spawned.Single(component => component.CivilianId == "citizen.mainTown.0101");
+                var ineligibleSpawn = spawned.Single(component => component.CivilianId == "citizen.mainTown.0102");
+
+                var damageableType = System.Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons", throwOnError: false);
+                Assert.That(damageableType, Is.Not.Null, "Expected contract target damageable type to exist.");
+
+                var eligibleDamageable = eligibleSpawn.GetComponent(damageableType!);
+                Assert.That(eligibleDamageable, Is.Not.Null, "Expected contract-eligible civilians to expose the existing contract target damageable.");
+
+                var targetIdProperty = damageableType!.GetProperty("TargetId", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+                Assert.That(targetIdProperty, Is.Not.Null);
+                Assert.That((string)targetIdProperty!.GetValue(eligibleDamageable)!, Is.EqualTo("citizen.mainTown.0101"));
+
+                Assert.That(ineligibleSpawn.GetComponent(damageableType!), Is.Null, "Expected protected/ineligible civilians to stay outside the contract target path.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void FinalizeAfterLoad_WhenMondayRefreshWindowHasArrived_ExecutesReplacementUsingCoreWorldState()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");

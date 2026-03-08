@@ -450,3 +450,33 @@ The next slice should formalize the actual Monday `08:00` scheduler rule on top 
   - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-save-slot-debt.xml tmp/civilian-save-slot-debt.log`: `12/12` passed
   - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-slot-guards.xml tmp/civilian-runtime-bridge-slot-guards.log`: `17/17` passed
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-slot-guards.xml tmp/maintown-population-infra-slot-guards.log`: `6/6` passed
+
+## Checkpoint: Procedural Civilian Contract Target Seam
+
+- Added the first gameplay-facing bridge from procedural civilians into the existing `MainTown` contract runtime:
+  - `CivilianPopulationRuntimeBridge.RebuildScenePopulation()` now adds `ContractTargetDamageable` to contract-eligible spawned civilians
+  - the bridge configures that damageable against the existing scene `IContractTargetEliminationSink`
+  - the stable `civilianId` now doubles as the initial procedural `targetId`, avoiding a second parallel identity system for this seam
+  - protected or otherwise contract-ineligible civilians remain outside the contract-target path
+- Extended the authored-scene contract coverage:
+  - `MainTownContractSlicePlayModeTests` now proves a runtime-authored contract can target a spawned procedural civilian in `MainTown`
+  - the existing accept -> eliminate -> search clears -> explicit claim flow now works against a rebuilt population civilian, not just the authored `ContractTarget_Volkov`
+- Scope note:
+  - this is still not procedural contract generation
+  - the contract definition is injected by the test/runtime seam, not yet selected from the living population roster
+  - active-contract save/load for procedural civilians remains a later slice
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_ProceduralCivilianTarget_CanBeAcceptedAndCompleted tmp/maintown-procedural-contract-red.xml tmp/maintown-procedural-contract-red.log`
+  - `tmp/maintown-procedural-contract-red.xml`: `0/1` passed
+  - failing assertion: spawned procedural civilian did not expose `ContractTargetDamageable`
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenCivilianIsContractEligible_AddsContractTargetDamageableUsingCivilianId tmp/civilian-contract-target-green.xml tmp/civilian-contract-target-green.log`: `1/1` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_ProceduralCivilianTarget_CanBeAcceptedAndCompleted tmp/maintown-procedural-contract-green.xml tmp/maintown-procedural-contract-green.log`: `1/1` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-contract-full.xml tmp/civilian-runtime-bridge-contract-full.log`: `18/18` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-slice-full.xml tmp/maintown-contract-slice-full.log`: `3/3` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-contract-full.xml tmp/maintown-population-infra-contract-full.log`: `6/6` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.Weapons.Tests.PlayMode.ContractTargetDamageablePlayModeTests tmp/contract-target-damageable-full.xml tmp/contract-target-damageable-full.log`: `2/2` passed
