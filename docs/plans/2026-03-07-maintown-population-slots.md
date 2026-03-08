@@ -284,3 +284,5 @@ Once slot-driven `MainTown` population is stable, the next implementation slice 
 > Replacement debt now matures only at the first Monday `08:00` strictly after `QueuedAtDay`, so a vacancy queued on a Monday waits until the following Monday because the save model does not persist time-of-death. `MainTown` must carry an authored `CoreWorldController` so the bridge has a real world-time source outside save/load.
 
 > **Plan update (2026-03-08, review follow-up):** Pending replacement debt must always reference an existing dead civilian. `CivilianPopulationModule.ValidateModuleState()` should reject missing/alive references at load time, and `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` should still purge any matured dangling/alive debt defensively if malformed state is injected after load.
+
+> **Plan update (2026-03-08, actor seam):** Procedurally spawned `MainTown` civilians should instantiate the shared `NpcFoundation` actor prefab instead of ad-hoc empty shell objects. This keeps population spawning aligned with the existing NPC interaction/collider/model contract while still deferring final STYLE-driven body/clothes/hair assembly.

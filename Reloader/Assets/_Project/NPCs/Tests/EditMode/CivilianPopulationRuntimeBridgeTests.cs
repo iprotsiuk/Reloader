@@ -6,6 +6,7 @@ using Reloader.Core.Save;
 using Reloader.Core.Save.Modules;
 using Reloader.NPCs.Generation;
 using Reloader.NPCs.Runtime;
+using Reloader.NPCs.Runtime.Capabilities;
 using UnityEngine;
 
 namespace Reloader.NPCs.Tests.EditMode
@@ -171,6 +172,53 @@ namespace Reloader.NPCs.Tests.EditMode
             }
             finally
             {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenActorPrefabIsAssigned_InstantiatesActorPrefabWithPopulationMetadata()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+            var actorPrefab = new GameObject("NpcActorPrefab");
+            actorPrefab.AddComponent<NpcAgent>();
+            actorPrefab.AddComponent<CapsuleCollider>();
+            new GameObject("VisualRoot").transform.SetParent(actorPrefab.transform, false);
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+                SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_npcActorPrefab", actorPrefab);
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0042",
+                    PopulationSlotId = "townsfolk.004",
+                    PoolId = "townsfolk",
+                    SpawnAnchorId = "Anchor_A",
+                    AreaTag = "maintown.square",
+                    IsAlive = true
+                });
+
+                bridge.RebuildScenePopulation();
+
+                var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(spawned.Length, Is.EqualTo(1));
+                Assert.That(spawned[0].CivilianId, Is.EqualTo("citizen.mainTown.0042"));
+                Assert.That(spawned[0].GetComponent<NpcAgent>(), Is.Not.Null);
+                Assert.That(spawned[0].GetComponent<AmbientCitizenCapability>(), Is.Not.Null);
+                Assert.That(spawned[0].transform.Find("VisualRoot"), Is.Not.Null, "Expected prefab-backed civilian spawn to keep the actor visual hierarchy.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(actorPrefab);
                 Object.DestroyImmediate(go);
             }
         }

@@ -375,3 +375,27 @@ The next slice should formalize the actual Monday `08:00` scheduler rule on top 
     - `Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests`: `10/10` passed
     - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `14/14` passed
     - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `6/6` passed
+
+## Checkpoint: NpcFoundation-Backed Civilian Actors
+
+- Replaced the ad-hoc spawned civilian shell with the shared NPC foundation actor seam:
+  - `CivilianPopulationRuntimeBridge` now supports an authored `_npcActorPrefab`
+  - `MainTown` assigns `NpcFoundation.prefab` on the population bridge
+  - spawned civilians now preserve the shared NPC actor hierarchy/model/collider contract while still layering `MainTownPopulationSpawnedCivilian` metadata and `AmbientCitizenCapability`
+- Coverage updates:
+  - EditMode bridge coverage now proves `RebuildScenePopulation()` instantiates the assigned actor prefab and preserves its visual hierarchy while adding population metadata
+  - PlayMode `MainTown` coverage now proves starter civilians spawn from the authored NPC actor prefab rather than ad-hoc shell objects
+- Scope note:
+  - this is still not the final STYLE appearance pipeline
+  - civilians now use the shared NPC foundation body/model contract, but curated procedural body/clothes/hair assembly remains deferred
+
+## Verification
+
+- Focused checks:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenActorPrefabIsAssigned_InstantiatesActorPrefabWithPopulationMetadata`: `1/1` passed
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_LoadScene_AutomaticallySeedsAndBuildsStarterPopulation`: `1/1` passed
+- Regression sweep:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `15/15` passed
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `6/6` passed

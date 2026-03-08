@@ -35,8 +35,10 @@ namespace Reloader.World.Tests.PlayMode
             var bridgeType = typeof(CivilianPopulationRuntimeBridge);
             var definitionField = bridgeType.GetField("_populationDefinition", BindingFlags.Instance | BindingFlags.NonPublic);
             var libraryField = bridgeType.GetField("_appearanceLibrary", BindingFlags.Instance | BindingFlags.NonPublic);
+            var actorPrefabField = bridgeType.GetField("_npcActorPrefab", BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(definitionField, Is.Not.Null);
             Assert.That(libraryField, Is.Not.Null);
+            Assert.That(actorPrefabField, Is.Not.Null);
 
             var definition = definitionField!.GetValue(bridge);
             Assert.That(definition, Is.Not.Null, "Expected MainTown population definition asset to be assigned.");
@@ -59,6 +61,10 @@ namespace Reloader.World.Tests.PlayMode
 
             var library = libraryField!.GetValue(bridge);
             Assert.That(library, Is.Not.Null, "Expected starter appearance library data to be serialized on the bridge.");
+
+            var actorPrefab = actorPrefabField!.GetValue(bridge) as GameObject;
+            Assert.That(actorPrefab, Is.Not.Null, "Expected MainTown to assign an authored NPC actor prefab to the population bridge.");
+            Assert.That(actorPrefab!.GetComponent<NpcAgent>(), Is.Not.Null, "Expected the assigned actor prefab to carry the NPC foundation contract.");
 
             AssertArrayConfigured(library!, "BaseBodyIds");
             AssertArrayConfigured(library!, "PresentationTypes");
@@ -89,6 +95,8 @@ namespace Reloader.World.Tests.PlayMode
 
             var metadata = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
             Assert.That(metadata.Length, Is.EqualTo(4), "Expected every auto-spawned civilian to carry slot metadata.");
+            Assert.That(metadata.All(component => component.transform.Find("Body/NpcModel") != null), Is.True,
+                "Expected starter civilians to instantiate the authored NPC actor prefab instead of ad-hoc shell objects.");
 
             CollectionAssert.AreEquivalent(
                 new[] { "townsfolk.001", "quarry_workers.001", "hobos.001", "cops.001" },

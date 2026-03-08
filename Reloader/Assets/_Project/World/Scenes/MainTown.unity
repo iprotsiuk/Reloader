@@ -1551,6 +1551,7 @@ MonoBehaviour:
     _descriptionTags:
     - gray coat
     - work clothes
+  _npcActorPrefab: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
   _populationDefinition: {fileID: 11400000, guid: f83f91a4f953e4f21b37381ac153f96c, type: 2}
   _initialPopulationCount: 0
   _civilianIdPrefix: citizen.mainTown

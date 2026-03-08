@@ -14,6 +14,7 @@ namespace Reloader.NPCs.Runtime
         private const float MondayRefreshTimeOfDay = 8f;
 
         [SerializeField] private CivilianAppearanceLibrary _appearanceLibrary;
+        [SerializeField] private GameObject _npcActorPrefab;
         [SerializeField] private MainTownPopulationDefinition _populationDefinition;
         [SerializeField] private int _initialPopulationCount;
         [SerializeField] private string _civilianIdPrefix = "citizen.mainTown";
@@ -436,13 +437,49 @@ namespace Reloader.NPCs.Runtime
 
         private void SpawnPlaceholderCivilian(CivilianPopulationRecord record, Transform anchor)
         {
-            var civilian = new GameObject($"Civilian_{record.CivilianId}");
-            civilian.transform.SetParent(transform, false);
+            var civilian = CreateCivilianActor(record.CivilianId);
             civilian.transform.SetPositionAndRotation(anchor.position, anchor.rotation);
-            civilian.AddComponent<CapsuleCollider>();
-            civilian.AddComponent<NpcAgent>();
-            civilian.AddComponent<AmbientCitizenCapability>();
-            civilian.AddComponent<MainTownPopulationSpawnedCivilian>().Initialize(record);
+            EnsureCivilianActorComponents(civilian).Initialize(record);
+
+            var agent = civilian.GetComponent<NpcAgent>();
+            agent?.InitializeCapabilities();
+        }
+
+        private GameObject CreateCivilianActor(string civilianId)
+        {
+            var civilian = _npcActorPrefab != null
+                ? Instantiate(_npcActorPrefab, transform, false)
+                : new GameObject();
+
+            civilian.name = $"Civilian_{civilianId}";
+            civilian.transform.SetParent(transform, false);
+            return civilian;
+        }
+
+        private static MainTownPopulationSpawnedCivilian EnsureCivilianActorComponents(GameObject civilian)
+        {
+            if (civilian.GetComponent<CapsuleCollider>() == null && civilian.GetComponentInChildren<CapsuleCollider>(includeInactive: true) == null)
+            {
+                civilian.AddComponent<CapsuleCollider>();
+            }
+
+            if (civilian.GetComponent<NpcAgent>() == null)
+            {
+                civilian.AddComponent<NpcAgent>();
+            }
+
+            if (civilian.GetComponent<AmbientCitizenCapability>() == null)
+            {
+                civilian.AddComponent<AmbientCitizenCapability>();
+            }
+
+            var metadata = civilian.GetComponent<MainTownPopulationSpawnedCivilian>();
+            if (metadata == null)
+            {
+                metadata = civilian.AddComponent<MainTownPopulationSpawnedCivilian>();
+            }
+
+            return metadata;
         }
 
         private List<string> NormalizeSpawnAnchors()
