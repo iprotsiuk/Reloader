@@ -31,10 +31,10 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True, "Expected authored MainTown contract offer.");
             Assert.That(availableSnapshot.HasAvailableContract, Is.True);
             Assert.That(availableSnapshot.HasActiveContract, Is.False);
-            Assert.That(availableSnapshot.TargetId, Is.EqualTo("target.maintown.volkov"));
+            Assert.That(availableSnapshot.TargetId, Does.StartWith("citizen.mainTown."), "Expected MainTown to offer a live procedural civilian target on scene load.");
 
-            var targetRoot = GameObject.Find("ContractTarget_Volkov");
-            Assert.That(targetRoot, Is.Not.Null, "Expected authored contract target root in MainTown.");
+            var targetRoot = FindProceduralCivilianTarget(availableSnapshot.TargetId);
+            Assert.That(targetRoot, Is.Not.Null, "Expected the available contract target to resolve to a spawned procedural civilian.");
 
             var startingMoney = ReadEconomyMoney();
 
@@ -87,8 +87,8 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(availableSnapshot.HasAvailableContract, Is.True);
             Assert.That(availableSnapshot.CanAccept, Is.True);
 
-            var targetRoot = GameObject.Find("ContractTarget_Volkov");
-            Assert.That(targetRoot, Is.Not.Null, "Expected authored contract target root in MainTown.");
+            var targetRoot = FindProceduralCivilianTarget(availableSnapshot.TargetId);
+            Assert.That(targetRoot, Is.Not.Null, "Expected the available contract target to resolve to a spawned procedural civilian.");
 
             var startingMoney = ReadEconomyMoney();
 
@@ -118,77 +118,24 @@ namespace Reloader.World.Tests.PlayMode
             yield return LoadScene(MainTownSceneName);
             yield return null;
 
-            var populationRoot = GameObject.Find("MainTownPopulationRuntime");
-            Assert.That(populationRoot, Is.Not.Null, "Expected authored MainTown population runtime root.");
-
-            var bridge = populationRoot!.GetComponent<CivilianPopulationRuntimeBridge>();
-            Assert.That(bridge, Is.Not.Null, "Expected CivilianPopulationRuntimeBridge on MainTownPopulationRuntime.");
-
-            bridge!.Runtime.Civilians.Clear();
-            bridge.Runtime.PendingReplacements.Clear();
-            bridge.Runtime.Civilians.Add(CreateCivilianRecord(
-                civilianId: "citizen.mainTown.7001",
-                populationSlotId: "townsfolk.001",
-                poolId: "townsfolk",
-                spawnAnchorId: "Anchor_Townsfolk_01",
-                areaTag: "maintown.square"));
-
-            bridge.RebuildScenePopulation();
-            yield return null;
-
-            var spawned = populationRoot.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
-            Assert.That(spawned.Length, Is.EqualTo(1), "Expected one procedural civilian to rebuild into MainTown.");
-
-            var proceduralCivilian = spawned[0].gameObject;
-            var targetDamageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons");
-            Assert.That(targetDamageableType, Is.Not.Null, "Expected contract target damageable type to resolve.");
-
-            var targetDamageable = proceduralCivilian.GetComponent(targetDamageableType!);
-            Assert.That(targetDamageable, Is.Not.Null, "Expected procedural civilian to expose the existing contract-target damageable seam.");
-
-            const string expectedTargetId = "citizen.mainTown.7001";
-            Assert.That(GetProperty<string>(targetDamageable!, "TargetId"), Is.EqualTo(expectedTargetId));
-
             var providerRoot = GameObject.Find("MainTownContractRuntime");
             Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
 
             var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
             Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
 
-            SetAvailableContract(provider!, CreateContractDefinition(
-                contractId: "contract.procedural.maintown.7001",
-                targetId: expectedTargetId,
-                targetDisplayName: "citizen.mainTown.7001",
-                payout: 1500));
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+            Assert.That(availableSnapshot.HasAvailableContract, Is.True);
+            Assert.That(availableSnapshot.TargetId, Does.StartWith("citizen.mainTown."));
 
-            var startingMoney = ReadEconomyMoney();
+            var offeredTarget = FindProceduralCivilianTarget(availableSnapshot.TargetId);
+            Assert.That(offeredTarget, Is.Not.Null, "Expected the scene's available contract to target a spawned procedural civilian.");
 
-            Assert.That(provider.AcceptAvailableContract(), Is.True, "Expected runtime-authored procedural civilian contract to be accepted.");
-            Assert.That(provider.TryGetContractSnapshot(out var activeSnapshot), Is.True);
-            Assert.That(activeSnapshot.HasActiveContract, Is.True);
-            Assert.That(activeSnapshot.TargetId, Is.EqualTo(expectedTargetId));
-
-            ApplyLethalDamage(proceduralCivilian);
-            yield return null;
-
-            var runtime = GetRuntime(provider);
-            Assert.That(ReadActiveContract(runtime), Is.Not.Null, "Target elimination should keep the procedural contract active until payout resolves.");
-            Assert.That(proceduralCivilian.activeSelf, Is.False, "Procedural contract target should disable itself after the lethal hit.");
-            Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
-            Assert.That(ReadEconomyMoney(), Is.EqualTo(startingMoney));
-
-            provider.AdvanceRuntime(31f);
-            yield return null;
-
-            Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Clear));
-            Assert.That(provider.TryGetContractSnapshot(out var readySnapshot), Is.True);
-            Assert.That(readySnapshot.StatusText, Is.EqualTo("Ready to claim"));
-            Assert.That(readySnapshot.CanClaimReward, Is.True);
-
-            Assert.That(provider.ClaimCompletedContractReward(), Is.True);
-            Assert.That(ReadActiveContract(runtime), Is.Null);
-            Assert.That(provider.TryGetContractSnapshot(out _), Is.False);
-            Assert.That(ReadEconomyMoney(), Is.EqualTo(startingMoney + 1500));
+            var targetDamageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons");
+            Assert.That(targetDamageableType, Is.Not.Null, "Expected contract target damageable type to resolve.");
+            var targetDamageable = offeredTarget!.GetComponent(targetDamageableType!);
+            Assert.That(targetDamageable, Is.Not.Null, "Expected procedural offer target to expose the existing contract-target damageable seam.");
+            Assert.That(GetProperty<string>(targetDamageable!, "TargetId"), Is.EqualTo(availableSnapshot.TargetId));
         }
 
         private static ContractEscapeResolutionRuntime GetRuntime(StaticContractRuntimeProvider provider)
@@ -231,51 +178,6 @@ namespace Reloader.World.Tests.PlayMode
             return (int)moneyProperty!.GetValue(runtime)!;
         }
 
-        private static UnityEngine.Object CreateContractDefinition(
-            string contractId,
-            string targetId,
-            string targetDisplayName,
-            int payout)
-        {
-            var definitionType = Type.GetType("Reloader.Contracts.Runtime.AssassinationContractDefinition, Reloader.Contracts");
-            Assert.That(definitionType, Is.Not.Null, "Expected AssassinationContractDefinition type to resolve.");
-
-            var definition = ScriptableObject.CreateInstance(definitionType!);
-            Assert.That(definition, Is.Not.Null, "Expected procedural contract definition to be created.");
-
-            SetPrivateField(definitionType!, definition!, "_contractId", contractId);
-            SetPrivateField(definitionType!, definition!, "_targetId", targetId);
-            SetPrivateField(definitionType!, definition!, "_title", "Procedural Target");
-            SetPrivateField(definitionType!, definition!, "_targetDisplayName", targetDisplayName);
-            SetPrivateField(definitionType!, definition!, "_targetDescription", "Procedural civilian target");
-            SetPrivateField(definitionType!, definition!, "_briefingText", "Locate and eliminate the procedural target.");
-            SetPrivateField(definitionType!, definition!, "_distanceBand", 85f);
-            SetPrivateField(definitionType!, definition!, "_payout", payout);
-            return definition;
-        }
-
-        private static CivilianPopulationRecord CreateCivilianRecord(
-            string civilianId,
-            string populationSlotId,
-            string poolId,
-            string spawnAnchorId,
-            string areaTag)
-        {
-            return new CivilianPopulationRecord
-            {
-                CivilianId = civilianId,
-                PopulationSlotId = populationSlotId,
-                PoolId = poolId,
-                SpawnAnchorId = spawnAnchorId,
-                AreaTag = areaTag,
-                IsAlive = true,
-                IsContractEligible = true,
-                IsProtectedFromContracts = false,
-                CreatedAtDay = 0,
-                RetiredAtDay = -1
-            };
-        }
-
         private static void ApplyLethalDamage(GameObject targetRoot)
         {
             var damageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons");
@@ -301,13 +203,6 @@ namespace Reloader.World.Tests.PlayMode
             applyDamageMethod!.Invoke(damageable, new[] { payload });
         }
 
-        private static void SetPrivateField(Type targetType, object instance, string fieldName, object value)
-        {
-            var field = targetType.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.That(field, Is.Not.Null, $"Expected private field '{fieldName}' on {targetType.Name}.");
-            field!.SetValue(instance, value);
-        }
-
         private static T GetProperty<T>(object instance, string propertyName)
         {
             var property = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
@@ -315,11 +210,21 @@ namespace Reloader.World.Tests.PlayMode
             return (T)property!.GetValue(instance)!;
         }
 
-        private static void SetAvailableContract(StaticContractRuntimeProvider provider, UnityEngine.Object definition)
+        private static GameObject FindProceduralCivilianTarget(string targetId)
         {
-            var method = typeof(StaticContractRuntimeProvider).GetMethod("SetAvailableContract", BindingFlags.Instance | BindingFlags.Public);
-            Assert.That(method, Is.Not.Null, "Expected StaticContractRuntimeProvider.SetAvailableContract().");
-            method!.Invoke(provider, new object[] { definition });
+            var populationRoot = GameObject.Find("MainTownPopulationRuntime");
+            Assert.That(populationRoot, Is.Not.Null, "Expected authored MainTown population runtime root.");
+
+            var spawned = populationRoot!.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            for (var i = 0; i < spawned.Length; i++)
+            {
+                if (string.Equals(spawned[i].CivilianId, targetId, StringComparison.Ordinal))
+                {
+                    return spawned[i].gameObject;
+                }
+            }
+
+            return null;
         }
 
         private static IEnumerator LoadScene(string sceneName)

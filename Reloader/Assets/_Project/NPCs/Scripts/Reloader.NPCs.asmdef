@@ -2,6 +2,7 @@
   "name": "Reloader.NPCs",
   "rootNamespace": "Reloader.NPCs",
   "references": [
+    "Reloader.Contracts",
     "Reloader.Core",
     "Reloader.Player",
     "Reloader.Weapons",

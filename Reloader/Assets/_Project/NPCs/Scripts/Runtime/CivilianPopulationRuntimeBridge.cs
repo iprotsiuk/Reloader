@@ -16,6 +16,7 @@ namespace Reloader.NPCs.Runtime
         private const float MondayRefreshTimeOfDay = 8f;
         private const float ProceduralContractTargetDistanceMeters = 85f;
         private const float ProceduralContractTargetHealth = 15f;
+        private const int ProceduralContractPayout = 1500;
 
         [SerializeField] private CivilianAppearanceLibrary _appearanceLibrary;
         [SerializeField] private GameObject _npcActorPrefab;
@@ -28,6 +29,7 @@ namespace Reloader.NPCs.Runtime
         private readonly CivilianAppearanceGenerator _generator = new CivilianAppearanceGenerator();
         private CoreWorldController _coreWorldController;
         private CoreWorldController _subscribedCoreWorldController;
+        private AssassinationContractDefinition _proceduralAvailableContract;
         private int _lastObservedWorldDayCount = -1;
         private float _lastObservedWorldTimeOfDay = -1f;
 
@@ -154,6 +156,8 @@ namespace Reloader.NPCs.Runtime
 
                 SpawnPlaceholderCivilian(record, anchor);
             }
+
+            RefreshProceduralContractOffer();
         }
 
         public int ExecutePendingReplacements(int currentDay, float currentTimeOfDay)
@@ -549,6 +553,86 @@ namespace Reloader.NPCs.Runtime
             }
 
             return null;
+        }
+
+        private void RefreshProceduralContractOffer()
+        {
+            var provider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
+            if (provider == null)
+            {
+                return;
+            }
+
+            if (provider.TryGetContractSnapshot(out var snapshot) && snapshot.HasActiveContract)
+            {
+                return;
+            }
+
+            var target = FindFirstEligibleContractCivilian();
+            if (target == null)
+            {
+                return;
+            }
+
+            if (provider.TryGetContractSnapshot(out snapshot) &&
+                snapshot.HasAvailableContract &&
+                string.Equals(snapshot.TargetId, target.CivilianId, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            if (_proceduralAvailableContract == null)
+            {
+                _proceduralAvailableContract = ScriptableObject.CreateInstance<AssassinationContractDefinition>();
+            }
+
+            _proceduralAvailableContract.ConfigureRuntimeOffer(
+                contractId: $"contract.maintown.procedural.{target.CivilianId}",
+                targetId: target.CivilianId,
+                title: "MainTown Contract",
+                targetDisplayName: target.CivilianId,
+                targetDescription: BuildProceduralTargetDescription(target),
+                briefingText: "Locate and eliminate the live procedural target in MainTown.",
+                distanceBand: ProceduralContractTargetDistanceMeters,
+                payout: ProceduralContractPayout);
+
+            provider.SetAvailableContract(_proceduralAvailableContract);
+        }
+
+        private CivilianPopulationRecord FindFirstEligibleContractCivilian()
+        {
+            for (var i = 0; i < _runtime.Civilians.Count; i++)
+            {
+                var record = _runtime.Civilians[i];
+                if (record == null || !record.IsAlive || !record.IsContractEligible || record.IsProtectedFromContracts)
+                {
+                    continue;
+                }
+
+                return record;
+            }
+
+            return null;
+        }
+
+        private static string BuildProceduralTargetDescription(CivilianPopulationRecord record)
+        {
+            if (record == null)
+            {
+                return string.Empty;
+            }
+
+            if (record.GeneratedDescriptionTags != null && record.GeneratedDescriptionTags.Count > 0)
+            {
+                return string.Join(", ", record.GeneratedDescriptionTags);
+            }
+
+            if (!string.IsNullOrWhiteSpace(record.PoolId) && !string.IsNullOrWhiteSpace(record.AreaTag))
+            {
+                return $"{record.PoolId} in {record.AreaTag}";
+            }
+
+            return record.AreaTag ?? string.Empty;
         }
 
         private List<string> NormalizeSpawnAnchors()

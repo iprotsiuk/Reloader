@@ -481,62 +481,50 @@ The next slice should formalize the actual Monday `08:00` scheduler rule on top 
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-contract-full.xml tmp/maintown-population-infra-contract-full.log`: `6/6` passed
   - `bash scripts/run-unity-tests.sh playmode Reloader.Weapons.Tests.PlayMode.ContractTargetDamageablePlayModeTests tmp/contract-target-damageable-full.xml tmp/contract-target-damageable-full.log`: `2/2` passed
 
-## Checkpoint: Replacement Anchor Consistency Coverage
-
-- Added regression coverage for the stable-anchor contract on slot replacements:
-  - save-module validation now proves pending replacement debt is invalid when its `SpawnAnchorId` differs from the vacated civilian's authored anchor
-  - runtime bridge coverage now proves replacement execution keeps the vacated civilian anchor even if malformed in-memory debt carries a different anchor id
-- Scope note:
-  - this checkpoint adds coverage only
-  - no production behavior changed because the anchor-consistency guard was already present in the save/runtime path
-
-## Verification
-
-- `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-save-anchor-full.xml tmp/civilian-save-anchor-full.log`: `12/12` passed
-- `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-anchor-full.xml tmp/civilian-runtime-anchor-full.log`: `19/19` passed
-
 ## Checkpoint: Replacement Anchor Drift Guard
 
 - Addressed the new PR review thread on slot-anchor drift during replacement execution:
   - `CivilianPopulationModule.ValidateModuleState()` now rejects pending replacement debt when `spawnAnchorId` does not match the referenced dead civilian anchor
   - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` now always rebuilds the replacement civilian from the vacated civilian anchor instead of trusting the debt record anchor
-  - this keeps `populationSlotId` and authored anchor ownership aligned, even if malformed debt is injected after load
+  - this keeps `populationSlotId` and authored anchor ownership aligned even if malformed debt is injected after load
 - Coverage updates:
   - save-module validation now fails fast on mismatched debt-anchor state
-  - bridge runtime tests now prove matured malformed debt cannot migrate a replacement into the wrong authored anchor
+  - bridge runtime tests now prove malformed debt cannot migrate a replacement into the wrong authored anchor
 - Scope note:
   - this is slot-authority hardening only
   - no contract-generation, appearance-pipeline, or routine-behavior changes were added here
 
 ## Verification
 
-- Red step:
-  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests.CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementWhenSpawnAnchorDiffersFromVacatedCivilian tmp/civilian-save-anchor-drift-red.xml tmp/civilian-save-anchor-drift-red.log`
-  - `tmp/civilian-save-anchor-drift-red.xml`: `0/1` passed
-  - failing assertion: validation accepted pending debt whose `spawnAnchorId` drifted from the dead civilian anchor
-  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenDebtAnchorDiffersFromVacatedCivilian_UsesVacatedCivilianAnchor tmp/civilian-runtime-anchor-drift-red.xml tmp/civilian-runtime-anchor-drift-red.log`
-  - `tmp/civilian-runtime-anchor-drift-red.xml`: `0/1` passed
-  - failing assertion: runtime replacement still used `Anchor_Townsfolk_Drift` instead of the vacated slot anchor
-- Green step:
-  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests.CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementWhenSpawnAnchorDiffersFromVacatedCivilian tmp/civilian-save-anchor-drift-green.xml tmp/civilian-save-anchor-drift-green.log`: `1/1` passed
-  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenDebtAnchorDiffersFromVacatedCivilian_UsesVacatedCivilianAnchor tmp/civilian-runtime-anchor-drift-green.xml tmp/civilian-runtime-anchor-drift-green.log`: `1/1` passed
-- Regression sweep:
-  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-save-anchor-drift-full.xml tmp/civilian-save-anchor-drift-full.log`: `13/13` passed
-  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-anchor-drift-full.xml tmp/civilian-runtime-anchor-drift-full.log`: `19/19` passed
-  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-anchor-drift-full.xml tmp/maintown-population-infra-anchor-drift-full.log`: `6/6` passed
+- `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests.CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementWhenSpawnAnchorDiffersFromVacatedCivilian tmp/civilian-save-anchor-green.xml tmp/civilian-save-anchor-green.log`: `1/1` passed
+- `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenDebtAnchorDiffersFromVacatedCivilian_UsesVacatedCivilianAnchor tmp/civilian-runtime-anchor-green.xml tmp/civilian-runtime-anchor-green.log`: `1/1` passed
+- `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-save-anchor-full.xml tmp/civilian-save-anchor-full.log`: `13/13` passed
+- `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-anchor-full.xml tmp/civilian-runtime-anchor-full.log`: `19/19` passed
+- `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-anchor-full.xml tmp/maintown-population-infra-anchor-full.log`: `6/6` passed
 
-## Checkpoint: Replacement Anchor Stability Regression
+## Checkpoint: Procedural MainTown Contract Offer Source
 
-- Evaluated the new PR review comment about replacement debt drifting a slot to the wrong anchor.
-- Verified the current runtime path already uses the vacated civilian anchor when minting replacements:
-  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` creates the new civilian from `vacated.SpawnAnchorId`
-  - this means malformed debt payloads do not migrate a slot during replacement execution even if the queued debt carries a different `SpawnAnchorId`
-- Added focused regression coverage instead of more production logic:
-  - `CivilianPopulationRuntimeBridgeTests` now proves replacement execution keeps the vacated anchor even when the queued debt anchor disagrees
+- Moved the live `MainTown` contract offer source from the old authored target asset to the population bridge:
+  - `CivilianPopulationRuntimeBridge.RebuildScenePopulation()` now refreshes the scene's available contract from the live population after rebuilding civilians
+  - the bridge selects the first live contract-eligible civilian, keeps `civilianId` as the contract `targetId`, and pushes a transient runtime `AssassinationContractDefinition` into `StaticContractRuntimeProvider`
+  - `AssassinationContractDefinition` now exposes `ConfigureRuntimeOffer(...)` so runtime-generated offers no longer need reflection to populate contract data
+  - the old authored MainTown contract asset remains serialized as fallback authoring data, but fresh runtime behavior now overrides it with a procedural civilian offer
+- Coverage updates:
+  - `MainTownContractSlicePlayModeTests` now assert that fresh `MainTown` load surfaces a live procedural civilian offer instead of `target.maintown.volkov`
+  - the existing accept -> eliminate -> search clears -> explicit claim flow still passes end-to-end against the procedurally offered civilian target
 - Scope note:
-  - no production code change was required for this review follow-up
-  - save validation still allows redundant debt anchor drift metadata today, but runtime replacement already preserves stable slot/anchor behavior
+  - offer selection is deterministic-first, not yet weighted or content-varied
+  - offer refresh currently rides on population rebuilds, not a richer board/scheduler refresh contract
+  - active-contract save/load against procedurally offered civilians remains a later slice
 
 ## Verification
 
-- `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenDebtAnchorDiffersFromVacatedCivilian_UsesVacatedCivilianAnchor tmp/civilian-runtime-anchor-red.xml tmp/civilian-runtime-anchor-red.log`: `1/1` passed
+- Red step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-procedural-offer-red.xml tmp/maintown-contract-procedural-offer-red.log`
+  - `tmp/maintown-contract-procedural-offer-red.xml`: `0/3` passed
+  - failing assertions: fresh `MainTown` load still surfaced the authored `target.maintown.volkov` offer instead of a live procedural civilian target
+- Green step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-procedural-offer-green.xml tmp/maintown-contract-procedural-offer-green.log`: `3/3` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-procedural-offer-full.xml tmp/civilian-runtime-bridge-procedural-offer-full.log`: `19/19` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-procedural-offer-full.xml tmp/maintown-population-infra-procedural-offer-full.log`: `6/6` passed
