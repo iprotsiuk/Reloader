@@ -208,7 +208,7 @@ namespace Reloader.NPCs.Runtime
                     _appearanceLibrary,
                     civilianId,
                     createdAtDay: normalizedDay,
-                    replacement.SpawnAnchorId,
+                    vacated.SpawnAnchorId,
                     seed,
                     isContractEligible: !vacated.IsProtectedFromContracts,
                     populationSlotId: vacated.PopulationSlotId,

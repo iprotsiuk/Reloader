@@ -190,6 +190,12 @@ namespace Reloader.Core.Save.Modules
                     throw new InvalidOperationException(
                         $"CivilianPopulation duplicate pendingReplacement populationSlotId '{vacatedCivilian.PopulationSlotId}'.");
                 }
+
+                if (!string.Equals(record.SpawnAnchorId, vacatedCivilian.SpawnAnchorId, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"CivilianPopulation pendingReplacements[{i}].spawnAnchorId '{record.SpawnAnchorId}' does not match dead civilian '{record.VacatedCivilianId}' anchor '{vacatedCivilian.SpawnAnchorId}'.");
+                }
             }
         }
 

@@ -480,3 +480,49 @@ The next slice should formalize the actual Monday `08:00` scheduler rule on top 
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-slice-full.xml tmp/maintown-contract-slice-full.log`: `3/3` passed
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-contract-full.xml tmp/maintown-population-infra-contract-full.log`: `6/6` passed
   - `bash scripts/run-unity-tests.sh playmode Reloader.Weapons.Tests.PlayMode.ContractTargetDamageablePlayModeTests tmp/contract-target-damageable-full.xml tmp/contract-target-damageable-full.log`: `2/2` passed
+
+## Checkpoint: Replacement Anchor Drift Guard
+
+- Addressed the new PR review thread on slot-anchor drift during replacement execution:
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects pending replacement debt when `spawnAnchorId` does not match the referenced dead civilian anchor
+  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` now always rebuilds the replacement civilian from the vacated civilian anchor instead of trusting the debt record anchor
+  - this keeps `populationSlotId` and authored anchor ownership aligned, even if malformed debt is injected after load
+- Coverage updates:
+  - save-module validation now fails fast on mismatched debt-anchor state
+  - bridge runtime tests now prove matured malformed debt cannot migrate a replacement into the wrong authored anchor
+- Scope note:
+  - this is slot-authority hardening only
+  - no contract-generation, appearance-pipeline, or routine-behavior changes were added here
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests.CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementWhenSpawnAnchorDiffersFromVacatedCivilian tmp/civilian-save-anchor-drift-red.xml tmp/civilian-save-anchor-drift-red.log`
+  - `tmp/civilian-save-anchor-drift-red.xml`: `0/1` passed
+  - failing assertion: validation accepted pending debt whose `spawnAnchorId` drifted from the dead civilian anchor
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenDebtAnchorDiffersFromVacatedCivilian_UsesVacatedCivilianAnchor tmp/civilian-runtime-anchor-drift-red.xml tmp/civilian-runtime-anchor-drift-red.log`
+  - `tmp/civilian-runtime-anchor-drift-red.xml`: `0/1` passed
+  - failing assertion: runtime replacement still used `Anchor_Townsfolk_Drift` instead of the vacated slot anchor
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests.CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementWhenSpawnAnchorDiffersFromVacatedCivilian tmp/civilian-save-anchor-drift-green.xml tmp/civilian-save-anchor-drift-green.log`: `1/1` passed
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenDebtAnchorDiffersFromVacatedCivilian_UsesVacatedCivilianAnchor tmp/civilian-runtime-anchor-drift-green.xml tmp/civilian-runtime-anchor-drift-green.log`: `1/1` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-save-anchor-drift-full.xml tmp/civilian-save-anchor-drift-full.log`: `13/13` passed
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-anchor-drift-full.xml tmp/civilian-runtime-anchor-drift-full.log`: `19/19` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-anchor-drift-full.xml tmp/maintown-population-infra-anchor-drift-full.log`: `6/6` passed
+
+## Checkpoint: Replacement Anchor Stability Regression
+
+- Evaluated the new PR review comment about replacement debt drifting a slot to the wrong anchor.
+- Verified the current runtime path already uses the vacated civilian anchor when minting replacements:
+  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` creates the new civilian from `vacated.SpawnAnchorId`
+  - this means malformed debt payloads do not migrate a slot during replacement execution even if the queued debt carries a different `SpawnAnchorId`
+- Added focused regression coverage instead of more production logic:
+  - `CivilianPopulationRuntimeBridgeTests` now proves replacement execution keeps the vacated anchor even when the queued debt anchor disagrees
+- Scope note:
+  - no production code change was required for this review follow-up
+  - save validation still allows redundant debt anchor drift metadata today, but runtime replacement already preserves stable slot/anchor behavior
+
+## Verification
+
+- `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenDebtAnchorDiffersFromVacatedCivilian_UsesVacatedCivilianAnchor tmp/civilian-runtime-anchor-red.xml tmp/civilian-runtime-anchor-red.log`: `1/1` passed

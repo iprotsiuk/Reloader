@@ -1022,6 +1022,54 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
+        [Test]
+        public void ExecutePendingReplacements_WhenDebtAnchorDiffersFromVacatedCivilian_UsesVacatedCivilianAnchor()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_Townsfolk_06", new Vector3(6f, 0f, 0f));
+            CreateAnchor(go.transform, "Anchor_Townsfolk_Drift", new Vector3(12f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0080",
+                    populationSlotId: "townsfolk.080",
+                    spawnAnchorId: "Anchor_Townsfolk_06",
+                    isAlive: false,
+                    retiredAtDay: 9));
+                bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.0080",
+                    QueuedAtDay = 9,
+                    SpawnAnchorId = "Anchor_Townsfolk_Drift"
+                });
+
+                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 14, currentTimeOfDay: 8f);
+
+                Assert.That(replacedCount, Is.EqualTo(1));
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0));
+
+                var replacement = bridge.Runtime.Civilians[1];
+                Assert.That(replacement.SpawnAnchorId, Is.EqualTo("Anchor_Townsfolk_06"), "Expected stable slot replacements to keep the vacated civilian anchor.");
+
+                var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(spawned.Length, Is.EqualTo(1));
+                Assert.That(spawned[0].transform.position, Is.EqualTo(new Vector3(6f, 0f, 0f)));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
         private static CivilianAppearanceLibrary CreateLibrary()
         {
             return new CivilianAppearanceLibrary
