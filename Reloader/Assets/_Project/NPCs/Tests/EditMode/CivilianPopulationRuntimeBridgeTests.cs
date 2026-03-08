@@ -227,10 +227,12 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
-        public void RebuildScenePopulation_WhenCivilianIsContractEligible_AddsContractTargetDamageableUsingCivilianId()
+        public void RebuildScenePopulation_WhenProceduralOfferIsPublished_AddsContractTargetDamageableOnlyToOfferedCivilian()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");
             var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
             CreateAnchor(go.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
             CreateAnchor(go.transform, "Anchor_B", new Vector3(3f, 0f, 0f));
 
@@ -252,13 +254,13 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0102",
-                    PopulationSlotId = "cops.101",
-                    PoolId = "cops",
+                    PopulationSlotId = "townsfolk.102",
+                    PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_B",
-                    AreaTag = "maintown.watch",
+                    AreaTag = "maintown.square",
                     IsAlive = true,
-                    IsContractEligible = false,
-                    IsProtectedFromContracts = true,
+                    IsContractEligible = true,
+                    IsProtectedFromContracts = false,
                     BaseBodyId = "body.male.a",
                     PresentationType = "masculine",
                     HairId = "hair.short.01",
@@ -275,24 +277,28 @@ namespace Reloader.NPCs.Tests.EditMode
 
                 bridge.RebuildScenePopulation();
 
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True, "Expected rebuild to publish a procedural contract offer.");
+                Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0101"));
+
                 var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
-                var eligibleSpawn = spawned.Single(component => component.CivilianId == "citizen.mainTown.0101");
-                var ineligibleSpawn = spawned.Single(component => component.CivilianId == "citizen.mainTown.0102");
+                var offeredSpawn = spawned.Single(component => component.CivilianId == snapshot.TargetId);
+                var nonOfferedSpawn = spawned.Single(component => component.CivilianId == "citizen.mainTown.0102");
 
                 var damageableType = System.Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons", throwOnError: false);
                 Assert.That(damageableType, Is.Not.Null, "Expected contract target damageable type to exist.");
 
-                var eligibleDamageable = eligibleSpawn.GetComponent(damageableType!);
-                Assert.That(eligibleDamageable, Is.Not.Null, "Expected contract-eligible civilians to expose the existing contract target damageable.");
+                var offeredDamageable = offeredSpawn.GetComponent(damageableType!);
+                Assert.That(offeredDamageable, Is.Not.Null, "Expected the published procedural target to expose the existing contract target damageable.");
 
                 var targetIdProperty = damageableType!.GetProperty("TargetId", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
                 Assert.That(targetIdProperty, Is.Not.Null);
-                Assert.That((string)targetIdProperty!.GetValue(eligibleDamageable)!, Is.EqualTo("citizen.mainTown.0101"));
+                Assert.That((string)targetIdProperty!.GetValue(offeredDamageable)!, Is.EqualTo("citizen.mainTown.0101"));
 
-                Assert.That(ineligibleSpawn.GetComponent(damageableType!), Is.Null, "Expected protected/ineligible civilians to stay outside the contract target path.");
+                Assert.That(nonOfferedSpawn.GetComponent(damageableType!), Is.Null, "Expected non-offered civilians to stay outside the contract target path while idle.");
             }
             finally
             {
+                Object.DestroyImmediate(providerGo);
                 Object.DestroyImmediate(go);
             }
         }
@@ -332,6 +338,63 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.RebuildScenePopulation();
 
                 Assert.That(provider.TryGetContractSnapshot(out _), Is.False, "Expected the bridge to clear stale procedural offers when no eligible civilians remain.");
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenMultipleEligibleCiviliansExist_OnlyOfferedCivilianGetsContractTargetDamageable()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            CreateAnchor(bridgeGo.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+            CreateAnchor(bridgeGo.transform, "Anchor_B", new Vector3(3f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0401",
+                    populationSlotId: "townsfolk.401",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0402",
+                    populationSlotId: "townsfolk.402",
+                    spawnAnchorId: "Anchor_B",
+                    isAlive: true,
+                    retiredAtDay: -1));
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True);
+                Assert.That(snapshot.HasAvailableContract, Is.True);
+
+                var spawned = bridgeGo.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                var offeredSpawn = spawned.Single(component => component.CivilianId == snapshot.TargetId);
+                var nonOfferedSpawn = spawned.Single(component => component.CivilianId != snapshot.TargetId);
+
+                var damageableType = System.Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons", throwOnError: false);
+                Assert.That(damageableType, Is.Not.Null, "Expected contract target damageable type to exist.");
+
+                Assert.That(offeredSpawn.GetComponent(damageableType!), Is.Not.Null,
+                    "Expected the currently offered civilian to expose the contract-target seam.");
+                Assert.That(nonOfferedSpawn.GetComponent(damageableType!), Is.Null,
+                    "Expected non-offered civilians to stay outside the contract-target seam while idle.");
             }
             finally
             {

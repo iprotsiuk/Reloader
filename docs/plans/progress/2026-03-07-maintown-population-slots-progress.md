@@ -706,3 +706,31 @@ The next slice should formalize the actual Monday `08:00` scheduler rule on top 
   - `Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests`: `6/6` passed
   - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `22/22` passed
 - `git diff --check`: clean
+
+## Checkpoint: Offered-Target-Only Damageable Gate
+
+- Addressed the new PR review follow-up on idle unmatched procedural kills:
+  - `CivilianPopulationRuntimeBridge` no longer adds `ContractTargetDamageable` during raw civilian spawn
+  - after procedural offer refresh, the bridge now attaches the damageable seam only to the currently offered or active contract civilian resolved from `StaticContractRuntimeProvider`
+  - idle non-offered civilians still rebuild into the scene, but they no longer expose the contract-target kill path that could retire them without police search/heat
+- Added focused regression coverage for that contract seam:
+  - EditMode bridge coverage now proves that when multiple civilians are eligible, only the offered civilian exposes `ContractTargetDamageable`
+  - PlayMode `MainTown` coverage now proves an idle non-offered procedural civilian in the authored scene does not expose the contract-target seam
+- Scope note:
+  - this is review-driven contract-target gating only
+  - it does not change offer selection order, payout flow, or replacement scheduling
+
+## Verification
+
+- Red step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenMultipleEligibleCiviliansExist_OnlyOfferedCivilianGetsContractTargetDamageable`: `0/1` passed
+      - failing assertion: non-offered civilian still exposed `ContractTargetDamageable`
+- Green step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenMultipleEligibleCiviliansExist_OnlyOfferedCivilianGetsContractTargetDamageable`: `1/1` passed
+- Regression sweep:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `23/23` passed
+    - `Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests`: `7/7` passed
+- `git diff --check`: clean

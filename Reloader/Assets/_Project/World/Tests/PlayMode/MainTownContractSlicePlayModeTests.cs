@@ -142,6 +142,38 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator MainTownContractSlice_WhenIdle_NonOfferedProceduralCivilianDoesNotExposeContractTargetDamageable()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+            Assert.That(availableSnapshot.TargetId, Does.StartWith("citizen.mainTown."));
+
+            var bridge = FindPopulationBridge();
+            var nonOfferedCivilian = bridge.Runtime.Civilians
+                .Find(record => record != null
+                    && record.IsAlive
+                    && record.IsContractEligible
+                    && !record.IsProtectedFromContracts
+                    && !string.Equals(record.CivilianId, availableSnapshot.TargetId, StringComparison.Ordinal));
+            Assert.That(nonOfferedCivilian, Is.Not.Null, "Expected MainTown starter population to include another live eligible civilian besides the offered target.");
+
+            Assert.That(bridge.TryResolveSpawnedCivilian(nonOfferedCivilian!.CivilianId, out var spawnedCivilian), Is.True);
+            Assert.That(spawnedCivilian, Is.Not.Null, "Expected the non-offered civilian to be present in the scene.");
+
+            var damageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons");
+            Assert.That(damageableType, Is.Not.Null, "Expected contract target damageable type to resolve.");
+            Assert.That(spawnedCivilian!.GetComponent(damageableType!), Is.Null,
+                "Expected idle non-offered civilians to stay outside the contract-target seam.");
+        }
+
+        [UnityTest]
         public IEnumerator MainTownContractSlice_TargetEliminatedBeforeAccept_RebuildPublishesDifferentLiveTarget()
         {
             yield return LoadScene(MainTownSceneName);

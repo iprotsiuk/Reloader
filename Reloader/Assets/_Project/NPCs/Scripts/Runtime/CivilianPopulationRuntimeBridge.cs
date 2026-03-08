@@ -158,6 +158,7 @@ namespace Reloader.NPCs.Runtime
             }
 
             RefreshProceduralContractOffer();
+            RefreshContractTargetDamageables();
         }
 
         public bool TryResolveSpawnedCivilian(string civilianId, out MainTownPopulationSpawnedCivilian civilian)
@@ -518,7 +519,6 @@ namespace Reloader.NPCs.Runtime
             var civilian = CreateCivilianActor(record.CivilianId);
             civilian.transform.SetPositionAndRotation(anchor.position, anchor.rotation);
             EnsureCivilianActorComponents(civilian).Initialize(record);
-            ConfigureContractTargetIfEligible(civilian, record);
 
             var agent = civilian.GetComponent<NpcAgent>();
             agent?.InitializeCapabilities();
@@ -616,6 +616,35 @@ namespace Reloader.NPCs.Runtime
             return null;
         }
 
+        private void RefreshContractTargetDamageables()
+        {
+            var trackedTargetId = ResolveTrackedContractTargetId();
+            var spawned = GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            for (var i = 0; i < spawned.Length; i++)
+            {
+                var metadata = spawned[i];
+                if (metadata == null)
+                {
+                    continue;
+                }
+
+                var damageable = metadata.GetComponent<ContractTargetDamageable>();
+                if (string.IsNullOrWhiteSpace(trackedTargetId) ||
+                    !string.Equals(metadata.CivilianId, trackedTargetId, StringComparison.Ordinal))
+                {
+                    if (damageable != null)
+                    {
+                        DestroyImmediate(damageable);
+                    }
+
+                    continue;
+                }
+
+                var record = FindCivilianById(metadata.CivilianId);
+                ConfigureContractTargetIfEligible(metadata.gameObject, record);
+            }
+        }
+
         private void RefreshProceduralContractOffer()
         {
             var provider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
@@ -663,6 +692,22 @@ namespace Reloader.NPCs.Runtime
                 payout: ProceduralContractPayout);
 
             provider.SetAvailableContract(_proceduralAvailableContract);
+        }
+
+        private static string ResolveTrackedContractTargetId()
+        {
+            var provider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
+            if (provider == null || !provider.TryGetContractSnapshot(out var snapshot))
+            {
+                return string.Empty;
+            }
+
+            if (snapshot.HasActiveContract || snapshot.HasAvailableContract)
+            {
+                return snapshot.TargetId ?? string.Empty;
+            }
+
+            return string.Empty;
         }
 
         private CivilianPopulationRecord FindFirstEligibleContractCivilian()
