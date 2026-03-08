@@ -115,6 +115,27 @@ namespace Reloader.UI.Tests.EditMode
             Assert.That(workspace.style.marginRight.value.value, Is.EqualTo(0f));
         }
 
+        [Test]
+        public void Initialize_WhenContractsSectionFallsBack_CreatesTrackingLabelBesideStatus()
+        {
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+
+            binder.Initialize(root, beltSlotCount: 0, backpackSlotCount: 0);
+
+            var questsSection = root.Q<VisualElement>("inventory__section-quests");
+            var statusRow = questsSection?.Q<VisualElement>("inventory__contracts-status-row");
+            var statusLabel = questsSection?.Q<Label>("inventory__contracts-status");
+            var trackingLabel = questsSection?.Q<Label>("inventory__contracts-tracking");
+
+            Assert.That(questsSection, Is.Not.Null);
+            Assert.That(statusRow, Is.Not.Null);
+            Assert.That(statusLabel, Is.Not.Null);
+            Assert.That(trackingLabel, Is.Not.Null);
+            Assert.That(statusLabel.parent, Is.SameAs(statusRow));
+            Assert.That(trackingLabel.parent, Is.SameAs(statusRow));
+        }
+
         private static void InvokeApplyResponsiveLayout(TabInventoryViewBinder binder)
         {
             var method = typeof(TabInventoryViewBinder).GetMethod("ApplyResponsiveLayout", BindingFlags.Instance | BindingFlags.NonPublic);

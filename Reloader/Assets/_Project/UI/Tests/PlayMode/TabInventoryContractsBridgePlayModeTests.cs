@@ -176,7 +176,7 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
-        public void RuntimeBridge_BindTabInventory_WhenProceduralContractIsActive_ShowsCompactDeviceTrackingStatus()
+        public void RuntimeBridge_BindTabInventory_WhenProceduralContractIsActive_ExposesCompactContractTrackingStatus()
         {
             var definitionType = Type.GetType("Reloader.Contracts.Runtime.AssassinationContractDefinition, Reloader.Contracts");
             var providerType = Type.GetType("Reloader.Contracts.Runtime.StaticContractRuntimeProvider, Reloader.Core");
@@ -259,19 +259,113 @@ namespace Reloader.UI.Tests.PlayMode
                 tabController.Tick();
                 tabController.HandleIntent(new UiIntent("tab.menu.select", "contracts"));
                 tabController.HandleIntent(new UiIntent("tab.inventory.contracts.accept"));
-                tabController.HandleIntent(new UiIntent("tab.menu.select", "device"));
 
-                var trackingText = root.Q<Label>("inventory__device-install-feedback-text");
+                var activeTracking = root.Q<Label>("inventory__contracts-active-tracking");
+                var deviceFeedback = root.Q<Label>("inventory__device-install-feedback-text");
                 var selectedTargetText = root.Q<Label>("inventory__device-selected-target-value");
-                Assert.That(trackingText, Is.Not.Null);
+                Assert.That(activeTracking, Is.Not.Null);
+                Assert.That(deviceFeedback, Is.Not.Null);
                 Assert.That(selectedTargetText, Is.Not.Null);
-                Assert.That(trackingText.text, Is.EqualTo("TRACK: MainTown Square • LOCKED 12m"));
-                Assert.That(selectedTargetText.text, Is.EqualTo("No target marked"), "Contract tracking should not overwrite the manual selected-target slot.");
+                Assert.That(activeTracking.text, Is.EqualTo("TRACK: MainTown Square • LOCKED 12m"));
+                Assert.That(deviceFeedback.text, Is.EqualTo("Recon hooks are not installed."));
+                Assert.That(selectedTargetText.text, Is.EqualTo("No target marked"));
             }
             finally
             {
                 subscription.Dispose();
                 UnityEngine.Object.DestroyImmediate(spawnedGo);
+                UnityEngine.Object.DestroyImmediate(populationGo);
+                UnityEngine.Object.DestroyImmediate((UnityEngine.Object)definition);
+                UnityEngine.Object.DestroyImmediate(providerGo);
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void RuntimeBridge_BindTabInventory_WhenActiveContractTargetIsUnresolved_ExposesNoFixContractTrackingStatus()
+        {
+            var definitionType = Type.GetType("Reloader.Contracts.Runtime.AssassinationContractDefinition, Reloader.Contracts");
+            var providerType = Type.GetType("Reloader.Contracts.Runtime.StaticContractRuntimeProvider, Reloader.Core");
+            var populationBridgeType = Type.GetType("Reloader.NPCs.Runtime.CivilianPopulationRuntimeBridge, Reloader.NPCs");
+            var populationRecordType = Type.GetType("Reloader.Core.Save.Modules.CivilianPopulationRecord, Reloader.Core");
+            Assert.That(definitionType, Is.Not.Null);
+            Assert.That(providerType, Is.Not.Null);
+            Assert.That(populationBridgeType, Is.Not.Null);
+            Assert.That(populationRecordType, Is.Not.Null);
+
+            var go = new GameObject("UiToolkitBridgeContractTrackingNoFix");
+            var bridge = go.AddComponent<UiToolkitScreenRuntimeBridge>();
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var inventoryRuntime = new PlayerInventoryRuntime();
+            inventoryRuntime.SetBackpackCapacity(0);
+            inventoryController.Configure(null, null, inventoryRuntime);
+            var inputSource = go.AddComponent<TestInputSource>();
+
+            var providerGo = new GameObject("StaticContractRuntimeProviderTrackingNoFix");
+            var provider = providerGo.AddComponent(providerType);
+            var definition = ScriptableObject.CreateInstance(definitionType);
+            SetPrivateField(definitionType, definition, "_contractId", "contract.track.nofix");
+            SetPrivateField(definitionType, definition, "_targetId", "target.track.nofix");
+            SetPrivateField(definitionType, definition, "_title", "Square Watch");
+            SetPrivateField(definitionType, definition, "_targetDisplayName", "Tomas Varga");
+            SetPrivateField(definitionType, definition, "_targetDescription", "Tan coat, pacing the fountain.");
+            SetPrivateField(definitionType, definition, "_briefingText", "Keep visual contact and confirm the square before taking the shot.");
+            SetPrivateField(definitionType, definition, "_distanceBand", 160f);
+            SetPrivateField(definitionType, definition, "_payout", 1500);
+            var setAvailableContractMethod = providerType.GetMethod("SetAvailableContract", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(setAvailableContractMethod, Is.Not.Null);
+            setAvailableContractMethod.Invoke(provider, new object[] { definition });
+
+            var populationGo = new GameObject("CivilianPopulationRuntimeBridgeTrackingNoFix");
+            var populationBridge = populationGo.AddComponent(populationBridgeType);
+            var runtimeProperty = populationBridgeType.GetProperty("Runtime", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(runtimeProperty, Is.Not.Null);
+            var runtimeState = runtimeProperty.GetValue(populationBridge);
+            var civiliansProperty = runtimeState.GetType().GetProperty("Civilians", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(civiliansProperty, Is.Not.Null);
+            var civilians = civiliansProperty.GetValue(runtimeState) as System.Collections.IList;
+            Assert.That(civilians, Is.Not.Null);
+            var record = Activator.CreateInstance(populationRecordType);
+            SetProperty(populationRecordType, record, "CivilianId", "target.track.nofix");
+            SetProperty(populationRecordType, record, "PopulationSlotId", "townsfolk.002");
+            SetProperty(populationRecordType, record, "PoolId", "townsfolk");
+            SetProperty(populationRecordType, record, "SpawnAnchorId", "Anchor_Fountain");
+            SetProperty(populationRecordType, record, "AreaTag", "maintown.square");
+            SetProperty(populationRecordType, record, "IsAlive", true);
+            civilians.Add(record);
+
+            var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
+                "BindTabInventory",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(bindMethod, Is.Not.Null);
+
+            var root = BuildRoot();
+            var subscription = bindMethod.Invoke(bridge, new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, inputSource }) as IDisposable;
+            Assert.That(subscription, Is.Not.Null);
+
+            try
+            {
+                var tabController = go.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
+                Assert.That(tabController, Is.Not.Null);
+
+                inputSource.MenuTogglePressedThisFrame = true;
+                tabController.Tick();
+                tabController.HandleIntent(new UiIntent("tab.menu.select", "contracts"));
+                tabController.HandleIntent(new UiIntent("tab.inventory.contracts.accept"));
+
+                var activeTracking = root.Q<Label>("inventory__contracts-active-tracking");
+                var deviceFeedback = root.Q<Label>("inventory__device-install-feedback-text");
+                var selectedTargetText = root.Q<Label>("inventory__device-selected-target-value");
+                Assert.That(activeTracking, Is.Not.Null);
+                Assert.That(deviceFeedback, Is.Not.Null);
+                Assert.That(selectedTargetText, Is.Not.Null);
+                Assert.That(activeTracking.text, Is.EqualTo("TRACK: MainTown Square • NO FIX"));
+                Assert.That(deviceFeedback.text, Is.EqualTo("Recon hooks are not installed."));
+                Assert.That(selectedTargetText.text, Is.EqualTo("No target marked"));
+            }
+            finally
+            {
+                subscription.Dispose();
                 UnityEngine.Object.DestroyImmediate(populationGo);
                 UnityEngine.Object.DestroyImmediate((UnityEngine.Object)definition);
                 UnityEngine.Object.DestroyImmediate(providerGo);

@@ -720,6 +720,11 @@ namespace Reloader.NPCs.Runtime
                     continue;
                 }
 
+                if (ResolveSpawnAnchor(record.SpawnAnchorId) == null)
+                {
+                    continue;
+                }
+
                 return record;
             }
 

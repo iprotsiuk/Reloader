@@ -230,7 +230,7 @@ namespace Reloader.UI.Toolkit.Runtime
             controller.SetCoreWorldController(FindFirstObjectByType<CoreWorldController>(FindObjectsInactive.Include));
             controller.SetInputSource(inputSource);
             controller.SetDeviceController(ResolveTabDeviceControllerAdapter(inventoryController, inputSource));
-            controller.SetContractController(ResolveTabContractControllerAdapter());
+            controller.SetContractController(ResolveTabContractControllerAdapter(inventoryController));
             controller.Configure(viewBinder, null);
             return UiContractGuard.Bind(controller, viewBinder);
         }
@@ -264,21 +264,46 @@ namespace Reloader.UI.Toolkit.Runtime
 
             return new TabDeviceControllerAdapter(
                 _playerDeviceController,
-                targetSelectionController,
+                targetSelectionController);
+        }
+
+        private ITabInventoryContractController ResolveTabContractControllerAdapter(PlayerInventoryController inventoryController)
+        {
+            return new TabContractControllerAdapter(
                 ResolveContractRuntimeProvider,
                 ResolveCivilianPopulationRuntimeBridge,
                 () => inventoryController != null ? inventoryController.transform : null);
-        }
-
-        private ITabInventoryContractController ResolveTabContractControllerAdapter()
-        {
-            return new TabContractControllerAdapter(ResolveContractRuntimeProvider);
         }
 
         private IContractRuntimeProvider ResolveContractRuntimeProvider()
         {
             return DependencyResolutionGuard.FindInterface<IContractRuntimeProvider>(
                 FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+        }
+
+        private static string FormatContractAreaTag(string areaTag)
+        {
+            if (string.IsNullOrWhiteSpace(areaTag))
+            {
+                return "UNKNOWN";
+            }
+
+            var parts = areaTag.Split(new[] { '.', '_', '-' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0)
+            {
+                return "UNKNOWN";
+            }
+
+            for (var i = 0; i < parts.Length; i++)
+            {
+                parts[i] = parts[i] switch
+                {
+                    "maintown" => "MainTown",
+                    _ => char.ToUpperInvariant(parts[i][0]) + parts[i].Substring(1).ToLowerInvariant()
+                };
+            }
+
+            return string.Join(" ", parts);
         }
 
         private CivilianPopulationRuntimeBridge ResolveCivilianPopulationRuntimeBridge()
@@ -600,10 +625,17 @@ namespace Reloader.UI.Toolkit.Runtime
         private sealed class TabContractControllerAdapter : ITabInventoryContractController
         {
             private readonly Func<IContractRuntimeProvider> _providerResolver;
+            private readonly Func<CivilianPopulationRuntimeBridge> _populationBridgeResolver;
+            private readonly Func<Transform> _viewerTransformResolver;
 
-            public TabContractControllerAdapter(Func<IContractRuntimeProvider> providerResolver)
+            public TabContractControllerAdapter(
+                Func<IContractRuntimeProvider> providerResolver,
+                Func<CivilianPopulationRuntimeBridge> populationBridgeResolver,
+                Func<Transform> viewerTransformResolver)
             {
                 _providerResolver = providerResolver;
+                _populationBridgeResolver = populationBridgeResolver;
+                _viewerTransformResolver = viewerTransformResolver;
             }
 
             public bool TryGetStatus(out TabInventoryContractStatus status)
@@ -631,7 +663,8 @@ namespace Reloader.UI.Toolkit.Runtime
                     canAccept: snapshot.CanAccept,
                     canCancel: snapshot.CanCancel,
                     canClaimReward: snapshot.CanClaimReward,
-                    statusText: statusText);
+                    statusText: statusText,
+                    trackingText: BuildContractTrackingText(snapshot));
                 return true;
             }
 
@@ -657,6 +690,37 @@ namespace Reloader.UI.Toolkit.Runtime
             {
                 return _providerResolver?.Invoke();
             }
+
+            private string BuildContractTrackingText(ContractOfferSnapshot snapshot)
+            {
+                if (!snapshot.HasActiveContract)
+                {
+                    return string.Empty;
+                }
+
+                var populationBridge = _populationBridgeResolver?.Invoke();
+                var areaText = "UNKNOWN";
+                if (populationBridge != null && populationBridge.TryGetCivilianAreaTag(snapshot.TargetId, out var areaTag))
+                {
+                    areaText = FormatContractAreaTag(areaTag);
+                }
+
+                var viewerTransform = _viewerTransformResolver?.Invoke();
+                if (populationBridge != null
+                    && viewerTransform != null
+                    && populationBridge.TryResolveSpawnedCivilian(snapshot.TargetId, out var spawnedCivilian)
+                    && spawnedCivilian != null)
+                {
+                    var distanceMeters = Vector3.Distance(viewerTransform.position, spawnedCivilian.transform.position);
+                    return string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        "TRACK: {0} • LOCKED {1:0}m",
+                        areaText,
+                        Mathf.Max(0f, distanceMeters));
+                }
+
+                return $"TRACK: {areaText} • NO FIX";
+            }
         }
 
         private sealed class TabDeviceControllerAdapter : TabInventoryController.IDeviceController
@@ -665,23 +729,14 @@ namespace Reloader.UI.Toolkit.Runtime
             private const string HooksNotInstalledText = "Recon hooks are not installed.";
             private readonly PlayerDeviceController _deviceController;
             private readonly PlayerDeviceTargetSelectionController _targetSelectionController;
-            private readonly Func<IContractRuntimeProvider> _contractProviderResolver;
-            private readonly Func<CivilianPopulationRuntimeBridge> _populationBridgeResolver;
-            private readonly Func<Transform> _viewerTransformResolver;
             private string _attachmentFeedbackText = string.Empty;
 
             public TabDeviceControllerAdapter(
                 PlayerDeviceController deviceController,
-                PlayerDeviceTargetSelectionController targetSelectionController,
-                Func<IContractRuntimeProvider> contractProviderResolver,
-                Func<CivilianPopulationRuntimeBridge> populationBridgeResolver,
-                Func<Transform> viewerTransformResolver)
+                PlayerDeviceTargetSelectionController targetSelectionController)
             {
                 _deviceController = deviceController;
                 _targetSelectionController = targetSelectionController;
-                _contractProviderResolver = contractProviderResolver;
-                _populationBridgeResolver = populationBridgeResolver;
-                _viewerTransformResolver = viewerTransformResolver;
             }
 
             public bool TryGetStatus(out TabInventoryController.DeviceStatus status)
@@ -716,12 +771,6 @@ namespace Reloader.UI.Toolkit.Runtime
                     _attachmentFeedbackText = hooksInstalled ? HooksInstalledText : HooksNotInstalledText;
                 }
 
-                var feedbackText = BuildContractTrackingText();
-                if (string.IsNullOrWhiteSpace(feedbackText))
-                {
-                    feedbackText = _attachmentFeedbackText;
-                }
-
                 status = new TabInventoryController.DeviceStatus(
                     hasTarget: _deviceController.HasSelectedTargetBinding,
                     targetDisplayName: selectedBinding.DisplayName,
@@ -735,7 +784,7 @@ namespace Reloader.UI.Toolkit.Runtime
                     canClearGroup: _deviceController.ActiveShotCount > 0,
                     canInstallHooks: canInstallHooks,
                     canUninstallHooks: canUninstallHooks,
-                    attachmentFeedbackText: feedbackText,
+                    attachmentFeedbackText: _attachmentFeedbackText,
                     savedGroups: uiSavedGroups);
                 return true;
             }
@@ -789,63 +838,6 @@ namespace Reloader.UI.Toolkit.Runtime
                     ? "Recon hooks removed."
                     : HooksNotInstalledText;
                 return uninstalled;
-            }
-
-            private string BuildContractTrackingText()
-            {
-                var provider = _contractProviderResolver?.Invoke();
-                if (provider == null || !provider.TryGetContractSnapshot(out var snapshot) || !snapshot.HasActiveContract)
-                {
-                    return string.Empty;
-                }
-
-                var populationBridge = _populationBridgeResolver?.Invoke();
-                var areaText = "UNKNOWN";
-                if (populationBridge != null && populationBridge.TryGetCivilianAreaTag(snapshot.TargetId, out var areaTag))
-                {
-                    areaText = FormatAreaTag(areaTag);
-                }
-
-                var viewerTransform = _viewerTransformResolver?.Invoke();
-                if (populationBridge != null
-                    && viewerTransform != null
-                    && populationBridge.TryResolveSpawnedCivilian(snapshot.TargetId, out var spawnedCivilian)
-                    && spawnedCivilian != null)
-                {
-                    var distanceMeters = Vector3.Distance(viewerTransform.position, spawnedCivilian.transform.position);
-                    return string.Format(
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        "TRACK: {0} • LOCKED {1:0}m",
-                        areaText,
-                        Mathf.Max(0f, distanceMeters));
-                }
-
-                return $"TRACK: {areaText} • NO FIX";
-            }
-
-            private static string FormatAreaTag(string areaTag)
-            {
-                if (string.IsNullOrWhiteSpace(areaTag))
-                {
-                    return "UNKNOWN";
-                }
-
-                var parts = areaTag.Split(new[] { '.', '_', '-' }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length == 0)
-                {
-                    return "UNKNOWN";
-                }
-
-                for (var i = 0; i < parts.Length; i++)
-                {
-                    parts[i] = parts[i] switch
-                    {
-                        "maintown" => "MainTown",
-                        _ => char.ToUpperInvariant(parts[i][0]) + parts[i].Substring(1).ToLowerInvariant()
-                    };
-                }
-
-                return string.Join(" ", parts);
             }
         }
 

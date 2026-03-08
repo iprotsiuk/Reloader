@@ -523,6 +523,116 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void RuntimeBridge_BindTabInventory_WhenActiveContractExists_KeepsDeviceFeedbackDeviceSpecific()
+        {
+            var definitionType = Type.GetType("Reloader.Contracts.Runtime.AssassinationContractDefinition, Reloader.Contracts");
+            var providerType = Type.GetType("Reloader.Contracts.Runtime.StaticContractRuntimeProvider, Reloader.Core");
+            var populationBridgeType = Type.GetType("Reloader.NPCs.Runtime.CivilianPopulationRuntimeBridge, Reloader.NPCs");
+            var populationRecordType = Type.GetType("Reloader.Core.Save.Modules.CivilianPopulationRecord, Reloader.Core");
+            var spawnedCivilianType = Type.GetType("Reloader.NPCs.Runtime.MainTownPopulationSpawnedCivilian, Reloader.NPCs");
+            Assert.That(definitionType, Is.Not.Null);
+            Assert.That(providerType, Is.Not.Null);
+            Assert.That(populationBridgeType, Is.Not.Null);
+            Assert.That(populationRecordType, Is.Not.Null);
+            Assert.That(spawnedCivilianType, Is.Not.Null);
+
+            var go = new GameObject("UiToolkitBridgeDeviceIgnoresContractTracking");
+            var bridge = go.AddComponent<UiToolkitScreenRuntimeBridge>();
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var inventoryRuntime = new PlayerInventoryRuntime();
+            inventoryRuntime.SetBackpackCapacity(0);
+            inventoryController.Configure(null, null, inventoryRuntime);
+            var inputSource = go.AddComponent<TestInputSource>();
+
+            var providerGo = new GameObject("StaticContractRuntimeProviderDeviceFeedback");
+            var provider = providerGo.AddComponent(providerType);
+            var definition = ScriptableObject.CreateInstance(definitionType);
+            SetPrivateField(definitionType, definition, "_contractId", "contract.device.feedback");
+            SetPrivateField(definitionType, definition, "_targetId", "target.device.feedback");
+            SetPrivateField(definitionType, definition, "_title", "Square Watch");
+            SetPrivateField(definitionType, definition, "_targetDisplayName", "Tomas Varga");
+            SetPrivateField(definitionType, definition, "_targetDescription", "Tan coat, pacing the fountain.");
+            SetPrivateField(definitionType, definition, "_briefingText", "Keep visual contact and confirm the square before taking the shot.");
+            SetPrivateField(definitionType, definition, "_distanceBand", 160f);
+            SetPrivateField(definitionType, definition, "_payout", 1500);
+            var setAvailableContractMethod = providerType.GetMethod("SetAvailableContract", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(setAvailableContractMethod, Is.Not.Null);
+            setAvailableContractMethod.Invoke(provider, new object[] { definition });
+
+            var populationGo = new GameObject("CivilianPopulationRuntimeBridgeDeviceFeedback");
+            var populationBridge = populationGo.AddComponent(populationBridgeType);
+            var runtimeProperty = populationBridgeType.GetProperty("Runtime", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(runtimeProperty, Is.Not.Null);
+            var runtimeState = runtimeProperty.GetValue(populationBridge);
+            var civiliansProperty = runtimeState.GetType().GetProperty("Civilians", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(civiliansProperty, Is.Not.Null);
+            var civilians = civiliansProperty.GetValue(runtimeState) as System.Collections.IList;
+            Assert.That(civilians, Is.Not.Null);
+            var record = Activator.CreateInstance(populationRecordType);
+            SetProperty(populationRecordType, record, "CivilianId", "target.device.feedback");
+            SetProperty(populationRecordType, record, "PopulationSlotId", "townsfolk.device.feedback");
+            SetProperty(populationRecordType, record, "PoolId", "townsfolk");
+            SetProperty(populationRecordType, record, "SpawnAnchorId", "Anchor_Device");
+            SetProperty(populationRecordType, record, "AreaTag", "maintown.square");
+            SetProperty(populationRecordType, record, "IsAlive", true);
+            civilians.Add(record);
+
+            var spawnedGo = new GameObject("SpawnedCivilianDeviceFeedback");
+            spawnedGo.transform.position = new Vector3(0f, 0f, 12f);
+            var spawnedCivilian = spawnedGo.AddComponent(spawnedCivilianType);
+            var initializeMethod = spawnedCivilianType.GetMethod("Initialize", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(initializeMethod, Is.Not.Null);
+            initializeMethod.Invoke(spawnedCivilian, new[] { record });
+            var registerMethod = runtimeState.GetType().GetMethod("RegisterSpawnedCivilian", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(registerMethod, Is.Not.Null);
+            registerMethod.Invoke(runtimeState, new object[] { spawnedCivilian });
+
+            var viewerGo = new GameObject("DeviceFeedbackViewer");
+            viewerGo.tag = "MainCamera";
+            viewerGo.AddComponent<Camera>();
+            viewerGo.transform.position = Vector3.zero;
+
+            var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
+                "BindTabInventory",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(bindMethod, Is.Not.Null);
+
+            var root = BuildRoot();
+            var subscription = bindMethod.Invoke(bridge, new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, inputSource }) as IDisposable;
+            Assert.That(subscription, Is.Not.Null);
+
+            try
+            {
+                var tabController = go.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
+                Assert.That(tabController, Is.Not.Null);
+
+                inputSource.MenuTogglePressedThisFrame = true;
+                tabController.Tick();
+                tabController.HandleIntent(new UiIntent("tab.menu.select", "contracts"));
+                tabController.HandleIntent(new UiIntent("tab.inventory.contracts.accept"));
+                tabController.HandleIntent(new UiIntent("tab.menu.select", "device"));
+
+                var deviceFeedback = root.Q<Label>("inventory__device-install-feedback-text");
+                var selectedTargetText = root.Q<Label>("inventory__device-selected-target-value");
+                Assert.That(deviceFeedback, Is.Not.Null);
+                Assert.That(selectedTargetText, Is.Not.Null);
+                Assert.That(deviceFeedback.text, Is.EqualTo("Recon hooks are not installed."));
+                Assert.That(deviceFeedback.text, Does.Not.Contain("TRACK:"));
+                Assert.That(selectedTargetText.text, Is.EqualTo("No target marked"));
+            }
+            finally
+            {
+                subscription?.Dispose();
+                UnityEngine.Object.DestroyImmediate(viewerGo);
+                UnityEngine.Object.DestroyImmediate(spawnedGo);
+                UnityEngine.Object.DestroyImmediate(populationGo);
+                UnityEngine.Object.DestroyImmediate((UnityEngine.Object)definition);
+                UnityEngine.Object.DestroyImmediate(providerGo);
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void RuntimeBridge_ResolveTabDeviceControllerAdapter_RecreatesControllerWhenInventoryChanges()
         {
             var go = new GameObject("UiToolkitBridgeInventorySwitch");
@@ -823,6 +933,13 @@ namespace Reloader.UI.Tests.PlayMode
             var field = type.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Expected private field '{fieldName}' on {type?.Name}.");
             field.SetValue(target, value);
+        }
+
+        private static void SetProperty(Type type, object target, string propertyName, object value)
+        {
+            var property = type.GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(property, Is.Not.Null, $"Expected property '{propertyName}' on {type?.Name}.");
+            property.SetValue(target, value);
         }
 
         private static void InvokeMethod(Type type, object instance, string methodName, params object[] args)

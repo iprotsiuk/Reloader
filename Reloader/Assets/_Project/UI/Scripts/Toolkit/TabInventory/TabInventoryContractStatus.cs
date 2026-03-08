@@ -14,7 +14,8 @@ namespace Reloader.UI.Toolkit.TabInventory
             bool canAccept,
             bool canCancel,
             bool canClaimReward,
-            string statusText)
+            string statusText,
+            string trackingText = "")
         {
             HasAvailableContract = hasAvailableContract;
             HasActiveContract = hasActiveContract;
@@ -28,6 +29,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             CanCancel = canCancel;
             CanClaimReward = canClaimReward;
             StatusText = statusText ?? string.Empty;
+            TrackingText = trackingText ?? string.Empty;
         }
 
         public bool HasAvailableContract { get; }
@@ -42,6 +44,7 @@ namespace Reloader.UI.Toolkit.TabInventory
         public bool CanCancel { get; }
         public bool CanClaimReward { get; }
         public string StatusText { get; }
+        public string TrackingText { get; }
 
         public static TabInventoryContractStatus CreateDefault()
         {
@@ -57,7 +60,8 @@ namespace Reloader.UI.Toolkit.TabInventory
                 canAccept: false,
                 canCancel: false,
                 canClaimReward: false,
-                statusText: "No contracts currently posted");
+                statusText: "No contracts currently posted",
+                trackingText: string.Empty);
         }
     }
 }

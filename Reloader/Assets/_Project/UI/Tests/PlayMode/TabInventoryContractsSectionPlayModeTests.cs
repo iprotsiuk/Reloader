@@ -40,7 +40,8 @@ namespace Reloader.UI.Tests.PlayMode
                 canAccept: true,
                 canCancel: false,
                 canClaimReward: false,
-                statusText: "Available contract");
+                statusText: "Available contract",
+                trackingText: string.Empty);
 
             var controller = go.AddComponent<TabInventoryController>();
             controller.SetInventoryController(inventoryController);
@@ -57,7 +58,9 @@ namespace Reloader.UI.Tests.PlayMode
             var postedFeed = root.Q<VisualElement>("inventory__contracts-feed");
             var postedRow = root.Q<VisualElement>("inventory__contracts-row");
             var activeWorkspace = root.Q<VisualElement>("inventory__contracts-active");
+            var contractsStatusRow = root.Q<VisualElement>("inventory__contracts-status-row");
             var contractsStatus = root.Q<Label>("inventory__contracts-status");
+            var contractsTracking = root.Q<Label>("inventory__contracts-tracking");
             var contractsTitle = root.Q<Label>("inventory__contracts-title");
             var contractsSummary = root.Q<Label>("inventory__contracts-summary");
             var contractsPayout = root.Q<Label>("inventory__contracts-payout");
@@ -69,7 +72,12 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(postedFeed.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(postedRow.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(activeWorkspace.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(contractsStatusRow, Is.Not.Null);
+            Assert.That(contractsStatus.parent, Is.SameAs(contractsStatusRow));
+            Assert.That(contractsTracking, Is.Not.Null);
+            Assert.That(contractsTracking.parent, Is.SameAs(contractsStatusRow));
             Assert.That(contractsStatus.text, Is.EqualTo("Available contract"));
+            Assert.That(contractsTracking.style.display.value, Is.EqualTo(DisplayStyle.None));
             Assert.That(contractsTitle.text, Is.EqualTo("First Bloodline Job"));
             Assert.That(contractsSummary.text, Is.EqualTo("Gray coat, smoker, exits the cafe at dusk."));
             Assert.That(contractsPayout.text, Is.EqualTo("Payout: $1,500"));
@@ -105,7 +113,8 @@ namespace Reloader.UI.Tests.PlayMode
                 canAccept: true,
                 canCancel: false,
                 canClaimReward: false,
-                statusText: "Available contract");
+                statusText: "Available contract",
+                trackingText: string.Empty);
 
             var controller = go.AddComponent<TabInventoryController>();
             controller.SetInventoryController(inventoryController);
@@ -122,6 +131,7 @@ namespace Reloader.UI.Tests.PlayMode
             var activeWorkspace = root.Q<VisualElement>("inventory__contracts-active");
             var contractsStatus = root.Q<Label>("inventory__contracts-status");
             var activeStatus = root.Q<Label>("inventory__contracts-active-status");
+            var activeTracking = root.Q<Label>("inventory__contracts-active-tracking");
             var activePayout = root.Q<Label>("inventory__contracts-active-payout");
             var activeTargetBlock = root.Q<VisualElement>("inventory__contracts-active-target-block");
             var contractsTarget = root.Q<Label>("inventory__contracts-target");
@@ -141,7 +151,11 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(activeHeader, Is.Not.Null);
             Assert.That(activeFooter, Is.Not.Null);
             Assert.That(activeStatus, Is.Not.Null);
+            Assert.That(activeTracking, Is.Not.Null);
+            Assert.That(activeTracking.parent, Is.SameAs(activeHeader));
             Assert.That(activeStatus.text, Is.EqualTo("Mission Status: Active contract"));
+            Assert.That(activeTracking.text, Is.Empty);
+            Assert.That(activeTracking.style.display.value, Is.EqualTo(DisplayStyle.None));
             Assert.That(activePayout, Is.Not.Null);
             Assert.That(activePayout.text, Is.EqualTo("Payout: $2,400"));
             Assert.That(activeTargetBlock, Is.Not.Null);
@@ -433,6 +447,27 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(secondAcceptCount, Is.EqualTo(1));
         }
 
+        [Test]
+        public void Initialize_WhenContractsSectionRequiresFallback_CreatesTrackingLabelBesideStatus()
+        {
+            var root = BuildRootWithFallbackContractsSection();
+            var binder = new TabInventoryViewBinder();
+
+            binder.Initialize(root, beltSlotCount: 0, backpackSlotCount: 0);
+
+            var contractsSection = root.Q<VisualElement>("inventory__section-quests");
+            var contractsStatusRow = contractsSection?.Q<VisualElement>("inventory__contracts-status-row");
+            var contractsStatus = contractsSection?.Q<Label>("inventory__contracts-status");
+            var contractsTracking = contractsSection?.Q<Label>("inventory__contracts-tracking");
+
+            Assert.That(contractsSection, Is.Not.Null);
+            Assert.That(contractsStatusRow, Is.Not.Null);
+            Assert.That(contractsStatus, Is.Not.Null);
+            Assert.That(contractsTracking, Is.Not.Null);
+            Assert.That(contractsStatus.parent, Is.SameAs(contractsStatusRow));
+            Assert.That(contractsTracking.parent, Is.SameAs(contractsStatusRow));
+        }
+
         private static VisualElement BuildRoot()
         {
             var root = new VisualElement { name = "inventory__root" };
@@ -449,7 +484,10 @@ namespace Reloader.UI.Tests.PlayMode
 
             panel.Add(new VisualElement { name = "inventory__section-inventory" });
             var questsSection = new VisualElement { name = "inventory__section-quests" };
-            questsSection.Add(new Label { name = "inventory__contracts-status" });
+            var contractsStatusRow = new VisualElement { name = "inventory__contracts-status-row" };
+            contractsStatusRow.Add(new Label { name = "inventory__contracts-status" });
+            contractsStatusRow.Add(new Label { name = "inventory__contracts-tracking" });
+            questsSection.Add(contractsStatusRow);
             var contractsFeed = new VisualElement { name = "inventory__contracts-feed" };
             var contractsRow = new VisualElement { name = "inventory__contracts-row" };
             var rowPreview = new VisualElement();
@@ -467,6 +505,7 @@ namespace Reloader.UI.Tests.PlayMode
             var contractsActive = new VisualElement { name = "inventory__contracts-active" };
             var contractsActiveHeader = new VisualElement { name = "inventory__contracts-active-header" };
             contractsActiveHeader.Add(new Label { name = "inventory__contracts-active-status" });
+            contractsActiveHeader.Add(new Label { name = "inventory__contracts-active-tracking" });
             contractsActiveHeader.Add(new Label { name = "inventory__contracts-active-payout" });
             contractsActive.Add(contractsActiveHeader);
             var contractsActiveTargetBlock = new VisualElement { name = "inventory__contracts-active-target-block" };
@@ -518,6 +557,15 @@ namespace Reloader.UI.Tests.PlayMode
             tooltip.Add(new Label { name = "inventory__tooltip-title" });
             panel.Add(tooltip);
 
+            return root;
+        }
+
+        private static VisualElement BuildRootWithFallbackContractsSection()
+        {
+            var root = BuildRoot();
+            var questsSection = root.Q<VisualElement>("inventory__section-quests");
+            Assert.That(questsSection, Is.Not.Null);
+            questsSection!.Clear();
             return root;
         }
 

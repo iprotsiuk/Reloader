@@ -405,6 +405,54 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void RebuildScenePopulation_WhenFirstEligibleCivilianIsUnspawnable_PublishesNextSpawnableOffer()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            CreateAnchor(bridgeGo.transform, "Anchor_B", new Vector3(3f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0451",
+                    populationSlotId: "townsfolk.451",
+                    spawnAnchorId: "Anchor_Missing",
+                    isAlive: true,
+                    retiredAtDay: -1));
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0452",
+                    populationSlotId: "townsfolk.452",
+                    spawnAnchorId: "Anchor_B",
+                    isAlive: true,
+                    retiredAtDay: -1));
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True);
+                Assert.That(snapshot.HasAvailableContract, Is.True);
+                Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0452"),
+                    "Expected procedural offer publication to skip live civilians whose spawn anchor cannot be resolved.");
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0451", out _), Is.False);
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0452", out _), Is.True);
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
         public void RebuildScenePopulation_WhenOfferWasConsumedByPreAcceptKill_DoesNotRepublishOrClearSearch()
         {
             var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");

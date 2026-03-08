@@ -46,7 +46,9 @@ namespace Reloader.UI.Toolkit.TabInventory
         private VisualElement _contractsIntelCard;
         private VisualElement _contractsActiveFooter;
         private Label _contractsStatus;
+        private Label _contractsTracking;
         private Label _contractsActiveStatus;
+        private Label _contractsActiveTracking;
         private Label _contractsActivePayout;
         private Label _contractsTitle;
         private Label _contractsSummary;
@@ -334,11 +336,21 @@ namespace Reloader.UI.Toolkit.TabInventory
                 _contractsStatus.text = inventoryState.ContractPanel.StatusText;
             }
 
+            if (_contractsTracking != null)
+            {
+                _contractsTracking.text = inventoryState.ContractPanel.TrackingText;
+            }
+
             if (_contractsActiveStatus != null)
             {
                 _contractsActiveStatus.text = string.IsNullOrWhiteSpace(inventoryState.ContractPanel.StatusText)
                     ? "Mission Status: --"
                     : string.Concat("Mission Status: ", inventoryState.ContractPanel.StatusText);
+            }
+
+            if (_contractsActiveTracking != null)
+            {
+                _contractsActiveTracking.text = inventoryState.ContractPanel.TrackingText;
             }
 
             if (_contractsActivePayout != null)
@@ -411,6 +423,20 @@ namespace Reloader.UI.Toolkit.TabInventory
             if (_contractsStatus != null)
             {
                 _contractsStatus.style.display = isActiveContract ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+
+            if (_contractsTracking != null)
+            {
+                _contractsTracking.style.display = !isActiveContract && !string.IsNullOrWhiteSpace(inventoryState.ContractPanel.TrackingText)
+                    ? DisplayStyle.Flex
+                    : DisplayStyle.None;
+            }
+
+            if (_contractsActiveTracking != null)
+            {
+                _contractsActiveTracking.style.display = isActiveContract && !string.IsNullOrWhiteSpace(inventoryState.ContractPanel.TrackingText)
+                    ? DisplayStyle.Flex
+                    : DisplayStyle.None;
             }
 
             if (_contractsFeed != null)
@@ -593,7 +619,9 @@ namespace Reloader.UI.Toolkit.TabInventory
             _contractsIntelCard = _questsSection.Q<VisualElement>("inventory__contracts-intel-card");
             _contractsActiveFooter = _questsSection.Q<VisualElement>("inventory__contracts-active-footer");
             _contractsStatus = _questsSection.Q<Label>("inventory__contracts-status");
+            _contractsTracking = _questsSection.Q<Label>("inventory__contracts-tracking");
             _contractsActiveStatus = _questsSection.Q<Label>("inventory__contracts-active-status");
+            _contractsActiveTracking = _questsSection.Q<Label>("inventory__contracts-active-tracking");
             _contractsActivePayout = _questsSection.Q<Label>("inventory__contracts-active-payout");
             _contractsTitle = _questsSection.Q<Label>("inventory__contracts-title");
             _contractsSummary = _questsSection.Q<Label>("inventory__contracts-summary");
@@ -613,7 +641,9 @@ namespace Reloader.UI.Toolkit.TabInventory
                 && _contractsIntelCard != null
                 && _contractsActiveFooter != null
                 && _contractsStatus != null
+                && _contractsTracking != null
                 && _contractsActiveStatus != null
+                && _contractsActiveTracking != null
                 && _contractsActivePayout != null
                 && _contractsTitle != null
                 && _contractsSummary != null
@@ -635,8 +665,19 @@ namespace Reloader.UI.Toolkit.TabInventory
             panel.style.flexDirection = FlexDirection.Column;
             panel.style.marginTop = 4f;
 
+            var contractsStatusRow = new VisualElement { name = "inventory__contracts-status-row" };
+            contractsStatusRow.AddToClassList("inventory__contracts-status-row");
+            contractsStatusRow.style.flexDirection = FlexDirection.Row;
             _contractsStatus = new Label { name = "inventory__contracts-status" };
+            _contractsStatus.AddToClassList("inventory__contracts-status");
+            _contractsStatus.AddToClassList("ui-kit__hint");
+            _contractsTracking = new Label { name = "inventory__contracts-tracking" };
+            _contractsTracking.AddToClassList("inventory__contracts-tracking");
+            _contractsTracking.AddToClassList("ui-kit__hint");
             _contractsActiveStatus = new Label { name = "inventory__contracts-active-status" };
+            _contractsActiveTracking = new Label { name = "inventory__contracts-active-tracking" };
+            _contractsActiveTracking.AddToClassList("inventory__contracts-active-tracking");
+            _contractsActiveTracking.AddToClassList("ui-kit__hint");
             _contractsActivePayout = new Label { name = "inventory__contracts-active-payout" };
             _contractsFeed = new VisualElement { name = "inventory__contracts-feed" };
             _contractsFeed.style.flexDirection = FlexDirection.Column;
@@ -670,7 +711,9 @@ namespace Reloader.UI.Toolkit.TabInventory
             EnsureContractsAcceptIntentBinding();
             EnsureContractsActivePrimaryActionIntentBinding();
 
-            panel.Add(_contractsStatus);
+            contractsStatusRow.Add(_contractsStatus);
+            contractsStatusRow.Add(_contractsTracking);
+            panel.Add(contractsStatusRow);
 
             var postedCopy = new VisualElement();
             postedCopy.style.flexDirection = FlexDirection.Column;
@@ -684,6 +727,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             _contractsFeed.Add(_contractsRow);
 
             _contractsActiveHeader.Add(_contractsActiveStatus);
+            _contractsActiveHeader.Add(_contractsActiveTracking);
             _contractsActiveHeader.Add(_contractsActivePayout);
 
             _contractsActiveTargetBlock.Add(_contractsTarget);

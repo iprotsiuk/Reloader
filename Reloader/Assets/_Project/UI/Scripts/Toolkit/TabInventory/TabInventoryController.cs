@@ -563,6 +563,7 @@ private void Refresh()
             return new TabInventoryUiState.ContractPanelState(
                 mode: mode,
                 statusText: string.IsNullOrWhiteSpace(status.StatusText) ? "No contracts available" : status.StatusText,
+                trackingText: status.TrackingText,
                 titleText: titleText,
                 summaryText: string.IsNullOrWhiteSpace(summary) ? "Check back later for fresh contract offers." : summary,
                 targetText: targetText,

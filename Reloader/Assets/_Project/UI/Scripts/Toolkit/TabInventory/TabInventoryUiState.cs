@@ -41,6 +41,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             public ContractPanelState(
                 ContractPanelMode mode,
                 string statusText,
+                string trackingText,
                 string titleText,
                 string summaryText,
                 string targetText,
@@ -57,6 +58,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             {
                 Mode = mode;
                 StatusText = statusText ?? string.Empty;
+                TrackingText = trackingText ?? string.Empty;
                 TitleText = titleText ?? string.Empty;
                 SummaryText = summaryText ?? string.Empty;
                 TargetText = targetText ?? string.Empty;
@@ -74,6 +76,7 @@ namespace Reloader.UI.Toolkit.TabInventory
 
             public ContractPanelMode Mode { get; }
             public string StatusText { get; }
+            public string TrackingText { get; }
             public string TitleText { get; }
             public string SummaryText { get; }
             public string TargetText { get; }
@@ -93,6 +96,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                 return new ContractPanelState(
                     mode: ContractPanelMode.None,
                     statusText: "No contracts currently posted",
+                    trackingText: string.Empty,
                     titleText: "No posted contracts",
                     summaryText: "Check back later for fresh contract offers.",
                     targetText: "--",
