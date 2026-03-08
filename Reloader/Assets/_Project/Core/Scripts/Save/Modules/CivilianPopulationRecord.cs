@@ -7,6 +7,12 @@ namespace Reloader.Core.Save.Modules
     [Serializable]
     public sealed class CivilianPopulationRecord
     {
+        [JsonProperty("populationSlotId")]
+        public string PopulationSlotId { get; set; } = string.Empty;
+
+        [JsonProperty("poolId")]
+        public string PoolId { get; set; } = string.Empty;
+
         [JsonProperty("civilianId")]
         public string CivilianId { get; set; } = string.Empty;
 
@@ -15,6 +21,9 @@ namespace Reloader.Core.Save.Modules
 
         [JsonProperty("isContractEligible")]
         public bool IsContractEligible { get; set; } = true;
+
+        [JsonProperty("isProtectedFromContracts")]
+        public bool IsProtectedFromContracts { get; set; }
 
         [JsonProperty("baseBodyId")]
         public string BaseBodyId { get; set; } = string.Empty;
@@ -48,6 +57,9 @@ namespace Reloader.Core.Save.Modules
 
         [JsonProperty("spawnAnchorId")]
         public string SpawnAnchorId { get; set; } = string.Empty;
+
+        [JsonProperty("areaTag")]
+        public string AreaTag { get; set; } = string.Empty;
 
         [JsonProperty("createdAtDay")]
         public int CreatedAtDay { get; set; }

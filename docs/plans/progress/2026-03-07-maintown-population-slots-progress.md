@@ -4,7 +4,7 @@
 
 - [x] Design direction approved
 - [x] Implementation plan written
-- [ ] Runtime implementation started
+- [x] Runtime implementation started
 
 ## 2026-03-07 Checkpoint
 
@@ -23,6 +23,30 @@
   - Monday `08:00` replacement execution
   - professions, schedules, wandering zones, dialogue, and voices
   - committed STYLE appearance-part curation
+
+## 2026-03-07 Checkpoint 2
+
+- Added the first green slot-model runtime checkpoint:
+  - introduced `MainTownPopulationDefinition`, pool definitions, and slot definitions under `Reloader.NPCs.Generation`
+  - extended `CivilianPopulationRecord` with:
+    - `populationSlotId`
+    - `poolId`
+    - `isProtectedFromContracts`
+    - `areaTag`
+  - taught `CivilianPopulationRuntimeBridge` to seed occupants from a `MainTownPopulationDefinition` when present instead of only using anonymous count-based spawning
+  - preserved the new slot metadata through runtime/module cloning
+- Added focused EditMode coverage for:
+  - duplicate `populationSlotId` rejection in `MainTownPopulationDefinition`
+  - protected vendor slot acceptance
+  - one-occupant-per-slot assignment through the runtime bridge
+- Updated the existing save-module fixture to include the new slot metadata so its validation still isolates the intended failure.
+
+## Verification
+
+- `Reloader.NPCs.Tests.EditMode.MainTownPopulationDefinitionTests`: `2/2` passed
+- `Reloader.NPCs.Tests.EditMode.CivilianPopulationSlotAssignmentTests`: `1/1` passed
+- `Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests`: `4/4` passed
+- `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `5/5` passed
 
 ## Next Step After This One
 

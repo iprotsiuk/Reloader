@@ -118,9 +118,12 @@ namespace Reloader.Core.Tests.EditMode
         private static object CreateCivilianRecord(Type recordType)
         {
             var record = Activator.CreateInstance(recordType);
+            SetProperty(record, "PopulationSlotId", "townsfolk.001");
+            SetProperty(record, "PoolId", "townsfolk");
             SetProperty(record, "CivilianId", "citizen.mainTown.001");
             SetProperty(record, "IsAlive", true);
             SetProperty(record, "IsContractEligible", true);
+            SetProperty(record, "IsProtectedFromContracts", false);
             SetProperty(record, "BaseBodyId", "body.male.a");
             SetProperty(record, "PresentationType", "masculine");
             SetProperty(record, "HairId", "hair.short.01");
@@ -132,6 +135,7 @@ namespace Reloader.Core.Tests.EditMode
             SetProperty(record, "MaterialColorIds", new List<string> { "color.gray", "color.black" });
             SetProperty(record, "GeneratedDescriptionTags", new List<string> { "gray coat", "short hair" });
             SetProperty(record, "SpawnAnchorId", "spawn.busstop.a");
+            SetProperty(record, "AreaTag", "downtown");
             SetProperty(record, "CreatedAtDay", 4);
             SetProperty(record, "RetiredAtDay", -1);
             return record;
@@ -148,9 +152,12 @@ namespace Reloader.Core.Tests.EditMode
 
         private static void AssertRecord(object record)
         {
+            Assert.That(GetProperty<string>(record, "PopulationSlotId"), Is.EqualTo("townsfolk.001"));
+            Assert.That(GetProperty<string>(record, "PoolId"), Is.EqualTo("townsfolk"));
             Assert.That(GetProperty<string>(record, "CivilianId"), Is.EqualTo("citizen.mainTown.001"));
             Assert.That(GetProperty<bool>(record, "IsAlive"), Is.True);
             Assert.That(GetProperty<bool>(record, "IsContractEligible"), Is.True);
+            Assert.That(GetProperty<bool>(record, "IsProtectedFromContracts"), Is.False);
             Assert.That(GetProperty<string>(record, "BaseBodyId"), Is.EqualTo("body.male.a"));
             Assert.That(GetProperty<string>(record, "PresentationType"), Is.EqualTo("masculine"));
             Assert.That(GetProperty<string>(record, "HairId"), Is.EqualTo("hair.short.01"));
@@ -162,6 +169,7 @@ namespace Reloader.Core.Tests.EditMode
             CollectionAssert.AreEqual(new[] { "color.gray", "color.black" }, (IEnumerable)GetProperty<object>(record, "MaterialColorIds"));
             CollectionAssert.AreEqual(new[] { "gray coat", "short hair" }, (IEnumerable)GetProperty<object>(record, "GeneratedDescriptionTags"));
             Assert.That(GetProperty<string>(record, "SpawnAnchorId"), Is.EqualTo("spawn.busstop.a"));
+            Assert.That(GetProperty<string>(record, "AreaTag"), Is.EqualTo("downtown"));
             Assert.That(GetProperty<int>(record, "CreatedAtDay"), Is.EqualTo(4));
             Assert.That(GetProperty<int>(record, "RetiredAtDay"), Is.EqualTo(-1));
         }

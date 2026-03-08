@@ -10,6 +10,7 @@ namespace Reloader.NPCs.Runtime
     public sealed class CivilianPopulationRuntimeBridge : MonoBehaviour, ISaveRuntimeBridge
     {
         [SerializeField] private CivilianAppearanceLibrary _appearanceLibrary;
+        [SerializeField] private MainTownPopulationDefinition _populationDefinition;
         [SerializeField] private int _initialPopulationCount;
         [SerializeField] private string _civilianIdPrefix = "citizen.mainTown";
         [SerializeField] private string[] _spawnAnchorIds = Array.Empty<string>();
@@ -100,7 +101,18 @@ namespace Reloader.NPCs.Runtime
                 return;
             }
 
-            if (_appearanceLibrary == null || _initialPopulationCount <= 0)
+            if (_appearanceLibrary == null)
+            {
+                return;
+            }
+
+            if (_populationDefinition != null)
+            {
+                SeedRosterFromPopulationDefinition();
+                return;
+            }
+
+            if (_initialPopulationCount <= 0)
             {
                 return;
             }
@@ -124,6 +136,46 @@ namespace Reloader.NPCs.Runtime
                     spawnAnchorId,
                     seed,
                     isContractEligible: true));
+            }
+        }
+
+        private void SeedRosterFromPopulationDefinition()
+        {
+            _populationDefinition.Validate();
+
+            var idPrefix = string.IsNullOrWhiteSpace(_civilianIdPrefix) ? "citizen.mainTown" : _civilianIdPrefix.Trim();
+            var index = 0;
+            var pools = _populationDefinition.Pools;
+            for (var poolIndex = 0; poolIndex < pools.Length; poolIndex++)
+            {
+                var pool = pools[poolIndex];
+                if (pool?.Slots == null)
+                {
+                    continue;
+                }
+
+                for (var slotIndex = 0; slotIndex < pool.Slots.Length; slotIndex++)
+                {
+                    var slot = pool.Slots[slotIndex];
+                    if (slot == null)
+                    {
+                        continue;
+                    }
+
+                    index++;
+                    var civilianId = $"{idPrefix}.{index:0000}";
+                    _runtime.Civilians.Add(_generator.GenerateRecord(
+                        _appearanceLibrary,
+                        civilianId,
+                        createdAtDay: 0,
+                        slot.SpawnAnchorId,
+                        seed: index,
+                        isContractEligible: !slot.IsProtectedFromContracts,
+                        populationSlotId: slot.PopulationSlotId,
+                        poolId: slot.PoolId,
+                        areaTag: slot.AreaTag,
+                        isProtectedFromContracts: slot.IsProtectedFromContracts));
+                }
             }
         }
 
@@ -214,9 +266,12 @@ namespace Reloader.NPCs.Runtime
         {
             return new CivilianPopulationRecord
             {
+                PopulationSlotId = source?.PopulationSlotId ?? string.Empty,
+                PoolId = source?.PoolId ?? string.Empty,
                 CivilianId = source?.CivilianId ?? string.Empty,
                 IsAlive = source != null && source.IsAlive,
                 IsContractEligible = source != null && source.IsContractEligible,
+                IsProtectedFromContracts = source != null && source.IsProtectedFromContracts,
                 BaseBodyId = source?.BaseBodyId ?? string.Empty,
                 PresentationType = source?.PresentationType ?? string.Empty,
                 HairId = source?.HairId ?? string.Empty,
@@ -228,6 +283,7 @@ namespace Reloader.NPCs.Runtime
                 MaterialColorIds = source?.MaterialColorIds != null ? new List<string>(source.MaterialColorIds) : new List<string>(),
                 GeneratedDescriptionTags = source?.GeneratedDescriptionTags != null ? new List<string>(source.GeneratedDescriptionTags) : new List<string>(),
                 SpawnAnchorId = source?.SpawnAnchorId ?? string.Empty,
+                AreaTag = source?.AreaTag ?? string.Empty,
                 CreatedAtDay = source?.CreatedAtDay ?? 0,
                 RetiredAtDay = source?.RetiredAtDay ?? -1
             };

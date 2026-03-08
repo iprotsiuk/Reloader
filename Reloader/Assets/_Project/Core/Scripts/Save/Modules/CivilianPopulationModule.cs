@@ -106,6 +106,8 @@ namespace Reloader.Core.Save.Modules
                         $"CivilianPopulation civilians[{i}] must record retiredAtDay when the civilian is dead.");
                 }
 
+                ValidateRequiredString(record.PopulationSlotId, $"civilians[{i}].populationSlotId");
+                ValidateRequiredString(record.PoolId, $"civilians[{i}].poolId");
                 ValidateRequiredString(record.BaseBodyId, $"civilians[{i}].baseBodyId");
                 ValidateRequiredString(record.PresentationType, $"civilians[{i}].presentationType");
                 ValidateRequiredString(record.HairId, $"civilians[{i}].hairId");
@@ -115,6 +117,7 @@ namespace Reloader.Core.Save.Modules
                 ValidateRequiredString(record.OutfitBottomId, $"civilians[{i}].outfitBottomId");
                 ValidateRequiredString(record.OuterwearId, $"civilians[{i}].outerwearId");
                 ValidateRequiredString(record.SpawnAnchorId, $"civilians[{i}].spawnAnchorId");
+                ValidateRequiredString(record.AreaTag, $"civilians[{i}].areaTag");
                 ValidateStringList(record.MaterialColorIds, $"civilians[{i}].materialColorIds");
                 ValidateStringList(record.GeneratedDescriptionTags, $"civilians[{i}].generatedDescriptionTags");
             }
@@ -151,9 +154,12 @@ namespace Reloader.Core.Save.Modules
         {
             return new CivilianPopulationRecord
             {
+                PopulationSlotId = source.PopulationSlotId ?? string.Empty,
+                PoolId = source.PoolId ?? string.Empty,
                 CivilianId = source.CivilianId ?? string.Empty,
                 IsAlive = source.IsAlive,
                 IsContractEligible = source.IsContractEligible,
+                IsProtectedFromContracts = source.IsProtectedFromContracts,
                 BaseBodyId = source.BaseBodyId ?? string.Empty,
                 PresentationType = source.PresentationType ?? string.Empty,
                 HairId = source.HairId ?? string.Empty,
@@ -165,6 +171,7 @@ namespace Reloader.Core.Save.Modules
                 MaterialColorIds = NormalizeStringList(source.MaterialColorIds),
                 GeneratedDescriptionTags = NormalizeStringList(source.GeneratedDescriptionTags),
                 SpawnAnchorId = source.SpawnAnchorId ?? string.Empty,
+                AreaTag = source.AreaTag ?? string.Empty,
                 CreatedAtDay = source.CreatedAtDay,
                 RetiredAtDay = source.RetiredAtDay
             };
