@@ -190,6 +190,32 @@ namespace Reloader.Core.Tests.EditMode
             Assert.DoesNotThrow(() => validateMethod!.Invoke(module, Array.Empty<object>()));
         }
 
+        [Test]
+        public void CivilianPopulationModule_ValidateModuleState_RejectsDuplicatePendingReplacementDebts()
+        {
+            var moduleType = ResolveRequiredType(ModuleTypeName);
+            var replacementType = ResolveRequiredType(ReplacementTypeName);
+
+            var module = Activator.CreateInstance(moduleType);
+            var replacements = GetRequiredList(module, "PendingReplacements");
+
+            var firstRecord = CreateReplacementRecord(replacementType);
+            var secondRecord = CreateReplacementRecord(replacementType);
+            SetProperty(secondRecord, "SpawnAnchorId", "spawn.busstop.b");
+            SetProperty(secondRecord, "QueuedAtDay", 6);
+
+            replacements.Add(firstRecord);
+            replacements.Add(secondRecord);
+
+            var validateMethod = moduleType.GetMethod("ValidateModuleState", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(validateMethod, Is.Not.Null);
+
+            var ex = Assert.Throws<TargetInvocationException>(() => validateMethod!.Invoke(module, Array.Empty<object>()));
+            Assert.That(ex?.InnerException, Is.Not.Null);
+            Assert.That(ex!.InnerException!.Message, Does.Contain("duplicate pendingReplacement"));
+            Assert.That(ex.InnerException!.Message, Does.Contain("citizen.mainTown.001"));
+        }
+
         private static object CreateCivilianRecord(Type recordType)
         {
             var record = Activator.CreateInstance(recordType);

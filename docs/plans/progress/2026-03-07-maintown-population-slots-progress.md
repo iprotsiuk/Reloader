@@ -220,6 +220,35 @@
   - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-post-save-module.xml tmp/civilian-runtime-bridge-post-save-module.log`: `8/8` passed
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-post-save-module.xml tmp/maintown-population-infra-post-save-module.log`: `5/5` passed
 
+## 2026-03-08 Checkpoint 8
+
+- Addressed the new runtime review comment on duplicate pending replacement debts:
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects duplicate `pendingReplacements` entries targeting the same `vacatedCivilianId`
+  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` now collapses duplicate matured debts defensively so malformed in-memory state cannot spawn multiple live replacements for one slot
+- Added focused regression coverage for both layers:
+  - save-module validation now fails fast on duplicate pending debts
+  - bridge replacement execution now proves duplicate matured debts still produce only one replacement civilian and one live placeholder
+- Scope note:
+  - this is save/runtime hardening only
+  - no weekly scheduler or Monday `08:00` orchestration was added yet
+  - no appearance-pipeline or final visual assembly behavior changed
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests.CivilianPopulationModule_ValidateModuleState_RejectsDuplicatePendingReplacementDebts tmp/civilian-pop-dup-debt-red.xml tmp/civilian-pop-dup-debt-red.log`
+  - `tmp/civilian-pop-dup-debt-red.xml`: `0/1` passed
+  - failing assertion: duplicate pending replacement debt was not rejected by `ValidateModuleState()`
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenDuplicateMaturedDebtsExist_SpawnsOnlyOneReplacement tmp/civilian-runtime-dup-debt-red.xml tmp/civilian-runtime-dup-debt-red.log`
+  - `tmp/civilian-runtime-dup-debt-red.xml`: `0/1` passed
+  - failing assertion: duplicate matured debt produced `2` replacements instead of `1`
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-pop-dup-debt-green.xml tmp/civilian-pop-dup-debt-green.log`: `8/8` passed
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-dup-debt-green.xml tmp/civilian-runtime-dup-debt-green.log`: `9/9` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-post-dup-debt.xml tmp/maintown-population-infra-post-dup-debt.log`: `5/5` passed
+
 ## Next Step After This One
 
 The next slice should wire replacement execution to an actual world-time trigger, likely the deferred Monday `08:00` scheduler, and verify that only matured queued replacements execute while future debt remains pending. Final STYLE-driven visual assembly should still stay deferred until that scheduler path is stable.

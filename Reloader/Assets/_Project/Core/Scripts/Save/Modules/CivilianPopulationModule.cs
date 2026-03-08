@@ -73,6 +73,7 @@ namespace Reloader.Core.Save.Modules
         {
             var seenCivilianIds = new HashSet<string>(StringComparer.Ordinal);
             var seenAlivePopulationSlotIds = new HashSet<string>(StringComparer.Ordinal);
+            var seenPendingReplacementIds = new HashSet<string>(StringComparer.Ordinal);
             for (var i = 0; i < Civilians.Count; i++)
             {
                 var record = Civilians[i];
@@ -142,6 +143,12 @@ namespace Reloader.Core.Save.Modules
                 {
                     throw new InvalidOperationException(
                         $"CivilianPopulation pendingReplacements[{i}].vacatedCivilianId is invalid.");
+                }
+
+                if (!seenPendingReplacementIds.Add(record.VacatedCivilianId))
+                {
+                    throw new InvalidOperationException(
+                        $"CivilianPopulation duplicate pendingReplacement vacatedCivilianId '{record.VacatedCivilianId}'.");
                 }
 
                 if (record.QueuedAtDay < 0)

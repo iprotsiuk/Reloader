@@ -273,3 +273,6 @@ Once slot-driven `MainTown` population is stable, the next implementation slice 
 
 > **Plan update (2026-03-08, review follow-up):** Save-module validation should reject duplicate live occupants for the same `populationSlotId`, but it must keep allowing dead historical civilians to share a slot with their live replacement.
 > The runtime replacement path intentionally keeps the retired record for history while `RebuildScenePopulation()` only spawns `IsAlive` civilians, so the invariant is "one live occupant per slot," not "one record per slot forever."
+
+> **Plan update (2026-03-08, runtime hardening):** Duplicate pending replacement debts for one `vacatedCivilianId` are invalid save state and should be rejected during module validation, but the runtime replacement executor should also collapse duplicate matured debts defensively if malformed state is injected in memory.
+> This keeps the save contract strict while preventing `ExecutePendingReplacements()` from minting multiple live occupants for one slot from duplicate debt entries.

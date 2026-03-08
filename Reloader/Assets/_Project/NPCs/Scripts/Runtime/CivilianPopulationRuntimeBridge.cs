@@ -132,12 +132,19 @@ namespace Reloader.NPCs.Runtime
             }
 
             var normalizedDay = Math.Max(0, currentDay);
+            var processedVacatedCivilianIds = new HashSet<string>(StringComparer.Ordinal);
             var replacedCount = 0;
             for (var i = _runtime.PendingReplacements.Count - 1; i >= 0; i--)
             {
                 var replacement = _runtime.PendingReplacements[i];
                 if (replacement == null || replacement.QueuedAtDay > normalizedDay)
                 {
+                    continue;
+                }
+
+                if (!processedVacatedCivilianIds.Add(replacement.VacatedCivilianId))
+                {
+                    _runtime.PendingReplacements.RemoveAt(i);
                     continue;
                 }
 
