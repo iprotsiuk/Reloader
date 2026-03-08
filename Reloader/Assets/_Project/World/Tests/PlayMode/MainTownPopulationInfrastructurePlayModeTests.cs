@@ -1,7 +1,9 @@
+using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.Core.Save.Modules;
 using Reloader.NPCs.Runtime;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -64,6 +66,61 @@ namespace Reloader.World.Tests.PlayMode
             AssertArrayConfigured(library!, "OuterwearIds");
         }
 
+        [UnityTest]
+        public IEnumerator MainTownPopulationRuntime_RebuildScenePopulation_SpawnsLiveOccupantsAndSkipsDeadSlots()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var root = GameObject.Find("MainTownPopulationRuntime");
+            Assert.That(root, Is.Not.Null, "Expected authored MainTown population runtime root.");
+
+            var bridge = root!.GetComponent<CivilianPopulationRuntimeBridge>();
+            Assert.That(bridge, Is.Not.Null, "Expected CivilianPopulationRuntimeBridge on MainTownPopulationRuntime.");
+
+            bridge!.Runtime.Civilians.Clear();
+            bridge.Runtime.PendingReplacements.Clear();
+            bridge.Runtime.Civilians.Add(CreateRecord(
+                civilianId: "citizen.mainTown.0001",
+                populationSlotId: "townsfolk.001",
+                poolId: "townsfolk",
+                spawnAnchorId: "Anchor_Townsfolk_01",
+                areaTag: "maintown.square",
+                isAlive: true,
+                retiredAtDay: -1));
+            bridge.Runtime.Civilians.Add(CreateRecord(
+                civilianId: "citizen.mainTown.0002",
+                populationSlotId: "cops.001",
+                poolId: "cops",
+                spawnAnchorId: "Anchor_Cop_01",
+                areaTag: "maintown.watch",
+                isAlive: false,
+                retiredAtDay: 2));
+
+            var bridgeType = typeof(CivilianPopulationRuntimeBridge);
+            var rebuildMethod = bridgeType.GetMethod("RebuildScenePopulation", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(rebuildMethod, Is.Not.Null, "Expected a public RebuildScenePopulation() method.");
+
+            Assert.DoesNotThrow(() => rebuildMethod!.Invoke(bridge, null));
+            yield return null;
+
+            var spawnedAgents = root.GetComponentsInChildren<NpcAgent>(includeInactive: true);
+            Assert.That(spawnedAgents.Length, Is.EqualTo(1), "Expected only live civilian slots to produce runtime NPCs.");
+
+            var metadataType = Type.GetType("Reloader.NPCs.Runtime.MainTownPopulationSpawnedCivilian, Reloader.NPCs", throwOnError: false);
+            Assert.That(metadataType, Is.Not.Null, "Expected a runtime component carrying spawned civilian slot metadata.");
+
+            var metadata = spawnedAgents[0].GetComponent(metadataType!);
+            Assert.That(metadata, Is.Not.Null, "Expected spawned NPC to carry slot metadata.");
+            Assert.That(GetProperty<string>(metadata!, "PopulationSlotId"), Is.EqualTo("townsfolk.001"));
+            Assert.That(GetProperty<string>(metadata!, "CivilianId"), Is.EqualTo("citizen.mainTown.0001"));
+            Assert.That(GetProperty<string>(metadata!, "PoolId"), Is.EqualTo("townsfolk"));
+
+            var anchor = root.transform.Find("Anchor_Townsfolk_01");
+            Assert.That(anchor, Is.Not.Null, "Expected authored spawn anchor to exist.");
+            Assert.That(spawnedAgents[0].transform.position, Is.EqualTo(anchor!.position));
+        }
+
         private static void AssertArrayConfigured(object instance, string propertyName)
         {
             var property = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
@@ -91,6 +148,47 @@ namespace Reloader.World.Tests.PlayMode
             }
 
             Assert.Fail($"Timed out waiting for active scene '{sceneName}'.");
+        }
+
+        private static CivilianPopulationRecord CreateRecord(
+            string civilianId,
+            string populationSlotId,
+            string poolId,
+            string spawnAnchorId,
+            string areaTag,
+            bool isAlive,
+            int retiredAtDay)
+        {
+            return new CivilianPopulationRecord
+            {
+                CivilianId = civilianId,
+                PopulationSlotId = populationSlotId,
+                PoolId = poolId,
+                IsAlive = isAlive,
+                IsContractEligible = isAlive,
+                IsProtectedFromContracts = false,
+                BaseBodyId = "body.male.a",
+                PresentationType = "masculine",
+                HairId = "hair.short.01",
+                HairColorId = "hair.black",
+                BeardId = "beard.none",
+                OutfitTopId = "top.coat.01",
+                OutfitBottomId = "bottom.jeans.01",
+                OuterwearId = "outer.gray.coat",
+                MaterialColorIds = new System.Collections.Generic.List<string> { "color.gray" },
+                GeneratedDescriptionTags = new System.Collections.Generic.List<string> { "gray coat" },
+                SpawnAnchorId = spawnAnchorId,
+                AreaTag = areaTag,
+                CreatedAtDay = 0,
+                RetiredAtDay = retiredAtDay
+            };
+        }
+
+        private static T GetProperty<T>(object instance, string propertyName)
+        {
+            var property = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(property, Is.Not.Null, $"Expected property '{propertyName}'.");
+            return (T)property!.GetValue(instance);
         }
     }
 }

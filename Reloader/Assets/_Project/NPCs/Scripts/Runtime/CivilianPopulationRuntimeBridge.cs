@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Reloader.Core.Save;
 using Reloader.Core.Save.Modules;
 using Reloader.NPCs.Generation;
+using Reloader.NPCs.Runtime.Capabilities;
 using UnityEngine;
 
 namespace Reloader.NPCs.Runtime
@@ -92,6 +93,28 @@ namespace Reloader.NPCs.Runtime
             }
 
             return false;
+        }
+
+        public void RebuildScenePopulation()
+        {
+            ClearSpawnedScenePopulation();
+
+            for (var i = 0; i < _runtime.Civilians.Count; i++)
+            {
+                var record = _runtime.Civilians[i];
+                if (record == null || !record.IsAlive)
+                {
+                    continue;
+                }
+
+                var anchor = ResolveSpawnAnchor(record.SpawnAnchorId);
+                if (anchor == null)
+                {
+                    continue;
+                }
+
+                SpawnPlaceholderCivilian(record, anchor);
+            }
         }
 
         private void SeedInitialRosterIfNeeded(CivilianPopulationModule module)
@@ -226,6 +249,59 @@ namespace Reloader.NPCs.Runtime
             }
 
             CopyModuleToRuntime(module);
+        }
+
+        private void ClearSpawnedScenePopulation()
+        {
+            var spawned = GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            for (var i = 0; i < spawned.Length; i++)
+            {
+                var target = spawned[i];
+                if (target == null)
+                {
+                    continue;
+                }
+
+                if (Application.isPlaying)
+                {
+                    Destroy(target.gameObject);
+                }
+                else
+                {
+                    DestroyImmediate(target.gameObject);
+                }
+            }
+        }
+
+        private Transform ResolveSpawnAnchor(string anchorId)
+        {
+            if (string.IsNullOrWhiteSpace(anchorId))
+            {
+                return null;
+            }
+
+            var anchors = GetComponentsInChildren<Transform>(includeInactive: true);
+            for (var i = 0; i < anchors.Length; i++)
+            {
+                var candidate = anchors[i];
+                if (candidate != null && string.Equals(candidate.name, anchorId, StringComparison.Ordinal))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        private void SpawnPlaceholderCivilian(CivilianPopulationRecord record, Transform anchor)
+        {
+            var civilian = new GameObject($"Civilian_{record.CivilianId}");
+            civilian.transform.SetParent(transform, false);
+            civilian.transform.SetPositionAndRotation(anchor.position, anchor.rotation);
+            civilian.AddComponent<CapsuleCollider>();
+            civilian.AddComponent<NpcAgent>();
+            civilian.AddComponent<AmbientCitizenCapability>();
+            civilian.AddComponent<MainTownPopulationSpawnedCivilian>().Initialize(record);
         }
 
         private List<string> NormalizeSpawnAnchors()

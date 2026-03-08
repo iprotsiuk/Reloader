@@ -183,13 +183,13 @@ git commit -m "feat: assign civilians into maintown population slots"
 ### Task 5: Spawn live occupants into MainTown from persisted slots
 
 **Files:**
-- Create or modify under: `Reloader/Assets/_Project/World/Scripts/Runtime/`
-- Create or modify under: `Reloader/Assets/_Project/NPCs/Prefabs/Civilians/`
-- Create: `Reloader/Assets/_Project/World/Tests/PlayMode/MainTownPopulationSlotsPlayModeTests.cs`
+- Modify: `Reloader/Assets/_Project/NPCs/Scripts/Runtime/CivilianPopulationRuntimeBridge.cs`
+- Create: `Reloader/Assets/_Project/NPCs/Scripts/Runtime/MainTownPopulationSpawnedCivilian.cs`
+- Modify: `Reloader/Assets/_Project/World/Tests/PlayMode/MainTownPopulationInfrastructurePlayModeTests.cs`
 
 **Step 1: Write the failing scene-spawn test**
 
-- Add a PlayMode test that boots `MainTown`, injects a slot-driven population roster, and asserts:
+- Extend the existing `MainTown` infrastructure PlayMode fixture so it boots `MainTown`, injects a slot-driven population roster, and asserts:
   - live occupants spawn
   - dead occupants do not spawn
   - spawned occupants preserve `populationSlotId`
@@ -199,22 +199,23 @@ git commit -m "feat: assign civilians into maintown population slots"
 Run:
 
 ```bash
-bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationSlotsPlayModeTests tmp/maintown-pop-slots-play.xml tmp/maintown-pop-slots-play.log
+bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_RebuildScenePopulation_SpawnsLiveOccupantsAndSkipsDeadSlots tmp/maintown-population-rebuild-red.xml tmp/maintown-population-rebuild-red.log
 ```
 
 Expected: failing scene-spawn assertions because no slot-driven loader exists yet.
 
 **Step 3: Implement the MainTown loader/spawner**
 
-- Hook `MainTown` runtime loading so it spawns live occupants from persisted slots.
-- Keep vendor/protected authored NPCs outside the generated population path.
+- Add a minimal `RebuildScenePopulation()` seam on `CivilianPopulationRuntimeBridge`.
+- Spawn placeholder civilians from persisted live records using authored anchor ids under `MainTownPopulationRuntime`.
+- Keep vendor/protected authored NPCs and final visual assembly outside this checkpoint.
 
 **Step 4: Re-run the focused PlayMode test**
 
 Run:
 
 ```bash
-bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationSlotsPlayModeTests tmp/maintown-pop-slots-play.xml tmp/maintown-pop-slots-play.log
+bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-full.xml tmp/maintown-population-infra-full.log
 ```
 
 Expected: passing scene-spawn assertions.
@@ -222,10 +223,10 @@ Expected: passing scene-spawn assertions.
 **Step 5: Commit**
 
 ```bash
-git add Reloader/Assets/_Project/World/Scripts/Runtime
-git add Reloader/Assets/_Project/NPCs/Prefabs/Civilians
-git add Reloader/Assets/_Project/World/Tests/PlayMode/MainTownPopulationSlotsPlayModeTests.cs
-git commit -m "feat: spawn maintown occupants from population slots"
+git add Reloader/Assets/_Project/NPCs/Scripts/Runtime/CivilianPopulationRuntimeBridge.cs
+git add Reloader/Assets/_Project/NPCs/Scripts/Runtime/MainTownPopulationSpawnedCivilian.cs
+git add Reloader/Assets/_Project/World/Tests/PlayMode/MainTownPopulationInfrastructurePlayModeTests.cs
+git commit -m "feat: rebuild maintown scene population"
 ```
 
 ### Task 6: Run verification and update progress
@@ -242,7 +243,7 @@ bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.MainTownPo
 bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationSlotAssignmentTests tmp/maintown-slot-assign-edit.xml tmp/maintown-slot-assign-edit.log
 bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-save-edit.xml tmp/civilian-save-edit.log
 bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-edit.xml tmp/civilian-runtime-bridge-edit.log
-bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationSlotsPlayModeTests tmp/maintown-pop-slots-play.xml tmp/maintown-pop-slots-play.log
+bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-full.xml tmp/maintown-population-infra-full.log
 bash scripts/verify-docs-and-context.sh
 git diff --check
 ```

@@ -59,7 +59,7 @@
   - hardened `MainTownPopulationDefinition.Validate()` so empty pool arrays fail fast instead of silently producing a zero-civilian roster
 - Kept the deferred boundary explicit:
   - no committed STYLE appearance-part curation yet
-  - no live civilian prefab assembly/spawn pipeline yet
+  - no final civilian prefab assembly/appearance pipeline yet
   - no claim that the placeholder IDs map to final approved art content
 
 ## Verification
@@ -84,6 +84,32 @@
   - `QwenCodeConfigurator`
   - `UnhandledLogMessageException`
 
+## 2026-03-08 Checkpoint 3
+
+- Added the first live scene-population rebuild seam:
+  - extended `MainTownPopulationInfrastructurePlayModeTests` with a red-to-green runtime spawn assertion
+  - added `CivilianPopulationRuntimeBridge.RebuildScenePopulation()` as the minimal entry point for placeholder scene rebuilding
+  - spawned one placeholder `NpcAgent` per live persisted civilian record at the authored anchor transform
+  - skipped dead civilians during rebuilding
+  - attached `MainTownPopulationSpawnedCivilian` metadata so runtime objects preserve `civilianId`, `populationSlotId`, `poolId`, `spawnAnchorId`, and `areaTag`
+- Kept the deferred boundary explicit:
+  - `RebuildScenePopulation()` is callable infrastructure, not yet automatic scene-load hydration
+  - placeholder civilians are runtime shells, not final curated STYLE-driven art prefabs
+  - replacement execution and contract-target eligibility changes remain deferred
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_RebuildScenePopulation_SpawnsLiveOccupantsAndSkipsDeadSlots tmp/maintown-population-rebuild-red.xml tmp/maintown-population-rebuild-red.log`
+  - `tmp/maintown-population-rebuild-red.xml`: `0/1` passed
+  - failing assertion: missing public `RebuildScenePopulation()` on `CivilianPopulationRuntimeBridge`
+- Green step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_RebuildScenePopulation_SpawnsLiveOccupantsAndSkipsDeadSlots tmp/maintown-population-rebuild-green.xml tmp/maintown-population-rebuild-green.log`
+  - `tmp/maintown-population-rebuild-green.xml`: `1/1` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-full.xml tmp/maintown-population-infra-full.log`: `2/2` passed
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-edit.xml tmp/civilian-runtime-bridge-edit.log`: `5/5` passed
+
 ## Next Step After This One
 
-Once slot-driven `MainTown` population is stable, the next slice should curate the first committed appearance-part pool from the STYLE kit and wire real visual assembly/prefab selection so generated civilians use approved bodies, hair, clothes, and color variants in-game.
+The next slice should wire `MainTown` scene hydration so `RebuildScenePopulation()` is invoked automatically from the correct runtime/load seam, then verify teardown/rebuild behavior across scene reload or save restore. Final STYLE-driven visual assembly should stay deferred until that lifecycle hook is stable.
