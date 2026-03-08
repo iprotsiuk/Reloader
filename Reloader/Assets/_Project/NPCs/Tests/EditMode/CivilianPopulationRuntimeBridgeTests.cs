@@ -1,9 +1,11 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using Reloader.Contracts.Runtime;
 using Reloader.Core.Runtime;
 using Reloader.Core.Save;
+using Reloader.Core.Save.IO;
 using Reloader.Core.Save.Modules;
 using Reloader.NPCs.Generation;
 using Reloader.NPCs.Runtime;
@@ -463,6 +465,100 @@ namespace Reloader.NPCs.Tests.EditMode
             finally
             {
                 Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void SaveCoordinator_Load_WhenLiveWorldClockWasSaved_ExecutesReplacementUsingSavedCoreWorldTime()
+        {
+            var tempDir = Path.Combine(Path.GetTempPath(), "reloader-coreworld-population-bridge-" + System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            var savePath = Path.Combine(tempDir, "slot01.json");
+
+            var worldGo = new GameObject("CoreWorldController");
+            var controller = worldGo.AddComponent<CoreWorldController>();
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_Townsfolk_01", new Vector3(2f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                controller.SetWorldState(14, 8f);
+                bridge.SetCoreWorldController(controller);
+                SaveRuntimeBridgeRegistry.Register(controller);
+                SaveRuntimeBridgeRegistry.Register(bridge);
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0007",
+                    PopulationSlotId = "townsfolk.001",
+                    PoolId = "townsfolk",
+                    SpawnAnchorId = "Anchor_Townsfolk_01",
+                    AreaTag = "maintown.square",
+                    IsAlive = false,
+                    IsContractEligible = false,
+                    IsProtectedFromContracts = false,
+                    BaseBodyId = "body.male.a",
+                    PresentationType = "masculine",
+                    HairId = "hair.short.01",
+                    HairColorId = "hair.black",
+                    BeardId = "beard.none",
+                    OutfitTopId = "top.coat.01",
+                    OutfitBottomId = "bottom.jeans.01",
+                    OuterwearId = "outer.gray.coat",
+                    MaterialColorIds = new List<string> { "color.gray" },
+                    GeneratedDescriptionTags = new List<string> { "gray coat" },
+                    CreatedAtDay = 2,
+                    RetiredAtDay = 9
+                });
+                bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.0007",
+                    QueuedAtDay = 9,
+                    SpawnAnchorId = "Anchor_Townsfolk_01"
+                });
+
+                var coordinator = new SaveCoordinator(
+                    new SaveFileRepository(),
+                    new SaveModuleRegistration[]
+                    {
+                        new(0, new CoreWorldModule()),
+                        new(1, new CivilianPopulationModule())
+                    },
+                    currentSchemaVersion: 8);
+
+                coordinator.Save(savePath, "0.8.0-dev");
+
+                controller.SetWorldState(0, 0f);
+                bridge.Runtime.PendingReplacements.Clear();
+                bridge.Runtime.Civilians.Clear();
+
+                coordinator.Load(savePath);
+
+                var snapshot = controller.CaptureSnapshot();
+                Assert.That(snapshot.DayCount, Is.EqualTo(14));
+                Assert.That(snapshot.TimeOfDay, Is.EqualTo(8f).Within(0.001f));
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0), "Expected saved Monday morning world time to mature the replacement debt during load.");
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(2), "Expected historical dead civilian plus replacement after load.");
+                Assert.That(bridge.Runtime.Civilians[1].CivilianId, Is.EqualTo("citizen.mainTown.0008"));
+            }
+            finally
+            {
+                SaveRuntimeBridgeRegistry.Unregister(bridge);
+                SaveRuntimeBridgeRegistry.Unregister(controller);
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(worldGo);
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                }
             }
         }
 

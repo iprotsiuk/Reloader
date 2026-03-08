@@ -182,6 +182,24 @@ namespace Reloader.NPCs.Runtime
             return false;
         }
 
+        public bool TryGetCivilianAreaTag(string civilianId, out string areaTag)
+        {
+            areaTag = string.Empty;
+            if (string.IsNullOrWhiteSpace(civilianId))
+            {
+                return false;
+            }
+
+            var record = FindCivilianById(civilianId);
+            if (record == null || string.IsNullOrWhiteSpace(record.AreaTag))
+            {
+                return false;
+            }
+
+            areaTag = record.AreaTag;
+            return true;
+        }
+
         public void ReportContractTargetEliminated(string targetId, bool wasExposed)
         {
             var snapshot = ResolveCoreWorldController()?.CaptureSnapshot();

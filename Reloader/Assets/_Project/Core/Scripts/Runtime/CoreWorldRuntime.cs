@@ -64,6 +64,33 @@ namespace Reloader.Core.Runtime
             TimeOfDay = NormalizeTimeOfDay(timeOfDay);
         }
 
+        public bool AdvanceRealtimeSeconds(float realtimeSeconds, float worldMinutesPerRealtimeSecond = 1f)
+        {
+            if (float.IsNaN(realtimeSeconds) || float.IsInfinity(realtimeSeconds) || realtimeSeconds <= 0f)
+            {
+                return false;
+            }
+
+            if (float.IsNaN(worldMinutesPerRealtimeSecond)
+                || float.IsInfinity(worldMinutesPerRealtimeSecond)
+                || worldMinutesPerRealtimeSecond <= 0f)
+            {
+                return false;
+            }
+
+            var deltaMinutes = realtimeSeconds * worldMinutesPerRealtimeSecond;
+            if (deltaMinutes <= 0f)
+            {
+                return false;
+            }
+
+            var totalMinutes = (TimeOfDay * 60d) + deltaMinutes;
+            var wrappedDayDelta = (int)Math.Floor(totalMinutes / MinutesPerDay);
+            DayCount = Math.Max(0, DayCount + wrappedDayDelta);
+            TimeOfDay = NormalizeTimeOfDay((float)(totalMinutes / 60d));
+            return true;
+        }
+
         private static float NormalizeTimeOfDay(float timeOfDay)
         {
             if (float.IsNaN(timeOfDay) || float.IsInfinity(timeOfDay))

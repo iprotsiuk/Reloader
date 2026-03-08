@@ -628,3 +628,61 @@ The next slice should formalize the actual Monday `08:00` scheduler rule on top 
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-slice-retire-full.xml tmp/maintown-contract-slice-retire-full.log`: `6/6` passed
   - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-retire-full.xml tmp/civilian-runtime-bridge-retire-full.log`: `21/21` passed
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-retire-full.xml tmp/maintown-population-infra-retire-full.log`: `6/6` passed
+
+## Checkpoint: Live World Clock Save Sync
+
+- Addressed the valid PR review comment on stale world time during replacement evaluation:
+  - `CoreWorldRuntime` now advances live time at `1 real second = 1 in-game minute`
+  - `CoreWorldController` now implements `ISaveRuntimeBridge`
+  - `CoreWorldController.PrepareForSave()` copies the live controller snapshot into `CoreWorldModule`
+  - `CoreWorldController.FinalizeAfterLoad()` restores from `CoreWorldModule` silently instead of raising `WorldStateChanged`
+- Added coverage for both the pure clock logic and the save/load seam:
+  - `CoreWorldRuntimeTests` now prove the minute-based live clock wraps across midnight and increments the day
+  - `CoreWorldControllerTests` now prove live advancement raises `WorldStateChanged`, save capture writes the module, and load restore hydrates silently
+  - `CivilianPopulationRuntimeBridgeTests` now prove `SaveCoordinator.Load()` executes matured replacement debt against the saved controller time rather than stale default world-module data
+- Scope note:
+  - this checkpoint fixes the save/runtime world-time contract, not richer weekly scheduling rules
+  - Monday `08:00` remains the first deterministic maturity gate already exercised by the population bridge
+
+## Verification
+
+- Red step:
+  - `Reloader.Core.Tests.EditMode.CoreWorldRuntimeTests` and `Reloader.Core.Tests.EditMode.CoreWorldControllerTests` initially failed to compile on missing:
+    - `CoreWorldRuntime.AdvanceRealtimeSeconds(...)`
+    - `CoreWorldController.AdvanceRealtimeSeconds(...)`
+    - `CoreWorldController.PrepareForSave(...)`
+    - `CoreWorldController.FinalizeAfterLoad(...)`
+  - Unity console errors captured those exact missing members before implementation
+- Green step:
+  - `Reloader.Core.Tests.EditMode.CoreWorldRuntimeTests`: `3/3` passed
+  - `Reloader.Core.Tests.EditMode.CoreWorldControllerTests`: `4/4` passed
+  - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.SaveCoordinator_Load_WhenLiveWorldClockWasSaved_ExecutesReplacementUsingSavedCoreWorldTime`: `1/1` passed
+- Regression sweep:
+  - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `22/22` passed
+  - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `6/6` passed
+  - `Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests`: `6/6` passed
+
+## Checkpoint: Compact Procedural Contract Tracking
+
+- Added the first `Normal` difficulty device tracker without adding a marker or a second UI surface:
+  - `UiToolkitScreenRuntimeBridge.TabDeviceControllerAdapter` now derives compact tracking text from the active contract snapshot plus `CivilianPopulationRuntimeBridge`
+  - the device feedback line now shows `TRACK: <Area> • NO FIX` until the accepted procedural target is live-resolvable
+  - once the target is resolvable, the same line shows `TRACK: <Area> • LOCKED <distance>`
+  - the manual selected-target row stays reserved for explicit rangefinder marking and is no longer overloaded for contract tracking
+- Added the first supporting metadata seam:
+  - `CivilianPopulationRuntimeBridge.TryGetCivilianAreaTag(...)` exposes population area info for the compact tracker without widening save schema or reusing device-selected-target state
+- Scope note:
+  - there is still no world marker
+  - this slice is compact status text only and intentionally leaves richer signal-loss/coarse-direction polish for later
+
+## Verification
+
+- Red step:
+  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests.RuntimeBridge_BindTabInventory_WhenProceduralContractIsActive_ShowsCompactDeviceTrackingStatus`: `0/1` passed
+  - failing assertion: device feedback still showed `Recon hooks are not installed.` instead of compact contract tracking text
+- Green step:
+  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests.RuntimeBridge_BindTabInventory_WhenProceduralContractIsActive_ShowsCompactDeviceTrackingStatus`: `1/1` passed
+- Regression sweep:
+  - `Reloader.UI.Tests.PlayMode.TabInventoryContractsBridgePlayModeTests`: `4/4` passed
+  - `Reloader.UI.Tests.PlayMode.TabInventoryDeviceSectionPlayModeTests`: `16/16` passed
+  - `Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests`: `6/6` passed
