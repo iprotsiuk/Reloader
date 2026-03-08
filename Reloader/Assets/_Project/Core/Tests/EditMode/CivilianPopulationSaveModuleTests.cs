@@ -343,6 +343,38 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(ex.InnerException!.Message, Does.Contain("townsfolk.001"));
         }
 
+        [Test]
+        public void CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementWhenSpawnAnchorDiffersFromVacatedCivilian()
+        {
+            var moduleType = ResolveRequiredType(ModuleTypeName);
+            var recordType = ResolveRequiredType(RecordTypeName);
+            var replacementType = ResolveRequiredType(ReplacementTypeName);
+
+            var module = Activator.CreateInstance(moduleType);
+            var civilians = GetRequiredList(module, "Civilians");
+            var replacements = GetRequiredList(module, "PendingReplacements");
+
+            var deadRecord = CreateCivilianRecord(recordType);
+            SetProperty(deadRecord, "IsAlive", false);
+            SetProperty(deadRecord, "IsContractEligible", false);
+            SetProperty(deadRecord, "RetiredAtDay", 5);
+            SetProperty(deadRecord, "SpawnAnchorId", "spawn.busstop.a");
+            civilians.Add(deadRecord);
+
+            var replacement = CreateReplacementRecord(replacementType);
+            SetProperty(replacement, "SpawnAnchorId", "spawn.busstop.b");
+            replacements.Add(replacement);
+
+            var validateMethod = moduleType.GetMethod("ValidateModuleState", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(validateMethod, Is.Not.Null);
+
+            var ex = Assert.Throws<TargetInvocationException>(() => validateMethod!.Invoke(module, Array.Empty<object>()));
+            Assert.That(ex?.InnerException, Is.Not.Null);
+            Assert.That(ex!.InnerException!.Message, Does.Contain("does not match dead civilian"));
+            Assert.That(ex.InnerException!.Message, Does.Contain("spawn.busstop.b"));
+            Assert.That(ex.InnerException!.Message, Does.Contain("spawn.busstop.a"));
+        }
+
         private static object CreateCivilianRecord(Type recordType)
         {
             var record = Activator.CreateInstance(recordType);
