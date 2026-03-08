@@ -62,6 +62,11 @@
   - vendors remain the only protected contract exclusion for the first targeting pass
   - if the Monday `08:00` refresh happens while `MainTown` is unloaded, replacements should already be in place on the next load rather than arriving late on-screen
 
+## 2026-03-08 Checkpoint
+
+- Bumped the runtime save schema from `v7` to `v8` after slot metadata became a required part of the civilian payload contract.
+- Older schema-7 saves now fail at the envelope schema gate instead of reaching `CivilianPopulationModule.ValidateModuleState()` and aborting deeper in restore.
+
 ## Scope Notes
 
 - New saves should generate a persistent `MainTown` civilian roster.

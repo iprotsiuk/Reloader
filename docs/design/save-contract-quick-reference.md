@@ -27,7 +27,7 @@ Current repository runtime requires these registered module blocks:
 Weapons ammo snapshot fields are: `ammoSource`, `muzzleVelocityFps`, `velocityStdDevFps`, `projectileMassGrains`, `ballisticCoefficientG1`, `dispersionMoa`.
 In-flight projectiles are intentionally excluded from v0.1 save scope.
 
-Runtime schema note: baseline schema is `v7`, and loads fail if the save schema does not exactly match it.
+Runtime schema note: baseline schema is `v8`, and loads fail if the save schema does not exactly match it.
 
 The broader `SaveData` tree in `save-and-progression.md` is the target schema contract. Blocks become required only after module registration lands in runtime.
 

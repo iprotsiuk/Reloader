@@ -41,7 +41,7 @@ namespace Reloader.Core.Tests.EditMode
             var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
             var envelope = coordinator.CaptureEnvelope("0.7.0-dev");
 
-            Assert.That(envelope.SchemaVersion, Is.EqualTo(7));
+            Assert.That(envelope.SchemaVersion, Is.EqualTo(8));
             Assert.That(envelope.Modules.ContainsKey("CivilianPopulation"), Is.True);
             Assert.That(envelope.Modules["CivilianPopulation"].ModuleVersion, Is.EqualTo(1));
         }
@@ -59,6 +59,27 @@ namespace Reloader.Core.Tests.EditMode
             var ex = Assert.Throws<InvalidDataException>(() => coordinator.Load(_savePath));
             Assert.That(ex.Message, Does.Contain("Missing required module block"));
             Assert.That(ex.Message, Does.Contain("CivilianPopulation"));
+        }
+
+        [Test]
+        public void SaveBootstrapper_DefaultCoordinatorLoad_RejectsSchema7CivilianPayloadBeforeSlotValidation()
+        {
+            var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
+            var repository = new SaveFileRepository();
+            var envelope = coordinator.CaptureEnvelope("0.7.0-dev");
+            envelope.SchemaVersion = 7;
+            envelope.Modules["CivilianPopulation"] = new ModuleSaveBlock
+            {
+                ModuleVersion = 1,
+                PayloadJson =
+                    "{\"civilians\":[{\"civilianId\":\"citizen.mainTown.0001\",\"isAlive\":true,\"isContractEligible\":true,\"baseBodyId\":\"body.male.a\",\"presentationType\":\"masculine\",\"hairId\":\"hair.short.01\",\"hairColorId\":\"hair.black\",\"beardId\":\"beard.none\",\"outfitTopId\":\"top.coat.01\",\"outfitBottomId\":\"bottom.jeans.01\",\"outerwearId\":\"outer.gray.coat\",\"materialColorIds\":[\"color.gray\"],\"generatedDescriptionTags\":[\"gray coat\"],\"spawnAnchorId\":\"spawn.busstop.a\",\"createdAtDay\":4,\"retiredAtDay\":-1}],\"pendingReplacements\":[]}"
+            };
+
+            repository.WriteEnvelope(_savePath, envelope);
+
+            var ex = Assert.Throws<InvalidDataException>(() => coordinator.Load(_savePath));
+            Assert.That(ex, Is.Not.Null);
+            Assert.That(ex!.Message, Does.Contain("does not match runtime schema"));
         }
 
         [Test]

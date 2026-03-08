@@ -91,8 +91,8 @@ Current repository implementation requires these registered module payloads:
 In-flight projectile state is intentionally out-of-scope for v0.1 saves.
 
 Schema note:
-- Runtime save schema is now `v7`.
-- Loads fail fast when schema does not exactly match `v7`.
+- Runtime save schema is now `v8`.
+- Loads fail fast when schema does not exactly match `v8`.
 - Load remains transactional: missing required module blocks still fail before restore.
 
 Implementation note:
