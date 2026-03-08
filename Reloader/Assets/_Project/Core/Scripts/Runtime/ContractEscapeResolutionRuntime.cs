@@ -64,6 +64,21 @@ namespace Reloader.Contracts.Runtime
         public bool IsAwaitingSearchClear => _awaitingSearchClear;
         public bool HasPendingPayout => _pendingPayoutAmount > 0;
 
+        public bool CanPublishAvailableContract()
+        {
+            if (_contractController.ActiveContract != null)
+            {
+                return false;
+            }
+
+            if (_awaitingSearchClear || _completionPending || _pendingPayoutAmount > 0)
+            {
+                return false;
+            }
+
+            return _policeHeatRuntime.CurrentState.Level == PoliceHeatLevel.Clear;
+        }
+
         public void SetAvailableContract(AssassinationContractDefinition availableContract)
         {
             _availableContract = availableContract;

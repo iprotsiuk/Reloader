@@ -563,7 +563,7 @@ namespace Reloader.NPCs.Runtime
                 return;
             }
 
-            if (provider.TryGetContractSnapshot(out var snapshot) && snapshot.HasActiveContract)
+            if (!provider.CanPublishAvailableContract())
             {
                 return;
             }
@@ -571,10 +571,15 @@ namespace Reloader.NPCs.Runtime
             var target = FindFirstEligibleContractCivilian();
             if (target == null)
             {
+                if (provider.TryGetContractSnapshot(out var emptySnapshot) && emptySnapshot.HasAvailableContract)
+                {
+                    provider.SetAvailableContract(null);
+                }
+
                 return;
             }
 
-            if (provider.TryGetContractSnapshot(out snapshot) &&
+            if (provider.TryGetContractSnapshot(out var snapshot) &&
                 snapshot.HasAvailableContract &&
                 string.Equals(snapshot.TargetId, target.CivilianId, StringComparison.Ordinal))
             {

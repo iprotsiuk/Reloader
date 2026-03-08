@@ -542,3 +542,37 @@ The next slice should formalize the actual Monday `08:00` scheduler rule on top 
 
 - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_SaveLoad_PreservesAcceptedProceduralContractTarget tmp/maintown-contract-save-load-red.xml tmp/maintown-contract-save-load-red.log`: `1/1` passed
 - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-slice-persistence-full.xml tmp/maintown-contract-slice-persistence-full.log`: `4/4` passed
+
+## Checkpoint: Procedural Offer Refresh Safety
+
+- Hardened rebuild-driven contract offer refresh so it cannot stomp runtime contract state:
+  - `ContractEscapeResolutionRuntime` now exposes an explicit idle check for available-offer publication
+  - `StaticContractRuntimeProvider` surfaces that idle check to callers
+  - `CivilianPopulationRuntimeBridge.RefreshProceduralContractOffer()` now mutates the provider only while the contract runtime is idle
+  - when the bridge becomes ineligible to publish any live civilian offer, it now clears a stale available contract instead of leaving a dead offer behind
+  - pre-accept target kills no longer allow a later population rebuild to republish a new offer and force-clear the active police search
+- Coverage updates:
+  - bridge EditMode tests now prove stale procedural offers are cleared when no eligible civilians remain
+  - bridge EditMode tests now prove rebuilds do not republish during pre-accept search state
+  - `MainTownContractSlicePlayModeTests` still passes with the additional accepted-contract save/load coverage in place
+- Scope note:
+  - this is contract-runtime safety hardening, not richer candidate selection
+  - procedural offer selection is still deterministic-first
+  - full cold-load restoration of active procedural contracts remains a later save-runtime bridge slice
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenNoEligibleCiviliansRemain_ClearsAvailableProceduralContractOffer tmp/civilian-runtime-stale-offer-red.xml tmp/civilian-runtime-stale-offer-red.log`
+  - `tmp/civilian-runtime-stale-offer-red.xml`: `0/1` passed
+  - failing assertion: stale procedural offer remained available after all civilians became ineligible
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenOfferWasConsumedByPreAcceptKill_DoesNotRepublishOrClearSearch tmp/civilian-runtime-preaccept-search-red.xml tmp/civilian-runtime-preaccept-search-red.log`
+  - `tmp/civilian-runtime-preaccept-search-red.xml`: `0/1` passed
+  - failing assertion: rebuild republished a new offer while pre-accept search state was still active
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenNoEligibleCiviliansRemain_ClearsAvailableProceduralContractOffer tmp/civilian-runtime-stale-offer-green.xml tmp/civilian-runtime-stale-offer-green.log`: `1/1` passed
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.RebuildScenePopulation_WhenOfferWasConsumedByPreAcceptKill_DoesNotRepublishOrClearSearch tmp/civilian-runtime-preaccept-search-green.xml tmp/civilian-runtime-preaccept-search-green.log`: `1/1` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-contract-refresh-full.xml tmp/civilian-runtime-bridge-contract-refresh-full.log`: `21/21` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-slice-full.xml tmp/maintown-contract-slice-full.log`: `4/4` passed

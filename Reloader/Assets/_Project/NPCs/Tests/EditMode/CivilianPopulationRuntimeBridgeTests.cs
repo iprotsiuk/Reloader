@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Reloader.Contracts.Runtime;
 using Reloader.Core.Runtime;
 using Reloader.Core.Save;
 using Reloader.Core.Save.Modules;
@@ -291,6 +292,98 @@ namespace Reloader.NPCs.Tests.EditMode
             finally
             {
                 Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenNoEligibleCiviliansRemain_ClearsAvailableProceduralContractOffer()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            CreateAnchor(bridgeGo.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0201",
+                    populationSlotId: "townsfolk.201",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var initialSnapshot), Is.True, "Expected the first rebuild to publish a procedural contract offer.");
+                Assert.That(initialSnapshot.HasAvailableContract, Is.True);
+                Assert.That(initialSnapshot.TargetId, Is.EqualTo("citizen.mainTown.0201"));
+
+                bridge.Runtime.Civilians[0].IsContractEligible = false;
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out _), Is.False, "Expected the bridge to clear stale procedural offers when no eligible civilians remain.");
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenOfferWasConsumedByPreAcceptKill_DoesNotRepublishOrClearSearch()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            CreateAnchor(bridgeGo.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                RuntimeKernelBootstrapper.Configure(System.Array.Empty<RuntimeModuleRegistration>(), new DefaultRuntimeEvents());
+
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0301",
+                    populationSlotId: "townsfolk.301",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+
+                bridge.RebuildScenePopulation();
+                Assert.That(provider.TryGetContractSnapshot(out var initialSnapshot), Is.True);
+
+                provider.ReportContractTargetEliminated(initialSnapshot.TargetId, wasExposed: true);
+                Assert.That(provider.TryGetContractSnapshot(out _), Is.False, "Expected no contract snapshot while the pre-accept search state is active.");
+                Assert.That(GetRuntime(provider).CurrentHeatState.Level, Is.EqualTo(Reloader.Core.Events.PoliceHeatLevel.Search));
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out _), Is.False, "Expected the bridge to avoid republishing while search is still active for a consumed offer.");
+                Assert.That(GetRuntime(provider).CurrentHeatState.Level, Is.EqualTo(Reloader.Core.Events.PoliceHeatLevel.Search), "Expected rebuild to preserve the active search state instead of force-clearing it.");
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Configure(System.Array.Empty<RuntimeModuleRegistration>(), new DefaultRuntimeEvents());
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
             }
         }
 
@@ -1138,6 +1231,27 @@ namespace Reloader.NPCs.Tests.EditMode
             var field = type.GetField(fieldName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Expected private field '{fieldName}' on '{type.FullName}'.");
             field.SetValue(instance, value);
+        }
+
+        private static void DestroyProceduralContractDefinition(CivilianPopulationRuntimeBridge bridge)
+        {
+            var field = typeof(CivilianPopulationRuntimeBridge).GetField("_proceduralAvailableContract", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, "Expected private procedural contract field on CivilianPopulationRuntimeBridge.");
+
+            if (field!.GetValue(bridge) is Object definition)
+            {
+                Object.DestroyImmediate(definition);
+            }
+        }
+
+        private static ContractEscapeResolutionRuntime GetRuntime(StaticContractRuntimeProvider provider)
+        {
+            var runtimeField = typeof(StaticContractRuntimeProvider).GetField("_runtime", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.That(runtimeField, Is.Not.Null, "Expected private runtime field on StaticContractRuntimeProvider.");
+
+            var runtime = runtimeField!.GetValue(provider) as ContractEscapeResolutionRuntime;
+            Assert.That(runtime, Is.Not.Null, "Expected StaticContractRuntimeProvider to initialize its runtime.");
+            return runtime!;
         }
 
         private static int InvokeExecutePendingReplacements(CivilianPopulationRuntimeBridge bridge, int currentDay, float currentTimeOfDay)
