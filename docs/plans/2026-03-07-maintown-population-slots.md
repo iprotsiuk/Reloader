@@ -270,3 +270,6 @@ Once slot-driven `MainTown` population is stable, the next implementation slice 
 
 > **Plan update (2026-03-08, later):** Before visual assembly, add deterministic replacement execution for queued dead civilians.
 > The replacement path should preserve stable slot ownership (`populationSlotId`, `poolId`, anchor, area) while issuing a new civilian identity and rebuilding the scene placeholder.
+
+> **Plan update (2026-03-08, review follow-up):** Save-module validation should reject duplicate live occupants for the same `populationSlotId`, but it must keep allowing dead historical civilians to share a slot with their live replacement.
+> The runtime replacement path intentionally keeps the retired record for history while `RebuildScenePopulation()` only spawns `IsAlive` civilians, so the invariant is "one live occupant per slot," not "one record per slot forever."

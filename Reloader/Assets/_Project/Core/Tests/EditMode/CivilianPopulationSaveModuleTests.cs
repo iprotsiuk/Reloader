@@ -136,6 +136,60 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(ex!.InnerException!.Message, Does.Contain("spawnAnchorId"));
         }
 
+        [Test]
+        public void CivilianPopulationModule_ValidateModuleState_RejectsDuplicateAlivePopulationSlotOccupants()
+        {
+            var moduleType = ResolveRequiredType(ModuleTypeName);
+            var recordType = ResolveRequiredType(RecordTypeName);
+
+            var module = Activator.CreateInstance(moduleType);
+            var civilians = GetRequiredList(module, "Civilians");
+
+            var firstRecord = CreateCivilianRecord(recordType);
+            var secondRecord = CreateCivilianRecord(recordType);
+            SetProperty(secondRecord, "CivilianId", "citizen.mainTown.002");
+            SetProperty(secondRecord, "SpawnAnchorId", "spawn.busstop.b");
+
+            civilians.Add(firstRecord);
+            civilians.Add(secondRecord);
+
+            var validateMethod = moduleType.GetMethod("ValidateModuleState", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(validateMethod, Is.Not.Null);
+
+            var ex = Assert.Throws<TargetInvocationException>(() => validateMethod!.Invoke(module, Array.Empty<object>()));
+            Assert.That(ex?.InnerException, Is.Not.Null);
+            Assert.That(ex!.InnerException!.Message, Does.Contain("duplicate live populationSlotId"));
+            Assert.That(ex.InnerException!.Message, Does.Contain("townsfolk.001"));
+        }
+
+        [Test]
+        public void CivilianPopulationModule_ValidateModuleState_AllowsHistoricalDeadAndLiveCivilianToSharePopulationSlot()
+        {
+            var moduleType = ResolveRequiredType(ModuleTypeName);
+            var recordType = ResolveRequiredType(RecordTypeName);
+
+            var module = Activator.CreateInstance(moduleType);
+            var civilians = GetRequiredList(module, "Civilians");
+
+            var deadRecord = CreateCivilianRecord(recordType);
+            SetProperty(deadRecord, "CivilianId", "citizen.mainTown.001");
+            SetProperty(deadRecord, "IsAlive", false);
+            SetProperty(deadRecord, "IsContractEligible", false);
+            SetProperty(deadRecord, "RetiredAtDay", 9);
+
+            var replacementRecord = CreateCivilianRecord(recordType);
+            SetProperty(replacementRecord, "CivilianId", "citizen.mainTown.002");
+            SetProperty(replacementRecord, "SpawnAnchorId", "spawn.busstop.b");
+            SetProperty(replacementRecord, "CreatedAtDay", 9);
+
+            civilians.Add(deadRecord);
+            civilians.Add(replacementRecord);
+
+            var validateMethod = moduleType.GetMethod("ValidateModuleState", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(validateMethod, Is.Not.Null);
+            Assert.DoesNotThrow(() => validateMethod!.Invoke(module, Array.Empty<object>()));
+        }
+
         private static object CreateCivilianRecord(Type recordType)
         {
             var record = Activator.CreateInstance(recordType);

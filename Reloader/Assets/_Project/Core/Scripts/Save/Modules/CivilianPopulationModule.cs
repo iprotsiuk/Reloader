@@ -72,6 +72,7 @@ namespace Reloader.Core.Save.Modules
         public void ValidateModuleState()
         {
             var seenCivilianIds = new HashSet<string>(StringComparer.Ordinal);
+            var seenAlivePopulationSlotIds = new HashSet<string>(StringComparer.Ordinal);
             for (var i = 0; i < Civilians.Count; i++)
             {
                 var record = Civilians[i];
@@ -108,6 +109,13 @@ namespace Reloader.Core.Save.Modules
 
                 ValidateRequiredString(record.PopulationSlotId, $"civilians[{i}].populationSlotId");
                 ValidateRequiredString(record.PoolId, $"civilians[{i}].poolId");
+
+                if (record.IsAlive && !seenAlivePopulationSlotIds.Add(record.PopulationSlotId))
+                {
+                    throw new InvalidOperationException(
+                        $"CivilianPopulation duplicate live populationSlotId '{record.PopulationSlotId}'.");
+                }
+
                 ValidateRequiredString(record.BaseBodyId, $"civilians[{i}].baseBodyId");
                 ValidateRequiredString(record.PresentationType, $"civilians[{i}].presentationType");
                 ValidateRequiredString(record.HairId, $"civilians[{i}].hairId");

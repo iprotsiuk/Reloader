@@ -196,6 +196,30 @@
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_ExecutePendingReplacements_RebuildsStableSlotWithNewCivilian tmp/maintown-population-replacement-play.xml tmp/maintown-population-replacement-play.log`: `1/1` passed
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-replacements-full.xml tmp/maintown-population-infra-replacements-full.log`: `5/5` passed
 
+## 2026-03-08 Checkpoint 7
+
+- Addressed the new PR review comment on duplicate slot occupants with the codebase-correct invariant:
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects duplicate live occupants for the same `populationSlotId`
+  - dead historical civilians are still allowed to share a slot with their live replacement because replacement execution intentionally preserves slot history
+- Added save-module regression coverage for both sides of that contract:
+  - duplicate live occupants in one slot are rejected at validation/load time
+  - one dead retired civilian plus one live replacement in the same slot remains valid
+- Scope note:
+  - no runtime population behavior changed here
+  - this checkpoint narrows save validation to the actual runtime contract enforced by `RebuildScenePopulation()` and replacement history retention
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-pop-save-dup-slot-red.xml tmp/civilian-pop-save-dup-slot-red.log`
+  - `tmp/civilian-pop-save-dup-slot-red.xml`: `6/7` passed
+  - failing assertion: duplicate live `populationSlotId` was not rejected by `ValidateModuleState()`
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-pop-save-dup-slot-green.xml tmp/civilian-pop-save-dup-slot-green.log`: `7/7` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-post-save-module.xml tmp/civilian-runtime-bridge-post-save-module.log`: `8/8` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-post-save-module.xml tmp/maintown-population-infra-post-save-module.log`: `5/5` passed
+
 ## Next Step After This One
 
 The next slice should wire replacement execution to an actual world-time trigger, likely the deferred Monday `08:00` scheduler, and verify that only matured queued replacements execute while future debt remains pending. Final STYLE-driven visual assembly should still stay deferred until that scheduler path is stable.
