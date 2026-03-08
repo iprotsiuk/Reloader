@@ -175,6 +175,85 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void FinalizeAfterLoad_WhenMaturedReplacementDebtExists_ExecutesReplacementUsingCoreWorldDay()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_Townsfolk_01", new Vector3(2f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                var coreWorldModule = new CoreWorldModule
+                {
+                    DayCount = 9,
+                    TimeOfDay = 8f
+                };
+
+                var populationModule = new CivilianPopulationModule();
+                populationModule.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0007",
+                    PopulationSlotId = "townsfolk.001",
+                    PoolId = "townsfolk",
+                    SpawnAnchorId = "Anchor_Townsfolk_01",
+                    AreaTag = "maintown.square",
+                    IsAlive = false,
+                    IsContractEligible = false,
+                    IsProtectedFromContracts = false,
+                    BaseBodyId = "body.male.a",
+                    PresentationType = "masculine",
+                    HairId = "hair.short.01",
+                    HairColorId = "hair.black",
+                    BeardId = "beard.none",
+                    OutfitTopId = "top.coat.01",
+                    OutfitBottomId = "bottom.jeans.01",
+                    OuterwearId = "outer.gray.coat",
+                    MaterialColorIds = new List<string> { "color.gray" },
+                    GeneratedDescriptionTags = new List<string> { "gray coat" },
+                    CreatedAtDay = 2,
+                    RetiredAtDay = 9
+                });
+                populationModule.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.0007",
+                    QueuedAtDay = 9,
+                    SpawnAnchorId = "Anchor_Townsfolk_01"
+                });
+
+                bridge.FinalizeAfterLoad(new[]
+                {
+                    new SaveModuleRegistration(0, coreWorldModule),
+                    new SaveModuleRegistration(1, populationModule)
+                });
+
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0), "Expected matured debt to execute during load finalization.");
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(2), "Expected dead historical civilian plus newly loaded replacement.");
+
+                var replacement = bridge.Runtime.Civilians[1];
+                Assert.That(replacement.CivilianId, Is.EqualTo("citizen.mainTown.0008"));
+                Assert.That(replacement.PopulationSlotId, Is.EqualTo("townsfolk.001"));
+                Assert.That(replacement.SpawnAnchorId, Is.EqualTo("Anchor_Townsfolk_01"));
+                Assert.That(replacement.CreatedAtDay, Is.EqualTo(9));
+                Assert.That(replacement.IsAlive, Is.True);
+
+                var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(spawned.Length, Is.EqualTo(1), "Expected finalized load to rebuild one live placeholder after replacement execution.");
+                Assert.That(spawned[0].CivilianId, Is.EqualTo("citizen.mainTown.0008"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void PrepareForSave_WhenRuntimeIsEmpty_PreservesLoadedModuleData()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");

@@ -59,7 +59,18 @@ namespace Reloader.NPCs.Runtime
             }
 
             CopyModuleToRuntime(module);
-            RebuildScenePopulation();
+
+            var replacedCount = 0;
+            var coreWorldModule = ResolveCoreWorldModule(moduleRegistrations);
+            if (coreWorldModule != null)
+            {
+                replacedCount = ExecutePendingReplacements(coreWorldModule.DayCount);
+            }
+
+            if (replacedCount == 0)
+            {
+                RebuildScenePopulation();
+            }
         }
 
         public bool TryRetireCivilian(string civilianId, int retiredAtDay)
@@ -446,6 +457,24 @@ namespace Reloader.NPCs.Runtime
             for (var i = 0; i < moduleRegistrations.Count; i++)
             {
                 if (moduleRegistrations[i]?.Module is CivilianPopulationModule module)
+                {
+                    return module;
+                }
+            }
+
+            return null;
+        }
+
+        private static CoreWorldModule ResolveCoreWorldModule(IReadOnlyList<SaveModuleRegistration> moduleRegistrations)
+        {
+            if (moduleRegistrations == null)
+            {
+                return null;
+            }
+
+            for (var i = 0; i < moduleRegistrations.Count; i++)
+            {
+                if (moduleRegistrations[i].Module is CoreWorldModule module)
                 {
                     return module;
                 }

@@ -249,6 +249,33 @@
 - Regression sweep:
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-post-dup-debt.xml tmp/maintown-population-infra-post-dup-debt.log`: `5/5` passed
 
+## 2026-03-08 Checkpoint 9
+
+- Wired the first automatic replacement-execution lifecycle seam into load finalization:
+  - `CivilianPopulationRuntimeBridge.FinalizeAfterLoad()` now resolves `CoreWorldModule.DayCount` from the same save-load registration set
+  - matured pending replacement debt now executes during load finalization before the scene placeholder rebuild
+  - if no replacements mature, the bridge keeps the existing plain rebuild behavior
+- Added focused EditMode coverage for that seam:
+  - a loaded dead civilian plus matured pending replacement debt now rebuilds into a new live civilian using the loaded world day as `CreatedAtDay`
+  - the debt clears during load finalization and the authored anchor rebuild still produces one live placeholder
+- Scope note:
+  - this only covers save-load lifecycle execution
+  - no same-session world-time event subscription or Monday `08:00` scheduler hook was added yet
+  - no appearance-pipeline or final visual assembly behavior changed
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.FinalizeAfterLoad_WhenMaturedReplacementDebtExists_ExecutesReplacementUsingCoreWorldDay tmp/civilian-runtime-finalize-replacement-red.xml tmp/civilian-runtime-finalize-replacement-red.log`
+  - `tmp/civilian-runtime-finalize-replacement-red.xml`: `0/1` passed
+  - failing assertion: matured pending replacement debt remained queued during `FinalizeAfterLoad()`
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.FinalizeAfterLoad_WhenMaturedReplacementDebtExists_ExecutesReplacementUsingCoreWorldDay tmp/civilian-runtime-finalize-replacement-green.xml tmp/civilian-runtime-finalize-replacement-green.log`: `1/1` passed
+- Regression sweep:
+  - Unity MCP `run_tests` / `get_test_job` because a live Unity editor session already held the project lock:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `10/10` passed
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `5/5` passed
+
 ## Next Step After This One
 
-The next slice should wire replacement execution to an actual world-time trigger, likely the deferred Monday `08:00` scheduler, and verify that only matured queued replacements execute while future debt remains pending. Final STYLE-driven visual assembly should still stay deferred until that scheduler path is stable.
+The next slice should wire replacement execution to an actual same-session world-time trigger, likely via `CoreWorldController.WorldStateChanged` and the deferred Monday `08:00` scheduler rule, then verify that only newly matured queued replacements execute while future debt remains pending. Final STYLE-driven visual assembly should still stay deferred until that scheduler path is stable.

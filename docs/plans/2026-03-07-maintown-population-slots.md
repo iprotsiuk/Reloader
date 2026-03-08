@@ -276,3 +276,6 @@ Once slot-driven `MainTown` population is stable, the next implementation slice 
 
 > **Plan update (2026-03-08, runtime hardening):** Duplicate pending replacement debts for one `vacatedCivilianId` are invalid save state and should be rejected during module validation, but the runtime replacement executor should also collapse duplicate matured debts defensively if malformed state is injected in memory.
 > This keeps the save contract strict while preventing `ExecutePendingReplacements()` from minting multiple live occupants for one slot from duplicate debt entries.
+
+> **Plan update (2026-03-08, lifecycle seam):** The first scheduler seam should be `CivilianPopulationRuntimeBridge.FinalizeAfterLoad()`, where the bridge can read `CoreWorldModule.DayCount` from the same save-load transaction and execute any matured replacement debts before rebuilding the scene.
+> Same-session day-advance hooks can come later, but load finalization is the authoritative first step because the save coordinator already restores both world time and civilian population together.
