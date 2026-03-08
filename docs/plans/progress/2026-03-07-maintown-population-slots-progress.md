@@ -70,6 +70,20 @@
   - `Packages/com.unity.ai.assistant/Modules/Unity.AI.Generators.IO/Srp/AssemblyInfo.cs`
   - the target test itself still recorded `Passed` in the NUnit XML result
 
+## 2026-03-08 Checkpoint 2
+
+- Removed `com.unity.ai.assistant` from the Unity package set after confirming it was the source of the GUID collision with the pinned `com.coplaydev.unity-mcp` package.
+- Kept the newer Unity MCP pin in place while eliminating the startup log that had been contaminating batch PlayMode verification.
+
+## Verification
+
+- `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-play.xml tmp/maintown-population-infra-play.log`: exit `0`
+- `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `1/1` passed in `tmp/maintown-population-infra-play.xml`
+- `tmp/maintown-population-infra-play.log` no longer contains:
+  - `GUID [7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d]`
+  - `QwenCodeConfigurator`
+  - `UnhandledLogMessageException`
+
 ## Next Step After This One
 
 Once slot-driven `MainTown` population is stable, the next slice should curate the first committed appearance-part pool from the STYLE kit and wire real visual assembly/prefab selection so generated civilians use approved bodies, hair, clothes, and color variants in-game.
