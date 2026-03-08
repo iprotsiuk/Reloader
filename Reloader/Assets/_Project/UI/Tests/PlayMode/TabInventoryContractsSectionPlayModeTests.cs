@@ -173,6 +173,70 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void Controller_ContractsTab_WhenContractFailed_KeepsFailureWorkspaceVisible()
+        {
+            var go = new GameObject("TabInventoryControllerContractsFailed");
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(0);
+            inventoryController.Configure(null, null, runtime);
+
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 0, backpackSlotCount: 0);
+
+            var inputSource = go.AddComponent<TestInputSource>();
+            var contractController = go.AddComponent<TestContractController>();
+            contractController.Status = new TabInventoryContractStatus(
+                hasAvailableContract: false,
+                hasActiveContract: false,
+                contractTitle: "Bridge Glass",
+                targetDisplayName: "Yuri Antonov",
+                targetDescription: "Black cap, waits near the river checkpoint.",
+                briefingText: "Target becomes exposed for roughly thirty seconds each loop.",
+                distanceBandMeters: 610f,
+                payout: 2400,
+                canAccept: false,
+                canCancel: false,
+                canClaimReward: false,
+                statusText: "Failed: wrong target • Escape search: 28s",
+                trackingText: string.Empty,
+                hasFailedContract: true);
+
+            var controller = go.AddComponent<TabInventoryController>();
+            controller.SetInventoryController(inventoryController);
+            controller.SetInputSource(inputSource);
+            controller.SetContractController(contractController);
+            controller.Configure(binder, new TabInventoryDragController());
+
+            inputSource.MenuTogglePressedThisFrame = true;
+            controller.Tick();
+            controller.HandleIntent(new UiIntent("tab.menu.select", "contracts"));
+
+            var postedFeed = root.Q<VisualElement>("inventory__contracts-feed");
+            var activeWorkspace = root.Q<VisualElement>("inventory__contracts-active");
+            var contractsStatus = root.Q<Label>("inventory__contracts-status");
+            var activeStatus = root.Q<Label>("inventory__contracts-active-status");
+            var activeTracking = root.Q<Label>("inventory__contracts-active-tracking");
+            var activeTargetBlock = root.Q<VisualElement>("inventory__contracts-active-target-block");
+            var contractsTarget = root.Q<Label>("inventory__contracts-target");
+            var acceptButton = root.Q<Button>("inventory__contracts-primary-action");
+            var activeActionButton = root.Q<Button>("inventory__contracts-active-primary-action");
+
+            Assert.That(postedFeed.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(activeWorkspace.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(contractsStatus.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(activeStatus.text, Is.EqualTo("Mission Status: Failed: wrong target • Escape search: 28s"));
+            Assert.That(activeTracking.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(activeTargetBlock, Is.Not.Null);
+            Assert.That(contractsTarget.text, Is.EqualTo("Yuri Antonov"));
+            Assert.That(acceptButton.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(activeActionButton.style.display.value, Is.EqualTo(DisplayStyle.None));
+
+            Object.DestroyImmediate(go);
+        }
+
+        [Test]
         public void Controller_HeaderMeta_RendersWorldTimeAndBalance()
         {
             var worldControllerType = Type.GetType("Reloader.Core.Runtime.CoreWorldController, Reloader.Core");

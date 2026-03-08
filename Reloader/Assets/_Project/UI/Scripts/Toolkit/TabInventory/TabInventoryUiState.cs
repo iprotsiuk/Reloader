@@ -15,7 +15,8 @@ namespace Reloader.UI.Toolkit.TabInventory
         {
             None = 0,
             PostedOffer = 1,
-            ActiveContract = 2
+            ActiveContract = 2,
+            FailedContract = 3
         }
 
         public readonly struct SlotState

@@ -533,7 +533,11 @@ private void Refresh()
             }
 
             var titleText = string.IsNullOrWhiteSpace(status.ContractTitle)
-                ? (status.HasActiveContract ? "Active contract" : "No active contract")
+                ? (status.HasFailedContract
+                    ? "Failed contract"
+                    : status.HasActiveContract
+                        ? "Active contract"
+                        : "No active contract")
                 : status.ContractTitle;
             var targetText = string.IsNullOrWhiteSpace(status.TargetDisplayName)
                 ? "--"
@@ -547,12 +551,16 @@ private void Refresh()
             var summary = string.IsNullOrWhiteSpace(status.TargetDescription)
                 ? briefing
                 : status.TargetDescription;
-            var mode = status.HasActiveContract
+            var mode = status.HasFailedContract
+                ? TabInventoryUiState.ContractPanelMode.FailedContract
+                : status.HasActiveContract
                 ? TabInventoryUiState.ContractPanelMode.ActiveContract
                 : status.HasAvailableContract
                     ? TabInventoryUiState.ContractPanelMode.PostedOffer
                     : TabInventoryUiState.ContractPanelMode.None;
-            var rewardStateText = status.CanClaimReward
+            var rewardStateText = status.HasFailedContract
+                ? "Contract failed."
+                : status.CanClaimReward
                 ? "Reward ready to claim."
                 : status.HasActiveContract
                     ? "Reward locked until the target is eliminated."

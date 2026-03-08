@@ -420,14 +420,16 @@ namespace Reloader.UI.Toolkit.TabInventory
 
             var isPostedOffer = inventoryState.ContractPanel.Mode == TabInventoryUiState.ContractPanelMode.PostedOffer;
             var isActiveContract = inventoryState.ContractPanel.Mode == TabInventoryUiState.ContractPanelMode.ActiveContract;
+            var isFailedContract = inventoryState.ContractPanel.Mode == TabInventoryUiState.ContractPanelMode.FailedContract;
+            var showContractWorkspace = isActiveContract || isFailedContract;
             if (_contractsStatus != null)
             {
-                _contractsStatus.style.display = isActiveContract ? DisplayStyle.None : DisplayStyle.Flex;
+                _contractsStatus.style.display = showContractWorkspace ? DisplayStyle.None : DisplayStyle.Flex;
             }
 
             if (_contractsTracking != null)
             {
-                _contractsTracking.style.display = !isActiveContract && !string.IsNullOrWhiteSpace(inventoryState.ContractPanel.TrackingText)
+                _contractsTracking.style.display = !showContractWorkspace && !string.IsNullOrWhiteSpace(inventoryState.ContractPanel.TrackingText)
                     ? DisplayStyle.Flex
                     : DisplayStyle.None;
             }
@@ -451,27 +453,27 @@ namespace Reloader.UI.Toolkit.TabInventory
 
             if (_contractsActive != null)
             {
-                _contractsActive.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+                _contractsActive.style.display = showContractWorkspace ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             if (_contractsActiveHeader != null)
             {
-                _contractsActiveHeader.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+                _contractsActiveHeader.style.display = showContractWorkspace ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             if (_contractsActiveTargetBlock != null)
             {
-                _contractsActiveTargetBlock.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+                _contractsActiveTargetBlock.style.display = showContractWorkspace ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             if (_contractsBriefingCard != null)
             {
-                _contractsBriefingCard.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+                _contractsBriefingCard.style.display = showContractWorkspace ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             if (_contractsIntelCard != null)
             {
-                _contractsIntelCard.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+                _contractsIntelCard.style.display = showContractWorkspace ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             if (_contractsAcceptButton != null)
@@ -498,7 +500,7 @@ namespace Reloader.UI.Toolkit.TabInventory
 
             if (_contractsActiveFooter != null)
             {
-                _contractsActiveFooter.style.display = isActiveContract ? DisplayStyle.Flex : DisplayStyle.None;
+                _contractsActiveFooter.style.display = showContractWorkspace ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             if (_deviceNotes != null)

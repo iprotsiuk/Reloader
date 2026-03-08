@@ -438,6 +438,8 @@ namespace Reloader.NPCs.Runtime
             {
                 module.PendingReplacements.Add(CloneReplacement(_runtime.PendingReplacements[i]));
             }
+
+            module.LastOfferedCivilianId = _runtime.LastOfferedCivilianId ?? string.Empty;
         }
 
         private void CopyModuleToRuntime(CivilianPopulationModule module)
@@ -453,6 +455,8 @@ namespace Reloader.NPCs.Runtime
             {
                 _runtime.PendingReplacements.Add(CloneReplacement(module.PendingReplacements[i]));
             }
+
+            _runtime.LastOfferedCivilianId = module.LastOfferedCivilianId ?? string.Empty;
         }
 
         private void HydrateRuntimeFromModuleIfNeeded(CivilianPopulationModule module)
@@ -672,7 +676,7 @@ namespace Reloader.NPCs.Runtime
                 return;
             }
 
-            var target = FindFirstEligibleContractCivilian();
+            var target = FindNextEligibleContractCivilian();
             if (target == null)
             {
                 if (provider.TryGetContractSnapshot(out var emptySnapshot) && emptySnapshot.HasAvailableContract)
@@ -705,6 +709,7 @@ namespace Reloader.NPCs.Runtime
                 distanceBand: ProceduralContractTargetDistanceMeters,
                 payout: ProceduralContractPayout);
 
+            _runtime.LastOfferedCivilianId = target.CivilianId ?? string.Empty;
             provider.SetAvailableContract(_proceduralAvailableContract);
         }
 
@@ -724,8 +729,9 @@ namespace Reloader.NPCs.Runtime
             return string.Empty;
         }
 
-        private CivilianPopulationRecord FindFirstEligibleContractCivilian()
+        private CivilianPopulationRecord FindNextEligibleContractCivilian()
         {
+            var eligible = new List<CivilianPopulationRecord>();
             for (var i = 0; i < _runtime.Civilians.Count; i++)
             {
                 var record = _runtime.Civilians[i];
@@ -739,10 +745,31 @@ namespace Reloader.NPCs.Runtime
                     continue;
                 }
 
-                return record;
+                eligible.Add(record);
             }
 
-            return null;
+            if (eligible.Count == 0)
+            {
+                return null;
+            }
+
+            var lastOfferedCivilianId = _runtime.LastOfferedCivilianId;
+            if (string.IsNullOrWhiteSpace(lastOfferedCivilianId))
+            {
+                return eligible[0];
+            }
+
+            for (var i = 0; i < eligible.Count; i++)
+            {
+                if (!string.Equals(eligible[i].CivilianId, lastOfferedCivilianId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                return eligible[(i + 1) % eligible.Count];
+            }
+
+            return eligible[0];
         }
 
         private static string BuildProceduralTargetDescription(CivilianPopulationRecord record)
@@ -1074,5 +1101,6 @@ namespace Reloader.NPCs.Runtime
         public List<CivilianPopulationRecord> Civilians { get; } = new List<CivilianPopulationRecord>();
         public List<CivilianPopulationReplacementRecord> PendingReplacements { get; } =
             new List<CivilianPopulationReplacementRecord>();
+        public string LastOfferedCivilianId { get; set; } = string.Empty;
     }
 }

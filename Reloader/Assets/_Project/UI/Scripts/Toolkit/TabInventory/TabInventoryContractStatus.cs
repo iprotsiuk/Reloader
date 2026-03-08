@@ -15,10 +15,12 @@ namespace Reloader.UI.Toolkit.TabInventory
             bool canCancel,
             bool canClaimReward,
             string statusText,
-            string trackingText = "")
+            string trackingText = "",
+            bool hasFailedContract = false)
         {
             HasAvailableContract = hasAvailableContract;
             HasActiveContract = hasActiveContract;
+            HasFailedContract = hasFailedContract;
             ContractTitle = contractTitle ?? string.Empty;
             TargetDisplayName = targetDisplayName ?? string.Empty;
             TargetDescription = targetDescription ?? string.Empty;
@@ -34,6 +36,7 @@ namespace Reloader.UI.Toolkit.TabInventory
 
         public bool HasAvailableContract { get; }
         public bool HasActiveContract { get; }
+        public bool HasFailedContract { get; }
         public string ContractTitle { get; }
         public string TargetDisplayName { get; }
         public string TargetDescription { get; }
@@ -51,6 +54,7 @@ namespace Reloader.UI.Toolkit.TabInventory
             return new TabInventoryContractStatus(
                 hasAvailableContract: false,
                 hasActiveContract: false,
+                hasFailedContract: false,
                 contractTitle: "No posted contracts",
                 targetDisplayName: "--",
                 targetDescription: "Check back later for fresh contract offers.",

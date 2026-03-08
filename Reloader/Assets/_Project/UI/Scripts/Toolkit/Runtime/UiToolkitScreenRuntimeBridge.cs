@@ -654,6 +654,7 @@ namespace Reloader.UI.Toolkit.Runtime
                 status = new TabInventoryContractStatus(
                     hasAvailableContract: snapshot.HasAvailableContract,
                     hasActiveContract: snapshot.HasActiveContract,
+                    hasFailedContract: snapshot.HasFailedContract,
                     contractTitle: snapshot.Title,
                     targetDisplayName: snapshot.TargetDisplayName,
                     targetDescription: snapshot.TargetDescription,

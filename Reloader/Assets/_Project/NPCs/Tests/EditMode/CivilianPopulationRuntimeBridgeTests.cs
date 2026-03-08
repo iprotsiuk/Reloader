@@ -462,6 +462,66 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void RebuildScenePopulation_AfterAcceptedContractIsCanceled_RotatesOfferToNextEligibleCivilian()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            CreateAnchor(bridgeGo.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+            CreateAnchor(bridgeGo.transform, "Anchor_B", new Vector3(3f, 0f, 0f));
+            CreateAnchor(bridgeGo.transform, "Anchor_C", new Vector3(5f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0501",
+                    populationSlotId: "townsfolk.501",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0502",
+                    populationSlotId: "townsfolk.502",
+                    spawnAnchorId: "Anchor_B",
+                    isAlive: true,
+                    retiredAtDay: -1));
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0503",
+                    populationSlotId: "townsfolk.503",
+                    spawnAnchorId: "Anchor_C",
+                    isAlive: true,
+                    retiredAtDay: -1));
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var initialSnapshot), Is.True);
+                Assert.That(initialSnapshot.TargetId, Is.EqualTo("citizen.mainTown.0501"));
+                Assert.That(provider.AcceptAvailableContract(), Is.True);
+                Assert.That(provider.CancelActiveContract(), Is.True);
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var rotatedSnapshot), Is.True);
+                Assert.That(rotatedSnapshot.TargetId, Is.EqualTo("citizen.mainTown.0502"),
+                    "Expected canceled procedural contracts to rotate away from the previously offered civilian instead of reusing the first roster entry.");
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
         public void RebuildScenePopulation_WhenFirstEligibleCivilianIsUnspawnable_PublishesNextSpawnableOffer()
         {
             var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");

@@ -11,6 +11,7 @@ namespace Reloader.Contracts.Runtime
             public RuntimeStateSnapshot(
                 AssassinationContractDefinition availableContract,
                 AssassinationContractDefinition activeDefinition,
+                AssassinationContractDefinition failedDefinition,
                 AssassinationContractRuntimeState activeContract,
                 PoliceHeatState heatState,
                 bool offerConsumed,
@@ -20,6 +21,7 @@ namespace Reloader.Contracts.Runtime
             {
                 AvailableContract = availableContract;
                 ActiveDefinition = activeDefinition;
+                FailedDefinition = failedDefinition;
                 ActiveContract = activeContract;
                 HeatState = heatState;
                 OfferConsumed = offerConsumed;
@@ -30,6 +32,7 @@ namespace Reloader.Contracts.Runtime
 
             public AssassinationContractDefinition AvailableContract { get; }
             public AssassinationContractDefinition ActiveDefinition { get; }
+            public AssassinationContractDefinition FailedDefinition { get; }
             public AssassinationContractRuntimeState ActiveContract { get; }
             public PoliceHeatState HeatState { get; }
             public bool OfferConsumed { get; }
@@ -41,6 +44,7 @@ namespace Reloader.Contracts.Runtime
         private readonly ContractRuntimeController _contractController = new ContractRuntimeController();
         private readonly PoliceHeatRuntime _policeHeatRuntime;
         private AssassinationContractDefinition _availableContract;
+        private AssassinationContractDefinition _failedDefinition;
         private IContractPayoutReceiver _payoutReceiver;
         private bool _offerConsumed;
         private bool _awaitingSearchClear;
@@ -84,6 +88,7 @@ namespace Reloader.Contracts.Runtime
             _availableContract = availableContract;
             _offerConsumed = false;
             ResetPendingResolution();
+            ClearFailedContractState();
             _contractController.ClearActiveContract();
             _policeHeatRuntime.ForceClear();
         }
@@ -97,8 +102,9 @@ namespace Reloader.Contracts.Runtime
         {
             var activeDefinition = _contractController.ActiveDefinition;
             var activeContract = _contractController.ActiveContract;
-            var hasAvailableContract = !_offerConsumed && _availableContract != null && activeContract == null;
-            var definition = activeDefinition ?? (hasAvailableContract ? _availableContract : null);
+            var hasFailedContract = activeContract == null && _failedDefinition != null;
+            var hasAvailableContract = !hasFailedContract && !_offerConsumed && _availableContract != null && activeContract == null;
+            var definition = activeDefinition ?? _failedDefinition ?? (hasAvailableContract ? _availableContract : null);
             if (definition == null)
             {
                 snapshot = default;
@@ -108,6 +114,7 @@ namespace Reloader.Contracts.Runtime
             snapshot = new ContractOfferSnapshot(
                 hasAvailableContract: hasAvailableContract,
                 hasActiveContract: activeContract != null,
+                hasFailedContract: hasFailedContract,
                 contractId: definition.ContractId,
                 title: definition.Title,
                 targetId: definition.TargetId,
@@ -119,7 +126,7 @@ namespace Reloader.Contracts.Runtime
                 canAccept: hasAvailableContract,
                 canCancel: CanCancelActiveContract(),
                 canClaimReward: CanClaimCompletedContractReward(),
-                statusText: BuildStatusText(hasAvailableContract, activeContract != null));
+                statusText: BuildStatusText(hasAvailableContract, activeContract != null, hasFailedContract));
             return true;
         }
 
@@ -131,6 +138,7 @@ namespace Reloader.Contracts.Runtime
             }
 
             ResetPendingResolution();
+            ClearFailedContractState();
             var accepted = _contractController.TryAcceptContract(_availableContract);
             if (accepted)
             {
@@ -149,6 +157,7 @@ namespace Reloader.Contracts.Runtime
             }
 
             ResetPendingResolution();
+            ClearFailedContractState();
             _policeHeatRuntime.ForceClear();
             _offerConsumed = false;
             return _contractController.TryFailActiveContract();
@@ -171,6 +180,7 @@ namespace Reloader.Contracts.Runtime
 
             _completionPending = false;
             _pendingPayoutAmount = 0;
+            ClearFailedContractState();
             return _contractController.TryCompleteActiveContract();
         }
 
@@ -205,12 +215,14 @@ namespace Reloader.Contracts.Runtime
             var isCorrectTarget = string.Equals(activeContract.TargetId, targetId, StringComparison.Ordinal);
             if (!isCorrectTarget)
             {
+                _failedDefinition = _contractController.ActiveDefinition;
                 RaiseMurderHeatIfNeeded(wasExposed);
                 ResetPendingResolution();
                 _contractController.TryFailActiveContract();
                 return false;
             }
 
+            ClearFailedContractState();
             _completionPending = true;
             _pendingPayoutAmount = Math.Max(0, activeContract.Payout);
             if (wasExposed)
@@ -237,6 +249,7 @@ namespace Reloader.Contracts.Runtime
             return new RuntimeStateSnapshot(
                 _availableContract,
                 _contractController.ActiveDefinition,
+                _failedDefinition,
                 _contractController.ActiveContract,
                 _policeHeatRuntime.CurrentState,
                 _offerConsumed,
@@ -261,13 +274,27 @@ namespace Reloader.Contracts.Runtime
             runtime._awaitingSearchClear = state.AwaitingSearchClear;
             runtime._completionPending = state.CompletionPending;
             runtime._pendingPayoutAmount = Math.Max(0, state.PendingPayoutAmount);
+            runtime._failedDefinition = state.FailedDefinition;
             runtime._contractController.RestoreState(state.ActiveDefinition, state.ActiveContract);
             runtime._policeHeatRuntime.RestoreState(state.HeatState);
             return runtime;
         }
 
-        private string BuildStatusText(bool hasAvailableContract, bool hasActiveContract)
+        private string BuildStatusText(bool hasAvailableContract, bool hasActiveContract, bool hasFailedContract)
         {
+            if (hasFailedContract)
+            {
+                if (_awaitingSearchClear)
+                {
+                    return string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        "Failed: wrong target • Escape search: {0:0}s",
+                        CurrentHeatState.SearchTimeRemainingSeconds);
+                }
+
+                return "Failed: wrong target";
+            }
+
             if (_awaitingSearchClear)
             {
                 return string.Format(
@@ -306,6 +333,11 @@ namespace Reloader.Contracts.Runtime
             _awaitingSearchClear = false;
             _completionPending = false;
             _pendingPayoutAmount = 0;
+        }
+
+        private void ClearFailedContractState()
+        {
+            _failedDefinition = null;
         }
 
         private bool CanCancelActiveContract()

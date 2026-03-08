@@ -5,6 +5,7 @@ namespace Reloader.Contracts.Runtime
         public ContractOfferSnapshot(
             bool hasAvailableContract,
             bool hasActiveContract,
+            bool hasFailedContract,
             string contractId,
             string title,
             string targetId,
@@ -20,6 +21,7 @@ namespace Reloader.Contracts.Runtime
         {
             HasAvailableContract = hasAvailableContract;
             HasActiveContract = hasActiveContract;
+            HasFailedContract = hasFailedContract;
             ContractId = contractId ?? string.Empty;
             Title = title ?? string.Empty;
             TargetId = targetId ?? string.Empty;
@@ -36,6 +38,7 @@ namespace Reloader.Contracts.Runtime
 
         public bool HasAvailableContract { get; }
         public bool HasActiveContract { get; }
+        public bool HasFailedContract { get; }
         public string ContractId { get; }
         public string Title { get; }
         public string TargetId { get; }

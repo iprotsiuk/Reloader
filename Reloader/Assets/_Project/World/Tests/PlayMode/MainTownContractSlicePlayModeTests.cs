@@ -215,6 +215,38 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator MainTownContractSlice_WhenWrongTargetIsEliminated_KeepsFailureSnapshotVisible()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+            Assert.That(provider.AcceptAvailableContract(), Is.True);
+            Assert.That(provider.TryGetContractSnapshot(out var activeSnapshot), Is.True);
+
+            var wrongTargetRoot = GameObject.Find("ContractTarget_Volkov");
+            Assert.That(wrongTargetRoot, Is.Not.Null, "Expected authored wrong-target damageable in MainTown.");
+
+            ApplyLethalDamage(wrongTargetRoot!);
+            yield return null;
+
+            var runtime = GetRuntime(provider);
+            Assert.That(ReadActiveContract(runtime), Is.Null, "Expected wrong-target elimination to fail the active contract.");
+            Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+            Assert.That(provider.TryGetContractSnapshot(out var failedSnapshot), Is.True,
+                "Expected the Contracts runtime to keep a visible failure snapshot instead of collapsing to no contract.");
+            Assert.That(failedSnapshot.HasFailedContract, Is.True);
+            Assert.That(failedSnapshot.TargetId, Is.EqualTo(activeSnapshot.TargetId),
+                "Expected the failure snapshot to continue describing the contract that was just failed.");
+            Assert.That(failedSnapshot.StatusText, Does.StartWith("Failed: wrong target"));
+        }
+
+        [UnityTest]
         public IEnumerator MainTownContractSlice_TargetEliminatedBeforeAccept_RebuildPublishesDifferentLiveTarget()
         {
             yield return LoadScene(MainTownSceneName);
