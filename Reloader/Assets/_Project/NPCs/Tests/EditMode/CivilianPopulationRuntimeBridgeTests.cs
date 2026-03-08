@@ -295,6 +295,138 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
+        [Test]
+        public void ExecutePendingReplacements_WhenQueuedReplacementMatures_ReplacesDeadCivilianInSameSlot()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_Townsfolk_01", new Vector3(2f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0007",
+                    PopulationSlotId = "townsfolk.001",
+                    PoolId = "townsfolk",
+                    SpawnAnchorId = "Anchor_Townsfolk_01",
+                    AreaTag = "maintown.square",
+                    IsAlive = false,
+                    IsContractEligible = false,
+                    IsProtectedFromContracts = false,
+                    BaseBodyId = "body.male.a",
+                    PresentationType = "masculine",
+                    HairId = "hair.short.01",
+                    HairColorId = "hair.black",
+                    BeardId = "beard.none",
+                    OutfitTopId = "top.coat.01",
+                    OutfitBottomId = "bottom.jeans.01",
+                    OuterwearId = "outer.gray.coat",
+                    MaterialColorIds = new List<string> { "color.gray" },
+                    GeneratedDescriptionTags = new List<string> { "gray coat" },
+                    CreatedAtDay = 2,
+                    RetiredAtDay = 9
+                });
+                bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.0007",
+                    QueuedAtDay = 9,
+                    SpawnAnchorId = "Anchor_Townsfolk_01"
+                });
+
+                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 9);
+
+                Assert.That(replacedCount, Is.EqualTo(1), "Expected one matured replacement to execute.");
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0), "Expected replacement debt to clear after execution.");
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(2), "Expected original dead civilian to remain in history and a new live civilian to be added.");
+
+                var replacement = bridge.Runtime.Civilians[1];
+                Assert.That(replacement.CivilianId, Is.EqualTo("citizen.mainTown.0008"));
+                Assert.That(replacement.CivilianId, Is.Not.EqualTo("citizen.mainTown.0007"));
+                Assert.That(replacement.PopulationSlotId, Is.EqualTo("townsfolk.001"));
+                Assert.That(replacement.PoolId, Is.EqualTo("townsfolk"));
+                Assert.That(replacement.SpawnAnchorId, Is.EqualTo("Anchor_Townsfolk_01"));
+                Assert.That(replacement.AreaTag, Is.EqualTo("maintown.square"));
+                Assert.That(replacement.CreatedAtDay, Is.EqualTo(9));
+                Assert.That(replacement.RetiredAtDay, Is.EqualTo(-1));
+                Assert.That(replacement.IsAlive, Is.True);
+                Assert.That(replacement.IsContractEligible, Is.True);
+
+                var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(spawned.Length, Is.EqualTo(1), "Expected replacement execution to rebuild scene placeholders.");
+                Assert.That(spawned[0].CivilianId, Is.EqualTo("citizen.mainTown.0008"));
+                Assert.That(spawned[0].PopulationSlotId, Is.EqualTo("townsfolk.001"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void ExecutePendingReplacements_WhenQueuedForFuture_DoesNotReplaceEarly()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0010",
+                    PopulationSlotId = "cops.001",
+                    PoolId = "cops",
+                    SpawnAnchorId = "Anchor_Cop_01",
+                    AreaTag = "maintown.watch",
+                    IsAlive = false,
+                    IsContractEligible = false,
+                    IsProtectedFromContracts = true,
+                    BaseBodyId = "body.male.a",
+                    PresentationType = "masculine",
+                    HairId = "hair.short.01",
+                    HairColorId = "hair.black",
+                    BeardId = "beard.none",
+                    OutfitTopId = "top.coat.01",
+                    OutfitBottomId = "bottom.jeans.01",
+                    OuterwearId = "outer.gray.coat",
+                    MaterialColorIds = new List<string> { "color.gray" },
+                    GeneratedDescriptionTags = new List<string> { "gray coat" },
+                    CreatedAtDay = 3,
+                    RetiredAtDay = 10
+                });
+                bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.0010",
+                    QueuedAtDay = 12,
+                    SpawnAnchorId = "Anchor_Cop_01"
+                });
+
+                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 11);
+
+                Assert.That(replacedCount, Is.EqualTo(0));
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(1));
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(1));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
         private static CivilianAppearanceLibrary CreateLibrary()
         {
             return new CivilianAppearanceLibrary
@@ -331,6 +463,15 @@ namespace Reloader.NPCs.Tests.EditMode
             var field = type.GetField(fieldName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Expected private field '{fieldName}' on '{type.FullName}'.");
             field.SetValue(instance, value);
+        }
+
+        private static int InvokeExecutePendingReplacements(CivilianPopulationRuntimeBridge bridge, int currentDay)
+        {
+            var method = typeof(CivilianPopulationRuntimeBridge).GetMethod(
+                "ExecutePendingReplacements",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+            Assert.That(method, Is.Not.Null, "Expected a public ExecutePendingReplacements(int currentDay) method.");
+            return (int)method.Invoke(bridge, new object[] { currentDay });
         }
 
         private static Transform CreateAnchor(Transform parent, string name, Vector3 position)

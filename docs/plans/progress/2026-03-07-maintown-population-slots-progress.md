@@ -162,6 +162,40 @@
   - only the living loaded civilian is rebuilt into `MainTown`
   - loaded slot metadata and anchor positioning survive the full save/load path
 
+## 2026-03-08 Checkpoint 6
+
+- Added the first deterministic replacement execution path:
+  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements(int currentDay)` now consumes matured replacement debt
+  - replacement execution preserves stable slot ownership from the vacated civilian:
+    - `populationSlotId`
+    - `poolId`
+    - `spawnAnchorId`
+    - `areaTag`
+    - `isProtectedFromContracts`
+  - replacement execution issues a new deterministic `civilianId` using the existing `citizen.mainTown.####` sequence
+  - replacement execution rebuilds the live placeholder civilian after inserting the new occupant and clearing the debt
+- Added focused coverage for both synthetic and authored-scene seams:
+  - EditMode bridge tests now verify matured replacement debt creates a new civilian in the same slot and future-dated debt does nothing
+  - PlayMode `MainTown` infrastructure coverage now verifies queued replacement execution rebuilds the authored starter slot with the new civilian identity
+- Scope note:
+  - this is still infrastructure-level replacement behavior only
+  - no weekly scheduler or Monday `08:00` orchestration was added yet
+  - no final STYLE-driven visual assembly changes were introduced
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements tmp/civilian-runtime-replacement-red.xml tmp/civilian-runtime-replacement-red.log`
+  - `tmp/civilian-runtime-replacement-red.xml`: `0/2` passed
+  - failing assertion: missing public `ExecutePendingReplacements(int currentDay)` on `CivilianPopulationRuntimeBridge`
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements tmp/civilian-runtime-replacement-green.xml tmp/civilian-runtime-replacement-green.log`
+  - `tmp/civilian-runtime-replacement-green.xml`: `2/2` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-replacements.xml tmp/civilian-runtime-bridge-replacements.log`: `8/8` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_ExecutePendingReplacements_RebuildsStableSlotWithNewCivilian tmp/maintown-population-replacement-play.xml tmp/maintown-population-replacement-play.log`: `1/1` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-replacements-full.xml tmp/maintown-population-infra-replacements-full.log`: `5/5` passed
+
 ## Next Step After This One
 
-The next slice should move from infrastructure/harness work into deterministic replacement behavior: queue a dead civilian, execute the first replacement cycle against a stable slot, and verify the new occupant preserves slot identity while changing civilian identity. Final STYLE-driven visual assembly should still stay deferred until replacement lifecycle coverage is stable.
+The next slice should wire replacement execution to an actual world-time trigger, likely the deferred Monday `08:00` scheduler, and verify that only matured queued replacements execute while future debt remains pending. Final STYLE-driven visual assembly should still stay deferred until that scheduler path is stable.

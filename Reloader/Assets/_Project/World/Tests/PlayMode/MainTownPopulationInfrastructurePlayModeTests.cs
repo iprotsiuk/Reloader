@@ -223,6 +223,57 @@ namespace Reloader.World.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator MainTownPopulationRuntime_ExecutePendingReplacements_RebuildsStableSlotWithNewCivilian()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var root = GameObject.Find("MainTownPopulationRuntime");
+            Assert.That(root, Is.Not.Null, "Expected authored MainTown population runtime root.");
+
+            var bridge = root!.GetComponent<CivilianPopulationRuntimeBridge>();
+            Assert.That(bridge, Is.Not.Null, "Expected CivilianPopulationRuntimeBridge on MainTownPopulationRuntime.");
+
+            bridge!.Runtime.Civilians.Clear();
+            bridge.Runtime.PendingReplacements.Clear();
+            bridge.Runtime.Civilians.Add(CreateRecord(
+                civilianId: "citizen.mainTown.0007",
+                populationSlotId: "townsfolk.001",
+                poolId: "townsfolk",
+                spawnAnchorId: "Anchor_Townsfolk_01",
+                areaTag: "maintown.square",
+                isAlive: false,
+                retiredAtDay: 9));
+            bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+            {
+                VacatedCivilianId = "citizen.mainTown.0007",
+                QueuedAtDay = 9,
+                SpawnAnchorId = "Anchor_Townsfolk_01"
+            });
+
+            var replacedCount = bridge.ExecutePendingReplacements(currentDay: 9);
+            yield return null;
+
+            Assert.That(replacedCount, Is.EqualTo(1));
+            Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0));
+
+            var replacement = bridge.Runtime.Civilians.Single(record => record.CivilianId == "citizen.mainTown.0008");
+            Assert.That(replacement.PopulationSlotId, Is.EqualTo("townsfolk.001"));
+            Assert.That(replacement.PoolId, Is.EqualTo("townsfolk"));
+            Assert.That(replacement.SpawnAnchorId, Is.EqualTo("Anchor_Townsfolk_01"));
+            Assert.That(replacement.CreatedAtDay, Is.EqualTo(9));
+
+            var spawned = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            Assert.That(spawned.Length, Is.EqualTo(1));
+            Assert.That(spawned[0].CivilianId, Is.EqualTo("citizen.mainTown.0008"));
+            Assert.That(spawned[0].PopulationSlotId, Is.EqualTo("townsfolk.001"));
+
+            var anchor = root.transform.Find("Anchor_Townsfolk_01");
+            Assert.That(anchor, Is.Not.Null);
+            Assert.That(spawned[0].transform.position, Is.EqualTo(anchor!.position));
+        }
+
         private static void AssertArrayConfigured(object instance, string propertyName)
         {
             var property = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);

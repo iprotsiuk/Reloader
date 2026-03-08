@@ -124,6 +124,55 @@ namespace Reloader.NPCs.Runtime
             }
         }
 
+        public int ExecutePendingReplacements(int currentDay)
+        {
+            if (_appearanceLibrary == null || _runtime.PendingReplacements.Count == 0)
+            {
+                return 0;
+            }
+
+            var normalizedDay = Math.Max(0, currentDay);
+            var replacedCount = 0;
+            for (var i = _runtime.PendingReplacements.Count - 1; i >= 0; i--)
+            {
+                var replacement = _runtime.PendingReplacements[i];
+                if (replacement == null || replacement.QueuedAtDay > normalizedDay)
+                {
+                    continue;
+                }
+
+                var vacated = FindCivilianById(replacement.VacatedCivilianId);
+                if (vacated == null || vacated.IsAlive)
+                {
+                    continue;
+                }
+
+                var civilianId = CreateNextCivilianId();
+                var seed = ExtractCivilianNumericSuffix(civilianId);
+                _runtime.Civilians.Add(_generator.GenerateRecord(
+                    _appearanceLibrary,
+                    civilianId,
+                    createdAtDay: normalizedDay,
+                    replacement.SpawnAnchorId,
+                    seed,
+                    isContractEligible: !vacated.IsProtectedFromContracts,
+                    populationSlotId: vacated.PopulationSlotId,
+                    poolId: vacated.PoolId,
+                    areaTag: vacated.AreaTag,
+                    isProtectedFromContracts: vacated.IsProtectedFromContracts));
+
+                _runtime.PendingReplacements.RemoveAt(i);
+                replacedCount++;
+            }
+
+            if (replacedCount > 0)
+            {
+                RebuildScenePopulation();
+            }
+
+            return replacedCount;
+        }
+
         private void SeedInitialRosterIfNeeded(CivilianPopulationModule module)
         {
             if (_runtime.Civilians.Count > 0 || module.Civilians.Count > 0)
@@ -447,6 +496,57 @@ namespace Reloader.NPCs.Runtime
             }
 
             return false;
+        }
+
+        private CivilianPopulationRecord FindCivilianById(string civilianId)
+        {
+            if (string.IsNullOrWhiteSpace(civilianId))
+            {
+                return null;
+            }
+
+            for (var i = 0; i < _runtime.Civilians.Count; i++)
+            {
+                var record = _runtime.Civilians[i];
+                if (record != null && string.Equals(record.CivilianId, civilianId, StringComparison.Ordinal))
+                {
+                    return record;
+                }
+            }
+
+            return null;
+        }
+
+        private string CreateNextCivilianId()
+        {
+            var idPrefix = string.IsNullOrWhiteSpace(_civilianIdPrefix) ? "citizen.mainTown" : _civilianIdPrefix.Trim();
+            var nextIndex = 1;
+            for (var i = 0; i < _runtime.Civilians.Count; i++)
+            {
+                var numericSuffix = ExtractCivilianNumericSuffix(_runtime.Civilians[i]?.CivilianId);
+                if (numericSuffix >= nextIndex)
+                {
+                    nextIndex = numericSuffix + 1;
+                }
+            }
+
+            return $"{idPrefix}.{nextIndex:0000}";
+        }
+
+        private int ExtractCivilianNumericSuffix(string civilianId)
+        {
+            if (string.IsNullOrWhiteSpace(civilianId))
+            {
+                return 0;
+            }
+
+            var separatorIndex = civilianId.LastIndexOf('.');
+            if (separatorIndex < 0 || separatorIndex >= civilianId.Length - 1)
+            {
+                return 0;
+            }
+
+            return int.TryParse(civilianId.Substring(separatorIndex + 1), out var value) ? Math.Max(0, value) : 0;
         }
 
         private static string CreateFallbackPopulationSlotId(int index)

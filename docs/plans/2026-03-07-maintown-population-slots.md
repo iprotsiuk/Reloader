@@ -267,3 +267,6 @@ git commit -m "docs: update maintown population slots progress"
 ## Next Slice After This Plan
 
 Once slot-driven `MainTown` population is stable, the next implementation slice should curate the first committed appearance-part pool from the STYLE kit and wire real visual assembly/prefab selection so generated civilians use approved bodies, hair, clothes, and color variants in-game.
+
+> **Plan update (2026-03-08, later):** Before visual assembly, add deterministic replacement execution for queued dead civilians.
+> The replacement path should preserve stable slot ownership (`populationSlotId`, `poolId`, anchor, area) while issuing a new civilian identity and rebuilding the scene placeholder.
