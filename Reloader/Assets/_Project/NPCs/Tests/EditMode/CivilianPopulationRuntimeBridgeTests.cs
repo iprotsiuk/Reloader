@@ -405,6 +405,63 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void RebuildScenePopulation_WhenDuplicateTrackedCivilianIdsExist_OnlyOneSpawnGetsContractTargetDamageable()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            CreateAnchor(bridgeGo.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+            CreateAnchor(bridgeGo.transform, "Anchor_B", new Vector3(3f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0444",
+                    populationSlotId: "townsfolk.444a",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0444",
+                    populationSlotId: "townsfolk.444b",
+                    spawnAnchorId: "Anchor_B",
+                    isAlive: true,
+                    retiredAtDay: -1));
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True);
+                Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0444"));
+
+                var damageableType = System.Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons", throwOnError: false);
+                Assert.That(damageableType, Is.Not.Null, "Expected contract target damageable type to exist.");
+
+                var duplicateSpawns = bridgeGo.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true)
+                    .Where(component => component.CivilianId == snapshot.TargetId)
+                    .ToArray();
+                Assert.That(duplicateSpawns.Length, Is.EqualTo(2), "Expected duplicate tracked civilians to produce two live spawned actors for this regression.");
+
+                var damageableCount = duplicateSpawns.Count(component => component.GetComponent(damageableType!) != null);
+                Assert.That(damageableCount, Is.EqualTo(1),
+                    "Expected duplicate tracked civilian ids to leave at most one spawned actor on the contract-target damage seam.");
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
         public void RebuildScenePopulation_WhenFirstEligibleCivilianIsUnspawnable_PublishesNextSpawnableOffer()
         {
             var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");

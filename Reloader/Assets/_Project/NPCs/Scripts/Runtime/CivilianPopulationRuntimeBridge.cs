@@ -620,6 +620,21 @@ namespace Reloader.NPCs.Runtime
         {
             var trackedTargetId = ResolveTrackedContractTargetId();
             var spawned = GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            MainTownPopulationSpawnedCivilian trackedSpawn = null;
+            if (!string.IsNullOrWhiteSpace(trackedTargetId))
+            {
+                for (var i = 0; i < spawned.Length; i++)
+                {
+                    var metadata = spawned[i];
+                    if (metadata != null &&
+                        string.Equals(metadata.CivilianId, trackedTargetId, StringComparison.Ordinal))
+                    {
+                        trackedSpawn = metadata;
+                        break;
+                    }
+                }
+            }
+
             for (var i = 0; i < spawned.Length; i++)
             {
                 var metadata = spawned[i];
@@ -629,8 +644,7 @@ namespace Reloader.NPCs.Runtime
                 }
 
                 var damageable = metadata.GetComponent<ContractTargetDamageable>();
-                if (string.IsNullOrWhiteSpace(trackedTargetId) ||
-                    !string.Equals(metadata.CivilianId, trackedTargetId, StringComparison.Ordinal))
+                if (trackedSpawn == null || !ReferenceEquals(metadata, trackedSpawn))
                 {
                     if (damageable != null)
                     {
