@@ -1,8 +1,11 @@
 using System;
 using System.Collections;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.Core.Save;
+using Reloader.Core.Save.IO;
 using Reloader.Core.Save.Modules;
 using Reloader.NPCs.Runtime;
 using UnityEngine;
@@ -144,6 +147,80 @@ namespace Reloader.World.Tests.PlayMode
             var anchor = root.transform.Find("Anchor_Townsfolk_01");
             Assert.That(anchor, Is.Not.Null, "Expected authored spawn anchor to exist.");
             Assert.That(spawnedAgents[0].transform.position, Is.EqualTo(anchor!.position));
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownPopulationRuntime_SaveCoordinatorLoad_RebuildsAuthoredSceneFromLoadedPopulationModule()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var root = GameObject.Find("MainTownPopulationRuntime");
+            Assert.That(root, Is.Not.Null, "Expected authored MainTown population runtime root.");
+
+            var bridge = root!.GetComponent<CivilianPopulationRuntimeBridge>();
+            Assert.That(bridge, Is.Not.Null, "Expected CivilianPopulationRuntimeBridge on MainTownPopulationRuntime.");
+
+            var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
+            var repository = new SaveFileRepository();
+            var tempDir = Path.Combine(Path.GetTempPath(), "reloader-maintown-population-tests-" + Guid.NewGuid().ToString("N"));
+            var savePath = Path.Combine(tempDir, "maintown-population-load.json");
+            Directory.CreateDirectory(tempDir);
+
+            try
+            {
+                var envelope = coordinator.CaptureEnvelope("0.6.0-dev");
+                var module = new CivilianPopulationModule();
+                module.Civilians.Add(CreateRecord(
+                    civilianId: "citizen.mainTown.9001",
+                    populationSlotId: "cops.001",
+                    poolId: "cops",
+                    spawnAnchorId: "Anchor_Cop_01",
+                    areaTag: "maintown.watch",
+                    isAlive: true,
+                    retiredAtDay: -1));
+                module.Civilians.Add(CreateRecord(
+                    civilianId: "citizen.mainTown.9002",
+                    populationSlotId: "hobos.001",
+                    poolId: "hobos",
+                    spawnAnchorId: "Anchor_Hobo_01",
+                    areaTag: "maintown.alley",
+                    isAlive: false,
+                    retiredAtDay: 4));
+
+                envelope.Modules["CivilianPopulation"] = new ModuleSaveBlock
+                {
+                    ModuleVersion = 1,
+                    PayloadJson = module.CaptureModuleStateJson()
+                };
+
+                repository.WriteEnvelope(savePath, envelope);
+
+                Assert.That(root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true).Length, Is.EqualTo(4));
+
+                coordinator.Load(savePath);
+                yield return null;
+
+                Assert.That(bridge!.Runtime.Civilians.Count, Is.EqualTo(2), "Expected runtime civilians to reflect the loaded save module.");
+
+                var spawned = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(spawned.Length, Is.EqualTo(1), "Expected only living civilians from the loaded save to rebuild into the scene.");
+                Assert.That(spawned[0].CivilianId, Is.EqualTo("citizen.mainTown.9001"));
+                Assert.That(spawned[0].PopulationSlotId, Is.EqualTo("cops.001"));
+                Assert.That(spawned[0].PoolId, Is.EqualTo("cops"));
+
+                var anchor = root.transform.Find("Anchor_Cop_01");
+                Assert.That(anchor, Is.Not.Null, "Expected authored anchor for loaded civilian.");
+                Assert.That(spawned[0].transform.position, Is.EqualTo(anchor!.position));
+                Assert.That(root.transform.Find("Civilian_citizen.mainTown.0001"), Is.Null, "Expected starter civilians to be cleared when a save load rebuild runs.");
+            }
+            finally
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                }
+            }
         }
 
         private static void AssertArrayConfigured(object instance, string propertyName)

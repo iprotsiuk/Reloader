@@ -143,6 +143,25 @@
   - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-full.xml tmp/civilian-runtime-bridge-full.log`: `6/6` passed
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-lifecycle.xml tmp/maintown-population-infra-lifecycle.log`: `3/3` passed
 
+## 2026-03-08 Checkpoint 5
+
+- Added a live scene-level save-restore integration harness for `MainTown`:
+  - extended `MainTownPopulationInfrastructurePlayModeTests` with a temp-save `SaveCoordinator.Load()` scenario
+  - captured a real save envelope from the authored scene, replaced only the `CivilianPopulation` payload, and reloaded it through the default save coordinator
+  - verified that the live bridge registry path clears starter placeholders and rebuilds only the living civilians from the loaded save into authored anchors
+- Scope note:
+  - this checkpoint adds end-to-end orchestration coverage without expanding runtime behavior
+  - no new production code was required because the lifecycle wiring from Checkpoint 4 already satisfied the stronger coordinator-driven path
+
+## Verification
+
+- `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_SaveCoordinatorLoad_RebuildsAuthoredSceneFromLoadedPopulationModule tmp/maintown-population-save-load.xml tmp/maintown-population-save-load.log`: `1/1` passed
+- The test verifies:
+  - `SaveCoordinator.Load()` routes through the live runtime bridge registry
+  - starter civilians are cleared after load
+  - only the living loaded civilian is rebuilt into `MainTown`
+  - loaded slot metadata and anchor positioning survive the full save/load path
+
 ## Next Step After This One
 
-The next slice should add a real scene-level save-restore harness in PlayMode by driving `SaveRuntimeBridgeRegistry.FinalizeAfterLoad(...)` or `SaveCoordinator.Load()` against the live authored `MainTown` scene, so automatic load rebuild is verified through the registry path rather than only the bridge-local contract. Final STYLE-driven visual assembly should still stay deferred until that lifecycle coverage is stable.
+The next slice should move from infrastructure/harness work into deterministic replacement behavior: queue a dead civilian, execute the first replacement cycle against a stable slot, and verify the new occupant preserves slot identity while changing civilian identity. Final STYLE-driven visual assembly should still stay deferred until replacement lifecycle coverage is stable.

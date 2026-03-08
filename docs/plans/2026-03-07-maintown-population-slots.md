@@ -218,6 +218,7 @@ Run:
 
 ```bash
 bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-full.xml tmp/maintown-population-infra-full.log
+bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_SaveCoordinatorLoad_RebuildsAuthoredSceneFromLoadedPopulationModule tmp/maintown-population-save-load.xml tmp/maintown-population-save-load.log
 ```
 
 Expected: passing scene-spawn assertions.
