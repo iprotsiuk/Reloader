@@ -146,7 +146,6 @@ namespace Reloader.Contracts.Runtime
             if (accepted)
             {
                 _offerConsumed = true;
-                _policeHeatRuntime.ForceClear();
             }
 
             return accepted;

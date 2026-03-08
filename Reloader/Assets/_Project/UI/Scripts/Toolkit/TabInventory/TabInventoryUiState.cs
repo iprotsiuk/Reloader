@@ -109,7 +109,7 @@ namespace Reloader.UI.Toolkit.TabInventory
                     basePayoutText: "Payout: --",
                     bonusConditionsText: "None",
                     restrictionsText: "None",
-                    failureConditionsText: "Wrong target • Manual cancel",
+                    failureConditionsText: "None",
                     rewardStateText: "No contract selected",
                     canAccept: false,
                     canCancel: false,

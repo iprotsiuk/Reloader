@@ -477,7 +477,7 @@ namespace Reloader.UI.Tests.PlayMode
             detailPane.Add(new Label { name = "inventory__detail-pane-base-payout", text = "Payout: --" });
             detailPane.Add(new Label { name = "inventory__detail-pane-bonus-conditions", text = "None" });
             detailPane.Add(new Label { name = "inventory__detail-pane-restrictions", text = "None" });
-            detailPane.Add(new Label { name = "inventory__detail-pane-failure-conditions", text = "Wrong target" });
+            detailPane.Add(new Label { name = "inventory__detail-pane-failure-conditions", text = "None" });
             detailPane.Add(new Label { name = "inventory__detail-pane-reward-state", text = "No contract selected" });
             panel.Add(detailPane);
             panel.Add(new Button { name = "inventory__device-choose-target" });
