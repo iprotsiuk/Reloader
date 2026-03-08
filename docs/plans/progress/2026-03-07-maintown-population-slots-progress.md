@@ -481,6 +481,20 @@ The next slice should formalize the actual Monday `08:00` scheduler rule on top 
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-contract-full.xml tmp/maintown-population-infra-contract-full.log`: `6/6` passed
   - `bash scripts/run-unity-tests.sh playmode Reloader.Weapons.Tests.PlayMode.ContractTargetDamageablePlayModeTests tmp/contract-target-damageable-full.xml tmp/contract-target-damageable-full.log`: `2/2` passed
 
+## Checkpoint: Replacement Anchor Consistency Coverage
+
+- Added regression coverage for the stable-anchor contract on slot replacements:
+  - save-module validation now proves pending replacement debt is invalid when its `SpawnAnchorId` differs from the vacated civilian's authored anchor
+  - runtime bridge coverage now proves replacement execution keeps the vacated civilian anchor even if malformed in-memory debt carries a different anchor id
+- Scope note:
+  - this checkpoint adds coverage only
+  - no production behavior changed because the anchor-consistency guard was already present in the save/runtime path
+
+## Verification
+
+- `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-save-anchor-full.xml tmp/civilian-save-anchor-full.log`: `12/12` passed
+- `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-anchor-full.xml tmp/civilian-runtime-anchor-full.log`: `19/19` passed
+
 ## Checkpoint: Replacement Anchor Drift Guard
 
 - Addressed the new PR review thread on slot-anchor drift during replacement execution:
