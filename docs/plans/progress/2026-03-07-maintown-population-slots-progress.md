@@ -56,6 +56,7 @@
   - created `Assets/_Project/NPCs/Data/Population/MainTownPopulationDefinition.asset`
   - assigned starter pools: `townsfolk`, `quarry_workers`, `hobos`, `cops`
   - serialized a minimal non-empty `CivilianAppearanceLibrary` directly on the runtime bridge to keep this slice infrastructure-focused
+  - hardened `MainTownPopulationDefinition.Validate()` so empty pool arrays fail fast instead of silently producing a zero-civilian roster
 - Kept the deferred boundary explicit:
   - no committed STYLE appearance-part curation yet
   - no live civilian prefab assembly/spawn pipeline yet

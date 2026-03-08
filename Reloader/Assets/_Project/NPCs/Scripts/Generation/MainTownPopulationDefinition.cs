@@ -19,6 +19,11 @@ namespace Reloader.NPCs.Generation
 
         public void Validate()
         {
+            if (Pools == null || Pools.Length == 0)
+            {
+                throw new ArgumentException("MainTownPopulationDefinition must define at least one pool.");
+            }
+
             var seenSlotIds = new HashSet<string>(StringComparer.Ordinal);
 
             for (var poolIndex = 0; poolIndex < Pools.Length; poolIndex++)

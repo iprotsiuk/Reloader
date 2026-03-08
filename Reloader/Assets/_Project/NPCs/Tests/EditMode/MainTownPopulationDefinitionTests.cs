@@ -13,6 +13,25 @@ namespace Reloader.NPCs.Tests.EditMode
         private const string SlotTypeName = "Reloader.NPCs.Generation.MainTownPopulationSlotDefinition, Reloader.NPCs";
 
         [Test]
+        public void Validate_WhenPoolsAreEmpty_ThrowsArgumentException()
+        {
+            var definitionType = ResolveRequiredType(DefinitionTypeName);
+            var poolType = ResolveRequiredType(PoolTypeName);
+
+            var definition = ScriptableObject.CreateInstance(definitionType);
+            SetProperty(definition, "Pools", Array.CreateInstance(poolType, 0));
+
+            var validate = definitionType.GetMethod("Validate", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(validate, Is.Not.Null, "Expected a public Validate() method on MainTownPopulationDefinition.");
+
+            var ex = Assert.Throws<TargetInvocationException>(() => validate.Invoke(definition, null));
+            Assert.That(ex?.InnerException, Is.TypeOf<ArgumentException>());
+            Assert.That(ex?.InnerException?.Message, Does.Contain("at least one pool"));
+
+            UnityEngine.Object.DestroyImmediate(definition);
+        }
+
+        [Test]
         public void Validate_WhenPopulationSlotIdsDuplicate_ThrowsArgumentException()
         {
             var definitionType = ResolveRequiredType(DefinitionTypeName);
