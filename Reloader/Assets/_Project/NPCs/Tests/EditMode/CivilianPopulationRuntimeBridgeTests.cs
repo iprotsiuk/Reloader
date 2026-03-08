@@ -57,9 +57,12 @@ namespace Reloader.NPCs.Tests.EditMode
                 var module = new CivilianPopulationModule();
                 module.Civilians.Add(new CivilianPopulationRecord
                 {
+                    PopulationSlotId = "quarry.worker.004",
+                    PoolId = "quarry_workers",
                     CivilianId = "citizen.mainTown.0042",
                     IsAlive = true,
                     IsContractEligible = false,
+                    IsProtectedFromContracts = true,
                     BaseBodyId = "body.female.a",
                     PresentationType = "feminine",
                     HairId = "hair.long.01",
@@ -71,6 +74,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     MaterialColorIds = new List<string> { "color.red" },
                     GeneratedDescriptionTags = new List<string> { "red jacket" },
                     SpawnAnchorId = "spawn.busstop.b",
+                    AreaTag = "quarry",
                     CreatedAtDay = 6,
                     RetiredAtDay = -1
                 });
@@ -84,9 +88,13 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.FinalizeAfterLoad(new[] { new SaveModuleRegistration(1, module) });
 
                 Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(1));
+                Assert.That(bridge.Runtime.Civilians[0].PopulationSlotId, Is.EqualTo("quarry.worker.004"));
+                Assert.That(bridge.Runtime.Civilians[0].PoolId, Is.EqualTo("quarry_workers"));
                 Assert.That(bridge.Runtime.Civilians[0].CivilianId, Is.EqualTo("citizen.mainTown.0042"));
                 Assert.That(bridge.Runtime.Civilians[0].IsContractEligible, Is.False);
+                Assert.That(bridge.Runtime.Civilians[0].IsProtectedFromContracts, Is.True);
                 Assert.That(bridge.Runtime.Civilians[0].GeneratedDescriptionTags, Is.EqualTo(new[] { "red jacket" }));
+                Assert.That(bridge.Runtime.Civilians[0].AreaTag, Is.EqualTo("quarry"));
                 Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(1));
                 Assert.That(bridge.Runtime.PendingReplacements[0].VacatedCivilianId, Is.EqualTo("citizen.mainTown.0004"));
             }
@@ -107,9 +115,12 @@ namespace Reloader.NPCs.Tests.EditMode
                 var module = new CivilianPopulationModule();
                 module.Civilians.Add(new CivilianPopulationRecord
                 {
+                    PopulationSlotId = "townsfolk.021",
+                    PoolId = "townsfolk",
                     CivilianId = "citizen.mainTown.0042",
                     IsAlive = true,
                     IsContractEligible = false,
+                    IsProtectedFromContracts = false,
                     BaseBodyId = "body.female.a",
                     PresentationType = "feminine",
                     HairId = "hair.long.01",
@@ -121,6 +132,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     MaterialColorIds = new List<string> { "color.red" },
                     GeneratedDescriptionTags = new List<string> { "red jacket" },
                     SpawnAnchorId = "spawn.busstop.b",
+                    AreaTag = "downtown",
                     CreatedAtDay = 6,
                     RetiredAtDay = -1
                 });
@@ -134,10 +146,14 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.PrepareForSave(new[] { new SaveModuleRegistration(1, module) });
 
                 Assert.That(module.Civilians.Count, Is.EqualTo(1));
+                Assert.That(module.Civilians[0].PopulationSlotId, Is.EqualTo("townsfolk.021"));
+                Assert.That(module.Civilians[0].PoolId, Is.EqualTo("townsfolk"));
                 Assert.That(module.Civilians[0].CivilianId, Is.EqualTo("citizen.mainTown.0042"));
                 Assert.That(module.PendingReplacements.Count, Is.EqualTo(1));
                 Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(1));
+                Assert.That(bridge.Runtime.Civilians[0].PopulationSlotId, Is.EqualTo("townsfolk.021"));
                 Assert.That(bridge.Runtime.Civilians[0].CivilianId, Is.EqualTo("citizen.mainTown.0042"));
+                Assert.That(bridge.Runtime.Civilians[0].AreaTag, Is.EqualTo("downtown"));
             }
             finally
             {
