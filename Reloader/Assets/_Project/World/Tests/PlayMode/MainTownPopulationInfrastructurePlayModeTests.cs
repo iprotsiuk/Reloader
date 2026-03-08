@@ -67,6 +67,31 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator MainTownPopulationRuntime_LoadScene_AutomaticallySeedsAndBuildsStarterPopulation()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var root = GameObject.Find("MainTownPopulationRuntime");
+            Assert.That(root, Is.Not.Null, "Expected authored MainTown population runtime root.");
+
+            var bridge = root!.GetComponent<CivilianPopulationRuntimeBridge>();
+            Assert.That(bridge, Is.Not.Null, "Expected CivilianPopulationRuntimeBridge on MainTownPopulationRuntime.");
+
+            Assert.That(bridge!.Runtime.Civilians.Count, Is.EqualTo(4), "Expected automatic starter population seeding from the authored definition.");
+
+            var spawnedAgents = root.GetComponentsInChildren<NpcAgent>(includeInactive: true);
+            Assert.That(spawnedAgents.Length, Is.EqualTo(4), "Expected automatic runtime rebuild to spawn one placeholder civilian per starter slot.");
+
+            var metadata = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            Assert.That(metadata.Length, Is.EqualTo(4), "Expected every auto-spawned civilian to carry slot metadata.");
+
+            CollectionAssert.AreEquivalent(
+                new[] { "townsfolk.001", "quarry_workers.001", "hobos.001", "cops.001" },
+                metadata.Select(component => component.PopulationSlotId).ToArray());
+        }
+
+        [UnityTest]
         public IEnumerator MainTownPopulationRuntime_RebuildScenePopulation_SpawnsLiveOccupantsAndSkipsDeadSlots()
         {
             yield return LoadScene(MainTownSceneName);

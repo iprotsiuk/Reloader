@@ -110,6 +110,39 @@
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-full.xml tmp/maintown-population-infra-full.log`: `2/2` passed
   - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-edit.xml tmp/civilian-runtime-bridge-edit.log`: `5/5` passed
 
+## 2026-03-08 Checkpoint 4
+
+- Wired placeholder population rebuilding into the actual runtime lifecycle:
+  - `CivilianPopulationRuntimeBridge.Start()` now seeds starter civilians when the scene boots with no existing runtime roster and immediately rebuilds placeholder civilians into the authored anchors
+  - `CivilianPopulationRuntimeBridge.FinalizeAfterLoad()` now rebuilds the scene after copying loaded module state into runtime
+  - stale placeholder civilians are cleared before loaded live civilians are rebuilt
+- Added focused coverage for both lifecycle seams:
+  - a PlayMode `MainTown` scene-load test now verifies automatic starter seeding and placeholder rebuild on load
+  - an EditMode bridge test now verifies `FinalizeAfterLoad()` clears stale spawned civilians and rebuilds only living loaded civilians
+- Architectural note from codebase review:
+  - `FinalizeAfterLoad()` is the authoritative save-restore seam because `SaveCoordinator.Load()` already restores modules, validates them, and then dispatches runtime bridges through `SaveRuntimeBridgeRegistry`
+  - scene-start seeding remains a separate bridge-local fallback for fresh unsaved `MainTown` loads
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.FinalizeAfterLoad_RebuildsScenePopulationFromLoadedModuleAndClearsPriorSpawnedObjects tmp/civilian-runtime-finalize-red.xml tmp/civilian-runtime-finalize-red.log`
+  - `tmp/civilian-runtime-finalize-red.xml`: `0/1` passed
+  - failing assertion: stale spawned civilian remained after `FinalizeAfterLoad()`
+- Red step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_LoadScene_AutomaticallySeedsAndBuildsStarterPopulation tmp/maintown-population-auto-red.xml tmp/maintown-population-auto-red.log`
+  - `tmp/maintown-population-auto-red.xml`: `0/1` passed
+  - failing assertion: runtime roster count stayed `0` on fresh `MainTown` load
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.FinalizeAfterLoad_RebuildsScenePopulationFromLoadedModuleAndClearsPriorSpawnedObjects tmp/civilian-runtime-finalize-green.xml tmp/civilian-runtime-finalize-green.log`
+  - `tmp/civilian-runtime-finalize-green.xml`: `1/1` passed
+- Green step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_LoadScene_AutomaticallySeedsAndBuildsStarterPopulation tmp/maintown-population-auto-green.xml tmp/maintown-population-auto-green.log`
+  - `tmp/maintown-population-auto-green.xml`: `1/1` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-full.xml tmp/civilian-runtime-bridge-full.log`: `6/6` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-lifecycle.xml tmp/maintown-population-infra-lifecycle.log`: `3/3` passed
+
 ## Next Step After This One
 
-The next slice should wire `MainTown` scene hydration so `RebuildScenePopulation()` is invoked automatically from the correct runtime/load seam, then verify teardown/rebuild behavior across scene reload or save restore. Final STYLE-driven visual assembly should stay deferred until that lifecycle hook is stable.
+The next slice should add a real scene-level save-restore harness in PlayMode by driving `SaveRuntimeBridgeRegistry.FinalizeAfterLoad(...)` or `SaveCoordinator.Load()` against the live authored `MainTown` scene, so automatic load rebuild is verified through the registry path rather than only the bridge-local contract. Final STYLE-driven visual assembly should still stay deferred until that lifecycle coverage is stable.

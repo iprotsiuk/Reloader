@@ -114,6 +114,67 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void FinalizeAfterLoad_RebuildsScenePopulationFromLoadedModuleAndClearsPriorSpawnedObjects()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+            var anchorB = CreateAnchor(go.transform, "Anchor_B", new Vector3(4f, 0f, 0f));
+
+            try
+            {
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.stale",
+                    PopulationSlotId = "stale.001",
+                    PoolId = "townsfolk",
+                    SpawnAnchorId = "Anchor_A",
+                    AreaTag = "maintown.old",
+                    IsAlive = true
+                });
+
+                bridge.RebuildScenePopulation();
+                Assert.That(go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true).Length, Is.EqualTo(1));
+
+                var module = new CivilianPopulationModule();
+                module.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0042",
+                    PopulationSlotId = "cops.001",
+                    PoolId = "cops",
+                    SpawnAnchorId = "Anchor_B",
+                    AreaTag = "maintown.watch",
+                    IsAlive = true
+                });
+                module.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0043",
+                    PopulationSlotId = "hobos.001",
+                    PoolId = "hobos",
+                    SpawnAnchorId = "Anchor_A",
+                    AreaTag = "maintown.alley",
+                    IsAlive = false
+                });
+
+                bridge.FinalizeAfterLoad(new[] { new SaveModuleRegistration(1, module) });
+
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(2));
+
+                var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(spawned.Length, Is.EqualTo(1), "Expected only live loaded civilians to rebuild into scene placeholders.");
+                Assert.That(spawned[0].CivilianId, Is.EqualTo("citizen.mainTown.0042"));
+                Assert.That(spawned[0].PopulationSlotId, Is.EqualTo("cops.001"));
+                Assert.That(spawned[0].PoolId, Is.EqualTo("cops"));
+                Assert.That(spawned[0].transform.position, Is.EqualTo(anchorB.position));
+                Assert.That(go.transform.Find("Civilian_citizen.mainTown.stale"), Is.Null, "Expected stale spawned civilians to be cleared during load rebuild.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void PrepareForSave_WhenRuntimeIsEmpty_PreservesLoadedModuleData()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");
@@ -270,6 +331,14 @@ namespace Reloader.NPCs.Tests.EditMode
             var field = type.GetField(fieldName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Expected private field '{fieldName}' on '{type.FullName}'.");
             field.SetValue(instance, value);
+        }
+
+        private static Transform CreateAnchor(Transform parent, string name, Vector3 position)
+        {
+            var anchor = new GameObject(name).transform;
+            anchor.SetParent(parent, false);
+            anchor.localPosition = position;
+            return anchor;
         }
     }
 }

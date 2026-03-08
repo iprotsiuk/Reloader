@@ -207,6 +207,8 @@ Expected: failing scene-spawn assertions because no slot-driven loader exists ye
 **Step 3: Implement the MainTown loader/spawner**
 
 - Add a minimal `RebuildScenePopulation()` seam on `CivilianPopulationRuntimeBridge`.
+- Trigger placeholder rebuild automatically on fresh scene load from the bridge lifecycle.
+- Trigger placeholder rebuild automatically from `FinalizeAfterLoad()` after runtime save hydration.
 - Spawn placeholder civilians from persisted live records using authored anchor ids under `MainTownPopulationRuntime`.
 - Keep vendor/protected authored NPCs and final visual assembly outside this checkpoint.
 

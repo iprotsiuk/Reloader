@@ -21,6 +21,12 @@ namespace Reloader.NPCs.Runtime
 
         public CivilianPopulationRuntimeState Runtime => _runtime;
 
+        private void Start()
+        {
+            EnsureRuntimePopulationInitializedForScene();
+            RebuildScenePopulation();
+        }
+
         private void OnEnable()
         {
             SaveRuntimeBridgeRegistry.Register(this);
@@ -53,6 +59,7 @@ namespace Reloader.NPCs.Runtime
             }
 
             CopyModuleToRuntime(module);
+            RebuildScenePopulation();
         }
 
         public bool TryRetireCivilian(string civilianId, int retiredAtDay)
@@ -120,6 +127,55 @@ namespace Reloader.NPCs.Runtime
         private void SeedInitialRosterIfNeeded(CivilianPopulationModule module)
         {
             if (_runtime.Civilians.Count > 0 || module.Civilians.Count > 0)
+            {
+                return;
+            }
+
+            if (_appearanceLibrary == null)
+            {
+                return;
+            }
+
+            if (_populationDefinition != null)
+            {
+                SeedRosterFromPopulationDefinition();
+                return;
+            }
+
+            if (_initialPopulationCount <= 0)
+            {
+                return;
+            }
+
+            var anchorIds = NormalizeSpawnAnchors();
+            if (anchorIds.Count == 0)
+            {
+                return;
+            }
+
+            var idPrefix = string.IsNullOrWhiteSpace(_civilianIdPrefix) ? "citizen.mainTown" : _civilianIdPrefix.Trim();
+            for (var i = 0; i < _initialPopulationCount; i++)
+            {
+                var civilianId = $"{idPrefix}.{i + 1:0000}";
+                var spawnAnchorId = anchorIds[i % anchorIds.Count];
+                var seed = i + 1;
+                _runtime.Civilians.Add(_generator.GenerateRecord(
+                    _appearanceLibrary,
+                    civilianId,
+                    createdAtDay: 0,
+                    spawnAnchorId,
+                    seed,
+                    isContractEligible: true,
+                    populationSlotId: CreateFallbackPopulationSlotId(i),
+                    poolId: "townsfolk",
+                    areaTag: "maintown",
+                    isProtectedFromContracts: false));
+            }
+        }
+
+        private void EnsureRuntimePopulationInitializedForScene()
+        {
+            if (_runtime.Civilians.Count > 0)
             {
                 return;
             }
