@@ -852,6 +852,105 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
+        [Test]
+        public void ExecutePendingReplacements_WhenMaturedDebtTargetsOccupiedSlot_PurgesDebtWithoutSpawning()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0013",
+                    populationSlotId: "townsfolk.004",
+                    spawnAnchorId: "Anchor_Townsfolk_04",
+                    isAlive: false,
+                    retiredAtDay: 5));
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0014",
+                    populationSlotId: "townsfolk.004",
+                    spawnAnchorId: "Anchor_Townsfolk_04",
+                    isAlive: true,
+                    retiredAtDay: -1));
+                bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.0013",
+                    QueuedAtDay = 9,
+                    SpawnAnchorId = "Anchor_Townsfolk_04"
+                });
+
+                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 14, currentTimeOfDay: 8f);
+
+                Assert.That(replacedCount, Is.EqualTo(0));
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0), "Expected matured debt for an occupied slot to be purged.");
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(2));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void ExecutePendingReplacements_WhenMultipleMaturedDebtsTargetSameSlot_SpawnsOnlyOneReplacement()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_Townsfolk_05", new Vector3(3f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0015",
+                    populationSlotId: "townsfolk.005",
+                    spawnAnchorId: "Anchor_Townsfolk_05",
+                    isAlive: false,
+                    retiredAtDay: 5));
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0016",
+                    populationSlotId: "townsfolk.005",
+                    spawnAnchorId: "Anchor_Townsfolk_05",
+                    isAlive: false,
+                    retiredAtDay: 6));
+                bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.0015",
+                    QueuedAtDay = 9,
+                    SpawnAnchorId = "Anchor_Townsfolk_05"
+                });
+                bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.0016",
+                    QueuedAtDay = 10,
+                    SpawnAnchorId = "Anchor_Townsfolk_05"
+                });
+
+                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 14, currentTimeOfDay: 8f);
+
+                Assert.That(replacedCount, Is.EqualTo(1), "Expected only one replacement for a slot even if malformed debt exists for multiple historical civilians.");
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0), "Expected malformed same-slot debts to be cleared after execution.");
+                Assert.That(bridge.Runtime.Civilians.Count(record => record.IsAlive && record.PopulationSlotId == "townsfolk.005"), Is.EqualTo(1));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
         private static CivilianAppearanceLibrary CreateLibrary()
         {
             return new CivilianAppearanceLibrary
@@ -866,6 +965,38 @@ namespace Reloader.NPCs.Tests.EditMode
                 OuterwearIds = new[] { "outer.gray.coat" },
                 MaterialColorIds = new[] { "color.gray" },
                 DescriptionTags = new[] { "gray coat" }
+            };
+        }
+
+        private static CivilianPopulationRecord CreateCivilianRecord(
+            string civilianId,
+            string populationSlotId,
+            string spawnAnchorId,
+            bool isAlive,
+            int retiredAtDay)
+        {
+            return new CivilianPopulationRecord
+            {
+                CivilianId = civilianId,
+                PopulationSlotId = populationSlotId,
+                PoolId = "townsfolk",
+                SpawnAnchorId = spawnAnchorId,
+                AreaTag = "maintown.square",
+                IsAlive = isAlive,
+                IsContractEligible = isAlive,
+                IsProtectedFromContracts = false,
+                BaseBodyId = "body.male.a",
+                PresentationType = "masculine",
+                HairId = "hair.short.01",
+                HairColorId = "hair.black",
+                BeardId = "beard.none",
+                OutfitTopId = "top.coat.01",
+                OutfitBottomId = "bottom.jeans.01",
+                OuterwearId = "outer.gray.coat",
+                MaterialColorIds = new List<string> { "color.gray" },
+                GeneratedDescriptionTags = new List<string> { "gray coat" },
+                CreatedAtDay = 4,
+                RetiredAtDay = retiredAtDay
             };
         }
 

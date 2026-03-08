@@ -266,6 +266,83 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(ex.InnerException!.Message, Does.Contain("citizen.mainTown.001"));
         }
 
+        [Test]
+        public void CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementWhenSlotAlreadyHasLiveOccupant()
+        {
+            var moduleType = ResolveRequiredType(ModuleTypeName);
+            var recordType = ResolveRequiredType(RecordTypeName);
+            var replacementType = ResolveRequiredType(ReplacementTypeName);
+
+            var module = Activator.CreateInstance(moduleType);
+            var civilians = GetRequiredList(module, "Civilians");
+            var replacements = GetRequiredList(module, "PendingReplacements");
+
+            var deadRecord = CreateCivilianRecord(recordType);
+            SetProperty(deadRecord, "IsAlive", false);
+            SetProperty(deadRecord, "IsContractEligible", false);
+            SetProperty(deadRecord, "RetiredAtDay", 5);
+
+            var liveRecord = CreateCivilianRecord(recordType);
+            SetProperty(liveRecord, "CivilianId", "citizen.mainTown.002");
+            SetProperty(liveRecord, "SpawnAnchorId", "spawn.busstop.b");
+
+            civilians.Add(deadRecord);
+            civilians.Add(liveRecord);
+            replacements.Add(CreateReplacementRecord(replacementType));
+
+            var validateMethod = moduleType.GetMethod("ValidateModuleState", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(validateMethod, Is.Not.Null);
+
+            var ex = Assert.Throws<TargetInvocationException>(() => validateMethod!.Invoke(module, Array.Empty<object>()));
+            Assert.That(ex?.InnerException, Is.Not.Null);
+            Assert.That(ex!.InnerException!.Message, Does.Contain("already has a live occupant"));
+            Assert.That(ex.InnerException!.Message, Does.Contain("townsfolk.001"));
+        }
+
+        [Test]
+        public void CivilianPopulationModule_ValidateModuleState_RejectsMultiplePendingReplacementsForSamePopulationSlot()
+        {
+            var moduleType = ResolveRequiredType(ModuleTypeName);
+            var recordType = ResolveRequiredType(RecordTypeName);
+            var replacementType = ResolveRequiredType(ReplacementTypeName);
+
+            var module = Activator.CreateInstance(moduleType);
+            var civilians = GetRequiredList(module, "Civilians");
+            var replacements = GetRequiredList(module, "PendingReplacements");
+
+            var firstDeadRecord = CreateCivilianRecord(recordType);
+            SetProperty(firstDeadRecord, "IsAlive", false);
+            SetProperty(firstDeadRecord, "IsContractEligible", false);
+            SetProperty(firstDeadRecord, "RetiredAtDay", 5);
+
+            var secondDeadRecord = CreateCivilianRecord(recordType);
+            SetProperty(secondDeadRecord, "CivilianId", "citizen.mainTown.002");
+            SetProperty(secondDeadRecord, "IsAlive", false);
+            SetProperty(secondDeadRecord, "IsContractEligible", false);
+            SetProperty(secondDeadRecord, "SpawnAnchorId", "spawn.busstop.b");
+            SetProperty(secondDeadRecord, "RetiredAtDay", 6);
+
+            civilians.Add(firstDeadRecord);
+            civilians.Add(secondDeadRecord);
+
+            var firstReplacement = CreateReplacementRecord(replacementType);
+            var secondReplacement = CreateReplacementRecord(replacementType);
+            SetProperty(secondReplacement, "VacatedCivilianId", "citizen.mainTown.002");
+            SetProperty(secondReplacement, "SpawnAnchorId", "spawn.busstop.b");
+            SetProperty(secondReplacement, "QueuedAtDay", 6);
+
+            replacements.Add(firstReplacement);
+            replacements.Add(secondReplacement);
+
+            var validateMethod = moduleType.GetMethod("ValidateModuleState", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(validateMethod, Is.Not.Null);
+
+            var ex = Assert.Throws<TargetInvocationException>(() => validateMethod!.Invoke(module, Array.Empty<object>()));
+            Assert.That(ex?.InnerException, Is.Not.Null);
+            Assert.That(ex!.InnerException!.Message, Does.Contain("duplicate pendingReplacement populationSlotId"));
+            Assert.That(ex.InnerException!.Message, Does.Contain("townsfolk.001"));
+        }
+
         private static object CreateCivilianRecord(Type recordType)
         {
             var record = Activator.CreateInstance(recordType);

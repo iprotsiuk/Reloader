@@ -399,3 +399,54 @@ The next slice should formalize the actual Monday `08:00` scheduler rule on top 
   - Unity MCP `run_tests` / `get_test_job`:
     - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `15/15` passed
     - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `6/6` passed
+
+## Checkpoint: Slot-Level Review Follow-Ups
+
+- Addressed the two new PR review threads with authored-scene and state-contract fixes:
+  - moved the four starter `MainTownPopulationRuntime` anchors to distinct authored world positions so the conservative starter pools no longer stack all civilians at `(0, 0, 0)`
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects pending replacement debt when the dead civilian's `populationSlotId` already has a live occupant
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects multiple pending replacement debts targeting the same `populationSlotId`
+  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` now purges matured debt that targets an already-occupied slot and collapses same-slot duplicate matured debt defensively at runtime
+- Coverage updates:
+  - save-module tests now lock the slot-owned pending-debt invariants at validation time
+  - bridge tests now prove malformed matured debt cannot spawn duplicate replacements into one slot
+  - `MainTown` PlayMode coverage now asserts the authored starter anchors occupy four distinct world positions
+- Scope note:
+  - this does not add new population or contract behavior
+  - it closes review gaps in scene authoring and malformed-state handling while keeping the infrastructure model consistent with slot-owned civilians
+
+## Verification
+
+- `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-save-slot-debt.xml tmp/civilian-save-slot-debt.log`: `12/12` passed
+- `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-slot-guards.xml tmp/civilian-runtime-bridge-slot-guards.log`: `17/17` passed
+- `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-slot-guards.xml tmp/maintown-population-infra-slot-guards.log`: `6/6` passed
+
+## Checkpoint: Slot-Level Debt Guards And Distinct Authored Anchors
+
+- Addressed the latest PR review follow-ups on authored scene placement and replacement-debt invariants:
+  - `MainTown` starter population anchors now occupy distinct authored world positions instead of stacking at `(0,0,0)`
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects `pendingReplacements` entries that target a `populationSlotId` already occupied by a live civilian
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects multiple pending debts for the same stable `populationSlotId`, even if they reference different retired civilians
+  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` now defensively purges matured debt targeting an already-occupied slot and collapses multiple matured debts aimed at the same slot in one execution pass
+- Coverage updates:
+  - save-module tests now prove slot-level debt validation rejects both occupied-slot debt and duplicate slot-targeting debt
+  - bridge tests now prove runtime execution does not spawn replacements into already-occupied slots and only produces one replacement when malformed in-memory debt targets the same slot twice
+  - PlayMode `MainTown` infrastructure coverage now proves starter civilians spawn from four distinct authored anchor positions
+- Scope note:
+  - this is review-driven hardening only
+  - no new contract-targeting behavior or final appearance assembly was introduced
+
+## Verification
+
+- Red step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests.CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementWhenSlotAlreadyHasLiveOccupant`: `0/1` passed
+      - failing assertion: validation accepted pending debt for a slot that already had a live occupant
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenMaturedDebtTargetsOccupiedSlot_PurgesDebtWithoutSpawning`: `0/1` passed
+      - failing assertion: runtime replacement still spawned into an occupied slot
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_LoadScene_AutomaticallySeedsAndBuildsStarterPopulation`: `0/1` passed
+      - failing assertion: all authored anchors shared the same position
+- Green step:
+  - `bash scripts/run-unity-tests.sh editmode Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests tmp/civilian-save-slot-debt.xml tmp/civilian-save-slot-debt.log`: `12/12` passed
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-slot-guards.xml tmp/civilian-runtime-bridge-slot-guards.log`: `17/17` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-slot-guards.xml tmp/maintown-population-infra-slot-guards.log`: `6/6` passed

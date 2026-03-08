@@ -162,6 +162,8 @@ namespace Reloader.NPCs.Runtime
             var normalizedDay = Math.Max(0, currentDay);
             var normalizedTimeOfDay = NormalizeTimeOfDay(currentTimeOfDay);
             var processedVacatedCivilianIds = new HashSet<string>(StringComparer.Ordinal);
+            var processedPopulationSlotIds = new HashSet<string>(StringComparer.Ordinal);
+            var occupiedLivePopulationSlotIds = CollectOccupiedLivePopulationSlotIds();
             var replacedCount = 0;
             for (var i = _runtime.PendingReplacements.Count - 1; i >= 0; i--)
             {
@@ -184,6 +186,18 @@ namespace Reloader.NPCs.Runtime
                     continue;
                 }
 
+                if (occupiedLivePopulationSlotIds.Contains(vacated.PopulationSlotId))
+                {
+                    _runtime.PendingReplacements.RemoveAt(i);
+                    continue;
+                }
+
+                if (!processedPopulationSlotIds.Add(vacated.PopulationSlotId))
+                {
+                    _runtime.PendingReplacements.RemoveAt(i);
+                    continue;
+                }
+
                 var civilianId = CreateNextCivilianId();
                 var seed = ExtractCivilianNumericSuffix(civilianId);
                 _runtime.Civilians.Add(_generator.GenerateRecord(
@@ -197,6 +211,7 @@ namespace Reloader.NPCs.Runtime
                     poolId: vacated.PoolId,
                     areaTag: vacated.AreaTag,
                     isProtectedFromContracts: vacated.IsProtectedFromContracts));
+                occupiedLivePopulationSlotIds.Add(vacated.PopulationSlotId);
 
                 _runtime.PendingReplacements.RemoveAt(i);
                 replacedCount++;
@@ -730,6 +745,21 @@ namespace Reloader.NPCs.Runtime
             }
 
             return null;
+        }
+
+        private HashSet<string> CollectOccupiedLivePopulationSlotIds()
+        {
+            var occupiedSlots = new HashSet<string>(StringComparer.Ordinal);
+            for (var i = 0; i < _runtime.Civilians.Count; i++)
+            {
+                var record = _runtime.Civilians[i];
+                if (record != null && record.IsAlive && !string.IsNullOrWhiteSpace(record.PopulationSlotId))
+                {
+                    occupiedSlots.Add(record.PopulationSlotId);
+                }
+            }
+
+            return occupiedSlots;
         }
 
         private string CreateNextCivilianId()
