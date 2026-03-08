@@ -225,7 +225,7 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator MainTownPopulationRuntime_ExecutePendingReplacements_RebuildsStableSlotWithNewCivilian()
+        public IEnumerator MainTownPopulationRuntime_ExecutePendingReplacements_AfterMondayRefresh_RebuildsStableSlotWithNewCivilian()
         {
             yield return LoadScene(MainTownSceneName);
             yield return null;
@@ -253,7 +253,7 @@ namespace Reloader.World.Tests.PlayMode
                 SpawnAnchorId = "Anchor_Townsfolk_01"
             });
 
-            var replacedCount = bridge.ExecutePendingReplacements(currentDay: 9);
+            var replacedCount = bridge.ExecutePendingReplacements(currentDay: 14, currentTimeOfDay: 8f);
             yield return null;
 
             Assert.That(replacedCount, Is.EqualTo(1));
@@ -263,7 +263,7 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(replacement.PopulationSlotId, Is.EqualTo("townsfolk.001"));
             Assert.That(replacement.PoolId, Is.EqualTo("townsfolk"));
             Assert.That(replacement.SpawnAnchorId, Is.EqualTo("Anchor_Townsfolk_01"));
-            Assert.That(replacement.CreatedAtDay, Is.EqualTo(9));
+            Assert.That(replacement.CreatedAtDay, Is.EqualTo(14));
 
             var spawned = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
             Assert.That(spawned.Length, Is.EqualTo(1));
@@ -276,7 +276,7 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator MainTownPopulationRuntime_WorldStateChanged_ExecutesMaturedReplacementAfterDayAdvance()
+        public IEnumerator MainTownPopulationRuntime_WorldStateChanged_ExecutesReplacementWhenMondayRefreshTimeArrives()
         {
             yield return LoadScene(MainTownSceneName);
             yield return null;
@@ -309,15 +309,15 @@ namespace Reloader.World.Tests.PlayMode
                 SpawnAnchorId = "Anchor_Townsfolk_01"
             });
 
-            coreWorldController!.SetWorldState(8, 8f);
+            coreWorldController!.SetWorldState(14, 7.5f);
             yield return null;
-            coreWorldController.SetWorldState(8, 12f);
+            coreWorldController.SetWorldState(14, 7.75f);
             yield return null;
 
-            Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(1), "Expected same-day world updates to keep replacement debt pending.");
-            Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(1), "Expected no replacement until the day advances.");
+            Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(1), "Expected pre-refresh Monday world updates to keep replacement debt pending.");
+            Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(1), "Expected no replacement until Monday 08:00 arrives.");
 
-            coreWorldController.SetWorldState(9, 8f);
+            coreWorldController.SetWorldState(14, 8f);
             yield return null;
 
             Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0));
@@ -325,7 +325,7 @@ namespace Reloader.World.Tests.PlayMode
             var replacement = bridge.Runtime.Civilians.Single(record => record.CivilianId == "citizen.mainTown.0008");
             Assert.That(replacement.PopulationSlotId, Is.EqualTo("townsfolk.001"));
             Assert.That(replacement.SpawnAnchorId, Is.EqualTo("Anchor_Townsfolk_01"));
-            Assert.That(replacement.CreatedAtDay, Is.EqualTo(9));
+            Assert.That(replacement.CreatedAtDay, Is.EqualTo(14));
 
             var spawned = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
             Assert.That(spawned.Length, Is.EqualTo(1));

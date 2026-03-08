@@ -74,6 +74,7 @@ namespace Reloader.Core.Save.Modules
             var seenCivilianIds = new HashSet<string>(StringComparer.Ordinal);
             var seenAlivePopulationSlotIds = new HashSet<string>(StringComparer.Ordinal);
             var seenPendingReplacementIds = new HashSet<string>(StringComparer.Ordinal);
+            var civiliansById = new Dictionary<string, CivilianPopulationRecord>(StringComparer.Ordinal);
             for (var i = 0; i < Civilians.Count; i++)
             {
                 var record = Civilians[i];
@@ -91,6 +92,8 @@ namespace Reloader.Core.Save.Modules
                 {
                     throw new InvalidOperationException($"CivilianPopulation duplicate civilianId '{record.CivilianId}'.");
                 }
+
+                civiliansById.Add(record.CivilianId, record);
 
                 if (record.CreatedAtDay < 0)
                 {
@@ -161,6 +164,18 @@ namespace Reloader.Core.Save.Modules
                 {
                     throw new InvalidOperationException(
                         $"CivilianPopulation pendingReplacements[{i}].spawnAnchorId is invalid.");
+                }
+
+                if (!civiliansById.TryGetValue(record.VacatedCivilianId, out var vacatedCivilian))
+                {
+                    throw new InvalidOperationException(
+                        $"CivilianPopulation pendingReplacements[{i}] references missing dead civilian '{record.VacatedCivilianId}'.");
+                }
+
+                if (vacatedCivilian.IsAlive)
+                {
+                    throw new InvalidOperationException(
+                        $"CivilianPopulation pendingReplacements[{i}] must reference a dead civilian '{record.VacatedCivilianId}'.");
                 }
             }
         }

@@ -309,3 +309,69 @@
 ## Next Step After This One
 
 The next slice should formalize the actual Monday `08:00` scheduler rule on top of the new same-session day-advance seam, then verify that only newly matured queued replacements execute while future debt remains pending. Final STYLE-driven visual assembly should still stay deferred until that scheduler path is stable.
+
+## Checkpoint: Monday 08:00 Replacement Scheduler
+
+- Replaced the temporary day-advance maturity rule with the approved weekly scheduler contract:
+  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements(int currentDay, float currentTimeOfDay)` now executes debt only at the first Monday `08:00` strictly after `QueuedAtDay`
+  - `FinalizeAfterLoad()` now evaluates replacement maturity from the loaded `CoreWorldModule` day and time, not day alone
+  - same-session `CoreWorldController.WorldStateChanged` handling now tracks full `(DayCount, TimeOfDay)` progression so Monday morning threshold crossings can execute without reload
+- Locked the day-precision edge case explicitly:
+  - vacancies queued on a Monday do not execute that same Monday at `08:00`
+  - because the save model stores only `QueuedAtDay`, Monday-queued debt waits until the following Monday refresh rather than risking a retroactive same-day spawn
+- Coverage updates:
+  - EditMode bridge tests now verify:
+    - load finalization executes debt at Monday `08:00`
+    - same-session world updates execute at the Monday morning threshold
+    - pre-threshold Monday time stays pending
+    - Monday-queued vacancies wait until the following Monday
+  - PlayMode `MainTown` infrastructure coverage now verifies the authored scene executes replacements when Monday `08:00` arrives through the real `CoreWorldController`
+- Scope note:
+  - this is still infrastructure-level placeholder spawning only
+  - no final STYLE appearance assembly or contract-generation behavior changed
+
+## Verification
+
+- Red attempt:
+  - `bash scripts/run-unity-tests.sh editmode ...`: blocked because the Unity editor already had the project open
+  - the initial live Unity MCP session also stopped servicing test requests until the editor was restarted
+- Green step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenMondayRefreshWindowHasArrived_ReplacesDeadCivilianInSameSlot`: `1/1` passed
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.FinalizeAfterLoad_WhenMondayRefreshWindowHasArrived_ExecutesReplacementUsingCoreWorldState`: `1/1` passed
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.WorldStateChanged_WhenMondayMorningThresholdIsCrossed_ExecutesReplacementWithoutReload`: `1/1` passed
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenVacancyWasQueuedOnMonday_WaitsUntilFollowingMondayRefresh`: `1/1` passed
+- Regression sweep:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `12/12` passed
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `6/6` passed
+
+## Checkpoint: Purge Invalid Matured Replacement Debt
+
+- Addressed the new PR review thread on dangling/alive replacement debt:
+  - `CivilianPopulationModule.ValidateModuleState()` now rejects `pendingReplacements` entries that do not reference an existing dead civilian record
+  - `CivilianPopulationRuntimeBridge.ExecutePendingReplacements()` now purges matured debt that points to a missing civilian or a still-alive civilian instead of retrying it forever
+- Added focused coverage for both layers:
+  - save-module tests now reject pending debt referencing a missing civilian or an alive civilian
+  - bridge tests now prove matured invalid debt is removed without spawning a replacement civilian
+- Scope note:
+  - this hardens malformed-state handling only
+  - no contract-targeting or final appearance behavior changed
+
+## Verification
+
+- Red step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests.CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementReferencingMissingCivilian`: `0/1` passed
+      - failing assertion: `ValidateModuleState()` did not throw for dangling debt
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenMaturedDebtReferencesMissingCivilian_PurgesDebtWithoutSpawning`: `0/1` passed
+      - failing assertion: matured invalid debt remained queued instead of being purged
+- Green step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests.CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementReferencingMissingCivilian`: `1/1` passed
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.ExecutePendingReplacements_WhenMaturedDebtReferencesMissingCivilian_PurgesDebtWithoutSpawning`: `1/1` passed
+- Regression sweep:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests`: `10/10` passed
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `14/14` passed
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `6/6` passed

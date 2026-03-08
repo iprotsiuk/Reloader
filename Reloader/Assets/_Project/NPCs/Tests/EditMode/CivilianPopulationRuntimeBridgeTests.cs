@@ -176,7 +176,7 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
-        public void FinalizeAfterLoad_WhenMaturedReplacementDebtExists_ExecutesReplacementUsingCoreWorldDay()
+        public void FinalizeAfterLoad_WhenMondayRefreshWindowHasArrived_ExecutesReplacementUsingCoreWorldState()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");
             var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
@@ -193,7 +193,7 @@ namespace Reloader.NPCs.Tests.EditMode
 
                 var coreWorldModule = new CoreWorldModule
                 {
-                    DayCount = 9,
+                    DayCount = 14,
                     TimeOfDay = 8f
                 };
 
@@ -241,7 +241,7 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(replacement.CivilianId, Is.EqualTo("citizen.mainTown.0008"));
                 Assert.That(replacement.PopulationSlotId, Is.EqualTo("townsfolk.001"));
                 Assert.That(replacement.SpawnAnchorId, Is.EqualTo("Anchor_Townsfolk_01"));
-                Assert.That(replacement.CreatedAtDay, Is.EqualTo(9));
+                Assert.That(replacement.CreatedAtDay, Is.EqualTo(14));
                 Assert.That(replacement.IsAlive, Is.True);
 
                 var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
@@ -255,7 +255,7 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
-        public void WorldStateChanged_WhenDayAdvancesAndMaturedReplacementDebtExists_ExecutesReplacementWithoutReload()
+        public void WorldStateChanged_WhenMondayMorningThresholdIsCrossed_ExecutesReplacementWithoutReload()
         {
             var worldGo = new GameObject("CoreWorldController");
             worldGo.AddComponent<CoreWorldController>();
@@ -304,22 +304,22 @@ namespace Reloader.NPCs.Tests.EditMode
                 });
 
                 var controller = worldGo.GetComponent<CoreWorldController>();
+                controller.SetWorldState(14, 7.5f);
                 bridge.SetCoreWorldController(controller);
-                controller.SetWorldState(8, 8f);
-                controller.SetWorldState(8, 12f);
+                controller.SetWorldState(14, 7.75f);
 
-                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(1), "Expected same-day time changes to leave replacement debt untouched.");
-                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(1), "Expected no replacement until the world day advances.");
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(1), "Expected pre-refresh Monday time changes to leave replacement debt untouched.");
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(1), "Expected no replacement until Monday 08:00 arrives.");
 
-                controller.SetWorldState(9, 8f);
+                controller.SetWorldState(14, 8f);
 
-                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0), "Expected day advance to execute matured replacement debt.");
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0), "Expected Monday 08:00 to execute matured replacement debt.");
                 Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(2), "Expected same-session replacement to add a new live civilian.");
 
                 var replacement = bridge.Runtime.Civilians[1];
                 Assert.That(replacement.CivilianId, Is.EqualTo("citizen.mainTown.0008"));
                 Assert.That(replacement.PopulationSlotId, Is.EqualTo("townsfolk.001"));
-                Assert.That(replacement.CreatedAtDay, Is.EqualTo(9));
+                Assert.That(replacement.CreatedAtDay, Is.EqualTo(14));
 
                 var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
                 Assert.That(spawned.Length, Is.EqualTo(1), "Expected world-state change to rebuild one live placeholder.");
@@ -454,7 +454,7 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
-        public void ExecutePendingReplacements_WhenQueuedReplacementMatures_ReplacesDeadCivilianInSameSlot()
+        public void ExecutePendingReplacements_WhenMondayRefreshWindowHasArrived_ReplacesDeadCivilianInSameSlot()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");
             var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
@@ -499,7 +499,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     SpawnAnchorId = "Anchor_Townsfolk_01"
                 });
 
-                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 9);
+                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 14, currentTimeOfDay: 8f);
 
                 Assert.That(replacedCount, Is.EqualTo(1), "Expected one matured replacement to execute.");
                 Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0), "Expected replacement debt to clear after execution.");
@@ -512,7 +512,7 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(replacement.PoolId, Is.EqualTo("townsfolk"));
                 Assert.That(replacement.SpawnAnchorId, Is.EqualTo("Anchor_Townsfolk_01"));
                 Assert.That(replacement.AreaTag, Is.EqualTo("maintown.square"));
-                Assert.That(replacement.CreatedAtDay, Is.EqualTo(9));
+                Assert.That(replacement.CreatedAtDay, Is.EqualTo(14));
                 Assert.That(replacement.RetiredAtDay, Is.EqualTo(-1));
                 Assert.That(replacement.IsAlive, Is.True);
                 Assert.That(replacement.IsContractEligible, Is.True);
@@ -529,7 +529,7 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
-        public void ExecutePendingReplacements_WhenQueuedForFuture_DoesNotReplaceEarly()
+        public void ExecutePendingReplacements_WhenMondayRefreshWindowHasNotArrived_DoesNotReplaceEarly()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");
             var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
@@ -569,11 +569,11 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
                 {
                     VacatedCivilianId = "citizen.mainTown.0010",
-                    QueuedAtDay = 12,
+                    QueuedAtDay = 14,
                     SpawnAnchorId = "Anchor_Cop_01"
                 });
 
-                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 11);
+                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 14, currentTimeOfDay: 7.99f);
 
                 Assert.That(replacedCount, Is.EqualTo(0));
                 Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(1));
@@ -586,7 +586,64 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
-        public void ExecutePendingReplacements_WhenDuplicateMaturedDebtsExist_SpawnsOnlyOneReplacement()
+        public void ExecutePendingReplacements_WhenVacancyWasQueuedOnMonday_WaitsUntilFollowingMondayRefresh()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0011",
+                    PopulationSlotId = "townsfolk.002",
+                    PoolId = "townsfolk",
+                    SpawnAnchorId = "Anchor_Townsfolk_02",
+                    AreaTag = "maintown.square",
+                    IsAlive = false,
+                    IsContractEligible = false,
+                    IsProtectedFromContracts = false,
+                    BaseBodyId = "body.male.a",
+                    PresentationType = "masculine",
+                    HairId = "hair.short.01",
+                    HairColorId = "hair.black",
+                    BeardId = "beard.none",
+                    OutfitTopId = "top.coat.01",
+                    OutfitBottomId = "bottom.jeans.01",
+                    OuterwearId = "outer.gray.coat",
+                    MaterialColorIds = new List<string> { "color.gray" },
+                    GeneratedDescriptionTags = new List<string> { "gray coat" },
+                    CreatedAtDay = 3,
+                    RetiredAtDay = 14
+                });
+                bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.0011",
+                    QueuedAtDay = 14,
+                    SpawnAnchorId = "Anchor_Townsfolk_02"
+                });
+
+                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 14, currentTimeOfDay: 8f);
+
+                Assert.That(replacedCount, Is.EqualTo(0), "Expected Monday-queued vacancies to wait until the following Monday because no time-of-death is persisted.");
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(1));
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(1));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void ExecutePendingReplacements_WhenDuplicateDebtsReachMondayRefresh_SpawnsOnlyOneReplacement()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");
             var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
@@ -637,7 +694,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     SpawnAnchorId = "Anchor_Townsfolk_01"
                 });
 
-                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 9);
+                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 14, currentTimeOfDay: 8f);
 
                 Assert.That(replacedCount, Is.EqualTo(1), "Expected duplicate matured debt to produce only one replacement.");
                 Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0), "Expected duplicate debt entries to be cleared after execution.");
@@ -647,6 +704,99 @@ namespace Reloader.NPCs.Tests.EditMode
                 var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
                 Assert.That(spawned.Length, Is.EqualTo(1), "Expected scene rebuild to keep one live occupant for the slot.");
                 Assert.That(spawned[0].CivilianId, Is.EqualTo("citizen.mainTown.0008"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void ExecutePendingReplacements_WhenMaturedDebtReferencesMissingCivilian_PurgesDebtWithoutSpawning()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.4040",
+                    QueuedAtDay = 9,
+                    SpawnAnchorId = "Anchor_Townsfolk_01"
+                });
+
+                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 14, currentTimeOfDay: 8f);
+
+                Assert.That(replacedCount, Is.EqualTo(0));
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0), "Expected matured debt with no dead civilian target to be purged.");
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(0));
+                Assert.That(go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true).Length, Is.EqualTo(0));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void ExecutePendingReplacements_WhenMaturedDebtReferencesAliveCivilian_PurgesDebtWithoutSpawning()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0012",
+                    PopulationSlotId = "townsfolk.003",
+                    PoolId = "townsfolk",
+                    SpawnAnchorId = "Anchor_Townsfolk_03",
+                    AreaTag = "maintown.square",
+                    IsAlive = true,
+                    IsContractEligible = true,
+                    IsProtectedFromContracts = false,
+                    BaseBodyId = "body.male.a",
+                    PresentationType = "masculine",
+                    HairId = "hair.short.01",
+                    HairColorId = "hair.black",
+                    BeardId = "beard.none",
+                    OutfitTopId = "top.coat.01",
+                    OutfitBottomId = "bottom.jeans.01",
+                    OuterwearId = "outer.gray.coat",
+                    MaterialColorIds = new List<string> { "color.gray" },
+                    GeneratedDescriptionTags = new List<string> { "gray coat" },
+                    CreatedAtDay = 6,
+                    RetiredAtDay = -1
+                });
+                bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.0012",
+                    QueuedAtDay = 9,
+                    SpawnAnchorId = "Anchor_Townsfolk_03"
+                });
+
+                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 14, currentTimeOfDay: 8f);
+
+                Assert.That(replacedCount, Is.EqualTo(0));
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0), "Expected matured debt targeting an alive civilian to be purged.");
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(1));
+                Assert.That(go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true).Length, Is.EqualTo(0));
             }
             finally
             {
@@ -692,13 +842,13 @@ namespace Reloader.NPCs.Tests.EditMode
             field.SetValue(instance, value);
         }
 
-        private static int InvokeExecutePendingReplacements(CivilianPopulationRuntimeBridge bridge, int currentDay)
+        private static int InvokeExecutePendingReplacements(CivilianPopulationRuntimeBridge bridge, int currentDay, float currentTimeOfDay)
         {
             var method = typeof(CivilianPopulationRuntimeBridge).GetMethod(
                 "ExecutePendingReplacements",
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-            Assert.That(method, Is.Not.Null, "Expected a public ExecutePendingReplacements(int currentDay) method.");
-            return (int)method.Invoke(bridge, new object[] { currentDay });
+            Assert.That(method, Is.Not.Null, "Expected a public ExecutePendingReplacements(int currentDay, float currentTimeOfDay) method.");
+            return (int)method.Invoke(bridge, new object[] { currentDay, currentTimeOfDay });
         }
 
         private static Transform CreateAnchor(Transform parent, string name, Vector3 position)

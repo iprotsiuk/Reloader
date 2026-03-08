@@ -194,10 +194,18 @@ namespace Reloader.Core.Tests.EditMode
         public void CivilianPopulationModule_ValidateModuleState_RejectsDuplicatePendingReplacementDebts()
         {
             var moduleType = ResolveRequiredType(ModuleTypeName);
+            var recordType = ResolveRequiredType(RecordTypeName);
             var replacementType = ResolveRequiredType(ReplacementTypeName);
 
             var module = Activator.CreateInstance(moduleType);
+            var civilians = GetRequiredList(module, "Civilians");
             var replacements = GetRequiredList(module, "PendingReplacements");
+
+            var deadRecord = CreateCivilianRecord(recordType);
+            SetProperty(deadRecord, "IsAlive", false);
+            SetProperty(deadRecord, "IsContractEligible", false);
+            SetProperty(deadRecord, "RetiredAtDay", 5);
+            civilians.Add(deadRecord);
 
             var firstRecord = CreateReplacementRecord(replacementType);
             var secondRecord = CreateReplacementRecord(replacementType);
@@ -213,6 +221,48 @@ namespace Reloader.Core.Tests.EditMode
             var ex = Assert.Throws<TargetInvocationException>(() => validateMethod!.Invoke(module, Array.Empty<object>()));
             Assert.That(ex?.InnerException, Is.Not.Null);
             Assert.That(ex!.InnerException!.Message, Does.Contain("duplicate pendingReplacement"));
+            Assert.That(ex.InnerException!.Message, Does.Contain("citizen.mainTown.001"));
+        }
+
+        [Test]
+        public void CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementReferencingMissingCivilian()
+        {
+            var moduleType = ResolveRequiredType(ModuleTypeName);
+            var replacementType = ResolveRequiredType(ReplacementTypeName);
+
+            var module = Activator.CreateInstance(moduleType);
+            var replacements = GetRequiredList(module, "PendingReplacements");
+            replacements.Add(CreateReplacementRecord(replacementType));
+
+            var validateMethod = moduleType.GetMethod("ValidateModuleState", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(validateMethod, Is.Not.Null);
+
+            var ex = Assert.Throws<TargetInvocationException>(() => validateMethod!.Invoke(module, Array.Empty<object>()));
+            Assert.That(ex?.InnerException, Is.Not.Null);
+            Assert.That(ex!.InnerException!.Message, Does.Contain("missing dead civilian"));
+            Assert.That(ex.InnerException!.Message, Does.Contain("citizen.mainTown.001"));
+        }
+
+        [Test]
+        public void CivilianPopulationModule_ValidateModuleState_RejectsPendingReplacementReferencingAliveCivilian()
+        {
+            var moduleType = ResolveRequiredType(ModuleTypeName);
+            var recordType = ResolveRequiredType(RecordTypeName);
+            var replacementType = ResolveRequiredType(ReplacementTypeName);
+
+            var module = Activator.CreateInstance(moduleType);
+            var civilians = GetRequiredList(module, "Civilians");
+            var replacements = GetRequiredList(module, "PendingReplacements");
+
+            civilians.Add(CreateCivilianRecord(recordType));
+            replacements.Add(CreateReplacementRecord(replacementType));
+
+            var validateMethod = moduleType.GetMethod("ValidateModuleState", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(validateMethod, Is.Not.Null);
+
+            var ex = Assert.Throws<TargetInvocationException>(() => validateMethod!.Invoke(module, Array.Empty<object>()));
+            Assert.That(ex?.InnerException, Is.Not.Null);
+            Assert.That(ex!.InnerException!.Message, Does.Contain("must reference a dead civilian"));
             Assert.That(ex.InnerException!.Message, Does.Contain("citizen.mainTown.001"));
         }
 

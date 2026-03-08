@@ -11,6 +11,8 @@ namespace Reloader.NPCs.Runtime
 {
     public sealed class CivilianPopulationRuntimeBridge : MonoBehaviour, ISaveRuntimeBridge
     {
+        private const float MondayRefreshTimeOfDay = 8f;
+
         [SerializeField] private CivilianAppearanceLibrary _appearanceLibrary;
         [SerializeField] private MainTownPopulationDefinition _populationDefinition;
         [SerializeField] private int _initialPopulationCount;
@@ -22,6 +24,7 @@ namespace Reloader.NPCs.Runtime
         private CoreWorldController _coreWorldController;
         private CoreWorldController _subscribedCoreWorldController;
         private int _lastObservedWorldDayCount = -1;
+        private float _lastObservedWorldTimeOfDay = -1f;
 
         public CivilianPopulationRuntimeState Runtime => _runtime;
 
@@ -77,7 +80,7 @@ namespace Reloader.NPCs.Runtime
             var coreWorldModule = ResolveCoreWorldModule(moduleRegistrations);
             if (coreWorldModule != null)
             {
-                replacedCount = ExecutePendingReplacements(coreWorldModule.DayCount);
+                replacedCount = ExecutePendingReplacements(coreWorldModule.DayCount, coreWorldModule.TimeOfDay);
             }
 
             if (replacedCount == 0)
@@ -148,7 +151,7 @@ namespace Reloader.NPCs.Runtime
             }
         }
 
-        public int ExecutePendingReplacements(int currentDay)
+        public int ExecutePendingReplacements(int currentDay, float currentTimeOfDay)
         {
             if (_appearanceLibrary == null || _runtime.PendingReplacements.Count == 0)
             {
@@ -156,12 +159,13 @@ namespace Reloader.NPCs.Runtime
             }
 
             var normalizedDay = Math.Max(0, currentDay);
+            var normalizedTimeOfDay = NormalizeTimeOfDay(currentTimeOfDay);
             var processedVacatedCivilianIds = new HashSet<string>(StringComparer.Ordinal);
             var replacedCount = 0;
             for (var i = _runtime.PendingReplacements.Count - 1; i >= 0; i--)
             {
                 var replacement = _runtime.PendingReplacements[i];
-                if (replacement == null || replacement.QueuedAtDay > normalizedDay)
+                if (replacement == null || !HasReachedMondayRefreshWindow(replacement, normalizedDay, normalizedTimeOfDay))
                 {
                     continue;
                 }
@@ -175,6 +179,7 @@ namespace Reloader.NPCs.Runtime
                 var vacated = FindCivilianById(replacement.VacatedCivilianId);
                 if (vacated == null || vacated.IsAlive)
                 {
+                    _runtime.PendingReplacements.RemoveAt(i);
                     continue;
                 }
 
@@ -521,6 +526,7 @@ namespace Reloader.NPCs.Runtime
             }
 
             _lastObservedWorldDayCount = _subscribedCoreWorldController.CaptureSnapshot().DayCount;
+            _lastObservedWorldTimeOfDay = _subscribedCoreWorldController.CaptureSnapshot().TimeOfDay;
             _subscribedCoreWorldController.WorldStateChanged += HandleCoreWorldStateChanged;
         }
 
@@ -534,6 +540,7 @@ namespace Reloader.NPCs.Runtime
             _subscribedCoreWorldController.WorldStateChanged -= HandleCoreWorldStateChanged;
             _subscribedCoreWorldController = null;
             _lastObservedWorldDayCount = -1;
+            _lastObservedWorldTimeOfDay = -1f;
         }
 
         private void HandleCoreWorldStateChanged()
@@ -544,13 +551,78 @@ namespace Reloader.NPCs.Runtime
             }
 
             var snapshot = _subscribedCoreWorldController.CaptureSnapshot();
-            if (snapshot.DayCount <= _lastObservedWorldDayCount)
+            var lastObservedDay = _lastObservedWorldDayCount;
+            var lastObservedTime = _lastObservedWorldTimeOfDay;
+            _lastObservedWorldDayCount = snapshot.DayCount;
+            _lastObservedWorldTimeOfDay = snapshot.TimeOfDay;
+
+            if (!HasWorldStateAdvanced(lastObservedDay, lastObservedTime, snapshot))
             {
                 return;
             }
 
-            _lastObservedWorldDayCount = snapshot.DayCount;
-            ExecutePendingReplacements(snapshot.DayCount);
+            ExecutePendingReplacements(snapshot.DayCount, snapshot.TimeOfDay);
+        }
+
+        private static bool HasWorldStateAdvanced(int previousDayCount, float previousTimeOfDay, CoreWorldRuntime.Snapshot snapshot)
+        {
+            if (previousDayCount < 0)
+            {
+                return true;
+            }
+
+            if (snapshot.DayCount > previousDayCount)
+            {
+                return true;
+            }
+
+            if (snapshot.DayCount < previousDayCount)
+            {
+                return false;
+            }
+
+            return snapshot.TimeOfDay > previousTimeOfDay;
+        }
+
+        private static bool HasReachedMondayRefreshWindow(
+            CivilianPopulationReplacementRecord replacement,
+            int currentDay,
+            float currentTimeOfDay)
+        {
+            var refreshDay = GetFirstMondayRefreshDayAfterQueue(replacement.QueuedAtDay);
+            if (currentDay < refreshDay)
+            {
+                return false;
+            }
+
+            if (currentDay > refreshDay)
+            {
+                return true;
+            }
+
+            return currentTimeOfDay >= MondayRefreshTimeOfDay;
+        }
+
+        private static int GetFirstMondayRefreshDayAfterQueue(int queuedAtDay)
+        {
+            var normalizedQueuedDay = Math.Max(0, queuedAtDay);
+            return ((normalizedQueuedDay / 7) + 1) * 7;
+        }
+
+        private static float NormalizeTimeOfDay(float timeOfDay)
+        {
+            if (float.IsNaN(timeOfDay) || float.IsInfinity(timeOfDay))
+            {
+                return 0f;
+            }
+
+            var normalized = timeOfDay % 24f;
+            if (normalized < 0f)
+            {
+                normalized += 24f;
+            }
+
+            return normalized;
         }
 
         private static CivilianPopulationRecord CloneRecord(CivilianPopulationRecord source)
