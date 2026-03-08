@@ -528,3 +528,17 @@ The next slice should formalize the actual Monday `08:00` scheduler rule on top 
 - Regression sweep:
   - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-procedural-offer-full.xml tmp/civilian-runtime-bridge-procedural-offer-full.log`: `19/19` passed
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-procedural-offer-full.xml tmp/maintown-population-infra-procedural-offer-full.log`: `6/6` passed
+
+## Checkpoint: Procedural Contract Save/Load Proof
+
+- Added live-scene persistence coverage for accepted procedural contracts:
+  - `MainTownContractSlicePlayModeTests` now captures a real save after accepting the procedurally offered civilian contract
+  - the test reloads through `SaveCoordinator.Load()` and asserts the active contract target id still resolves to the same live procedural civilian after load
+- Scope note:
+  - this is coverage only
+  - the accepted procedural contract persistence path was already working; no production code changes were required for this checkpoint
+
+## Verification
+
+- `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_SaveLoad_PreservesAcceptedProceduralContractTarget tmp/maintown-contract-save-load-red.xml tmp/maintown-contract-save-load-red.log`: `1/1` passed
+- `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-slice-persistence-full.xml tmp/maintown-contract-slice-persistence-full.log`: `4/4` passed

@@ -1,9 +1,12 @@
 using System;
 using System.Collections;
+using System.IO;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Contracts.Runtime;
 using Reloader.Core.Events;
+using Reloader.Core.Save;
+using Reloader.Core.Save.IO;
 using Reloader.Core.Save.Modules;
 using Reloader.NPCs.Runtime;
 using UnityEngine;
@@ -136,6 +139,57 @@ namespace Reloader.World.Tests.PlayMode
             var targetDamageable = offeredTarget!.GetComponent(targetDamageableType!);
             Assert.That(targetDamageable, Is.Not.Null, "Expected procedural offer target to expose the existing contract-target damageable seam.");
             Assert.That(GetProperty<string>(targetDamageable!, "TargetId"), Is.EqualTo(availableSnapshot.TargetId));
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownContractSlice_SaveLoad_PreservesAcceptedProceduralContractTarget()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+            Assert.That(availableSnapshot.TargetId, Does.StartWith("citizen.mainTown."));
+
+            var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
+            var repository = new SaveFileRepository();
+            var tempDir = Path.Combine(Path.GetTempPath(), "reloader-maintown-contract-tests-" + Guid.NewGuid().ToString("N"));
+            var savePath = Path.Combine(tempDir, "maintown-contract-load.json");
+            Directory.CreateDirectory(tempDir);
+
+            try
+            {
+                Assert.That(provider.AcceptAvailableContract(), Is.True);
+                Assert.That(provider.TryGetContractSnapshot(out var activeSnapshot), Is.True);
+                Assert.That(activeSnapshot.HasActiveContract, Is.True);
+
+                var targetBeforeSave = FindProceduralCivilianTarget(activeSnapshot.TargetId);
+                Assert.That(targetBeforeSave, Is.Not.Null, "Expected accepted procedural contract target to exist before save.");
+
+                var envelope = coordinator.CaptureEnvelope("0.6.0-dev");
+                repository.WriteEnvelope(savePath, envelope);
+
+                coordinator.Load(savePath);
+                yield return null;
+
+                Assert.That(provider.TryGetContractSnapshot(out var restoredSnapshot), Is.True);
+                Assert.That(restoredSnapshot.HasActiveContract, Is.True, "Expected accepted procedural contract to survive save/load.");
+                Assert.That(restoredSnapshot.TargetId, Is.EqualTo(activeSnapshot.TargetId));
+
+                var targetAfterLoad = FindProceduralCivilianTarget(restoredSnapshot.TargetId);
+                Assert.That(targetAfterLoad, Is.Not.Null, "Expected restored active contract target to still resolve to a live procedural civilian.");
+            }
+            finally
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                }
+            }
         }
 
         private static ContractEscapeResolutionRuntime GetRuntime(StaticContractRuntimeProvider provider)
