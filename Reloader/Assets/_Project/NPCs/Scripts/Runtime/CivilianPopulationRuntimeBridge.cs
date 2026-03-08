@@ -160,6 +160,28 @@ namespace Reloader.NPCs.Runtime
             RefreshProceduralContractOffer();
         }
 
+        public bool TryResolveSpawnedCivilian(string civilianId, out MainTownPopulationSpawnedCivilian civilian)
+        {
+            civilian = null;
+            if (string.IsNullOrWhiteSpace(civilianId))
+            {
+                return false;
+            }
+
+            var spawned = GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            for (var i = 0; i < spawned.Length; i++)
+            {
+                var candidate = spawned[i];
+                if (candidate != null && string.Equals(candidate.CivilianId, civilianId, StringComparison.Ordinal))
+                {
+                    civilian = candidate;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public int ExecutePendingReplacements(int currentDay, float currentTimeOfDay)
         {
             if (_appearanceLibrary == null || _runtime.PendingReplacements.Count == 0)

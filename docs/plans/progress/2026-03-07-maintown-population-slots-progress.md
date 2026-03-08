@@ -576,3 +576,27 @@ The next slice should formalize the actual Monday `08:00` scheduler rule on top 
 - Regression sweep:
   - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-contract-refresh-full.xml tmp/civilian-runtime-bridge-contract-refresh-full.log`: `21/21` passed
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-slice-full.xml tmp/maintown-contract-slice-full.log`: `4/4` passed
+
+## Checkpoint: Procedural Live Target Resolver
+
+- Added the first production bridge seam for resolving contract `targetId` back to a live spawned civilian:
+  - `CivilianPopulationRuntimeBridge` now exposes `TryResolveSpawnedCivilian(string civilianId, out MainTownPopulationSpawnedCivilian civilian)`
+  - the resolver scans the live spawned population under `MainTownPopulationRuntime` instead of requiring test-only scene traversal helpers
+  - `MainTownContractSlicePlayModeTests` now proves an accepted procedural contract target resolves through that bridge seam, keeps its stable `populationSlotId`, and still exposes `ContractTargetDamageable.TargetId == civilianId`
+- Scope note:
+  - this is a bridge lookup seam only
+  - it does not add markers, device tracking, or a new identity system
+  - `civilianId` remains the single procedural contract target identity
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_AcceptedProceduralContract_ResolvesLiveTargetThroughPopulationBridge tmp/maintown-contract-resolve-target-red.xml tmp/maintown-contract-resolve-target-red.log`
+  - `tmp/maintown-contract-resolve-target-red.xml`: `0/1` passed
+  - failing assertion: missing public `TryResolveSpawnedCivilian(...)` on `CivilianPopulationRuntimeBridge`
+- Green step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_AcceptedProceduralContract_ResolvesLiveTargetThroughPopulationBridge tmp/maintown-contract-resolve-target-green.xml tmp/maintown-contract-resolve-target-green.log`: `1/1` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-slice-resolver-full.xml tmp/maintown-contract-slice-resolver-full.log`: `5/5` passed
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-resolver-full.xml tmp/civilian-runtime-bridge-resolver-full.log`: `21/21` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-resolver-full.xml tmp/maintown-population-infra-resolver-full.log`: `6/6` passed

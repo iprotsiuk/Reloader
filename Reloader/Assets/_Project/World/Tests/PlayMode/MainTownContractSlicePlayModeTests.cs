@@ -192,6 +192,46 @@ namespace Reloader.World.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator MainTownContractSlice_AcceptedProceduralContract_ResolvesLiveTargetThroughPopulationBridge()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+            Assert.That(availableSnapshot.TargetId, Does.StartWith("citizen.mainTown."));
+
+            Assert.That(provider.AcceptAvailableContract(), Is.True);
+            Assert.That(provider.TryGetContractSnapshot(out var activeSnapshot), Is.True);
+            Assert.That(activeSnapshot.HasActiveContract, Is.True);
+
+            var bridge = FindPopulationBridge();
+            var resolveMethod = typeof(CivilianPopulationRuntimeBridge).GetMethod(
+                "TryResolveSpawnedCivilian",
+                BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(resolveMethod, Is.Not.Null, "Expected a public TryResolveSpawnedCivilian(string civilianId, out MainTownPopulationSpawnedCivilian civilian) method on CivilianPopulationRuntimeBridge.");
+
+            var args = new object[] { activeSnapshot.TargetId, null };
+            var resolved = (bool)resolveMethod!.Invoke(bridge, args)!;
+            Assert.That(resolved, Is.True, "Expected the accepted procedural contract target to resolve through the population bridge.");
+
+            var resolvedCivilian = args[1] as MainTownPopulationSpawnedCivilian;
+            Assert.That(resolvedCivilian, Is.Not.Null, "Expected the population bridge to return the spawned civilian metadata component.");
+            Assert.That(resolvedCivilian!.CivilianId, Is.EqualTo(activeSnapshot.TargetId));
+            Assert.That(resolvedCivilian.PopulationSlotId, Is.Not.Empty);
+
+            var damageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons");
+            Assert.That(damageableType, Is.Not.Null, "Expected contract target damageable type to resolve.");
+            var damageable = resolvedCivilian.GetComponent(damageableType!);
+            Assert.That(damageable, Is.Not.Null, "Expected the resolved procedural target to expose the contract-target seam.");
+            Assert.That(GetProperty<string>(damageable!, "TargetId"), Is.EqualTo(activeSnapshot.TargetId));
+        }
+
         private static ContractEscapeResolutionRuntime GetRuntime(StaticContractRuntimeProvider provider)
         {
             var runtimeField = typeof(StaticContractRuntimeProvider).GetField("_runtime", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -264,12 +304,20 @@ namespace Reloader.World.Tests.PlayMode
             return (T)property!.GetValue(instance)!;
         }
 
-        private static GameObject FindProceduralCivilianTarget(string targetId)
+        private static CivilianPopulationRuntimeBridge FindPopulationBridge()
         {
             var populationRoot = GameObject.Find("MainTownPopulationRuntime");
             Assert.That(populationRoot, Is.Not.Null, "Expected authored MainTown population runtime root.");
 
-            var spawned = populationRoot!.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            var bridge = populationRoot!.GetComponent<CivilianPopulationRuntimeBridge>();
+            Assert.That(bridge, Is.Not.Null, "Expected CivilianPopulationRuntimeBridge on MainTownPopulationRuntime.");
+            return bridge!;
+        }
+
+        private static GameObject FindProceduralCivilianTarget(string targetId)
+        {
+            var bridge = FindPopulationBridge();
+            var spawned = bridge.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
             for (var i = 0; i < spawned.Length; i++)
             {
                 if (string.Equals(spawned[i].CivilianId, targetId, StringComparison.Ordinal))
