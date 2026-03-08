@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace Reloader.NPCs.Runtime
 {
-    public sealed class CivilianPopulationRuntimeBridge : MonoBehaviour, ISaveRuntimeBridge
+    public sealed class CivilianPopulationRuntimeBridge : MonoBehaviour, ISaveRuntimeBridge, IContractTargetEliminationSink
     {
         private const float MondayRefreshTimeOfDay = 8f;
         private const float ProceduralContractTargetDistanceMeters = 85f;
@@ -180,6 +180,19 @@ namespace Reloader.NPCs.Runtime
             }
 
             return false;
+        }
+
+        public void ReportContractTargetEliminated(string targetId, bool wasExposed)
+        {
+            var snapshot = ResolveCoreWorldController()?.CaptureSnapshot();
+            var retiredAtDay = snapshot?.DayCount ?? 0;
+            TryRetireCivilian(targetId, retiredAtDay);
+
+            var provider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
+            if (provider != null)
+            {
+                provider.ReportContractTargetEliminated(targetId, wasExposed);
+            }
         }
 
         public int ExecutePendingReplacements(int currentDay, float currentTimeOfDay)
@@ -563,6 +576,12 @@ namespace Reloader.NPCs.Runtime
                 {
                     return localSink;
                 }
+            }
+
+            var bridge = civilian.GetComponentInParent<CivilianPopulationRuntimeBridge>();
+            if (bridge != null)
+            {
+                return bridge;
             }
 
             var sceneBehaviours = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);

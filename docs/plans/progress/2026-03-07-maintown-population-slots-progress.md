@@ -600,3 +600,31 @@ The next slice should formalize the actual Monday `08:00` scheduler rule on top 
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-slice-resolver-full.xml tmp/maintown-contract-slice-resolver-full.log`: `5/5` passed
   - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-resolver-full.xml tmp/civilian-runtime-bridge-resolver-full.log`: `21/21` passed
   - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-resolver-full.xml tmp/maintown-population-infra-resolver-full.log`: `6/6` passed
+
+## Checkpoint: Procedural Target Retirement
+
+- Wired lethal procedural target elimination back into population state:
+  - `CivilianPopulationRuntimeBridge` now implements `IContractTargetEliminationSink`
+  - contract-eligible spawned civilians route lethal elimination through the population bridge first
+  - the bridge retires the matching `civilianId`, queues normal replacement debt, and then forwards the elimination into `StaticContractRuntimeProvider`
+  - later rebuilds now move on to another live civilian instead of resurfacing the same dead procedural target
+- Coverage updates:
+  - `MainTownContractSlicePlayModeTests` now prove that a pre-accept kill followed by search clear and rebuild no longer resolves the dead civilian as live
+  - the rebuilt offer now points at a different live procedural civilian from the remaining population
+- Scope note:
+  - this is retirement synchronization only
+  - no Monday replacement execution timing or richer contract board refresh heuristics changed here
+  - the next contract-facing step is still live tracking/marker behavior, not a second identity system
+
+## Verification
+
+- Red step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_TargetEliminatedBeforeAccept_RebuildPublishesDifferentLiveTarget tmp/maintown-contract-preaccept-rebuild-red.xml tmp/maintown-contract-preaccept-rebuild-red.log`
+  - `tmp/maintown-contract-preaccept-rebuild-red.xml`: `0/1` passed
+  - failing assertion: the killed procedural civilian still resolved as live after the next rebuild
+- Green step:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests.MainTownContractSlice_TargetEliminatedBeforeAccept_RebuildPublishesDifferentLiveTarget tmp/maintown-contract-preaccept-rebuild-green.xml tmp/maintown-contract-preaccept-rebuild-green.log`: `1/1` passed
+- Regression sweep:
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownContractSlicePlayModeTests tmp/maintown-contract-slice-retire-full.xml tmp/maintown-contract-slice-retire-full.log`: `6/6` passed
+  - `bash scripts/run-unity-tests.sh editmode Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests tmp/civilian-runtime-bridge-retire-full.xml tmp/civilian-runtime-bridge-retire-full.log`: `21/21` passed
+  - `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-retire-full.xml tmp/maintown-population-infra-retire-full.log`: `6/6` passed

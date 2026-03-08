@@ -142,6 +142,44 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator MainTownContractSlice_TargetEliminatedBeforeAccept_RebuildPublishesDifferentLiveTarget()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+
+            var bridge = FindPopulationBridge();
+            var consumedTargetId = availableSnapshot.TargetId;
+            var targetRoot = FindProceduralCivilianTarget(consumedTargetId);
+            Assert.That(targetRoot, Is.Not.Null, "Expected the available contract target to resolve to a spawned procedural civilian.");
+
+            ApplyLethalDamage(targetRoot!);
+            yield return null;
+
+            provider.AdvanceRuntime(31f);
+            yield return null;
+
+            Assert.That(provider.TryGetContractSnapshot(out _), Is.False, "Expected the consumed pre-accept offer to stay unavailable until the bridge rebuilds.");
+
+            bridge.RebuildScenePopulation();
+            yield return null;
+
+            Assert.That(bridge.TryResolveSpawnedCivilian(consumedTargetId, out _), Is.False, "Expected the killed procedural civilian to be retired from the live population before the next rebuild.");
+            Assert.That(provider.TryGetContractSnapshot(out var refreshedSnapshot), Is.True, "Expected a later rebuild to publish a replacement live offer from the remaining population.");
+            Assert.That(refreshedSnapshot.TargetId, Does.StartWith("citizen.mainTown."));
+            Assert.That(refreshedSnapshot.TargetId, Is.Not.EqualTo(consumedTargetId), "Expected the rebuilt offer to move away from the consumed dead target.");
+
+            var refreshedTarget = FindProceduralCivilianTarget(refreshedSnapshot.TargetId);
+            Assert.That(refreshedTarget, Is.Not.Null, "Expected the rebuilt contract offer to resolve to a different live procedural civilian.");
+        }
+
+        [UnityTest]
         public IEnumerator MainTownContractSlice_SaveLoad_PreservesAcceptedProceduralContractTarget()
         {
             yield return LoadScene(MainTownSceneName);
