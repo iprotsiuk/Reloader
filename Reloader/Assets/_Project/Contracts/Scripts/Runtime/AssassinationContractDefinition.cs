@@ -16,6 +16,8 @@ namespace Reloader.Contracts.Runtime
         [SerializeField] private string _briefingText = string.Empty;
         [SerializeField] private float _distanceBand;
         [SerializeField] private int _payout;
+        [SerializeField] private ContractFailurePolicy _failurePolicy = new();
+        [SerializeField] private ContractObjectivePolicy _objectivePolicy = new();
 
         public string ContractId => _contractId;
         public string TargetId => _targetId;
@@ -26,6 +28,9 @@ namespace Reloader.Contracts.Runtime
         public string BriefingText => _briefingText;
         public float DistanceBand => _distanceBand;
         public int Payout => _payout;
+        public ContractFailurePolicy FailurePolicy => _failurePolicy ??= new ContractFailurePolicy();
+        public ContractObjectivePolicy ObjectivePolicy => _objectivePolicy ??= new ContractObjectivePolicy();
+        public bool FailsOnWrongTargetKill => FailurePolicy.ContainsRule(AssassinationContractFailureRuleType.WrongTargetKill);
 
         public void ConfigureRuntimeOffer(
             string contractId,
@@ -36,7 +41,9 @@ namespace Reloader.Contracts.Runtime
             string briefingText,
             float distanceBand,
             int payout,
-            AssassinationContractArchetype archetype = AssassinationContractArchetype.StreetRoutineTarget)
+            AssassinationContractArchetype archetype = AssassinationContractArchetype.StreetRoutineTarget,
+            ContractFailurePolicy failurePolicy = null,
+            ContractObjectivePolicy objectivePolicy = null)
         {
             _contractId = contractId ?? string.Empty;
             _targetId = targetId ?? string.Empty;
@@ -47,6 +54,36 @@ namespace Reloader.Contracts.Runtime
             _briefingText = briefingText ?? string.Empty;
             _distanceBand = distanceBand;
             _payout = payout;
+            _failurePolicy = failurePolicy ?? new ContractFailurePolicy();
+            _objectivePolicy = objectivePolicy ?? new ContractObjectivePolicy();
+        }
+
+        public string BuildRestrictionsText()
+        {
+            var objectiveText = ObjectivePolicy.BuildRestrictionsText();
+            var failureText = FailurePolicy.BuildRestrictionsText();
+            if (string.IsNullOrWhiteSpace(objectiveText))
+            {
+                return failureText;
+            }
+
+            if (string.IsNullOrWhiteSpace(failureText))
+            {
+                return objectiveText;
+            }
+
+            return string.Concat(objectiveText, " • ", failureText);
+        }
+
+        public string BuildFailureConditionsText()
+        {
+            var failureText = FailurePolicy.BuildFailureConditionsText();
+            if (string.IsNullOrWhiteSpace(failureText))
+            {
+                return "Manual cancel";
+            }
+
+            return string.Concat(failureText, " • Manual cancel");
         }
     }
 }

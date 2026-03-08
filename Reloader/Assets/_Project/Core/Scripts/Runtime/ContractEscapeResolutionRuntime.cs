@@ -126,6 +126,9 @@ namespace Reloader.Contracts.Runtime
                 canAccept: hasAvailableContract,
                 canCancel: CanCancelActiveContract(),
                 canClaimReward: CanClaimCompletedContractReward(),
+                restrictionsText: BuildRestrictionsText(definition),
+                failureConditionsText: BuildFailureConditionsText(definition),
+                canClearFailed: CanClearFailedContract(),
                 statusText: BuildStatusText(hasAvailableContract, activeContract != null, hasFailedContract));
             return true;
         }
@@ -215,8 +218,13 @@ namespace Reloader.Contracts.Runtime
             var isCorrectTarget = string.Equals(activeContract.TargetId, targetId, StringComparison.Ordinal);
             if (!isCorrectTarget)
             {
-                _failedDefinition = _contractController.ActiveDefinition;
                 RaiseMurderHeatIfNeeded(wasExposed);
+                if (!ShouldFailOnWrongTarget(_contractController.ActiveDefinition))
+                {
+                    return true;
+                }
+
+                _failedDefinition = _contractController.ActiveDefinition;
                 ResetPendingResolution();
                 _contractController.TryFailActiveContract();
                 return false;
@@ -316,6 +324,26 @@ namespace Reloader.Contracts.Runtime
             return hasAvailableContract ? "Available contract" : "No contracts available";
         }
 
+        private static string BuildRestrictionsText(AssassinationContractDefinition definition)
+        {
+            if (definition == null)
+            {
+                return string.Empty;
+            }
+
+            return definition.BuildRestrictionsText();
+        }
+
+        private static string BuildFailureConditionsText(AssassinationContractDefinition definition)
+        {
+            if (definition == null)
+            {
+                return "Manual cancel";
+            }
+
+            return definition.BuildFailureConditionsText();
+        }
+
         private void RaiseMurderHeatIfNeeded(bool wasExposed)
         {
             if (!wasExposed)
@@ -347,12 +375,23 @@ namespace Reloader.Contracts.Runtime
                    && !_awaitingSearchClear;
         }
 
+        private bool CanClearFailedContract()
+        {
+            return _contractController.ActiveContract == null
+                   && _failedDefinition != null;
+        }
+
         private bool CanClaimCompletedContractReward()
         {
             return _contractController.ActiveContract != null
                    && _completionPending
                    && !_awaitingSearchClear
                    && (_pendingPayoutAmount <= 0 || _payoutReceiver != null);
+        }
+
+        private static bool ShouldFailOnWrongTarget(AssassinationContractDefinition definition)
+        {
+            return definition != null && definition.FailsOnWrongTargetKill;
         }
     }
 }

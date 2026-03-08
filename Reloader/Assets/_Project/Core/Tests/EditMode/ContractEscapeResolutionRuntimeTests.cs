@@ -211,9 +211,43 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void ReportTargetEliminated_WrongTargetFailsContractAndDoesNotAwardPayout()
+        public void ReportTargetEliminated_WrongTargetOnDefaultContract_KeepsContractActiveAndRaisesHeat()
         {
             var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            var payoutReceiver = new RecordingPayoutReceiver();
+            var runtime = new ContractEscapeResolutionRuntime(
+                contract,
+                searchDurationSeconds: 10f,
+                payoutReceiver: payoutReceiver,
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            try
+            {
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+
+                var eliminated = runtime.ReportTargetEliminated("target.bravo", wasExposed: true);
+
+                Assert.That(eliminated, Is.True, "Ordinary contracts should treat wrong-target kills as sandbox consequences, not automatic mission failure.");
+                Assert.That(runtime.ActiveContract, Is.Not.Null, "Default contracts should remain active after a wrong-target kill.");
+                Assert.That(runtime.ActiveContract!.ContractId, Is.EqualTo("contract.alpha"));
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+                Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(0));
+                Assert.That(runtime.TryGetSnapshot(out var activeSnapshot), Is.True);
+                Assert.That(activeSnapshot.HasActiveContract, Is.True);
+                Assert.That(activeSnapshot.HasFailedContract, Is.False);
+                Assert.That(activeSnapshot.StatusText, Is.EqualTo("Active contract"));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+            }
+        }
+
+        [Test]
+        public void ReportTargetEliminated_WrongTargetFailsStrictContractAndDoesNotAwardPayout()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            ConfigureWrongTargetFailureRule(contract);
             var payoutReceiver = new RecordingPayoutReceiver();
             var runtime = new ContractEscapeResolutionRuntime(
                 contract,
@@ -249,9 +283,10 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void ReportTargetEliminated_WrongTargetKeepsFailureSnapshotVisibleDuringSearch()
+        public void ReportTargetEliminated_WrongTargetKeepsStrictFailureSnapshotVisibleDuringSearch()
         {
             var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            ConfigureWrongTargetFailureRule(contract);
             var runtime = new ContractEscapeResolutionRuntime(
                 contract,
                 searchDurationSeconds: 10f,
@@ -296,6 +331,23 @@ namespace Reloader.Core.Tests.EditMode
             serializedObject.FindProperty("_payout")!.intValue = payout;
             serializedObject.ApplyModifiedPropertiesWithoutUndo();
             return definition;
+        }
+
+        private static void ConfigureWrongTargetFailureRule(AssassinationContractDefinition definition)
+        {
+            var serializedObject = new SerializedObject(definition);
+            var rulesProperty = serializedObject.FindProperty("_failurePolicy._failureRules");
+            Assert.That(rulesProperty, Is.Not.Null,
+                "Expected assassination contracts to expose a serialized failure-policy list for opt-in mission restrictions.");
+
+            rulesProperty!.arraySize = 1;
+            var ruleProperty = rulesProperty.GetArrayElementAtIndex(0);
+            var ruleTypeProperty = ruleProperty.FindPropertyRelative("_ruleType");
+            Assert.That(ruleTypeProperty, Is.Not.Null,
+                "Expected each failure rule to serialize a rule type so strict contracts can opt into wrong-target failure.");
+
+            ruleTypeProperty!.enumValueIndex = 0;
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private sealed class RecordingPayoutReceiver : IContractPayoutReceiver

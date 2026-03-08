@@ -17,6 +17,9 @@ namespace Reloader.Contracts.Runtime
             bool canAccept,
             bool canCancel,
             bool canClaimReward,
+            string restrictionsText,
+            string failureConditionsText,
+            bool canClearFailed,
             string statusText)
         {
             HasAvailableContract = hasAvailableContract;
@@ -33,6 +36,9 @@ namespace Reloader.Contracts.Runtime
             CanAccept = canAccept;
             CanCancel = canCancel;
             CanClaimReward = canClaimReward;
+            RestrictionsText = restrictionsText ?? string.Empty;
+            FailureConditionsText = failureConditionsText ?? string.Empty;
+            CanClearFailed = canClearFailed;
             StatusText = statusText ?? string.Empty;
         }
 
@@ -50,6 +56,9 @@ namespace Reloader.Contracts.Runtime
         public bool CanAccept { get; }
         public bool CanCancel { get; }
         public bool CanClaimReward { get; }
+        public string RestrictionsText { get; }
+        public string FailureConditionsText { get; }
+        public bool CanClearFailed { get; }
         public string StatusText { get; }
     }
 }

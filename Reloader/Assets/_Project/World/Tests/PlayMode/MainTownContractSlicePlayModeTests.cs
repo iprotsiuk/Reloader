@@ -215,7 +215,7 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator MainTownContractSlice_WhenWrongTargetIsEliminated_KeepsFailureSnapshotVisible()
+        public IEnumerator MainTownContractSlice_WhenWrongTargetIsEliminated_ProceduralContractRemainsActive()
         {
             yield return LoadScene(MainTownSceneName);
             yield return null;
@@ -236,14 +236,15 @@ namespace Reloader.World.Tests.PlayMode
             yield return null;
 
             var runtime = GetRuntime(provider);
-            Assert.That(ReadActiveContract(runtime), Is.Null, "Expected wrong-target elimination to fail the active contract.");
+            Assert.That(ReadActiveContract(runtime), Is.Not.Null, "Procedural contracts should stay active after killing a non-target NPC.");
             Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
-            Assert.That(provider.TryGetContractSnapshot(out var failedSnapshot), Is.True,
-                "Expected the Contracts runtime to keep a visible failure snapshot instead of collapsing to no contract.");
-            Assert.That(failedSnapshot.HasFailedContract, Is.True);
-            Assert.That(failedSnapshot.TargetId, Is.EqualTo(activeSnapshot.TargetId),
-                "Expected the failure snapshot to continue describing the contract that was just failed.");
-            Assert.That(failedSnapshot.StatusText, Does.StartWith("Failed: wrong target"));
+            Assert.That(provider.TryGetContractSnapshot(out var stillActiveSnapshot), Is.True,
+                "Expected the procedural contract to remain visible after killing a different NPC.");
+            Assert.That(stillActiveSnapshot.HasActiveContract, Is.True);
+            Assert.That(stillActiveSnapshot.HasFailedContract, Is.False);
+            Assert.That(stillActiveSnapshot.TargetId, Is.EqualTo(activeSnapshot.TargetId),
+                "Expected the contract to keep tracking the original target after a wrong-target kill.");
+            Assert.That(stillActiveSnapshot.StatusText, Is.EqualTo("Active contract"));
         }
 
         [UnityTest]
