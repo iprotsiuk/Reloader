@@ -39,6 +39,15 @@ namespace Reloader.NPCs.Tests.EditMode
                     "citizen.mainTown.0003"
                 }));
                 Assert.That(module.Civilians.All(record => record.SpawnAnchorId == "spawn.busstop.a"), Is.True);
+                Assert.That(module.Civilians.Select(record => record.PopulationSlotId), Is.EqualTo(new[]
+                {
+                    "seeded.maintown.0001",
+                    "seeded.maintown.0002",
+                    "seeded.maintown.0003"
+                }));
+                Assert.That(module.Civilians.All(record => record.PoolId == "townsfolk"), Is.True);
+                Assert.That(module.Civilians.All(record => record.AreaTag == "maintown"), Is.True);
+                Assert.That(module.Civilians.All(record => record.IsProtectedFromContracts == false), Is.True);
             }
             finally
             {

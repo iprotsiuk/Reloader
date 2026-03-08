@@ -135,7 +135,11 @@ namespace Reloader.NPCs.Runtime
                     createdAtDay: 0,
                     spawnAnchorId,
                     seed,
-                    isContractEligible: true));
+                    isContractEligible: true,
+                    populationSlotId: CreateFallbackPopulationSlotId(i),
+                    poolId: "townsfolk",
+                    areaTag: "maintown",
+                    isProtectedFromContracts: false));
             }
         }
 
@@ -311,6 +315,12 @@ namespace Reloader.NPCs.Runtime
             }
 
             return false;
+        }
+
+        private static string CreateFallbackPopulationSlotId(int index)
+        {
+            var normalizedIndex = Math.Max(0, index) + 1;
+            return $"seeded.maintown.{normalizedIndex:0000}";
         }
     }
 
