@@ -279,3 +279,6 @@ Once slot-driven `MainTown` population is stable, the next implementation slice 
 
 > **Plan update (2026-03-08, lifecycle seam):** The first scheduler seam should be `CivilianPopulationRuntimeBridge.FinalizeAfterLoad()`, where the bridge can read `CoreWorldModule.DayCount` from the same save-load transaction and execute any matured replacement debts before rebuilding the scene.
 > Same-session day-advance hooks can come later, but load finalization is the authoritative first step because the save coordinator already restores both world time and civilian population together.
+
+> **Plan update (2026-03-08, same-session seam):** After the load seam, the next runtime step is to subscribe the bridge to `CoreWorldController.WorldStateChanged` and execute matured replacement debt only when the observed `DayCount` advances.
+> Same-day time changes should not trigger replacement execution, and `MainTown` must carry an authored `CoreWorldController` so the bridge has a real world-time source outside save/load.

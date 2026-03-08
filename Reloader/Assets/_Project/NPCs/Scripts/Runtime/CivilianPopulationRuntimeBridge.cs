@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Reloader.Core.Runtime;
 using Reloader.Core.Save;
 using Reloader.Core.Save.Modules;
 using Reloader.NPCs.Generation;
@@ -18,11 +19,21 @@ namespace Reloader.NPCs.Runtime
 
         private readonly CivilianPopulationRuntimeState _runtime = new CivilianPopulationRuntimeState();
         private readonly CivilianAppearanceGenerator _generator = new CivilianAppearanceGenerator();
+        private CoreWorldController _coreWorldController;
+        private CoreWorldController _subscribedCoreWorldController;
+        private int _lastObservedWorldDayCount = -1;
 
         public CivilianPopulationRuntimeState Runtime => _runtime;
 
+        public void SetCoreWorldController(CoreWorldController controller)
+        {
+            _coreWorldController = controller;
+            SubscribeToCoreWorldController(_coreWorldController);
+        }
+
         private void Start()
         {
+            SubscribeToCoreWorldController(ResolveCoreWorldController());
             EnsureRuntimePopulationInitializedForScene();
             RebuildScenePopulation();
         }
@@ -30,10 +41,12 @@ namespace Reloader.NPCs.Runtime
         private void OnEnable()
         {
             SaveRuntimeBridgeRegistry.Register(this);
+            SubscribeToCoreWorldController(ResolveCoreWorldController());
         }
 
         private void OnDisable()
         {
+            UnsubscribeFromCoreWorldController();
             SaveRuntimeBridgeRegistry.Unregister(this);
         }
 
@@ -481,6 +494,63 @@ namespace Reloader.NPCs.Runtime
             }
 
             return null;
+        }
+
+        private CoreWorldController ResolveCoreWorldController()
+        {
+            if (_coreWorldController == null)
+            {
+                _coreWorldController = FindFirstObjectByType<CoreWorldController>(FindObjectsInactive.Include);
+            }
+
+            return _coreWorldController;
+        }
+
+        private void SubscribeToCoreWorldController(CoreWorldController controller)
+        {
+            if (ReferenceEquals(_subscribedCoreWorldController, controller))
+            {
+                return;
+            }
+
+            UnsubscribeFromCoreWorldController();
+            _subscribedCoreWorldController = controller;
+            if (_subscribedCoreWorldController == null)
+            {
+                return;
+            }
+
+            _lastObservedWorldDayCount = _subscribedCoreWorldController.CaptureSnapshot().DayCount;
+            _subscribedCoreWorldController.WorldStateChanged += HandleCoreWorldStateChanged;
+        }
+
+        private void UnsubscribeFromCoreWorldController()
+        {
+            if (_subscribedCoreWorldController == null)
+            {
+                return;
+            }
+
+            _subscribedCoreWorldController.WorldStateChanged -= HandleCoreWorldStateChanged;
+            _subscribedCoreWorldController = null;
+            _lastObservedWorldDayCount = -1;
+        }
+
+        private void HandleCoreWorldStateChanged()
+        {
+            if (_subscribedCoreWorldController == null)
+            {
+                return;
+            }
+
+            var snapshot = _subscribedCoreWorldController.CaptureSnapshot();
+            if (snapshot.DayCount <= _lastObservedWorldDayCount)
+            {
+                return;
+            }
+
+            _lastObservedWorldDayCount = snapshot.DayCount;
+            ExecutePendingReplacements(snapshot.DayCount);
         }
 
         private static CivilianPopulationRecord CloneRecord(CivilianPopulationRecord source)

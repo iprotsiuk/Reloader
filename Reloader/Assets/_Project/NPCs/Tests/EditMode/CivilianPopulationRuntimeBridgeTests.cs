@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Reloader.Core.Runtime;
 using Reloader.Core.Save;
 using Reloader.Core.Save.Modules;
 using Reloader.NPCs.Generation;
@@ -250,6 +251,84 @@ namespace Reloader.NPCs.Tests.EditMode
             finally
             {
                 Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void WorldStateChanged_WhenDayAdvancesAndMaturedReplacementDebtExists_ExecutesReplacementWithoutReload()
+        {
+            var worldGo = new GameObject("CoreWorldController");
+            worldGo.AddComponent<CoreWorldController>();
+
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_Townsfolk_01", new Vector3(2f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0007",
+                    PopulationSlotId = "townsfolk.001",
+                    PoolId = "townsfolk",
+                    SpawnAnchorId = "Anchor_Townsfolk_01",
+                    AreaTag = "maintown.square",
+                    IsAlive = false,
+                    IsContractEligible = false,
+                    IsProtectedFromContracts = false,
+                    BaseBodyId = "body.male.a",
+                    PresentationType = "masculine",
+                    HairId = "hair.short.01",
+                    HairColorId = "hair.black",
+                    BeardId = "beard.none",
+                    OutfitTopId = "top.coat.01",
+                    OutfitBottomId = "bottom.jeans.01",
+                    OuterwearId = "outer.gray.coat",
+                    MaterialColorIds = new List<string> { "color.gray" },
+                    GeneratedDescriptionTags = new List<string> { "gray coat" },
+                    CreatedAtDay = 2,
+                    RetiredAtDay = 9
+                });
+                bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.0007",
+                    QueuedAtDay = 9,
+                    SpawnAnchorId = "Anchor_Townsfolk_01"
+                });
+
+                var controller = worldGo.GetComponent<CoreWorldController>();
+                bridge.SetCoreWorldController(controller);
+                controller.SetWorldState(8, 8f);
+                controller.SetWorldState(8, 12f);
+
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(1), "Expected same-day time changes to leave replacement debt untouched.");
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(1), "Expected no replacement until the world day advances.");
+
+                controller.SetWorldState(9, 8f);
+
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0), "Expected day advance to execute matured replacement debt.");
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(2), "Expected same-session replacement to add a new live civilian.");
+
+                var replacement = bridge.Runtime.Civilians[1];
+                Assert.That(replacement.CivilianId, Is.EqualTo("citizen.mainTown.0008"));
+                Assert.That(replacement.PopulationSlotId, Is.EqualTo("townsfolk.001"));
+                Assert.That(replacement.CreatedAtDay, Is.EqualTo(9));
+
+                var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(spawned.Length, Is.EqualTo(1), "Expected world-state change to rebuild one live placeholder.");
+                Assert.That(spawned[0].CivilianId, Is.EqualTo("citizen.mainTown.0008"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(worldGo);
             }
         }
 

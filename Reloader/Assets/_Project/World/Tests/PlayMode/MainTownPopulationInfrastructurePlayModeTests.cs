@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.Core.Runtime;
 using Reloader.Core.Save;
 using Reloader.Core.Save.IO;
 using Reloader.Core.Save.Modules;
@@ -272,6 +273,63 @@ namespace Reloader.World.Tests.PlayMode
             var anchor = root.transform.Find("Anchor_Townsfolk_01");
             Assert.That(anchor, Is.Not.Null);
             Assert.That(spawned[0].transform.position, Is.EqualTo(anchor!.position));
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownPopulationRuntime_WorldStateChanged_ExecutesMaturedReplacementAfterDayAdvance()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var root = GameObject.Find("MainTownPopulationRuntime");
+            Assert.That(root, Is.Not.Null, "Expected authored MainTown population runtime root.");
+
+            var bridge = root!.GetComponent<CivilianPopulationRuntimeBridge>();
+            Assert.That(bridge, Is.Not.Null, "Expected CivilianPopulationRuntimeBridge on MainTownPopulationRuntime.");
+
+            var coreWorldController = UnityEngine.Object.FindFirstObjectByType<CoreWorldController>(FindObjectsInactive.Include);
+            Assert.That(coreWorldController, Is.Not.Null, "Expected CoreWorldController in MainTown.");
+
+            bridge!.Runtime.Civilians.Clear();
+            bridge.Runtime.PendingReplacements.Clear();
+            bridge.Runtime.Civilians.Add(CreateRecord(
+                civilianId: "citizen.mainTown.0007",
+                populationSlotId: "townsfolk.001",
+                poolId: "townsfolk",
+                spawnAnchorId: "Anchor_Townsfolk_01",
+                areaTag: "maintown.square",
+                isAlive: false,
+                retiredAtDay: 9));
+            bridge.SetCoreWorldController(coreWorldController!);
+
+            bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+            {
+                VacatedCivilianId = "citizen.mainTown.0007",
+                QueuedAtDay = 9,
+                SpawnAnchorId = "Anchor_Townsfolk_01"
+            });
+
+            coreWorldController!.SetWorldState(8, 8f);
+            yield return null;
+            coreWorldController.SetWorldState(8, 12f);
+            yield return null;
+
+            Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(1), "Expected same-day world updates to keep replacement debt pending.");
+            Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(1), "Expected no replacement until the day advances.");
+
+            coreWorldController.SetWorldState(9, 8f);
+            yield return null;
+
+            Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0));
+
+            var replacement = bridge.Runtime.Civilians.Single(record => record.CivilianId == "citizen.mainTown.0008");
+            Assert.That(replacement.PopulationSlotId, Is.EqualTo("townsfolk.001"));
+            Assert.That(replacement.SpawnAnchorId, Is.EqualTo("Anchor_Townsfolk_01"));
+            Assert.That(replacement.CreatedAtDay, Is.EqualTo(9));
+
+            var spawned = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            Assert.That(spawned.Length, Is.EqualTo(1));
+            Assert.That(spawned[0].CivilianId, Is.EqualTo("citizen.mainTown.0008"));
         }
 
         private static void AssertArrayConfigured(object instance, string propertyName)

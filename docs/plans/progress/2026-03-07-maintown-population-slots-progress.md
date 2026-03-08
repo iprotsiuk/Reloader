@@ -276,6 +276,36 @@
     - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `10/10` passed
     - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `5/5` passed
 
+## 2026-03-08 Checkpoint 10
+
+- Added the first same-session world-time replacement seam:
+  - `CivilianPopulationRuntimeBridge` now subscribes to `CoreWorldController.WorldStateChanged`
+  - the bridge caches the observed world day and executes matured pending replacements only when `DayCount` advances
+  - same-day time changes do not trigger replacement execution
+  - the bridge now exposes a direct `SetCoreWorldController(...)` seam for deterministic wiring/tests while keeping scene auto-discovery as the fallback
+- Updated authored scene infrastructure to support that seam:
+  - `MainTown` now includes an authored `CoreWorldController`
+  - PlayMode coverage now proves the real scene can execute a matured replacement after a same-session day advance without save/load
+- Scope note:
+  - this still does not implement a final Monday `08:00` scheduler rule
+  - this is a day-advance seam only
+  - no final civilian appearance assembly or contract-generation behavior changed
+
+## Verification
+
+- Red step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.WorldStateChanged_WhenDayAdvancesAndMaturedReplacementDebtExists_ExecutesReplacementWithoutReload`: `0/1` passed
+  - failing assertion: matured replacement debt remained queued after same-session day advance
+- Green step:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests.WorldStateChanged_WhenDayAdvancesAndMaturedReplacementDebtExists_ExecutesReplacementWithoutReload`: `1/1` passed
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests.MainTownPopulationRuntime_WorldStateChanged_ExecutesMaturedReplacementAfterDayAdvance`: `1/1` passed
+- Regression sweep:
+  - Unity MCP `run_tests` / `get_test_job`:
+    - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `11/11` passed
+    - `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `6/6` passed
+
 ## Next Step After This One
 
-The next slice should wire replacement execution to an actual same-session world-time trigger, likely via `CoreWorldController.WorldStateChanged` and the deferred Monday `08:00` scheduler rule, then verify that only newly matured queued replacements execute while future debt remains pending. Final STYLE-driven visual assembly should still stay deferred until that scheduler path is stable.
+The next slice should formalize the actual Monday `08:00` scheduler rule on top of the new same-session day-advance seam, then verify that only newly matured queued replacements execute while future debt remains pending. Final STYLE-driven visual assembly should still stay deferred until that scheduler path is stable.
