@@ -9,6 +9,8 @@ node_modules/
 unity-*.log
 unity-*.xml
 _quarantine_*/
+_Recovery_quarantine_*/
+_Recovery_quarantine_*.meta
 *.stale-*
 .plastic.hardreset-*
 Library_stale_*

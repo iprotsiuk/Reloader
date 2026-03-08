@@ -161,7 +161,6 @@ namespace Reloader.Contracts.Runtime
 
             ResetPendingResolution();
             ClearFailedContractState();
-            _policeHeatRuntime.ForceClear();
             _offerConsumed = false;
             return _contractController.TryFailActiveContract();
         }

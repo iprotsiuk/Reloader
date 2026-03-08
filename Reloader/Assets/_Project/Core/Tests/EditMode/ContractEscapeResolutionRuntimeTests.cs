@@ -244,6 +244,34 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void CancelActiveContract_AfterRelaxedWrongTargetKill_DoesNotClearPoliceSearch()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            var runtime = new ContractEscapeResolutionRuntime(
+                contract,
+                searchDurationSeconds: 10f,
+                payoutReceiver: new RecordingPayoutReceiver(),
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            try
+            {
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+                Assert.That(runtime.ReportTargetEliminated("target.bravo", wasExposed: true), Is.True);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+
+                Assert.That(runtime.CancelActiveContract(), Is.True);
+
+                Assert.That(runtime.ActiveContract, Is.Null);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search),
+                    "Canceling a relaxed contract must not erase police search caused by the witnessed kill.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+            }
+        }
+
+        [Test]
         public void ReportTargetEliminated_WrongTargetFailsStrictContractAndDoesNotAwardPayout()
         {
             var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
