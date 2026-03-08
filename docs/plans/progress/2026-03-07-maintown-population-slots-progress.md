@@ -48,6 +48,27 @@
 - `Reloader.Core.Tests.EditMode.CivilianPopulationSaveModuleTests`: `4/4` passed
 - `Reloader.NPCs.Tests.EditMode.CivilianPopulationRuntimeBridgeTests`: `5/5` passed
 
+## 2026-03-08 Checkpoint
+
+- Authored the first MainTown scene infrastructure checkpoint:
+  - added `MainTownPopulationRuntime` to `MainTown`
+  - added four starter child anchors under that root for the first conservative pool placeholders
+  - created `Assets/_Project/NPCs/Data/Population/MainTownPopulationDefinition.asset`
+  - assigned starter pools: `townsfolk`, `quarry_workers`, `hobos`, `cops`
+  - serialized a minimal non-empty `CivilianAppearanceLibrary` directly on the runtime bridge to keep this slice infrastructure-focused
+- Kept the deferred boundary explicit:
+  - no committed STYLE appearance-part curation yet
+  - no live civilian prefab assembly/spawn pipeline yet
+  - no claim that the placeholder IDs map to final approved art content
+
+## Verification
+
+- `Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests`: `1/1` passed in `tmp/maintown-population-infra-play.xml`
+- `bash scripts/run-unity-tests.sh playmode Reloader.World.Tests.PlayMode.MainTownPopulationInfrastructurePlayModeTests tmp/maintown-population-infra-play.xml tmp/maintown-population-infra-play.log` exited `3` because Unity emitted an unrelated package GUID-conflict log during startup:
+  - `Packages/com.coplaydev.unity-mcp/Editor/Clients/Configurators/QwenCodeConfigurator.cs`
+  - `Packages/com.unity.ai.assistant/Modules/Unity.AI.Generators.IO/Srp/AssemblyInfo.cs`
+  - the target test itself still recorded `Passed` in the NUnit XML result
+
 ## Next Step After This One
 
 Once slot-driven `MainTown` population is stable, the next slice should curate the first committed appearance-part pool from the STYLE kit and wire real visual assembly/prefab selection so generated civilians use approved bodies, hair, clothes, and color variants in-game.

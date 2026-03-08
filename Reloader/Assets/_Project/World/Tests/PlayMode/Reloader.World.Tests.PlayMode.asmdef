@@ -4,7 +4,8 @@
   "references": [
     "Reloader.World",
     "Reloader.Core",
-    "Reloader.Player"
+    "Reloader.Player",
+    "Reloader.NPCs"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

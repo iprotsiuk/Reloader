@@ -10,6 +10,10 @@
 
 ---
 
+> **Plan update (2026-03-08):** Insert an infrastructure-only checkpoint before live MainTown spawning.
+> Author the scene root, starter population definition asset, and minimal serialized appearance library first.
+> Keep real visual assembly/prefab spawning deferred until the infrastructure checkpoint is green.
+
 ### Task 1: Document the slot-and-pool model
 
 **Files:**
