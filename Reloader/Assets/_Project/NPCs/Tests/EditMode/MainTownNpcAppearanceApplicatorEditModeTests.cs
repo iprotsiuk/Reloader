@@ -140,6 +140,21 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void GetDeterministicSeed_WhenHashOverflowsToIntMinValue_ReturnsNonNegativeSeed()
+        {
+            var method = typeof(MainTownNpcAppearanceApplicator).GetMethod(
+                "GetDeterministicSeed",
+                BindingFlags.NonPublic | BindingFlags.Static);
+
+            Assert.That(method, Is.Not.Null);
+
+            const string intMinValueHashSeed = "\u0706\t\u001E\f\u0002";
+            var seed = (int)method.Invoke(null, new object[] { intMinValueHashSeed });
+
+            Assert.That(seed, Is.GreaterThanOrEqualTo(0));
+        }
+
+        [Test]
         public void ApplyAuthoringAppearanceFromContext_WhenVendorIdsDiffer_UsesDifferentModuleSignatures()
         {
             var firstVendor = CreateTestRoot();

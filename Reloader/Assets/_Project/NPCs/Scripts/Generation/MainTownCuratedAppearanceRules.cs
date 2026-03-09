@@ -100,15 +100,25 @@ namespace Reloader.NPCs.Generation
 
         public static bool TryInferGender(string baseBodyId, string presentationType, out MainTownAppearanceGender gender)
         {
-            if (string.Equals(baseBodyId, FemaleBodyId, StringComparison.Ordinal)
-                || string.Equals(presentationType, FemininePresentation, StringComparison.Ordinal))
+            if (string.Equals(baseBodyId, FemaleBodyId, StringComparison.Ordinal))
             {
                 gender = MainTownAppearanceGender.Female;
                 return true;
             }
 
-            if (string.Equals(baseBodyId, MaleBodyId, StringComparison.Ordinal)
-                || string.Equals(presentationType, MasculinePresentation, StringComparison.Ordinal))
+            if (string.Equals(baseBodyId, MaleBodyId, StringComparison.Ordinal))
+            {
+                gender = MainTownAppearanceGender.Male;
+                return true;
+            }
+
+            if (string.Equals(presentationType, FemininePresentation, StringComparison.Ordinal))
+            {
+                gender = MainTownAppearanceGender.Female;
+                return true;
+            }
+
+            if (string.Equals(presentationType, MasculinePresentation, StringComparison.Ordinal))
             {
                 gender = MainTownAppearanceGender.Male;
                 return true;

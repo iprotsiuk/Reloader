@@ -236,6 +236,45 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void GenerateRecord_WhenBaseBodyAndPresentationConflict_PrioritizesBodyForCuratedGender()
+        {
+            var generatorType = ResolveRequiredType(GeneratorTypeName);
+            var libraryType = ResolveRequiredType(LibraryTypeName);
+
+            var generator = Activator.CreateInstance(generatorType);
+            var library = Activator.CreateInstance(libraryType);
+
+            SetProperty(library, "BaseBodyIds", new[] { "male.body" });
+            SetProperty(library, "PresentationTypes", new[] { "feminine" });
+            SetProperty(library, "HairIds", new[] { "hair.short", "hair.long" });
+            SetProperty(library, "HairColorIds", new[] { "hair.black" });
+            SetProperty(library, "BeardIds", new[] { "beard4" });
+            SetProperty(library, "OutfitTopIds", new[] { "tshirt1" });
+            SetProperty(library, "OutfitBottomIds", new[] { "pants1" });
+            SetProperty(library, "OuterwearIds", new[] { string.Empty });
+            SetProperty(library, "MaterialColorIds", new[] { "style.default" });
+            SetProperty(library, "DescriptionTags", new[] { "townsfolk" });
+
+            var generateMethod = generatorType.GetMethod(
+                "GenerateRecord",
+                BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: new[] { libraryType, typeof(string), typeof(int), typeof(string), typeof(int), typeof(bool) },
+                modifiers: null);
+
+            Assert.That(generateMethod, Is.Not.Null, "Expected a public GenerateRecord(...) method on CivilianAppearanceGenerator.");
+
+            var record = generateMethod.Invoke(
+                generator,
+                new object[] { library, "citizen.mainTown.205", 3, "Anchor_Townsfolk_05", 11, true });
+
+            Assert.That(GetProperty<string>(record, "BaseBodyId"), Is.EqualTo("male.body"));
+            Assert.That(GetProperty<string>(record, "PresentationType"), Is.EqualTo("masculine"));
+            Assert.That(GetProperty<string>(record, "HairId"), Is.EqualTo("hair.short"));
+            Assert.That(GetProperty<string>(record, "BeardId"), Is.EqualTo("beard4"));
+        }
+
+        [Test]
         public void IsCuratedStyleLibrary_WhenBaseBodyIdsAreMissing_ReturnsFalse()
         {
             var libraryType = ResolveRequiredType(LibraryTypeName);

@@ -260,7 +260,7 @@ namespace Reloader.NPCs.Runtime
                     hash = (hash * 31) + character;
                 }
 
-                return Math.Abs(hash);
+                return hash == int.MinValue ? 0 : Math.Abs(hash);
             }
         }
 
