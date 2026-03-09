@@ -95,7 +95,8 @@ namespace Reloader.World.Tests.PlayMode
 
             var metadata = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
             Assert.That(metadata.Length, Is.EqualTo(4), "Expected every auto-spawned civilian to carry slot metadata.");
-            Assert.That(metadata.All(component => component.transform.Find("Body/NpcModel") != null), Is.True,
+            Assert.That(metadata.All(component => component.GetComponent<MainTownNpcAppearanceApplicator>() != null),
+                Is.True,
                 "Expected starter civilians to instantiate the authored NPC actor prefab instead of ad-hoc shell objects.");
             Assert.That(metadata.Select(component => component.transform.position).Distinct().Count(), Is.EqualTo(4),
                 "Expected authored population slot anchors to occupy distinct scene positions.");
