@@ -220,6 +220,7 @@ namespace Reloader.NPCs.Tests.PlayMode
 
             try
             {
+                Assert.That(controller.TryGetInteractionCandidate(out _), Is.True, "Preflight targeting should succeed before dialogue starts.");
                 input.PickupPressedThisFrame = true;
                 controller.Tick();
 
@@ -228,6 +229,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                 Assert.That(playerRuntime!.HasActiveConversation, Is.True, "Expected the active conversation to be owned by PlayerRoot.");
                 Assert.That(root.GetComponent<DialogueConversationModeController>(), Is.Not.Null, "Expected conversation mode to be provisioned on PlayerRoot.");
                 Assert.That(foreignRuntime.HasActiveConversation, Is.False, "A foreign runtime must not hijack player conversations.");
+                Assert.That(controller.TryGetInteractionCandidate(out _), Is.False, "Active dialogue on PlayerRoot should continue blocking new NPC targeting even when a foreign runtime exists.");
             }
             finally
             {

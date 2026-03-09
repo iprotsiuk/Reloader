@@ -363,7 +363,23 @@ namespace Reloader.NPCs.World
 
         private bool IsConversationActive()
         {
-            if (_dialogueRuntimeController == null && _conversationModeController == null)
+            var localConversationMode = GetComponent<DialogueConversationModeController>()
+                ?? GetComponentInParent<DialogueConversationModeController>(true)
+                ?? GetComponentInChildren<DialogueConversationModeController>(true);
+            if (localConversationMode != null)
+            {
+                _conversationModeController = localConversationMode;
+            }
+
+            var localRuntime = GetComponent<DialogueRuntimeController>()
+                ?? GetComponentInParent<DialogueRuntimeController>(true)
+                ?? GetComponentInChildren<DialogueRuntimeController>(true)
+                ?? DialogueRuntimeLocator.FindRuntimeForPlayerHost(this);
+            if (localRuntime != null)
+            {
+                _dialogueRuntimeController = localRuntime;
+            }
+            else if (_dialogueRuntimeController == null && _conversationModeController == null)
             {
                 ResolveReferences();
             }
