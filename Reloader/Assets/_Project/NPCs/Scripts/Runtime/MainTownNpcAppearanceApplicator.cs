@@ -275,10 +275,15 @@ namespace Reloader.NPCs.Runtime
             var presentationType = gender == MainTownAppearanceGender.Female
                 ? MainTownCuratedAppearanceRules.FemininePresentation
                 : MainTownCuratedAppearanceRules.MasculinePresentation;
+            var identityRandom = new Random(GetDeterministicSeed(seedKey));
+            CivilianPublicIdentityGenerator.Generate(identityRandom, baseBodyId, presentationType, out var firstName, out var lastName, out var nickname);
 
             return new CivilianPopulationRecord
             {
                 CivilianId = $"npc.{seedKey}",
+                FirstName = firstName,
+                LastName = lastName,
+                Nickname = nickname,
                 IsAlive = true,
                 IsContractEligible = false,
                 IsProtectedFromContracts = true,
