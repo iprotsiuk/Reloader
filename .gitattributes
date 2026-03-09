@@ -26,6 +26,7 @@ Reloader/Assets/Scenes/MainWorld.unity -text -merge
 
 # Project gameplay scenes can be binary in this repo; never normalize line endings
 Reloader/Assets/Scenes/*.unity -text -merge
+Reloader/Assets/STYLE*/Scene/*.unity -text -merge
 
 # Binary assets
 *.png binary

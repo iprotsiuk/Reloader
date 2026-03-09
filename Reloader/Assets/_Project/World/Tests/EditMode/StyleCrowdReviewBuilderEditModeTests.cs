@@ -200,6 +200,18 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
+        public void GetExternalMaterialPath_ForFemaleLongHair_Uses2048Material()
+        {
+            var path = StyleCrowdReviewBuilder.GetExternalMaterialPath(
+                StyleCrowdReviewGender.Female,
+                "hair3");
+
+            Assert.That(path, Is.Not.Null.And.Not.Empty);
+            Assert.That(path, Does.Contain("/Textures/Woman/Hair/3/2048/"));
+            Assert.That(AssetDatabase.LoadAssetAtPath<Material>(path), Is.Not.Null);
+        }
+
+        [Test]
         public void GetExternalMaterialPath_WithVariationKey_UsesMoreThanOneSiblingVariant()
         {
             var selectedPaths = Enumerable.Range(0, 16)

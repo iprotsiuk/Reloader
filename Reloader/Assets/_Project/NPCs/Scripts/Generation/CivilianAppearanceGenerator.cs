@@ -6,6 +6,8 @@ namespace Reloader.NPCs.Generation
 {
     public sealed class CivilianAppearanceGenerator
     {
+        private const string NoBeardId = "beard.none";
+
         public CivilianPopulationRecord GenerateRecord(
             CivilianAppearanceLibrary library,
             string civilianId,
@@ -119,12 +121,16 @@ namespace Reloader.NPCs.Generation
             var beardChoices = MainTownCuratedAppearanceRules.GetCompatibleBeardIds(library, gender);
             var beardId = beardChoices.Count > 0
                 ? PickRequired(beardChoices, nameof(library.BeardIds), random)
-                : string.Empty;
+                : NoBeardId;
 
             var outfitTopId = PickRequired(MainTownCuratedAppearanceRules.GetCompatibleBaseTopIds(library), nameof(library.OutfitTopIds), random);
             var outfitBottomId = PickRequired(MainTownCuratedAppearanceRules.GetCompatibleBottomIds(library, gender), nameof(library.OutfitBottomIds), random);
             var outerwearRaw = PickRequired(MainTownCuratedAppearanceRules.GetCompatibleOuterwearIds(library), nameof(library.OuterwearIds), random);
             var outerwearId = MainTownCuratedAppearanceRules.NormalizeOuterwearId(outerwearRaw);
+            if (string.IsNullOrWhiteSpace(outerwearId))
+            {
+                outerwearId = MainTownCuratedAppearanceRules.NoOuterwearId;
+            }
 
             return new CivilianPopulationRecord
             {

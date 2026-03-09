@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.Core.Save.Modules;
 using UnityEngine;
 
 namespace Reloader.NPCs.Tests.EditMode
@@ -157,10 +158,11 @@ namespace Reloader.NPCs.Tests.EditMode
 
             Assert.That(GetProperty<string>(record, "BaseBodyId"), Is.EqualTo("female.body"));
             Assert.That(GetProperty<string>(record, "HairId"), Is.EqualTo("hair.long"));
-            Assert.That(GetProperty<string>(record, "BeardId"), Is.EqualTo(string.Empty));
+            Assert.That(GetProperty<string>(record, "BeardId"), Is.EqualTo("beard.none"));
             Assert.That(GetProperty<string>(record, "OutfitTopId"), Is.EqualTo("tshirt1"));
             Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("pants1"));
             Assert.That(GetProperty<string>(record, "OuterwearId"), Is.EqualTo("hoody"));
+            AssertGeneratedRecordPassesSaveModuleValidation(record);
         }
 
         [Test]
@@ -232,7 +234,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 generator,
                 new object[] { library, "citizen.mainTown.204", 3, "Anchor_Townsfolk_04", 9, true });
 
-            Assert.That(GetProperty<string>(record, "OuterwearId"), Is.EqualTo(string.Empty));
+            Assert.That(GetProperty<string>(record, "OuterwearId"), Is.EqualTo("none"));
+            AssertGeneratedRecordPassesSaveModuleValidation(record);
         }
 
         [Test]
@@ -296,6 +299,17 @@ namespace Reloader.NPCs.Tests.EditMode
             var type = Type.GetType(assemblyQualifiedName, throwOnError: false);
             Assert.That(type, Is.Not.Null, $"Expected type '{assemblyQualifiedName}' to exist.");
             return type;
+        }
+
+        private static void AssertGeneratedRecordPassesSaveModuleValidation(object record)
+        {
+            SetProperty(record, "PopulationSlotId", "validation.slot.001");
+            SetProperty(record, "PoolId", "validation.pool");
+            SetProperty(record, "AreaTag", "validation.area");
+            var module = new CivilianPopulationModule();
+            module.Civilians.Add((CivilianPopulationRecord)record);
+
+            Assert.DoesNotThrow(() => module.ValidateModuleState());
         }
 
         private static void SetProperty(object instance, string propertyName, object value)

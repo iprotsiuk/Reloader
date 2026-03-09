@@ -170,7 +170,7 @@ namespace Reloader.World.Editor
             ["Eyes"] = "Assets/STYLE - Character Customization Kit/Textures/Woman/Eyes/2048/Materials/Eyes_Black.mat",
             ["boots1"] = "Assets/STYLE - Character Customization Kit/Textures/Woman/Boots1/2048/Materials/boots1_1_baseColor.mat",
             ["hair1"] = "Assets/STYLE - Character Customization Kit/Textures/Woman/Hair/2/2048/Materials/hair2_5_baseColor.mat",
-            ["hair3"] = "Assets/STYLE - Character Customization Kit/Textures/Woman/Hair/3/4096/Materials/hair3_2_baseColor.mat",
+            ["hair3"] = "Assets/STYLE - Character Customization Kit/Textures/Woman/Hair/3/2048/Materials/hair3_2_baseColor.mat",
             ["coat"] = "Assets/STYLE - Character Customization Kit/Textures/Woman/Jacket/2048/Materials/jacket1_baseColor.mat",
             ["hoody"] = "Assets/STYLE - Character Customization Kit/Textures/Woman/Hoody/2048/Materials/hoody_1_baseColor.mat",
             ["jacket"] = "Assets/STYLE - Character Customization Kit/Textures/Woman/Jacket/2048/Materials/jacket1_baseColor.mat",
@@ -480,6 +480,21 @@ namespace Reloader.World.Editor
                 "jacket_normal",
                 "jacket_metallic",
                 "jacket_ao");
+            changed |= EnsureGeneratedMaterialVariants(
+                "Assets/STYLE - Character Customization Kit/Textures/Woman/Hair/3/2048/Materials",
+                "Assets/STYLE - Character Customization Kit/Textures/Woman/Hair/3/2048",
+                new[]
+                {
+                    "hair3_1_baseColor",
+                    "hair3_2_baseColor",
+                    "hair3_3_baseColor",
+                    "hair3_4_baseColor",
+                    "hair3_5_baseColor",
+                    "hair3_6_baseColor"
+                },
+                "hair3_normal.png",
+                string.Empty,
+                "hair3_occlusion.jpg");
 
             if (changed)
             {
@@ -544,12 +559,27 @@ namespace Reloader.World.Editor
                 changed |= EnsureGeneratedMaterial(
                     $"{materialDirectory}/{baseColorStem}.mat",
                     $"{textureDirectory}/{baseColorStem}.jpg",
-                    $"{textureDirectory}/{normalStem}.jpg",
-                    $"{textureDirectory}/{metallicStem}.jpg",
-                    $"{textureDirectory}/{occlusionStem}.jpg");
+                    BuildTextureAssetPath(textureDirectory, normalStem, ".jpg"),
+                    BuildTextureAssetPath(textureDirectory, metallicStem, ".jpg"),
+                    BuildTextureAssetPath(textureDirectory, occlusionStem, ".jpg"));
             }
 
             return changed;
+        }
+
+        private static string BuildTextureAssetPath(string textureDirectory, string textureStem, string defaultExtension)
+        {
+            if (string.IsNullOrWhiteSpace(textureStem))
+            {
+                return string.Empty;
+            }
+
+            if (textureStem.Contains(".", StringComparison.Ordinal))
+            {
+                return $"{textureDirectory}/{textureStem}";
+            }
+
+            return $"{textureDirectory}/{textureStem}{defaultExtension}";
         }
 
         private static bool EnsureGeneratedMaterial(
