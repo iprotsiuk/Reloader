@@ -583,7 +583,7 @@ namespace Reloader.NPCs.Runtime
             damageable.Configure(
                 ResolveContractTargetEliminationSink(civilian),
                 targetId: record.CivilianId,
-                displayName: record.CivilianId,
+                displayName: BuildPublicDisplayName(record),
                 authoritativeDistanceMeters: ProceduralContractTargetDistanceMeters,
                 maxHealth: ProceduralContractTargetHealth);
         }
@@ -705,7 +705,7 @@ namespace Reloader.NPCs.Runtime
                 contractId: $"contract.maintown.procedural.{target.CivilianId}",
                 targetId: target.CivilianId,
                 title: "MainTown Contract",
-                targetDisplayName: target.CivilianId,
+                targetDisplayName: BuildPublicDisplayName(target),
                 targetDescription: BuildProceduralTargetDescription(target),
                 briefingText: "Locate and eliminate the live procedural target in MainTown.",
                 distanceBand: ProceduralContractTargetDistanceMeters,
@@ -821,6 +821,33 @@ namespace Reloader.NPCs.Runtime
             }
 
             return record.AreaTag ?? string.Empty;
+        }
+
+        private static string BuildPublicDisplayName(CivilianPopulationRecord record)
+        {
+            if (record == null)
+            {
+                return string.Empty;
+            }
+
+            var firstName = record.FirstName?.Trim() ?? string.Empty;
+            var lastName = record.LastName?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(firstName) && string.IsNullOrWhiteSpace(lastName))
+            {
+                return record.CivilianId ?? string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(firstName))
+            {
+                return lastName;
+            }
+
+            if (string.IsNullOrWhiteSpace(lastName))
+            {
+                return firstName;
+            }
+
+            return string.Concat(firstName, " ", lastName);
         }
 
         private List<string> NormalizeSpawnAnchors()
@@ -1010,6 +1037,9 @@ namespace Reloader.NPCs.Runtime
                 PopulationSlotId = source?.PopulationSlotId ?? string.Empty,
                 PoolId = source?.PoolId ?? string.Empty,
                 CivilianId = source?.CivilianId ?? string.Empty,
+                FirstName = source?.FirstName ?? string.Empty,
+                LastName = source?.LastName ?? string.Empty,
+                Nickname = source?.Nickname ?? string.Empty,
                 IsAlive = source != null && source.IsAlive,
                 IsContractEligible = source != null && source.IsContractEligible,
                 IsProtectedFromContracts = source != null && source.IsProtectedFromContracts,
