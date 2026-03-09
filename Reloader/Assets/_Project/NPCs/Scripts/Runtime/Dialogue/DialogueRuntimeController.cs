@@ -1,5 +1,6 @@
 using Reloader.NPCs.Data;
 using UnityEngine;
+using System;
 
 namespace Reloader.NPCs.Runtime.Dialogue
 {
@@ -13,6 +14,7 @@ namespace Reloader.NPCs.Runtime.Dialogue
         public DialogueConversationState ActiveConversation => _activeConversation;
         public DialogueOutcome LastOutcome => _lastOutcome;
         public string LastCloseReason => _lastCloseReason;
+        public event Action<DialogueConfirmResult> DialogueConfirmed;
 
         public bool TryOpenConversation(DialogueDefinition definition, Transform speakerTransform, out string reason)
         {
@@ -95,6 +97,7 @@ namespace Reloader.NPCs.Runtime.Dialogue
                         _activeConversation.SpeakerTransform,
                         0);
                     result = new DialogueConfirmResult(true, "dialogue.confirmed", outcome);
+                    DialogueConfirmed?.Invoke(result);
                     return true;
                 }
 
@@ -105,6 +108,7 @@ namespace Reloader.NPCs.Runtime.Dialogue
 
             CloseConversation("dialogue.confirmed");
             result = new DialogueConfirmResult(true, "dialogue.confirmed", outcome);
+            DialogueConfirmed?.Invoke(result);
             return true;
         }
 

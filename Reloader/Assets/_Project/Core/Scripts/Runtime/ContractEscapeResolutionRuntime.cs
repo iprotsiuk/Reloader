@@ -43,6 +43,9 @@ namespace Reloader.Contracts.Runtime
 
         private readonly ContractRuntimeController _contractController = new ContractRuntimeController();
         private readonly PoliceHeatRuntime _policeHeatRuntime;
+        private const string PoliceStopComplyActionId = "police.stop.comply";
+        private const string PoliceStopQuestionActionId = "police.stop.question";
+        private const string PoliceStopLeaveActionId = "police.stop.leave";
         private AssassinationContractDefinition _availableContract;
         private AssassinationContractDefinition _failedDefinition;
         private IContractPayoutReceiver _payoutReceiver;
@@ -249,6 +252,30 @@ namespace Reloader.Contracts.Runtime
                 return true;
             }
 
+            return true;
+        }
+
+        public bool TryHandleDialogueAction(string actionId, string payload = null)
+        {
+            if (string.IsNullOrWhiteSpace(actionId))
+            {
+                return false;
+            }
+
+            if (string.Equals(actionId, PoliceStopComplyActionId, StringComparison.Ordinal)
+                || string.Equals(actionId, PoliceStopQuestionActionId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (!string.Equals(actionId, PoliceStopLeaveActionId, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            _policeHeatRuntime.ReportCrime(CrimeType.Fleeing);
+            _policeHeatRuntime.ReportLineOfSightAcquired();
+            _policeHeatRuntime.ReportLineOfSightLost();
             return true;
         }
 

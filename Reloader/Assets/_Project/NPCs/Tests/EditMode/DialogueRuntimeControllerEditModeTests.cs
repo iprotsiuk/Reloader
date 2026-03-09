@@ -139,6 +139,55 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void TryConfirmSelectedReply_RaisesDialogueConfirmedEventWithStructuredOutcome()
+        {
+            var controllerGo = new GameObject("dialogue-runtime");
+            var speakerGo = new GameObject("speaker");
+            var controller = controllerGo.AddComponent<DialogueRuntimeController>();
+            var definition = CreateDefinition(
+                "dialogue.police",
+                "entry",
+                new DialogueNodeDefinition(
+                    "entry",
+                    "Hold it.",
+                    new[]
+                    {
+                        new DialogueReplyDefinition("reply.leave", "I am leaving.", string.Empty, "police.stop.leave", "walk-away")
+                    }));
+
+            var eventRaised = false;
+            var confirmedResult = default(DialogueConfirmResult);
+            controller.DialogueConfirmed += HandleConfirmed;
+
+            try
+            {
+                Assert.That(controller.TryOpenConversation(definition, speakerGo.transform, out _), Is.True);
+
+                var confirmed = controller.TryConfirmSelectedReply(out var result);
+
+                Assert.That(confirmed, Is.True);
+                Assert.That(result.Success, Is.True);
+                Assert.That(eventRaised, Is.True);
+                Assert.That(confirmedResult.Success, Is.True);
+                Assert.That(confirmedResult.Outcome.ActionId, Is.EqualTo("police.stop.leave"));
+                Assert.That(confirmedResult.Outcome.Payload, Is.EqualTo("walk-away"));
+            }
+            finally
+            {
+                controller.DialogueConfirmed -= HandleConfirmed;
+                Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(speakerGo);
+                Object.DestroyImmediate(controllerGo);
+            }
+
+            void HandleConfirmed(DialogueConfirmResult result)
+            {
+                eventRaised = true;
+                confirmedResult = result;
+            }
+        }
+
+        [Test]
         public void RefreshActiveConversationState_ClosesWhenSpeakerIsDisabled()
         {
             var controllerGo = new GameObject("dialogue-runtime");

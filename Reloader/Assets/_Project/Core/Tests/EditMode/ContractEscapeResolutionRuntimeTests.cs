@@ -448,6 +448,52 @@ namespace Reloader.Core.Tests.EditMode
             }
         }
 
+        [Test]
+        public void TryHandleDialogueAction_PoliceStopComply_DoesNotEscalatePoliceHeat()
+        {
+            var runtime = new ContractEscapeResolutionRuntime(
+                availableContract: null,
+                searchDurationSeconds: 10f,
+                payoutReceiver: new RecordingPayoutReceiver(),
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            var handled = runtime.TryHandleDialogueAction("police.stop.comply", string.Empty);
+
+            Assert.That(handled, Is.True);
+            Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Clear));
+        }
+
+        [Test]
+        public void TryHandleDialogueAction_PoliceStopLeave_EscalatesIntoSearch()
+        {
+            var runtime = new ContractEscapeResolutionRuntime(
+                availableContract: null,
+                searchDurationSeconds: 10f,
+                payoutReceiver: new RecordingPayoutReceiver(),
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            var handled = runtime.TryHandleDialogueAction("police.stop.leave", "walk-away");
+
+            Assert.That(handled, Is.True);
+            Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+            Assert.That(runtime.CurrentHeatState.LastCrimeType, Is.EqualTo(CrimeType.Fleeing));
+        }
+
+        [Test]
+        public void TryHandleDialogueAction_UnknownOutcome_IsIgnored()
+        {
+            var runtime = new ContractEscapeResolutionRuntime(
+                availableContract: null,
+                searchDurationSeconds: 10f,
+                payoutReceiver: new RecordingPayoutReceiver(),
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            var handled = runtime.TryHandleDialogueAction("dialogue.frontdesk.ask-lockers", "lockers");
+
+            Assert.That(handled, Is.False);
+            Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Clear));
+        }
+
         private static AssassinationContractDefinition CreateDefinition(
             string contractId,
             string targetId,

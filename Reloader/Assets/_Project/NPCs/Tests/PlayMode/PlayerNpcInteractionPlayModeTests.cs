@@ -1,5 +1,6 @@
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.Contracts.Runtime;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.NPCs.Data;
@@ -19,6 +20,7 @@ namespace Reloader.NPCs.Tests.PlayMode
     {
         private const string FrontDeskDialogueAssetPath = "Assets/_Project/NPCs/Data/Definitions/Dialogue_FrontDeskClerk.asset";
         private const string FrontDeskClerkPrefabPath = "Assets/_Project/NPCs/Prefabs/Roles/Npc_FrontDeskClerk.prefab";
+        private const string PolicePrefabPath = "Assets/_Project/NPCs/Prefabs/Roles/Npc_Police.prefab";
 
         [Test]
         public void Resolver_LookingAtNpcAgent_ResolvesTarget()
@@ -189,6 +191,51 @@ namespace Reloader.NPCs.Tests.PlayMode
             Assert.That(interactionResult.Success, Is.True);
             Assert.That(interactionResult.ActionKey, Is.EqualTo(DialogueCapability.ActionKey));
             Assert.That(interactionResult.Reason, Is.EqualTo("dialogue.started"));
+        }
+
+        [Test]
+        public void InteractInput_DialogueNpc_WithForeignRuntimeStillUsesPlayerRootRuntime()
+        {
+            DestroyAllOfType<DialogueRuntimeController>();
+            DestroyAllOfType<DialogueConversationModeController>();
+
+            var foreignRuntimeHost = new GameObject("ForeignDialogueRuntimeHost");
+            var foreignRuntime = foreignRuntimeHost.AddComponent<DialogueRuntimeController>();
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerNpcInteractionController>();
+
+            var camera = root.AddComponent<Camera>();
+            camera.transform.position = Vector3.zero;
+            camera.transform.forward = Vector3.forward;
+
+            var resolver = root.AddComponent<PlayerNpcResolver>();
+            resolver.SetCameraForTests(camera);
+
+            controller.Configure(input, resolver);
+
+            var npc = CreateNpcWithCollider("npc-dialogue-target", new Vector3(0f, 0f, 2.5f));
+            var dialogueDefinition = AttachDialogueCapabilityWithDefinition(npc.gameObject);
+
+            try
+            {
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
+
+                var playerRuntime = root.GetComponent<DialogueRuntimeController>();
+                Assert.That(playerRuntime, Is.Not.Null, "Expected interaction to prefer PlayerRoot for dialogue runtime hosting.");
+                Assert.That(playerRuntime!.HasActiveConversation, Is.True, "Expected the active conversation to be owned by PlayerRoot.");
+                Assert.That(root.GetComponent<DialogueConversationModeController>(), Is.Not.Null, "Expected conversation mode to be provisioned on PlayerRoot.");
+                Assert.That(foreignRuntime.HasActiveConversation, Is.False, "A foreign runtime must not hijack player conversations.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(dialogueDefinition);
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(npc.gameObject);
+                Object.DestroyImmediate(foreignRuntimeHost);
+            }
         }
 
         [Test]
@@ -559,6 +606,72 @@ namespace Reloader.NPCs.Tests.PlayMode
                 Object.DestroyImmediate(npcInstance);
             }
         }
+
+        [Test]
+        public void PolicePrefab_InteractAndConfirmLeave_EscalatesRealProviderHeat()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PolicePrefabPath);
+            Assert.That(prefab, Is.Not.Null, $"Expected prefab at {PolicePrefabPath}.");
+
+            var providerGo = new GameObject("ContractProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+
+            var root = new GameObject("PlayerRoot");
+            var characterController = root.AddComponent<CharacterController>();
+            characterController.height = 2f;
+            characterController.radius = 0.3f;
+            root.transform.position = Vector3.zero;
+
+            var input = root.AddComponent<TestInputSource>();
+            var camera = root.AddComponent<Camera>();
+            camera.transform.position = new Vector3(0f, 1f, 0f);
+            camera.transform.forward = Vector3.forward;
+
+            var resolver = root.AddComponent<PlayerNpcResolver>();
+            resolver.SetCameraForTests(camera);
+            var interactionController = root.AddComponent<PlayerNpcInteractionController>();
+            interactionController.Configure(input, resolver);
+
+            var npcInstance = Object.Instantiate(prefab);
+            var npcAgent = npcInstance.GetComponent<NpcAgent>();
+            NpcActionExecutionResult interactionResult = default;
+            var interactionRaised = false;
+            interactionController.InteractionProcessed += result =>
+            {
+                interactionRaised = true;
+                interactionResult = result;
+            };
+
+            try
+            {
+                Assert.That(npcAgent, Is.Not.Null);
+                npcInstance.transform.position = new Vector3(0f, 0f, 2.5f);
+
+                input.PickupPressedThisFrame = true;
+                interactionController.Tick();
+
+                var runtime = root.GetComponent<DialogueRuntimeController>();
+                Assert.That(runtime, Is.Not.Null, "Expected police interaction to provision the shared dialogue runtime on PlayerRoot.");
+                Assert.That(runtime!.HasActiveConversation, Is.True);
+
+                Assert.That(runtime.TrySelectReply(2), Is.True, "Expected authored police dialogue to expose the 'leave' reply as the third option.");
+                Assert.That(runtime.TryConfirmSelectedReply(out var confirmResult), Is.True);
+
+                var providerRuntime = ReadContractRuntime(provider);
+                Assert.That(providerRuntime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+                Assert.That(providerRuntime.CurrentHeatState.LastCrimeType, Is.EqualTo(CrimeType.Fleeing));
+                Assert.That(confirmResult.Outcome.ActionId, Is.EqualTo("police.stop.leave"));
+                Assert.That(interactionRaised, Is.True);
+                Assert.That(interactionResult.Success, Is.True);
+                Assert.That(interactionResult.ActionKey, Is.EqualTo(LawEnforcementInteractionCapability.ActionKey));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(npcInstance);
+                Object.DestroyImmediate(providerGo);
+            }
+        }
 #endif
 
         private static NpcAgent CreateNpcWithCollider(string name, Vector3 position)
@@ -636,6 +749,16 @@ namespace Reloader.NPCs.Tests.PlayMode
                     Object.DestroyImmediate(component.gameObject);
                 }
             }
+        }
+
+        private static ContractEscapeResolutionRuntime ReadContractRuntime(StaticContractRuntimeProvider provider)
+        {
+            var runtimeField = typeof(StaticContractRuntimeProvider).GetField("_runtime", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(runtimeField, Is.Not.Null, "Expected private runtime field on StaticContractRuntimeProvider.");
+
+            var runtime = runtimeField!.GetValue(provider) as ContractEscapeResolutionRuntime;
+            Assert.That(runtime, Is.Not.Null, "Expected StaticContractRuntimeProvider to initialize its runtime.");
+            return runtime!;
         }
 
         private sealed class TestNpcResolver : MonoBehaviour, IPlayerNpcResolver

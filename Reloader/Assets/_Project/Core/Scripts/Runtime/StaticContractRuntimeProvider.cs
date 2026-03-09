@@ -70,6 +70,11 @@ namespace Reloader.Contracts.Runtime
             EnsureRuntime().ReportTargetEliminated(targetId, wasExposed);
         }
 
+        public bool TryHandleDialogueAction(string actionId, string payload = null)
+        {
+            return EnsureRuntime().TryHandleDialogueAction(actionId, payload);
+        }
+
         public bool CanPublishAvailableContract()
         {
             return EnsureRuntime().CanPublishAvailableContract();

@@ -1,6 +1,8 @@
 using System;
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.Contracts.Runtime;
+using Reloader.Core.Events;
 using Reloader.NPCs.Data;
 using Reloader.NPCs.Runtime.Dialogue;
 using Reloader.UI.Toolkit.Contracts;
@@ -17,6 +19,7 @@ namespace Reloader.UI.Tests.PlayMode
     public class DialogueOverlayUiToolkitPlayModeTests
     {
         private const string FrontDeskDialogueAssetPath = "Assets/_Project/NPCs/Data/Definitions/Dialogue_FrontDeskClerk.asset";
+        private const string PoliceDialogueAssetPath = "Assets/_Project/NPCs/Data/Definitions/Dialogue_PoliceStop.asset";
 
         [Test]
         public void Controller_RendersSpeakerLineAndSelectedReply()
@@ -188,6 +191,72 @@ namespace Reloader.UI.Tests.PlayMode
                 UnityEngine.Object.DestroyImmediate(runtimeGo);
             }
         }
+
+        [Test]
+        public void RenderedReplyButtonClick_PoliceLeaveOutcomeEscalatesSharedContractRuntime()
+        {
+            var dialogueAsset = AssetDatabase.LoadAssetAtPath<DialogueDefinition>(PoliceDialogueAssetPath);
+            Assert.That(dialogueAsset, Is.Not.Null, $"Expected dialogue asset at {PoliceDialogueAssetPath}.");
+
+            var providerGo = new GameObject("ContractProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+
+            var runtimeGo = new GameObject("DialogueRuntime");
+            var runtime = runtimeGo.AddComponent<DialogueRuntimeController>();
+            runtimeGo.AddComponent<DialogueOutcomeContractRuntimeBridge>();
+
+            var speaker = new GameObject("PoliceSpeaker");
+            var inputGo = new GameObject("DialogueInput");
+            var input = inputGo.AddComponent<TestInputSource>();
+
+            var bridgeGo = new GameObject("DialogueOverlayBridge");
+            var bridge = bridgeGo.AddComponent<DialogueRuntimeOverlayBridge>();
+            SetField(bridge, "_runtimeControllerSource", runtime);
+            SetField(bridge, "_inputSourceBehaviour", input);
+
+            var screenBridgeGo = new GameObject("UiToolkitScreenRuntimeBridge");
+            var screenBridge = screenBridgeGo.AddComponent<UiToolkitScreenRuntimeBridge>();
+            var root = BuildRoot();
+
+            try
+            {
+                Assert.That(runtime.TryOpenConversation(dialogueAsset, speaker.transform, out var reason), Is.True, reason);
+
+                var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
+                    "BindDialogueOverlay",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(bindMethod, Is.Not.Null);
+
+                var subscription = bindMethod.Invoke(
+                    screenBridge,
+                    new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.DialogueOverlay }) as IDisposable;
+                Assert.That(subscription, Is.Not.Null);
+
+                var replies = root.Q<VisualElement>("dialogue-overlay__replies");
+                Assert.That(replies, Is.Not.Null);
+                Assert.That(replies.childCount, Is.EqualTo(3));
+
+                var button = replies.Q<Button>("dialogue-overlay__reply-2");
+                Assert.That(button, Is.Not.Null, "Expected the authored leave option as the third reply.");
+                TriggerButtonClick(button);
+
+                var providerRuntime = ReadContractRuntime(provider);
+                Assert.That(providerRuntime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+                Assert.That(providerRuntime.CurrentHeatState.LastCrimeType, Is.EqualTo(CrimeType.Fleeing));
+                Assert.That(runtime.LastOutcome.ActionId, Is.EqualTo("police.stop.leave"));
+
+                subscription.Dispose();
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(screenBridgeGo);
+                UnityEngine.Object.DestroyImmediate(bridgeGo);
+                UnityEngine.Object.DestroyImmediate(inputGo);
+                UnityEngine.Object.DestroyImmediate(speaker);
+                UnityEngine.Object.DestroyImmediate(runtimeGo);
+                UnityEngine.Object.DestroyImmediate(providerGo);
+            }
+        }
 #endif
 
         private static VisualElement BuildRoot()
@@ -222,6 +291,15 @@ namespace Reloader.UI.Tests.PlayMode
             var clicked = clickedField.GetValue(clickable) as Action;
             Assert.That(clicked, Is.Not.Null);
             clicked.Invoke();
+        }
+
+        private static ContractEscapeResolutionRuntime ReadContractRuntime(StaticContractRuntimeProvider provider)
+        {
+            var field = typeof(StaticContractRuntimeProvider).GetField("_runtime", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, "Expected StaticContractRuntimeProvider runtime backing field.");
+            var value = field.GetValue(provider) as ContractEscapeResolutionRuntime;
+            Assert.That(value, Is.Not.Null, "Expected provider runtime to be initialized.");
+            return value!;
         }
 
         private sealed class TestDialogueOverlayBridge : MonoBehaviour, IDialogueOverlayBridge

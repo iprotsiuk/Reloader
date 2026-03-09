@@ -8,26 +8,28 @@ namespace Reloader.NPCs.Runtime.Dialogue
     {
         public static DialogueRuntimeController EnsureRuntimeForPlayerHost(Component requester = null)
         {
-            var runtime = Object.FindFirstObjectByType<DialogueRuntimeController>(FindObjectsInactive.Include);
-            if (runtime != null)
+            var host = ResolvePlayerHost(requester);
+            if (host != null)
             {
-                EnsureConversationMode(runtime.gameObject);
-                return runtime;
+                var hostRuntime = host.GetComponent<DialogueRuntimeController>();
+                if (hostRuntime == null)
+                {
+                    hostRuntime = host.AddComponent<DialogueRuntimeController>();
+                }
+
+                EnsureConversationMode(host);
+                EnsureOutcomeBridge(host);
+                return hostRuntime;
             }
 
-            var host = ResolvePlayerHost(requester);
-            if (host == null)
+            var runtime = Object.FindFirstObjectByType<DialogueRuntimeController>(FindObjectsInactive.Include);
+            if (runtime == null)
             {
                 return null;
             }
 
-            runtime = host.GetComponent<DialogueRuntimeController>();
-            if (runtime == null)
-            {
-                runtime = host.AddComponent<DialogueRuntimeController>();
-            }
-
-            EnsureConversationMode(host);
+            EnsureConversationMode(runtime.gameObject);
+            EnsureOutcomeBridge(runtime.gameObject);
             return runtime;
         }
 
@@ -94,6 +96,16 @@ namespace Reloader.NPCs.Runtime.Dialogue
             }
 
             host.AddComponent<DialogueConversationModeController>();
+        }
+
+        private static void EnsureOutcomeBridge(GameObject host)
+        {
+            if (host == null || host.GetComponent<DialogueOutcomeContractRuntimeBridge>() != null)
+            {
+                return;
+            }
+
+            host.AddComponent<DialogueOutcomeContractRuntimeBridge>();
         }
     }
 }
