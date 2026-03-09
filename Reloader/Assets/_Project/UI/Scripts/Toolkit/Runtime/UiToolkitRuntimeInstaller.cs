@@ -14,6 +14,7 @@ namespace Reloader.UI.Toolkit.Runtime
         [SerializeField] private VisualTreeAsset _tradeTree;
         [SerializeField] private VisualTreeAsset _reloadingTree;
         [SerializeField] private VisualTreeAsset _interactionHintTree;
+        [SerializeField] private VisualTreeAsset _dialogueOverlayTree;
 
         private UiToolkitRuntimeRoot _runtimeRoot;
 
@@ -29,6 +30,7 @@ namespace Reloader.UI.Toolkit.Runtime
             EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.Trade, _tradeTree);
             EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.ReloadingWorkbench, _reloadingTree);
             EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.InteractionHint, _interactionHintTree);
+            EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.DialogueOverlay, _dialogueOverlayTree);
 
             EnsureRuntimeBridge();
         }
@@ -56,6 +58,7 @@ namespace Reloader.UI.Toolkit.Runtime
             _tradeTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/TradeUi.uxml");
             _reloadingTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/ReloadingWorkbench.uxml");
             _interactionHintTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/InteractionHint.uxml");
+            _dialogueOverlayTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/DialogueOverlay.uxml");
 #endif
         }
 

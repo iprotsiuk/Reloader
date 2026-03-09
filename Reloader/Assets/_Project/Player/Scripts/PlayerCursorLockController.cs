@@ -28,6 +28,7 @@ namespace Reloader.Player
         private RuntimeHubChannelBinder<IShopEvents> _shopEventsBinder;
         private IPlayerCursorEscapeKeySource _escapeKeySource;
         private static int _escapeConsumedFrame = -1;
+        private bool _forcedCursorUnlock;
 
         public static bool IsAnyMenuOpen { get; private set; }
         public bool IsCursorLockRequested { get; private set; }
@@ -140,6 +141,12 @@ namespace Reloader.Player
             ApplyCursorState();
         }
 
+        public void SetForcedCursorUnlock(bool isForced)
+        {
+            _forcedCursorUnlock = isForced;
+            ApplyCursorState();
+        }
+
         private void HandleShopTradeOpened(string _)
         {
             _isTradeMenuOpen = true;
@@ -194,7 +201,7 @@ namespace Reloader.Player
         private void ApplyCursorState()
         {
             IsAnyMenuOpen = _isTradeMenuOpen || _isWorkbenchMenuOpen || _isTabInventoryOpen || _isEscMenuOpen || _isStorageMenuOpen;
-            if (IsAnyMenuOpen)
+            if (_forcedCursorUnlock || IsAnyMenuOpen)
             {
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;

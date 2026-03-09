@@ -1,4 +1,6 @@
 using System;
+using Reloader.NPCs.Data;
+using Reloader.NPCs.Runtime.Dialogue;
 using UnityEngine;
 
 namespace Reloader.NPCs.Runtime.Capabilities
@@ -9,11 +11,14 @@ namespace Reloader.NPCs.Runtime.Capabilities
 
         [SerializeField] private string _displayName = "Talk";
         [SerializeField] private int _priority = 0;
+        [SerializeField] private DialogueDefinition _definition;
 
+        private NpcAgent _agent;
         private int _interactionCount;
         private string _lastPayload = string.Empty;
 
         public NpcCapabilityKind CapabilityKind => NpcCapabilityKind.Dialogue;
+        public DialogueDefinition Definition => _definition;
         public int InteractionCount => _interactionCount;
         public string LastPayload => _lastPayload;
 
@@ -21,14 +26,21 @@ namespace Reloader.NPCs.Runtime.Capabilities
 
         public void Initialize(NpcAgent agent)
         {
+            _agent = agent;
         }
 
         public void Shutdown()
         {
+            _agent = null;
         }
 
         public NpcActionDefinition[] GetActions()
         {
+            if (!HasValidDefinition())
+            {
+                return Array.Empty<NpcActionDefinition>();
+            }
+
             return new[]
             {
                 new NpcActionDefinition(ActionKey, _displayName, _priority)
@@ -48,15 +60,39 @@ namespace Reloader.NPCs.Runtime.Capabilities
                 return false;
             }
 
+            if (!HasValidDefinition())
+            {
+                result = new NpcActionExecutionResult(ActionKey, false, "dialogue.invalid-definition");
+                return false;
+            }
+
+            var runtime = UnityEngine.Object.FindFirstObjectByType<DialogueRuntimeController>(FindObjectsInactive.Include);
+            if (runtime == null)
+            {
+                result = new NpcActionExecutionResult(ActionKey, false, "dialogue.runtime-missing");
+                return false;
+            }
+
+            if (!runtime.TryOpenConversation(_definition, _agent != null ? _agent.transform : transform, out var reason))
+            {
+                result = new NpcActionExecutionResult(ActionKey, false, reason);
+                return false;
+            }
+
             _interactionCount++;
             _lastPayload = context.Payload ?? string.Empty;
             var eventPayload = string.IsNullOrEmpty(_lastPayload)
-                ? "dialogue.started"
-                : "dialogue.started:" + _lastPayload;
+                ? _definition.DialogueId
+                : _definition.DialogueId + ":" + _lastPayload;
 
-            result = new NpcActionExecutionResult(ActionKey, true, "dialogue.started", eventPayload);
+            result = new NpcActionExecutionResult(ActionKey, true, reason, eventPayload);
             DialogueStarted?.Invoke(result);
             return true;
+        }
+
+        private bool HasValidDefinition()
+        {
+            return _definition != null && _definition.IsValid(out _);
         }
     }
 }

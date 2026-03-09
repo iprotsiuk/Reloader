@@ -12,6 +12,7 @@ namespace Reloader.UI.Toolkit.Runtime
             public const string Trade = "trade-ui";
             public const string ReloadingWorkbench = "reloading-workbench";
             public const string InteractionHint = "interaction-hint";
+            public const string DialogueOverlay = "dialogue-overlay";
         }
 
         public static class ControllerObjectNames
@@ -24,6 +25,7 @@ namespace Reloader.UI.Toolkit.Runtime
             public const string Trade = "trade-menu-controller";
             public const string ReloadingWorkbench = "reloading-menu-controller";
             public const string InteractionHint = "interaction-hint-controller";
+            public const string DialogueOverlay = "dialogue-overlay-controller";
             public const string DeviceTargetSelection = "player-device-target-selection-controller";
         }
 
@@ -46,6 +48,10 @@ namespace Reloader.UI.Toolkit.Runtime
             public const string TabInventoryAttachmentsItemSelected = "tab.inventory.attachments.item-selected";
             public const string TabInventoryAttachmentsApply = "tab.inventory.attachments.apply";
             public const string TabInventoryAttachmentsBack = "tab.inventory.attachments.back";
+            public const string DialogueReplyPrevious = "dialogue.reply.previous";
+            public const string DialogueReplyNext = "dialogue.reply.next";
+            public const string DialogueReplySubmit = "dialogue.reply.submit";
+            public const string DialogueReplySelect = "dialogue.reply.select";
         }
     }
 }

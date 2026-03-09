@@ -15,6 +15,7 @@ using Reloader.UI.Toolkit.AmmoHud;
 using Reloader.UI.Toolkit.BeltHud;
 using Reloader.UI.Toolkit.ChestInventory;
 using Reloader.UI.Toolkit.Contracts;
+using Reloader.UI.Toolkit.Dialogue;
 using Reloader.UI.Toolkit.EscMenu;
 using Reloader.UI.Toolkit.InteractionHint;
 using Reloader.UI.Toolkit.Reloading;
@@ -40,7 +41,8 @@ namespace Reloader.UI.Toolkit.Runtime
             new(UiRuntimeCompositionIds.ScreenIds.ChestInventory, UiRuntimeCompositionIds.ControllerObjectNames.ChestInventory, ScreenBindingKind.ChestInventory, DependencyRequirement.Inventory | DependencyRequirement.Input),
             new(UiRuntimeCompositionIds.ScreenIds.Trade, UiRuntimeCompositionIds.ControllerObjectNames.Trade, ScreenBindingKind.Trade, DependencyRequirement.None),
             new(UiRuntimeCompositionIds.ScreenIds.ReloadingWorkbench, UiRuntimeCompositionIds.ControllerObjectNames.ReloadingWorkbench, ScreenBindingKind.ReloadingWorkbench, DependencyRequirement.None),
-            new(UiRuntimeCompositionIds.ScreenIds.InteractionHint, UiRuntimeCompositionIds.ControllerObjectNames.InteractionHint, ScreenBindingKind.InteractionHint, DependencyRequirement.None)
+            new(UiRuntimeCompositionIds.ScreenIds.InteractionHint, UiRuntimeCompositionIds.ControllerObjectNames.InteractionHint, ScreenBindingKind.InteractionHint, DependencyRequirement.None),
+            new(UiRuntimeCompositionIds.ScreenIds.DialogueOverlay, UiRuntimeCompositionIds.ControllerObjectNames.DialogueOverlay, ScreenBindingKind.DialogueOverlay, DependencyRequirement.None)
         };
 
         [SerializeField] private float _selfHealIntervalSeconds = DefaultSelfHealIntervalSeconds;
@@ -174,6 +176,7 @@ namespace Reloader.UI.Toolkit.Runtime
                 ScreenBindingKind.Trade => BindTrade(root, definition.ControllerObjectName),
                 ScreenBindingKind.ReloadingWorkbench => BindReloadingWorkbench(root, definition.ControllerObjectName),
                 ScreenBindingKind.InteractionHint => BindInteractionHint(root, definition.ControllerObjectName),
+                ScreenBindingKind.DialogueOverlay => BindDialogueOverlay(root, definition.ControllerObjectName),
                 _ => null
             };
 
@@ -450,6 +453,43 @@ namespace Reloader.UI.Toolkit.Runtime
             var controller = GetOrAddController<InteractionHintController>(controllerName);
             controller.SetViewBinder(viewBinder);
             return UiContractGuard.Bind(controller, viewBinder);
+        }
+
+        private IDisposable BindDialogueOverlay(VisualElement root, string controllerName)
+        {
+            var viewBinder = new DialogueOverlayViewBinder();
+            viewBinder.Initialize(root);
+
+            var controller = GetOrAddController<DialogueOverlayController>(controllerName);
+            controller.SetBridge(new DialogueOverlayBridgeAdapter(ResolveDialogueOverlayBridge));
+            controller.SetViewBinder(viewBinder);
+            return UiContractGuard.Bind(controller, viewBinder);
+        }
+
+        private IDialogueOverlayBridge ResolveDialogueOverlayBridge()
+        {
+            var existing = DependencyResolutionGuard.FindInterface<IDialogueOverlayBridge>(
+                FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            const string bridgeObjectName = "dialogue-overlay-runtime-bridge";
+            var target = transform.Find(bridgeObjectName);
+            GameObject bridgeObject;
+            if (target == null)
+            {
+                bridgeObject = new GameObject(bridgeObjectName);
+                bridgeObject.transform.SetParent(transform, false);
+            }
+            else
+            {
+                bridgeObject = target.gameObject;
+            }
+
+            return bridgeObject.GetComponent<DialogueRuntimeOverlayBridge>()
+                   ?? bridgeObject.AddComponent<DialogueRuntimeOverlayBridge>();
         }
 
         private TController GetOrAddController<TController>(string goName) where TController : Component
@@ -869,7 +909,8 @@ namespace Reloader.UI.Toolkit.Runtime
             ChestInventory,
             Trade,
             ReloadingWorkbench,
-            InteractionHint
+            InteractionHint,
+            DialogueOverlay
         }
 
         private readonly struct ScreenBindingDefinition
@@ -890,6 +931,73 @@ namespace Reloader.UI.Toolkit.Runtime
             public string ControllerObjectName { get; }
             public ScreenBindingKind Kind { get; }
             public DependencyRequirement Requirements { get; }
+        }
+
+        private sealed class DialogueOverlayBridgeAdapter : IDialogueOverlayBridge
+        {
+            private readonly Func<IDialogueOverlayBridge> _resolver;
+            private IDialogueOverlayBridge _subscribedBridge;
+
+            public DialogueOverlayBridgeAdapter(Func<IDialogueOverlayBridge> resolver)
+            {
+                _resolver = resolver;
+            }
+
+            public event Action StateChanged;
+
+            public bool TryGetState(out DialogueOverlayRenderState state)
+            {
+                var bridge = ResolveBridge();
+                if (bridge != null && bridge.TryGetState(out state))
+                {
+                    return true;
+                }
+
+                state = DialogueOverlayRenderState.Hidden;
+                return false;
+            }
+
+            public void MoveSelection(int delta)
+            {
+                ResolveBridge()?.MoveSelection(delta);
+            }
+
+            public void SelectReply(int replyIndex)
+            {
+                ResolveBridge()?.SelectReply(replyIndex);
+            }
+
+            public void SubmitSelectedReply()
+            {
+                ResolveBridge()?.SubmitSelectedReply();
+            }
+
+            private IDialogueOverlayBridge ResolveBridge()
+            {
+                var resolved = _resolver?.Invoke();
+                if (ReferenceEquals(_subscribedBridge, resolved))
+                {
+                    return resolved;
+                }
+
+                if (_subscribedBridge != null)
+                {
+                    _subscribedBridge.StateChanged -= HandleStateChanged;
+                }
+
+                _subscribedBridge = resolved;
+                if (_subscribedBridge != null)
+                {
+                    _subscribedBridge.StateChanged += HandleStateChanged;
+                }
+
+                return _subscribedBridge;
+            }
+
+            private void HandleStateChanged()
+            {
+                StateChanged?.Invoke();
+            }
         }
 
     }

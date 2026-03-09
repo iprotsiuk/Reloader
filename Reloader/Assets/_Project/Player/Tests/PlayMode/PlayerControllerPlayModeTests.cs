@@ -950,6 +950,107 @@ namespace Reloader.Player.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void PlayerMover_Tick_MovementLocked_DoesNotMove()
+        {
+            var root = new GameObject("PlayerRoot");
+            var controller = root.AddComponent<CharacterController>();
+            controller.height = 2f;
+            controller.radius = 0.3f;
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Move = Vector2.up;
+
+            var settings = new PlayerMovementSettings
+            {
+                WalkSpeed = 6f,
+                SprintSpeed = 9f,
+                Acceleration = 100f,
+                Gravity = -25f,
+                JumpHeight = 1.25f
+            };
+
+            var mover = root.AddComponent<PlayerMover>();
+            mover.Configure(input, settings);
+            mover.SetMovementLocked(true);
+
+            try
+            {
+                var startingPosition = root.transform.position;
+                mover.Tick(0.1f);
+
+                var horizontalDisplacement = root.transform.position - startingPosition;
+                horizontalDisplacement.y = 0f;
+                Assert.That(horizontalDisplacement.sqrMagnitude, Is.LessThan(0.0001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void PlayerLookController_Tick_FocusTargetOverride_FacesTargetAndIgnoresLookInput()
+        {
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var focusTarget = new GameObject("FocusTarget");
+            focusTarget.transform.position = new Vector3(10f, 1f, 0f);
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Look = new Vector2(-25f, 50f);
+
+            var look = root.AddComponent<PlayerLookController>();
+            try
+            {
+                look.Configure(input, cameraPivot.transform);
+                look.LookSensitivity = Vector2.one;
+                look.SetFocusTargetOverride(focusTarget.transform);
+                look.Tick(1f);
+
+                Assert.That(root.transform.eulerAngles.y, Is.EqualTo(90f).Within(0.5f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(focusTarget);
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void PlayerCursorLockController_ForcedUnlockOverride_ShowsCursorWithoutDroppingRequestedLock()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+
+            try
+            {
+                var go = new GameObject("CursorLockDialogueOverride");
+                var controller = go.AddComponent<PlayerCursorLockController>();
+                controller.LockCursor();
+                controller.SetForcedCursorUnlock(true);
+
+                Assert.That(controller.IsCursorLockRequested, Is.True);
+                Assert.That(Cursor.lockState, Is.EqualTo(CursorLockMode.None));
+                Assert.That(Cursor.visible, Is.True);
+
+                controller.SetForcedCursorUnlock(false);
+
+                Assert.That(controller.IsCursorLockRequested, Is.True);
+                Assert.That(Cursor.lockState, Is.EqualTo(CursorLockMode.Locked));
+                Assert.That(Cursor.visible, Is.False);
+
+                Object.DestroyImmediate(go);
+            }
+            finally
+            {
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public Vector2 Move;

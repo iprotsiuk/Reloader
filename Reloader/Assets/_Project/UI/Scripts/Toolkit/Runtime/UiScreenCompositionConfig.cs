@@ -50,6 +50,7 @@ namespace Reloader.UI.Toolkit.Runtime
             config.SetComponents(UiRuntimeCompositionIds.ScreenIds.Trade, new[] { "trade.tabs", "trade.cart", "trade.order" });
             config.SetComponents(UiRuntimeCompositionIds.ScreenIds.ReloadingWorkbench, new[] { "reloading.operations", "reloading.result" });
             config.SetComponents(UiRuntimeCompositionIds.ScreenIds.InteractionHint, new[] { "interaction-hint.text" });
+            config.SetComponents(UiRuntimeCompositionIds.ScreenIds.DialogueOverlay, new[] { "dialogue.speaker", "dialogue.line", "dialogue.replies" });
             return config;
         }
     }

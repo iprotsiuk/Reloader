@@ -18,6 +18,7 @@ namespace Reloader.Player
         private IPlayerInputSource _inputSource;
         private Vector3 _horizontalVelocity;
         private float _jumpBufferTimer;
+        private bool _movementLocked;
 
         public float VerticalVelocity { get; private set; }
         public bool IsGrounded => _isGroundedDebug;
@@ -51,6 +52,15 @@ namespace Reloader.Player
             _characterController = characterController;
         }
 
+        public void SetMovementLocked(bool isLocked)
+        {
+            _movementLocked = isLocked;
+            if (isLocked)
+            {
+                _horizontalVelocity = Vector3.zero;
+            }
+        }
+
         public void Tick(float deltaTime)
         {
             ResolveReferences();
@@ -65,7 +75,7 @@ namespace Reloader.Player
                 VerticalVelocity = _settings.GroundedSnapVelocity;
             }
 
-            var jumpPressed = _inputSource.ConsumeJumpPressed();
+            var jumpPressed = !_movementLocked && _inputSource.ConsumeJumpPressed();
             _jumpPressConsumedDebug = jumpPressed;
             if (jumpPressed)
             {
@@ -84,7 +94,9 @@ namespace Reloader.Player
 
             VerticalVelocity += _settings.Gravity * deltaTime;
 
-            var moveInput = Vector2.ClampMagnitude(_inputSource.MoveInput, 1f);
+            var moveInput = _movementLocked
+                ? Vector2.zero
+                : Vector2.ClampMagnitude(_inputSource.MoveInput, 1f);
             var moveDirection = (transform.right * moveInput.x) + (transform.forward * moveInput.y);
             moveDirection.y = 0f;
             if (moveDirection.sqrMagnitude > 1f)

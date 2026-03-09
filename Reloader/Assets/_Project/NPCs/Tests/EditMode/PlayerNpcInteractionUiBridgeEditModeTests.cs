@@ -1,6 +1,9 @@
 using NUnit.Framework;
+using System.Reflection;
+using Reloader.NPCs.Data;
 using Reloader.NPCs.Runtime;
 using Reloader.NPCs.Runtime.Capabilities;
+using Reloader.NPCs.Runtime.Dialogue;
 using Reloader.NPCs.World;
 using UnityEngine;
 
@@ -69,7 +72,19 @@ namespace Reloader.NPCs.Tests.EditMode
             controller.Configure(null, resolver);
 
             var npc = new GameObject("npc-dialogue").AddComponent<NpcAgent>();
-            npc.gameObject.AddComponent<DialogueCapability>();
+            var capability = npc.gameObject.AddComponent<DialogueCapability>();
+            var runtime = root.AddComponent<DialogueRuntimeController>();
+            var definition = CreateDefinition(
+                "dialogue.bridge",
+                "entry",
+                new DialogueNodeDefinition(
+                    "entry",
+                    "Hello there.",
+                    new[]
+                    {
+                        new DialogueReplyDefinition("reply.ack", "Hi.", string.Empty, string.Empty, string.Empty)
+                    }));
+            SetField(capability, "_definition", definition);
             resolver.Target = npc;
 
             var raised = false;
@@ -87,6 +102,7 @@ namespace Reloader.NPCs.Tests.EditMode
             }
             finally
             {
+                Object.DestroyImmediate(definition);
                 Object.DestroyImmediate(root);
                 Object.DestroyImmediate(npc.gameObject);
             }
@@ -111,7 +127,19 @@ namespace Reloader.NPCs.Tests.EditMode
             controller.Configure(null, resolver);
 
             var npc = new GameObject("npc-dialogue-late").AddComponent<NpcAgent>();
-            npc.gameObject.AddComponent<DialogueCapability>();
+            var capability = npc.gameObject.AddComponent<DialogueCapability>();
+            var runtime = root.AddComponent<DialogueRuntimeController>();
+            var definition = CreateDefinition(
+                "dialogue.late",
+                "entry",
+                new DialogueNodeDefinition(
+                    "entry",
+                    "Hello there.",
+                    new[]
+                    {
+                        new DialogueReplyDefinition("reply.ack", "Hi.", string.Empty, string.Empty, string.Empty)
+                    }));
+            SetField(capability, "_definition", definition);
             resolver.Target = npc;
 
             var raised = false;
@@ -128,6 +156,7 @@ namespace Reloader.NPCs.Tests.EditMode
             }
             finally
             {
+                Object.DestroyImmediate(definition);
                 Object.DestroyImmediate(root);
                 Object.DestroyImmediate(npc.gameObject);
             }
@@ -148,6 +177,22 @@ namespace Reloader.NPCs.Tests.EditMode
                 target = Target;
                 return target != null;
             }
+        }
+
+        private static DialogueDefinition CreateDefinition(string dialogueId, string entryNodeId, params DialogueNodeDefinition[] nodes)
+        {
+            var definition = ScriptableObject.CreateInstance<DialogueDefinition>();
+            SetField(definition, "_dialogueId", dialogueId);
+            SetField(definition, "_entryNodeId", entryNodeId);
+            SetField(definition, "_nodes", nodes);
+            return definition;
+        }
+
+        private static void SetField(object target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {target.GetType().Name}.");
+            field.SetValue(target, value);
         }
     }
 }
