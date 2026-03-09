@@ -200,6 +200,42 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void GenerateRecord_WhenCuratedLibraryExplicitlyRequestsNoOuterwear_PreservesNoOuterwear()
+        {
+            var generatorType = ResolveRequiredType(GeneratorTypeName);
+            var libraryType = ResolveRequiredType(LibraryTypeName);
+
+            var generator = Activator.CreateInstance(generatorType);
+            var library = Activator.CreateInstance(libraryType);
+
+            SetProperty(library, "BaseBodyIds", new[] { "female.body" });
+            SetProperty(library, "PresentationTypes", new[] { "feminine" });
+            SetProperty(library, "HairIds", new[] { "hair.long" });
+            SetProperty(library, "HairColorIds", new[] { "hair.brown" });
+            SetProperty(library, "BeardIds", new[] { string.Empty });
+            SetProperty(library, "OutfitTopIds", new[] { "tshirt2" });
+            SetProperty(library, "OutfitBottomIds", new[] { "pants1" });
+            SetProperty(library, "OuterwearIds", new[] { string.Empty, "   " });
+            SetProperty(library, "MaterialColorIds", new[] { "style.default" });
+            SetProperty(library, "DescriptionTags", new[] { "townsfolk" });
+
+            var generateMethod = generatorType.GetMethod(
+                "GenerateRecord",
+                BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: new[] { libraryType, typeof(string), typeof(int), typeof(string), typeof(int), typeof(bool) },
+                modifiers: null);
+
+            Assert.That(generateMethod, Is.Not.Null, "Expected a public GenerateRecord(...) method on CivilianAppearanceGenerator.");
+
+            var record = generateMethod.Invoke(
+                generator,
+                new object[] { library, "citizen.mainTown.204", 3, "Anchor_Townsfolk_04", 9, true });
+
+            Assert.That(GetProperty<string>(record, "OuterwearId"), Is.EqualTo(string.Empty));
+        }
+
+        [Test]
         public void IsCuratedStyleLibrary_WhenBaseBodyIdsAreMissing_ReturnsFalse()
         {
             var libraryType = ResolveRequiredType(LibraryTypeName);

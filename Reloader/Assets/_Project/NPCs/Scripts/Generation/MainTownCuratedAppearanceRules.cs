@@ -182,8 +182,48 @@ namespace Reloader.NPCs.Generation
 
         public static IReadOnlyList<string> GetCompatibleOuterwearIds(CivilianAppearanceLibrary library)
         {
-            var filtered = Filter(library?.OuterwearIds, IsApprovedOuterwearId);
-            return filtered.Count > 0 ? filtered : ApprovedOuterwearIds;
+            if (library?.OuterwearIds == null || library.OuterwearIds.Length == 0)
+            {
+                return ApprovedOuterwearIds;
+            }
+
+            var filtered = new List<string>();
+            var explicitNone = false;
+
+            foreach (var value in library.OuterwearIds)
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    explicitNone = true;
+                    continue;
+                }
+
+                var trimmed = value.Trim();
+                if (string.Equals(trimmed, NoOuterwearId, StringComparison.Ordinal))
+                {
+                    explicitNone = true;
+                    continue;
+                }
+
+                if (Contains(ApprovedOuterwearIds, trimmed))
+                {
+                    filtered.Add(trimmed);
+                }
+            }
+
+            if (filtered.Count > 0)
+            {
+                if (explicitNone)
+                {
+                    filtered.Insert(0, NoOuterwearId);
+                }
+
+                return filtered
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray();
+            }
+
+            return explicitNone ? new[] { NoOuterwearId } : ApprovedOuterwearIds;
         }
 
         public static IReadOnlyList<string> GetCompatibleBottomIds(CivilianAppearanceLibrary library, MainTownAppearanceGender gender)

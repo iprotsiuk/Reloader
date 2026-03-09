@@ -185,9 +185,13 @@ namespace Reloader.NPCs.Runtime
             var baseTopId = MainTownCuratedAppearanceRules.IsApprovedBaseTopId(record.OutfitTopId)
                 ? record.OutfitTopId
                 : "tshirt1";
-            ActivateMappedChild(activeRoot, gender == MainTownAppearanceGender.Male ? MaleTopObjectNames : FemaleTopObjectNames, baseTopId);
 
             var outerwearId = MainTownCuratedAppearanceRules.NormalizeOuterwearId(record.OuterwearId);
+            if (string.IsNullOrWhiteSpace(outerwearId) || MainTownCuratedAppearanceRules.OuterwearRequiresBaseTop(outerwearId))
+            {
+                ActivateMappedChild(activeRoot, gender == MainTownAppearanceGender.Male ? MaleTopObjectNames : FemaleTopObjectNames, baseTopId);
+            }
+
             if (MainTownCuratedAppearanceRules.IsApprovedOuterwearId(outerwearId) && !string.IsNullOrWhiteSpace(outerwearId))
             {
                 ActivateMappedChild(activeRoot, gender == MainTownAppearanceGender.Male ? MaleTopObjectNames : FemaleTopObjectNames, outerwearId);

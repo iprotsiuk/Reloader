@@ -111,6 +111,35 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void Apply_WhenHoodyOuterwearIsSelected_DoesNotLayerExtraBaseTop()
+        {
+            var root = CreateTestRoot();
+            try
+            {
+                var applicator = root.AddComponent<MainTownNpcAppearanceApplicator>();
+
+                var record = new CivilianPopulationRecord
+                {
+                    BaseBodyId = "female.body",
+                    HairId = "hair.long",
+                    BeardId = string.Empty,
+                    OutfitTopId = "tshirt1",
+                    OutfitBottomId = "pants1",
+                    OuterwearId = "hoody"
+                };
+
+                applicator.Apply(record);
+
+                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/hoody").gameObject.activeSelf, Is.True);
+                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/T_shirt1").gameObject.activeSelf, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ApplyAuthoringAppearanceFromContext_WhenVendorIdsDiffer_UsesDifferentModuleSignatures()
         {
             var firstVendor = CreateTestRoot();
