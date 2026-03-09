@@ -37,6 +37,7 @@ Contract rules:
 - Dependency resolution order must be deterministic and null-safe.
 - Do not apply expensive or state-mutating wiring work every frame when stable state can be cached.
 - Input consumption must be explicit on all terminal paths to avoid queued carry-over actions.
+- Dialogue confirmation/input bridges must flush stale queued input when a new conversation is first observed so non-player starts cannot inherit a pre-open confirm press.
 
 ### Scene wiring
 
@@ -61,6 +62,8 @@ Contract rules:
 - Controllers map intents to domain/runtime calls.
 - Stable naming conventions (`inventory__*`, `trade__*`) are required for safe UXML/USS rewiring.
 - New runtime screens must declare: screen id, dependency contract, composition policy, and intent mapping policy.
+- Hidden fullscreen overlay shells must disable hit testing when not visible so they cannot swallow pointer input for unrelated screens.
+- Dialogue overlay bridge resolution must prefer the player-host dialogue runtime over first-global-object fallbacks when multiple runtimes exist in-scene.
 
 ## Interaction and Inventory Flow Contracts [v0.1]
 
@@ -121,7 +124,7 @@ When touching travel, scene contracts, interactables, checkpoints, or NPC intera
 1. Update/confirm scene contract expectations (`WorldSceneContract`, required object paths, required references).
 2. Verify travel context validity (`scene identifiers`, `entryPointId`, return-link coherence).
 3. Validate interactor gates (`required tag`, interaction source, controller references).
-4. Validate NPC interaction wiring (`NpcAgent` capabilities, interaction controller links, optional vendor hooks). If dialogue is present, also validate `DialogueCapability` has a valid `DialogueDefinition` and that conversation mode / dialogue overlay wiring can resolve at runtime.
+4. Validate NPC interaction wiring (`NpcAgent` capabilities, interaction controller links, optional vendor hooks). If dialogue is present, also validate `DialogueCapability` / `DialogueOrchestrator` can resolve a valid `DialogueDefinition`, and that conversation mode / dialogue overlay wiring resolves against the player-host runtime at runtime.
 5. Validate checkpoint contract (entry point existence, transition target, vehicle anchor assumptions).
 6. Run targeted world tests (topology + round-trip + relevant interaction tests).
 

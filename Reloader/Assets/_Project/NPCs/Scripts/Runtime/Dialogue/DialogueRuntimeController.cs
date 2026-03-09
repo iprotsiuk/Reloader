@@ -9,11 +9,13 @@ namespace Reloader.NPCs.Runtime.Dialogue
         private DialogueConversationState _activeConversation;
         private DialogueOutcome _lastOutcome;
         private string _lastCloseReason = string.Empty;
+        private int _conversationSessionId;
 
         public bool HasActiveConversation => _activeConversation != null;
         public DialogueConversationState ActiveConversation => _activeConversation;
         public DialogueOutcome LastOutcome => _lastOutcome;
         public string LastCloseReason => _lastCloseReason;
+        public int ConversationSessionId => _conversationSessionId;
         public event Action<DialogueConfirmResult> DialogueConfirmed;
 
         public bool TryOpenConversation(DialogueDefinition definition, Transform speakerTransform, out string reason)
@@ -37,6 +39,7 @@ namespace Reloader.NPCs.Runtime.Dialogue
             }
 
             _lastCloseReason = string.Empty;
+            _conversationSessionId++;
             _activeConversation = new DialogueConversationState(definition, entryNode, speakerTransform, 0);
             reason = "dialogue.started";
             return true;

@@ -53,7 +53,9 @@ Each NPC tracks relationship level with the player. Higher relationship unlocks 
 ### Dialogue authoring [v0.1 implemented]
 - Dialogue content is currently authored through `DialogueCapability` on the NPC prefab.
 - `DialogueCapability` references a `DialogueDefinition` ScriptableObject with node/reply data.
-- The shared runtime path is `DialogueRuntimeController` -> `DialogueConversationModeController` -> `DialogueRuntimeOverlayBridge` / `DialogueOverlayController`.
+- All conversation starts now route through `DialogueOrchestrator`, whether they come from player interaction, nearby NPC initiation, or a scripted request.
+- The shared runtime path is `DialogueOrchestrator` -> `DialogueRuntimeController` -> `DialogueConversationModeController` -> `DialogueRuntimeOverlayBridge` / `DialogueOverlayController`.
+- v0.1 includes `DialogueProximityInitiator` and `DialogueScriptStarter` as the first reusable non-player initiation seams.
 - v0.1 ships one-node conversations with structured outcomes; the data model already supports multi-step expansion through `nextNodeId`.
 
 ### QuestDefinition SO
@@ -92,7 +94,7 @@ Each NPC tracks relationship level with the player. Higher relationship unlocks 
 | Capability composition shell (`NpcAgent` + `INpcCapability`) | Implemented now | Reusable across role prefabs. |
 | Action-provider seam (`INpcActionProvider`) | Implemented now | Enables interaction UI action aggregation. |
 | Decision-provider seam (`INpcDecisionProvider`) | Implemented now | Runtime seam exists via `NpcAiController`. |
-| Dialogue capability + shared runtime + overlay | Implemented now | `DialogueCapability` opens `DialogueRuntimeController`; conversation mode + UI overlay are shared seams for future police/vendor/fixer conversations. |
+| Dialogue capability + shared runtime + overlay | Implemented now | `DialogueCapability`, `DialogueOrchestrator`, `DialogueRuntimeController`, conversation mode, and the live overlay support both player-started and NPC/script-started conversations through the same path. |
 | `BehaviorTreeDecisionProvider` and BT assets/tooling | Deferred | Planned drop-in provider implementing `INpcDecisionProvider`. |
-| Multi-step dialogue, reply gating, and quest/police/vendor outcomes | Deferred | The node/outcome model is in place, but only one-node conversations and generic structured outcomes ship in v0.1. |
+| Multi-step dialogue, reply gating, and quest/police/vendor outcomes | Deferred | The node/outcome model and shared orchestration seam are in place, but only one-node conversations and generic structured outcomes ship in v0.1. |
 | Full capability runtime-state save integration | Deferred | Current slice does not persist all capability internals. |

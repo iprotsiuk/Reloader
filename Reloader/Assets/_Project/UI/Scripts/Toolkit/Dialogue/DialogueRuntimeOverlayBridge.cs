@@ -16,6 +16,7 @@ namespace Reloader.UI.Toolkit.Dialogue
         private IPlayerInputSource _inputSource;
         private DialogueOverlayRenderState _lastState = DialogueOverlayRenderState.Hidden;
         private int _lastVerticalDirection;
+        private int _observedConversationSessionId = -1;
 
         public event Action StateChanged;
 
@@ -28,6 +29,7 @@ namespace Reloader.UI.Toolkit.Dialogue
         private void OnDisable()
         {
             _lastVerticalDirection = 0;
+            _observedConversationSessionId = -1;
             PublishIfStateChanged(force: true);
         }
 
@@ -96,6 +98,15 @@ namespace Reloader.UI.Toolkit.Dialogue
             if (_inputSource == null || _runtimeController == null || !_runtimeController.HasActiveConversation)
             {
                 _lastVerticalDirection = 0;
+                _observedConversationSessionId = -1;
+                return;
+            }
+
+            if (_runtimeController.ConversationSessionId != _observedConversationSessionId)
+            {
+                _observedConversationSessionId = _runtimeController.ConversationSessionId;
+                _lastVerticalDirection = 0;
+                _inputSource.ConsumePickupPressed();
                 return;
             }
 
@@ -165,10 +176,20 @@ namespace Reloader.UI.Toolkit.Dialogue
 
         private void ResolveReferences()
         {
-            _runtimeController ??= _runtimeControllerSource as DialogueRuntimeController;
-            _inputSource ??= _inputSourceBehaviour as IPlayerInputSource;
+            if (_runtimeControllerSource is DialogueRuntimeController explicitRuntime)
+            {
+                _runtimeController = explicitRuntime;
+            }
+            else
+            {
+                var resolvedRuntime = DialogueRuntimeLocator.FindRuntimeForPlayerHost(this);
+                if (resolvedRuntime != null)
+                {
+                    _runtimeController = resolvedRuntime;
+                }
+            }
 
-            _runtimeController ??= FindFirstObjectByType<DialogueRuntimeController>(FindObjectsInactive.Include);
+            _inputSource ??= _inputSourceBehaviour as IPlayerInputSource;
             _inputSource ??= GetComponent<IPlayerInputSource>();
             if (_inputSource == null)
             {

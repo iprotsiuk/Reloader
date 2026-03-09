@@ -131,6 +131,29 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(raisedIntent.Payload, Is.EqualTo(1));
         }
 
+        [Test]
+        public void Binder_HiddenState_DisablesFullscreenOverlayHitTarget()
+        {
+            var binder = new DialogueOverlayViewBinder();
+            var root = BuildRoot();
+            binder.Initialize(root);
+
+            binder.Render(new DialogueOverlayUiState(
+                isVisible: false,
+                speakerText: string.Empty,
+                lineText: string.Empty,
+                replies: Array.Empty<DialogueOverlayReplyState>(),
+                selectedReplyIndex: -1));
+
+            var screen = root.Q<VisualElement>("dialogue-overlay__screen");
+            var overlay = root.Q<VisualElement>("dialogue-overlay__root");
+            Assert.That(screen, Is.Not.Null);
+            Assert.That(overlay, Is.Not.Null);
+            Assert.That(screen.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(screen.pickingMode, Is.EqualTo(PickingMode.Ignore));
+            Assert.That(overlay.style.display.value, Is.EqualTo(DisplayStyle.None));
+        }
+
 #if UNITY_EDITOR
         [Test]
         public void RenderedReplyButtonClick_SubmitsAuthoredDialogueOutcomeThroughRealRuntimeBridge()
@@ -262,11 +285,13 @@ namespace Reloader.UI.Tests.PlayMode
         private static VisualElement BuildRoot()
         {
             var root = new VisualElement();
+            var screen = new VisualElement { name = "dialogue-overlay__screen" };
             var overlay = new VisualElement { name = "dialogue-overlay__root" };
             overlay.Add(new Label { name = "dialogue-overlay__speaker" });
             overlay.Add(new Label { name = "dialogue-overlay__line" });
             overlay.Add(new VisualElement { name = "dialogue-overlay__replies" });
-            root.Add(overlay);
+            screen.Add(overlay);
+            root.Add(screen);
             return root;
         }
 

@@ -7,6 +7,7 @@ namespace Reloader.UI.Toolkit.Dialogue
 {
     public sealed class DialogueOverlayViewBinder : IUiViewBinder
     {
+        private VisualElement _screenRoot;
         private VisualElement _root;
         private Label _speakerLabel;
         private Label _lineLabel;
@@ -16,7 +17,8 @@ namespace Reloader.UI.Toolkit.Dialogue
 
         public void Initialize(VisualElement root)
         {
-            _root = root?.Q<VisualElement>("dialogue-overlay__root") ?? root;
+            _screenRoot = root?.Q<VisualElement>("dialogue-overlay__screen") ?? root;
+            _root = root?.Q<VisualElement>("dialogue-overlay__root") ?? _screenRoot;
             _speakerLabel = root?.Q<Label>("dialogue-overlay__speaker");
             _lineLabel = root?.Q<Label>("dialogue-overlay__line");
             _repliesRoot = root?.Q<VisualElement>("dialogue-overlay__replies");
@@ -40,6 +42,12 @@ namespace Reloader.UI.Toolkit.Dialogue
             }
 
             RenderReplies(dialogueState);
+
+            if (_screenRoot != null)
+            {
+                _screenRoot.style.display = dialogueState.IsVisible ? DisplayStyle.Flex : DisplayStyle.None;
+                _screenRoot.pickingMode = dialogueState.IsVisible ? PickingMode.Position : PickingMode.Ignore;
+            }
 
             if (_root != null)
             {

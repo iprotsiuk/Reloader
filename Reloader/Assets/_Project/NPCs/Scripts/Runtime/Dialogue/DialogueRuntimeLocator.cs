@@ -6,6 +6,17 @@ namespace Reloader.NPCs.Runtime.Dialogue
 {
     public static class DialogueRuntimeLocator
     {
+        public static DialogueRuntimeController FindRuntimeForPlayerHost(Component requester = null)
+        {
+            var host = ResolvePlayerHost(requester);
+            if (host != null)
+            {
+                return host.GetComponent<DialogueRuntimeController>();
+            }
+
+            return Object.FindFirstObjectByType<DialogueRuntimeController>(FindObjectsInactive.Include);
+        }
+
         public static DialogueRuntimeController EnsureRuntimeForPlayerHost(Component requester = null)
         {
             var host = ResolvePlayerHost(requester);
@@ -22,7 +33,7 @@ namespace Reloader.NPCs.Runtime.Dialogue
                 return hostRuntime;
             }
 
-            var runtime = Object.FindFirstObjectByType<DialogueRuntimeController>(FindObjectsInactive.Include);
+            var runtime = FindRuntimeForPlayerHost(requester);
             if (runtime == null)
             {
                 return null;

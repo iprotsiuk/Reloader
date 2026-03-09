@@ -1,6 +1,10 @@
 using System;
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.NPCs.Data;
+using Reloader.NPCs.Runtime.Dialogue;
+using Reloader.NPCs.World;
+using Reloader.Player;
 using Reloader.UI.Toolkit.Dialogue;
 using Reloader.UI.Toolkit.Runtime;
 using UnityEngine;
@@ -120,6 +124,100 @@ namespace Reloader.UI.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void RuntimeOverlayBridge_WithForeignRuntimePresent_UsesPlayerHostRuntime()
+        {
+            var foreignGo = new GameObject("ForeignRuntime");
+            var foreignRuntime = foreignGo.AddComponent<DialogueRuntimeController>();
+            var foreignSpeaker = new GameObject("ForeignSpeaker");
+
+            var playerRoot = new GameObject("PlayerRoot");
+            playerRoot.AddComponent<PlayerNpcInteractionController>();
+            var playerRuntime = playerRoot.AddComponent<DialogueRuntimeController>();
+            var playerSpeaker = new GameObject("PlayerSpeaker");
+
+            var bridgeGo = new GameObject("DialogueRuntimeOverlayBridge");
+            var bridge = bridgeGo.AddComponent<DialogueRuntimeOverlayBridge>();
+
+            var foreignDefinition = CreateDefinition(
+                "dialogue.foreign",
+                "entry",
+                new DialogueNodeDefinition("entry", "Wrong runtime.", new[]
+                {
+                    new DialogueReplyDefinition("reply.foreign", "Ignore", string.Empty, string.Empty, string.Empty)
+                }));
+            var playerDefinition = CreateDefinition(
+                "dialogue.player",
+                "entry",
+                new DialogueNodeDefinition("entry", "Correct runtime.", new[]
+                {
+                    new DialogueReplyDefinition("reply.player", "Continue", string.Empty, string.Empty, string.Empty)
+                }));
+
+            try
+            {
+                Assert.That(foreignRuntime.TryOpenConversation(foreignDefinition, foreignSpeaker.transform, out var foreignReason), Is.True, foreignReason);
+                Assert.That(playerRuntime.TryOpenConversation(playerDefinition, playerSpeaker.transform, out var playerReason), Is.True, playerReason);
+
+                Assert.That(bridge.TryGetState(out var state), Is.True);
+                Assert.That(state.LineText, Is.EqualTo("Correct runtime."));
+                Assert.That(state.SpeakerText, Is.EqualTo("PlayerSpeaker"));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(playerDefinition);
+                UnityEngine.Object.DestroyImmediate(foreignDefinition);
+                UnityEngine.Object.DestroyImmediate(bridgeGo);
+                UnityEngine.Object.DestroyImmediate(playerSpeaker);
+                UnityEngine.Object.DestroyImmediate(playerRoot);
+                UnityEngine.Object.DestroyImmediate(foreignSpeaker);
+                UnityEngine.Object.DestroyImmediate(foreignGo);
+            }
+        }
+
+        [Test]
+        public void RuntimeOverlayBridge_FirstObservedFrame_DoesNotConsumeQueuedPickupPress()
+        {
+            var runtimeGo = new GameObject("DialogueRuntime");
+            var runtime = runtimeGo.AddComponent<DialogueRuntimeController>();
+            var speaker = new GameObject("DialogueSpeaker");
+            var inputGo = new GameObject("DialogueInput");
+            var input = inputGo.AddComponent<TestInputSource>();
+            input.PickupPressed = true;
+
+            var bridgeGo = new GameObject("DialogueRuntimeOverlayBridge");
+            var bridge = bridgeGo.AddComponent<DialogueRuntimeOverlayBridge>();
+            SetPrivateField(bridge, "_runtimeControllerSource", runtime);
+            SetPrivateField(bridge, "_inputSourceBehaviour", input);
+
+            var definition = CreateDefinition(
+                "dialogue.input-guard",
+                "entry",
+                new DialogueNodeDefinition("entry", "Do not skip.", new[]
+                {
+                    new DialogueReplyDefinition("reply.ok", "Continue", string.Empty, string.Empty, string.Empty)
+                }));
+
+            try
+            {
+                Assert.That(runtime.TryOpenConversation(definition, speaker.transform, out var reason), Is.True, reason);
+
+                InvokePrivateUpdate(bridge);
+
+                Assert.That(runtime.HasActiveConversation, Is.True);
+                Assert.That(runtime.ActiveConversation.CurrentNode.NodeId, Is.EqualTo("entry"));
+                Assert.That(runtime.LastOutcome.ReplyId, Is.Null.Or.Empty);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(definition);
+                UnityEngine.Object.DestroyImmediate(bridgeGo);
+                UnityEngine.Object.DestroyImmediate(inputGo);
+                UnityEngine.Object.DestroyImmediate(speaker);
+                UnityEngine.Object.DestroyImmediate(runtimeGo);
+            }
+        }
+
         private static VisualElement BuildRoot()
         {
             var root = new VisualElement();
@@ -129,6 +227,29 @@ namespace Reloader.UI.Tests.PlayMode
             overlay.Add(new VisualElement { name = "dialogue-overlay__replies" });
             root.Add(overlay);
             return root;
+        }
+
+        private static DialogueDefinition CreateDefinition(string dialogueId, string entryNodeId, params DialogueNodeDefinition[] nodes)
+        {
+            var definition = ScriptableObject.CreateInstance<DialogueDefinition>();
+            SetPrivateField(definition, "_dialogueId", dialogueId);
+            SetPrivateField(definition, "_entryNodeId", entryNodeId);
+            SetPrivateField(definition, "_nodes", nodes);
+            return definition;
+        }
+
+        private static void SetPrivateField(object target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {target.GetType().Name}.");
+            field.SetValue(target, value);
+        }
+
+        private static void InvokePrivateUpdate(object target)
+        {
+            var method = target.GetType().GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, $"Expected private Update on {target.GetType().Name}.");
+            method.Invoke(target, null);
         }
 
         private sealed class TestDialogueOverlayBridge : MonoBehaviour, IDialogueOverlayBridge
@@ -189,6 +310,29 @@ namespace Reloader.UI.Tests.PlayMode
                 _state = state;
                 StateChanged?.Invoke();
             }
+        }
+
+        private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
+        {
+            public Vector2 MoveInput => Vector2.zero;
+            public Vector2 LookInput => Vector2.zero;
+            public bool SprintHeld => false;
+            public bool AimHeld => false;
+            public bool PickupPressed { get; set; }
+            public bool ConsumeJumpPressed() => false;
+            public bool ConsumeAimTogglePressed() => false;
+            public bool ConsumeFirePressed() => false;
+            public bool ConsumeReloadPressed() => false;
+            public bool ConsumePickupPressed()
+            {
+                var pressed = PickupPressed;
+                PickupPressed = false;
+                return pressed;
+            }
+            public float ConsumeZoomInput() => 0f;
+            public int ConsumeZeroAdjustStep() => 0;
+            public int ConsumeBeltSelectPressed() => -1;
+            public bool ConsumeMenuTogglePressed() => false;
         }
     }
 }
