@@ -1,13 +1,20 @@
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.NPCs.Data;
+using Reloader.NPCs.Runtime.Capabilities;
 using Reloader.NPCs.Runtime.Dialogue;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Reloader.NPCs.Tests.EditMode
 {
     public sealed class DialogueDefinitionEditModeTests
     {
+        private const string FrontDeskDialogueAssetPath = "Assets/_Project/NPCs/Data/Definitions/Dialogue_FrontDeskClerk.asset";
+        private const string FrontDeskClerkPrefabPath = "Assets/_Project/NPCs/Prefabs/Roles/Npc_FrontDeskClerk.prefab";
+
         [Test]
         public void IsValid_ReturnsTrue_ForSingleNodeTerminalConversation()
         {
@@ -92,6 +99,36 @@ namespace Reloader.NPCs.Tests.EditMode
                 Object.DestroyImmediate(definition);
             }
         }
+
+#if UNITY_EDITOR
+        [Test]
+        public void FrontDeskDialogueAsset_IsValidAndAuthoredForSingleNodeGreeting()
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<DialogueDefinition>(FrontDeskDialogueAssetPath);
+
+            Assert.That(asset, Is.Not.Null, $"Expected dialogue asset at {FrontDeskDialogueAssetPath}.");
+            Assert.That(asset.IsValid(out var reason), Is.True, reason);
+            Assert.That(asset.DialogueId, Is.EqualTo("dialogue.frontdesk.greeting"));
+            Assert.That(asset.TryGetEntryNode(out var entryNode), Is.True);
+            Assert.That(entryNode, Is.Not.Null);
+            Assert.That(entryNode.SpeakerText, Does.Contain("range"));
+            Assert.That(entryNode.Replies.Length, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void FrontDeskClerkPrefab_HasDialogueCapabilityBoundToAuthoredDialogueAsset()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(FrontDeskClerkPrefabPath);
+            var dialogueAsset = AssetDatabase.LoadAssetAtPath<DialogueDefinition>(FrontDeskDialogueAssetPath);
+
+            Assert.That(prefab, Is.Not.Null, $"Expected prefab at {FrontDeskClerkPrefabPath}.");
+            Assert.That(dialogueAsset, Is.Not.Null, $"Expected dialogue asset at {FrontDeskDialogueAssetPath}.");
+
+            var capability = prefab.GetComponent<DialogueCapability>();
+            Assert.That(capability, Is.Not.Null, "Front desk clerk should expose the shared dialogue capability.");
+            Assert.That(capability.Definition, Is.SameAs(dialogueAsset));
+        }
+#endif
 
         private static DialogueDefinition CreateDefinition(string dialogueId, string entryNodeId, params DialogueNodeDefinition[] nodes)
         {

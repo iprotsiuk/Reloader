@@ -54,6 +54,7 @@ Implemented now:
 - Screen composition config type: `UiScreenCompositionConfig`
 - Action map config type: `UiActionMapConfig`
 - Dumb view contracts: `IUiViewBinder`, `IUiController`, `UiIntent`, `UiRenderState`
+- Dialogue overlay runtime seam: `IDialogueOverlayBridge` resolved by `UiToolkitScreenRuntimeBridge`
 
 Contract rules:
 - View binders emit intents only; they do not mutate gameplay state.
@@ -120,7 +121,7 @@ When touching travel, scene contracts, interactables, checkpoints, or NPC intera
 1. Update/confirm scene contract expectations (`WorldSceneContract`, required object paths, required references).
 2. Verify travel context validity (`scene identifiers`, `entryPointId`, return-link coherence).
 3. Validate interactor gates (`required tag`, interaction source, controller references).
-4. Validate NPC interaction wiring (`NpcAgent` capabilities, interaction controller links, optional vendor hooks).
+4. Validate NPC interaction wiring (`NpcAgent` capabilities, interaction controller links, optional vendor hooks). If dialogue is present, also validate `DialogueCapability` has a valid `DialogueDefinition` and that conversation mode / dialogue overlay wiring can resolve at runtime.
 5. Validate checkpoint contract (entry point existence, transition target, vehicle anchor assumptions).
 6. Run targeted world tests (topology + round-trip + relevant interaction tests).
 

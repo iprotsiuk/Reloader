@@ -1,5 +1,7 @@
 # Dialogue Foundation Implementation Plan
 
+> Implemented outcome is recorded in [docs/plans/progress/2026-03-08-dialogue-foundation-progress.md](progress/2026-03-08-dialogue-foundation-progress.md).
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Build a non-pausing NPC dialogue foundation with camera focus, locked movement/look, and an extendable node-based runtime that future police/vendor/fixer conversations can reuse.

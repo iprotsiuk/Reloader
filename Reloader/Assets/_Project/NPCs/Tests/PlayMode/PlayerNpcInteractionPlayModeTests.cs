@@ -9,11 +9,17 @@ using Reloader.NPCs.Runtime.Dialogue;
 using Reloader.NPCs.World;
 using Reloader.Player;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Reloader.NPCs.Tests.PlayMode
 {
     public class PlayerNpcInteractionPlayModeTests
     {
+        private const string FrontDeskDialogueAssetPath = "Assets/_Project/NPCs/Data/Definitions/Dialogue_FrontDeskClerk.asset";
+        private const string FrontDeskClerkPrefabPath = "Assets/_Project/NPCs/Prefabs/Roles/Npc_FrontDeskClerk.prefab";
+
         [Test]
         public void Resolver_LookingAtNpcAgent_ResolvesTarget()
         {
@@ -408,6 +414,101 @@ namespace Reloader.NPCs.Tests.PlayMode
                 Object.DestroyImmediate(npc.gameObject);
             }
         }
+
+#if UNITY_EDITOR
+        [Test]
+        public void FrontDeskClerkPrefab_InteractOpensDialogueAndConfirmingReplyProducesAuthoredOutcome()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(FrontDeskClerkPrefabPath);
+            var dialogueAsset = AssetDatabase.LoadAssetAtPath<DialogueDefinition>(FrontDeskDialogueAssetPath);
+            Assert.That(prefab, Is.Not.Null, $"Expected prefab at {FrontDeskClerkPrefabPath}.");
+            Assert.That(dialogueAsset, Is.Not.Null, $"Expected dialogue asset at {FrontDeskDialogueAssetPath}.");
+
+            var root = new GameObject("PlayerRoot");
+            var characterController = root.AddComponent<CharacterController>();
+            characterController.height = 2f;
+            characterController.radius = 0.3f;
+            root.transform.position = Vector3.zero;
+
+            var input = root.AddComponent<TestInputSource>();
+            var camera = root.AddComponent<Camera>();
+            camera.transform.position = new Vector3(0f, 1f, 0f);
+            camera.transform.forward = Vector3.forward;
+
+            var resolver = root.AddComponent<PlayerNpcResolver>();
+            resolver.SetCameraForTests(camera);
+            var interactionController = root.AddComponent<PlayerNpcInteractionController>();
+            interactionController.Configure(input, resolver);
+
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var mover = root.AddComponent<PlayerMover>();
+            mover.Configure(input, new PlayerMovementSettings
+            {
+                WalkSpeed = 6f,
+                SprintSpeed = 9f,
+                Acceleration = 100f,
+                Gravity = -25f,
+                JumpHeight = 1.25f
+            });
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            var cursor = root.AddComponent<PlayerCursorLockController>();
+            cursor.LockCursor();
+
+            var runtime = root.AddComponent<DialogueRuntimeController>();
+            var conversationMode = root.AddComponent<DialogueConversationModeController>();
+
+            var npcInstance = Object.Instantiate(prefab);
+            var npcAgent = npcInstance.GetComponent<NpcAgent>();
+            NpcActionExecutionResult interactionResult = default;
+            var interactionRaised = false;
+            interactionController.InteractionProcessed += result =>
+            {
+                interactionRaised = true;
+                interactionResult = result;
+            };
+
+            try
+            {
+                Assert.That(npcAgent, Is.Not.Null);
+                npcInstance.transform.position = new Vector3(0f, 0f, 2.5f);
+
+                input.PickupPressedThisFrame = true;
+                interactionController.Tick();
+                conversationMode.RefreshConversationMode();
+
+                Assert.That(interactionRaised, Is.True);
+                Assert.That(interactionResult.Success, Is.True);
+                Assert.That(interactionResult.ActionKey, Is.EqualTo(DialogueCapability.ActionKey));
+                Assert.That(runtime.HasActiveConversation, Is.True);
+                Assert.That(conversationMode.IsConversationActive, Is.True);
+                Assert.That(conversationMode.ActiveFocusTarget, Is.EqualTo(npcInstance.transform));
+                Assert.That(dialogueAsset.TryGetEntryNode(out var entryNode), Is.True);
+                Assert.That(runtime.ActiveConversation.CurrentNode.SpeakerText, Is.EqualTo(entryNode.SpeakerText));
+                Assert.That(runtime.ActiveConversation.CurrentNode.Replies.Length, Is.EqualTo(entryNode.Replies.Length));
+
+                Assert.That(runtime.TrySelectReply(1), Is.True);
+                Assert.That(runtime.TryConfirmSelectedReply(out var confirmResult), Is.True);
+                conversationMode.RefreshConversationMode();
+
+                Assert.That(confirmResult.Success, Is.True);
+                Assert.That(runtime.HasActiveConversation, Is.False);
+                Assert.That(conversationMode.IsConversationActive, Is.False);
+                Assert.That(runtime.LastOutcome.ReplyId, Is.EqualTo("reply.frontdesk.lockers"));
+                Assert.That(runtime.LastOutcome.ActionId, Is.EqualTo("dialogue.frontdesk.ask-lockers"));
+                Assert.That(runtime.LastOutcome.Payload, Is.EqualTo("lockers"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(cameraPivot);
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(npcInstance);
+            }
+        }
+#endif
 
         private static NpcAgent CreateNpcWithCollider(string name, Vector3 position)
         {

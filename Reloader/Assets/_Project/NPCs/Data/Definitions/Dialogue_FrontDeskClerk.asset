@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ddcdd4937e03046d2bdf865f4b6d9443, type: 3}
+  m_Name: Dialogue_FrontDeskClerk
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Data.DialogueDefinition
+  _dialogueId: dialogue.frontdesk.greeting
+  _entryNodeId: entry
+  _nodes:
+  - _nodeId: entry
+    _speakerText: Welcome to the range. Need the sign-in desk or the lockers?
+    _replies:
+    - _replyId: reply.frontdesk.range
+      _replyText: Tell me about the range.
+      _nextNodeId: 
+      _outcomeActionId: dialogue.frontdesk.ask-range
+      _outcomePayload: range
+    - _replyId: reply.frontdesk.lockers
+      _replyText: Where are the lockers?
+      _nextNodeId: 
+      _outcomeActionId: dialogue.frontdesk.ask-lockers
+      _outcomePayload: lockers
+    - _replyId: reply.frontdesk.leave
+      _replyText: Nothing, thanks.
+      _nextNodeId: 
+      _outcomeActionId: dialogue.frontdesk.exit
+      _outcomePayload: leave
