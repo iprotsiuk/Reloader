@@ -301,6 +301,53 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void ReportTargetEliminated_CorrectTargetAfterRelaxedWrongTargetSearch_RequiresSearchToClearBeforeClaim()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            var payoutReceiver = new RecordingPayoutReceiver();
+            var runtime = new ContractEscapeResolutionRuntime(
+                contract,
+                searchDurationSeconds: 10f,
+                payoutReceiver: payoutReceiver,
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            try
+            {
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+                Assert.That(runtime.ReportTargetEliminated("target.bravo", wasExposed: true), Is.True);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+
+                Assert.That(runtime.ReportTargetEliminated("target.alpha", wasExposed: false), Is.True);
+
+                Assert.That(runtime.ActiveContract, Is.Not.Null);
+                Assert.That(runtime.HasPendingPayout, Is.True);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+                Assert.That(runtime.TryGetSnapshot(out var searchSnapshot), Is.True);
+                Assert.That(searchSnapshot.StatusText, Does.StartWith("Escape search:"));
+                Assert.That(searchSnapshot.CanClaimReward, Is.False,
+                    "Pending payout must stay blocked while police search from the earlier wrong-target kill is still active.");
+                Assert.That(runtime.ClaimCompletedContractReward(), Is.False);
+                Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(0));
+
+                runtime.Advance(10.1f);
+
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Clear));
+                Assert.That(runtime.TryGetSnapshot(out var readySnapshot), Is.True);
+                Assert.That(readySnapshot.StatusText, Is.EqualTo("Ready to claim"));
+                Assert.That(readySnapshot.CanClaimReward, Is.True);
+
+                Assert.That(runtime.ClaimCompletedContractReward(), Is.True);
+
+                Assert.That(runtime.ActiveContract, Is.Null);
+                Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(1500));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+            }
+        }
+
+        [Test]
         public void ReportTargetEliminated_WrongTargetFailsStrictContractAndDoesNotAwardPayout()
         {
             var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);

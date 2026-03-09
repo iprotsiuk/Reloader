@@ -322,6 +322,14 @@ namespace Reloader.Contracts.Runtime
 
             if (_completionPending)
             {
+                if (CurrentHeatState.Level != PoliceHeatLevel.Clear)
+                {
+                    return string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        "Escape search: {0:0}s",
+                        CurrentHeatState.SearchTimeRemainingSeconds);
+                }
+
                 return "Ready to claim";
             }
 
@@ -394,7 +402,7 @@ namespace Reloader.Contracts.Runtime
         {
             return _contractController.ActiveContract != null
                    && _completionPending
-                   && !_awaitingSearchClear
+                   && CurrentHeatState.Level == PoliceHeatLevel.Clear
                    && (_pendingPayoutAmount <= 0 || _payoutReceiver != null);
         }
 
