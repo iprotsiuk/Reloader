@@ -3,6 +3,7 @@ using Reloader.Player;
 using Reloader.Player.Viewmodel;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using System.Reflection;
 using UnityEngine;
 
 namespace Reloader.Player.Tests.PlayMode
@@ -1024,10 +1025,11 @@ namespace Reloader.Player.Tests.PlayMode
         {
             var previousLockState = Cursor.lockState;
             var previousVisible = Cursor.visible;
+            GameObject go = null;
 
             try
             {
-                var go = new GameObject("CursorLockDialogueOverride");
+                go = new GameObject("CursorLockDialogueOverride");
                 var controller = go.AddComponent<PlayerCursorLockController>();
                 controller.LockCursor();
                 controller.SetForcedCursorUnlock(true);
@@ -1041,14 +1043,63 @@ namespace Reloader.Player.Tests.PlayMode
                 Assert.That(controller.IsCursorLockRequested, Is.True);
                 Assert.That(Cursor.lockState, Is.EqualTo(CursorLockMode.Locked));
                 Assert.That(Cursor.visible, Is.False);
-
-                Object.DestroyImmediate(go);
             }
             finally
             {
+                if (go != null)
+                {
+                    Object.DestroyImmediate(go);
+                }
+
                 Cursor.lockState = previousLockState;
                 Cursor.visible = previousVisible;
             }
+        }
+
+        [Test]
+        public void PlayerCursorLockController_ForcedUnlockOverride_IgnoresEscapeUntilOverrideEnds()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+            GameObject go = null;
+
+            try
+            {
+                go = new GameObject("CursorLockDialogueEscape");
+                var controller = go.AddComponent<PlayerCursorLockController>();
+                controller.SetEscapeKeySource(new TestEscapeKeySource(alwaysPressed: true));
+                controller.LockCursor();
+                controller.SetForcedCursorUnlock(true);
+
+                InvokePrivateUpdate(controller);
+
+                Assert.That(controller.IsCursorLockRequested, Is.True);
+                Assert.That(Cursor.lockState, Is.EqualTo(CursorLockMode.None));
+                Assert.That(Cursor.visible, Is.True);
+
+                controller.SetForcedCursorUnlock(false);
+
+                Assert.That(controller.IsCursorLockRequested, Is.True);
+                Assert.That(Cursor.lockState, Is.EqualTo(CursorLockMode.Locked));
+                Assert.That(Cursor.visible, Is.False);
+            }
+            finally
+            {
+                if (go != null)
+                {
+                    Object.DestroyImmediate(go);
+                }
+
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
+        }
+
+        private static void InvokePrivateUpdate(PlayerCursorLockController controller)
+        {
+            var updateMethod = typeof(PlayerCursorLockController).GetMethod("Update", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(updateMethod, Is.Not.Null);
+            updateMethod.Invoke(controller, null);
         }
 
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
@@ -1134,6 +1185,21 @@ namespace Reloader.Player.Tests.PlayMode
                 FirePressedThisFrame = false;
                 ReloadPressedThisFrame = false;
                 BeltSlotPressed = -1;
+            }
+        }
+
+        private sealed class TestEscapeKeySource : IPlayerCursorEscapeKeySource
+        {
+            private readonly bool _alwaysPressed;
+
+            public TestEscapeKeySource(bool alwaysPressed)
+            {
+                _alwaysPressed = alwaysPressed;
+            }
+
+            public bool WasEscapePressedThisFrame()
+            {
+                return _alwaysPressed;
             }
         }
 

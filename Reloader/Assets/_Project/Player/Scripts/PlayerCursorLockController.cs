@@ -100,6 +100,12 @@ namespace Reloader.Player
                 ApplyCursorState();
             }
 
+            if (_forcedCursorUnlock)
+            {
+                ApplyCursorState();
+                return;
+            }
+
             if (IsAnyMenuOpen)
             {
                 ApplyCursorState();
@@ -112,6 +118,7 @@ namespace Reloader.Player
             }
 
             if (_unlockOnEscape
+                && !_forcedCursorUnlock
                 && _escapeKeySource.WasEscapePressedThisFrame()
                 && !WasEscapeConsumedThisFrame())
             {
