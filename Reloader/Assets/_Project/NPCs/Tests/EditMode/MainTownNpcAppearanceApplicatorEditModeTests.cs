@@ -140,6 +140,36 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void Apply_WhenOuterwearIdIsUnknown_FallsBackToBaseTop()
+        {
+            var root = CreateTestRoot();
+            try
+            {
+                var applicator = root.AddComponent<MainTownNpcAppearanceApplicator>();
+
+                var record = new CivilianPopulationRecord
+                {
+                    BaseBodyId = "female.body",
+                    HairId = "hair.long",
+                    BeardId = string.Empty,
+                    OutfitTopId = "tshirt2",
+                    OutfitBottomId = "pants1",
+                    OuterwearId = "legacy.coat"
+                };
+
+                applicator.Apply(record);
+
+                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/T_shirt2").gameObject.activeSelf, Is.True);
+                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/hoody").gameObject.activeSelf, Is.False);
+                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/jacket").gameObject.activeSelf, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void GetDeterministicSeed_WhenHashOverflowsToIntMinValue_ReturnsNonNegativeSeed()
         {
             var method = typeof(MainTownNpcAppearanceApplicator).GetMethod(
