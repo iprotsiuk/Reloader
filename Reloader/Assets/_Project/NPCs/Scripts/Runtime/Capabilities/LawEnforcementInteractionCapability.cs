@@ -59,20 +59,19 @@ namespace Reloader.NPCs.Runtime.Capabilities
                 return false;
             }
 
-            var runtime = DialogueRuntimeLocator.EnsureRuntimeForPlayerHost(_agent != null ? _agent : this);
-            if (runtime == null)
+            var request = new DialogueStartRequest(
+                _definition,
+                _agent != null ? _agent.transform : transform,
+                DialogueStartSourceKind.PlayerInteract,
+                context.Payload,
+                DialogueInterruptPolicy.DenyIfActive);
+            if (!DialogueOrchestrator.TryStartConversation(_agent != null ? _agent : this, request, out var startResult))
             {
-                result = new NpcActionExecutionResult(ActionKey, false, "dialogue.runtime-missing");
+                result = new NpcActionExecutionResult(ActionKey, false, startResult.Reason);
                 return false;
             }
 
-            if (!runtime.TryOpenConversation(_definition, _agent != null ? _agent.transform : transform, out var reason))
-            {
-                result = new NpcActionExecutionResult(ActionKey, false, reason);
-                return false;
-            }
-
-            result = new NpcActionExecutionResult(ActionKey, true, reason, _definition.DialogueId);
+            result = new NpcActionExecutionResult(ActionKey, true, startResult.Reason, _definition.DialogueId);
             return true;
         }
 

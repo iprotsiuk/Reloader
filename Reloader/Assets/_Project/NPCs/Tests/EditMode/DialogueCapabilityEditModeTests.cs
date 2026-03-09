@@ -4,6 +4,7 @@ using Reloader.NPCs.Data;
 using Reloader.NPCs.Runtime;
 using Reloader.NPCs.Runtime.Capabilities;
 using Reloader.NPCs.Runtime.Dialogue;
+using Reloader.NPCs.World;
 using UnityEngine;
 
 namespace Reloader.NPCs.Tests.EditMode
@@ -160,6 +161,116 @@ namespace Reloader.NPCs.Tests.EditMode
                 Object.DestroyImmediate(definition);
                 Object.DestroyImmediate(go);
                 Object.DestroyImmediate(controllerGo);
+            }
+        }
+
+        [Test]
+        public void TryExecuteAction_WhenConversationAlreadyActive_ReturnsExplicitOverlapFailure()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var requester = playerRoot.AddComponent<PlayerNpcInteractionController>();
+            var runtime = playerRoot.AddComponent<DialogueRuntimeController>();
+
+            var activeSpeaker = new GameObject("speaker-active");
+            var activeDefinition = CreateDefinition(
+                "dialogue.active",
+                "entry",
+                new DialogueNodeDefinition(
+                    "entry",
+                    "Already talking.",
+                    new[]
+                    {
+                        new DialogueReplyDefinition("reply.active", "Continue.", string.Empty, string.Empty, string.Empty)
+                    }));
+
+            var go = new GameObject("dialogue-agent");
+            go.transform.SetParent(playerRoot.transform);
+            var agent = go.AddComponent<NpcAgent>();
+            var capability = go.AddComponent<DialogueCapability>();
+            var definition = CreateDefinition(
+                "dialogue.next",
+                "entry",
+                new DialogueNodeDefinition(
+                    "entry",
+                    "Need something?",
+                    new[]
+                    {
+                        new DialogueReplyDefinition("reply.next", "Talk.", string.Empty, string.Empty, string.Empty)
+                    }));
+            SetField(capability, "_definition", definition);
+
+            try
+            {
+                Assert.That(runtime.TryOpenConversation(activeDefinition, activeSpeaker.transform, out _), Is.True);
+
+                var executed = agent.TryExecuteAction(DialogueCapability.ActionKey, string.Empty, out var result);
+
+                Assert.That(executed, Is.False);
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Reason, Is.EqualTo("dialogue.conversation-already-active"));
+                Assert.That(runtime.ActiveConversation.Definition, Is.SameAs(activeDefinition));
+            }
+            finally
+            {
+                Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(activeDefinition);
+                Object.DestroyImmediate(activeSpeaker);
+                Object.DestroyImmediate(playerRoot);
+            }
+        }
+
+        [Test]
+        public void TryExecuteAction_PoliceConversationAlreadyActive_ReturnsExplicitOverlapFailure()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            playerRoot.AddComponent<PlayerNpcInteractionController>();
+            var runtime = playerRoot.AddComponent<DialogueRuntimeController>();
+
+            var activeSpeaker = new GameObject("speaker-active");
+            var activeDefinition = CreateDefinition(
+                "dialogue.active",
+                "entry",
+                new DialogueNodeDefinition(
+                    "entry",
+                    "Already talking.",
+                    new[]
+                    {
+                        new DialogueReplyDefinition("reply.active", "Continue.", string.Empty, string.Empty, string.Empty)
+                    }));
+
+            var go = new GameObject("police-agent");
+            go.transform.SetParent(playerRoot.transform);
+            var agent = go.AddComponent<NpcAgent>();
+            var capability = go.AddComponent<LawEnforcementInteractionCapability>();
+            var definition = CreateDefinition(
+                "dialogue.police.stop",
+                "entry",
+                new DialogueNodeDefinition(
+                    "entry",
+                    "Hold it.",
+                    new[]
+                    {
+                        new DialogueReplyDefinition("reply.comply", "Easy.", string.Empty, "police.stop.comply", "comply")
+                    }));
+            SetField(capability, "_definition", definition);
+
+            try
+            {
+                Assert.That(runtime.TryOpenConversation(activeDefinition, activeSpeaker.transform, out _), Is.True);
+
+                var executed = agent.TryExecuteAction(LawEnforcementInteractionCapability.ActionKey, string.Empty, out var result);
+
+                Assert.That(executed, Is.False);
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Reason, Is.EqualTo("dialogue.conversation-already-active"));
+                Assert.That(runtime.ActiveConversation.Definition, Is.SameAs(activeDefinition));
+            }
+            finally
+            {
+                Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(activeDefinition);
+                Object.DestroyImmediate(activeSpeaker);
+                Object.DestroyImmediate(playerRoot);
             }
         }
 
