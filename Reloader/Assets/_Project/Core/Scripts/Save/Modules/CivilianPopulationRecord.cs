@@ -16,6 +16,15 @@ namespace Reloader.Core.Save.Modules
         [JsonProperty("civilianId")]
         public string CivilianId { get; set; } = string.Empty;
 
+        [JsonProperty("firstName")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [JsonProperty("lastName")]
+        public string LastName { get; set; } = string.Empty;
+
+        [JsonProperty("nickname")]
+        public string Nickname { get; set; } = string.Empty;
+
         [JsonProperty("isAlive")]
         public bool IsAlive { get; set; } = true;
 
