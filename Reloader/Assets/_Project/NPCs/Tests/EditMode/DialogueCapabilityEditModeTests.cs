@@ -11,6 +11,58 @@ namespace Reloader.NPCs.Tests.EditMode
     public sealed class DialogueCapabilityEditModeTests
     {
         [Test]
+        public void CollectActions_HidesPoliceAction_WhenDialogueDefinitionIsMissing()
+        {
+            var go = new GameObject("police-agent");
+            var agent = go.AddComponent<NpcAgent>();
+            go.AddComponent<LawEnforcementInteractionCapability>();
+
+            try
+            {
+                var actions = agent.CollectActions();
+
+                Assert.That(actions.Count, Is.EqualTo(0));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void CollectActions_ExposesPoliceAction_WhenDialogueDefinitionIsValid()
+        {
+            var go = new GameObject("police-agent");
+            var agent = go.AddComponent<NpcAgent>();
+            var capability = go.AddComponent<LawEnforcementInteractionCapability>();
+            var definition = CreateDefinition(
+                "dialogue.police.stop",
+                "entry",
+                new DialogueNodeDefinition(
+                    "entry",
+                    "Hands where I can see them.",
+                    new[]
+                    {
+                        new DialogueReplyDefinition("reply.comply", "Easy.", string.Empty, "police.stop.comply", "comply")
+                    }));
+            SetField(capability, "_definition", definition);
+
+            try
+            {
+                var actions = agent.CollectActions();
+
+                Assert.That(actions.Count, Is.EqualTo(1));
+                Assert.That(actions[0].ActionId, Is.EqualTo(LawEnforcementInteractionCapability.ActionKey));
+                Assert.That(actions[0].DisplayName, Is.EqualTo("Question"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void CollectActions_HidesTalkAction_WhenDialogueDefinitionIsInvalid()
         {
             var go = new GameObject("dialogue-agent");

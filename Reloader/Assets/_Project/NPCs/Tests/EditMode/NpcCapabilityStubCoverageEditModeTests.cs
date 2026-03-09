@@ -17,7 +17,7 @@ namespace Reloader.NPCs.Tests.EditMode
             var agent = go.AddComponent<NpcAgent>();
             var dialogueCapability = go.AddComponent<DialogueCapability>();
             go.AddComponent<QuestGiverCapability>();
-            go.AddComponent<LawEnforcementInteractionCapability>();
+            var lawEnforcementCapability = go.AddComponent<LawEnforcementInteractionCapability>();
             go.AddComponent<FrontDeskInteractionCapability>();
             var definition = CreateDefinition(
                 "dialogue.stub",
@@ -30,6 +30,7 @@ namespace Reloader.NPCs.Tests.EditMode
                         new DialogueReplyDefinition("reply.ack", "No.", string.Empty, string.Empty, string.Empty)
                     }));
             SetField(dialogueCapability, "_definition", definition);
+            SetField(lawEnforcementCapability, "_definition", definition);
 
             try
             {

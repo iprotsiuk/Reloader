@@ -54,6 +54,47 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void TryExecuteAction_ExecutesPoliceCapabilityAndOpensDialogueRuntime()
+        {
+            var runtimeGo = new GameObject("dialogue-runtime");
+            var go = new GameObject("police-agent");
+            var agent = go.AddComponent<NpcAgent>();
+            var capability = go.AddComponent<LawEnforcementInteractionCapability>();
+            var runtime = runtimeGo.AddComponent<DialogueRuntimeController>();
+            var definition = CreateDefinition(
+                "dialogue.police.stop",
+                "entry",
+                new DialogueNodeDefinition(
+                    "entry",
+                    "Stop right there.",
+                    new[]
+                    {
+                        new DialogueReplyDefinition("reply.comply", "Fine.", string.Empty, "police.stop.comply", "comply")
+                    }));
+            SetField(capability, "_definition", definition);
+
+            try
+            {
+                var executed = agent.TryExecuteAction(
+                    LawEnforcementInteractionCapability.ActionKey,
+                    payload: "topic:stop",
+                    out var result);
+
+                Assert.That(executed, Is.True);
+                Assert.That(result.Success, Is.True);
+                Assert.That(result.Reason, Is.EqualTo("dialogue.started"));
+                Assert.That(runtime.HasActiveConversation, Is.True);
+                Assert.That(runtime.ActiveConversation.Definition, Is.SameAs(definition));
+            }
+            finally
+            {
+                Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(runtimeGo);
+            }
+        }
+
+        [Test]
         public void TryExecuteAction_ExecutesFrontDeskCapabilityAndPublishesResultPayload()
         {
             var go = new GameObject("frontdesk-agent");

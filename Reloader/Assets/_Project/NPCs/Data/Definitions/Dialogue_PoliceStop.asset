@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ddcdd4937e03046d2bdf865f4b6d9443, type: 3}
+  m_Name: Dialogue_PoliceStop
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Data.DialogueDefinition
+  _dialogueId: dialogue.police.stop
+  _entryNodeId: entry
+  _nodes:
+  - _nodeId: entry
+    _speakerText: Stop right there. Keep your hands where I can see them.
+    _replies:
+    - _replyId: reply.police.comply
+      _replyText: Easy. I am not looking for trouble.
+      _nextNodeId:
+      _outcomeActionId: police.stop.comply
+      _outcomePayload: comply
+    - _replyId: reply.police.question
+      _replyText: What is this about, officer?
+      _nextNodeId:
+      _outcomeActionId: police.stop.question
+      _outcomePayload: question
+    - _replyId: reply.police.leave
+      _replyText: I am leaving.
+      _nextNodeId:
+      _outcomeActionId: police.stop.leave
+      _outcomePayload: leave
