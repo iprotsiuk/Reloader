@@ -221,6 +221,19 @@ namespace Reloader.NPCs.Runtime
             var vendorTarget = GetComponent<ShopVendorTarget>();
             if (vendorTarget == null || string.IsNullOrWhiteSpace(vendorTarget.VendorId))
             {
+                var agent = GetComponent<NpcAgent>();
+                if (agent != null && agent.Definition != null && !string.IsNullOrWhiteSpace(agent.Definition.NpcId))
+                {
+                    seedKey = $"npc.{agent.Definition.NpcId.Trim()}";
+                    return true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(gameObject.name))
+                {
+                    seedKey = $"authoring.{gameObject.name.Trim()}";
+                    return true;
+                }
+
                 return false;
             }
 

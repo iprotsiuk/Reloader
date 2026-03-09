@@ -118,7 +118,7 @@ namespace Reloader.NPCs.Tests.EditMode
             Assert.That(GetProperty<string>(record, "HairId"), Is.EqualTo("hair.short"));
             Assert.That(GetProperty<string>(record, "BeardId"), Is.EqualTo("beard4"));
             Assert.That(GetProperty<string>(record, "OutfitTopId"), Is.EqualTo("tshirt2"));
-            Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("brous1"));
+            Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("pants1"));
             Assert.That(GetProperty<string>(record, "OuterwearId"), Is.EqualTo("openJacket"));
         }
 
@@ -196,7 +196,7 @@ namespace Reloader.NPCs.Tests.EditMode
                 generator,
                 new object[] { library, "citizen.mainTown.203", 3, "Anchor_Townsfolk_03", 5, true });
 
-            Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("brous7"));
+            Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("pants1"));
         }
 
         [Test]

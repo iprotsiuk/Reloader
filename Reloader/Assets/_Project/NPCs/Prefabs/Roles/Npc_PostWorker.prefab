@@ -16,6 +16,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Npc_PostWorker
       objectReference: {fileID: 0}
+    - target: {fileID: 1780576344163650066, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: _lastContextualSeedKey
+      value: authoring.Npc_PostWorker
+      objectReference: {fileID: 0}
     - target: {fileID: 1922497963758299379, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 

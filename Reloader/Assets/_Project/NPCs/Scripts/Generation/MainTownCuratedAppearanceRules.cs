@@ -62,9 +62,7 @@ namespace Reloader.NPCs.Generation
 
         private static readonly string[] ApprovedBottomIds =
         {
-            "pants1",
-            "brous1",
-            "brous7"
+            "pants1"
         };
 
         public static CivilianAppearanceLibrary CreateDefaultLibrary()
@@ -137,21 +135,7 @@ namespace Reloader.NPCs.Generation
                 return "pants1";
             }
 
-            var trimmed = bottomId.Trim();
-            if (gender == MainTownAppearanceGender.Male)
-            {
-                return trimmed switch
-                {
-                    "brous10" => "pants1",
-                    _ => Contains(ApprovedBottomIds, trimmed) ? trimmed : "pants1"
-                };
-            }
-
-            return trimmed switch
-            {
-                "brous10" => "pants1",
-                _ => Contains(ApprovedBottomIds, trimmed) ? trimmed : "pants1"
-            };
+            return "pants1";
         }
 
         public static string NormalizeOuterwearId(string outerwearId)

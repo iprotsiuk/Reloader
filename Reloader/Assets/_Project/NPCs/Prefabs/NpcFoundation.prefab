@@ -115,7 +115,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 563d70aa0889144c5b58d772c18112dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Runtime.MainTownNpcAppearanceApplicator
-  _lastContextualSeedKey: 
+  _lastContextualSeedKey: authoring.NpcFoundation
 --- !u!1 &3709071183204920593
 GameObject:
   m_ObjectHideFlags: 0
@@ -209,10 +209,6 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 250e6d9989bdc10408d23ed0bab40089, type: 2}
-    - target: {fileID: -8364406241549568881, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: -7933788701146265046, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -238,10 +234,6 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -5616389943301250492, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -5151492872390713093, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
@@ -284,10 +276,10 @@ PrefabInstance:
     - target: {fileID: -1086666956382721047, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: ecd835c11b46a9647b05505c99bfb8c5, type: 2}
+      objectReference: {fileID: 2100000, guid: 333366bf9c8dd114382b755ecdead55d, type: 2}
     - target: {fileID: -1041468355892723737, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: -869159929971682933, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: m_IsActive
@@ -317,22 +309,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: StyleFemaleRoot
       objectReference: {fileID: 0}
-    - target: {fileID: 919132149155446097, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 1304897161105906365, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 715c158c4f040444f934306103775f6e, type: 2}
-    - target: {fileID: 1393173742604549833, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1846708229843354720, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 1919764574588552874, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -349,18 +329,10 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 593bfb57028036343b412abb2662b340, type: 2}
-    - target: {fileID: 2682187754082633858, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 3273955720109379872, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: de470ce4918320445a3ce0797d000556, type: 2}
-    - target: {fileID: 3614286986729376437, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 3739100815168700839, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -390,10 +362,6 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5889389450132604591, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 6657560127643677590, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
@@ -734,6 +702,10 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: m_Name
       value: StyleMaleRoot
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 956022985702380478, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'

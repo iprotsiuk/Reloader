@@ -3,6 +3,7 @@ using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Save.Modules;
+using Reloader.NPCs.Data;
 using Reloader.NPCs.Runtime;
 using Reloader.NPCs.World;
 using UnityEngine;
@@ -12,7 +13,7 @@ namespace Reloader.NPCs.Tests.EditMode
     public class MainTownNpcAppearanceApplicatorEditModeTests
     {
         [Test]
-        public void Apply_WhenMaleAppearanceIsProvided_ActivatesOnlyMaleRigAndCompatibleModules()
+        public void Apply_WhenMaleAppearanceIsProvided_NormalizesToRuntimeSafeBottom()
         {
             var root = CreateTestRoot();
             try
@@ -37,8 +38,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/beard4_beard4_beard4").gameObject.activeSelf, Is.True);
                 Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/T_shirt1__T_shirt1_T_shirt1").gameObject.activeSelf, Is.True);
                 Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/jacket_jacket_jacket").gameObject.activeSelf, Is.True);
-                Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/pants1_pants1_pants1").gameObject.activeSelf, Is.False);
-                Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/brous1_brous1_brous1").gameObject.activeSelf, Is.True);
+                Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/pants1_pants1_pants1").gameObject.activeSelf, Is.True);
+                Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/brous1_brous1_brous1").gameObject.activeSelf, Is.False);
             }
             finally
             {
@@ -47,7 +48,7 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
-        public void Apply_WhenFemaleAppearanceUsesApprovedBottom_PreservesThatBottom()
+        public void Apply_WhenFemaleAppearanceUsesCuratedBottom_NormalizesToRuntimeSafeBottom()
         {
             var root = CreateTestRoot();
             try
@@ -67,8 +68,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 applicator.Apply(record);
 
                 Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot").gameObject.activeSelf, Is.True);
-                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/pants1").gameObject.activeSelf, Is.False);
-                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/brous7").gameObject.activeSelf, Is.True);
+                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/pants1").gameObject.activeSelf, Is.True);
+                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/brous7").gameObject.activeSelf, Is.False);
             }
             finally
             {
@@ -190,6 +191,30 @@ namespace Reloader.NPCs.Tests.EditMode
             }
             finally
             {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ApplyAuthoringAppearanceFromContext_WhenNpcDefinitionExists_AppliesAuthoringModules()
+        {
+            var root = CreateTestRoot();
+            var definition = ScriptableObject.CreateInstance<NpcDefinition>();
+            try
+            {
+                root.name = "ContractTarget_Volkov";
+                SetNpcDefinition(root.AddComponent<NpcAgent>(), definition, "npc.target.volkov");
+                var applicator = root.AddComponent<MainTownNpcAppearanceApplicator>();
+
+                var applied = applicator.ApplyAuthoringAppearanceFromContext();
+
+                Assert.That(applied, Is.True);
+                Assert.That(GetActiveModuleSignature(root), Is.Not.Empty);
+                Assert.That(HasActiveBottom(root, "pants1_pants1_pants1"), Is.True);
+            }
+            finally
+            {
+                Object.DestroyImmediate(definition);
                 Object.DestroyImmediate(root);
             }
         }
@@ -390,6 +415,16 @@ namespace Reloader.NPCs.Tests.EditMode
             vendorIdField.SetValue(target, vendorId);
         }
 
+        private static void SetNpcDefinition(NpcAgent agent, NpcDefinition definition, string npcId)
+        {
+            var npcIdField = typeof(NpcDefinition).GetField("_npcId", BindingFlags.Instance | BindingFlags.NonPublic);
+            var definitionField = typeof(NpcAgent).GetField("_definition", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(npcIdField, Is.Not.Null);
+            Assert.That(definitionField, Is.Not.Null);
+            npcIdField.SetValue(definition, npcId);
+            definitionField.SetValue(agent, definition);
+        }
+
         private static string GetActiveModuleSignature(GameObject root)
         {
             var activeNames = new List<string>();
@@ -423,6 +458,12 @@ namespace Reloader.NPCs.Tests.EditMode
             }
 
             return string.Join("|", activeMaterials.OrderBy(name => name));
+        }
+
+        private static bool HasActiveBottom(GameObject root, string bottomName)
+        {
+            return root.GetComponentsInChildren<Transform>(includeInactive: true)
+                .Any(child => child != root.transform && child.gameObject.activeSelf && child.name == bottomName);
         }
     }
 }
