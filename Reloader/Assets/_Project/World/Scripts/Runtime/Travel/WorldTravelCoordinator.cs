@@ -23,6 +23,7 @@ namespace Reloader.World.Travel
         private static readonly Vector3 FpsArmsLocalPosition = new Vector3(0f, -0.027f, 0.1f);
         private static readonly Quaternion FpsArmsLocalRotation = Quaternion.identity;
         private static readonly Vector3 FpsArmsLocalScale = new Vector3(0.42f, 0.42f, 0.42f);
+        private static object _pendingTravelPopulationModule;
 
         public static string LastResolvedEntryPointId { get; private set; }
 
@@ -36,6 +37,7 @@ namespace Reloader.World.Travel
             _travelSuppressedUntilRealtime = 0f;
             _pendingInventoryQuantities = new Dictionary<string, int>();
             _pendingWeaponSnapshots.Clear();
+            _pendingTravelPopulationModule = null;
         }
 
         public static bool TryTravel(TravelContext context)
@@ -77,6 +79,7 @@ namespace Reloader.World.Travel
             }
 
             EnsureSubscribed();
+            CaptureCivilianPopulationStateForTravel();
             PreparePersistentPlayerRootForTravel();
             CaptureInventorySnapshotForTravel();
             CaptureWeaponRuntimeSnapshotForTravel();
@@ -134,6 +137,7 @@ namespace Reloader.World.Travel
             if (SceneEntryPoint.TryFindById(candidates, _pendingEntryPointId, out var resolvedEntryPoint))
             {
                 LastResolvedEntryPointId = resolvedEntryPoint.EntryPointId;
+                RestoreCivilianPopulationStateAfterTravel(scene);
                 RepositionPlayerToEntryPoint(scene, resolvedEntryPoint.transform);
             }
             else
@@ -144,6 +148,133 @@ namespace Reloader.World.Travel
             _pendingSceneName = null;
             _pendingEntryPointId = null;
             _travelSuppressedUntilRealtime = Time.realtimeSinceStartup + 1f;
+        }
+
+        private static void CaptureCivilianPopulationStateForTravel()
+        {
+            var bridge = FindPopulationBridgeInScene(SceneManager.GetActiveScene());
+            if (bridge == null)
+            {
+                return;
+            }
+
+            if (!TryCreateSaveRegistrationArray(out var registrations, out var module))
+            {
+                return;
+            }
+
+            var prepareForSave = bridge.GetType().GetMethod("PrepareForSave", BindingFlags.Instance | BindingFlags.Public);
+            if (prepareForSave == null)
+            {
+                return;
+            }
+
+            prepareForSave.Invoke(bridge, new object[] { registrations });
+            _pendingTravelPopulationModule = module;
+        }
+
+        private static void RestoreCivilianPopulationStateAfterTravel(Scene scene)
+        {
+            if (_pendingTravelPopulationModule == null)
+            {
+                return;
+            }
+
+            var bridge = FindPopulationBridgeInScene(scene);
+            if (bridge == null)
+            {
+                return;
+            }
+
+            if (!TryCreateSaveRegistrationArray(_pendingTravelPopulationModule, out var registrations))
+            {
+                return;
+            }
+
+            var finalizeAfterLoad = bridge.GetType().GetMethod("FinalizeAfterLoad", BindingFlags.Instance | BindingFlags.Public);
+            if (finalizeAfterLoad == null)
+            {
+                return;
+            }
+
+            finalizeAfterLoad.Invoke(bridge, new object[] { registrations });
+            _pendingTravelPopulationModule = null;
+        }
+
+        private static MonoBehaviour FindPopulationBridgeInScene(Scene scene)
+        {
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                return null;
+            }
+
+            var bridgeType = Type.GetType("Reloader.NPCs.Runtime.CivilianPopulationRuntimeBridge, Reloader.NPCs");
+            if (bridgeType == null)
+            {
+                return null;
+            }
+
+            var behaviours = UnityEngine.Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < behaviours.Length; i++)
+            {
+                var bridge = behaviours[i];
+                if (bridge == null || bridge.GetType() != bridgeType)
+                {
+                    continue;
+                }
+
+                if (bridge != null && bridge.gameObject.scene == scene)
+                {
+                    return bridge;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool TryCreateSaveRegistrationArray(out Array registrations, out object module)
+        {
+            registrations = null;
+            module = null;
+
+            var moduleType = Type.GetType("Reloader.Core.Save.Modules.CivilianPopulationModule, Reloader.Core");
+            if (moduleType == null)
+            {
+                return false;
+            }
+
+            module = Activator.CreateInstance(moduleType);
+            if (module == null)
+            {
+                return false;
+            }
+
+            return TryCreateSaveRegistrationArray(module, out registrations);
+        }
+
+        private static bool TryCreateSaveRegistrationArray(object module, out Array registrations)
+        {
+            registrations = null;
+            if (module == null)
+            {
+                return false;
+            }
+
+            var registrationType = Type.GetType("Reloader.Core.Save.SaveModuleRegistration, Reloader.Core");
+            if (registrationType == null)
+            {
+                return false;
+            }
+
+            var registration = Activator.CreateInstance(registrationType, 1, module);
+            if (registration == null)
+            {
+                return false;
+            }
+
+            registrations = Array.CreateInstance(registrationType, 1);
+            registrations.SetValue(registration, 0);
+            return true;
         }
 
         private static bool IsMatchingPendingScene(Scene loadedScene, string pendingSceneIdentifier)

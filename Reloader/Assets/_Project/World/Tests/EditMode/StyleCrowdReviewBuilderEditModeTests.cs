@@ -193,6 +193,10 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(openJacketPaths, Is.Not.Empty);
             Assert.That(hoodyPaths.All(path => path.Contains("/Textures/Man/Hoody/", System.StringComparison.Ordinal)), Is.True);
             Assert.That(openJacketPaths.All(path => path.Contains("/Textures/Man/Jacket/", System.StringComparison.Ordinal)), Is.True);
+            Assert.That(hoodyPaths.Count, Is.GreaterThan(1), "Expected recovered hoody materials to include generated sibling variants.");
+            Assert.That(openJacketPaths.Count, Is.GreaterThan(1), "Expected recovered jacket materials to include generated sibling variants.");
+            Assert.That(hoodyPaths.Any(path => path.EndsWith("/hoody_2_baseColor.mat", System.StringComparison.Ordinal)), Is.True);
+            Assert.That(openJacketPaths.Any(path => path.EndsWith("/jacket2_baseColor.mat", System.StringComparison.Ordinal)), Is.True);
         }
 
         [Test]

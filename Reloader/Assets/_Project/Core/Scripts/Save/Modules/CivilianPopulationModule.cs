@@ -19,6 +19,9 @@ namespace Reloader.Core.Save.Modules
 
             [JsonProperty("lastOfferedCivilianId")]
             public string LastOfferedCivilianId { get; set; } = string.Empty;
+
+            [JsonProperty("offerRotationSeed")]
+            public int OfferRotationSeed { get; set; }
         }
 
         public string ModuleKey => "CivilianPopulation";
@@ -28,6 +31,7 @@ namespace Reloader.Core.Save.Modules
         public List<CivilianPopulationReplacementRecord> PendingReplacements { get; } =
             new List<CivilianPopulationReplacementRecord>();
         public string LastOfferedCivilianId { get; set; } = string.Empty;
+        public int OfferRotationSeed { get; set; }
 
         public string CaptureModuleStateJson()
         {
@@ -35,7 +39,8 @@ namespace Reloader.Core.Save.Modules
             {
                 Civilians = Civilians.Select(CloneRecord).ToList(),
                 PendingReplacements = PendingReplacements.Select(CloneReplacement).ToList(),
-                LastOfferedCivilianId = LastOfferedCivilianId ?? string.Empty
+                LastOfferedCivilianId = LastOfferedCivilianId ?? string.Empty,
+                OfferRotationSeed = OfferRotationSeed
             });
         }
 
@@ -74,6 +79,7 @@ namespace Reloader.Core.Save.Modules
             }
 
             LastOfferedCivilianId = payload.LastOfferedCivilianId ?? string.Empty;
+            OfferRotationSeed = payload.OfferRotationSeed;
         }
 
         public void ValidateModuleState()

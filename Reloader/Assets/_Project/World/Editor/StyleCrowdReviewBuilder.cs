@@ -439,6 +439,7 @@ namespace Reloader.World.Editor
                 return fallbackPaths;
             }
 
+            var variantFamilyStem = GetMaterialVariantFamilyStem(stem);
             var siblingPaths = AssetDatabase.FindAssets("t:Material", new[] { directory })
                 .Select(AssetDatabase.GUIDToAssetPath)
                 .Where(path => string.Equals(Path.GetDirectoryName(path)?.Replace('\\', '/'), directory, StringComparison.Ordinal))
@@ -446,7 +447,8 @@ namespace Reloader.World.Editor
                 {
                     var candidateStem = Path.GetFileNameWithoutExtension(path);
                     return string.Equals(candidateStem, stem, StringComparison.Ordinal)
-                        || candidateStem.StartsWith(stem + " ", StringComparison.Ordinal);
+                        || candidateStem.StartsWith(stem + " ", StringComparison.Ordinal)
+                        || string.Equals(GetMaterialVariantFamilyStem(candidateStem), variantFamilyStem, StringComparison.Ordinal);
                 })
                 .OrderBy(path => path, StringComparer.Ordinal)
                 .ToArray();
@@ -487,6 +489,45 @@ namespace Reloader.World.Editor
             }
 
             generatedSupportMaterialsEnsured = true;
+        }
+
+        private static string GetMaterialVariantFamilyStem(string stem)
+        {
+            if (string.IsNullOrWhiteSpace(stem))
+            {
+                return string.Empty;
+            }
+
+            const string suffix = "_baseColor";
+            if (!stem.EndsWith(suffix, StringComparison.Ordinal))
+            {
+                return stem;
+            }
+
+            var prefix = stem.Substring(0, stem.Length - suffix.Length);
+            var trimmedPrefix = TrimTrailingVariantOrdinal(prefix);
+            return trimmedPrefix + suffix;
+        }
+
+        private static string TrimTrailingVariantOrdinal(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            var end = value.Length;
+            while (end > 0 && char.IsDigit(value[end - 1]))
+            {
+                end--;
+            }
+
+            if (end > 0 && end < value.Length && (value[end - 1] == '_' || value[end - 1] == ' '))
+            {
+                end--;
+            }
+
+            return value.Substring(0, end);
         }
 
         private static bool EnsureGeneratedMaterialVariants(
