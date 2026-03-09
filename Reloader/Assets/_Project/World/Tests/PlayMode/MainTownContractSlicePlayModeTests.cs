@@ -130,6 +130,9 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
             Assert.That(availableSnapshot.HasAvailableContract, Is.True);
             Assert.That(availableSnapshot.TargetId, Does.StartWith("citizen.mainTown."));
+            Assert.That(availableSnapshot.TargetDisplayName, Is.Not.Empty);
+            Assert.That(availableSnapshot.TargetDisplayName, Is.Not.EqualTo(availableSnapshot.TargetId));
+            Assert.That(availableSnapshot.TargetDescription, Is.Not.Empty);
 
             var offeredTarget = FindProceduralCivilianTarget(availableSnapshot.TargetId);
             Assert.That(offeredTarget, Is.Not.Null, "Expected the scene's available contract to target a spawned procedural civilian.");
@@ -139,6 +142,7 @@ namespace Reloader.World.Tests.PlayMode
             var targetDamageable = offeredTarget!.GetComponent(targetDamageableType!);
             Assert.That(targetDamageable, Is.Not.Null, "Expected procedural offer target to expose the existing contract-target damageable seam.");
             Assert.That(GetProperty<string>(targetDamageable!, "TargetId"), Is.EqualTo(availableSnapshot.TargetId));
+            Assert.That(GetProperty<string>(targetDamageable!, "DisplayName"), Is.EqualTo(availableSnapshot.TargetDisplayName));
         }
 
         [UnityTest]
@@ -280,6 +284,8 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(provider.TryGetContractSnapshot(out var refreshedSnapshot), Is.True, "Expected a later rebuild to publish a replacement live offer from the remaining population.");
             Assert.That(refreshedSnapshot.TargetId, Does.StartWith("citizen.mainTown."));
             Assert.That(refreshedSnapshot.TargetId, Is.Not.EqualTo(consumedTargetId), "Expected the rebuilt offer to move away from the consumed dead target.");
+            Assert.That(refreshedSnapshot.TargetDisplayName, Is.Not.Empty);
+            Assert.That(refreshedSnapshot.TargetDisplayName, Is.Not.EqualTo(availableSnapshot.TargetDisplayName));
 
             var refreshedTarget = FindProceduralCivilianTarget(refreshedSnapshot.TargetId);
             Assert.That(refreshedTarget, Is.Not.Null, "Expected the rebuilt contract offer to resolve to a different live procedural civilian.");

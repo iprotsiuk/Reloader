@@ -74,6 +74,8 @@ namespace Reloader.NPCs.Tests.EditMode
                     PopulationSlotId = "quarry.worker.004",
                     PoolId = "quarry_workers",
                     CivilianId = "citizen.mainTown.0042",
+                    FirstName = "Ilona",
+                    LastName = "Sidorov",
                     IsAlive = true,
                     IsContractEligible = false,
                     IsProtectedFromContracts = true,
@@ -133,6 +135,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.stale",
+                    FirstName = "Derek",
+                    LastName = "Mullen",
                     PopulationSlotId = "stale.001",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_A",
@@ -147,6 +151,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 module.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0042",
+                    FirstName = "Maksim",
+                    LastName = "Volkov",
                     PopulationSlotId = "cops.001",
                     PoolId = "cops",
                     SpawnAnchorId = "Anchor_B",
@@ -156,6 +162,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 module.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0043",
+                    FirstName = "Vera",
+                    LastName = "Petrov",
                     PopulationSlotId = "hobos.001",
                     PoolId = "hobos",
                     SpawnAnchorId = "Anchor_A",
@@ -205,6 +213,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0042",
+                    FirstName = "Marta",
+                    LastName = "Novak",
                     PopulationSlotId = "townsfolk.004",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_A",
@@ -256,6 +266,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0102",
+                    FirstName = "Nadia",
+                    LastName = "Kozak",
                     PopulationSlotId = "townsfolk.102",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_B",
@@ -282,6 +294,7 @@ namespace Reloader.NPCs.Tests.EditMode
 
                 Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True, "Expected rebuild to publish a procedural contract offer.");
                 Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0101"));
+                Assert.That(snapshot.TargetDisplayName, Is.EqualTo("Derek Mullen"));
 
                 var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
                 var offeredSpawn = spawned.Single(component => component.CivilianId == snapshot.TargetId);
@@ -294,8 +307,11 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(offeredDamageable, Is.Not.Null, "Expected the published procedural target to expose the existing contract target damageable.");
 
                 var targetIdProperty = damageableType!.GetProperty("TargetId", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+                var displayNameProperty = damageableType.GetProperty("DisplayName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
                 Assert.That(targetIdProperty, Is.Not.Null);
+                Assert.That(displayNameProperty, Is.Not.Null);
                 Assert.That((string)targetIdProperty!.GetValue(offeredDamageable)!, Is.EqualTo("citizen.mainTown.0101"));
+                Assert.That((string)displayNameProperty!.GetValue(offeredDamageable)!, Is.EqualTo("Derek Mullen"));
 
                 Assert.That(nonOfferedSpawn.GetComponent(damageableType!), Is.Null, "Expected non-offered civilians to stay outside the contract target path while idle.");
             }
@@ -703,6 +719,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 populationModule.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0007",
+                    FirstName = "Pavel",
+                    LastName = "Dobrev",
                     PopulationSlotId = "townsfolk.001",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_Townsfolk_01",
@@ -786,6 +804,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0007",
+                    FirstName = "Pavel",
+                    LastName = "Dobrev",
                     PopulationSlotId = "townsfolk.001",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_Townsfolk_01",
@@ -820,7 +840,7 @@ namespace Reloader.NPCs.Tests.EditMode
                         new(0, new CoreWorldModule()),
                         new(1, new CivilianPopulationModule())
                     },
-                    currentSchemaVersion: 8);
+                    currentSchemaVersion: 9);
 
                 coordinator.Save(savePath, "0.8.0-dev");
 
@@ -872,6 +892,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0007",
+                    FirstName = "Pavel",
+                    LastName = "Dobrev",
                     PopulationSlotId = "townsfolk.001",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_Townsfolk_01",
@@ -942,6 +964,8 @@ namespace Reloader.NPCs.Tests.EditMode
                     PopulationSlotId = "townsfolk.021",
                     PoolId = "townsfolk",
                     CivilianId = "citizen.mainTown.0042",
+                    FirstName = "Ilona",
+                    LastName = "Sidorov",
                     IsAlive = true,
                     IsContractEligible = false,
                     IsProtectedFromContracts = false,
@@ -996,6 +1020,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0007",
+                    FirstName = "Pavel",
+                    LastName = "Dobrev",
                     IsAlive = true,
                     IsContractEligible = true,
                     SpawnAnchorId = "spawn.busstop.c",
@@ -1030,6 +1056,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0008",
+                    FirstName = "Nadia",
+                    LastName = "Petrov",
                     IsAlive = true,
                     IsContractEligible = true,
                     SpawnAnchorId = "spawn.busstop.a",
@@ -1068,6 +1096,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0007",
+                    FirstName = "Pavel",
+                    LastName = "Dobrev",
                     PopulationSlotId = "townsfolk.001",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_Townsfolk_01",
@@ -1142,6 +1172,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0010",
+                    FirstName = "Martin",
+                    LastName = "Kolar",
                     PopulationSlotId = "cops.001",
                     PoolId = "cops",
                     SpawnAnchorId = "Anchor_Cop_01",
@@ -1199,6 +1231,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0011",
+                    FirstName = "Maksim",
+                    LastName = "Volkov",
                     PopulationSlotId = "townsfolk.002",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_Townsfolk_02",
@@ -1257,6 +1291,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0007",
+                    FirstName = "Pavel",
+                    LastName = "Dobrev",
                     PopulationSlotId = "townsfolk.001",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_Townsfolk_01",
@@ -1360,6 +1396,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0012",
+                    FirstName = "Leon",
+                    LastName = "Hale",
                     PopulationSlotId = "townsfolk.003",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_Townsfolk_03",
@@ -1574,6 +1612,8 @@ namespace Reloader.NPCs.Tests.EditMode
             return new CivilianPopulationRecord
             {
                 CivilianId = civilianId,
+                FirstName = "Derek",
+                LastName = "Mullen",
                 PopulationSlotId = populationSlotId,
                 PoolId = "townsfolk",
                 SpawnAnchorId = spawnAnchorId,
