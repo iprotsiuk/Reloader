@@ -116,7 +116,7 @@ namespace Reloader.World.Tests.EditMode
             CollectionAssert.Contains(activeNames, "boots1");
             CollectionAssert.Contains(activeNames, "hair1");
             CollectionAssert.Contains(activeNames, "hoody");
-            CollectionAssert.Contains(activeNames, "pants1");
+            CollectionAssert.Contains(activeNames, "brous3");
             Assert.That(activeNames.Any(name => name.StartsWith("beard")), Is.False);
         }
 

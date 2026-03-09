@@ -5,6 +5,8 @@ using Reloader.NPCs.World;
 using Reloader.Player;
 using Reloader.World.Editor;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -528,6 +530,14 @@ namespace Reloader.NPCs.Editor
                 return;
             }
 
+            var catalog = rigRoot.GetComponent<StyleMaterialVariantCatalog>();
+            if (catalog == null)
+            {
+                catalog = rigRoot.gameObject.AddComponent<StyleMaterialVariantCatalog>();
+            }
+
+            var entries = new List<StyleMaterialVariantCatalog.Entry>();
+
             foreach (Transform child in rigRoot)
             {
                 var renderer = child.GetComponent<Renderer>();
@@ -536,19 +546,33 @@ namespace Reloader.NPCs.Editor
                     continue;
                 }
 
-                var materialPath = StyleCrowdReviewBuilder.GetExternalMaterialPath(gender, child.name);
-                if (string.IsNullOrWhiteSpace(materialPath))
+                var materialPaths = StyleCrowdReviewBuilder.GetExternalMaterialPaths(gender, child.name);
+                if (materialPaths == null || materialPaths.Count == 0)
                 {
                     continue;
                 }
 
-                var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
-                if (material != null)
+                var materials = materialPaths
+                    .Select(AssetDatabase.LoadAssetAtPath<Material>)
+                    .Where(material => material != null)
+                    .Distinct()
+                    .ToArray();
+                if (materials.Length == 0)
                 {
-                    renderer.sharedMaterial = material;
-                    EditorUtility.SetDirty(renderer);
+                    continue;
                 }
+
+                renderer.sharedMaterial = materials[0];
+                EditorUtility.SetDirty(renderer);
+                entries.Add(new StyleMaterialVariantCatalog.Entry
+                {
+                    ChildName = child.name,
+                    Materials = materials
+                });
             }
+
+            catalog.SetEntries(entries);
+            EditorUtility.SetDirty(catalog);
         }
 
         private static void SetStyleRigInactive(Transform rigRoot)

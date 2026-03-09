@@ -583,12 +583,10 @@ namespace Reloader.World.Editor
             {
                 return childName switch
                 {
-                    "brous1_brous1_brous1" => "pants1_pants1_pants1",
                     "brous2_brous2_brous2" => "pants1_pants1_pants1",
                     "brous3_brous3_brous3" => "pants1_pants1_pants1",
                     "brous4_brous4_brous4" => "pants1_pants1_pants1",
                     "brous5_brous5_brous5" => "pants1_pants1_pants1",
-                    "brous6_brous6_brous6" => "pants1_pants1_pants1",
                     "brous7_brous7_brous7" => "pants1_pants1_pants1",
                     "brous8_brous8_brous8" => "pants1_pants1_pants1",
                     "brous9_brous9_brous9" => "pants1_pants1_pants1",
@@ -601,11 +599,9 @@ namespace Reloader.World.Editor
             {
                 "brous1_001" => "pants1",
                 "brous2" => "pants1",
-                "brous3" => "pants1",
                 "brous4" => "pants1",
                 "brous5" => "pants1",
                 "brous6" => "pants1",
-                "brous7" => "pants1",
                 "brous8" => "pants1",
                 "brous9" => "pants1",
                 "brous10" => "pants1",

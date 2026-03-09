@@ -3,8 +3,8 @@ using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Save.Modules;
-using Reloader.NPCs.World;
 using Reloader.NPCs.Runtime;
+using Reloader.NPCs.World;
 using UnityEngine;
 
 namespace Reloader.NPCs.Tests.EditMode
@@ -37,8 +37,38 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/beard4_beard4_beard4").gameObject.activeSelf, Is.True);
                 Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/T_shirt1__T_shirt1_T_shirt1").gameObject.activeSelf, Is.True);
                 Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/jacket_jacket_jacket").gameObject.activeSelf, Is.True);
-                Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/pants1_pants1_pants1").gameObject.activeSelf, Is.True);
-                Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/brous1_brous1_brous1").gameObject.activeSelf, Is.False);
+                Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/pants1_pants1_pants1").gameObject.activeSelf, Is.False);
+                Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/brous1_brous1_brous1").gameObject.activeSelf, Is.True);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void Apply_WhenFemaleAppearanceUsesApprovedBottom_PreservesThatBottom()
+        {
+            var root = CreateTestRoot();
+            try
+            {
+                var applicator = root.AddComponent<MainTownNpcAppearanceApplicator>();
+
+                var record = new CivilianPopulationRecord
+                {
+                    BaseBodyId = "female.body",
+                    HairId = "hair.long",
+                    BeardId = string.Empty,
+                    OutfitTopId = "tshirt2",
+                    OutfitBottomId = "brous7",
+                    OuterwearId = string.Empty
+                };
+
+                applicator.Apply(record);
+
+                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot").gameObject.activeSelf, Is.True);
+                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/pants1").gameObject.activeSelf, Is.False);
+                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/brous7").gameObject.activeSelf, Is.True);
             }
             finally
             {
@@ -134,6 +164,123 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
+        [Test]
+        public void ApplyAuthoringAppearanceFromContext_WhenSameVendorIsReapplied_RestoresStaleVisualState()
+        {
+            var root = CreateTestRoot();
+            try
+            {
+                SetVendorId(root.AddComponent<ShopVendorTarget>(), "vendor-reloading-store");
+                var applicator = root.AddComponent<MainTownNpcAppearanceApplicator>();
+
+                var firstApplied = applicator.ApplyAuthoringAppearanceFromContext();
+                Assert.That(firstApplied, Is.True);
+
+                var signatureBefore = GetActiveModuleSignature(root);
+                Assert.That(signatureBefore, Is.Not.Empty);
+
+                var staleChild = root.GetComponentsInChildren<Transform>(includeInactive: false)
+                    .FirstOrDefault(child => child != root.transform && child.childCount == 0 && child.name != "root");
+                Assert.That(staleChild, Is.Not.Null);
+                staleChild.gameObject.SetActive(false);
+
+                var reapplied = applicator.ApplyAuthoringAppearanceFromContext();
+                Assert.That(reapplied, Is.True);
+                Assert.That(GetActiveModuleSignature(root), Is.EqualTo(signatureBefore));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void Apply_WhenRecordDiffers_AssignsDifferentGarmentMaterials()
+        {
+            var firstRoot = CreateTestRoot();
+            var secondRoot = CreateTestRoot();
+            try
+            {
+                var firstApplicator = firstRoot.AddComponent<MainTownNpcAppearanceApplicator>();
+                var secondApplicator = secondRoot.AddComponent<MainTownNpcAppearanceApplicator>();
+
+                var firstRecord = new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.001",
+                    BaseBodyId = "male.body",
+                    HairId = "hair.short",
+                    HairColorId = "hair.variant.a",
+                    BeardId = "beard4",
+                    OutfitTopId = "tshirt1",
+                    OutfitBottomId = "brous1",
+                    OuterwearId = "openJacket",
+                    MaterialColorIds = new List<string> { "style.variant.a" }
+                };
+                var secondRecord = new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.002",
+                    BaseBodyId = "male.body",
+                    HairId = "hair.short",
+                    HairColorId = "hair.variant.c",
+                    BeardId = "beard4",
+                    OutfitTopId = "tshirt1",
+                    OutfitBottomId = "brous1",
+                    OuterwearId = "openJacket",
+                    MaterialColorIds = new List<string> { "style.variant.c" }
+                };
+
+                firstApplicator.Apply(firstRecord);
+                secondApplicator.Apply(secondRecord);
+
+                var firstSignature = GetActiveMaterialSignature(firstRoot);
+                var secondSignature = GetActiveMaterialSignature(secondRoot);
+
+                Assert.That(firstSignature, Is.Not.Empty);
+                Assert.That(secondSignature, Is.Not.Empty);
+                Assert.That(firstSignature, Is.Not.EqualTo(secondSignature));
+            }
+            finally
+            {
+                Object.DestroyImmediate(firstRoot);
+                Object.DestroyImmediate(secondRoot);
+            }
+        }
+
+        [Test]
+        public void Apply_WhenRecordMatches_ReusesDeterministicGarmentMaterials()
+        {
+            var firstRoot = CreateTestRoot();
+            var secondRoot = CreateTestRoot();
+            try
+            {
+                var firstApplicator = firstRoot.AddComponent<MainTownNpcAppearanceApplicator>();
+                var secondApplicator = secondRoot.AddComponent<MainTownNpcAppearanceApplicator>();
+
+                var record = new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.shared",
+                    BaseBodyId = "female.body",
+                    HairId = "hair.long",
+                    HairColorId = "hair.variant.b",
+                    BeardId = string.Empty,
+                    OutfitTopId = "tshirt2",
+                    OutfitBottomId = "brous7",
+                    OuterwearId = string.Empty,
+                    MaterialColorIds = new List<string> { "style.variant.b" }
+                };
+
+                firstApplicator.Apply(record);
+                secondApplicator.Apply(record);
+
+                Assert.That(GetActiveMaterialSignature(firstRoot), Is.EqualTo(GetActiveMaterialSignature(secondRoot)));
+            }
+            finally
+            {
+                Object.DestroyImmediate(firstRoot);
+                Object.DestroyImmediate(secondRoot);
+            }
+        }
+
         private static GameObject CreateTestRoot()
         {
             var root = new GameObject("Npc");
@@ -177,6 +324,25 @@ namespace Reloader.NPCs.Tests.EditMode
             CreateChild(femaleRoot.transform, "brous10");
             CreateChild(femaleRoot.transform, "pants1");
 
+            AttachMaterialCatalog(maleRoot, new[]
+            {
+                "Hair_Hair_Hair",
+                "beard4_beard4_beard4",
+                "T_shirt1__T_shirt1_T_shirt1",
+                "T_shirt2_T_shirt2_T_shirt2",
+                "jacket_jacket_jacket",
+                "brous1_brous1_brous1",
+                "pants1_pants1_pants1"
+            });
+            AttachMaterialCatalog(femaleRoot, new[]
+            {
+                "hair3",
+                "T_shirt1",
+                "T_shirt2",
+                "brous7",
+                "pants1"
+            });
+
             return root;
         }
 
@@ -184,7 +350,37 @@ namespace Reloader.NPCs.Tests.EditMode
         {
             var child = new GameObject(name);
             child.transform.SetParent(parent, false);
+            child.AddComponent<MeshRenderer>();
             child.SetActive(false);
+        }
+
+        private static void AttachMaterialCatalog(GameObject root, IEnumerable<string> childNames)
+        {
+            var catalog = root.AddComponent<StyleMaterialVariantCatalog>();
+            catalog.SetEntries(childNames.Select(childName => new StyleMaterialVariantCatalog.Entry
+            {
+                ChildName = childName,
+                Materials = new[]
+                {
+                    CreateMaterial($"{childName}_Variant_A"),
+                    CreateMaterial($"{childName}_Variant_B"),
+                    CreateMaterial($"{childName}_Variant_C"),
+                    CreateMaterial($"{childName}_Variant_D"),
+                    CreateMaterial($"{childName}_Variant_E"),
+                    CreateMaterial($"{childName}_Variant_F"),
+                    CreateMaterial($"{childName}_Variant_G")
+                }
+            }));
+        }
+
+        private static Material CreateMaterial(string name)
+        {
+            var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Standard") ?? Shader.Find("Hidden/InternalErrorShader");
+            var material = new Material(shader)
+            {
+                name = name
+            };
+            return material;
         }
 
         private static void SetVendorId(ShopVendorTarget target, string vendorId)
@@ -211,6 +407,22 @@ namespace Reloader.NPCs.Tests.EditMode
             }
 
             return string.Join("|", activeNames.OrderBy(name => name));
+        }
+
+        private static string GetActiveMaterialSignature(GameObject root)
+        {
+            var activeMaterials = new List<string>();
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(includeInactive: true))
+            {
+                if (!renderer.gameObject.activeSelf || renderer.sharedMaterial == null)
+                {
+                    continue;
+                }
+
+                activeMaterials.Add($"{renderer.gameObject.name}:{renderer.sharedMaterial.name}");
+            }
+
+            return string.Join("|", activeMaterials.OrderBy(name => name));
         }
     }
 }

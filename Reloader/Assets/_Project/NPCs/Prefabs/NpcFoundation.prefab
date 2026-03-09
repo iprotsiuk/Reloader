@@ -272,7 +272,7 @@ PrefabInstance:
     - target: {fileID: -1853149301918600054, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 715c158c4f040444f934306103775f6e, type: 2}
+      objectReference: {fileID: 2100000, guid: 1c7b849d6077ec947a08b9cebd2042e5, type: 2}
     - target: {fileID: -1633315445507642783, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -344,7 +344,7 @@ PrefabInstance:
     - target: {fileID: 2310679518284181717, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 715c158c4f040444f934306103775f6e, type: 2}
+      objectReference: {fileID: 2100000, guid: 2f823c42f9504f84ea6e0775a5358396, type: 2}
     - target: {fileID: 2321523695958950486, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -412,8 +412,116 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4748695439250079131}
   m_SourcePrefab: {fileID: 100100000, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
+--- !u!1 &4978406735320229302 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
+  m_PrefabInstance: {fileID: 5320918698555447527}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &4748695439250079131
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4978406735320229302}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c8f14d904b504b979ae244f481f7e27, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Runtime.StyleMaterialVariantCatalog
+  _entries:
+  - ChildName: boots1
+    Materials:
+    - {fileID: 2100000, guid: ecd835c11b46a9647b05505c99bfb8c5, type: 2}
+    - {fileID: 2100000, guid: 333366bf9c8dd114382b755ecdead55d, type: 2}
+  - ChildName: brous1_001
+    Materials:
+    - {fileID: 2100000, guid: 715c158c4f040444f934306103775f6e, type: 2}
+    - {fileID: 2100000, guid: 2b99cca4c2fd9b64da1d2b3a6ef845aa, type: 2}
+  - ChildName: brous2
+    Materials:
+    - {fileID: 2100000, guid: 715c158c4f040444f934306103775f6e, type: 2}
+    - {fileID: 2100000, guid: 2b99cca4c2fd9b64da1d2b3a6ef845aa, type: 2}
+  - ChildName: brous3
+    Materials:
+    - {fileID: 2100000, guid: 2f823c42f9504f84ea6e0775a5358396, type: 2}
+    - {fileID: 2100000, guid: 18bf27bc2ef71774fbd1958be5adfc05, type: 2}
+  - ChildName: brous4
+    Materials:
+    - {fileID: 2100000, guid: 715c158c4f040444f934306103775f6e, type: 2}
+    - {fileID: 2100000, guid: 2b99cca4c2fd9b64da1d2b3a6ef845aa, type: 2}
+  - ChildName: brous5
+    Materials:
+    - {fileID: 2100000, guid: 715c158c4f040444f934306103775f6e, type: 2}
+    - {fileID: 2100000, guid: 2b99cca4c2fd9b64da1d2b3a6ef845aa, type: 2}
+  - ChildName: brous6
+    Materials:
+    - {fileID: 2100000, guid: 715c158c4f040444f934306103775f6e, type: 2}
+    - {fileID: 2100000, guid: 2b99cca4c2fd9b64da1d2b3a6ef845aa, type: 2}
+  - ChildName: brous7
+    Materials:
+    - {fileID: 2100000, guid: 1c7b849d6077ec947a08b9cebd2042e5, type: 2}
+  - ChildName: brous8
+    Materials:
+    - {fileID: 2100000, guid: 715c158c4f040444f934306103775f6e, type: 2}
+    - {fileID: 2100000, guid: 2b99cca4c2fd9b64da1d2b3a6ef845aa, type: 2}
+  - ChildName: brous9
+    Materials:
+    - {fileID: 2100000, guid: 715c158c4f040444f934306103775f6e, type: 2}
+    - {fileID: 2100000, guid: 2b99cca4c2fd9b64da1d2b3a6ef845aa, type: 2}
+  - ChildName: brous10
+    Materials:
+    - {fileID: 2100000, guid: 715c158c4f040444f934306103775f6e, type: 2}
+    - {fileID: 2100000, guid: 2b99cca4c2fd9b64da1d2b3a6ef845aa, type: 2}
+  - ChildName: coat
+    Materials:
+    - {fileID: 2100000, guid: e4a1280112bbe7f4c9920eff1d196768, type: 2}
+  - ChildName: Eyes
+    Materials:
+    - {fileID: 2100000, guid: 593bfb57028036343b412abb2662b340, type: 2}
+  - ChildName: hair1
+    Materials:
+    - {fileID: 2100000, guid: 2668b811384f6824f9e8ecbe0c6b8fd6, type: 2}
+  - ChildName: hair3
+    Materials:
+    - {fileID: 2100000, guid: de470ce4918320445a3ce0797d000556, type: 2}
+    - {fileID: 2100000, guid: f45630ab4820e0143b59bb802250732b, type: 2}
+  - ChildName: hoody
+    Materials:
+    - {fileID: 2100000, guid: 1ece61274edf72742b706d43f421f9df, type: 2}
+  - ChildName: jacket
+    Materials:
+    - {fileID: 2100000, guid: e4a1280112bbe7f4c9920eff1d196768, type: 2}
+  - ChildName: pants1
+    Materials:
+    - {fileID: 2100000, guid: 715c158c4f040444f934306103775f6e, type: 2}
+    - {fileID: 2100000, guid: 2b99cca4c2fd9b64da1d2b3a6ef845aa, type: 2}
+  - ChildName: shirt
+    Materials:
+    - {fileID: 2100000, guid: 250e6d9989bdc10408d23ed0bab40089, type: 2}
+  - ChildName: shirt2
+    Materials:
+    - {fileID: 2100000, guid: 250e6d9989bdc10408d23ed0bab40089, type: 2}
+  - ChildName: shirt3
+    Materials:
+    - {fileID: 2100000, guid: 250e6d9989bdc10408d23ed0bab40089, type: 2}
+  - ChildName: T_shirt1
+    Materials:
+    - {fileID: 2100000, guid: 4876d6ba135e5d14f92fa4114cdf0ba6, type: 2}
+  - ChildName: T_shirt2
+    Materials:
+    - {fileID: 2100000, guid: 1dac60e844573a545b9aa870be9136e0, type: 2}
+  - ChildName: turtleneck
+    Materials:
+    - {fileID: 2100000, guid: 250e6d9989bdc10408d23ed0bab40089, type: 2}
+  - ChildName: woman
+    Materials:
+    - {fileID: 2100000, guid: 1eb771d1bc0da4641af7ce421a330cae, type: 2}
 --- !u!4 &5646680640693534476 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
@@ -502,7 +610,7 @@ PrefabInstance:
     - target: {fileID: -7436158621448652264, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: b61ac43791ea53046aa1607cbafb1391, type: 2}
+      objectReference: {fileID: 2100000, guid: 176489c164460e84a95f3d996189a189, type: 2}
     - target: {fileID: -7179176717647445892, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -574,11 +682,11 @@ PrefabInstance:
     - target: {fileID: -3568498019334481840, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 9a7e6f989389b724896f1465ce097101, type: 2}
+      objectReference: {fileID: 2100000, guid: 4bc25a2b129e93346acd968857b92d7d, type: 2}
     - target: {fileID: -3126906588987771818, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 966a09b62e93ee74eb46f453d70e5093, type: 2}
+      objectReference: {fileID: 2100000, guid: 983347fabb046db4594387c3bc2b5722, type: 2}
     - target: {fileID: -2865794236521058077, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -615,10 +723,6 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: b61ac43791ea53046aa1607cbafb1391, type: 2}
-    - target: {fileID: 242541099697372863, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 337865678634572237, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -650,15 +754,19 @@ PrefabInstance:
     - target: {fileID: 1329771913436149886, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 5d6ecd4c297969e44ab5847abe59e8e1, type: 2}
+      objectReference: {fileID: 2100000, guid: 5ebc16edb06731a41a6b57a33d00a928, type: 2}
     - target: {fileID: 1485138595385907865, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1651965306387805110, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2153124949297180866, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: dc018229af1b0e04c93f0fe11a91e93f, type: 2}
+      objectReference: {fileID: 2100000, guid: 86497100713a410468c387bada73fc50, type: 2}
     - target: {fileID: 2391607366988678271, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -694,7 +802,7 @@ PrefabInstance:
     - target: {fileID: 5507293291655041649, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: b61ac43791ea53046aa1607cbafb1391, type: 2}
+      objectReference: {fileID: 2100000, guid: 77428f5f86f769144890ed47fa5cc595, type: 2}
     - target: {fileID: 6084962873820913185, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -738,10 +846,266 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 137357632533402702}
   m_SourcePrefab: {fileID: 100100000, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
 --- !u!4 &8229872624422068182 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
   m_PrefabInstance: {fileID: 8483894328393922621}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &8754348005161944428 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
+  m_PrefabInstance: {fileID: 8483894328393922621}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &137357632533402702
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8754348005161944428}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c8f14d904b504b979ae244f481f7e27, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Runtime.StyleMaterialVariantCatalog
+  _entries:
+  - ChildName: beard1_beard1_beard1
+    Materials:
+    - {fileID: 2100000, guid: e538130e7f0ec694590d43e7354704da, type: 2}
+    - {fileID: 2100000, guid: 3a2d7395e8253754ab070c229575e2d2, type: 2}
+    - {fileID: 2100000, guid: 8a272638cbf655349ab2131e6ef17331, type: 2}
+    - {fileID: 2100000, guid: 2100aeb86cb51c34c943a6fe40502e1c, type: 2}
+    - {fileID: 2100000, guid: e514bcc1befd68646aa329ca889b260f, type: 2}
+    - {fileID: 2100000, guid: 8a5f48231c7e45243a251d775ca7f27b, type: 2}
+  - ChildName: beard2_beard2_beard2
+    Materials:
+    - {fileID: 2100000, guid: e538130e7f0ec694590d43e7354704da, type: 2}
+    - {fileID: 2100000, guid: 3a2d7395e8253754ab070c229575e2d2, type: 2}
+    - {fileID: 2100000, guid: 8a272638cbf655349ab2131e6ef17331, type: 2}
+    - {fileID: 2100000, guid: 2100aeb86cb51c34c943a6fe40502e1c, type: 2}
+    - {fileID: 2100000, guid: e514bcc1befd68646aa329ca889b260f, type: 2}
+    - {fileID: 2100000, guid: 8a5f48231c7e45243a251d775ca7f27b, type: 2}
+  - ChildName: beard3_beard3_beard3
+    Materials:
+    - {fileID: 2100000, guid: e538130e7f0ec694590d43e7354704da, type: 2}
+    - {fileID: 2100000, guid: 3a2d7395e8253754ab070c229575e2d2, type: 2}
+    - {fileID: 2100000, guid: 8a272638cbf655349ab2131e6ef17331, type: 2}
+    - {fileID: 2100000, guid: 2100aeb86cb51c34c943a6fe40502e1c, type: 2}
+    - {fileID: 2100000, guid: e514bcc1befd68646aa329ca889b260f, type: 2}
+    - {fileID: 2100000, guid: 8a5f48231c7e45243a251d775ca7f27b, type: 2}
+  - ChildName: beard4_beard4_beard4
+    Materials:
+    - {fileID: 2100000, guid: e538130e7f0ec694590d43e7354704da, type: 2}
+    - {fileID: 2100000, guid: 3a2d7395e8253754ab070c229575e2d2, type: 2}
+    - {fileID: 2100000, guid: 8a272638cbf655349ab2131e6ef17331, type: 2}
+    - {fileID: 2100000, guid: 2100aeb86cb51c34c943a6fe40502e1c, type: 2}
+    - {fileID: 2100000, guid: e514bcc1befd68646aa329ca889b260f, type: 2}
+    - {fileID: 2100000, guid: 8a5f48231c7e45243a251d775ca7f27b, type: 2}
+  - ChildName: beard5_beard5_beard5
+    Materials:
+    - {fileID: 2100000, guid: e538130e7f0ec694590d43e7354704da, type: 2}
+    - {fileID: 2100000, guid: 3a2d7395e8253754ab070c229575e2d2, type: 2}
+    - {fileID: 2100000, guid: 8a272638cbf655349ab2131e6ef17331, type: 2}
+    - {fileID: 2100000, guid: 2100aeb86cb51c34c943a6fe40502e1c, type: 2}
+    - {fileID: 2100000, guid: e514bcc1befd68646aa329ca889b260f, type: 2}
+    - {fileID: 2100000, guid: 8a5f48231c7e45243a251d775ca7f27b, type: 2}
+  - ChildName: beard6_beard6_beard6
+    Materials:
+    - {fileID: 2100000, guid: bdc452dcb494f1043b19e539f7330dae, type: 2}
+  - ChildName: beard7_beard7_beard7
+    Materials:
+    - {fileID: 2100000, guid: d690d3fc2aabf5d4ea9c45aea6d0ec87, type: 2}
+  - ChildName: beard8_beard8_beard8
+    Materials:
+    - {fileID: 2100000, guid: fb82c1b829352ba40a443d664f4cc166, type: 2}
+    - {fileID: 2100000, guid: 7090739a8a533354ebeb9c3e73f09c03, type: 2}
+    - {fileID: 2100000, guid: b6e83905094ec8b4da23e94e40fb7d94, type: 2}
+    - {fileID: 2100000, guid: e00642c4da5587e4a85324ed8c8963c9, type: 2}
+    - {fileID: 2100000, guid: 2281d38566ba47c4aa895561c0e4040b, type: 2}
+    - {fileID: 2100000, guid: 7cfa5ce80cd4707468a832455a8a192a, type: 2}
+  - ChildName: beard9_beard9_beard9
+    Materials:
+    - {fileID: 2100000, guid: e538130e7f0ec694590d43e7354704da, type: 2}
+    - {fileID: 2100000, guid: 3a2d7395e8253754ab070c229575e2d2, type: 2}
+    - {fileID: 2100000, guid: 8a272638cbf655349ab2131e6ef17331, type: 2}
+    - {fileID: 2100000, guid: 2100aeb86cb51c34c943a6fe40502e1c, type: 2}
+    - {fileID: 2100000, guid: e514bcc1befd68646aa329ca889b260f, type: 2}
+    - {fileID: 2100000, guid: 8a5f48231c7e45243a251d775ca7f27b, type: 2}
+  - ChildName: beard10_beard10_beard10
+    Materials:
+    - {fileID: 2100000, guid: dff74b478383f44419e3d9d7d1507922, type: 2}
+    - {fileID: 2100000, guid: 9c9402a9cbd0f124eab9eebdf7ddba29, type: 2}
+    - {fileID: 2100000, guid: 32a9f636a6be6f24e84603daf73c71e8, type: 2}
+    - {fileID: 2100000, guid: 866f255cb4e577742a05f9ae5b33bf00, type: 2}
+    - {fileID: 2100000, guid: 87a33fa7d97b8194e99bf34da0540fe2, type: 2}
+    - {fileID: 2100000, guid: 5c3f8c6e3732426419e15864f896e9a1, type: 2}
+  - ChildName: boots1_boots1_boots1
+    Materials:
+    - {fileID: 2100000, guid: 313e04bcd12f94f49ba22e524ef9e2cf, type: 2}
+    - {fileID: 2100000, guid: 187d504c3e312ab46b1060f1891158a0, type: 2}
+    - {fileID: 2100000, guid: 72e7f76f853031141ab63c2fca1c48e9, type: 2}
+    - {fileID: 2100000, guid: 6febd1bdfc9e3004e8a57dc0d1c132b2, type: 2}
+  - ChildName: brous1_brous1_brous1
+    Materials:
+    - {fileID: 2100000, guid: 9ccb1bfcd540cc346ab2e32553d14d8a, type: 2}
+    - {fileID: 2100000, guid: 94f80c2cf795bbf4b9e3b891232db128, type: 2}
+    - {fileID: 2100000, guid: 176489c164460e84a95f3d996189a189, type: 2}
+    - {fileID: 2100000, guid: 4b09da2931bc5e54788fb32f82df3289, type: 2}
+    - {fileID: 2100000, guid: 2a277bc9aa1313142a70eded29d62fb0, type: 2}
+    - {fileID: 2100000, guid: cf4aaf3d6ca4bec4fb003a33945e6910, type: 2}
+  - ChildName: brous2_brous2_brous2
+    Materials:
+    - {fileID: 2100000, guid: b61ac43791ea53046aa1607cbafb1391, type: 2}
+    - {fileID: 2100000, guid: 06ee73cc979f8214088b538f55eff313, type: 2}
+    - {fileID: 2100000, guid: cda52658f043ba04a9b54171b6f2c858, type: 2}
+    - {fileID: 2100000, guid: 2fad2296e76cae647add42f9382c7667, type: 2}
+    - {fileID: 2100000, guid: 06c75946125b908488e90c109d76d334, type: 2}
+  - ChildName: brous3_brous3_brous3
+    Materials:
+    - {fileID: 2100000, guid: b61ac43791ea53046aa1607cbafb1391, type: 2}
+    - {fileID: 2100000, guid: 06ee73cc979f8214088b538f55eff313, type: 2}
+    - {fileID: 2100000, guid: cda52658f043ba04a9b54171b6f2c858, type: 2}
+    - {fileID: 2100000, guid: 2fad2296e76cae647add42f9382c7667, type: 2}
+    - {fileID: 2100000, guid: 06c75946125b908488e90c109d76d334, type: 2}
+  - ChildName: brous4_brous4_brous4
+    Materials:
+    - {fileID: 2100000, guid: b61ac43791ea53046aa1607cbafb1391, type: 2}
+    - {fileID: 2100000, guid: 06ee73cc979f8214088b538f55eff313, type: 2}
+    - {fileID: 2100000, guid: cda52658f043ba04a9b54171b6f2c858, type: 2}
+    - {fileID: 2100000, guid: 2fad2296e76cae647add42f9382c7667, type: 2}
+    - {fileID: 2100000, guid: 06c75946125b908488e90c109d76d334, type: 2}
+  - ChildName: brous5_brous5_brous5
+    Materials:
+    - {fileID: 2100000, guid: b61ac43791ea53046aa1607cbafb1391, type: 2}
+    - {fileID: 2100000, guid: 06ee73cc979f8214088b538f55eff313, type: 2}
+    - {fileID: 2100000, guid: cda52658f043ba04a9b54171b6f2c858, type: 2}
+    - {fileID: 2100000, guid: 2fad2296e76cae647add42f9382c7667, type: 2}
+    - {fileID: 2100000, guid: 06c75946125b908488e90c109d76d334, type: 2}
+  - ChildName: brous6_brous6_brous6
+    Materials:
+    - {fileID: 2100000, guid: 77428f5f86f769144890ed47fa5cc595, type: 2}
+  - ChildName: brous7_brous7_brous7
+    Materials:
+    - {fileID: 2100000, guid: b61ac43791ea53046aa1607cbafb1391, type: 2}
+    - {fileID: 2100000, guid: 06ee73cc979f8214088b538f55eff313, type: 2}
+    - {fileID: 2100000, guid: cda52658f043ba04a9b54171b6f2c858, type: 2}
+    - {fileID: 2100000, guid: 2fad2296e76cae647add42f9382c7667, type: 2}
+    - {fileID: 2100000, guid: 06c75946125b908488e90c109d76d334, type: 2}
+  - ChildName: brous8_brous8_brous8
+    Materials:
+    - {fileID: 2100000, guid: b61ac43791ea53046aa1607cbafb1391, type: 2}
+    - {fileID: 2100000, guid: 06ee73cc979f8214088b538f55eff313, type: 2}
+    - {fileID: 2100000, guid: cda52658f043ba04a9b54171b6f2c858, type: 2}
+    - {fileID: 2100000, guid: 2fad2296e76cae647add42f9382c7667, type: 2}
+    - {fileID: 2100000, guid: 06c75946125b908488e90c109d76d334, type: 2}
+  - ChildName: brous9_brous9_brous9
+    Materials:
+    - {fileID: 2100000, guid: b61ac43791ea53046aa1607cbafb1391, type: 2}
+    - {fileID: 2100000, guid: 06ee73cc979f8214088b538f55eff313, type: 2}
+    - {fileID: 2100000, guid: cda52658f043ba04a9b54171b6f2c858, type: 2}
+    - {fileID: 2100000, guid: 2fad2296e76cae647add42f9382c7667, type: 2}
+    - {fileID: 2100000, guid: 06c75946125b908488e90c109d76d334, type: 2}
+  - ChildName: brous10_brous10_brous10
+    Materials:
+    - {fileID: 2100000, guid: b61ac43791ea53046aa1607cbafb1391, type: 2}
+    - {fileID: 2100000, guid: 06ee73cc979f8214088b538f55eff313, type: 2}
+    - {fileID: 2100000, guid: cda52658f043ba04a9b54171b6f2c858, type: 2}
+    - {fileID: 2100000, guid: 2fad2296e76cae647add42f9382c7667, type: 2}
+    - {fileID: 2100000, guid: 06c75946125b908488e90c109d76d334, type: 2}
+  - ChildName: coat_coat_coat
+    Materials:
+    - {fileID: 2100000, guid: 1b5cdebf0a655af4c8f562e8a594d56c, type: 2}
+    - {fileID: 2100000, guid: 765a6fb70c3fa574f92bd5a92766b44f, type: 2}
+    - {fileID: 2100000, guid: 1041b740ba0cd1d46861543bb50e9336, type: 2}
+    - {fileID: 2100000, guid: 62d7c30b5ad7bdd438ecf2c9ce4d269f, type: 2}
+  - ChildName: Eyes_Eyes_Eyes
+    Materials:
+    - {fileID: 2100000, guid: 5d6ecd4c297969e44ab5847abe59e8e1, type: 2}
+    - {fileID: 2100000, guid: 5ebc16edb06731a41a6b57a33d00a928, type: 2}
+    - {fileID: 2100000, guid: 6f205a6dabde686408fd009df0ca00d4, type: 2}
+    - {fileID: 2100000, guid: ad05d7af5f058f544821fe54ed037f3d, type: 2}
+    - {fileID: 2100000, guid: 03dd4eee18237d64f8ea15eac2a4c381, type: 2}
+  - ChildName: hair3_hair3_hair3
+    Materials:
+    - {fileID: 2100000, guid: 25eabce89fdb186408d13d9ab1a3a13d, type: 2}
+    - {fileID: 2100000, guid: d8793703c3c2a0b479607e3f7235f08d, type: 2}
+    - {fileID: 2100000, guid: 7bd1b708ccfb1b3429d6bba4b1c38210, type: 2}
+    - {fileID: 2100000, guid: 7093b95204ea02c4f8541fb91d053ea7, type: 2}
+    - {fileID: 2100000, guid: 97892951e2992604ba1fe8da9f076503, type: 2}
+    - {fileID: 2100000, guid: fe7aaf240bda9d04b8e4cb8e36b52c2a, type: 2}
+  - ChildName: hair4_hair4_hair4
+    Materials:
+    - {fileID: 2100000, guid: 966a09b62e93ee74eb46f453d70e5093, type: 2}
+    - {fileID: 2100000, guid: 13e9448a66cb95b40ac9b37107683a5d, type: 2}
+    - {fileID: 2100000, guid: 983347fabb046db4594387c3bc2b5722, type: 2}
+    - {fileID: 2100000, guid: 68911e84f3b928643bb0091ad1b477ee, type: 2}
+    - {fileID: 2100000, guid: ca2f6cca2c5f75045b309b75aaac2a71, type: 2}
+    - {fileID: 2100000, guid: a3487caa51eb413488544bbcf9d71fa1, type: 2}
+  - ChildName: Hair_02_hair_hair
+    Materials:
+    - {fileID: 2100000, guid: 1a27af4ee43059a41ad4d350f8ee094e, type: 2}
+    - {fileID: 2100000, guid: a103a3c2b295b934e92a0097ffd035a2, type: 2}
+    - {fileID: 2100000, guid: 56daf160de15b5e46bcb8e61fb057f38, type: 2}
+    - {fileID: 2100000, guid: 2094fa7f9930e104bb424fca8aaebc99, type: 2}
+    - {fileID: 2100000, guid: 2c8a61c9df4693b4886cffaadc975699, type: 2}
+    - {fileID: 2100000, guid: 51f4760b81a37bb4d9fc41013103ff29, type: 2}
+  - ChildName: Hair_Hair_Hair
+    Materials:
+    - {fileID: 2100000, guid: 4de4fa813ba616a4cbedc23ebad3b4e3, type: 2}
+    - {fileID: 2100000, guid: 6b11c0ce7197c9d41bba92fcff21ffb0, type: 2}
+    - {fileID: 2100000, guid: a5e3c92f8689e8b439c2d1b643f45037, type: 2}
+    - {fileID: 2100000, guid: 760c18ab1d0bf074ba767950cd885ea0, type: 2}
+    - {fileID: 2100000, guid: 20a264820ddbe6849847c231876967c0, type: 2}
+    - {fileID: 2100000, guid: dcf8c120f36161e4ea95bccae47a4eb0, type: 2}
+  - ChildName: hoody_hoody_hoody
+    Materials:
+    - {fileID: 2100000, guid: b1aba9031d2da49cba60b580bd858fa1, type: 2}
+  - ChildName: jacket_jacket_jacket
+    Materials:
+    - {fileID: 2100000, guid: 739a0ba5a890046e8b41805372284bff, type: 2}
+  - ChildName: Man_Man_Man
+    Materials:
+    - {fileID: 2100000, guid: 50caad700806b9048a2b1cb2ce5ac64c, type: 2}
+  - ChildName: pants1_pants1_pants1
+    Materials:
+    - {fileID: 2100000, guid: b61ac43791ea53046aa1607cbafb1391, type: 2}
+    - {fileID: 2100000, guid: 06ee73cc979f8214088b538f55eff313, type: 2}
+    - {fileID: 2100000, guid: cda52658f043ba04a9b54171b6f2c858, type: 2}
+    - {fileID: 2100000, guid: 2fad2296e76cae647add42f9382c7667, type: 2}
+    - {fileID: 2100000, guid: 06c75946125b908488e90c109d76d334, type: 2}
+  - ChildName: shirt2_shirt2_shirt2
+    Materials:
+    - {fileID: 2100000, guid: 026a97818c940e748b382c85cb519291, type: 2}
+  - ChildName: shirt3_shirt3_shirt3
+    Materials:
+    - {fileID: 2100000, guid: dc018229af1b0e04c93f0fe11a91e93f, type: 2}
+    - {fileID: 2100000, guid: 86497100713a410468c387bada73fc50, type: 2}
+    - {fileID: 2100000, guid: 2dd16028ac6e79b468a405ebbfff5b37, type: 2}
+    - {fileID: 2100000, guid: 1f21e8aa12c65ae4f9555df10d1f45ee, type: 2}
+  - ChildName: shirt_shirt_shirt
+    Materials:
+    - {fileID: 2100000, guid: b893e516bc1f2634a81e93b3abe99afc, type: 2}
+    - {fileID: 2100000, guid: debc742e4f4b82042aaa5aa395c2959e, type: 2}
+    - {fileID: 2100000, guid: 9593baf139fd237448354abc0aac5a6f, type: 2}
+    - {fileID: 2100000, guid: d48d9a7a21954ef44ac4a8fe42ff42a7, type: 2}
+  - ChildName: T_shirt1__T_shirt1_T_shirt1
+    Materials:
+    - {fileID: 2100000, guid: 9a7e6f989389b724896f1465ce097101, type: 2}
+    - {fileID: 2100000, guid: 4bc25a2b129e93346acd968857b92d7d, type: 2}
+    - {fileID: 2100000, guid: 0f75e2e0845b1e345a71576f6b38c054, type: 2}
+    - {fileID: 2100000, guid: 07b351b1fd07dd540b5b8fcbfae0fa99, type: 2}
+  - ChildName: T_shirt2_T_shirt2_T_shirt2
+    Materials:
+    - {fileID: 2100000, guid: 83985ca547fc8ae4d864f94d8200f6fc, type: 2}
+    - {fileID: 2100000, guid: 049a50540ae1f7f4cba5c34f34c58826, type: 2}
+    - {fileID: 2100000, guid: 8c3090e01a14fde418027e851445c46c, type: 2}
+    - {fileID: 2100000, guid: a5739793d7a963340a7ef5df41ce8d05, type: 2}
+    - {fileID: 2100000, guid: a5ced5484a5cb9945b39cfdcbfbb84a0, type: 2}
+  - ChildName: turtleneck_turtleneck_turtleneck
+    Materials:
+    - {fileID: 2100000, guid: 447ed262a9b60474ba051d91adcb09d4, type: 2}

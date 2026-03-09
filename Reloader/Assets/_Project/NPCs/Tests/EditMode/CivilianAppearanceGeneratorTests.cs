@@ -118,7 +118,7 @@ namespace Reloader.NPCs.Tests.EditMode
             Assert.That(GetProperty<string>(record, "HairId"), Is.EqualTo("hair.short"));
             Assert.That(GetProperty<string>(record, "BeardId"), Is.EqualTo("beard4"));
             Assert.That(GetProperty<string>(record, "OutfitTopId"), Is.EqualTo("tshirt2"));
-            Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("pants1"));
+            Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("brous1"));
             Assert.That(GetProperty<string>(record, "OuterwearId"), Is.EqualTo("openJacket"));
         }
 
@@ -161,6 +161,59 @@ namespace Reloader.NPCs.Tests.EditMode
             Assert.That(GetProperty<string>(record, "OutfitTopId"), Is.EqualTo("tshirt1"));
             Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("pants1"));
             Assert.That(GetProperty<string>(record, "OuterwearId"), Is.EqualTo("hoody"));
+        }
+
+        [Test]
+        public void GenerateRecord_WhenFemaleBodyUsesApprovedCuratedBottom_PreservesThatBottom()
+        {
+            var generatorType = ResolveRequiredType(GeneratorTypeName);
+            var libraryType = ResolveRequiredType(LibraryTypeName);
+
+            var generator = Activator.CreateInstance(generatorType);
+            var library = Activator.CreateInstance(libraryType);
+
+            SetProperty(library, "BaseBodyIds", new[] { "female.body" });
+            SetProperty(library, "PresentationTypes", new[] { "feminine" });
+            SetProperty(library, "HairIds", new[] { "hair.long" });
+            SetProperty(library, "HairColorIds", new[] { "hair.brown" });
+            SetProperty(library, "BeardIds", new[] { "beard7" });
+            SetProperty(library, "OutfitTopIds", new[] { "tshirt2" });
+            SetProperty(library, "OutfitBottomIds", new[] { "brous7" });
+            SetProperty(library, "OuterwearIds", new[] { string.Empty });
+            SetProperty(library, "MaterialColorIds", new[] { "style.default" });
+            SetProperty(library, "DescriptionTags", new[] { "townsfolk" });
+
+            var generateMethod = generatorType.GetMethod(
+                "GenerateRecord",
+                BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: new[] { libraryType, typeof(string), typeof(int), typeof(string), typeof(int), typeof(bool) },
+                modifiers: null);
+
+            Assert.That(generateMethod, Is.Not.Null, "Expected a public GenerateRecord(...) method on CivilianAppearanceGenerator.");
+
+            var record = generateMethod.Invoke(
+                generator,
+                new object[] { library, "citizen.mainTown.203", 3, "Anchor_Townsfolk_03", 5, true });
+
+            Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("brous7"));
+        }
+
+        [Test]
+        public void IsCuratedStyleLibrary_WhenBaseBodyIdsAreMissing_ReturnsFalse()
+        {
+            var libraryType = ResolveRequiredType(LibraryTypeName);
+            var rulesType = ResolveRequiredType("Reloader.NPCs.Generation.MainTownCuratedAppearanceRules, Reloader.NPCs");
+            var library = Activator.CreateInstance(libraryType);
+
+            SetProperty(library, "BaseBodyIds", null);
+
+            var method = rulesType.GetMethod("IsCuratedStyleLibrary", BindingFlags.Public | BindingFlags.Static);
+            Assert.That(method, Is.Not.Null);
+
+            var isCurated = method.Invoke(null, new[] { library });
+
+            Assert.That(isCurated, Is.EqualTo(false));
         }
 
         private static Type ResolveRequiredType(string assemblyQualifiedName)

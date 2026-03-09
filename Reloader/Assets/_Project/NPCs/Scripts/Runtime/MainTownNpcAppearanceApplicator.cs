@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Reloader.Core.Save.Modules;
 using Reloader.NPCs.Generation;
 using Reloader.NPCs.World;
@@ -194,6 +195,7 @@ namespace Reloader.NPCs.Runtime
 
             var bottomId = MainTownCuratedAppearanceRules.NormalizeBottomId(gender, record.OutfitBottomId);
             ActivateMappedChild(activeRoot, gender == MainTownAppearanceGender.Male ? MaleBottomObjectNames : FemaleBottomObjectNames, bottomId);
+            ApplyMaterialVariants(activeRoot, record, gender);
         }
 
         private Transform ResolveVisualRoot()
@@ -223,12 +225,6 @@ namespace Reloader.NPCs.Runtime
             }
 
             seedKey = $"vendor.{vendorTarget.VendorId.Trim()}";
-            if (_appearanceSource == AppearanceSource.ContextualSeed
-                && string.Equals(_lastContextualSeedKey, seedKey, StringComparison.Ordinal))
-            {
-                return false;
-            }
-
             return true;
         }
 
@@ -309,6 +305,47 @@ namespace Reloader.NPCs.Runtime
             }
         }
 
+        private static void ApplyMaterialVariants(Transform activeRoot, CivilianPopulationRecord record, MainTownAppearanceGender gender)
+        {
+            if (activeRoot == null || record == null)
+            {
+                return;
+            }
+
+            var catalog = activeRoot.GetComponent<StyleMaterialVariantCatalog>();
+            if (catalog == null)
+            {
+                return;
+            }
+
+            foreach (Transform child in activeRoot)
+            {
+                if (!child.gameObject.activeSelf)
+                {
+                    continue;
+                }
+
+                var renderer = child.GetComponent<Renderer>();
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                var variants = catalog.GetVariants(child.name);
+                if (variants == null || variants.Count == 0)
+                {
+                    continue;
+                }
+
+                var seedKey = BuildMaterialSeed(record, gender, child.name);
+                var selectedMaterial = variants[GetDeterministicSeed(seedKey) % variants.Count];
+                if (selectedMaterial != null)
+                {
+                    renderer.sharedMaterial = selectedMaterial;
+                }
+            }
+        }
+
         private static void ActivateMappedChild(Transform root, IReadOnlyDictionary<string, string> map, string key)
         {
             if (string.IsNullOrWhiteSpace(key) || !map.TryGetValue(key, out var childName))
@@ -331,6 +368,38 @@ namespace Reloader.NPCs.Runtime
             {
                 child.gameObject.SetActive(true);
             }
+        }
+
+        private static string BuildMaterialSeed(CivilianPopulationRecord record, MainTownAppearanceGender gender, string childName)
+        {
+            var styleVariant = record.MaterialColorIds != null && record.MaterialColorIds.Count > 0
+                ? record.MaterialColorIds[0] ?? string.Empty
+                : string.Empty;
+            var salt = UsesHairPalette(gender, childName)
+                ? record.HairColorId ?? string.Empty
+                : styleVariant;
+
+            return string.Join(
+                "|",
+                record.CivilianId ?? string.Empty,
+                gender.ToString(),
+                childName ?? string.Empty,
+                salt,
+                record.OutfitTopId ?? string.Empty,
+                record.OutfitBottomId ?? string.Empty,
+                record.OuterwearId ?? string.Empty);
+        }
+
+        private static bool UsesHairPalette(MainTownAppearanceGender gender, string childName)
+        {
+            if (string.IsNullOrWhiteSpace(childName))
+            {
+                return false;
+            }
+
+            return gender == MainTownAppearanceGender.Male
+                ? MaleHairObjectNames.Values.Contains(childName) || MaleBeardObjectNames.Values.Contains(childName)
+                : FemaleHairObjectNames.Values.Contains(childName);
         }
     }
 }

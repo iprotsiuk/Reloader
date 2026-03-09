@@ -64,8 +64,7 @@ namespace Reloader.NPCs.Generation
         {
             "pants1",
             "brous1",
-            "brous7",
-            "brous10"
+            "brous7"
         };
 
         public static CivilianAppearanceLibrary CreateDefaultLibrary()
@@ -75,12 +74,12 @@ namespace Reloader.NPCs.Generation
                 BaseBodyIds = new[] { MaleBodyId, FemaleBodyId },
                 PresentationTypes = new[] { MasculinePresentation, FemininePresentation },
                 HairIds = MaleHairIds.Concat(FemaleHairIds).ToArray(),
-                HairColorIds = new[] { "hair.black", "hair.brown" },
+                HairColorIds = new[] { "hair.variant.a", "hair.variant.b", "hair.variant.c", "hair.variant.d" },
                 BeardIds = MaleBeardIds,
                 OutfitTopIds = ApprovedBaseTopIds,
                 OutfitBottomIds = ApprovedBottomIds,
                 OuterwearIds = ApprovedOuterwearIds,
-                MaterialColorIds = new[] { "style.default" },
+                MaterialColorIds = new[] { "style.variant.a", "style.variant.b", "style.variant.c", "style.variant.d" },
                 DescriptionTags = new[] { "townsfolk", "resident", "work clothes" }
             };
         }
@@ -88,6 +87,11 @@ namespace Reloader.NPCs.Generation
         public static bool IsCuratedStyleLibrary(CivilianAppearanceLibrary library)
         {
             if (library == null)
+            {
+                return false;
+            }
+
+            if (library.BaseBodyIds == null || library.BaseBodyIds.Length == 0)
             {
                 return false;
             }
@@ -138,8 +142,6 @@ namespace Reloader.NPCs.Generation
             {
                 return trimmed switch
                 {
-                    "brous1" => "pants1",
-                    "brous7" => "pants1",
                     "brous10" => "pants1",
                     _ => Contains(ApprovedBottomIds, trimmed) ? trimmed : "pants1"
                 };
@@ -147,8 +149,6 @@ namespace Reloader.NPCs.Generation
 
             return trimmed switch
             {
-                "brous1" => "pants1",
-                "brous7" => "pants1",
                 "brous10" => "pants1",
                 _ => Contains(ApprovedBottomIds, trimmed) ? trimmed : "pants1"
             };
