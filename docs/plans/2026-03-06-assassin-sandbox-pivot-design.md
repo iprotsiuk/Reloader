@@ -2,7 +2,7 @@
 
 ## Goal
 
-Realign `Reloader` from a reloading-first sandbox into a precision-assassination sandbox where procedurally generated contracts are the primary economy and progression loop.
+Realign `Reloader` from a reloading-first sandbox into an assassination sandbox with hardcore prep where procedurally generated contracts are the primary economy and progression loop.
 
 Reloading, load development, optics, zeroing, and MOA measurement remain critical, but they now exist to support premium long-range contract kills rather than acting as the main fantasy on their own.
 
@@ -12,7 +12,7 @@ Reloading, load development, optics, zeroing, and MOA measurement remain critica
 
 ### Recommended direction
 
-Adopt a `precision-contract sandbox` structure:
+Adopt an `assassination sandbox with hardcore prep` structure:
 
 - contracts are the main money source
 - long-range jobs pay the most
@@ -53,7 +53,7 @@ Some premium contracts should be impractical or impossible to solve by simply wa
 1. Accept a generated contract.
 2. Review target intel, payout, risk, and preferred distance band.
 3. Build or select the rifle, optic, and ammunition.
-4. Validate the setup at the range or another safe test space.
+4. Optionally validate the setup at the range or another safe test space.
 5. Travel to a firing position or staging point.
 6. Eliminate the target.
 7. Break line of sight and survive the police search window.

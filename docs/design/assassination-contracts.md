@@ -7,9 +7,14 @@
 
 ## Core Fantasy [v0.1]
 
-`Reloader` is a first-person precision-contract sandbox.
+`Reloader` is a first-person assassination sandbox with hardcore prep.
 
-The player earns money primarily by taking procedurally generated assassination contracts, preparing the right rifle/ammo/optic setup, executing the kill, and escaping the response. Reloading, load development, zeroing, and MOA measurement remain central, but they exist to support high-value contract kills rather than replace them.
+The player earns money primarily by taking assassination contracts, preparing the right rifle/ammo/optic setup, executing the kill, and escaping the response. Reloading, load development, zeroing, and MOA measurement remain central, but they exist to support expressive contract kills rather than replace them.
+
+Design rule:
+- Assassination sandbox first.
+- Hardcore prep second.
+- Do not drift into a pure realism sim where the workshop loop becomes more important than the job itself.
 
 Random murder is allowed, but it is intentionally low-value and usually creates more police heat than profit.
 
@@ -21,10 +26,10 @@ The baseline loop is:
 
 1. Accept a contract.
 2. Read target intel, payout, and risk.
-3. Build or select the rifle, optic, and ammo.
+3. Build or select the rifle, optic, ammo, and specialty round if the job calls for it.
 4. Optionally validate the setup at the range or another safe test location.
 5. Travel to a firing or staging position.
-6. Eliminate the target.
+6. Eliminate the target under the contract's restrictions.
 7. Break line of sight, survive the search window, and cash out.
 
 This loop is the primary economy spine for the project.
@@ -44,7 +49,9 @@ Generated contract fields:
 - `witnessDensity`
 - `policeRisk`
 - `payout`
-- `optionalModifiers` (suppressed shot, no civilian casualties, time-of-day, limited window)
+- `failurePolicy`
+- `objectivePolicy`
+- `optionalModifiers` (shot through glass, suppressed shot, no civilian casualties, time-of-day, limited window)
 
 Design rule:
 - Keep the town, buildings, and vantage structure authored.
@@ -68,6 +75,15 @@ Target contracts should expose:
 - bodyguard / witness risk
 - contract-completion confirmation rules
 
+The contract should also surface player-facing restrictions clearly in the Contracts tab so the player can read the job shape before committing to prep.
+
+Baseline player-facing restriction categories:
+- shot method or environmental requirement
+- collateral / witness tolerance
+- timing window
+- escape / stealth requirement
+- specialty-ammo or equipment hint
+
 ---
 
 ## Premium Long-Range Jobs [v0.1]
@@ -78,6 +94,7 @@ Rules:
 - The top payouts come from shots where optics, zeroing, ammo consistency, and shooting position matter.
 - Some contracts should be intentionally impractical or impossible to solve by walking directly to the target.
 - Long-range success must feel earned through preparation, not scripted scope magic.
+- Specialty ammo should matter because it changes the solution space, not because it adds spreadsheet noise.
 
 This is why the scoped PiP runtime, real zeroing, and load-quality systems remain first-order priorities after the fantasy pivot.
 
@@ -89,8 +106,13 @@ Contract success is not only the kill. The player must survive the aftermath.
 
 Contract result rules:
 - `Completed` — target eliminated and payout awarded after the heat window resolves
-- `Failed` — target survives, wrong target killed, or mission-specific condition broken
+- `Failed` — target survives or an explicit contract failure rule is broken
 - `Botched` — target eliminated but police response, witness cascade, or collateral damage destroys the economic upside
+
+Important rule:
+- Wrong-target kills are not a universal fail condition.
+- Failure rules should be defined per contract through structured policy, then surfaced in the Contracts tab.
+- Ordinary sandbox contracts should usually allow the player to kill whoever they want, while higher-level or authored contracts can opt into stricter failure rules.
 
 Police response details live in [law-enforcement.md](law-enforcement.md), but contract design assumes:
 - witnessed violence raises heat quickly
@@ -105,7 +127,9 @@ Follow-up expansions can add:
 - richer target archetypes and social routines
 - multi-stage contracts with setup objectives
 - contract handlers, fixers, fences, and black-market support
+- specialty ammo families that solve distinct problems
 - spotting gear, rangefinders, and better intel tools
 - vehicle-assisted escape routes and checkpoint sniping jobs
+- underworld progression through workshop upgrades, contacts, intel access, and higher-value contract tiers
 
 Optional side systems such as hunting or competitions must not displace the contract loop as the top-level progression spine.

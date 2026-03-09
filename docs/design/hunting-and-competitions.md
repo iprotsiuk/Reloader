@@ -9,7 +9,7 @@
 
 Hunting and competitions remain optional future side activities.
 
-They may return later if they strengthen the core precision-contract sandbox by:
+They may return later if they strengthen the core assassination sandbox with hardcore prep by:
 - giving the player lower-risk ways to test rifles and loads
 - providing optional reputation or money on the side
 - expanding the broader gun culture of the town

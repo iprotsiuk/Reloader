@@ -25,7 +25,7 @@ The minimum viable prototype that demonstrates the new core loop:
 - [ ] One rifle (bolt-action)
 - [ ] One production magnified scope path for premium long-range work
 - [ ] Basic ballistics (drop, no wind yet)
-- [ ] Range validation flow: shoot a target, see group size, confirm setup
+- [ ] Optional setup-validation flow at the range or another safe test space before a contract
 - [ ] One procedurally generated assassination contract loop
 - [ ] Police heat + LOS escape window
 - [ ] Arrest/death penalty: confiscate carried inventory, respawn at hospital or police station

@@ -227,9 +227,9 @@ WAKE UP     → At home (bed), or wherever the player fell asleep,
 
 MORNING     → Decide what to do today:
               - Accept or review a contract
-              - Reload ammo at the workshop bench
+              - Reload ammo and prep at the workshop bench
               - Buy parts and supplies
-              - Head to the range to validate the setup
+              - Optionally validate the setup at the range
               - Scout a route or firing position
               - Do side work for cash
 
@@ -249,6 +249,10 @@ SAVE        → Triggers on sleep, scene transition, manual, autosave.
 ```
 
 The player is never forced into this loop. They can do whatever they want in whatever order.
+
+Design rule:
+- the contract-prep-execute-escape loop is the primary progression spine
+- the range is a support facility for validation, not the top-level fantasy
 
 ---
 
@@ -276,7 +280,7 @@ The player is never forced into this loop. They can do whatever they want in wha
 
 | Phase | Access |
 |-------|--------|
-| Start | House + town + local range |
+| Start | House + contract town + optional local range |
 | Mid | More contract spaces, better vantage routes, wider town access |
 | Late | Premium job locations, second property, stronger escape infrastructure |
 | Endgame | Full map access, multiple operating spaces, hire employees |
