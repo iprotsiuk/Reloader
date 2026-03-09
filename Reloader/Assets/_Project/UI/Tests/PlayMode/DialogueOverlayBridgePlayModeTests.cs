@@ -67,6 +67,59 @@ namespace Reloader.UI.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void RuntimeBridge_RebindDialogueOverlay_DoesNotLeakProviderStateChangedSubscriptions()
+        {
+            var bridgeGo = new GameObject("DialogueOverlayBridge");
+            var bridge = bridgeGo.AddComponent<UiToolkitScreenRuntimeBridge>();
+            var providerGo = new GameObject("DialogueOverlayProvider");
+            var provider = providerGo.AddComponent<TestDialogueOverlayBridge>();
+            provider.SetState(new DialogueOverlayRenderState(
+                isVisible: true,
+                speakerText: "Handler",
+                lineText: "Keep moving.",
+                replies: new[]
+                {
+                    new DialogueOverlayReplyState("reply.1", "First"),
+                },
+                selectedReplyIndex: 0));
+
+            var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
+                "BindDialogueOverlay",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(bindMethod, Is.Not.Null);
+
+            var firstRoot = BuildRoot();
+            var secondRoot = BuildRoot();
+            IDisposable firstSubscription = null;
+            IDisposable secondSubscription = null;
+
+            try
+            {
+                firstSubscription = bindMethod.Invoke(
+                    bridge,
+                    new object[] { firstRoot, UiRuntimeCompositionIds.ControllerObjectNames.DialogueOverlay }) as IDisposable;
+                Assert.That(firstSubscription, Is.Not.Null);
+                Assert.That(provider.ListenerCountForTests, Is.EqualTo(1));
+
+                firstSubscription.Dispose();
+                Assert.That(provider.ListenerCountForTests, Is.EqualTo(0));
+
+                secondSubscription = bindMethod.Invoke(
+                    bridge,
+                    new object[] { secondRoot, UiRuntimeCompositionIds.ControllerObjectNames.DialogueOverlay }) as IDisposable;
+                Assert.That(secondSubscription, Is.Not.Null);
+                Assert.That(provider.ListenerCountForTests, Is.EqualTo(1));
+            }
+            finally
+            {
+                secondSubscription?.Dispose();
+                firstSubscription?.Dispose();
+                UnityEngine.Object.DestroyImmediate(providerGo);
+                UnityEngine.Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
         private static VisualElement BuildRoot()
         {
             var root = new VisualElement();
@@ -85,6 +138,7 @@ namespace Reloader.UI.Tests.PlayMode
             public event Action StateChanged;
 
             public string LastSubmittedReplyId { get; private set; } = string.Empty;
+            public int ListenerCountForTests => StateChanged?.GetInvocationList().Length ?? 0;
 
             public bool TryGetState(out DialogueOverlayRenderState state)
             {

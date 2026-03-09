@@ -461,9 +461,12 @@ namespace Reloader.UI.Toolkit.Runtime
             viewBinder.Initialize(root);
 
             var controller = GetOrAddController<DialogueOverlayController>(controllerName);
-            controller.SetBridge(new DialogueOverlayBridgeAdapter(ResolveDialogueOverlayBridge));
+            var bridgeAdapter = new DialogueOverlayBridgeAdapter(ResolveDialogueOverlayBridge);
+            controller.SetBridge(bridgeAdapter);
             controller.SetViewBinder(viewBinder);
-            return UiContractGuard.Bind(controller, viewBinder);
+            return new CompositeBindingSubscription(
+                UiContractGuard.Bind(controller, viewBinder),
+                bridgeAdapter);
         }
 
         private IDialogueOverlayBridge ResolveDialogueOverlayBridge()
@@ -997,6 +1000,42 @@ namespace Reloader.UI.Toolkit.Runtime
             private void HandleStateChanged()
             {
                 StateChanged?.Invoke();
+            }
+
+            public void Dispose()
+            {
+                if (_subscribedBridge == null)
+                {
+                    return;
+                }
+
+                _subscribedBridge.StateChanged -= HandleStateChanged;
+                _subscribedBridge = null;
+            }
+        }
+
+        private sealed class CompositeBindingSubscription : IDisposable
+        {
+            private readonly IDisposable _primary;
+            private readonly DialogueOverlayBridgeAdapter _bridgeAdapter;
+            private bool _disposed;
+
+            public CompositeBindingSubscription(IDisposable primary, DialogueOverlayBridgeAdapter bridgeAdapter)
+            {
+                _primary = primary;
+                _bridgeAdapter = bridgeAdapter;
+            }
+
+            public void Dispose()
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                _disposed = true;
+                _primary?.Dispose();
+                _bridgeAdapter?.Dispose();
             }
         }
 
