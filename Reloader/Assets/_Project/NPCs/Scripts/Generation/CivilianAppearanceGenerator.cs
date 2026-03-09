@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Reloader.Core.Save.Modules;
+using SystemRandom = System.Random;
 
 namespace Reloader.NPCs.Generation
 {
@@ -56,7 +57,7 @@ namespace Reloader.NPCs.Generation
                 throw new ArgumentException("Spawn anchor id is required.", nameof(spawnAnchorId));
             }
 
-            var random = new Random(seed);
+            var random = new SystemRandom(seed);
 
             if (MainTownCuratedAppearanceRules.IsCuratedStyleLibrary(library))
             {

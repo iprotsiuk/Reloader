@@ -1,4 +1,4 @@
-using System;
+using SystemRandom = System.Random;
 
 namespace Reloader.NPCs.Generation
 {
@@ -31,11 +31,16 @@ namespace Reloader.NPCs.Generation
 
         private const int NicknameChanceDivisor = 6;
 
-        public static void Generate(Random random, string baseBodyId, string presentationType, out string firstName, out string lastName, out string nickname)
+        public static void Generate(int seed, string baseBodyId, string presentationType, out string firstName, out string lastName, out string nickname)
+        {
+            Generate(new SystemRandom(seed), baseBodyId, presentationType, out firstName, out lastName, out nickname);
+        }
+
+        public static void Generate(SystemRandom random, string baseBodyId, string presentationType, out string firstName, out string lastName, out string nickname)
         {
             if (random == null)
             {
-                throw new ArgumentNullException(nameof(random));
+                throw new System.ArgumentNullException(nameof(random));
             }
 
             var normalizedBody = baseBodyId?.Trim().ToLowerInvariant() ?? string.Empty;
