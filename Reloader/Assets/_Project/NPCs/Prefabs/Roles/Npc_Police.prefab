@@ -55,5 +55,28 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1562799230612780045}
   m_SourcePrefab: {fileID: 100100000, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+--- !u!1 &7938476693760169482 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+  m_PrefabInstance: {fileID: 5596431808281360352}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1562799230612780045
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7938476693760169482}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a723a02953e734c838857ab317229a7d, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Runtime.Capabilities.LawEnforcementInteractionCapability
+  _displayName: Question
+  _priority: 20
+  _definition: {fileID: 11400000, guid: 77c6e701bd4a4735bd09a4cdc5e8e479, type: 2}

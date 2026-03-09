@@ -3,6 +3,7 @@ using Reloader.Core;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.NPCs.Runtime;
+using Reloader.NPCs.Runtime.Dialogue;
 using Reloader.Player;
 using Reloader.Player.Interaction;
 using UnityEngine;
@@ -16,12 +17,15 @@ namespace Reloader.NPCs.World
 
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private MonoBehaviour _resolverBehaviour;
+        [SerializeField] private MonoBehaviour _conversationModeSource;
         [Header("Interaction")]
         [SerializeField] private bool _interactionCoordinatorModeEnabled;
         [SerializeField] private int _interactionPriority = 40;
 
         private IPlayerInputSource _inputSource;
         private IPlayerNpcResolver _resolver;
+        private DialogueConversationModeController _conversationModeController;
+        private DialogueRuntimeController _dialogueRuntimeController;
         private bool _loggedMissingDependencies;
         private bool _flushPickupInputAtEndOfFrame;
 
@@ -101,6 +105,13 @@ namespace Reloader.NPCs.World
                 return;
             }
 
+            if (IsConversationActive())
+            {
+                _flushPickupInputAtEndOfFrame = false;
+                ClearInteractionHint();
+                return;
+            }
+
             if (!_resolver.TryResolveNpcAgent(out var target) || target == null)
             {
                 _flushPickupInputAtEndOfFrame = true;
@@ -152,7 +163,7 @@ namespace Reloader.NPCs.World
             }
 
             var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
-            if (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen)
+            if (IsConversationActive() || (uiStateEvents != null && uiStateEvents.IsAnyMenuOpen))
             {
                 return false;
             }
@@ -192,6 +203,13 @@ namespace Reloader.NPCs.World
             {
                 var noTargetResult = new NpcActionExecutionResult(explicitActionKey ?? string.Empty, false, "npc.interaction.no-target");
                 InteractionProcessed?.Invoke(noTargetResult);
+                return false;
+            }
+
+            if (IsConversationActive())
+            {
+                var activeConversationResult = new NpcActionExecutionResult(explicitActionKey ?? string.Empty, false, "npc.interaction.conversation-active");
+                InteractionProcessed?.Invoke(activeConversationResult);
                 return false;
             }
 
@@ -287,6 +305,8 @@ namespace Reloader.NPCs.World
         {
             _inputSource ??= _inputSourceBehaviour as IPlayerInputSource;
             _resolver ??= _resolverBehaviour as IPlayerNpcResolver;
+            _conversationModeController ??= _conversationModeSource as DialogueConversationModeController;
+            _dialogueRuntimeController ??= _conversationModeSource as DialogueRuntimeController;
 
             if (_inputSource == null)
             {
@@ -298,6 +318,9 @@ namespace Reloader.NPCs.World
                 _resolver = DependencyResolutionGuard.FindInterface<IPlayerNpcResolver>(GetComponents<MonoBehaviour>());
             }
 
+            _conversationModeController ??= GetComponent<DialogueConversationModeController>();
+            _dialogueRuntimeController ??= GetComponent<DialogueRuntimeController>();
+
             if (_inputSource == null)
             {
                 _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(GetComponentsInParent<MonoBehaviour>(true));
@@ -307,6 +330,9 @@ namespace Reloader.NPCs.World
             {
                 _resolver = DependencyResolutionGuard.FindInterface<IPlayerNpcResolver>(GetComponentsInParent<MonoBehaviour>(true));
             }
+
+            _conversationModeController ??= GetComponentInParent<DialogueConversationModeController>(true);
+            _dialogueRuntimeController ??= GetComponentInParent<DialogueRuntimeController>(true);
 
             if (_inputSource == null)
             {
@@ -318,6 +344,9 @@ namespace Reloader.NPCs.World
                 _resolver = DependencyResolutionGuard.FindInterface<IPlayerNpcResolver>(GetComponentsInChildren<MonoBehaviour>(true));
             }
 
+            _conversationModeController ??= GetComponentInChildren<DialogueConversationModeController>(true);
+            _dialogueRuntimeController ??= GetComponentInChildren<DialogueRuntimeController>(true);
+
             if (_inputSource == null)
             {
                 _inputSource = DependencyResolutionGuard.FindInterface<IPlayerInputSource>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
@@ -327,6 +356,40 @@ namespace Reloader.NPCs.World
             {
                 _resolver = DependencyResolutionGuard.FindInterface<IPlayerNpcResolver>(FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
             }
+
+            _conversationModeController ??= FindFirstObjectByType<DialogueConversationModeController>(FindObjectsInactive.Include);
+            _dialogueRuntimeController ??= FindFirstObjectByType<DialogueRuntimeController>(FindObjectsInactive.Include);
+        }
+
+        private bool IsConversationActive()
+        {
+            var localConversationMode = GetComponent<DialogueConversationModeController>()
+                ?? GetComponentInParent<DialogueConversationModeController>(true)
+                ?? GetComponentInChildren<DialogueConversationModeController>(true);
+            if (localConversationMode != null)
+            {
+                _conversationModeController = localConversationMode;
+            }
+
+            var localRuntime = GetComponent<DialogueRuntimeController>()
+                ?? GetComponentInParent<DialogueRuntimeController>(true)
+                ?? GetComponentInChildren<DialogueRuntimeController>(true)
+                ?? DialogueRuntimeLocator.FindRuntimeForPlayerHost(this);
+            if (localRuntime != null)
+            {
+                _dialogueRuntimeController = localRuntime;
+            }
+            else if (_dialogueRuntimeController == null && _conversationModeController == null)
+            {
+                ResolveReferences();
+            }
+
+            if (_dialogueRuntimeController != null)
+            {
+                return _dialogueRuntimeController.HasActiveConversation;
+            }
+
+            return _conversationModeController != null && _conversationModeController.IsConversationActive;
         }
     }
 }

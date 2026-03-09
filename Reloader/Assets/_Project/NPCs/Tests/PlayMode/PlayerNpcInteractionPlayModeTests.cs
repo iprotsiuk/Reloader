@@ -1,16 +1,27 @@
+using System.Reflection;
 using NUnit.Framework;
+using Reloader.Contracts.Runtime;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using Reloader.NPCs.Data;
 using Reloader.NPCs.Runtime;
 using Reloader.NPCs.Runtime.Capabilities;
+using Reloader.NPCs.Runtime.Dialogue;
 using Reloader.NPCs.World;
 using Reloader.Player;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Reloader.NPCs.Tests.PlayMode
 {
     public class PlayerNpcInteractionPlayModeTests
     {
+        private const string FrontDeskDialogueAssetPath = "Assets/_Project/NPCs/Data/Definitions/Dialogue_FrontDeskClerk.asset";
+        private const string FrontDeskClerkPrefabPath = "Assets/_Project/NPCs/Prefabs/Roles/Npc_FrontDeskClerk.prefab";
+        private const string PolicePrefabPath = "Assets/_Project/NPCs/Prefabs/Roles/Npc_Police.prefab";
+
         [Test]
         public void Resolver_LookingAtNpcAgent_ResolvesTarget()
         {
@@ -89,7 +100,13 @@ namespace Reloader.NPCs.Tests.PlayMode
             controller.Configure(input, resolver);
 
             var npc = CreateNpcWithCollider("npc-target", new Vector3(0f, 0f, 2.5f));
-            AttachCapability(npc.gameObject, expectedActionKey);
+            var dialogueDefinition = AttachCapability(npc.gameObject, expectedActionKey);
+            GameObject dialogueRuntimeRoot = null;
+            if (dialogueDefinition != null)
+            {
+                dialogueRuntimeRoot = new GameObject("DialogueRuntime");
+                dialogueRuntimeRoot.AddComponent<DialogueRuntimeController>();
+            }
 
             NpcActionExecutionResult interactionResult = default;
             var eventRaised = false;
@@ -106,6 +123,16 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
             finally
             {
+                if (dialogueDefinition != null)
+                {
+                    Object.DestroyImmediate(dialogueDefinition);
+                }
+
+                if (dialogueRuntimeRoot != null)
+                {
+                    Object.DestroyImmediate(dialogueRuntimeRoot);
+                }
+
                 Object.DestroyImmediate(root);
                 Object.DestroyImmediate(npc.gameObject);
             }
@@ -113,6 +140,104 @@ namespace Reloader.NPCs.Tests.PlayMode
             Assert.That(eventRaised, Is.True);
             Assert.That(interactionResult.Success, Is.True);
             Assert.That(interactionResult.ActionKey, Is.EqualTo(expectedActionKey));
+        }
+
+        [Test]
+        public void InteractInput_DialogueNpcWithoutPreseededRuntime_ProvisionDialogueInfrastructureOnPlayerRoot()
+        {
+            DestroyAllOfType<DialogueRuntimeController>();
+            DestroyAllOfType<DialogueConversationModeController>();
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerNpcInteractionController>();
+
+            var camera = root.AddComponent<Camera>();
+            camera.transform.position = Vector3.zero;
+            camera.transform.forward = Vector3.forward;
+
+            var resolver = root.AddComponent<PlayerNpcResolver>();
+            resolver.SetCameraForTests(camera);
+
+            controller.Configure(input, resolver);
+
+            var npc = CreateNpcWithCollider("npc-dialogue-target", new Vector3(0f, 0f, 2.5f));
+            var dialogueDefinition = AttachDialogueCapabilityWithDefinition(npc.gameObject);
+
+            NpcActionExecutionResult interactionResult = default;
+            var eventRaised = false;
+            controller.InteractionProcessed += result =>
+            {
+                eventRaised = true;
+                interactionResult = result;
+            };
+
+            try
+            {
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
+
+                Assert.That(root.GetComponent<DialogueRuntimeController>(), Is.Not.Null, "Expected PlayerRoot to host a dialogue runtime after first interaction.");
+                Assert.That(root.GetComponent<DialogueConversationModeController>(), Is.Not.Null, "Expected PlayerRoot to host conversation mode after first interaction.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(dialogueDefinition);
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(npc.gameObject);
+            }
+
+            Assert.That(eventRaised, Is.True);
+            Assert.That(interactionResult.Success, Is.True);
+            Assert.That(interactionResult.ActionKey, Is.EqualTo(DialogueCapability.ActionKey));
+            Assert.That(interactionResult.Reason, Is.EqualTo("dialogue.started"));
+        }
+
+        [Test]
+        public void InteractInput_DialogueNpc_WithForeignRuntimeStillUsesPlayerRootRuntime()
+        {
+            DestroyAllOfType<DialogueRuntimeController>();
+            DestroyAllOfType<DialogueConversationModeController>();
+
+            var foreignRuntimeHost = new GameObject("ForeignDialogueRuntimeHost");
+            var foreignRuntime = foreignRuntimeHost.AddComponent<DialogueRuntimeController>();
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerNpcInteractionController>();
+
+            var camera = root.AddComponent<Camera>();
+            camera.transform.position = Vector3.zero;
+            camera.transform.forward = Vector3.forward;
+
+            var resolver = root.AddComponent<PlayerNpcResolver>();
+            resolver.SetCameraForTests(camera);
+
+            controller.Configure(input, resolver);
+
+            var npc = CreateNpcWithCollider("npc-dialogue-target", new Vector3(0f, 0f, 2.5f));
+            var dialogueDefinition = AttachDialogueCapabilityWithDefinition(npc.gameObject);
+
+            try
+            {
+                Assert.That(controller.TryGetInteractionCandidate(out _), Is.True, "Preflight targeting should succeed before dialogue starts.");
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
+
+                var playerRuntime = root.GetComponent<DialogueRuntimeController>();
+                Assert.That(playerRuntime, Is.Not.Null, "Expected interaction to prefer PlayerRoot for dialogue runtime hosting.");
+                Assert.That(playerRuntime!.HasActiveConversation, Is.True, "Expected the active conversation to be owned by PlayerRoot.");
+                Assert.That(root.GetComponent<DialogueConversationModeController>(), Is.Not.Null, "Expected conversation mode to be provisioned on PlayerRoot.");
+                Assert.That(foreignRuntime.HasActiveConversation, Is.False, "A foreign runtime must not hijack player conversations.");
+                Assert.That(controller.TryGetInteractionCandidate(out _), Is.False, "Active dialogue on PlayerRoot should continue blocking new NPC targeting even when a foreign runtime exists.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(dialogueDefinition);
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(npc.gameObject);
+                Object.DestroyImmediate(foreignRuntimeHost);
+            }
         }
 
         [Test]
@@ -192,7 +317,7 @@ namespace Reloader.NPCs.Tests.PlayMode
             controller.Configure(input, resolver);
 
             var npc = new GameObject("npc-dialogue").AddComponent<NpcAgent>();
-            npc.gameObject.AddComponent<DialogueCapability>();
+            var dialogueDefinition = AttachDialogueCapabilityWithDefinition(npc.gameObject);
             resolver.Target = npc;
 
             NpcActionExecutionResult interactionResult = default;
@@ -234,7 +359,7 @@ namespace Reloader.NPCs.Tests.PlayMode
             controller.Configure(input, resolver);
 
             var npc = new GameObject("npc-dialogue").AddComponent<NpcAgent>();
-            npc.gameObject.AddComponent<DialogueCapability>();
+            var dialogueDefinition = AttachDialogueCapabilityWithDefinition(npc.gameObject);
             resolver.Target = npc;
 
             InteractionHintPayload hinted = default;
@@ -247,6 +372,7 @@ namespace Reloader.NPCs.Tests.PlayMode
             finally
             {
                 RuntimeKernelBootstrapper.Events = originalHub;
+                Object.DestroyImmediate(dialogueDefinition);
                 Object.DestroyImmediate(root);
                 Object.DestroyImmediate(npc.gameObject);
             }
@@ -291,6 +417,265 @@ namespace Reloader.NPCs.Tests.PlayMode
             Assert.That(clearCount, Is.GreaterThanOrEqualTo(1));
         }
 
+        [Test]
+        public void TryGetInteractionCandidate_WhenConversationIsActive_ReturnsFalse()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestNpcResolver>();
+            var controller = root.AddComponent<PlayerNpcInteractionController>();
+            var conversationMode = root.AddComponent<DialogueConversationModeController>();
+            controller.Configure(input, resolver);
+
+            var npc = new GameObject("npc-dialogue").AddComponent<NpcAgent>();
+            npc.gameObject.AddComponent<DialogueCapability>();
+            resolver.Target = npc;
+
+            var focusTarget = new GameObject("focus-target");
+
+            try
+            {
+                conversationMode.EnterConversation(focusTarget.transform);
+
+                var hasCandidate = controller.TryGetInteractionCandidate(out _);
+
+                Assert.That(hasCandidate, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(focusTarget);
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(npc.gameObject);
+            }
+        }
+
+        [Test]
+        public void Tick_WhenConversationIsActive_DoesNotExecuteNpcAction()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestNpcResolver>();
+            var controller = root.AddComponent<PlayerNpcInteractionController>();
+            var conversationMode = root.AddComponent<DialogueConversationModeController>();
+            controller.Configure(input, resolver);
+
+            var npc = new GameObject("npc-dialogue").AddComponent<NpcAgent>();
+            var capability = npc.gameObject.AddComponent<DialogueCapability>();
+            resolver.Target = npc;
+
+            var focusTarget = new GameObject("focus-target");
+            var raised = false;
+            controller.InteractionProcessed += _ => raised = true;
+
+            try
+            {
+                conversationMode.EnterConversation(focusTarget.transform);
+                input.PickupPressedThisFrame = true;
+
+                controller.Tick();
+
+                Assert.That(raised, Is.False);
+                Assert.That(capability.InteractionCount, Is.EqualTo(0));
+            }
+            finally
+            {
+                Object.DestroyImmediate(focusTarget);
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(npc.gameObject);
+            }
+        }
+
+        [Test]
+        public void TryGetInteractionCandidate_WhenDialogueRuntimeHasActiveConversation_ReturnsFalse()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestNpcResolver>();
+            var controller = root.AddComponent<PlayerNpcInteractionController>();
+            var runtime = root.AddComponent<DialogueRuntimeController>();
+            controller.Configure(input, resolver);
+
+            var npc = new GameObject("npc-dialogue").AddComponent<NpcAgent>();
+            var dialogueDefinition = AttachDialogueCapabilityWithDefinition(npc.gameObject);
+            resolver.Target = npc;
+
+            try
+            {
+                Assert.That(runtime.TryOpenConversation(dialogueDefinition, npc.transform, out _), Is.True);
+
+                var hasCandidate = controller.TryGetInteractionCandidate(out _);
+
+                Assert.That(hasCandidate, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(dialogueDefinition);
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(npc.gameObject);
+            }
+        }
+
+#if UNITY_EDITOR
+        [Test]
+        public void FrontDeskClerkPrefab_InteractOpensDialogueAndConfirmingReplyProducesAuthoredOutcome()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(FrontDeskClerkPrefabPath);
+            var dialogueAsset = AssetDatabase.LoadAssetAtPath<DialogueDefinition>(FrontDeskDialogueAssetPath);
+            Assert.That(prefab, Is.Not.Null, $"Expected prefab at {FrontDeskClerkPrefabPath}.");
+            Assert.That(dialogueAsset, Is.Not.Null, $"Expected dialogue asset at {FrontDeskDialogueAssetPath}.");
+
+            var root = new GameObject("PlayerRoot");
+            var characterController = root.AddComponent<CharacterController>();
+            characterController.height = 2f;
+            characterController.radius = 0.3f;
+            root.transform.position = Vector3.zero;
+
+            var input = root.AddComponent<TestInputSource>();
+            var camera = root.AddComponent<Camera>();
+            camera.transform.position = new Vector3(0f, 1f, 0f);
+            camera.transform.forward = Vector3.forward;
+
+            var resolver = root.AddComponent<PlayerNpcResolver>();
+            resolver.SetCameraForTests(camera);
+            var interactionController = root.AddComponent<PlayerNpcInteractionController>();
+            interactionController.Configure(input, resolver);
+
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var mover = root.AddComponent<PlayerMover>();
+            mover.Configure(input, new PlayerMovementSettings
+            {
+                WalkSpeed = 6f,
+                SprintSpeed = 9f,
+                Acceleration = 100f,
+                Gravity = -25f,
+                JumpHeight = 1.25f
+            });
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            var cursor = root.AddComponent<PlayerCursorLockController>();
+            cursor.LockCursor();
+
+            var runtime = root.AddComponent<DialogueRuntimeController>();
+            var conversationMode = root.AddComponent<DialogueConversationModeController>();
+
+            var npcInstance = Object.Instantiate(prefab);
+            var npcAgent = npcInstance.GetComponent<NpcAgent>();
+            NpcActionExecutionResult interactionResult = default;
+            var interactionRaised = false;
+            interactionController.InteractionProcessed += result =>
+            {
+                interactionRaised = true;
+                interactionResult = result;
+            };
+
+            try
+            {
+                Assert.That(npcAgent, Is.Not.Null);
+                npcInstance.transform.position = new Vector3(0f, 0f, 2.5f);
+
+                input.PickupPressedThisFrame = true;
+                interactionController.Tick();
+                conversationMode.RefreshConversationMode();
+
+                Assert.That(interactionRaised, Is.True);
+                Assert.That(interactionResult.Success, Is.True);
+                Assert.That(interactionResult.ActionKey, Is.EqualTo(DialogueCapability.ActionKey));
+                Assert.That(runtime.HasActiveConversation, Is.True);
+                Assert.That(conversationMode.IsConversationActive, Is.True);
+                Assert.That(conversationMode.ActiveFocusTarget, Is.EqualTo(npcInstance.transform));
+                Assert.That(dialogueAsset.TryGetEntryNode(out var entryNode), Is.True);
+                Assert.That(runtime.ActiveConversation.CurrentNode.SpeakerText, Is.EqualTo(entryNode.SpeakerText));
+                Assert.That(runtime.ActiveConversation.CurrentNode.Replies.Length, Is.EqualTo(entryNode.Replies.Length));
+
+                Assert.That(runtime.TrySelectReply(1), Is.True);
+                Assert.That(runtime.TryConfirmSelectedReply(out var confirmResult), Is.True);
+                conversationMode.RefreshConversationMode();
+
+                Assert.That(confirmResult.Success, Is.True);
+                Assert.That(runtime.HasActiveConversation, Is.False);
+                Assert.That(conversationMode.IsConversationActive, Is.False);
+                Assert.That(runtime.LastOutcome.ReplyId, Is.EqualTo("reply.frontdesk.lockers"));
+                Assert.That(runtime.LastOutcome.ActionId, Is.EqualTo("dialogue.frontdesk.ask-lockers"));
+                Assert.That(runtime.LastOutcome.Payload, Is.EqualTo("lockers"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(cameraPivot);
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(npcInstance);
+            }
+        }
+
+        [Test]
+        public void PolicePrefab_InteractAndConfirmLeave_EscalatesRealProviderHeat()
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PolicePrefabPath);
+            Assert.That(prefab, Is.Not.Null, $"Expected prefab at {PolicePrefabPath}.");
+
+            var providerGo = new GameObject("ContractProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+
+            var root = new GameObject("PlayerRoot");
+            var characterController = root.AddComponent<CharacterController>();
+            characterController.height = 2f;
+            characterController.radius = 0.3f;
+            root.transform.position = Vector3.zero;
+
+            var input = root.AddComponent<TestInputSource>();
+            var camera = root.AddComponent<Camera>();
+            camera.transform.position = new Vector3(0f, 1f, 0f);
+            camera.transform.forward = Vector3.forward;
+
+            var resolver = root.AddComponent<PlayerNpcResolver>();
+            resolver.SetCameraForTests(camera);
+            var interactionController = root.AddComponent<PlayerNpcInteractionController>();
+            interactionController.Configure(input, resolver);
+
+            var npcInstance = Object.Instantiate(prefab);
+            var npcAgent = npcInstance.GetComponent<NpcAgent>();
+            NpcActionExecutionResult interactionResult = default;
+            var interactionRaised = false;
+            interactionController.InteractionProcessed += result =>
+            {
+                interactionRaised = true;
+                interactionResult = result;
+            };
+
+            try
+            {
+                Assert.That(npcAgent, Is.Not.Null);
+                npcInstance.transform.position = new Vector3(0f, 0f, 2.5f);
+
+                input.PickupPressedThisFrame = true;
+                interactionController.Tick();
+
+                var runtime = root.GetComponent<DialogueRuntimeController>();
+                Assert.That(runtime, Is.Not.Null, "Expected police interaction to provision the shared dialogue runtime on PlayerRoot.");
+                Assert.That(runtime!.HasActiveConversation, Is.True);
+
+                Assert.That(runtime.TrySelectReply(2), Is.True, "Expected authored police dialogue to expose the 'leave' reply as the third option.");
+                Assert.That(runtime.TryConfirmSelectedReply(out var confirmResult), Is.True);
+
+                var providerRuntime = ReadContractRuntime(provider);
+                Assert.That(providerRuntime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+                Assert.That(providerRuntime.CurrentHeatState.LastCrimeType, Is.EqualTo(CrimeType.Fleeing));
+                Assert.That(confirmResult.Outcome.ActionId, Is.EqualTo("police.stop.leave"));
+                Assert.That(interactionRaised, Is.True);
+                Assert.That(interactionResult.Success, Is.True);
+                Assert.That(interactionResult.ActionKey, Is.EqualTo(LawEnforcementInteractionCapability.ActionKey));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(npcInstance);
+                Object.DestroyImmediate(providerGo);
+            }
+        }
+#endif
+
         private static NpcAgent CreateNpcWithCollider(string name, Vector3 position)
         {
             var npcGo = new GameObject(name);
@@ -299,27 +684,83 @@ namespace Reloader.NPCs.Tests.PlayMode
             return npcGo.AddComponent<NpcAgent>();
         }
 
-        private static void AttachCapability(GameObject npc, string actionKey)
+        private static DialogueDefinition AttachCapability(GameObject npc, string actionKey)
         {
             if (actionKey == DialogueCapability.ActionKey)
             {
-                npc.AddComponent<DialogueCapability>();
-                return;
+                return AttachDialogueCapabilityWithDefinition(npc);
             }
 
             if (actionKey == FrontDeskInteractionCapability.ActionKey)
             {
                 npc.AddComponent<FrontDeskInteractionCapability>();
-                return;
+                return null;
             }
 
             if (actionKey == EntryFeeInteractionCapability.ActionKey)
             {
                 npc.AddComponent<EntryFeeInteractionCapability>();
-                return;
+                return null;
             }
 
             Assert.Fail("Unsupported action key in test setup: " + actionKey);
+            return null;
+        }
+
+        private static DialogueDefinition AttachDialogueCapabilityWithDefinition(GameObject npc)
+        {
+            var capability = npc.AddComponent<DialogueCapability>();
+            var definition = CreateDialogueDefinition(
+                "dialogue.test.greeting",
+                "entry",
+                new DialogueNodeDefinition(
+                    "entry",
+                    "Need something?",
+                    new[]
+                    {
+                        new DialogueReplyDefinition("reply.ok", "Talk.", string.Empty, string.Empty, string.Empty)
+                    }));
+            SetField(capability, "_definition", definition);
+            return definition;
+        }
+
+        private static DialogueDefinition CreateDialogueDefinition(string dialogueId, string entryNodeId, params DialogueNodeDefinition[] nodes)
+        {
+            var definition = ScriptableObject.CreateInstance<DialogueDefinition>();
+            SetField(definition, "_dialogueId", dialogueId);
+            SetField(definition, "_entryNodeId", entryNodeId);
+            SetField(definition, "_nodes", nodes);
+            return definition;
+        }
+
+        private static void SetField(object target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {target.GetType().Name}.");
+            field.SetValue(target, value);
+        }
+
+        private static void DestroyAllOfType<T>() where T : Component
+        {
+            var objects = Object.FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < objects.Length; i++)
+            {
+                var component = objects[i] as Component;
+                if (component != null)
+                {
+                    Object.DestroyImmediate(component.gameObject);
+                }
+            }
+        }
+
+        private static ContractEscapeResolutionRuntime ReadContractRuntime(StaticContractRuntimeProvider provider)
+        {
+            var runtimeField = typeof(StaticContractRuntimeProvider).GetField("_runtime", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(runtimeField, Is.Not.Null, "Expected private runtime field on StaticContractRuntimeProvider.");
+
+            var runtime = runtimeField!.GetValue(provider) as ContractEscapeResolutionRuntime;
+            Assert.That(runtime, Is.Not.Null, "Expected StaticContractRuntimeProvider to initialize its runtime.");
+            return runtime!;
         }
 
         private sealed class TestNpcResolver : MonoBehaviour, IPlayerNpcResolver

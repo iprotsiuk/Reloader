@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="../USS/DialogueOverlay.uss" />
+    <ui:VisualElement name="dialogue-overlay__screen" class="dialogue-overlay__screen">
+        <ui:VisualElement name="dialogue-overlay__root" class="dialogue-overlay">
+            <ui:VisualElement name="dialogue-overlay__content" class="dialogue-overlay__content">
+                <ui:Label name="dialogue-overlay__speaker" class="dialogue-overlay__speaker" text="" />
+                <ui:Label name="dialogue-overlay__line" class="dialogue-overlay__line" text="" />
+            </ui:VisualElement>
+            <ui:VisualElement name="dialogue-overlay__replies" class="dialogue-overlay__replies" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

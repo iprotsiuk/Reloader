@@ -55,6 +55,11 @@ namespace Reloader.Contracts.Runtime
             return EnsureRuntime().CancelActiveContract();
         }
 
+        public bool ClearFailedContract()
+        {
+            return EnsureRuntime().ClearFailedContract();
+        }
+
         public bool ClaimCompletedContractReward()
         {
             return EnsureRuntime().ClaimCompletedContractReward();
@@ -63,6 +68,11 @@ namespace Reloader.Contracts.Runtime
         public void ReportContractTargetEliminated(string targetId, bool wasExposed)
         {
             EnsureRuntime().ReportTargetEliminated(targetId, wasExposed);
+        }
+
+        public bool TryHandleDialogueAction(string actionId, string payload = null)
+        {
+            return EnsureRuntime().TryHandleDialogueAction(actionId, payload);
         }
 
         public bool CanPublishAvailableContract()

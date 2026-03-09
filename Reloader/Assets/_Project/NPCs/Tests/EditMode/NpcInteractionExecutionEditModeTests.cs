@@ -1,6 +1,9 @@
 using NUnit.Framework;
+using System.Reflection;
+using Reloader.NPCs.Data;
 using Reloader.NPCs.Runtime;
 using Reloader.NPCs.Runtime.Capabilities;
+using Reloader.NPCs.Runtime.Dialogue;
 using UnityEngine;
 
 namespace Reloader.NPCs.Tests.EditMode
@@ -10,9 +13,22 @@ namespace Reloader.NPCs.Tests.EditMode
         [Test]
         public void TryExecuteAction_ExecutesDialogueCapabilityAndCapturesPayload()
         {
+            var runtimeGo = new GameObject("dialogue-runtime");
             var go = new GameObject("dialogue-agent");
             var agent = go.AddComponent<NpcAgent>();
             var capability = go.AddComponent<DialogueCapability>();
+            var runtime = runtimeGo.AddComponent<DialogueRuntimeController>();
+            var definition = CreateDefinition(
+                "dialogue.greeting",
+                "entry",
+                new DialogueNodeDefinition(
+                    "entry",
+                    "Welcome to town.",
+                    new[]
+                    {
+                        new DialogueReplyDefinition("reply.ack", "Thanks.", string.Empty, "journal.note", "intro")
+                    }));
+            SetField(capability, "_definition", definition);
 
             try
             {
@@ -25,10 +41,56 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(result.Success, Is.True);
                 Assert.That(capability.InteractionCount, Is.EqualTo(1));
                 Assert.That(capability.LastPayload, Is.EqualTo("topic:greeting"));
+                Assert.That(result.Reason, Is.EqualTo("dialogue.started"));
+                Assert.That(runtime.HasActiveConversation, Is.True);
+                Assert.That(runtime.ActiveConversation.Definition, Is.SameAs(definition));
             }
             finally
             {
+                Object.DestroyImmediate(definition);
                 Object.DestroyImmediate(go);
+                Object.DestroyImmediate(runtimeGo);
+            }
+        }
+
+        [Test]
+        public void TryExecuteAction_ExecutesPoliceCapabilityAndOpensDialogueRuntime()
+        {
+            var runtimeGo = new GameObject("dialogue-runtime");
+            var go = new GameObject("police-agent");
+            var agent = go.AddComponent<NpcAgent>();
+            var capability = go.AddComponent<LawEnforcementInteractionCapability>();
+            var runtime = runtimeGo.AddComponent<DialogueRuntimeController>();
+            var definition = CreateDefinition(
+                "dialogue.police.stop",
+                "entry",
+                new DialogueNodeDefinition(
+                    "entry",
+                    "Stop right there.",
+                    new[]
+                    {
+                        new DialogueReplyDefinition("reply.comply", "Fine.", string.Empty, "police.stop.comply", "comply")
+                    }));
+            SetField(capability, "_definition", definition);
+
+            try
+            {
+                var executed = agent.TryExecuteAction(
+                    LawEnforcementInteractionCapability.ActionKey,
+                    payload: "topic:stop",
+                    out var result);
+
+                Assert.That(executed, Is.True);
+                Assert.That(result.Success, Is.True);
+                Assert.That(result.Reason, Is.EqualTo("dialogue.started"));
+                Assert.That(runtime.HasActiveConversation, Is.True);
+                Assert.That(runtime.ActiveConversation.Definition, Is.SameAs(definition));
+            }
+            finally
+            {
+                Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(runtimeGo);
             }
         }
 
@@ -115,6 +177,22 @@ namespace Reloader.NPCs.Tests.EditMode
             {
                 Object.DestroyImmediate(go);
             }
+        }
+
+        private static DialogueDefinition CreateDefinition(string dialogueId, string entryNodeId, params DialogueNodeDefinition[] nodes)
+        {
+            var definition = ScriptableObject.CreateInstance<DialogueDefinition>();
+            SetField(definition, "_dialogueId", dialogueId);
+            SetField(definition, "_entryNodeId", entryNodeId);
+            SetField(definition, "_nodes", nodes);
+            return definition;
+        }
+
+        private static void SetField(object target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {target.GetType().Name}.");
+            field.SetValue(target, value);
         }
     }
 }

@@ -43,6 +43,9 @@ namespace Reloader.Contracts.Runtime
 
         private readonly ContractRuntimeController _contractController = new ContractRuntimeController();
         private readonly PoliceHeatRuntime _policeHeatRuntime;
+        private const string PoliceStopComplyActionId = "police.stop.comply";
+        private const string PoliceStopQuestionActionId = "police.stop.question";
+        private const string PoliceStopLeaveActionId = "police.stop.leave";
         private AssassinationContractDefinition _availableContract;
         private AssassinationContractDefinition _failedDefinition;
         private IContractPayoutReceiver _payoutReceiver;
@@ -126,6 +129,9 @@ namespace Reloader.Contracts.Runtime
                 canAccept: hasAvailableContract,
                 canCancel: CanCancelActiveContract(),
                 canClaimReward: CanClaimCompletedContractReward(),
+                restrictionsText: BuildRestrictionsText(definition),
+                failureConditionsText: BuildFailureConditionsText(definition),
+                canClearFailed: CanClearFailedContract(),
                 statusText: BuildStatusText(hasAvailableContract, activeContract != null, hasFailedContract));
             return true;
         }
@@ -143,7 +149,6 @@ namespace Reloader.Contracts.Runtime
             if (accepted)
             {
                 _offerConsumed = true;
-                _policeHeatRuntime.ForceClear();
             }
 
             return accepted;
@@ -158,7 +163,6 @@ namespace Reloader.Contracts.Runtime
 
             ResetPendingResolution();
             ClearFailedContractState();
-            _policeHeatRuntime.ForceClear();
             _offerConsumed = false;
             return _contractController.TryFailActiveContract();
         }
@@ -182,6 +186,17 @@ namespace Reloader.Contracts.Runtime
             _pendingPayoutAmount = 0;
             ClearFailedContractState();
             return _contractController.TryCompleteActiveContract();
+        }
+
+        public bool ClearFailedContract()
+        {
+            if (!CanClearFailedContract())
+            {
+                return false;
+            }
+
+            ClearFailedContractState();
+            return true;
         }
 
         public bool ReportTargetEliminated(string targetId, bool wasExposed)
@@ -215,8 +230,13 @@ namespace Reloader.Contracts.Runtime
             var isCorrectTarget = string.Equals(activeContract.TargetId, targetId, StringComparison.Ordinal);
             if (!isCorrectTarget)
             {
-                _failedDefinition = _contractController.ActiveDefinition;
                 RaiseMurderHeatIfNeeded(wasExposed);
+                if (!ShouldFailOnWrongTarget(_contractController.ActiveDefinition))
+                {
+                    return true;
+                }
+
+                _failedDefinition = _contractController.ActiveDefinition;
                 ResetPendingResolution();
                 _contractController.TryFailActiveContract();
                 return false;
@@ -232,6 +252,30 @@ namespace Reloader.Contracts.Runtime
                 return true;
             }
 
+            return true;
+        }
+
+        public bool TryHandleDialogueAction(string actionId, string payload = null)
+        {
+            if (string.IsNullOrWhiteSpace(actionId))
+            {
+                return false;
+            }
+
+            if (string.Equals(actionId, PoliceStopComplyActionId, StringComparison.Ordinal)
+                || string.Equals(actionId, PoliceStopQuestionActionId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (!string.Equals(actionId, PoliceStopLeaveActionId, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            _policeHeatRuntime.ReportCrime(CrimeType.Fleeing);
+            _policeHeatRuntime.ReportLineOfSightAcquired();
+            _policeHeatRuntime.ReportLineOfSightLost();
             return true;
         }
 
@@ -305,6 +349,14 @@ namespace Reloader.Contracts.Runtime
 
             if (_completionPending)
             {
+                if (CurrentHeatState.Level != PoliceHeatLevel.Clear)
+                {
+                    return string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        "Escape search: {0:0}s",
+                        CurrentHeatState.SearchTimeRemainingSeconds);
+                }
+
                 return "Ready to claim";
             }
 
@@ -314,6 +366,26 @@ namespace Reloader.Contracts.Runtime
             }
 
             return hasAvailableContract ? "Available contract" : "No contracts available";
+        }
+
+        private static string BuildRestrictionsText(AssassinationContractDefinition definition)
+        {
+            if (definition == null)
+            {
+                return string.Empty;
+            }
+
+            return definition.BuildRestrictionsText();
+        }
+
+        private static string BuildFailureConditionsText(AssassinationContractDefinition definition)
+        {
+            if (definition == null)
+            {
+                return "Manual cancel";
+            }
+
+            return definition.BuildFailureConditionsText();
         }
 
         private void RaiseMurderHeatIfNeeded(bool wasExposed)
@@ -347,12 +419,23 @@ namespace Reloader.Contracts.Runtime
                    && !_awaitingSearchClear;
         }
 
+        private bool CanClearFailedContract()
+        {
+            return _contractController.ActiveContract == null
+                   && _failedDefinition != null;
+        }
+
         private bool CanClaimCompletedContractReward()
         {
             return _contractController.ActiveContract != null
                    && _completionPending
-                   && !_awaitingSearchClear
+                   && CurrentHeatState.Level == PoliceHeatLevel.Clear
                    && (_pendingPayoutAmount <= 0 || _payoutReceiver != null);
+        }
+
+        private static bool ShouldFailOnWrongTarget(AssassinationContractDefinition definition)
+        {
+            return definition != null && definition.FailsOnWrongTargetKill;
         }
     }
 }

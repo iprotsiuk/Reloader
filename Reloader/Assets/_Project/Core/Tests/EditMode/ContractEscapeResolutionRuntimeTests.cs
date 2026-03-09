@@ -211,9 +211,147 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void ReportTargetEliminated_WrongTargetFailsContractAndDoesNotAwardPayout()
+        public void ReportTargetEliminated_WrongTargetOnDefaultContract_KeepsContractActiveAndRaisesHeat()
         {
             var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            var payoutReceiver = new RecordingPayoutReceiver();
+            var runtime = new ContractEscapeResolutionRuntime(
+                contract,
+                searchDurationSeconds: 10f,
+                payoutReceiver: payoutReceiver,
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            try
+            {
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+
+                var eliminated = runtime.ReportTargetEliminated("target.bravo", wasExposed: true);
+
+                Assert.That(eliminated, Is.True, "Ordinary contracts should treat wrong-target kills as sandbox consequences, not automatic mission failure.");
+                Assert.That(runtime.ActiveContract, Is.Not.Null, "Default contracts should remain active after a wrong-target kill.");
+                Assert.That(runtime.ActiveContract!.ContractId, Is.EqualTo("contract.alpha"));
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+                Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(0));
+                Assert.That(runtime.TryGetSnapshot(out var activeSnapshot), Is.True);
+                Assert.That(activeSnapshot.HasActiveContract, Is.True);
+                Assert.That(activeSnapshot.HasFailedContract, Is.False);
+                Assert.That(activeSnapshot.StatusText, Is.EqualTo("Active contract"));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+            }
+        }
+
+        [Test]
+        public void CancelActiveContract_AfterRelaxedWrongTargetKill_DoesNotClearPoliceSearch()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            var runtime = new ContractEscapeResolutionRuntime(
+                contract,
+                searchDurationSeconds: 10f,
+                payoutReceiver: new RecordingPayoutReceiver(),
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            try
+            {
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+                Assert.That(runtime.ReportTargetEliminated("target.bravo", wasExposed: true), Is.True);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+
+                Assert.That(runtime.CancelActiveContract(), Is.True);
+
+                Assert.That(runtime.ActiveContract, Is.Null);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search),
+                    "Canceling a relaxed contract must not erase police search caused by the witnessed kill.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+            }
+        }
+
+        [Test]
+        public void AcceptAvailableContract_AfterRelaxedWrongTargetCancel_DoesNotClearPoliceSearch()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            var runtime = new ContractEscapeResolutionRuntime(
+                contract,
+                searchDurationSeconds: 10f,
+                payoutReceiver: new RecordingPayoutReceiver(),
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            try
+            {
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+                Assert.That(runtime.ReportTargetEliminated("target.bravo", wasExposed: true), Is.True);
+                Assert.That(runtime.CancelActiveContract(), Is.True);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+
+                Assert.That(runtime.ActiveContract, Is.Not.Null);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search),
+                    "Re-accepting a reposted contract must not clear active police search.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+            }
+        }
+
+        [Test]
+        public void ReportTargetEliminated_CorrectTargetAfterRelaxedWrongTargetSearch_RequiresSearchToClearBeforeClaim()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            var payoutReceiver = new RecordingPayoutReceiver();
+            var runtime = new ContractEscapeResolutionRuntime(
+                contract,
+                searchDurationSeconds: 10f,
+                payoutReceiver: payoutReceiver,
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            try
+            {
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+                Assert.That(runtime.ReportTargetEliminated("target.bravo", wasExposed: true), Is.True);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+
+                Assert.That(runtime.ReportTargetEliminated("target.alpha", wasExposed: false), Is.True);
+
+                Assert.That(runtime.ActiveContract, Is.Not.Null);
+                Assert.That(runtime.HasPendingPayout, Is.True);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+                Assert.That(runtime.TryGetSnapshot(out var searchSnapshot), Is.True);
+                Assert.That(searchSnapshot.StatusText, Does.StartWith("Escape search:"));
+                Assert.That(searchSnapshot.CanClaimReward, Is.False,
+                    "Pending payout must stay blocked while police search from the earlier wrong-target kill is still active.");
+                Assert.That(runtime.ClaimCompletedContractReward(), Is.False);
+                Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(0));
+
+                runtime.Advance(10.1f);
+
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Clear));
+                Assert.That(runtime.TryGetSnapshot(out var readySnapshot), Is.True);
+                Assert.That(readySnapshot.StatusText, Is.EqualTo("Ready to claim"));
+                Assert.That(readySnapshot.CanClaimReward, Is.True);
+
+                Assert.That(runtime.ClaimCompletedContractReward(), Is.True);
+
+                Assert.That(runtime.ActiveContract, Is.Null);
+                Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(1500));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+            }
+        }
+
+        [Test]
+        public void ReportTargetEliminated_WrongTargetFailsStrictContractAndDoesNotAwardPayout()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            ConfigureWrongTargetFailureRule(contract);
             var payoutReceiver = new RecordingPayoutReceiver();
             var runtime = new ContractEscapeResolutionRuntime(
                 contract,
@@ -249,9 +387,10 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void ReportTargetEliminated_WrongTargetKeepsFailureSnapshotVisibleDuringSearch()
+        public void ReportTargetEliminated_WrongTargetKeepsStrictFailureSnapshotVisibleDuringSearch()
         {
             var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            ConfigureWrongTargetFailureRule(contract);
             var runtime = new ContractEscapeResolutionRuntime(
                 contract,
                 searchDurationSeconds: 10f,
@@ -278,6 +417,83 @@ namespace Reloader.Core.Tests.EditMode
             }
         }
 
+        [Test]
+        public void ClearFailedContract_AfterStrictFailure_ClearsSnapshotWithoutClearingPoliceSearch()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            ConfigureWrongTargetFailureRule(contract);
+            var runtime = new ContractEscapeResolutionRuntime(
+                contract,
+                searchDurationSeconds: 10f,
+                payoutReceiver: new RecordingPayoutReceiver(),
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            try
+            {
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+                Assert.That(runtime.ReportTargetEliminated("target.bravo", wasExposed: true), Is.False);
+                Assert.That(runtime.TryGetSnapshot(out var failedSnapshot), Is.True);
+                Assert.That(failedSnapshot.HasFailedContract, Is.True);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+
+                Assert.That(runtime.ClearFailedContract(), Is.True);
+
+                Assert.That(runtime.TryGetSnapshot(out _), Is.False, "Clearing a failed contract should remove the mission snapshot.");
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search),
+                    "Clearing a failed contract must not clear police search state.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+            }
+        }
+
+        [Test]
+        public void TryHandleDialogueAction_PoliceStopComply_DoesNotEscalatePoliceHeat()
+        {
+            var runtime = new ContractEscapeResolutionRuntime(
+                availableContract: null,
+                searchDurationSeconds: 10f,
+                payoutReceiver: new RecordingPayoutReceiver(),
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            var handled = runtime.TryHandleDialogueAction("police.stop.comply", string.Empty);
+
+            Assert.That(handled, Is.True);
+            Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Clear));
+        }
+
+        [Test]
+        public void TryHandleDialogueAction_PoliceStopLeave_EscalatesIntoSearch()
+        {
+            var runtime = new ContractEscapeResolutionRuntime(
+                availableContract: null,
+                searchDurationSeconds: 10f,
+                payoutReceiver: new RecordingPayoutReceiver(),
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            var handled = runtime.TryHandleDialogueAction("police.stop.leave", "walk-away");
+
+            Assert.That(handled, Is.True);
+            Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+            Assert.That(runtime.CurrentHeatState.LastCrimeType, Is.EqualTo(CrimeType.Fleeing));
+        }
+
+        [Test]
+        public void TryHandleDialogueAction_UnknownOutcome_IsIgnored()
+        {
+            var runtime = new ContractEscapeResolutionRuntime(
+                availableContract: null,
+                searchDurationSeconds: 10f,
+                payoutReceiver: new RecordingPayoutReceiver(),
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents);
+
+            var handled = runtime.TryHandleDialogueAction("dialogue.frontdesk.ask-lockers", "lockers");
+
+            Assert.That(handled, Is.False);
+            Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Clear));
+        }
+
         private static AssassinationContractDefinition CreateDefinition(
             string contractId,
             string targetId,
@@ -296,6 +512,23 @@ namespace Reloader.Core.Tests.EditMode
             serializedObject.FindProperty("_payout")!.intValue = payout;
             serializedObject.ApplyModifiedPropertiesWithoutUndo();
             return definition;
+        }
+
+        private static void ConfigureWrongTargetFailureRule(AssassinationContractDefinition definition)
+        {
+            var serializedObject = new SerializedObject(definition);
+            var rulesProperty = serializedObject.FindProperty("_failurePolicy._failureRules");
+            Assert.That(rulesProperty, Is.Not.Null,
+                "Expected assassination contracts to expose a serialized failure-policy list for opt-in mission restrictions.");
+
+            rulesProperty!.arraySize = 1;
+            var ruleProperty = rulesProperty.GetArrayElementAtIndex(0);
+            var ruleTypeProperty = ruleProperty.FindPropertyRelative("_ruleType");
+            Assert.That(ruleTypeProperty, Is.Not.Null,
+                "Expected each failure rule to serialize a rule type so strict contracts can opt into wrong-target failure.");
+
+            ruleTypeProperty!.enumValueIndex = 0;
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private sealed class RecordingPayoutReceiver : IContractPayoutReceiver

@@ -482,19 +482,25 @@ namespace Reloader.UI.Toolkit.TabInventory
             }
 
             _contractsAcceptButton?.SetEnabled(inventoryState.ContractPanel.CanAccept);
-            var showActivePrimaryAction = isActiveContract
-                && (inventoryState.ContractPanel.CanCancel || inventoryState.ContractPanel.CanClaimReward);
+            var showActivePrimaryAction = (isActiveContract || isFailedContract)
+                && (inventoryState.ContractPanel.CanCancel
+                    || inventoryState.ContractPanel.CanClaimReward
+                    || inventoryState.ContractPanel.CanClearFailed);
             _contractsActiveActionIntentKey = inventoryState.ContractPanel.CanClaimReward
                 ? "tab.inventory.contracts.claim"
                 : inventoryState.ContractPanel.CanCancel
                     ? "tab.inventory.contracts.cancel"
-                    : null;
+                    : inventoryState.ContractPanel.CanClearFailed
+                        ? "tab.inventory.contracts.clear"
+                        : null;
             if (_contractsActivePrimaryActionButton != null)
             {
                 _contractsActivePrimaryActionButton.style.display = showActivePrimaryAction ? DisplayStyle.Flex : DisplayStyle.None;
                 _contractsActivePrimaryActionButton.text = inventoryState.ContractPanel.CanClaimReward
                     ? "Claim Reward"
-                    : "Cancel Contract";
+                    : inventoryState.ContractPanel.CanClearFailed
+                        ? "Clear Contract"
+                        : "Cancel Contract";
                 _contractsActivePrimaryActionButton.SetEnabled(showActivePrimaryAction);
             }
 

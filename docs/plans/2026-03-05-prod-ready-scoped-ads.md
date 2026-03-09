@@ -53,7 +53,7 @@ Suggested command path:
 ```bash
 /Applications/Unity/Hub/Editor/6000.3.8f1/Unity.app/Contents/MacOS/Unity \
   -batchmode \
-  -projectPath "/Users/ivanprotsiuk/Documents/unity/Reloader/Reloader" \
+  -projectPath "/Users/ivanprotsiuk/unity/Reloader/Reloader" \
   -runTests \
   -testPlatform PlayMode \
   -testFilter "Reloader.Weapons.Tests.PlayMode.ScopeAttachmentAdsIntegrationPlayModeTests|Reloader.Weapons.Tests.PlayMode.PlayerWeaponControllerPlayModeTests" \

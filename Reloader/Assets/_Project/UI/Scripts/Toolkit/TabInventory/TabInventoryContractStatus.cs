@@ -16,7 +16,10 @@ namespace Reloader.UI.Toolkit.TabInventory
             bool canClaimReward,
             string statusText,
             string trackingText = "",
-            bool hasFailedContract = false)
+            bool hasFailedContract = false,
+            string restrictionsText = "",
+            string failureConditionsText = "Manual cancel",
+            bool canClearFailed = false)
         {
             HasAvailableContract = hasAvailableContract;
             HasActiveContract = hasActiveContract;
@@ -30,7 +33,10 @@ namespace Reloader.UI.Toolkit.TabInventory
             CanAccept = canAccept;
             CanCancel = canCancel;
             CanClaimReward = canClaimReward;
+            CanClearFailed = canClearFailed;
             StatusText = statusText ?? string.Empty;
+            RestrictionsText = restrictionsText ?? string.Empty;
+            FailureConditionsText = failureConditionsText ?? string.Empty;
             TrackingText = trackingText ?? string.Empty;
         }
 
@@ -46,7 +52,10 @@ namespace Reloader.UI.Toolkit.TabInventory
         public bool CanAccept { get; }
         public bool CanCancel { get; }
         public bool CanClaimReward { get; }
+        public bool CanClearFailed { get; }
         public string StatusText { get; }
+        public string RestrictionsText { get; }
+        public string FailureConditionsText { get; }
         public string TrackingText { get; }
 
         public static TabInventoryContractStatus CreateDefault()
@@ -64,7 +73,10 @@ namespace Reloader.UI.Toolkit.TabInventory
                 canAccept: false,
                 canCancel: false,
                 canClaimReward: false,
+                canClearFailed: false,
                 statusText: "No contracts currently posted",
+                restrictionsText: "None",
+                failureConditionsText: "Manual cancel",
                 trackingText: string.Empty);
         }
     }

@@ -15,6 +15,7 @@ using Reloader.UI.Toolkit.AmmoHud;
 using Reloader.UI.Toolkit.BeltHud;
 using Reloader.UI.Toolkit.ChestInventory;
 using Reloader.UI.Toolkit.Contracts;
+using Reloader.UI.Toolkit.Dialogue;
 using Reloader.UI.Toolkit.EscMenu;
 using Reloader.UI.Toolkit.InteractionHint;
 using Reloader.UI.Toolkit.Reloading;
@@ -40,7 +41,8 @@ namespace Reloader.UI.Toolkit.Runtime
             new(UiRuntimeCompositionIds.ScreenIds.ChestInventory, UiRuntimeCompositionIds.ControllerObjectNames.ChestInventory, ScreenBindingKind.ChestInventory, DependencyRequirement.Inventory | DependencyRequirement.Input),
             new(UiRuntimeCompositionIds.ScreenIds.Trade, UiRuntimeCompositionIds.ControllerObjectNames.Trade, ScreenBindingKind.Trade, DependencyRequirement.None),
             new(UiRuntimeCompositionIds.ScreenIds.ReloadingWorkbench, UiRuntimeCompositionIds.ControllerObjectNames.ReloadingWorkbench, ScreenBindingKind.ReloadingWorkbench, DependencyRequirement.None),
-            new(UiRuntimeCompositionIds.ScreenIds.InteractionHint, UiRuntimeCompositionIds.ControllerObjectNames.InteractionHint, ScreenBindingKind.InteractionHint, DependencyRequirement.None)
+            new(UiRuntimeCompositionIds.ScreenIds.InteractionHint, UiRuntimeCompositionIds.ControllerObjectNames.InteractionHint, ScreenBindingKind.InteractionHint, DependencyRequirement.None),
+            new(UiRuntimeCompositionIds.ScreenIds.DialogueOverlay, UiRuntimeCompositionIds.ControllerObjectNames.DialogueOverlay, ScreenBindingKind.DialogueOverlay, DependencyRequirement.None)
         };
 
         [SerializeField] private float _selfHealIntervalSeconds = DefaultSelfHealIntervalSeconds;
@@ -174,6 +176,7 @@ namespace Reloader.UI.Toolkit.Runtime
                 ScreenBindingKind.Trade => BindTrade(root, definition.ControllerObjectName),
                 ScreenBindingKind.ReloadingWorkbench => BindReloadingWorkbench(root, definition.ControllerObjectName),
                 ScreenBindingKind.InteractionHint => BindInteractionHint(root, definition.ControllerObjectName),
+                ScreenBindingKind.DialogueOverlay => BindDialogueOverlay(root, definition.ControllerObjectName),
                 _ => null
             };
 
@@ -452,6 +455,46 @@ namespace Reloader.UI.Toolkit.Runtime
             return UiContractGuard.Bind(controller, viewBinder);
         }
 
+        private IDisposable BindDialogueOverlay(VisualElement root, string controllerName)
+        {
+            var viewBinder = new DialogueOverlayViewBinder();
+            viewBinder.Initialize(root);
+
+            var controller = GetOrAddController<DialogueOverlayController>(controllerName);
+            var bridgeAdapter = new DialogueOverlayBridgeAdapter(ResolveDialogueOverlayBridge);
+            controller.SetBridge(bridgeAdapter);
+            controller.SetViewBinder(viewBinder);
+            return new CompositeBindingSubscription(
+                UiContractGuard.Bind(controller, viewBinder),
+                bridgeAdapter);
+        }
+
+        private IDialogueOverlayBridge ResolveDialogueOverlayBridge()
+        {
+            var existing = DependencyResolutionGuard.FindInterface<IDialogueOverlayBridge>(
+                FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None));
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            const string bridgeObjectName = "dialogue-overlay-runtime-bridge";
+            var target = transform.Find(bridgeObjectName);
+            GameObject bridgeObject;
+            if (target == null)
+            {
+                bridgeObject = new GameObject(bridgeObjectName);
+                bridgeObject.transform.SetParent(transform, false);
+            }
+            else
+            {
+                bridgeObject = target.gameObject;
+            }
+
+            return bridgeObject.GetComponent<DialogueRuntimeOverlayBridge>()
+                   ?? bridgeObject.AddComponent<DialogueRuntimeOverlayBridge>();
+        }
+
         private TController GetOrAddController<TController>(string goName) where TController : Component
         {
             var target = transform.Find(goName);
@@ -664,7 +707,10 @@ namespace Reloader.UI.Toolkit.Runtime
                     canAccept: snapshot.CanAccept,
                     canCancel: snapshot.CanCancel,
                     canClaimReward: snapshot.CanClaimReward,
+                    canClearFailed: snapshot.CanClearFailed,
                     statusText: statusText,
+                    restrictionsText: snapshot.RestrictionsText,
+                    failureConditionsText: snapshot.FailureConditionsText,
                     trackingText: BuildContractTrackingText(snapshot));
                 return true;
             }
@@ -679,6 +725,12 @@ namespace Reloader.UI.Toolkit.Runtime
             {
                 var provider = ResolveProvider();
                 return provider != null && provider.CancelActiveContract();
+            }
+
+            public bool ClearFailedContract()
+            {
+                var provider = ResolveProvider();
+                return provider != null && provider.ClearFailedContract();
             }
 
             public bool ClaimCompletedContractReward()
@@ -860,7 +912,8 @@ namespace Reloader.UI.Toolkit.Runtime
             ChestInventory,
             Trade,
             ReloadingWorkbench,
-            InteractionHint
+            InteractionHint,
+            DialogueOverlay
         }
 
         private readonly struct ScreenBindingDefinition
@@ -881,6 +934,109 @@ namespace Reloader.UI.Toolkit.Runtime
             public string ControllerObjectName { get; }
             public ScreenBindingKind Kind { get; }
             public DependencyRequirement Requirements { get; }
+        }
+
+        private sealed class DialogueOverlayBridgeAdapter : IDialogueOverlayBridge
+        {
+            private readonly Func<IDialogueOverlayBridge> _resolver;
+            private IDialogueOverlayBridge _subscribedBridge;
+
+            public DialogueOverlayBridgeAdapter(Func<IDialogueOverlayBridge> resolver)
+            {
+                _resolver = resolver;
+            }
+
+            public event Action StateChanged;
+
+            public bool TryGetState(out DialogueOverlayRenderState state)
+            {
+                var bridge = ResolveBridge();
+                if (bridge != null && bridge.TryGetState(out state))
+                {
+                    return true;
+                }
+
+                state = DialogueOverlayRenderState.Hidden;
+                return false;
+            }
+
+            public void MoveSelection(int delta)
+            {
+                ResolveBridge()?.MoveSelection(delta);
+            }
+
+            public void SelectReply(int replyIndex)
+            {
+                ResolveBridge()?.SelectReply(replyIndex);
+            }
+
+            public void SubmitSelectedReply()
+            {
+                ResolveBridge()?.SubmitSelectedReply();
+            }
+
+            private IDialogueOverlayBridge ResolveBridge()
+            {
+                var resolved = _resolver?.Invoke();
+                if (ReferenceEquals(_subscribedBridge, resolved))
+                {
+                    return resolved;
+                }
+
+                if (_subscribedBridge != null)
+                {
+                    _subscribedBridge.StateChanged -= HandleStateChanged;
+                }
+
+                _subscribedBridge = resolved;
+                if (_subscribedBridge != null)
+                {
+                    _subscribedBridge.StateChanged += HandleStateChanged;
+                }
+
+                return _subscribedBridge;
+            }
+
+            private void HandleStateChanged()
+            {
+                StateChanged?.Invoke();
+            }
+
+            public void Dispose()
+            {
+                if (_subscribedBridge == null)
+                {
+                    return;
+                }
+
+                _subscribedBridge.StateChanged -= HandleStateChanged;
+                _subscribedBridge = null;
+            }
+        }
+
+        private sealed class CompositeBindingSubscription : IDisposable
+        {
+            private readonly IDisposable _primary;
+            private readonly DialogueOverlayBridgeAdapter _bridgeAdapter;
+            private bool _disposed;
+
+            public CompositeBindingSubscription(IDisposable primary, DialogueOverlayBridgeAdapter bridgeAdapter)
+            {
+                _primary = primary;
+                _bridgeAdapter = bridgeAdapter;
+            }
+
+            public void Dispose()
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                _disposed = true;
+                _primary?.Dispose();
+                _bridgeAdapter?.Dispose();
+            }
         }
 
     }

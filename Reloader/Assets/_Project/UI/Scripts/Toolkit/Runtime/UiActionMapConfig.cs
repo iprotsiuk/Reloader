@@ -53,6 +53,10 @@ namespace Reloader.UI.Toolkit.Runtime
             config.Set(UiRuntimeCompositionIds.IntentKeys.TabInventoryAttachmentsItemSelected, "SelectWeaponAttachmentItem");
             config.Set(UiRuntimeCompositionIds.IntentKeys.TabInventoryAttachmentsApply, "ApplyWeaponAttachmentSwap");
             config.Set(UiRuntimeCompositionIds.IntentKeys.TabInventoryAttachmentsBack, "CloseWeaponAttachments");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.DialogueReplyPrevious, "SelectPreviousDialogueReply");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.DialogueReplyNext, "SelectNextDialogueReply");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.DialogueReplySubmit, "SubmitDialogueReply");
+            config.Set(UiRuntimeCompositionIds.IntentKeys.DialogueReplySelect, "SelectDialogueReply");
             return config;
         }
     }

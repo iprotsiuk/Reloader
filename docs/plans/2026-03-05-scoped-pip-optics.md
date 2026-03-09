@@ -31,7 +31,7 @@ Add play mode tests that prove:
 Run:
 
 ```bash
-/Applications/Unity/Hub/Editor/6000.3.0f1/Unity.app/Contents/MacOS/Unity -batchmode -projectPath /Users/ivanprotsiuk/Documents/unity/Reloader/Reloader -runTests -testPlatform PlayMode -testFilter "PlayerWeaponControllerPlayModeTests|ScopeAttachmentAdsIntegrationPlayModeTests" -logFile -
+/Applications/Unity/Hub/Editor/6000.3.0f1/Unity.app/Contents/MacOS/Unity -batchmode -projectPath /Users/ivanprotsiuk/unity/Reloader/Reloader -runTests -testPlatform PlayMode -testFilter "PlayerWeaponControllerPlayModeTests|ScopeAttachmentAdsIntegrationPlayModeTests" -logFile -
 ```
 
 Expected:
@@ -203,7 +203,7 @@ Inspect the Kar98k scoped runtime path and ensure:
 Run:
 
 ```bash
-/Applications/Unity/Hub/Editor/6000.3.0f1/Unity.app/Contents/MacOS/Unity -batchmode -projectPath /Users/ivanprotsiuk/Documents/unity/Reloader/Reloader -runTests -testPlatform PlayMode -testFilter "PlayerWeaponControllerPlayModeTests|ScopeAttachmentAdsIntegrationPlayModeTests" -logFile -
+/Applications/Unity/Hub/Editor/6000.3.0f1/Unity.app/Contents/MacOS/Unity -batchmode -projectPath /Users/ivanprotsiuk/unity/Reloader/Reloader -runTests -testPlatform PlayMode -testFilter "PlayerWeaponControllerPlayModeTests|ScopeAttachmentAdsIntegrationPlayModeTests" -logFile -
 ```
 
 Then run any additional focused commands required by changed files.

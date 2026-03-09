@@ -44,11 +44,19 @@ Each NPC tracks relationship level with the player. Higher relationship unlocks 
 ### NPCDefinition SO
 - `npcType` — Shopkeeper / Handler / Target / Witness / OldTimer / Police / Fixer / BlackMarket
 - `defaultRelationship` — starting relationship level
-- `dialogueTree` — reference to dialogue data
+- `rolePreset` + capability composition — the current runtime decides talk/vendor/police behavior from prefab capabilities, not a monolithic `dialogueTree` field
 - `shopInventory` — for vendor NPCs: list of items they stock
 - `skillLevel` — optional accuracy/intel/security skill for relevant roles
 - `patrolArea` — for police or guard roles: where they patrol
 - `customProperties`
+
+### Dialogue authoring [v0.1 implemented]
+- Dialogue content is currently authored through `DialogueCapability` on the NPC prefab.
+- `DialogueCapability` references a `DialogueDefinition` ScriptableObject with node/reply data.
+- All conversation starts now route through `DialogueOrchestrator`, whether they come from player interaction, nearby NPC initiation, or a scripted request.
+- The shared runtime path is `DialogueOrchestrator` -> `DialogueRuntimeController` -> `DialogueConversationModeController` -> `DialogueRuntimeOverlayBridge` / `DialogueOverlayController`.
+- v0.1 includes `DialogueProximityInitiator` and `DialogueScriptStarter` as the first reusable non-player initiation seams.
+- v0.1 ships one-node conversations with structured outcomes; the data model already supports multi-step expansion through `nextNodeId`.
 
 ### QuestDefinition SO
 - `questType` — Tutorial / Fetch / Assassination / Intel / Equipment / Story / Reputation
@@ -68,6 +76,8 @@ Each NPC tracks relationship level with the player. Higher relationship unlocks 
 - `NpcAgent.CollectActions()` aggregates player actions from capabilities implementing `INpcActionProvider`.
 - `NpcAiController` consumes `INpcDecisionProvider`; if none is assigned, it falls back to `RuleBasedDecisionProvider`.
 - Vendor interaction is wired through `VendorTradeCapability` (`vendor.trade.open`) and remains compatible with shop-vendor targets.
+- Dialogue interaction is wired through `DialogueCapability` (`npc.dialogue.interact`) plus the shared `DialogueRuntimeController`.
+- Conversation mode and UI overlay are implemented through `DialogueConversationModeController` and the dialogue overlay runtime bridge/controller stack.
 - Existing role/runtime seams should now be used for handlers, targets, witnesses, and police response actors rather than competition or hunting-only content.
 
 ### Designer Quickstart (Now)
@@ -75,7 +85,7 @@ Each NPC tracks relationship level with the player. Higher relationship unlocks 
 2. On `NpcAgent`, assign an `NpcDefinition` asset.
 3. In `NpcDefinition`, set `NpcId` and assign `RolePreset`.
 4. In `NpcRolePreset`, set `RoleKind` and capability config assets (`NpcCapabilityConfig[]`) for the role intent.
-5. On the prefab instance, add/remove capability MonoBehaviours (`INpcCapability`) to match the role. For vendors, ensure `VendorTradeCapability` can resolve an `IShopVendorTarget`.
+5. On the prefab instance, add/remove capability MonoBehaviours (`INpcCapability`) to match the role. For vendors, ensure `VendorTradeCapability` can resolve an `IShopVendorTarget`. For talk-enabled NPCs, add `DialogueCapability` and assign a `DialogueDefinition`.
 6. If the NPC needs AI ticking now, keep `NpcAiController` with default rule-based evaluation.
 
 ### Implemented vs Deferred
@@ -84,6 +94,7 @@ Each NPC tracks relationship level with the player. Higher relationship unlocks 
 | Capability composition shell (`NpcAgent` + `INpcCapability`) | Implemented now | Reusable across role prefabs. |
 | Action-provider seam (`INpcActionProvider`) | Implemented now | Enables interaction UI action aggregation. |
 | Decision-provider seam (`INpcDecisionProvider`) | Implemented now | Runtime seam exists via `NpcAiController`. |
+| Dialogue capability + shared runtime + overlay | Implemented now | `DialogueCapability`, `DialogueOrchestrator`, `DialogueRuntimeController`, conversation mode, and the live overlay support both player-started and NPC/script-started conversations through the same path. |
 | `BehaviorTreeDecisionProvider` and BT assets/tooling | Deferred | Planned drop-in provider implementing `INpcDecisionProvider`. |
-| Dialogue/quest behavior integration on capabilities | Deferred | Will attach to capability and action flows later. |
+| Multi-step dialogue, reply gating, and quest/police/vendor outcomes | Deferred | The node/outcome model and shared orchestration seam are in place, but only one-node conversations and generic structured outcomes ship in v0.1. |
 | Full capability runtime-state save integration | Deferred | Current slice does not persist all capability internals. |

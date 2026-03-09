@@ -25,6 +25,7 @@ namespace Reloader.Player
         private float _pitch;
         private Vector2 _smoothedLookInput;
         private bool _hasSmoothedLookInput;
+        private Transform _focusTargetOverride;
 
         public Vector2 LookSensitivity
         {
@@ -96,6 +97,11 @@ namespace Reloader.Player
             _pitchTransform = pitchTransform;
         }
 
+        public void SetFocusTargetOverride(Transform focusTarget)
+        {
+            _focusTargetOverride = focusTarget;
+        }
+
         public void Tick(float deltaTime)
         {
             ResolveReferences();
@@ -106,6 +112,12 @@ namespace Reloader.Player
 
             if (PlayerCursorLockController.IsAnyMenuOpen || (ResolveUiStateEvents()?.IsAnyMenuOpen ?? false))
             {
+                return;
+            }
+
+            if (_focusTargetOverride != null)
+            {
+                ApplyFocusTargetOverride();
                 return;
             }
 
@@ -171,6 +183,32 @@ namespace Reloader.Player
         {
             _smoothedLookInput = Vector2.zero;
             _hasSmoothedLookInput = false;
+        }
+
+        private void ApplyFocusTargetOverride()
+        {
+            var focusTarget = _focusTargetOverride;
+            if (focusTarget == null)
+            {
+                return;
+            }
+
+            var origin = _pitchTransform != null ? _pitchTransform.position : transform.position;
+            var direction = focusTarget.position - origin;
+            if (direction.sqrMagnitude <= 0.0001f)
+            {
+                return;
+            }
+
+            var planarMagnitude = new Vector2(direction.x, direction.z).magnitude;
+            _yaw = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
+            _pitch = Mathf.Clamp(Mathf.Atan2(direction.y, planarMagnitude) * Mathf.Rad2Deg, _pitchClamp.x, _pitchClamp.y);
+
+            transform.rotation = Quaternion.Euler(0f, _yaw, 0f);
+            if (_pitchTransform != null)
+            {
+                _pitchTransform.localRotation = Quaternion.Euler(_pitch, 0f, 0f);
+            }
         }
 
         private float GetFieldOfViewSensitivityScale()

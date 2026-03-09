@@ -22,6 +22,7 @@ namespace Reloader.UI.Tests.PlayMode
         private const string TradeScreenId = UiRuntimeCompositionIds.ScreenIds.Trade;
         private const string ReloadingScreenId = UiRuntimeCompositionIds.ScreenIds.ReloadingWorkbench;
         private const string InteractionHintScreenId = UiRuntimeCompositionIds.ScreenIds.InteractionHint;
+        private const string DialogueOverlayScreenId = UiRuntimeCompositionIds.ScreenIds.DialogueOverlay;
 
         [SetUp]
         public void SetUp()
@@ -104,7 +105,8 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(bridge.IsScreenBoundForTests(ReloadingScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(InteractionHintScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(EscMenuScreenId), Is.True);
-            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(8));
+            Assert.That(bridge.IsScreenBoundForTests(DialogueOverlayScreenId), Is.True);
+            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(9));
         }
 
         [UnityTest]
@@ -127,7 +129,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(runtimeRoot, Is.Not.Null);
             var bridge = runtimeRoot.GetComponent<UiToolkitScreenRuntimeBridge>();
             Assert.That(bridge, Is.Not.Null);
-            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(8));
+            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(9));
 
             bridge.enabled = false;
             yield return null;
@@ -135,7 +137,7 @@ namespace Reloader.UI.Tests.PlayMode
 
             bridge.enabled = true;
             yield return null;
-            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(8));
+            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(9));
 
             Assert.That(bridge.IsScreenBoundForTests(BeltHudScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(TabInventoryScreenId), Is.True);
@@ -145,6 +147,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(bridge.IsScreenBoundForTests(ReloadingScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(InteractionHintScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(EscMenuScreenId), Is.True);
+            Assert.That(bridge.IsScreenBoundForTests(DialogueOverlayScreenId), Is.True);
         }
 
         [UnityTest]

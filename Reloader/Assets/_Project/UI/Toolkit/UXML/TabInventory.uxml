@@ -202,7 +202,7 @@
                         </ui:VisualElement>
                         <ui:VisualElement class="inventory__detail-pane-field">
                             <ui:Label text="Failure conditions" class="inventory__detail-pane-field-label ui-kit__hint"/>
-                            <ui:Label name="inventory__detail-pane-failure-conditions" text="Wrong target" class="inventory__mock-line"/>
+                            <ui:Label name="inventory__detail-pane-failure-conditions" text="None" class="inventory__mock-line"/>
                         </ui:VisualElement>
                         <ui:VisualElement class="inventory__detail-pane-field">
                             <ui:Label text="Reward state" class="inventory__detail-pane-field-label ui-kit__hint"/>
