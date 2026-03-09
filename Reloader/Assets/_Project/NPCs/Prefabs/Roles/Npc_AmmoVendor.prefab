@@ -12,6 +12,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Npc_AmmoVendor
       objectReference: {fileID: 0}
+    - target: {fileID: 1780576344163650066, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: _lastContextualSeedKey
+      value: vendor.vendor-ammo-store
+      objectReference: {fileID: 0}
     - target: {fileID: 5910006647273500762, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -50,6 +54,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5910006647273500762, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8934919009908019794, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []

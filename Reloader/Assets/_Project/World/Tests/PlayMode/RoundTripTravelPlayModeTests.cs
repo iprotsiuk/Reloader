@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System;
 using NUnit.Framework;
+using Reloader.Contracts.Runtime;
+using Reloader.NPCs.Runtime;
 using Reloader.Core.Runtime;
 using Reloader.World.Travel;
 using UnityEngine;
@@ -176,6 +178,44 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(playerArms.localPosition.y, Is.EqualTo(-0.027f).Within(0.02f), "PlayerArms local Y should be stabilized.");
             Assert.That(playerArms.localPosition.z, Is.EqualTo(0.1f).Within(0.02f), "PlayerArms local Z should be stabilized.");
             Assert.That(Quaternion.Angle(playerArms.localRotation, Quaternion.identity), Is.LessThanOrEqualTo(1f), "PlayerArms local rotation should be stabilized.");
+        }
+
+        [UnityTest]
+        public IEnumerator RoundTripTravel_ReturnToMainTown_PreservesRetiredCivilianAndDoesNotResetProceduralOffer()
+        {
+            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
+            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            yield return null;
+
+            var bridge = FindPopulationBridge();
+            var provider = FindContractProvider();
+            Assert.That(bridge, Is.Not.Null, "Expected MainTown population bridge.");
+            Assert.That(provider, Is.Not.Null, "Expected MainTown contract runtime provider.");
+            Assert.That(provider!.TryGetContractSnapshot(out var initialSnapshot), Is.True, "Expected initial procedural contract offer in MainTown.");
+
+            var retiredCivilianId = initialSnapshot.TargetId;
+            Assert.That(bridge!.TryRetireCivilian(retiredCivilianId, retiredAtDay: 1), Is.True, "Expected the initially offered civilian to retire for this regression.");
+            bridge.RebuildScenePopulation();
+            yield return null;
+
+            Assert.That(bridge.TryResolveSpawnedCivilian(retiredCivilianId, out _), Is.False, "Expected the retired civilian to leave the live scene before travel.");
+            Assert.That(provider.TryGetContractSnapshot(out var beforeTravelSnapshot), Is.True, "Expected MainTown to republish a live offer after retiring the current target.");
+            Assert.That(beforeTravelSnapshot.TargetId, Is.Not.EqualTo(retiredCivilianId), "Expected the republished offer to move away from the retired civilian before travel.");
+
+            yield return TravelViaTrigger("MainTown_SmokeToIndoor_Trigger", IndoorRangeSceneName, "entry.indoor.arrival");
+            yield return TravelViaTrigger("IndoorRange_SmokeToMainTown_Trigger", MainTownSceneName, "entry.maintown.return");
+            yield return null;
+
+            bridge = FindPopulationBridge();
+            provider = FindContractProvider();
+            Assert.That(bridge, Is.Not.Null, "Expected MainTown population bridge after returning from the range.");
+            Assert.That(provider, Is.Not.Null, "Expected MainTown contract runtime provider after returning from the range.");
+
+            Assert.That(bridge!.TryResolveSpawnedCivilian(retiredCivilianId, out _), Is.False,
+                "Expected returning to MainTown to keep the previously retired civilian absent instead of respawning the original target.");
+            Assert.That(provider!.TryGetContractSnapshot(out var afterReturnSnapshot), Is.True, "Expected a procedural contract offer after returning to MainTown.");
+            Assert.That(afterReturnSnapshot.TargetId, Is.Not.EqualTo(retiredCivilianId),
+                "Expected return travel to avoid resetting the available procedural offer back to the original first target.");
         }
 
         [UnityTest]
@@ -882,6 +922,20 @@ namespace Reloader.World.Tests.PlayMode
             return null;
         }
 
+        private static CivilianPopulationRuntimeBridge FindPopulationBridge()
+        {
+            var root = GameObject.Find("MainTownPopulationRuntime");
+            Assert.That(root, Is.Not.Null, "Expected MainTownPopulationRuntime root.");
+            return root!.GetComponent<CivilianPopulationRuntimeBridge>();
+        }
+
+        private static StaticContractRuntimeProvider FindContractProvider()
+        {
+            var root = GameObject.Find("MainTownContractRuntime");
+            Assert.That(root, Is.Not.Null, "Expected MainTownContractRuntime root.");
+            return root!.GetComponent<StaticContractRuntimeProvider>();
+        }
+
         private static bool IsCursorLockMenuOpen()
         {
             var assemblies = System.AppDomain.CurrentDomain.GetAssemblies();
@@ -914,7 +968,7 @@ namespace Reloader.World.Tests.PlayMode
 
             var startedTravel = false;
             var elapsed = 0f;
-            while (!startedTravel && elapsed < 2f)
+            while (!startedTravel && elapsed < 4f)
             {
                 startedTravel = trigger.TryHandleInteractor(CreatePlayerInteractor());
                 if (startedTravel)

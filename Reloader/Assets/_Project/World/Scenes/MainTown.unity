@@ -178,10 +178,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0d1caadfab87a45ab89b1fc08c9087f5, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Core::Reloader.Core.Runtime.CoreWorldController
   _startingDayCount: 0
   _startingTimeOfDay: 8
+  _worldMinutesPerRealSecond: 1
 --- !u!4 &30303235
 Transform:
   m_ObjectHideFlags: 0
@@ -203,7 +204,7 @@ PhysicsMaterial:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name:
+  m_Name: 
   serializedVersion: 2
   m_DynamicFriction: 0.6
   m_StaticFriction: 0.6
@@ -349,7 +350,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 52cd80be86124d7aa463a5be22eeebf3, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.World::Reloader.World.Travel.SceneEntryPoint
   _entryPointId: entry.maintown.return
 --- !u!4 &144302368
@@ -412,7 +413,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 263f164f9cb2148d894af8ded21fe62f, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Reloader.Reloading.World.ReloadingBenchTarget
   _isWorkbenchOpen: 0
   _workbenchDefinition: {fileID: 0}
@@ -520,7 +521,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 40a6696122254bd29692cce0663fe53a, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Reloader.Reloading.World.WorkbenchContainerLink
   _linkedContainerIds: []
 --- !u!1 &256523800
@@ -603,7 +604,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
   m_RenderShadows: 1
   m_RequiresDepthTextureOption: 2
@@ -687,7 +688,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 52cd80be86124d7aa463a5be22eeebf3, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.World::Reloader.World.Travel.SceneEntryPoint
   _entryPointId: entry.maintown.spawn
 --- !u!4 &308582138
@@ -813,8 +814,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   m_UsePipelineSettings: 1
   m_AdditionalLightsShadowResolutionTier: 2
   m_CustomShadowLayers: 0
@@ -861,7 +862,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1511ccae7919cfc46b603b9b337fdc94, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.EventSystems.BaseInput
 --- !u!114 &481109655
 MonoBehaviour:
@@ -873,7 +874,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 01614664b831546d2ae94a42149d80ac, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.UI.InputSystemUIInputModule
   m_SendPointerHoverToParent: 1
   m_MoveRepeatDelay: 0.5
@@ -904,7 +905,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 76c392e42b5098c458856cdf6ecaaaa1, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.EventSystems.EventSystem
   m_FirstSelected: {fileID: 0}
   m_sendNavigationEvents: 1
@@ -951,7 +952,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3331390cdd63f426a9872b70f2353cce, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Runtime.WeaponRegistry
   _definitions:
   - {fileID: 11400000, guid: 5a94afc0f47e6415ca88ff356fe170a4, type: 2}
@@ -1018,7 +1019,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 76f97b999ffba4c8facb1dd2b997a052, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.World.PlayerShopVendorController
   _inputSourceBehaviour: {fileID: 573788844}
   _resolverBehaviour: {fileID: 573788836}
@@ -1034,7 +1035,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d36883ad8b7934202b16abc2cebab115, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.World.PlayerShopVendorResolver
   _playerCamera: {fileID: 256523801}
   _maxDistance: 4
@@ -1051,7 +1052,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7bd16c33cbc234c03a9d46c76d619d8d, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Reloader.Reloading.World.PlayerReloadingBenchController
   _inputSourceBehaviour: {fileID: 573788844}
   _resolverBehaviour: {fileID: 573788838}
@@ -1068,7 +1069,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 20ce29505a51d414c98fa749eae03f90, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Reloader.Reloading.World.PlayerReloadingBenchResolver
   _playerCamera: {fileID: 256523801}
   _maxDistance: 4
@@ -1085,7 +1086,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b8585a128967e4fe2b05b0da29bdadca, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Inventory::Reloader.Inventory.PlayerInventoryController
   _inputSourceBehaviour: {fileID: 573788844}
   _pickupTargetResolverBehaviour: {fileID: 573788840}
@@ -1105,7 +1106,7 @@ MonoBehaviour:
   _interactionCoordinatorModeEnabled: 0
   _interactionPriority: 10
   _selectedBeltIndexDebug: -1
-  _selectedBeltItemIdDebug:
+  _selectedBeltItemIdDebug: 
   _inputResolvedDebug: 0
 --- !u!114 &573788840
 MonoBehaviour:
@@ -1117,7 +1118,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5f5b4d0002bdc40378f2eecbc373572b, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.World.PlayerWeaponPickupResolver
   _playerCamera: {fileID: 256523801}
   _maxDistance: 6
@@ -1134,7 +1135,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 272fe0217f9c942098d42c91f803c6c3, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Player::Reloader.Player.PlayerLookController
   _inputSourceBehaviour: {fileID: 573788844}
   _pitchTransform: {fileID: 936686685}
@@ -1158,7 +1159,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 007468385f8ab49cf8d54cb5bf54274f, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Player::Reloader.Player.PlayerMover
   _characterController: {fileID: 573788845}
   _inputSourceBehaviour: {fileID: 573788844}
@@ -1185,7 +1186,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c0cb92ad850e44e24827496b80a72e36, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Player::Reloader.Player.PlayerCursorLockController
   _lockOnStart: 0
   _lockOnClick: 1
@@ -1201,7 +1202,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 60f17de97ac0e4df1ad17dfb288e50c8, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Player::Reloader.Player.PlayerInputReader
   _actionsAsset: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   _mapName: Player
@@ -1270,7 +1271,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0e6759a4b9a5148f68b36ba0ffdba2f7, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Player::Reloader.Player.FpsViewmodelAnimatorDriver
   _animator: {fileID: 20147494}
   _characterController: {fileID: 573788845}
@@ -1297,7 +1298,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 29f65bd28bff74eb1b31709470453ced, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Controllers.PlayerWeaponController
   _inputSourceBehaviour: {fileID: 573788844}
   _inventoryController: {fileID: 573788839}
@@ -1355,7 +1356,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 371a9df05885247e688bb42dab07402c, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Player::Reloader.Player.PlayerCameraDefaults
   _applyOnAwake: 1
   _enableVSync: 1
@@ -1376,7 +1377,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 74c368c3bef124d18afc61190d8cce32, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Player::Reloader.Player.Viewmodel.ViewmodelAnimationAdapter
   _animator: {fileID: 20147494}
   _contractProfile: {fileID: 0}
@@ -1390,7 +1391,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 45fb5ebb72fe4c51af55bc630ed128aa, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Inventory::Reloader.Inventory.PlayerStorageContainerResolver
   _playerCamera: {fileID: 256523801}
   _maxDistance: 4
@@ -1408,7 +1409,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6c09dbc3c3954f189c36ab04815a1413, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Inventory::Reloader.Inventory.PlayerStorageContainerController
   _inputSourceBehaviour: {fileID: 573788844}
   _resolverBehaviour: {fileID: 573788851}
@@ -1424,7 +1425,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3b89eb8d98f65428fa2c060d91234854, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Animations.PlayerWeaponAnimationBinder
   _animator: {fileID: 20147494}
   _animationProfile: {fileID: 11400000, guid: 052fe1896bea14619ab66cde169b093a, type: 2}
@@ -1438,7 +1439,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1e67b710205c249288d612a723f622e4, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Runtime.WeaponViewPoseTuningHelper
   _weaponController: {fileID: 573788848}
   _targetWeaponItemId: weapon-kar98k
@@ -1460,7 +1461,7 @@ MonoBehaviour:
     _rifleLocalEulerOffset: {x: 90, y: 0, z: 0}
     _scopedAdsEyeReliefBackOffset: -0.1
   _activePoseSource: Base
-  _activeAttachmentItemId:
+  _activeAttachmentItemId: 
 --- !u!114 &573788855
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1471,8 +1472,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2044c11f87f86430aaf8b134d12ee18a, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   _scopedBehaviours:
   - {fileID: 573788856}
 --- !u!114 &573788856
@@ -1485,8 +1486,8 @@ MonoBehaviour:
   m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e2708d690d7d7429ea23c5712ff3d537, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   _centerWidthNormalized: 0.32
   _centerHeightNormalized: 0.32
   _maxPeripheralAlpha: 0.82
@@ -1518,38 +1519,54 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 792fb8981bcdc4cd78d14a4811da74a0, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Runtime.CivilianPopulationRuntimeBridge
   _appearanceLibrary:
     _baseBodyIds:
-    - body.male.a
-    - body.female.a
+    - male.body
+    - female.body
     _presentationTypes:
     - masculine
     - feminine
     _hairIds:
-    - hair.short.01
-    - hair.long.01
+    - hair.short
+    - hair.swept
+    - hair.wavy
+    - hair.parted
+    - hair.bob
+    - hair.long
     _hairColorIds:
     - hair.black
     - hair.brown
     _beardIds:
-    - beard.none
-    - beard.short.01
+    - beard1
+    - beard2
+    - beard3
+    - beard4
+    - beard5
+    - beard6
+    - beard7
+    - beard8
+    - beard9
+    - beard10
     _outfitTopIds:
-    - top.coat.01
-    - top.workshirt.01
+    - tshirt1
+    - tshirt2
     _outfitBottomIds:
-    - bottom.jeans.01
-    - bottom.workpants.01
+    - pants1
+    - brous1
+    - brous7
+    - brous10
     _outerwearIds:
-    - outer.gray.coat
-    - outer.canvas.jacket
+    - none
+    - jacket
+    - openJacket
+    - hoody
     _materialColorIds:
-    - color.gray
-    - color.brown
+    - style.default
     _descriptionTags:
-    - gray coat
+    - townsfolk
+    - resident
     - work clothes
   _npcActorPrefab: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
   _populationDefinition: {fileID: 11400000, guid: f83f91a4f953e4f21b37381ac153f96c, type: 2}
@@ -1704,7 +1721,7 @@ PhysicsMaterial:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name:
+  m_Name: 
   serializedVersion: 2
   m_DynamicFriction: 0.6
   m_StaticFriction: 0.6
@@ -1738,8 +1755,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 172515602e62fb746b5d573b38a5fe58, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   m_IsGlobal: 1
   priority: 0
   blendDistance: 0
@@ -1875,7 +1892,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d5f307debb1f4db38b5433f36db436a8, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Animations.PlayerArmsAnimationEventReceiver
 --- !u!1001 &998938150
 PrefabInstance:
@@ -1885,13 +1902,33 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 961477944154424134, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 2125190412286716843, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
       propertyPath: m_Name
       value: WeaponVendor
       objectReference: {fileID: 0}
+    - target: {fileID: 2357716582375345975, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3671882300544858041, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
       propertyPath: _vendorId
       value: vendor-weapon-store
+      objectReference: {fileID: 0}
+    - target: {fileID: 4298585407226224283, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: _lastContextualSeedKey
+      value: vendor.vendor-weapon-store
+      objectReference: {fileID: 0}
+    - target: {fileID: 4784565057783303705, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5229646638760948912, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6475655958372328112, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1933,10 +1970,34 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6546004494366491743, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6769707801737350529, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7071752904273656609, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
       propertyPath: m_Material
-      value:
+      value: 
       objectReference: {fileID: 66863727}
+    - target: {fileID: 7141365870997125733, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7616013818925289515, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8361697126917109842, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8469256401607689047, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2034,7 +2095,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0b087f8ade6b8482ea42ce23f065ac05, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Core::Reloader.Contracts.Runtime.StaticContractRuntimeProvider
   _availableContract: {fileID: 11400000, guid: 727c35113dab44760a533e618a085920, type: 2}
   _payoutReceiverBehaviour: {fileID: 1418753600}
@@ -2247,7 +2308,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 70b7746d67f344a3089470ac3f1ce64e, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.World::Reloader.World.Travel.TravelSceneTrigger
   _travelContext:
     _destinationSceneName: IndoorRangeInstance
@@ -2361,7 +2422,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f07bd7ec611094fb193ef19ee27173fc, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Economy::Reloader.Economy.EconomyController
 --- !u!1 &1418753599 stripped
 GameObject:
@@ -2378,7 +2439,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: efc1c2b39109045d0b56c5aff1b1a06a, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Economy::Reloader.Economy.EconomyContractPayoutReceiver
   _economyController: {fileID: 1418753598}
 --- !u!1001 &1639096732
@@ -2389,13 +2450,33 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 961477944154424134, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 2125190412286716843, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
       propertyPath: m_Name
       value: AmmoVendor
       objectReference: {fileID: 0}
+    - target: {fileID: 2357716582375345975, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3671882300544858041, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
       propertyPath: _vendorId
       value: vendor-ammo-store
+      objectReference: {fileID: 0}
+    - target: {fileID: 4298585407226224283, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: _lastContextualSeedKey
+      value: vendor.vendor-ammo-store
+      objectReference: {fileID: 0}
+    - target: {fileID: 4784565057783303705, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5229646638760948912, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6475655958372328112, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
       propertyPath: m_LocalPosition.x
@@ -2437,10 +2518,34 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6546004494366491743, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6769707801737350529, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7071752904273656609, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
       propertyPath: m_Material
-      value:
+      value: 
       objectReference: {fileID: 790557541}
+    - target: {fileID: 7616013818925289515, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8361697126917109842, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8469256401607689047, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8507905645281211962, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2504,7 +2609,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7071752904273656609, guid: 7aa9b17b7e92b4a24b79a16b2ccbffab, type: 3}
       propertyPath: m_Material
-      value:
+      value: 
       objectReference: {fileID: 790557541}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -2519,10 +2624,46 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 125972770672315097, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 924988862843291702, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_Name
       value: ContractTarget_Volkov
       objectReference: {fileID: 0}
+    - target: {fileID: 1732751204815680847, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 2094fa7f9930e104bb424fca8aaebc99, type: 2}
+    - target: {fileID: 1780576344163650066, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: _lastContextualSeedKey
+      value: npc.npc.maintown.volkov
+      objectReference: {fileID: 0}
+    - target: {fileID: 4033145294454616791, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4307408289064083565, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 4bc25a2b129e93346acd968857b92d7d, type: 2}
+    - target: {fileID: 4624997847523601989, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: cda52658f043ba04a9b54171b6f2c858, type: 2}
+    - target: {fileID: 4978406735320229302, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5864196534175948159, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 2fad2296e76cae647add42f9382c7667, type: 2}
     - target: {fileID: 5910006647273500762, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_LocalPosition.x
       value: 38
@@ -2563,10 +2704,50 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6178553532635245509, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 9c9402a9cbd0f124eab9eebdf7ddba29, type: 2}
+    - target: {fileID: 6757678491887360765, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156269564003437451, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7184168744051644876, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7230990805428711073, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7478390405834850371, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 6f205a6dabde686408fd009df0ca00d4, type: 2}
+    - target: {fileID: 7629845706299177025, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8213054615405411675, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: _definition
-      value:
+      value: 
       objectReference: {fileID: 11400000, guid: 8b70b246fbe15461ab85e2632b33ab68, type: 2}
+    - target: {fileID: 8566256787089131138, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8754348005161944428, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8992213237891790375, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 313e04bcd12f94f49ba22e524ef9e2cf, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
@@ -2604,7 +2785,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d296dcb82414943d7813caf9fb769102, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Runtime.ContractTargetPatrolMotion
   _waypoints:
   - {fileID: 592383627}
@@ -2623,7 +2804,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 11f2c3d28c84247acb4a27eb8cfb9312, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.World.ContractTargetDamageable
   _eliminationSinkBehaviour: {fileID: 1191721340}
   _targetId: target.maintown.volkov
@@ -2891,7 +3072,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -7511558181221131132, guid: 66d78fedaad7ed04f8529b14aff8a92f, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
-      value:
+      value: 
       objectReference: {fileID: 2100000, guid: f3dd1e5a8909549d6ae8515a085b69db, type: 2}
     - target: {fileID: 919132149155446097, guid: 66d78fedaad7ed04f8529b14aff8a92f, type: 3}
       propertyPath: m_Name
@@ -3060,7 +3241,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e5de9f543205433ea48154557bd95a44, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Inventory::Reloader.Inventory.WorldStorageContainer
   _containerId: chest.mainTown.workbench.001
   _displayName: Workbench Chest
@@ -3076,7 +3257,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e3629a1c181b74485a29874339818612, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Inventory::Reloader.Inventory.WorldStorageContainerSeedLoadout
   _container: {fileID: 1971544101}
   _seedOnlyWhenEmpty: 1
@@ -3118,7 +3299,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 81d19715971b14823a8dc73ea85d6764, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Reloader.Core::Reloader.Core.UI.ItemIconCatalogProvider
   _itemIconCatalog: {fileID: 11400000, guid: 2437dd75ade0a4b298e240987784b134, type: 2}
 --- !u!4 &1977339824

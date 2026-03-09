@@ -91,3 +91,7 @@ Reloader/Assets/Screenshots.meta
 /package-lock [0-9]*.json
 Reloader/ProjectSettings/ShaderGraphSettings 2.asset
 docs/plans/*-handover-prompt.md
+
+# Local imported/vendor assets that should not land in normal feature PRs.
+Reloader/Assets/Plugins/Roslyn/
+Reloader/Assets/Plugins/Roslyn.meta

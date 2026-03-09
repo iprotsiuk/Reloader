@@ -8,9 +8,29 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 125972770672315097, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_Name
       value: Npc_RangeSafetyOfficer
+      objectReference: {fileID: 0}
+    - target: {fileID: 1780576344163650066, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: _lastContextualSeedKey
+      value: authoring.Npc_RangeSafetyOfficer
+      objectReference: {fileID: 0}
+    - target: {fileID: 4033145294454616791, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4307408289064083565, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 9a7e6f989389b724896f1465ce097101, type: 2}
+    - target: {fileID: 4978406735320229302, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5910006647273500762, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_LocalPosition.x
@@ -52,8 +72,85 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6477400531286980892, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 7090739a8a533354ebeb9c3e73f09c03, type: 2}
+    - target: {fileID: 6757678491887360765, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7230990805428711073, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7478390405834850371, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 5d6ecd4c297969e44ab5847abe59e8e1, type: 2}
+    - target: {fileID: 7570021591915642984, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7629845706299177025, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7886275535406809637, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 94f80c2cf795bbf4b9e3b891232db128, type: 2}
+    - target: {fileID: 8754348005161944428, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8992213237891790375, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 6febd1bdfc9e3004e8a57dc0d1c132b2, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 719326001738896492}
+    - targetCorrespondingSourceObject: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8912680396549683354}
   m_SourcePrefab: {fileID: 100100000, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+--- !u!1 &6540966769432930447 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+  m_PrefabInstance: {fileID: 5710398296102979133}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &719326001738896492
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6540966769432930447}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ea39b924d50245af8cd77f88ad78ba0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Runtime.Capabilities.DialogueCapability
+  _displayName: Talk
+  _priority: 0
+  _definition: {fileID: 0}
+--- !u!114 &8912680396549683354
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6540966769432930447}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e95e71348c54f41db850bb76f3ed08f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Runtime.Capabilities.EntryFeeInteractionCapability
+  _displayName: Pay Entry Fee
+  _priority: 15
+  _defaultEntryFeeAmount: 25

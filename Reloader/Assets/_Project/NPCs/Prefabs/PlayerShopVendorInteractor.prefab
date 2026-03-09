@@ -66,6 +66,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.World.PlayerShopVendorController
   _inputSourceBehaviour: {fileID: 0}
   _resolverBehaviour: {fileID: 3893816709889594410}
+  _interactionCoordinatorModeEnabled: 0
+  _interactionPriority: 60
 --- !u!114 &2711845902514378101
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -98,3 +100,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.World.PlayerNpcInteractionController
   _inputSourceBehaviour: {fileID: 0}
   _resolverBehaviour: {fileID: 2711845902514378101}
+  _conversationModeSource: {fileID: 0}
+  _interactionCoordinatorModeEnabled: 0
+  _interactionPriority: 40

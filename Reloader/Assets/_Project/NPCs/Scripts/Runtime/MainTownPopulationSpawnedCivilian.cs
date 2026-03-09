@@ -24,6 +24,9 @@ namespace Reloader.NPCs.Runtime
             _poolId = record?.PoolId ?? string.Empty;
             _spawnAnchorId = record?.SpawnAnchorId ?? string.Empty;
             _areaTag = record?.AreaTag ?? string.Empty;
+
+            var appearanceApplicator = GetComponent<MainTownNpcAppearanceApplicator>();
+            appearanceApplicator?.Apply(record);
         }
     }
 }

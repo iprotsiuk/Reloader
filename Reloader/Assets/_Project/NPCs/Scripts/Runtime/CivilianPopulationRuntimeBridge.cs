@@ -440,6 +440,7 @@ namespace Reloader.NPCs.Runtime
             }
 
             module.LastOfferedCivilianId = _runtime.LastOfferedCivilianId ?? string.Empty;
+            module.OfferRotationSeed = _runtime.OfferRotationSeed;
         }
 
         private void CopyModuleToRuntime(CivilianPopulationModule module)
@@ -457,6 +458,7 @@ namespace Reloader.NPCs.Runtime
             }
 
             _runtime.LastOfferedCivilianId = module.LastOfferedCivilianId ?? string.Empty;
+            _runtime.OfferRotationSeed = module.OfferRotationSeed;
         }
 
         private void HydrateRuntimeFromModuleIfNeeded(CivilianPopulationModule module)
@@ -756,7 +758,9 @@ namespace Reloader.NPCs.Runtime
             var lastOfferedCivilianId = _runtime.LastOfferedCivilianId;
             if (string.IsNullOrWhiteSpace(lastOfferedCivilianId))
             {
-                return eligible[0];
+                var offerRotationSeed = EnsureOfferRotationSeed();
+                var startingIndex = GetNonNegativeModulo(offerRotationSeed, eligible.Count);
+                return eligible[startingIndex];
             }
 
             for (var i = 0; i < eligible.Count; i++)
@@ -769,7 +773,34 @@ namespace Reloader.NPCs.Runtime
                 return eligible[(i + 1) % eligible.Count];
             }
 
-            return eligible[0];
+            return eligible[GetNonNegativeModulo(EnsureOfferRotationSeed(), eligible.Count)];
+        }
+
+        private int EnsureOfferRotationSeed()
+        {
+            if (_runtime.OfferRotationSeed != 0)
+            {
+                return _runtime.OfferRotationSeed;
+            }
+
+            _runtime.OfferRotationSeed = CreateOfferRotationSeed();
+            return _runtime.OfferRotationSeed;
+        }
+
+        private static int CreateOfferRotationSeed()
+        {
+            var seed = Guid.NewGuid().GetHashCode() ^ Environment.TickCount ^ (int)DateTime.UtcNow.Ticks;
+            return seed == 0 ? 1 : seed;
+        }
+
+        private static int GetNonNegativeModulo(int value, int divisor)
+        {
+            if (divisor <= 0)
+            {
+                return 0;
+            }
+
+            return (int)(unchecked((uint)value) % (uint)divisor);
         }
 
         private static string BuildProceduralTargetDescription(CivilianPopulationRecord record)
@@ -1102,5 +1133,6 @@ namespace Reloader.NPCs.Runtime
         public List<CivilianPopulationReplacementRecord> PendingReplacements { get; } =
             new List<CivilianPopulationReplacementRecord>();
         public string LastOfferedCivilianId { get; set; } = string.Empty;
+        public int OfferRotationSeed { get; set; }
     }
 }

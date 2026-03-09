@@ -98,6 +98,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     QueuedAtDay = 7,
                     SpawnAnchorId = "spawn.busstop.b"
                 });
+                module.OfferRotationSeed = 17;
 
                 bridge.FinalizeAfterLoad(new[] { new SaveModuleRegistration(1, module) });
 
@@ -111,6 +112,7 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(bridge.Runtime.Civilians[0].AreaTag, Is.EqualTo("quarry"));
                 Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(1));
                 Assert.That(bridge.Runtime.PendingReplacements[0].VacatedCivilianId, Is.EqualTo("citizen.mainTown.0004"));
+                Assert.That(bridge.Runtime.OfferRotationSeed, Is.EqualTo(17));
             }
             finally
             {
@@ -274,6 +276,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     CreatedAtDay = 4,
                     RetiredAtDay = -1
                 });
+                bridge.Runtime.OfferRotationSeed = 2;
 
                 bridge.RebuildScenePopulation();
 
@@ -327,6 +330,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     spawnAnchorId: "Anchor_A",
                     isAlive: true,
                     retiredAtDay: -1));
+                bridge.Runtime.OfferRotationSeed = 7;
 
                 bridge.RebuildScenePopulation();
 
@@ -435,6 +439,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     spawnAnchorId: "Anchor_B",
                     isAlive: true,
                     retiredAtDay: -1));
+                bridge.Runtime.OfferRotationSeed = 5;
 
                 bridge.RebuildScenePopulation();
 
@@ -499,6 +504,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     spawnAnchorId: "Anchor_C",
                     isAlive: true,
                     retiredAtDay: -1));
+                bridge.Runtime.OfferRotationSeed = 3;
 
                 bridge.RebuildScenePopulation();
 
@@ -512,6 +518,60 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(provider.TryGetContractSnapshot(out var rotatedSnapshot), Is.True);
                 Assert.That(rotatedSnapshot.TargetId, Is.EqualTo("citizen.mainTown.0502"),
                     "Expected canceled procedural contracts to rotate away from the previously offered civilian instead of reusing the first roster entry.");
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenNoPreviousOfferExists_UsesOfferRotationSeedInsteadOfFirstRosterEntry()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            CreateAnchor(bridgeGo.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+            CreateAnchor(bridgeGo.transform, "Anchor_B", new Vector3(3f, 0f, 0f));
+            CreateAnchor(bridgeGo.transform, "Anchor_C", new Vector3(5f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0601",
+                    populationSlotId: "townsfolk.601",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0602",
+                    populationSlotId: "townsfolk.602",
+                    spawnAnchorId: "Anchor_B",
+                    isAlive: true,
+                    retiredAtDay: -1));
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0603",
+                    populationSlotId: "townsfolk.603",
+                    spawnAnchorId: "Anchor_C",
+                    isAlive: true,
+                    retiredAtDay: -1));
+                bridge.Runtime.OfferRotationSeed = 1;
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True);
+                Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0602"),
+                    "Expected the first procedural offer to use the saved offer-rotation seed instead of always picking the first eligible civilian.");
             }
             finally
             {

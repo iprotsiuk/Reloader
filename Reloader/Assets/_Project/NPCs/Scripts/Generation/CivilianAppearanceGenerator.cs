@@ -6,6 +6,8 @@ namespace Reloader.NPCs.Generation
 {
     public sealed class CivilianAppearanceGenerator
     {
+        private const string NoBeardId = "beard.none";
+
         public CivilianPopulationRecord GenerateRecord(
             CivilianAppearanceLibrary library,
             string civilianId,
@@ -56,6 +58,21 @@ namespace Reloader.NPCs.Generation
 
             var random = new Random(seed);
 
+            if (MainTownCuratedAppearanceRules.IsCuratedStyleLibrary(library))
+            {
+                return GenerateCuratedStyleRecord(
+                    library,
+                    civilianId,
+                    createdAtDay,
+                    spawnAnchorId,
+                    random,
+                    isContractEligible,
+                    populationSlotId,
+                    poolId,
+                    areaTag,
+                    isProtectedFromContracts);
+            }
+
             return new CivilianPopulationRecord
             {
                 PopulationSlotId = populationSlotId?.Trim() ?? string.Empty,
@@ -72,6 +89,65 @@ namespace Reloader.NPCs.Generation
                 OutfitTopId = PickRequired(library.OutfitTopIds, nameof(library.OutfitTopIds), random),
                 OutfitBottomId = PickRequired(library.OutfitBottomIds, nameof(library.OutfitBottomIds), random),
                 OuterwearId = PickRequired(library.OuterwearIds, nameof(library.OuterwearIds), random),
+                MaterialColorIds = PickOptionalList(library.MaterialColorIds, random),
+                GeneratedDescriptionTags = PickOptionalList(library.DescriptionTags, random),
+                SpawnAnchorId = spawnAnchorId.Trim(),
+                AreaTag = areaTag?.Trim() ?? string.Empty,
+                CreatedAtDay = Math.Max(0, createdAtDay),
+                RetiredAtDay = -1
+            };
+        }
+
+        private static CivilianPopulationRecord GenerateCuratedStyleRecord(
+            CivilianAppearanceLibrary library,
+            string civilianId,
+            int createdAtDay,
+            string spawnAnchorId,
+            Random random,
+            bool isContractEligible,
+            string populationSlotId,
+            string poolId,
+            string areaTag,
+            bool isProtectedFromContracts)
+        {
+            var baseBodyId = PickRequired(library.BaseBodyIds, nameof(library.BaseBodyIds), random);
+            var presentationType = MainTownCuratedAppearanceRules.NormalizePresentationType(
+                baseBodyId,
+                PickRequired(library.PresentationTypes, nameof(library.PresentationTypes), random));
+
+            MainTownCuratedAppearanceRules.TryInferGender(baseBodyId, presentationType, out var gender);
+
+            var hairId = PickRequired(MainTownCuratedAppearanceRules.GetCompatibleHairIds(library, gender), nameof(library.HairIds), random);
+            var beardChoices = MainTownCuratedAppearanceRules.GetCompatibleBeardIds(library, gender);
+            var beardId = beardChoices.Count > 0
+                ? PickRequired(beardChoices, nameof(library.BeardIds), random)
+                : NoBeardId;
+
+            var outfitTopId = PickRequired(MainTownCuratedAppearanceRules.GetCompatibleBaseTopIds(library), nameof(library.OutfitTopIds), random);
+            var outfitBottomId = PickRequired(MainTownCuratedAppearanceRules.GetCompatibleBottomIds(library, gender), nameof(library.OutfitBottomIds), random);
+            var outerwearRaw = PickRequired(MainTownCuratedAppearanceRules.GetCompatibleOuterwearIds(library), nameof(library.OuterwearIds), random);
+            var outerwearId = MainTownCuratedAppearanceRules.NormalizeOuterwearId(outerwearRaw);
+            if (string.IsNullOrWhiteSpace(outerwearId))
+            {
+                outerwearId = MainTownCuratedAppearanceRules.NoOuterwearId;
+            }
+
+            return new CivilianPopulationRecord
+            {
+                PopulationSlotId = populationSlotId?.Trim() ?? string.Empty,
+                PoolId = poolId?.Trim() ?? string.Empty,
+                CivilianId = civilianId.Trim(),
+                IsAlive = true,
+                IsContractEligible = isContractEligible,
+                IsProtectedFromContracts = isProtectedFromContracts,
+                BaseBodyId = baseBodyId,
+                PresentationType = presentationType,
+                HairId = hairId,
+                HairColorId = PickRequired(library.HairColorIds, nameof(library.HairColorIds), random),
+                BeardId = beardId,
+                OutfitTopId = outfitTopId,
+                OutfitBottomId = outfitBottomId,
+                OuterwearId = outerwearId,
                 MaterialColorIds = PickOptionalList(library.MaterialColorIds, random),
                 GeneratedDescriptionTags = PickOptionalList(library.DescriptionTags, random),
                 SpawnAnchorId = spawnAnchorId.Trim(),

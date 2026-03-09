@@ -78,10 +78,16 @@ Behavioral extensions like professions, dialogue, voices, wandering zones, and s
 ### Generator Library
 
 - A curated appearance-part library under `_Project` defines which bodies, hair parts, outfit parts, and material variants are valid inputs.
-- Initial generation uses free random slot selection with only structural guards:
+- The approved STYLE module pool is the default `MainTown` source of truth for this library.
+- Generation must combine approved modules, not approved full demo-scene characters.
+- Generation should stay procedural, but only through compatibility-safe rules:
   - body-compatible part selection
+  - approved hair/beard/body pools
+  - approved top/bottom/outerwear pools
   - one active choice per slot
+  - reviewed underlayer / outerwear compatibility
   - no missing required body content
+  - no banned or broken module pairings
 
 ### Persisted Civilian Record
 
@@ -130,4 +136,4 @@ This slice should not implement:
 
 ## Next Step After This Slice
 
-Once this foundation is stable, the next slice should add a `MainTownPopulationDefinition` with stable pools and `populationSlotId`s, fill those slots with generated occupants, and then add random contract-target selection from the persistent living population plus appearance-derived contract descriptions so the posted contract text always matches the actual chosen civilian.
+Once this foundation is stable, the next slice should lock the approved STYLE module pool into runtime generation, add visible runtime appearance application for spawned civilians, and then add random contract-target selection from the persistent living population plus appearance-derived contract descriptions so the posted contract text always matches the actual chosen civilian.

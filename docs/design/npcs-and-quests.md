@@ -98,3 +98,14 @@ Each NPC tracks relationship level with the player. Higher relationship unlocks 
 | `BehaviorTreeDecisionProvider` and BT assets/tooling | Deferred | Planned drop-in provider implementing `INpcDecisionProvider`. |
 | Multi-step dialogue, reply gating, and quest/police/vendor outcomes | Deferred | The node/outcome model and shared orchestration seam are in place, but only one-node conversations and generic structured outcomes ship in v0.1. |
 | Full capability runtime-state save integration | Deferred | Current slice does not persist all capability internals. |
+
+## Procedural Civilian Appearance Source [v0.1]
+
+- `MainTown` procedural civilians should source visible appearance from the approved STYLE module pool, not from one-off demo-scene characters.
+- The approved pool is modular:
+  - body / presentation
+  - hair / beard
+  - tops / bottoms / outerwear
+  - approved material families
+- Runtime generation should combine those modules through compatibility rules rather than picking every field independently with no outfit constraints.
+- Authored roles such as vendors, police, or clerks may temporarily use fixed combinations from the same approved module pool, but their long-term identity should be hand-authored per role.
