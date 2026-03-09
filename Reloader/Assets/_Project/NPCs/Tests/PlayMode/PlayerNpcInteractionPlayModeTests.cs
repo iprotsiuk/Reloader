@@ -141,6 +141,57 @@ namespace Reloader.NPCs.Tests.PlayMode
         }
 
         [Test]
+        public void InteractInput_DialogueNpcWithoutPreseededRuntime_ProvisionDialogueInfrastructureOnPlayerRoot()
+        {
+            DestroyAllOfType<DialogueRuntimeController>();
+            DestroyAllOfType<DialogueConversationModeController>();
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var controller = root.AddComponent<PlayerNpcInteractionController>();
+
+            var camera = root.AddComponent<Camera>();
+            camera.transform.position = Vector3.zero;
+            camera.transform.forward = Vector3.forward;
+
+            var resolver = root.AddComponent<PlayerNpcResolver>();
+            resolver.SetCameraForTests(camera);
+
+            controller.Configure(input, resolver);
+
+            var npc = CreateNpcWithCollider("npc-dialogue-target", new Vector3(0f, 0f, 2.5f));
+            var dialogueDefinition = AttachDialogueCapabilityWithDefinition(npc.gameObject);
+
+            NpcActionExecutionResult interactionResult = default;
+            var eventRaised = false;
+            controller.InteractionProcessed += result =>
+            {
+                eventRaised = true;
+                interactionResult = result;
+            };
+
+            try
+            {
+                input.PickupPressedThisFrame = true;
+                controller.Tick();
+
+                Assert.That(root.GetComponent<DialogueRuntimeController>(), Is.Not.Null, "Expected PlayerRoot to host a dialogue runtime after first interaction.");
+                Assert.That(root.GetComponent<DialogueConversationModeController>(), Is.Not.Null, "Expected PlayerRoot to host conversation mode after first interaction.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(dialogueDefinition);
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(npc.gameObject);
+            }
+
+            Assert.That(eventRaised, Is.True);
+            Assert.That(interactionResult.Success, Is.True);
+            Assert.That(interactionResult.ActionKey, Is.EqualTo(DialogueCapability.ActionKey));
+            Assert.That(interactionResult.Reason, Is.EqualTo("dialogue.started"));
+        }
+
+        [Test]
         public void TryInteract_NoTarget_EmitsFailureWithoutThrowing()
         {
             var root = new GameObject("PlayerRoot");
@@ -572,6 +623,19 @@ namespace Reloader.NPCs.Tests.PlayMode
             var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {target.GetType().Name}.");
             field.SetValue(target, value);
+        }
+
+        private static void DestroyAllOfType<T>() where T : Component
+        {
+            var objects = Object.FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < objects.Length; i++)
+            {
+                var component = objects[i] as Component;
+                if (component != null)
+                {
+                    Object.DestroyImmediate(component.gameObject);
+                }
+            }
         }
 
         private sealed class TestNpcResolver : MonoBehaviour, IPlayerNpcResolver

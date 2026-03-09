@@ -66,7 +66,7 @@ namespace Reloader.NPCs.Runtime.Capabilities
                 return false;
             }
 
-            var runtime = UnityEngine.Object.FindFirstObjectByType<DialogueRuntimeController>(FindObjectsInactive.Include);
+            var runtime = DialogueRuntimeLocator.EnsureRuntimeForPlayerHost(_agent != null ? _agent : this);
             if (runtime == null)
             {
                 result = new NpcActionExecutionResult(ActionKey, false, "dialogue.runtime-missing");
