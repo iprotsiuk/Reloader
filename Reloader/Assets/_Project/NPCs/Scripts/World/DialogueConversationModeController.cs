@@ -56,6 +56,12 @@ namespace Reloader.NPCs.World
             ResolveReferences();
             if (_runtimeController == null)
             {
+                if (IsConversationActive || _runtimeOwnsConversationMode)
+                {
+                    _runtimeOwnsConversationMode = false;
+                    ApplyConversationState(null, false);
+                }
+
                 return;
             }
 

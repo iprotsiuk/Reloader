@@ -193,6 +193,76 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void RefreshConversationMode_WhenRuntimeControllerIsDestroyed_ExitsConversationMode()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+
+            var root = new GameObject("PlayerRoot");
+            var characterController = root.AddComponent<CharacterController>();
+            characterController.height = 2f;
+            characterController.radius = 0.3f;
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Move = Vector2.up;
+
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var mover = root.AddComponent<PlayerMover>();
+            mover.Configure(input, new PlayerMovementSettings
+            {
+                WalkSpeed = 6f,
+                SprintSpeed = 9f,
+                Acceleration = 100f,
+                Gravity = -25f,
+                JumpHeight = 1.25f
+            });
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            var cursor = root.AddComponent<PlayerCursorLockController>();
+            cursor.LockCursor();
+
+            var runtime = root.AddComponent<DialogueRuntimeController>();
+            var conversationMode = root.AddComponent<DialogueConversationModeController>();
+            var definition = CreateDialogueDefinition(
+                "dialogue.runtime.destroyed",
+                "entry",
+                new DialogueNodeDefinition(
+                    "entry",
+                    "Stay still.",
+                    new[]
+                    {
+                        new DialogueReplyDefinition("reply.ok", "Fine.", string.Empty, string.Empty, string.Empty)
+                    }));
+            var npcTarget = new GameObject("NpcTarget");
+            npcTarget.transform.position = new Vector3(6f, 1f, 0f);
+
+            try
+            {
+                Assert.That(runtime.TryOpenConversation(definition, npcTarget.transform, out _), Is.True);
+
+                conversationMode.RefreshConversationMode();
+                Object.DestroyImmediate(runtime);
+                conversationMode.RefreshConversationMode();
+                mover.Tick(0.1f);
+
+                Assert.That(conversationMode.IsConversationActive, Is.False);
+                Assert.That(conversationMode.ActiveFocusTarget, Is.Null);
+                Assert.That(root.transform.position.z, Is.GreaterThan(0.2f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(npcTarget);
+                Object.DestroyImmediate(root);
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
+        }
+
         private static DialogueDefinition CreateDialogueDefinition(string dialogueId, string entryNodeId, params DialogueNodeDefinition[] nodes)
         {
             var definition = ScriptableObject.CreateInstance<DialogueDefinition>();
