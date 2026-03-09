@@ -8,9 +8,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 125972770672315097, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_Name
       value: Npc_CompetitionOrganizer
+      objectReference: {fileID: 0}
+    - target: {fileID: 5242126611845300508, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5910006647273500762, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_LocalPosition.x
@@ -55,5 +63,63 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2544125368428098172}
+    - targetCorrespondingSourceObject: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8245156541064971945}
+    - targetCorrespondingSourceObject: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3231182664448427255}
   m_SourcePrefab: {fileID: 100100000, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+--- !u!1 &511432669561536776 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+  m_PrefabInstance: {fileID: 1360578759839133626}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &2544125368428098172
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 511432669561536776}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2ea39b924d50245af8cd77f88ad78ba0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Runtime.Capabilities.DialogueCapability
+  _displayName: Talk
+  _priority: 0
+  _definition: {fileID: 0}
+--- !u!114 &8245156541064971945
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 511432669561536776}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59e81481c9a214c1190b72eb63e00b18, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Runtime.Capabilities.FrontDeskInteractionCapability
+  _displayName: Front Desk
+  _priority: 10
+--- !u!114 &3231182664448427255
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 511432669561536776}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e95e71348c54f41db850bb76f3ed08f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Runtime.Capabilities.EntryFeeInteractionCapability
+  _displayName: Pay Entry Fee
+  _priority: 15
+  _defaultEntryFeeAmount: 25

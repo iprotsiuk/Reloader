@@ -59,6 +59,7 @@ This file is the canonical local guidance entrypoint for agents working in this 
 - For cross-domain extension work, load `docs/design/extensible-development-contracts.md` in addition to domain docs.
 - Do not load generated Unity directories for context (`Reloader/Library/**`, `Reloader/Temp/**`, `Reloader/Logs/**`) unless a task explicitly targets build/runtime diagnostics.
 - For Unity discovery, start with code/docs filters (for example `rg --files -g '*.cs' -g '*.asmdef' -g '*.md' Reloader/Assets/_Project docs .cursor .agent`) before broad file scans.
+- For multi-step Unity/editor workflows, strongly prefer batched Unity MCP commands (`batch_execute` or equivalent batched operations) because repeated single MCP calls often run into Unity reload/time-out churn.
 - Do not load Unity `*.meta` files unless the task explicitly requires GUID/reference/import diagnostics.
 - If event contracts are added or changed under `Reloader/Assets/_Project/Core/Scripts/Events/**` or `Reloader/Assets/_Project/Core/Scripts/Runtime/*Events*.cs`, update routing in `.cursor/rules/core-events-context.mdc` in the same change.
 - Place scene/world-item persistence orchestration scripts under `Reloader/Assets/_Project/Core/Scripts/Persistence/**` and keep `scene-persistence-context.mdc` globs aligned with that folder.

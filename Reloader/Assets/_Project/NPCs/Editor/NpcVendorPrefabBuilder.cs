@@ -1,7 +1,9 @@
 using Reloader.NPCs.Runtime;
 using Reloader.NPCs.Runtime.Capabilities;
+using Reloader.NPCs.Data;
 using Reloader.NPCs.World;
 using Reloader.Player;
+using Reloader.World.Editor;
 using System;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -16,14 +18,18 @@ namespace Reloader.NPCs.Editor
         private const string PlayerInteractorPrefabPath = "Assets/_Project/NPCs/Prefabs/PlayerShopVendorInteractor.prefab";
         private const string NpcFoundationPrefabPath = "Assets/_Project/NPCs/Prefabs/NpcFoundation.prefab";
         private const string RolePrefabFolderPath = "Assets/_Project/NPCs/Prefabs/Roles";
-        private const string VendorModelPath = "Assets/ThirdParty/Lowpoly Animated Men Pack/Man in Long Sleeves/Male_LongSleeve.fbx";
         private const string ReloadingCatalogPath = "Assets/_Project/Economy/Data/ReloadingStore_DefaultCatalog.asset";
         private const string AmmoCatalogPath = "Assets/_Project/Economy/Data/AmmoStore_DefaultCatalog.asset";
         private const string WeaponCatalogPath = "Assets/_Project/Economy/Data/WeaponStore_DefaultCatalog.asset";
+        private const string FrontDeskDialogueAssetPath = "Assets/_Project/NPCs/Data/Definitions/Dialogue_FrontDeskClerk.asset";
+        private const string PoliceStopDialogueAssetPath = "Assets/_Project/NPCs/Data/Definitions/Dialogue_PoliceStop.asset";
 
         private static readonly RolePrefabConfig[] RolePrefabConfigs =
         {
-            RolePrefabConfig.NonVendor(NpcRoleKind.Police, "Police"),
+            RolePrefabConfig.NonVendor(
+                NpcRoleKind.Police,
+                "Police",
+                new[] { NpcCapabilityKind.LawEnforcementInteraction }),
             RolePrefabConfig.NonVendor(NpcRoleKind.GameWarden, "GameWarden"),
             RolePrefabConfig.Vendor(NpcRoleKind.WeaponVendor, "WeaponVendor", "vendor-weapon-store"),
             RolePrefabConfig.Vendor(NpcRoleKind.AmmoVendor, "AmmoVendor", "vendor-ammo-store"),
@@ -31,8 +37,7 @@ namespace Reloader.NPCs.Editor
             RolePrefabConfig.NonVendor(
                 NpcRoleKind.FrontDeskClerk,
                 "FrontDeskClerk",
-                new[] { NpcCapabilityKind.FrontDeskInteraction, NpcCapabilityKind.EntryFeeInteraction },
-                new[] { NpcCapabilityKind.Dialogue }),
+                new[] { NpcCapabilityKind.FrontDeskInteraction, NpcCapabilityKind.EntryFeeInteraction, NpcCapabilityKind.Dialogue }),
             RolePrefabConfig.NonVendor(
                 NpcRoleKind.RangeSafetyOfficer,
                 "RangeSafetyOfficer",
@@ -55,6 +60,7 @@ namespace Reloader.NPCs.Editor
         private static readonly CapabilityComponentBinding[] ManagedRoleCapabilityBindings =
         {
             CapabilityComponentBinding.Create(NpcCapabilityKind.Dialogue, typeof(DialogueCapability)),
+            CapabilityComponentBinding.Create(NpcCapabilityKind.LawEnforcementInteraction, typeof(LawEnforcementInteractionCapability)),
             CapabilityComponentBinding.Create(NpcCapabilityKind.FrontDeskInteraction, typeof(FrontDeskInteractionCapability)),
             CapabilityComponentBinding.Create(NpcCapabilityKind.EntryFeeInteraction, typeof(EntryFeeInteractionCapability))
         };
@@ -151,6 +157,7 @@ namespace Reloader.NPCs.Editor
             try
             {
                 EnsureVendorComponents(root, "vendor-reloading-store");
+                ApplySeededAppearance(root, "vendor.vendor-reloading-store");
                 PrefabUtility.SaveAsPrefabAsset(root, VendorPrefabPath);
             }
             finally
@@ -188,6 +195,7 @@ namespace Reloader.NPCs.Editor
         {
             var root = new GameObject(rootName);
             root.AddComponent<NpcAgent>();
+            root.AddComponent<MainTownNpcAppearanceApplicator>();
 
             var body = new GameObject("Body");
             body.transform.SetParent(root.transform, false);
@@ -195,20 +203,13 @@ namespace Reloader.NPCs.Editor
             body.transform.localRotation = Quaternion.identity;
             body.transform.localScale = Vector3.one;
 
-            var visualModel = TryInstantiateModel(VendorModelPath, body.transform, "NpcModel");
-            if (visualModel == null)
-            {
-                var fallback = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                fallback.name = "NpcModel_Fallback";
-                fallback.transform.SetParent(body.transform, false);
-                fallback.transform.localPosition = new Vector3(0f, 1f, 0f);
-                fallback.transform.localScale = new Vector3(0.85f, 1f, 0.85f);
-            }
-
             var collider = body.AddComponent<CapsuleCollider>();
             collider.center = new Vector3(0f, 0.9f, 0f);
             collider.height = 1.8f;
             collider.radius = 0.35f;
+
+            BuildStyleVisualRoot(root.transform);
+            ApplySeededAppearance(root, rootName);
 
             return root;
         }
@@ -240,6 +241,11 @@ namespace Reloader.NPCs.Editor
                 }
 
                 EnsureRoleCapabilities(root, config);
+                ApplyRoleAuthoredDefinitions(root, config);
+                var appearanceSeedKey = config.IsVendor && !string.IsNullOrWhiteSpace(config.VendorId)
+                    ? $"vendor.{config.VendorId}"
+                    : config.PrefabName;
+                ApplySeededAppearance(root, appearanceSeedKey);
                 var prefabPath = GetRolePrefabPath(config);
                 var errorCount = 0;
                 var warningCount = 0;
@@ -310,6 +316,58 @@ namespace Reloader.NPCs.Editor
                     UnityEngine.Object.DestroyImmediate(existing);
                 }
             }
+        }
+
+        private static void ApplyRoleAuthoredDefinitions(GameObject root, RolePrefabConfig config)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            if (config.Role == NpcRoleKind.FrontDeskClerk)
+            {
+                var capability = root.GetComponent<DialogueCapability>();
+                if (capability != null)
+                {
+                    AssignDialogueDefinition(capability, FrontDeskDialogueAssetPath);
+                }
+            }
+
+            if (config.Role == NpcRoleKind.Police)
+            {
+                var capability = root.GetComponent<LawEnforcementInteractionCapability>();
+                if (capability != null)
+                {
+                    AssignDialogueDefinition(capability, PoliceStopDialogueAssetPath);
+                }
+            }
+        }
+
+        private static void AssignDialogueDefinition(Component capability, string assetPath)
+        {
+            if (capability == null || string.IsNullOrWhiteSpace(assetPath))
+            {
+                return;
+            }
+
+            var definition = AssetDatabase.LoadAssetAtPath<DialogueDefinition>(assetPath);
+            if (definition == null)
+            {
+                Debug.LogWarning($"Missing dialogue definition asset at '{assetPath}' for '{capability.GetType().Name}'.");
+                return;
+            }
+
+            var serialized = new SerializedObject(capability);
+            var definitionProperty = serialized.FindProperty("_definition");
+            if (definitionProperty == null)
+            {
+                Debug.LogWarning($"Capability '{capability.GetType().Name}' is missing '_definition' for authored dialogue binding.");
+                return;
+            }
+
+            definitionProperty.objectReferenceValue = definition;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private static void ValidateRolePrefab(
@@ -417,19 +475,39 @@ namespace Reloader.NPCs.Editor
             }
         }
 
-        private static GameObject TryInstantiateModel(string modelPath, Transform parent, string instanceName)
+        private static void BuildStyleVisualRoot(Transform parent)
         {
+            var existing = parent.Find("VisualRoot");
+            if (existing != null)
+            {
+                UnityEngine.Object.DestroyImmediate(existing.gameObject);
+            }
+
+            var visualRoot = new GameObject("VisualRoot");
+            visualRoot.transform.SetParent(parent, false);
+
+            BuildStyleRig(StyleCrowdReviewGender.Male, visualRoot.transform, "StyleMaleRoot");
+            BuildStyleRig(StyleCrowdReviewGender.Female, visualRoot.transform, "StyleFemaleRoot");
+        }
+
+        private static void BuildStyleRig(StyleCrowdReviewGender gender, Transform parent, string instanceName)
+        {
+            var modelPath = StyleCrowdReviewBuilder.GetModelAssetPath(gender);
             var modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(modelPath);
             if (modelAsset == null)
             {
-                Debug.LogWarning($"Vendor model not found at '{modelPath}'. Using fallback capsule.");
-                return null;
+                Debug.LogWarning($"STYLE rig not found at '{modelPath}'. Creating fallback capsule for '{instanceName}'.");
+                var fallback = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+                fallback.name = instanceName;
+                fallback.transform.SetParent(parent, false);
+                fallback.transform.localPosition = new Vector3(0f, 0.9f, 0f);
+                fallback.transform.localScale = new Vector3(0.85f, 1f, 0.85f);
+                return;
             }
 
-            var model = PrefabUtility.InstantiatePrefab(modelAsset) as GameObject;
-            model ??= UnityEngine.Object.Instantiate(modelAsset);
+            var model = PrefabUtility.InstantiatePrefab(modelAsset, parent) as GameObject;
+            model ??= UnityEngine.Object.Instantiate(modelAsset, parent);
             model.name = instanceName;
-            model.transform.SetParent(parent, false);
             model.transform.localPosition = Vector3.zero;
             model.transform.localRotation = Quaternion.identity;
             model.transform.localScale = Vector3.one;
@@ -439,7 +517,67 @@ namespace Reloader.NPCs.Editor
                 childCollider.enabled = false;
             }
 
-            return model;
+            AssignStyleMaterials(model.transform, gender);
+            SetStyleRigInactive(model.transform);
+        }
+
+        private static void AssignStyleMaterials(Transform rigRoot, StyleCrowdReviewGender gender)
+        {
+            if (rigRoot == null)
+            {
+                return;
+            }
+
+            foreach (Transform child in rigRoot)
+            {
+                var renderer = child.GetComponent<Renderer>();
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                var materialPath = StyleCrowdReviewBuilder.GetExternalMaterialPath(gender, child.name);
+                if (string.IsNullOrWhiteSpace(materialPath))
+                {
+                    continue;
+                }
+
+                var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+                if (material != null)
+                {
+                    renderer.sharedMaterial = material;
+                    EditorUtility.SetDirty(renderer);
+                }
+            }
+        }
+
+        private static void SetStyleRigInactive(Transform rigRoot)
+        {
+            if (rigRoot == null)
+            {
+                return;
+            }
+
+            foreach (Transform child in rigRoot)
+            {
+                child.gameObject.SetActive(false);
+            }
+        }
+
+        private static void ApplySeededAppearance(GameObject root, string seedKey)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            var applicator = root.GetComponent<MainTownNpcAppearanceApplicator>();
+            if (applicator == null)
+            {
+                return;
+            }
+
+            applicator.ApplySeededAppearance(seedKey);
         }
 
         public static void BuildPlayerInteractorPrefab()

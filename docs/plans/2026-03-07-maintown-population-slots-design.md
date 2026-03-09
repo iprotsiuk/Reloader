@@ -96,7 +96,7 @@ This slice should not implement:
 - contract target selection
 - Monday refresh execution
 - professions, schedules, wandering zones, dialogue, or voices
-- full visual asset curation for the STYLE kit
+- hand-authored special-role appearance direction
 
 ## Validation Targets
 
@@ -108,4 +108,4 @@ This slice should not implement:
 
 ## Next Step After This Slice
 
-Once slot-driven `MainTown` population is stable, the next slice should curate the first committed appearance-part pool from the STYLE kit and wire real visual assembly/prefab selection so generated civilians use approved bodies, hair, clothes, and color variants in-game.
+Once slot-driven `MainTown` population is stable, the next slice should use the approved STYLE module pool as the default `MainTown` appearance source and wire real visual assembly so generated civilians use approved bodies, hair, clothes, and color variants in-game.

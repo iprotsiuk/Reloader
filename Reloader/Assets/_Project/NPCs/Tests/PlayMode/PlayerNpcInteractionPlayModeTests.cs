@@ -576,10 +576,10 @@ namespace Reloader.NPCs.Tests.PlayMode
                 Assert.That(npcAgent, Is.Not.Null);
                 npcInstance.transform.position = new Vector3(0f, 0f, 2.5f);
 
-                input.PickupPressedThisFrame = true;
-                interactionController.Tick();
+                var interacted = interactionController.TryInteract(DialogueCapability.ActionKey);
                 conversationMode.RefreshConversationMode();
 
+                Assert.That(interacted, Is.True);
                 Assert.That(interactionRaised, Is.True);
                 Assert.That(interactionResult.Success, Is.True);
                 Assert.That(interactionResult.ActionKey, Is.EqualTo(DialogueCapability.ActionKey));

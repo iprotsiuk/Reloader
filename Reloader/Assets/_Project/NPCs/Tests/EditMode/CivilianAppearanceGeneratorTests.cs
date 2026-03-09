@@ -81,6 +81,88 @@ namespace Reloader.NPCs.Tests.EditMode
             CollectionAssert.AreEqual(new[] { "hair.short.01" }, (IEnumerable)GetProperty<object>(restored, "HairIds"));
         }
 
+        [Test]
+        public void GenerateRecord_WhenMaleBodyIsSelected_UsesOnlyMaleCompatibleStyleModules()
+        {
+            var generatorType = ResolveRequiredType(GeneratorTypeName);
+            var libraryType = ResolveRequiredType(LibraryTypeName);
+
+            var generator = Activator.CreateInstance(generatorType);
+            var library = Activator.CreateInstance(libraryType);
+
+            SetProperty(library, "BaseBodyIds", new[] { "male.body" });
+            SetProperty(library, "PresentationTypes", new[] { "masculine" });
+            SetProperty(library, "HairIds", new[] { "hair.short", "hair.long" });
+            SetProperty(library, "HairColorIds", new[] { "hair.black" });
+            SetProperty(library, "BeardIds", new[] { "beard4" });
+            SetProperty(library, "OutfitTopIds", new[] { "tshirt2", "turtleneck" });
+            SetProperty(library, "OutfitBottomIds", new[] { "brous1" });
+            SetProperty(library, "OuterwearIds", new[] { "openJacket", "coat" });
+            SetProperty(library, "MaterialColorIds", new[] { "style.default" });
+            SetProperty(library, "DescriptionTags", new[] { "worker" });
+
+            var generateMethod = generatorType.GetMethod(
+                "GenerateRecord",
+                BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: new[] { libraryType, typeof(string), typeof(int), typeof(string), typeof(int), typeof(bool) },
+                modifiers: null);
+
+            Assert.That(generateMethod, Is.Not.Null, "Expected a public GenerateRecord(...) method on CivilianAppearanceGenerator.");
+
+            var record = generateMethod.Invoke(
+                generator,
+                new object[] { library, "citizen.mainTown.101", 2, "Anchor_Townsfolk_01", 17, true });
+
+            Assert.That(GetProperty<string>(record, "BaseBodyId"), Is.EqualTo("male.body"));
+            Assert.That(GetProperty<string>(record, "HairId"), Is.EqualTo("hair.short"));
+            Assert.That(GetProperty<string>(record, "BeardId"), Is.EqualTo("beard4"));
+            Assert.That(GetProperty<string>(record, "OutfitTopId"), Is.EqualTo("tshirt2"));
+            Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("pants1"));
+            Assert.That(GetProperty<string>(record, "OuterwearId"), Is.EqualTo("openJacket"));
+        }
+
+        [Test]
+        public void GenerateRecord_WhenFemaleBodyIsSelected_DropsMaleOnlyFacialHairAndKeepsFemaleCompatibleHair()
+        {
+            var generatorType = ResolveRequiredType(GeneratorTypeName);
+            var libraryType = ResolveRequiredType(LibraryTypeName);
+
+            var generator = Activator.CreateInstance(generatorType);
+            var library = Activator.CreateInstance(libraryType);
+
+            SetProperty(library, "BaseBodyIds", new[] { "female.body" });
+            SetProperty(library, "PresentationTypes", new[] { "feminine" });
+            SetProperty(library, "HairIds", new[] { "hair.short", "hair.long" });
+            SetProperty(library, "HairColorIds", new[] { "hair.brown" });
+            SetProperty(library, "BeardIds", new[] { "beard7" });
+            SetProperty(library, "OutfitTopIds", new[] { "tshirt1" });
+            SetProperty(library, "OutfitBottomIds", new[] { "brous10" });
+            SetProperty(library, "OuterwearIds", new[] { "hoody" });
+            SetProperty(library, "MaterialColorIds", new[] { "style.default" });
+            SetProperty(library, "DescriptionTags", new[] { "townsfolk" });
+
+            var generateMethod = generatorType.GetMethod(
+                "GenerateRecord",
+                BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: new[] { libraryType, typeof(string), typeof(int), typeof(string), typeof(int), typeof(bool) },
+                modifiers: null);
+
+            Assert.That(generateMethod, Is.Not.Null, "Expected a public GenerateRecord(...) method on CivilianAppearanceGenerator.");
+
+            var record = generateMethod.Invoke(
+                generator,
+                new object[] { library, "citizen.mainTown.202", 3, "Anchor_Townsfolk_02", 3, true });
+
+            Assert.That(GetProperty<string>(record, "BaseBodyId"), Is.EqualTo("female.body"));
+            Assert.That(GetProperty<string>(record, "HairId"), Is.EqualTo("hair.long"));
+            Assert.That(GetProperty<string>(record, "BeardId"), Is.EqualTo(string.Empty));
+            Assert.That(GetProperty<string>(record, "OutfitTopId"), Is.EqualTo("tshirt1"));
+            Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("pants1"));
+            Assert.That(GetProperty<string>(record, "OuterwearId"), Is.EqualTo("hoody"));
+        }
+
         private static Type ResolveRequiredType(string assemblyQualifiedName)
         {
             var type = Type.GetType(assemblyQualifiedName, throwOnError: false);

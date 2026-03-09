@@ -75,6 +75,7 @@ Current repository implementation requires these registered module payloads:
 - `CivilianPopulation` module payload:
   - `civilians[]` with persistent appearance/lifecycle records (`civilianId`, `isAlive`, `isContractEligible`, appearance slot ids, `spawnAnchorId`, `createdAtDay`, `retiredAtDay`)
   - `pendingReplacements[]` with queued vacancy records (`vacatedCivilianId`, `queuedAtDay`, `spawnAnchorId`)
+  - appearance ids are expected to resolve against the approved `MainTown` STYLE module pool rather than arbitrary scene object references or demo-scene NPC names
 - `Inventory` module payload: `carriedItemIds`, `beltSlotItemIds`, `backpackItemIds`, `backpackCapacity`, `selectedBeltIndex`
 - `Weapons` module payload: `itemId`, `chamberLoaded`, `magCount`, `reserveCount`, `chamberRound`, `magazineRounds[]`
 - `WorldObjectState` module payload:
