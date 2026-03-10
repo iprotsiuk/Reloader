@@ -365,6 +365,116 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Fire_WhenMenuIsOpen_IsBlockedAndDoesNotCarryOverAfterClose()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var firedRaised = 0;
+            runtimeEvents.OnWeaponFired += (_, _, _) => firedRaised++;
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+            runtime.SelectBeltSlot(0);
+
+            var cursorController = root.AddComponent<PlayerCursorLockController>();
+            cursorController.LockCursor();
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            controller.Configure();
+            yield return null;
+
+            runtimeEvents.RaiseTabInventoryVisibilityChanged(true);
+            input.FirePressedThisFrame = true;
+            yield return null;
+
+            Assert.That(firedRaised, Is.EqualTo(0), "Weapon fire should be blocked while a menu is open.");
+
+            runtimeEvents.RaiseTabInventoryVisibilityChanged(false);
+            yield return null;
+
+            Assert.That(firedRaised, Is.EqualTo(0), "Blocked fire input should be consumed instead of firing after the menu closes.");
+
+            input.FirePressedThisFrame = true;
+            yield return null;
+
+            Assert.That(firedRaised, Is.EqualTo(1), "Fire should resume once the menu has closed.");
+
+            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
+        public IEnumerator Fire_WhenGameplayInputIsForcedBlocked_IsBlockedAndDoesNotCarryOverAfterRelease()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var firedRaised = 0;
+            runtimeEvents.OnWeaponFired += (_, _, _) => firedRaised++;
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+            runtime.SelectBeltSlot(0);
+
+            var cursorController = root.AddComponent<PlayerCursorLockController>();
+            cursorController.LockCursor();
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            controller.Configure();
+            yield return null;
+
+            cursorController.SetForcedCursorUnlock(true);
+            input.FirePressedThisFrame = true;
+            yield return null;
+
+            Assert.That(firedRaised, Is.EqualTo(0), "Weapon fire should be blocked while dialogue-style forced input blocking is active.");
+
+            cursorController.SetForcedCursorUnlock(false);
+            yield return null;
+
+            Assert.That(firedRaised, Is.EqualTo(0), "Blocked fire input should be consumed instead of firing after forced blocking ends.");
+
+            input.FirePressedThisFrame = true;
+            yield return null;
+
+            Assert.That(firedRaised, Is.EqualTo(1), "Fire should resume once forced input blocking ends.");
+
+            RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
         public IEnumerator Aiming_LerpsFieldOfViewToPackAdsFovAndBack()
         {
             var root = new GameObject("PlayerRoot");

@@ -652,6 +652,12 @@ namespace Reloader.Weapons.Controllers
 
         private void TickFire()
         {
+            if (IsFireInputBlocked())
+            {
+                _inputSource?.ConsumeFirePressed();
+                return;
+            }
+
             if (_inputSource.SprintHeld)
             {
                 return;
@@ -698,6 +704,16 @@ namespace Reloader.Weapons.Controllers
             var muzzleAudioOverride = ResolveMuzzleAudioOverride();
             ResolveWeaponEvents()?.RaiseWeaponFired(_equippedItemId, _muzzleTransform.position, firedDirection);
             ResolveCombatAudioEmitter()?.EmitWeaponFire(_equippedItemId, _muzzleTransform.position, muzzleAudioOverride);
+        }
+
+        private static bool IsFireInputBlocked()
+        {
+            if (PlayerCursorLockController.IsGameplayInputBlocked)
+            {
+                return true;
+            }
+
+            return RuntimeKernelBootstrapper.UiStateEvents?.IsAnyMenuOpen ?? false;
         }
 
         private WeaponProjectile SpawnProjectile()

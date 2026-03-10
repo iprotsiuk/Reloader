@@ -31,6 +31,7 @@ namespace Reloader.Player
         private bool _forcedCursorUnlock;
 
         public static bool IsAnyMenuOpen { get; private set; }
+        public static bool IsGameplayInputBlocked { get; private set; }
         public bool IsCursorLockRequested { get; private set; }
 
         private void Awake()
@@ -61,6 +62,7 @@ namespace Reloader.Player
             ShopEventsBinder.Unbind();
             UiStateEventsBinder.Unbind();
             IsAnyMenuOpen = false;
+            IsGameplayInputBlocked = false;
         }
 
         public void Configure(IUiStateEvents uiStateEvents = null, IShopEvents shopEvents = null)
@@ -208,7 +210,8 @@ namespace Reloader.Player
         private void ApplyCursorState()
         {
             IsAnyMenuOpen = _isTradeMenuOpen || _isWorkbenchMenuOpen || _isTabInventoryOpen || _isEscMenuOpen || _isStorageMenuOpen;
-            if (_forcedCursorUnlock || IsAnyMenuOpen)
+            IsGameplayInputBlocked = _forcedCursorUnlock || IsAnyMenuOpen;
+            if (IsGameplayInputBlocked)
             {
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;

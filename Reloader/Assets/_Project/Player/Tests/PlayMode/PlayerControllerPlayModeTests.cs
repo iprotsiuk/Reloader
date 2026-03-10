@@ -576,9 +576,11 @@ namespace Reloader.Player.Tests.PlayMode
 
                 runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(true);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.True);
 
                 runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(false);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.False);
                 Assert.That(controller.IsCursorLockRequested, Is.True);
 
                 Object.DestroyImmediate(go);
@@ -610,9 +612,11 @@ namespace Reloader.Player.Tests.PlayMode
 
                 runtimeUiStateEvents.RaiseEscMenuVisibilityChanged(true);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.True);
 
                 runtimeUiStateEvents.RaiseEscMenuVisibilityChanged(false);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.False);
                 Assert.That(controller.IsCursorLockRequested, Is.True);
 
                 Object.DestroyImmediate(go);
@@ -649,18 +653,23 @@ namespace Reloader.Player.Tests.PlayMode
 
                 runtimeUiStateEvents.RaiseTabInventoryVisibilityChanged(true);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.False);
 
                 uiStateEvents.RaiseTabInventoryVisibilityChanged(true);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.True);
 
                 uiStateEvents.RaiseTabInventoryVisibilityChanged(false);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.False);
 
                 shopEvents.RaiseShopTradeOpened("vendor-1");
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.True);
 
                 shopEvents.RaiseShopTradeClosed();
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.False);
             }
             finally
             {
@@ -691,17 +700,21 @@ namespace Reloader.Player.Tests.PlayMode
 
                 initialHub.RaiseTabInventoryVisibilityChanged(true);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.True);
 
                 initialHub.RaiseTabInventoryVisibilityChanged(false);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.False);
 
                 RuntimeKernelBootstrapper.Configure(System.Array.Empty<RuntimeModuleRegistration>(), replacementHub);
 
                 initialHub.RaiseTabInventoryVisibilityChanged(true);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.False);
 
                 replacementHub.RaiseTabInventoryVisibilityChanged(true);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.True);
             }
             finally
             {
@@ -732,17 +745,21 @@ namespace Reloader.Player.Tests.PlayMode
             {
                 initialHub.RaiseWorkbenchMenuVisibilityChanged(true);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.True);
 
                 initialHub.RaiseWorkbenchMenuVisibilityChanged(false);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.False);
 
                 RuntimeKernelBootstrapper.Events = replacementHub;
 
                 initialHub.RaiseWorkbenchMenuVisibilityChanged(true);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.False);
 
                 replacementHub.RaiseWorkbenchMenuVisibilityChanged(true);
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.True);
             }
             finally
             {
@@ -772,10 +789,12 @@ namespace Reloader.Player.Tests.PlayMode
                 controller.LockCursor();
                 initialHub.RaiseShopTradeOpened("vendor-1");
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.True);
 
                 RuntimeKernelBootstrapper.Events = replacementHub;
 
                 Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.False);
                 Assert.That(controller.IsCursorLockRequested, Is.True);
             }
             finally
@@ -1095,12 +1114,14 @@ namespace Reloader.Player.Tests.PlayMode
                 controller.SetForcedCursorUnlock(true);
 
                 Assert.That(controller.IsCursorLockRequested, Is.True);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.True);
                 Assert.That(Cursor.lockState, Is.EqualTo(CursorLockMode.None));
                 Assert.That(Cursor.visible, Is.True);
 
                 controller.SetForcedCursorUnlock(false);
 
                 Assert.That(controller.IsCursorLockRequested, Is.True);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.False);
                 Assert.That(Cursor.lockState, Is.EqualTo(CursorLockMode.Locked));
                 Assert.That(Cursor.visible, Is.False);
             }
@@ -1134,12 +1155,14 @@ namespace Reloader.Player.Tests.PlayMode
                 InvokePrivateUpdate(controller);
 
                 Assert.That(controller.IsCursorLockRequested, Is.True);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.True);
                 Assert.That(Cursor.lockState, Is.EqualTo(CursorLockMode.None));
                 Assert.That(Cursor.visible, Is.True);
 
                 controller.SetForcedCursorUnlock(false);
 
                 Assert.That(controller.IsCursorLockRequested, Is.True);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.False);
                 Assert.That(Cursor.lockState, Is.EqualTo(CursorLockMode.Locked));
                 Assert.That(Cursor.visible, Is.False);
             }
