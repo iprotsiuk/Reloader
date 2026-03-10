@@ -115,6 +115,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 563d70aa0889144c5b58d772c18112dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Runtime.MainTownNpcAppearanceApplicator
+  _maleDialogueFaceLocalPoint: {x: 0, y: 1.6, z: 0.04}
+  _femaleDialogueFaceLocalPoint: {x: 0, y: 1.54, z: 0.04}
   _lastContextualSeedKey: authoring.NpcFoundation
 --- !u!1 &3709071183204920593
 GameObject:
@@ -277,10 +279,6 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 333366bf9c8dd114382b755ecdead55d, type: 2}
-    - target: {fileID: -1041468355892723737, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
-      propertyPath: m_IsActive
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: -869159929971682933, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -332,7 +330,7 @@ PrefabInstance:
     - target: {fileID: 3273955720109379872, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: de470ce4918320445a3ce0797d000556, type: 2}
+      objectReference: {fileID: 2100000, guid: c4d7402ef68df421c903babad636f5e8, type: 2}
     - target: {fileID: 3739100815168700839, guid: 3a48d0b796ddecf4185f80b2651c08e9, type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -457,11 +455,17 @@ MonoBehaviour:
     - {fileID: 2100000, guid: 2668b811384f6824f9e8ecbe0c6b8fd6, type: 2}
   - ChildName: hair3
     Materials:
-    - {fileID: 2100000, guid: de470ce4918320445a3ce0797d000556, type: 2}
-    - {fileID: 2100000, guid: f45630ab4820e0143b59bb802250732b, type: 2}
+    - {fileID: 2100000, guid: c4d7402ef68df421c903babad636f5e8, type: 2}
+    - {fileID: 2100000, guid: 7c58d3c7cad5144689a50e5d256c813c, type: 2}
+    - {fileID: 2100000, guid: 7471f243b118c41dd84404f97b38fe9a, type: 2}
+    - {fileID: 2100000, guid: 5440b3a831d11479d99091531363b46e, type: 2}
+    - {fileID: 2100000, guid: ad35aaeb5a9364ba2bfc0c76891d1438, type: 2}
+    - {fileID: 2100000, guid: 7b02fbb236b5f41f3b30adba3d591e91, type: 2}
   - ChildName: hoody
     Materials:
     - {fileID: 2100000, guid: 1ece61274edf72742b706d43f421f9df, type: 2}
+    - {fileID: 2100000, guid: 858f1dd3a34bf8049ba0aee43c496ba0, type: 2}
+    - {fileID: 2100000, guid: a6b29205a2e0cc44a84f0d1d4710fdd9, type: 2}
   - ChildName: jacket
     Materials:
     - {fileID: 2100000, guid: e4a1280112bbe7f4c9920eff1d196768, type: 2}
@@ -578,7 +582,7 @@ PrefabInstance:
     - target: {fileID: -7436158621448652264, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 176489c164460e84a95f3d996189a189, type: 2}
+      objectReference: {fileID: 2100000, guid: 9ccb1bfcd540cc346ab2e32553d14d8a, type: 2}
     - target: {fileID: -7179176717647445892, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -606,7 +610,7 @@ PrefabInstance:
     - target: {fileID: -6567066994586376894, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: b61ac43791ea53046aa1607cbafb1391, type: 2}
+      objectReference: {fileID: 2100000, guid: 2fad2296e76cae647add42f9382c7667, type: 2}
     - target: {fileID: -6158540381279159557, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -650,11 +654,11 @@ PrefabInstance:
     - target: {fileID: -3568498019334481840, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 4bc25a2b129e93346acd968857b92d7d, type: 2}
+      objectReference: {fileID: 2100000, guid: 0f75e2e0845b1e345a71576f6b38c054, type: 2}
     - target: {fileID: -3126906588987771818, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 983347fabb046db4594387c3bc2b5722, type: 2}
+      objectReference: {fileID: 2100000, guid: 13e9448a66cb95b40ac9b37107683a5d, type: 2}
     - target: {fileID: -2865794236521058077, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -691,6 +695,10 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: b61ac43791ea53046aa1607cbafb1391, type: 2}
+    - target: {fileID: 242541099697372863, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 337865678634572237, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -698,7 +706,7 @@ PrefabInstance:
     - target: {fileID: 681761793294732826, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 313e04bcd12f94f49ba22e524ef9e2cf, type: 2}
+      objectReference: {fileID: 2100000, guid: 6febd1bdfc9e3004e8a57dc0d1c132b2, type: 2}
     - target: {fileID: 919132149155446097, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: m_Name
       value: StyleMaleRoot
@@ -726,19 +734,15 @@ PrefabInstance:
     - target: {fileID: 1329771913436149886, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 5ebc16edb06731a41a6b57a33d00a928, type: 2}
+      objectReference: {fileID: 2100000, guid: 6f205a6dabde686408fd009df0ca00d4, type: 2}
     - target: {fileID: 1485138595385907865, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1651965306387805110, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2153124949297180866, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 86497100713a410468c387bada73fc50, type: 2}
+      objectReference: {fileID: 2100000, guid: dc018229af1b0e04c93f0fe11a91e93f, type: 2}
     - target: {fileID: 2391607366988678271, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -1037,9 +1041,15 @@ MonoBehaviour:
   - ChildName: hoody_hoody_hoody
     Materials:
     - {fileID: 2100000, guid: b1aba9031d2da49cba60b580bd858fa1, type: 2}
+    - {fileID: 2100000, guid: f9ec0d7d814ed4c979e261f1cb02655b, type: 2}
+    - {fileID: 2100000, guid: cda7bee6f36b44069ad25f75948ff095, type: 2}
+    - {fileID: 2100000, guid: d27a0f8dce1d44ab2ae82841b59207d3, type: 2}
   - ChildName: jacket_jacket_jacket
     Materials:
     - {fileID: 2100000, guid: 739a0ba5a890046e8b41805372284bff, type: 2}
+    - {fileID: 2100000, guid: 92a4950bdfa624684b979b96a08e6ec6, type: 2}
+    - {fileID: 2100000, guid: c676db3bd68294e87a4ff5afb813a325, type: 2}
+    - {fileID: 2100000, guid: ff8bdfc8fa460494bbd5cc79fb2406ab, type: 2}
   - ChildName: Man_Man_Man
     Materials:
     - {fileID: 2100000, guid: 50caad700806b9048a2b1cb2ce5ac64c, type: 2}
