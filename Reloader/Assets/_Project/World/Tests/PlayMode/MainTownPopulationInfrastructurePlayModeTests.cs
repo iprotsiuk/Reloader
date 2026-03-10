@@ -9,7 +9,10 @@ using Reloader.Core.Save;
 using Reloader.Core.Save.IO;
 using Reloader.Core.Save.Modules;
 using Reloader.NPCs.Runtime;
+using Reloader.NPCs.Runtime.Dialogue;
 using Reloader.NPCs.Runtime.Capabilities;
+using Reloader.NPCs.World;
+using Reloader.Player;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -224,6 +227,62 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0002", out var resolved), Is.True,
                 "Expected same-frame lookups to resolve the replacement civilian immediately after rebuild.");
             Assert.That(resolved!.CivilianId, Is.EqualTo("citizen.mainTown.0002"));
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownPopulationRuntime_InteractInputOnSpawnedCivilian_OpensDialogueOnEPress()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var root = GameObject.Find("MainTownPopulationRuntime");
+            Assert.That(root, Is.Not.Null, "Expected authored MainTown population runtime root.");
+
+            var bridge = root!.GetComponent<CivilianPopulationRuntimeBridge>();
+            Assert.That(bridge, Is.Not.Null, "Expected CivilianPopulationRuntimeBridge on MainTownPopulationRuntime.");
+
+            var spawned = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            Assert.That(spawned.Length, Is.GreaterThan(0), "Expected starter population civilians in MainTown.");
+
+            var playerRoot = GameObject.Find("PlayerRoot");
+            Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot in MainTown.");
+
+            var interactionController = playerRoot!.GetComponent<PlayerNpcInteractionController>();
+            var resolver = playerRoot.GetComponent<PlayerNpcResolver>();
+            var playerCamera = playerRoot.GetComponentInChildren<Camera>(includeInactive: true);
+            Assert.That(interactionController, Is.Not.Null, "Expected PlayerNpcInteractionController on PlayerRoot.");
+            Assert.That(resolver, Is.Not.Null, "Expected PlayerNpcResolver on PlayerRoot.");
+            Assert.That(playerCamera, Is.Not.Null, "Expected player camera in MainTown.");
+
+            var input = playerRoot.AddComponent<TestInputSource>();
+            interactionController!.Configure(input, resolver!);
+
+            var targetCivilian = spawned[0];
+            var targetPoint = targetCivilian.transform.position + Vector3.up * 1.35f;
+            var cameraOffset = playerCamera!.transform.position - playerRoot.transform.position;
+            playerRoot.transform.position = targetPoint - (Vector3.forward * 2f) - cameraOffset;
+            playerCamera.transform.LookAt(targetPoint);
+            Physics.SyncTransforms();
+
+            NpcActionExecutionResult interactionResult = default;
+            var interactionRaised = false;
+            interactionController.InteractionProcessed += result =>
+            {
+                interactionRaised = true;
+                interactionResult = result;
+            };
+
+            input.PickupPressedThisFrame = true;
+            interactionController.Tick();
+            yield return null;
+
+            var runtime = playerRoot.GetComponent<DialogueRuntimeController>();
+            Assert.That(interactionRaised, Is.True, "Expected E interaction to execute against the targeted civilian.");
+            Assert.That(interactionResult.Success, Is.True);
+            Assert.That(interactionResult.ActionKey, Is.EqualTo(DialogueCapability.ActionKey));
+            Assert.That(runtime, Is.Not.Null, "Expected player host dialogue runtime after civilian interaction.");
+            Assert.That(runtime!.HasActiveConversation, Is.True, "Expected spawned civilian dialogue to open on E press.");
+            Assert.That(runtime.ActiveConversation.CurrentNode.SpeakerText, Does.Contain(targetCivilian.PublicDisplayName));
         }
 
         [UnityTest]
@@ -489,6 +548,35 @@ namespace Reloader.World.Tests.PlayMode
             var property = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
             Assert.That(property, Is.Not.Null, $"Expected property '{propertyName}'.");
             return (T)property!.GetValue(instance);
+        }
+
+        private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
+        {
+            public bool PickupPressedThisFrame;
+
+            public Vector2 MoveInput => Vector2.zero;
+            public Vector2 LookInput => Vector2.zero;
+            public bool SprintHeld => false;
+            public bool AimHeld => false;
+            public bool ConsumeJumpPressed() => false;
+            public bool ConsumeFirePressed() => false;
+            public bool ConsumeReloadPressed() => false;
+            public int ConsumeBeltSelectPressed() => -1;
+            public bool ConsumeMenuTogglePressed() => false;
+            public bool ConsumeAimTogglePressed() => false;
+            public float ConsumeZoomInput() => 0f;
+            public int ConsumeZeroAdjustStep() => 0;
+
+            public bool ConsumePickupPressed()
+            {
+                if (!PickupPressedThisFrame)
+                {
+                    return false;
+                }
+
+                PickupPressedThisFrame = false;
+                return true;
+            }
         }
     }
 }

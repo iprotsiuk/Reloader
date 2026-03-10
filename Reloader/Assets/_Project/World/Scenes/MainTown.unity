@@ -992,6 +992,8 @@ GameObject:
   - component: {fileID: 573788837}
   - component: {fileID: 573788836}
   - component: {fileID: 573788835}
+  - component: {fileID: 573788858}
+  - component: {fileID: 573788857}
   - component: {fileID: 573788849}
   - component: {fileID: 573788848}
   - component: {fileID: 573788847}
@@ -1025,6 +1027,41 @@ MonoBehaviour:
   _resolverBehaviour: {fileID: 573788836}
   _interactionCoordinatorModeEnabled: 0
   _interactionPriority: 60
+--- !u!114 &573788857
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 573788834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 807d189245ffb4978ace0edcc4f6a18d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.World.PlayerNpcResolver
+  _playerCamera: {fileID: 256523801}
+  _maxDistance: 4
+  _npcMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  _excludeShopVendors: 1
+--- !u!114 &573788858
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 573788834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29cf288de632a4497808af1a3d51066e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.World.PlayerNpcInteractionController
+  _inputSourceBehaviour: {fileID: 573788844}
+  _resolverBehaviour: {fileID: 573788857}
+  _conversationModeSource: {fileID: 0}
+  _interactionCoordinatorModeEnabled: 0
+  _interactionPriority: 40
 --- !u!114 &573788836
 MonoBehaviour:
   m_ObjectHideFlags: 0
