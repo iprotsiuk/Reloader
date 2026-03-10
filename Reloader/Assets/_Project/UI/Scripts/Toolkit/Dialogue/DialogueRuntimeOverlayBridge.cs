@@ -74,6 +74,12 @@ namespace Reloader.UI.Toolkit.Dialogue
                 return;
             }
 
+            var activeConversation = _runtimeController.ActiveConversation;
+            if (activeConversation != null && activeConversation.SelectedReplyIndex == replyIndex)
+            {
+                return;
+            }
+
             if (_runtimeController.TrySelectReply(replyIndex))
             {
                 PublishIfStateChanged(force: true);
