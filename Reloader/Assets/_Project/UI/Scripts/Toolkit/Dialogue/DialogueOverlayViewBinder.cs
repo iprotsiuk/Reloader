@@ -96,10 +96,6 @@ namespace Reloader.UI.Toolkit.Dialogue
                 {
                     IntentRaised?.Invoke(new UiIntent(UiRuntimeCompositionIds.IntentKeys.DialogueReplySelect, replyIndex));
                 });
-                button.RegisterCallback<PointerOverEvent>(_ =>
-                {
-                    IntentRaised?.Invoke(new UiIntent(UiRuntimeCompositionIds.IntentKeys.DialogueReplySelect, replyIndex));
-                });
 
                 _repliesRoot.Add(button);
             }

@@ -74,6 +74,12 @@ namespace Reloader.UI.Toolkit.Dialogue
                 return;
             }
 
+            var activeConversation = _runtimeController.ActiveConversation;
+            if (activeConversation != null && activeConversation.SelectedReplyIndex == replyIndex)
+            {
+                return;
+            }
+
             if (_runtimeController.TrySelectReply(replyIndex))
             {
                 PublishIfStateChanged(force: true);
@@ -151,7 +157,7 @@ namespace Reloader.UI.Toolkit.Dialogue
             }
 
             var speakerText = conversation?.SpeakerTransform != null
-                ? conversation.SpeakerTransform.name
+                ? DialoguePresentationResolver.ResolveSpeakerDisplayName(conversation.SpeakerTransform)
                 : string.Empty;
 
             return new DialogueOverlayRenderState(

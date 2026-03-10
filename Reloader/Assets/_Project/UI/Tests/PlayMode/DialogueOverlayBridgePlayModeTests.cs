@@ -2,6 +2,7 @@ using System;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.NPCs.Data;
+using Reloader.NPCs.Runtime;
 using Reloader.NPCs.Runtime.Dialogue;
 using Reloader.NPCs.World;
 using Reloader.Player;
@@ -172,6 +173,55 @@ namespace Reloader.UI.Tests.PlayMode
                 UnityEngine.Object.DestroyImmediate(playerRoot);
                 UnityEngine.Object.DestroyImmediate(foreignSpeaker);
                 UnityEngine.Object.DestroyImmediate(foreignGo);
+            }
+        }
+
+        [Test]
+        public void RuntimeOverlayBridge_ProceduralCivilianSpeaker_UsesPublicDisplayNameInsteadOfGameObjectName()
+        {
+            var runtimeGo = new GameObject("DialogueRuntime");
+            var runtime = runtimeGo.AddComponent<DialogueRuntimeController>();
+            var speaker = new GameObject("Civilian_citizen.mainTown.0003");
+            var civilian = speaker.AddComponent<MainTownPopulationSpawnedCivilian>();
+            civilian.Initialize(new Reloader.Core.Save.Modules.CivilianPopulationRecord
+            {
+                CivilianId = "citizen.mainTown.0003",
+                FirstName = "Niko",
+                LastName = "Volkov",
+                PopulationSlotId = "townsfolk.003",
+                PoolId = "townsfolk",
+                SpawnAnchorId = "Anchor_A",
+                AreaTag = "maintown.square",
+                IsAlive = true,
+                IsContractEligible = true,
+                IsProtectedFromContracts = false
+            });
+
+            var bridgeGo = new GameObject("DialogueRuntimeOverlayBridge");
+            var bridge = bridgeGo.AddComponent<DialogueRuntimeOverlayBridge>();
+            SetPrivateField(bridge, "_runtimeControllerSource", runtime);
+
+            var definition = CreateDefinition(
+                "dialogue.procedural",
+                "entry",
+                new DialogueNodeDefinition("entry", "Nice weather today.", new[]
+                {
+                    new DialogueReplyDefinition("reply.ok", "Alright.", string.Empty, string.Empty, string.Empty)
+                }));
+
+            try
+            {
+                Assert.That(runtime.TryOpenConversation(definition, speaker.transform, out var reason), Is.True, reason);
+
+                Assert.That(bridge.TryGetState(out var state), Is.True);
+                Assert.That(state.SpeakerText, Is.EqualTo("Niko Volkov"));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(definition);
+                UnityEngine.Object.DestroyImmediate(bridgeGo);
+                UnityEngine.Object.DestroyImmediate(speaker);
+                UnityEngine.Object.DestroyImmediate(runtimeGo);
             }
         }
 

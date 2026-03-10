@@ -11,12 +11,20 @@ namespace Reloader.NPCs.Runtime
     [ExecuteAlways]
     public sealed class MainTownNpcAppearanceApplicator : MonoBehaviour
     {
+        private const string DialogueFocusAnchorName = "DialogueFocusAnchorRuntime";
+        private const string DialogueFaceAnchorName = "DialogueFaceAnchorRuntime";
+        private const string MaleStyleRootName = "StyleMaleRoot";
+        private const string FemaleStyleRootName = "StyleFemaleRoot";
+
         private enum AppearanceSource
         {
             None,
             ContextualSeed,
             ExplicitRecord
         }
+
+        [SerializeField] private Vector3 _maleDialogueFaceLocalPoint = new(0f, 1.6f, 0.04f);
+        [SerializeField] private Vector3 _femaleDialogueFaceLocalPoint = new(0f, 1.54f, 0.04f);
 
         private static readonly IReadOnlyDictionary<string, string> MaleHairObjectNames = new Dictionary<string, string>
         {
@@ -115,6 +123,66 @@ namespace Reloader.NPCs.Runtime
         public void ApplySeededAppearance(string seedKey)
         {
             ApplySeededAppearance(seedKey, AppearanceSource.ExplicitRecord);
+        }
+
+        public Transform ResolveDialogueFocusAnchor()
+        {
+            var visualRoot = ResolveVisualRoot();
+            if (visualRoot == null)
+            {
+                return null;
+            }
+
+            var activeRoot = ResolveActivePresentationRoot(visualRoot);
+            if (activeRoot == null)
+            {
+                return null;
+            }
+
+            if (TryResolveSharedDialogueFaceLocalPoint(activeRoot, out var localFacePoint))
+            {
+                return ResolveSharedDialogueFaceAnchor(activeRoot, localFacePoint);
+            }
+
+            return ResolveBoundsDialogueFocusAnchor(activeRoot);
+        }
+
+        private bool TryResolveSharedDialogueFaceLocalPoint(Transform activeRoot, out Vector3 localFacePoint)
+        {
+            localFacePoint = default;
+            if (activeRoot == null)
+            {
+                return false;
+            }
+
+            if (string.Equals(activeRoot.name, MaleStyleRootName, StringComparison.Ordinal))
+            {
+                localFacePoint = _maleDialogueFaceLocalPoint;
+                return true;
+            }
+
+            if (string.Equals(activeRoot.name, FemaleStyleRootName, StringComparison.Ordinal))
+            {
+                localFacePoint = _femaleDialogueFaceLocalPoint;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static Transform ResolveSharedDialogueFaceAnchor(Transform activeRoot, Vector3 localFacePoint)
+        {
+            var anchor = activeRoot.Find(DialogueFaceAnchorName);
+            if (anchor == null)
+            {
+                anchor = new GameObject(DialogueFaceAnchorName).transform;
+                anchor.SetParent(activeRoot, worldPositionStays: false);
+            }
+
+            anchor.localPosition = localFacePoint;
+            anchor.rotation = activeRoot.rotation;
+            anchor.localScale = Vector3.one;
+            return anchor;
         }
 
         private void ApplySeededAppearance(string seedKey, AppearanceSource source)
@@ -325,6 +393,64 @@ namespace Reloader.NPCs.Runtime
             {
                 child.gameObject.SetActive(false);
             }
+        }
+
+        private static Transform ResolveActivePresentationRoot(Transform visualRoot)
+        {
+            if (visualRoot == null)
+            {
+                return null;
+            }
+
+            var maleRoot = visualRoot.Find("StyleMaleRoot");
+            if (maleRoot != null && maleRoot.gameObject.activeInHierarchy)
+            {
+                return maleRoot;
+            }
+
+            var femaleRoot = visualRoot.Find("StyleFemaleRoot");
+            if (femaleRoot != null && femaleRoot.gameObject.activeInHierarchy)
+            {
+                return femaleRoot;
+            }
+
+            return null;
+        }
+
+        private static Transform ResolveBoundsDialogueFocusAnchor(Transform activeRoot)
+        {
+            if (activeRoot == null)
+            {
+                return null;
+            }
+
+            var renderers = activeRoot.GetComponentsInChildren<Renderer>(includeInactive: false);
+            if (renderers == null || renderers.Length == 0)
+            {
+                return activeRoot;
+            }
+
+            var bounds = renderers[0].bounds;
+            for (var i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+
+            var anchor = activeRoot.Find(DialogueFocusAnchorName);
+            if (anchor == null)
+            {
+                anchor = new GameObject(DialogueFocusAnchorName).transform;
+                anchor.SetParent(activeRoot, worldPositionStays: false);
+            }
+
+            var anchorWorldPosition = new Vector3(
+                bounds.center.x,
+                Mathf.Lerp(bounds.center.y, bounds.max.y, 0.85f),
+                bounds.center.z);
+            anchor.position = anchorWorldPosition;
+            anchor.rotation = Quaternion.identity;
+            anchor.localScale = Vector3.one;
+            return anchor;
         }
 
         private static void ApplyMaterialVariants(Transform activeRoot, CivilianPopulationRecord record, MainTownAppearanceGender gender)

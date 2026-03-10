@@ -34,6 +34,15 @@ namespace Reloader.NPCs.Runtime.Capabilities
             _agent = null;
         }
 
+        public void ConfigureRuntimeDefinition(DialogueDefinition definition, string displayName = null)
+        {
+            _definition = definition;
+            if (!string.IsNullOrWhiteSpace(displayName))
+            {
+                _displayName = displayName;
+            }
+        }
+
         public NpcActionDefinition[] GetActions()
         {
             if (!HasValidDefinition())
@@ -66,9 +75,10 @@ namespace Reloader.NPCs.Runtime.Capabilities
                 return false;
             }
 
+            var speakerTransform = DialoguePresentationResolver.ResolveFocusTarget(_agent != null ? _agent.transform : transform);
             var request = new DialogueStartRequest(
                 _definition,
-                _agent != null ? _agent.transform : transform,
+                speakerTransform,
                 DialogueStartSourceKind.PlayerInteract,
                 context.Payload,
                 DialogueInterruptPolicy.DenyIfActive);

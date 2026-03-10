@@ -180,11 +180,12 @@ namespace Reloader.NPCs.World
                 actionKey = selectedAction.ActionKey;
             }
 
+            var subjectText = ResolveNpcSubjectText(target);
             var stableTieBreaker = $"{target.GetInstanceID()}:{actionKey}";
             candidate = new PlayerInteractionCandidate(
                 NpcHintContextId,
                 actionText,
-                target.name,
+                subjectText,
                 _interactionPriority,
                 stableTieBreaker,
                 PlayerInteractionActionKind.NpcInteract,
@@ -278,7 +279,18 @@ namespace Reloader.NPCs.World
             }
 
             RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintShown(
-                new InteractionHintPayload(NpcHintContextId, actionText));
+                new InteractionHintPayload(NpcHintContextId, actionText, ResolveNpcSubjectText(target)));
+        }
+
+        private static string ResolveNpcSubjectText(NpcAgent target)
+        {
+            if (target == null)
+            {
+                return string.Empty;
+            }
+
+            var displayName = DialoguePresentationResolver.ResolveSpeakerDisplayName(target.transform);
+            return string.IsNullOrWhiteSpace(displayName) ? target.name : displayName;
         }
 
         private static bool TrySelectDefaultAction(NpcActionCollection actions, out NpcActionDefinition selected)

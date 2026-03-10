@@ -26,6 +26,7 @@ namespace Reloader.NPCs.Tests.PlayMode
 
             var cameraPivot = new GameObject("CameraPivot");
             cameraPivot.transform.SetParent(root.transform);
+            cameraPivot.transform.localPosition = new Vector3(0f, 1.8f, 0f);
 
             var mover = root.AddComponent<PlayerMover>();
             mover.Configure(input, new PlayerMovementSettings
@@ -45,6 +46,7 @@ namespace Reloader.NPCs.Tests.PlayMode
             var conversationMode = root.AddComponent<DialogueConversationModeController>();
             var npcTarget = new GameObject("NpcTarget");
             npcTarget.transform.position = new Vector3(10f, 1f, 0f);
+            npcTarget.AddComponent<NpcDialogueFacingController>();
 
             try
             {
@@ -56,7 +58,8 @@ namespace Reloader.NPCs.Tests.PlayMode
                 var horizontalDisplacement = root.transform.position - startingPosition;
                 horizontalDisplacement.y = 0f;
                 Assert.That(horizontalDisplacement.sqrMagnitude, Is.LessThan(0.0001f));
-                Assert.That(root.transform.eulerAngles.y, Is.EqualTo(90f).Within(0.5f));
+                Assert.That(root.transform.eulerAngles.y, Is.GreaterThan(0f));
+                Assert.That(root.transform.eulerAngles.y, Is.LessThan(90f));
                 Assert.That(Cursor.lockState, Is.EqualTo(CursorLockMode.None));
                 Assert.That(Cursor.visible, Is.True);
             }
@@ -138,6 +141,7 @@ namespace Reloader.NPCs.Tests.PlayMode
             var input = root.AddComponent<TestInputSource>();
             var cameraPivot = new GameObject("CameraPivot");
             cameraPivot.transform.SetParent(root.transform);
+            cameraPivot.transform.localPosition = new Vector3(0f, 1.8f, 0f);
 
             var mover = root.AddComponent<PlayerMover>();
             mover.Configure(input, new PlayerMovementSettings());
@@ -160,7 +164,8 @@ namespace Reloader.NPCs.Tests.PlayMode
                         new DialogueReplyDefinition("reply.ok", "Understood.", string.Empty, string.Empty, string.Empty)
                     }));
             var npcTarget = new GameObject("NpcTarget");
-            npcTarget.transform.position = new Vector3(6f, 1f, 0f);
+            npcTarget.transform.position = new Vector3(6f, 2.4f, 0f);
+            npcTarget.AddComponent<NpcDialogueFacingController>();
 
             try
             {
@@ -172,7 +177,13 @@ namespace Reloader.NPCs.Tests.PlayMode
 
                 Assert.That(conversationMode.IsConversationActive, Is.True);
                 Assert.That(conversationMode.ActiveFocusTarget, Is.SameAs(npcTarget.transform));
+                for (var i = 0; i < 20; i++)
+                {
+                    look.Tick(0.05f);
+                }
+
                 Assert.That(root.transform.eulerAngles.y, Is.EqualTo(90f).Within(0.5f));
+                Assert.That(Mathf.DeltaAngle(0f, cameraPivot.transform.localEulerAngles.x), Is.LessThan(-0.5f));
                 Assert.That(Cursor.lockState, Is.EqualTo(CursorLockMode.None));
 
                 runtime.CloseConversation();
@@ -256,6 +267,76 @@ namespace Reloader.NPCs.Tests.PlayMode
             finally
             {
                 Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(npcTarget);
+                Object.DestroyImmediate(root);
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
+        }
+
+        [Test]
+        public void EnterConversation_NpcDialogueFacing_RotatesGraduallyAndStopsAfterExit()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+
+            var root = new GameObject("PlayerRoot");
+            var characterController = root.AddComponent<CharacterController>();
+            characterController.height = 2f;
+            characterController.radius = 0.3f;
+
+            var input = root.AddComponent<TestInputSource>();
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+            cameraPivot.transform.localPosition = new Vector3(0f, 1.8f, 0f);
+
+            var mover = root.AddComponent<PlayerMover>();
+            mover.Configure(input, new PlayerMovementSettings());
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            var cursor = root.AddComponent<PlayerCursorLockController>();
+            cursor.LockCursor();
+
+            var conversationMode = root.AddComponent<DialogueConversationModeController>();
+            var npcTarget = new GameObject("NpcTarget");
+            npcTarget.transform.position = new Vector3(-6f, 0f, 0f);
+            npcTarget.transform.rotation = Quaternion.identity;
+            var facingController = npcTarget.AddComponent<NpcDialogueFacingController>();
+
+            try
+            {
+                conversationMode.EnterConversation(npcTarget.transform);
+                Assert.That(npcTarget.transform.eulerAngles.y, Is.EqualTo(0f).Within(0.5f));
+
+                for (var i = 0; i < 3; i++)
+                {
+                    facingController.Tick(0.05f);
+                }
+
+                var firstFrameYaw = npcTarget.transform.eulerAngles.y;
+                Assert.That(firstFrameYaw, Is.GreaterThan(0f));
+                Assert.That(firstFrameYaw, Is.LessThan(90f));
+
+                for (var i = 0; i < 20; i++)
+                {
+                    facingController.Tick(0.05f);
+                }
+
+                Assert.That(npcTarget.transform.eulerAngles.y, Is.EqualTo(90f).Within(5f));
+
+                var yawAfterConversation = npcTarget.transform.eulerAngles.y;
+                conversationMode.ExitConversation();
+
+                for (var i = 0; i < 5; i++)
+                {
+                    facingController.Tick(0.05f);
+                }
+
+                Assert.That(npcTarget.transform.eulerAngles.y, Is.EqualTo(yawAfterConversation).Within(0.5f));
+            }
+            finally
+            {
                 Object.DestroyImmediate(npcTarget);
                 Object.DestroyImmediate(root);
                 Cursor.lockState = previousLockState;

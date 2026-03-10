@@ -16,6 +16,7 @@ namespace Reloader.NPCs.World
 
         private DialogueRuntimeController _runtimeController;
         private bool _runtimeOwnsConversationMode;
+        private NpcDialogueFacingController _activeFacingController;
 
         private void Awake()
         {
@@ -99,6 +100,8 @@ namespace Reloader.NPCs.World
             _playerMover?.SetMovementLocked(isActive);
             _playerLookController?.SetFocusTargetOverride(focusTarget);
             _cursorLockController?.SetForcedCursorUnlock(isActive);
+
+            UpdateSpeakerFacingController(focusTarget, isActive);
         }
 
         private void ResolveReferences()
@@ -111,6 +114,30 @@ namespace Reloader.NPCs.World
             _runtimeController ??= GetComponentInParent<DialogueRuntimeController>(true);
             _runtimeController ??= GetComponentInChildren<DialogueRuntimeController>(true);
             _runtimeController ??= FindFirstObjectByType<DialogueRuntimeController>(FindObjectsInactive.Include);
+        }
+
+        private void UpdateSpeakerFacingController(Transform focusTarget, bool isActive)
+        {
+            if (!isActive || focusTarget == null)
+            {
+                if (_activeFacingController != null)
+                {
+                    _activeFacingController.StopFacing();
+                    _activeFacingController = null;
+                }
+
+                return;
+            }
+
+            var nextFacingController = focusTarget.GetComponentInParent<NpcDialogueFacingController>();
+            if (ReferenceEquals(_activeFacingController, nextFacingController))
+            {
+                return;
+            }
+
+            _activeFacingController?.StopFacing();
+            _activeFacingController = nextFacingController;
+            _activeFacingController?.StartFacing(transform);
         }
     }
 }

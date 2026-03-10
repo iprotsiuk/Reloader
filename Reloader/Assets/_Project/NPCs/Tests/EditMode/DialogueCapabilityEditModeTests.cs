@@ -220,6 +220,78 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void TryExecuteAction_ProceduralCivilianUsesDedicatedDialogueFocusTarget()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            playerRoot.AddComponent<PlayerNpcInteractionController>();
+            var runtime = playerRoot.AddComponent<DialogueRuntimeController>();
+
+            var go = new GameObject("dialogue-agent");
+            go.transform.SetParent(playerRoot.transform);
+            var agent = go.AddComponent<NpcAgent>();
+            go.AddComponent<MainTownNpcAppearanceApplicator>();
+            var civilian = go.AddComponent<MainTownPopulationSpawnedCivilian>();
+            var capability = go.AddComponent<DialogueCapability>();
+            CreateFemaleVisualHierarchy(go.transform);
+            civilian.Initialize(new Core.Save.Modules.CivilianPopulationRecord
+            {
+                CivilianId = "citizen.mainTown.0001",
+                FirstName = "Sonya",
+                LastName = "Novak",
+                PopulationSlotId = "townsfolk.001",
+                PoolId = "townsfolk",
+                SpawnAnchorId = "Anchor_A",
+                AreaTag = "maintown.square",
+                IsAlive = true,
+                IsContractEligible = true,
+                IsProtectedFromContracts = false,
+                BaseBodyId = "body.female.a",
+                PresentationType = "feminine",
+                HairId = "hair.long",
+                OutfitTopId = "tshirt1",
+                OutfitBottomId = "pants1"
+            });
+
+            try
+            {
+                var executed = agent.TryExecuteAction(DialogueCapability.ActionKey, string.Empty, out var result);
+
+                Assert.That(executed, Is.True);
+                Assert.That(result.Success, Is.True);
+                Assert.That(runtime.HasActiveConversation, Is.True);
+                Assert.That(runtime.ActiveConversation.SpeakerTransform, Is.Not.EqualTo(go.transform));
+                Assert.That(runtime.ActiveConversation.SpeakerTransform.name, Is.Not.EqualTo("DialogueFocusTarget"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(playerRoot);
+            }
+        }
+
+        private static void CreateFemaleVisualHierarchy(Transform root)
+        {
+            var visualRoot = new GameObject("VisualRoot").transform;
+            visualRoot.SetParent(root, false);
+
+            var femaleRoot = new GameObject("StyleFemaleRoot").transform;
+            femaleRoot.SetParent(visualRoot, false);
+
+            CreateChild(femaleRoot, "root");
+            CreateChild(femaleRoot, "woman");
+            CreateChild(femaleRoot, "Eyes");
+            CreateChild(femaleRoot, "boots1");
+            CreateChild(femaleRoot, "hair3");
+            CreateChild(femaleRoot, "T_shirt1");
+            CreateChild(femaleRoot, "pants1");
+        }
+
+        private static void CreateChild(Transform parent, string name)
+        {
+            var child = new GameObject(name).transform;
+            child.SetParent(parent, false);
+        }
+
+        [Test]
         public void TryExecuteAction_PoliceConversationAlreadyActive_ReturnsExplicitOverlapFailure()
         {
             var playerRoot = new GameObject("PlayerRoot");

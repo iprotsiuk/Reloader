@@ -380,6 +380,76 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
+        [Test]
+        public void ResolveDialogueFocusAnchor_WhenStyleMaleRootIsActive_UsesSharedMaleFacePoint()
+        {
+            var root = CreateTestRoot();
+
+            try
+            {
+                var malePointField = typeof(MainTownNpcAppearanceApplicator).GetField(
+                    "_maleDialogueFaceLocalPoint",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(malePointField, Is.Not.Null, "Expected shared male dialogue face point field on MainTownNpcAppearanceApplicator.");
+
+                var applicator = root.AddComponent<MainTownNpcAppearanceApplicator>();
+                var maleRoot = root.transform.Find("VisualRoot/StyleMaleRoot");
+                var femaleRoot = root.transform.Find("VisualRoot/StyleFemaleRoot");
+                Assert.That(maleRoot, Is.Not.Null);
+                Assert.That(femaleRoot, Is.Not.Null);
+                maleRoot!.gameObject.SetActive(true);
+                femaleRoot!.gameObject.SetActive(false);
+
+                var anchor = applicator.ResolveDialogueFocusAnchor();
+
+                Assert.That(anchor, Is.Not.Null, "Expected head-bone framing to produce a runtime face anchor.");
+                Assert.That(anchor!.name, Is.EqualTo("DialogueFaceAnchorRuntime"));
+                var expectedPoint = (Vector3)malePointField!.GetValue(applicator);
+                Assert.That(anchor.localPosition.x, Is.EqualTo(expectedPoint.x).Within(0.001f));
+                Assert.That(anchor.localPosition.y, Is.EqualTo(expectedPoint.y).Within(0.001f));
+                Assert.That(anchor.localPosition.z, Is.EqualTo(expectedPoint.z).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ResolveDialogueFocusAnchor_WhenStyleFemaleRootIsActive_UsesSharedFemaleFacePoint()
+        {
+            var root = CreateTestRoot();
+
+            try
+            {
+                var femalePointField = typeof(MainTownNpcAppearanceApplicator).GetField(
+                    "_femaleDialogueFaceLocalPoint",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(femalePointField, Is.Not.Null, "Expected shared female dialogue face point field on MainTownNpcAppearanceApplicator.");
+
+                var applicator = root.AddComponent<MainTownNpcAppearanceApplicator>();
+                var maleRoot = root.transform.Find("VisualRoot/StyleMaleRoot");
+                var femaleRoot = root.transform.Find("VisualRoot/StyleFemaleRoot");
+                Assert.That(maleRoot, Is.Not.Null);
+                Assert.That(femaleRoot, Is.Not.Null);
+                maleRoot!.gameObject.SetActive(false);
+                femaleRoot!.gameObject.SetActive(true);
+
+                var anchor = applicator.ResolveDialogueFocusAnchor();
+
+                Assert.That(anchor, Is.Not.Null);
+                Assert.That(anchor!.name, Is.EqualTo("DialogueFaceAnchorRuntime"));
+                var expectedPoint = (Vector3)femalePointField!.GetValue(applicator);
+                Assert.That(anchor.localPosition.x, Is.EqualTo(expectedPoint.x).Within(0.001f));
+                Assert.That(anchor.localPosition.y, Is.EqualTo(expectedPoint.y).Within(0.001f));
+                Assert.That(anchor.localPosition.z, Is.EqualTo(expectedPoint.z).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
         private static GameObject CreateTestRoot()
         {
             var root = new GameObject("Npc");
