@@ -2,6 +2,7 @@ using Reloader.NPCs.Data;
 using Reloader.NPCs.Runtime.Capabilities;
 using Reloader.NPCs.Runtime.Dialogue;
 using Reloader.Core.Save.Modules;
+using Reloader.NPCs.World;
 using UnityEngine;
 
 namespace Reloader.NPCs.Runtime
@@ -47,11 +48,15 @@ namespace Reloader.NPCs.Runtime
             _spawnAnchorId = record?.SpawnAnchorId ?? string.Empty;
             _areaTag = record?.AreaTag ?? string.Empty;
 
-            EnsureDialogueFocusTarget(record);
+            if (GetComponent<NpcDialogueFacingController>() == null)
+            {
+                gameObject.AddComponent<NpcDialogueFacingController>();
+            }
 
             var appearanceApplicator = GetComponent<MainTownNpcAppearanceApplicator>();
             appearanceApplicator?.Apply(record);
 
+            EnsureDialogueFocusTarget(record);
             ConfigureRuntimeDialogue(record);
         }
 
@@ -107,6 +112,14 @@ namespace Reloader.NPCs.Runtime
 
         private void EnsureDialogueFocusTarget(CivilianPopulationRecord record)
         {
+            var appearanceApplicator = GetComponent<MainTownNpcAppearanceApplicator>();
+            var visualAnchor = appearanceApplicator?.ResolveDialogueFocusAnchor();
+            if (visualAnchor != null)
+            {
+                _dialogueFocusTarget = visualAnchor;
+                return;
+            }
+
             _dialogueFocusTarget = transform.Find(DialogueFocusTargetName);
             if (_dialogueFocusTarget == null)
             {

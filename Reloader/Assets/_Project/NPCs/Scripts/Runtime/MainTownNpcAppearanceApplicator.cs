@@ -117,6 +117,41 @@ namespace Reloader.NPCs.Runtime
             ApplySeededAppearance(seedKey, AppearanceSource.ExplicitRecord);
         }
 
+        public Transform ResolveDialogueFocusAnchor()
+        {
+            var visualRoot = ResolveVisualRoot();
+            if (visualRoot == null)
+            {
+                return null;
+            }
+
+            var maleRoot = visualRoot.Find("StyleMaleRoot");
+            if (maleRoot != null && maleRoot.gameObject.activeInHierarchy)
+            {
+                var eyes = maleRoot.Find("Eyes_Eyes_Eyes");
+                if (eyes != null && eyes.gameObject.activeInHierarchy)
+                {
+                    return eyes;
+                }
+
+                return maleRoot.Find("Man_Man_Man") ?? maleRoot;
+            }
+
+            var femaleRoot = visualRoot.Find("StyleFemaleRoot");
+            if (femaleRoot != null && femaleRoot.gameObject.activeInHierarchy)
+            {
+                var eyes = femaleRoot.Find("Eyes");
+                if (eyes != null && eyes.gameObject.activeInHierarchy)
+                {
+                    return eyes;
+                }
+
+                return femaleRoot.Find("woman") ?? femaleRoot;
+            }
+
+            return null;
+        }
+
         private void ApplySeededAppearance(string seedKey, AppearanceSource source)
         {
             if (string.IsNullOrWhiteSpace(seedKey))

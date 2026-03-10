@@ -260,7 +260,10 @@ namespace Reloader.World.Tests.PlayMode
             var targetCivilian = spawned[0];
             var targetPoint = targetCivilian.transform.position + Vector3.up * 1.35f;
             var cameraOffset = playerCamera!.transform.position - playerRoot.transform.position;
-            playerRoot.transform.position = targetPoint - (Vector3.forward * 2f) - cameraOffset;
+            var approachDirection = targetCivilian.transform.forward.sqrMagnitude > 0.001f
+                ? targetCivilian.transform.forward.normalized
+                : Vector3.forward;
+            playerRoot.transform.position = targetPoint - (approachDirection * 2f) - cameraOffset;
             playerCamera.transform.LookAt(targetPoint);
             Physics.SyncTransforms();
 
@@ -283,6 +286,57 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(runtime, Is.Not.Null, "Expected player host dialogue runtime after civilian interaction.");
             Assert.That(runtime!.HasActiveConversation, Is.True, "Expected spawned civilian dialogue to open on E press.");
             Assert.That(runtime.ActiveConversation.CurrentNode.SpeakerText, Is.EqualTo("Nice weather today."));
+            Assert.That(runtime.ActiveConversation.SpeakerTransform.name, Is.Not.EqualTo("DialogueFocusTarget"),
+                "Expected dialogue to frame the live civilian visual anchor instead of the synthetic fallback target.");
+
+            var planarToPlayer = playerRoot.transform.position - targetCivilian.transform.position;
+            planarToPlayer.y = 0f;
+            Assert.That(Vector3.Dot(targetCivilian.transform.forward.normalized, planarToPlayer.normalized), Is.GreaterThan(0.8f),
+                "Expected the civilian to turn toward the player while the dialogue is active.");
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownPopulationRuntime_EventSystemUiModule_UsesCurrentProjectInputActions()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var eventSystem = GameObject.Find("EventSystem");
+            Assert.That(eventSystem, Is.Not.Null, "Expected EventSystem root in MainTown.");
+
+            var inputSystemUiModuleType = Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
+            Assert.That(inputSystemUiModuleType, Is.Not.Null, "Expected InputSystemUIInputModule type to resolve.");
+
+            var uiModule = eventSystem!.GetComponent(inputSystemUiModuleType!);
+            Assert.That(uiModule, Is.Not.Null, "Expected InputSystemUIInputModule on MainTown EventSystem.");
+
+            var playerInput = UnityEngine.Object.FindFirstObjectByType<PlayerInputReader>(FindObjectsInactive.Include);
+            Assert.That(playerInput, Is.Not.Null, "Expected PlayerInputReader in MainTown.");
+
+            var actionsField = typeof(PlayerInputReader).GetField("_actionsAsset", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(actionsField, Is.Not.Null, "Expected PlayerInputReader actions asset field.");
+
+            var playerActions = actionsField!.GetValue(playerInput) as UnityEngine.Object;
+            Assert.That(playerActions, Is.Not.Null, "Expected MainTown PlayerInputReader to reference the project input actions asset.");
+
+            var actionsAssetProperty = inputSystemUiModuleType!.GetProperty("actionsAsset", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(actionsAssetProperty, Is.Not.Null, "Expected InputSystemUIInputModule.actionsAsset property.");
+            Assert.That(actionsAssetProperty!.GetValue(uiModule), Is.SameAs(playerActions), "Expected EventSystem UI actions to use the same asset as the player input reader.");
+
+            var pointProperty = inputSystemUiModuleType.GetProperty("point", BindingFlags.Instance | BindingFlags.Public);
+            var leftClickProperty = inputSystemUiModuleType.GetProperty("leftClick", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(pointProperty, Is.Not.Null, "Expected InputSystemUIInputModule.point property.");
+            Assert.That(leftClickProperty, Is.Not.Null, "Expected InputSystemUIInputModule.leftClick property.");
+
+            var pointReference = pointProperty!.GetValue(uiModule);
+            var leftClickReference = leftClickProperty!.GetValue(uiModule);
+            Assert.That(pointReference, Is.Not.Null, "Expected UI point action reference to be assigned.");
+            Assert.That(leftClickReference, Is.Not.Null, "Expected UI left-click action reference to be assigned.");
+
+            var actionProperty = pointReference!.GetType().GetProperty("action", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(actionProperty, Is.Not.Null, "Expected InputActionReference.action property.");
+            Assert.That(actionProperty!.GetValue(pointReference), Is.Not.Null, "Expected UI point action to resolve to a real input action.");
+            Assert.That(actionProperty.GetValue(leftClickReference), Is.Not.Null, "Expected UI left-click action to resolve to a real input action.");
         }
 
         [UnityTest]

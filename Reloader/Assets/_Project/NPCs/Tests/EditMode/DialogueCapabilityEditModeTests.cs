@@ -229,8 +229,10 @@ namespace Reloader.NPCs.Tests.EditMode
             var go = new GameObject("dialogue-agent");
             go.transform.SetParent(playerRoot.transform);
             var agent = go.AddComponent<NpcAgent>();
+            go.AddComponent<MainTownNpcAppearanceApplicator>();
             var civilian = go.AddComponent<MainTownPopulationSpawnedCivilian>();
             var capability = go.AddComponent<DialogueCapability>();
+            CreateFemaleVisualHierarchy(go.transform);
             civilian.Initialize(new Core.Save.Modules.CivilianPopulationRecord
             {
                 CivilianId = "citizen.mainTown.0001",
@@ -242,7 +244,12 @@ namespace Reloader.NPCs.Tests.EditMode
                 AreaTag = "maintown.square",
                 IsAlive = true,
                 IsContractEligible = true,
-                IsProtectedFromContracts = false
+                IsProtectedFromContracts = false,
+                BaseBodyId = "body.female.a",
+                PresentationType = "feminine",
+                HairId = "hair.long",
+                OutfitTopId = "tshirt1",
+                OutfitBottomId = "pants1"
             });
 
             try
@@ -253,12 +260,35 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(result.Success, Is.True);
                 Assert.That(runtime.HasActiveConversation, Is.True);
                 Assert.That(runtime.ActiveConversation.SpeakerTransform, Is.Not.EqualTo(go.transform));
-                Assert.That(runtime.ActiveConversation.SpeakerTransform.name, Is.EqualTo("DialogueFocusTarget"));
+                Assert.That(runtime.ActiveConversation.SpeakerTransform.name, Is.EqualTo("Eyes"));
             }
             finally
             {
                 Object.DestroyImmediate(playerRoot);
             }
+        }
+
+        private static void CreateFemaleVisualHierarchy(Transform root)
+        {
+            var visualRoot = new GameObject("VisualRoot").transform;
+            visualRoot.SetParent(root, false);
+
+            var femaleRoot = new GameObject("StyleFemaleRoot").transform;
+            femaleRoot.SetParent(visualRoot, false);
+
+            CreateChild(femaleRoot, "root");
+            CreateChild(femaleRoot, "woman");
+            CreateChild(femaleRoot, "Eyes");
+            CreateChild(femaleRoot, "boots1");
+            CreateChild(femaleRoot, "hair3");
+            CreateChild(femaleRoot, "T_shirt1");
+            CreateChild(femaleRoot, "pants1");
+        }
+
+        private static void CreateChild(Transform parent, string name)
+        {
+            var child = new GameObject(name).transform;
+            child.SetParent(parent, false);
         }
 
         [Test]
