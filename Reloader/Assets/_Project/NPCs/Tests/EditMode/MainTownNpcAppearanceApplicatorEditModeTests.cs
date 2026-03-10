@@ -380,6 +380,73 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
+        [Test]
+        public void ResolveDialogueFocusAnchor_WhenHeadBoneExists_CreatesForwardBiasedFaceAnchor()
+        {
+            var root = new GameObject("Npc");
+            var visualRoot = new GameObject("VisualRoot").transform;
+            visualRoot.SetParent(root.transform, false);
+            var maleRoot = new GameObject("StyleMaleRoot").transform;
+            maleRoot.SetParent(visualRoot, false);
+            var applicator = root.AddComponent<MainTownNpcAppearanceApplicator>();
+            var headBone = new GameObject("HeadBone").transform;
+            headBone.SetParent(maleRoot, false);
+            headBone.position = new Vector3(1f, 1.6f, 2f);
+            maleRoot.rotation = Quaternion.Euler(0f, 90f, 0f);
+
+            try
+            {
+                var method = typeof(MainTownNpcAppearanceApplicator).GetMethod(
+                    "ResolveHeadBoneDialogueFocusAnchor",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(method, Is.Not.Null, "Expected dedicated face-anchor helper for head-bone dialogue framing.");
+
+                var anchor = method!.Invoke(applicator, new object[] { headBone, maleRoot }) as Transform;
+
+                Assert.That(anchor, Is.Not.Null, "Expected head-bone framing to produce a runtime face anchor.");
+                Assert.That(anchor!.name, Is.EqualTo("DialogueFaceAnchorRuntime"));
+                Assert.That(anchor.position.y, Is.GreaterThan(headBone.position.y), "Expected face anchor to sit slightly above the raw head-bone center.");
+                Assert.That(anchor.position.x, Is.GreaterThan(headBone.position.x), "Expected face anchor to bias forward from the head along the presentation forward axis.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ResolveDialogueFocusAnchor_WhenHeadForwardDiffersFromBody_UsesHeadFacingDirection()
+        {
+            var root = new GameObject("Npc");
+            var visualRoot = new GameObject("VisualRoot").transform;
+            visualRoot.SetParent(root.transform, false);
+            var maleRoot = new GameObject("StyleMaleRoot").transform;
+            maleRoot.SetParent(visualRoot, false);
+            maleRoot.rotation = Quaternion.Euler(0f, 90f, 0f);
+            var applicator = root.AddComponent<MainTownNpcAppearanceApplicator>();
+            var headBone = new GameObject("HeadBone").transform;
+            headBone.SetParent(maleRoot, false);
+            headBone.position = new Vector3(1f, 1.6f, 2f);
+            headBone.localRotation = Quaternion.Euler(0f, -90f, 0f);
+
+            try
+            {
+                var method = typeof(MainTownNpcAppearanceApplicator).GetMethod(
+                    "ResolveHeadBoneDialogueFocusAnchor",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(method, Is.Not.Null);
+
+                var anchor = method!.Invoke(applicator, new object[] { headBone, maleRoot }) as Transform;
+
+                Assert.That(anchor, Is.Not.Null);
+                Assert.That(anchor!.position.z, Is.GreaterThan(headBone.position.z + 0.04f), "Expected face anchor to bias forward from the head's facing direction when it differs from the body root.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
         private static GameObject CreateTestRoot()
         {
             var root = new GameObject("Npc");

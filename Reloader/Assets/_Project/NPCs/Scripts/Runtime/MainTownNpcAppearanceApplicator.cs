@@ -12,6 +12,9 @@ namespace Reloader.NPCs.Runtime
     public sealed class MainTownNpcAppearanceApplicator : MonoBehaviour
     {
         private const string DialogueFocusAnchorName = "DialogueFocusAnchorRuntime";
+        private const string DialogueFaceAnchorName = "DialogueFaceAnchorRuntime";
+        private static readonly Vector3 DialogueHeadAnchorOffset = new(0f, 0.06f, 0f);
+        private const float DialogueHeadForwardOffset = 0.08f;
 
         private enum AppearanceSource
         {
@@ -139,11 +142,46 @@ namespace Reloader.NPCs.Runtime
                 var headBone = animator.GetBoneTransform(HumanBodyBones.Head);
                 if (headBone != null)
                 {
-                    return headBone;
+                    return ResolveHeadBoneDialogueFocusAnchor(headBone, activeRoot);
                 }
             }
 
             return ResolveBoundsDialogueFocusAnchor(activeRoot);
+        }
+
+        private Transform ResolveHeadBoneDialogueFocusAnchor(Transform headBone, Transform activeRoot)
+        {
+            if (headBone == null || activeRoot == null)
+            {
+                return null;
+            }
+
+            var anchor = activeRoot.Find(DialogueFaceAnchorName);
+            if (anchor == null)
+            {
+                anchor = new GameObject(DialogueFaceAnchorName).transform;
+                anchor.SetParent(activeRoot, worldPositionStays: false);
+            }
+
+            var faceForward = Vector3.ProjectOnPlane(headBone.forward, Vector3.up);
+            if (faceForward.sqrMagnitude < 0.0001f)
+            {
+                faceForward = Vector3.ProjectOnPlane(activeRoot.forward, Vector3.up);
+            }
+
+            if (faceForward.sqrMagnitude < 0.0001f)
+            {
+                faceForward = Vector3.forward;
+            }
+
+            faceForward.Normalize();
+            var anchorWorldPosition = headBone.position
+                + DialogueHeadAnchorOffset
+                + (faceForward * DialogueHeadForwardOffset);
+            anchor.position = anchorWorldPosition;
+            anchor.rotation = activeRoot.rotation;
+            anchor.localScale = Vector3.one;
+            return anchor;
         }
 
         private void ApplySeededAppearance(string seedKey, AppearanceSource source)
