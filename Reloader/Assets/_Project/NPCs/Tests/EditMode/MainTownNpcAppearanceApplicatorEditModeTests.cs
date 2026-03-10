@@ -405,7 +405,7 @@ namespace Reloader.NPCs.Tests.EditMode
 
                 Assert.That(anchor, Is.Not.Null, "Expected head-bone framing to produce a runtime face anchor.");
                 Assert.That(anchor!.name, Is.EqualTo("DialogueFaceAnchorRuntime"));
-                Assert.That(anchor.position.y, Is.GreaterThan(headBone.position.y), "Expected face anchor to sit slightly above the raw head-bone center.");
+                Assert.That(anchor.position.y, Is.EqualTo(headBone.position.y - 0.24f).Within(0.001f), "Expected face anchor to sit 0.3 units lower than the prior head-bone framing offset.");
                 Assert.That(anchor.position.x, Is.GreaterThan(headBone.position.x), "Expected face anchor to bias forward from the head along the presentation forward axis.");
             }
             finally

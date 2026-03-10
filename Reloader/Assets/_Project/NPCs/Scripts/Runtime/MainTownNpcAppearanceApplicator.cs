@@ -13,7 +13,7 @@ namespace Reloader.NPCs.Runtime
     {
         private const string DialogueFocusAnchorName = "DialogueFocusAnchorRuntime";
         private const string DialogueFaceAnchorName = "DialogueFaceAnchorRuntime";
-        private static readonly Vector3 DialogueHeadAnchorOffset = new(0f, 0.06f, 0f);
+        private static readonly Vector3 DialogueHeadAnchorOffset = new(0f, -0.24f, 0f);
         private const float DialogueHeadForwardOffset = 0.08f;
 
         private enum AppearanceSource
