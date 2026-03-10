@@ -118,18 +118,25 @@ namespace Reloader.NPCs.World
 
         private void UpdateSpeakerFacingController(Transform focusTarget, bool isActive)
         {
-            if (_activeFacingController != null)
+            if (!isActive || focusTarget == null)
             {
-                _activeFacingController.StopFacing();
-                _activeFacingController = null;
+                if (_activeFacingController != null)
+                {
+                    _activeFacingController.StopFacing();
+                    _activeFacingController = null;
+                }
+
+                return;
             }
 
-            if (!isActive || focusTarget == null)
+            var nextFacingController = focusTarget.GetComponentInParent<NpcDialogueFacingController>();
+            if (ReferenceEquals(_activeFacingController, nextFacingController))
             {
                 return;
             }
 
-            _activeFacingController = focusTarget.GetComponentInParent<NpcDialogueFacingController>();
+            _activeFacingController?.StopFacing();
+            _activeFacingController = nextFacingController;
             _activeFacingController?.StartFacing(transform);
         }
     }

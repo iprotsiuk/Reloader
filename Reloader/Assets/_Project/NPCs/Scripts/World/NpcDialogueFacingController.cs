@@ -10,23 +10,28 @@ namespace Reloader.NPCs.World
 
         private void Update()
         {
-            if (_target == null)
-            {
-                return;
-            }
-
-            RotateTowardTarget(_rotationSpeedDegreesPerSecond * Time.deltaTime);
+            Tick(Time.deltaTime);
         }
 
         public void StartFacing(Transform target)
         {
             _target = target;
-            RotateTowardTarget(360f);
         }
 
         public void StopFacing()
         {
             _target = null;
+        }
+
+        internal void Tick(float deltaTime)
+        {
+            if (_target == null)
+            {
+                return;
+            }
+
+            var sampleDeltaTime = deltaTime > 0f ? deltaTime : Time.deltaTime;
+            RotateTowardTarget(_rotationSpeedDegreesPerSecond * sampleDeltaTime);
         }
 
         private void RotateTowardTarget(float maxDegreesDelta)

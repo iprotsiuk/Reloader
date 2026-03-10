@@ -316,6 +316,46 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerLookController_Tick_FocusTargetOverride_AppliesWhileInjectedUiStateEventsReportMenuOpen()
+        {
+            GameObject root = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var cameraPivot = new GameObject("CameraPivot");
+                cameraPivot.transform.SetParent(root.transform);
+                cameraPivot.transform.localPosition = new Vector3(0f, 1.8f, 0f);
+
+                var focusTarget = new GameObject("FocusTarget");
+                focusTarget.transform.position = new Vector3(10f, 1.0f, 0f);
+                var desiredDirection = (focusTarget.transform.position - cameraPivot.transform.position).normalized;
+
+                var input = root.AddComponent<TestInputSource>();
+                var uiStateEvents = new TestUiStateEvents();
+                uiStateEvents.RaiseTabInventoryVisibilityChanged(true);
+
+                var look = root.AddComponent<PlayerLookController>();
+                look.Configure(input, cameraPivot.transform, uiStateEvents);
+                look.SetFocusTargetOverride(focusTarget.transform);
+                look.Tick(0.05f);
+
+                Assert.That(root.transform.eulerAngles.y, Is.GreaterThan(0.1f));
+                Assert.That(Mathf.DeltaAngle(0f, cameraPivot.transform.localEulerAngles.x), Is.GreaterThan(0.1f));
+                Assert.That(Vector3.Dot(cameraPivot.transform.forward, desiredDirection), Is.GreaterThan(0.1f));
+
+                Object.DestroyImmediate(focusTarget);
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void PlayerLookController_Tick_Aiming_UsesAdsSensitivityMultiplier()
         {
             var root = new GameObject("PlayerRoot");
@@ -991,14 +1031,15 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
-        public void PlayerLookController_Tick_FocusTargetOverride_FacesTargetAndIgnoresLookInput()
+        public void PlayerLookController_Tick_FocusTargetOverride_SmoothlyConvergesTowardTargetAndIgnoresLookInput()
         {
             var root = new GameObject("PlayerRoot");
             var cameraPivot = new GameObject("CameraPivot");
             cameraPivot.transform.SetParent(root.transform);
+            cameraPivot.transform.localPosition = new Vector3(0f, 1.8f, 0f);
 
             var focusTarget = new GameObject("FocusTarget");
-            focusTarget.transform.position = new Vector3(10f, 1f, 0f);
+            focusTarget.transform.position = new Vector3(10f, 2.4f, 10f);
 
             var input = root.AddComponent<TestInputSource>();
             input.Look = new Vector2(-25f, 50f);
@@ -1009,9 +1050,28 @@ namespace Reloader.Player.Tests.PlayMode
                 look.Configure(input, cameraPivot.transform);
                 look.LookSensitivity = Vector2.one;
                 look.SetFocusTargetOverride(focusTarget.transform);
-                look.Tick(1f);
+                look.Tick(0.05f);
 
-                Assert.That(root.transform.eulerAngles.y, Is.EqualTo(90f).Within(0.5f));
+                var desiredYaw = Mathf.Atan2(10f, 10f) * Mathf.Rad2Deg;
+                var desiredPitch = -Mathf.Atan2(0.6f, Mathf.Sqrt(200f)) * Mathf.Rad2Deg;
+                var firstTickYaw = root.transform.eulerAngles.y;
+                var firstTickPitch = Mathf.DeltaAngle(0f, cameraPivot.transform.localEulerAngles.x);
+                var desiredDirection = (focusTarget.transform.position - cameraPivot.transform.position).normalized;
+
+                Assert.That(Mathf.DeltaAngle(firstTickYaw, desiredYaw), Is.GreaterThan(1f),
+                    "Dialogue focus should ease toward the target instead of snapping on the first tick.");
+                Assert.That(firstTickYaw, Is.GreaterThan(0.1f));
+                Assert.That(firstTickPitch, Is.LessThan(-0.1f));
+                Assert.That(Vector3.Dot(cameraPivot.transform.forward, desiredDirection), Is.LessThan(0.999f));
+
+                for (var i = 0; i < 20; i++)
+                {
+                    look.Tick(0.05f);
+                }
+
+                Assert.That(root.transform.eulerAngles.y, Is.EqualTo(desiredYaw).Within(0.5f));
+                Assert.That(Mathf.DeltaAngle(0f, cameraPivot.transform.localEulerAngles.x), Is.EqualTo(desiredPitch).Within(0.5f));
+                Assert.That(Vector3.Dot(cameraPivot.transform.forward, desiredDirection), Is.GreaterThan(0.999f));
             }
             finally
             {

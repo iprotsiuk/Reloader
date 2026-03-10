@@ -14,6 +14,7 @@ namespace Reloader.Player
         [SerializeField] private bool _lookSmoothingEnabled;
         [SerializeField] private float _lookSmoothingSpeed = 20f;
         [SerializeField, Range(0f, 1f)] private float _lookSmoothingStrength = 1f;
+        [SerializeField] private Vector2 _focusTargetSmoothingSpeed = new Vector2(10f, 10f);
         [SerializeField] private PlayerCameraDefaults _cameraDefaults;
         [SerializeField] private float _referenceFieldOfView = 60f;
         [SerializeField] private Vector2 _lookFovScaleClamp = new Vector2(0.1f, 2f);
@@ -110,14 +111,14 @@ namespace Reloader.Player
                 return;
             }
 
-            if (PlayerCursorLockController.IsAnyMenuOpen || (ResolveUiStateEvents()?.IsAnyMenuOpen ?? false))
+            if (_focusTargetOverride != null)
             {
+                ApplyFocusTargetOverride(deltaTime);
                 return;
             }
 
-            if (_focusTargetOverride != null)
+            if (PlayerCursorLockController.IsAnyMenuOpen || (ResolveUiStateEvents()?.IsAnyMenuOpen ?? false))
             {
-                ApplyFocusTargetOverride();
                 return;
             }
 
@@ -185,7 +186,7 @@ namespace Reloader.Player
             _hasSmoothedLookInput = false;
         }
 
-        private void ApplyFocusTargetOverride()
+        private void ApplyFocusTargetOverride(float deltaTime)
         {
             var focusTarget = _focusTargetOverride;
             if (focusTarget == null)
@@ -201,14 +202,35 @@ namespace Reloader.Player
             }
 
             var planarMagnitude = new Vector2(direction.x, direction.z).magnitude;
-            _yaw = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
-            _pitch = Mathf.Clamp(Mathf.Atan2(direction.y, planarMagnitude) * Mathf.Rad2Deg, _pitchClamp.x, _pitchClamp.y);
+            var desiredYaw = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
+            var desiredPitch = Mathf.Clamp(-Mathf.Atan2(direction.y, planarMagnitude) * Mathf.Rad2Deg, _pitchClamp.x, _pitchClamp.y);
+            var yawSmoothing = ResolveFocusTargetSmoothingFactor(_focusTargetSmoothingSpeed.x, deltaTime);
+            var pitchSmoothing = ResolveFocusTargetSmoothingFactor(_focusTargetSmoothingSpeed.y, deltaTime);
+
+            _yaw = Mathf.LerpAngle(_yaw, desiredYaw, yawSmoothing);
+            _pitch = Mathf.Lerp(_pitch, desiredPitch, pitchSmoothing);
 
             transform.rotation = Quaternion.Euler(0f, _yaw, 0f);
             if (_pitchTransform != null)
             {
                 _pitchTransform.localRotation = Quaternion.Euler(_pitch, 0f, 0f);
             }
+        }
+
+        private static float ResolveFocusTargetSmoothingFactor(float smoothingSpeed, float deltaTime)
+        {
+            if (smoothingSpeed <= 0f)
+            {
+                return 1f;
+            }
+
+            var sampleDeltaTime = deltaTime > 0f ? deltaTime : Time.deltaTime;
+            if (sampleDeltaTime <= 0f)
+            {
+                sampleDeltaTime = 1f / 60f;
+            }
+
+            return 1f - Mathf.Exp(-smoothingSpeed * sampleDeltaTime);
         }
 
         private float GetFieldOfViewSensitivityScale()

@@ -291,9 +291,28 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(runtime.ActiveConversation.SpeakerTransform.position.y, Is.GreaterThan(targetCivilian.transform.position.y + 1f),
                 "Expected dialogue focus to lock near the civilian head rather than the root pivot.");
 
+            var facingDot = -1f;
+            var timeoutAt = Time.time + 1f;
+            while (Time.time < timeoutAt)
+            {
+                var planarToPlayerDuringTurn = playerRoot.transform.position - targetCivilian.transform.position;
+                planarToPlayerDuringTurn.y = 0f;
+                if (planarToPlayerDuringTurn.sqrMagnitude > 0.0001f)
+                {
+                    facingDot = Vector3.Dot(targetCivilian.transform.forward.normalized, planarToPlayerDuringTurn.normalized);
+                    if (facingDot > 0.8f)
+                    {
+                        break;
+                    }
+                }
+
+                yield return null;
+            }
+
             var planarToPlayer = playerRoot.transform.position - targetCivilian.transform.position;
             planarToPlayer.y = 0f;
-            Assert.That(Vector3.Dot(targetCivilian.transform.forward.normalized, planarToPlayer.normalized), Is.GreaterThan(0.8f),
+            facingDot = Vector3.Dot(targetCivilian.transform.forward.normalized, planarToPlayer.normalized);
+            Assert.That(facingDot, Is.GreaterThan(0.8f),
                 "Expected the civilian to turn toward the player while the dialogue is active.");
         }
 
