@@ -928,38 +928,37 @@ namespace Reloader.NPCs.Runtime
             }
 
             var hairId = record.HairId?.Trim() ?? string.Empty;
-            var hairColor = RecognizeColorFromToken(record.HairColorId);
             if (ContainsToken(hairId, "long"))
             {
-                return string.IsNullOrWhiteSpace(hairColor) ? "long hair" : string.Concat("long ", hairColor, " hair");
+                return "long hair";
             }
 
             if (ContainsToken(hairId, "short"))
             {
-                return string.IsNullOrWhiteSpace(hairColor) ? "short hair" : string.Concat("short ", hairColor, " hair");
+                return "short hair";
             }
 
             if (ContainsToken(hairId, "bob"))
             {
-                return string.IsNullOrWhiteSpace(hairColor) ? "bob haircut" : string.Concat(hairColor, " bob haircut");
+                return "bob haircut";
             }
 
             if (ContainsToken(hairId, "wavy"))
             {
-                return string.IsNullOrWhiteSpace(hairColor) ? "wavy hair" : string.Concat(hairColor, " wavy hair");
+                return "wavy hair";
             }
 
             if (ContainsToken(hairId, "parted"))
             {
-                return string.IsNullOrWhiteSpace(hairColor) ? "parted hair" : string.Concat(hairColor, " parted hair");
+                return "parted hair";
             }
 
             if (ContainsToken(hairId, "swept"))
             {
-                return string.IsNullOrWhiteSpace(hairColor) ? "swept hair" : string.Concat(hairColor, " swept hair");
+                return "swept hair";
             }
 
-            return string.IsNullOrWhiteSpace(hairColor) ? string.Empty : string.Concat(hairColor, " hair");
+            return string.Empty;
         }
 
         private static string TryDescribeBeard(CivilianPopulationRecord record)

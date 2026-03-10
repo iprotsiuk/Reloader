@@ -448,7 +448,7 @@ namespace Reloader.NPCs.Tests.EditMode
 
                 Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True, "Expected rebuild to publish a procedural contract offer.");
                 Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0202"));
-                Assert.That(snapshot.TargetDescription, Is.EqualTo("female, red hoodie, long brown hair"));
+                Assert.That(snapshot.TargetDescription, Is.EqualTo("female, red hoodie, long hair"));
             }
             finally
             {
@@ -507,6 +507,64 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True, "Expected rebuild to publish a procedural contract offer.");
                 Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0203"));
                 Assert.That(snapshot.BriefingText, Is.EqualTo("Contractor notes: quarry worker, usually found around the quarry. Confirm the visual match before taking the shot."));
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenHairColorSeedDoesNotGuaranteeVisiblePalette_OmitsHairColorFromTargetDescription()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            CreateAnchor(bridgeGo.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0204",
+                    FirstName = "Sonya",
+                    LastName = "Novak",
+                    PopulationSlotId = "cops.204",
+                    PoolId = "cops",
+                    SpawnAnchorId = "Anchor_A",
+                    AreaTag = "maintown.watch",
+                    IsAlive = true,
+                    IsContractEligible = true,
+                    IsProtectedFromContracts = false,
+                    BaseBodyId = "female.body",
+                    PresentationType = "feminine",
+                    HairId = "hair.long",
+                    HairColorId = "hair.black",
+                    BeardId = string.Empty,
+                    OutfitTopId = "tshirt1",
+                    OutfitBottomId = "pants1",
+                    OuterwearId = "openJacket",
+                    MaterialColorIds = new List<string> { "style.default" },
+                    GeneratedDescriptionTags = new List<string> { "stale placeholder text should not win" },
+                    CreatedAtDay = 4,
+                    RetiredAtDay = -1
+                });
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True, "Expected rebuild to publish a procedural contract offer.");
+                Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0204"));
+                Assert.That(snapshot.TargetDescription, Is.EqualTo("female, open jacket, long hair"));
             }
             finally
             {
