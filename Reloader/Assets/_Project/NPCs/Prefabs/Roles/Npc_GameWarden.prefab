@@ -12,6 +12,10 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 970086303476104192, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: d27a0f8dce1d44ab2ae82841b59207d3, type: 2}
     - target: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_Name
       value: Npc_GameWarden
@@ -28,18 +32,14 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4307408289064083565, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
-      propertyPath: 'm_Materials.Array.data[0]'
-      value: 
-      objectReference: {fileID: 2100000, guid: 07b351b1fd07dd540b5b8fcbfae0fa99, type: 2}
+    - target: {fileID: 4931723262925703221, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4978406735320229302, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5864196534175948159, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
-      propertyPath: 'm_Materials.Array.data[0]'
-      value: 
-      objectReference: {fileID: 2100000, guid: 2fad2296e76cae647add42f9382c7667, type: 2}
     - target: {fileID: 5910006647273500762, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -84,10 +84,6 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 9c9402a9cbd0f124eab9eebdf7ddba29, type: 2}
-    - target: {fileID: 7156269564003437451, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
-      propertyPath: m_IsActive
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: 7184168744051644876, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_IsActive
       value: 1
@@ -100,14 +96,14 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
-    - target: {fileID: 8566256787089131138, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 8754348005161944428, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 8992213237891790375, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 313e04bcd12f94f49ba22e524ef9e2cf, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

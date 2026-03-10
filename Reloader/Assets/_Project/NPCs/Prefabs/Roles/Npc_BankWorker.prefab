@@ -15,14 +15,14 @@ PrefabInstance:
     - target: {fileID: 629097672157250073, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 2100aeb86cb51c34c943a6fe40502e1c, type: 2}
+      objectReference: {fileID: 2100000, guid: e514bcc1befd68646aa329ca889b260f, type: 2}
+    - target: {fileID: 970086303476104192, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: d27a0f8dce1d44ab2ae82841b59207d3, type: 2}
     - target: {fileID: 1583374129755188914, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_Name
       value: Npc_BankWorker
-      objectReference: {fileID: 0}
-    - target: {fileID: 1760032092944064072, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
-      propertyPath: m_IsActive
-      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1780576344163650066, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: _lastContextualSeedKey
@@ -31,15 +31,19 @@ PrefabInstance:
     - target: {fileID: 2388640594551426155, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 68911e84f3b928643bb0091ad1b477ee, type: 2}
+      objectReference: {fileID: 2100000, guid: 983347fabb046db4594387c3bc2b5722, type: 2}
     - target: {fileID: 4033145294454616791, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4307408289064083565, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+    - target: {fileID: 4931723262925703221, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5864196534175948159, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 0f75e2e0845b1e345a71576f6b38c054, type: 2}
+      objectReference: {fileID: 2100000, guid: 06ee73cc979f8214088b538f55eff313, type: 2}
     - target: {fileID: 5910006647273500762, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -84,26 +88,14 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
-    - target: {fileID: 7478390405834850371, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
-      propertyPath: 'm_Materials.Array.data[0]'
-      value: 
-      objectReference: {fileID: 2100000, guid: ad05d7af5f058f544821fe54ed037f3d, type: 2}
     - target: {fileID: 7629845706299177025, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
-    - target: {fileID: 7886275535406809637, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
-      propertyPath: 'm_Materials.Array.data[0]'
-      value: 
-      objectReference: {fileID: 2100000, guid: 4b09da2931bc5e54788fb32f82df3289, type: 2}
-    - target: {fileID: 7995623233323048461, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 8992213237891790375, guid: 72528af44c50b46f4b63d56b8a0086f5, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 187d504c3e312ab46b1060f1891158a0, type: 2}
+      objectReference: {fileID: 2100000, guid: 72e7f76f853031141ab63c2fca1c48e9, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
