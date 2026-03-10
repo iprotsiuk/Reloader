@@ -272,7 +272,8 @@ namespace Reloader.NPCs.Runtime
                     populationSlotId: vacated.PopulationSlotId,
                     poolId: vacated.PoolId,
                     areaTag: vacated.AreaTag,
-                    isProtectedFromContracts: vacated.IsProtectedFromContracts));
+                    isProtectedFromContracts: vacated.IsProtectedFromContracts,
+                    reservedPublicDisplayNames: CollectReservedPublicDisplayNames()));
                 occupiedLivePopulationSlotIds.Add(vacated.PopulationSlotId);
 
                 _runtime.PendingReplacements.RemoveAt(i);
@@ -332,7 +333,8 @@ namespace Reloader.NPCs.Runtime
                     populationSlotId: CreateFallbackPopulationSlotId(i),
                     poolId: "townsfolk",
                     areaTag: "maintown",
-                    isProtectedFromContracts: false));
+                    isProtectedFromContracts: false,
+                    reservedPublicDisplayNames: CollectReservedPublicDisplayNames()));
             }
         }
 
@@ -381,7 +383,8 @@ namespace Reloader.NPCs.Runtime
                     populationSlotId: CreateFallbackPopulationSlotId(i),
                     poolId: "townsfolk",
                     areaTag: "maintown",
-                    isProtectedFromContracts: false));
+                    isProtectedFromContracts: false,
+                    reservedPublicDisplayNames: CollectReservedPublicDisplayNames()));
             }
         }
 
@@ -420,7 +423,8 @@ namespace Reloader.NPCs.Runtime
                         populationSlotId: slot.PopulationSlotId,
                         poolId: slot.PoolId,
                         areaTag: slot.AreaTag,
-                        isProtectedFromContracts: slot.IsProtectedFromContracts));
+                        isProtectedFromContracts: slot.IsProtectedFromContracts,
+                        reservedPublicDisplayNames: CollectReservedPublicDisplayNames()));
                 }
             }
         }
@@ -848,6 +852,21 @@ namespace Reloader.NPCs.Runtime
             }
 
             return string.Concat(firstName, " ", lastName);
+        }
+
+        private HashSet<string> CollectReservedPublicDisplayNames()
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            for (var i = 0; i < _runtime.Civilians.Count; i++)
+            {
+                var displayName = BuildPublicDisplayName(_runtime.Civilians[i]);
+                if (!string.IsNullOrWhiteSpace(displayName))
+                {
+                    names.Add(displayName);
+                }
+            }
+
+            return names;
         }
 
         private List<string> NormalizeSpawnAnchors()

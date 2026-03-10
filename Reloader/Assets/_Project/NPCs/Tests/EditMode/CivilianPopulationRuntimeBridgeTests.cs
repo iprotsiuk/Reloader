@@ -61,6 +61,39 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void PrepareForSave_WhenSeedingInitialRoster_AssignsUniquePublicNamesAcrossLiveCivilians()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 80,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: new[] { "spawn.busstop.a" },
+                    library: CreateLibrary());
+
+                var module = new CivilianPopulationModule();
+                bridge.PrepareForSave(new[] { new SaveModuleRegistration(1, module) });
+
+                var displayNames = module.Civilians
+                    .Where(record => record.IsAlive)
+                    .Select(record => string.Concat(record.FirstName, " ", record.LastName))
+                    .ToArray();
+
+                Assert.That(displayNames.Length, Is.EqualTo(80));
+                Assert.That(displayNames.Distinct().Count(), Is.EqualTo(displayNames.Length),
+                    "Expected active seeded civilians to keep unique public names so contract/UI target labels stay unambiguous.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void FinalizeAfterLoad_RestoresRuntimeFromModule()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");
@@ -1147,6 +1180,63 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(spawned.Length, Is.EqualTo(1), "Expected replacement execution to rebuild scene placeholders.");
                 Assert.That(spawned[0].CivilianId, Is.EqualTo("citizen.mainTown.0008"));
                 Assert.That(spawned[0].PopulationSlotId, Is.EqualTo("townsfolk.001"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void ExecutePendingReplacements_WhenReplacementSeedCollidesWithLiveRoster_RerollsToUniquePublicName()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_Townsfolk_12", new Vector3(12f, 0f, 0f));
+            CreateAnchor(go.transform, "Anchor_Townsfolk_77", new Vector3(77f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0012",
+                    FirstName = "Ivan",
+                    LastName = "Novak",
+                    PopulationSlotId = "townsfolk.012",
+                    PoolId = "townsfolk",
+                    SpawnAnchorId = "Anchor_Townsfolk_12",
+                    AreaTag = "maintown.square",
+                    IsAlive = true,
+                    IsContractEligible = true,
+                    IsProtectedFromContracts = false
+                });
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0076",
+                    populationSlotId: "townsfolk.077",
+                    spawnAnchorId: "Anchor_Townsfolk_77",
+                    isAlive: false,
+                    retiredAtDay: 9));
+                bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.0076",
+                    QueuedAtDay = 9,
+                    SpawnAnchorId = "Anchor_Townsfolk_77"
+                });
+
+                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 14, currentTimeOfDay: 8f);
+
+                Assert.That(replacedCount, Is.EqualTo(1));
+
+                var replacement = bridge.Runtime.Civilians.Single(record => record.CivilianId == "citizen.mainTown.0077");
+                Assert.That(string.Concat(replacement.FirstName, " ", replacement.LastName), Is.Not.EqualTo("Ivan Novak"),
+                    "Expected Monday replacements to avoid colliding with live public names when the deterministic seed matches an existing civilian.");
             }
             finally
             {

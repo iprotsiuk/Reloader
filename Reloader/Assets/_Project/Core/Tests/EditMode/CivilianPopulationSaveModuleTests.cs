@@ -203,6 +203,33 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void CivilianPopulationModule_ValidateModuleState_RejectsDuplicateAlivePublicDisplayNames()
+        {
+            var moduleType = ResolveRequiredType(ModuleTypeName);
+            var recordType = ResolveRequiredType(RecordTypeName);
+
+            var module = Activator.CreateInstance(moduleType);
+            var civilians = GetRequiredList(module, "Civilians");
+
+            var firstRecord = CreateCivilianRecord(recordType);
+            var secondRecord = CreateCivilianRecord(recordType);
+            SetProperty(secondRecord, "CivilianId", "citizen.mainTown.002");
+            SetProperty(secondRecord, "PopulationSlotId", "townsfolk.002");
+            SetProperty(secondRecord, "SpawnAnchorId", "spawn.busstop.b");
+
+            civilians.Add(firstRecord);
+            civilians.Add(secondRecord);
+
+            var validateMethod = moduleType.GetMethod("ValidateModuleState", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(validateMethod, Is.Not.Null);
+
+            var ex = Assert.Throws<TargetInvocationException>(() => validateMethod!.Invoke(module, Array.Empty<object>()));
+            Assert.That(ex?.InnerException, Is.Not.Null);
+            Assert.That(ex!.InnerException!.Message, Does.Contain("duplicate live public display name"));
+            Assert.That(ex.InnerException!.Message, Does.Contain("Derek Mullen"));
+        }
+
+        [Test]
         public void CivilianPopulationModule_ValidateModuleState_AllowsHistoricalDeadAndLiveCivilianToSharePopulationSlot()
         {
             var moduleType = ResolveRequiredType(ModuleTypeName);

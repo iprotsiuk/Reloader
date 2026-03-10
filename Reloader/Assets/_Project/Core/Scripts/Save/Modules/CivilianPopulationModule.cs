@@ -86,6 +86,7 @@ namespace Reloader.Core.Save.Modules
         {
             var seenCivilianIds = new HashSet<string>(StringComparer.Ordinal);
             var seenAlivePopulationSlotIds = new HashSet<string>(StringComparer.Ordinal);
+            var seenAlivePublicDisplayNames = new HashSet<string>(StringComparer.Ordinal);
             var seenPendingReplacementIds = new HashSet<string>(StringComparer.Ordinal);
             var seenPendingReplacementSlotIds = new HashSet<string>(StringComparer.Ordinal);
             var civiliansById = new Dictionary<string, CivilianPopulationRecord>(StringComparer.Ordinal);
@@ -134,6 +135,16 @@ namespace Reloader.Core.Save.Modules
                 {
                     throw new InvalidOperationException(
                         $"CivilianPopulation duplicate live populationSlotId '{record.PopulationSlotId}'.");
+                }
+
+                if (record.IsAlive)
+                {
+                    var publicDisplayName = BuildPublicDisplayName(record.FirstName, record.LastName);
+                    if (!seenAlivePublicDisplayNames.Add(publicDisplayName))
+                    {
+                        throw new InvalidOperationException(
+                            $"CivilianPopulation duplicate live public display name '{publicDisplayName}'.");
+                    }
                 }
 
                 ValidateRequiredString(record.BaseBodyId, $"civilians[{i}].baseBodyId");
@@ -296,6 +307,23 @@ namespace Reloader.Core.Save.Modules
             {
                 throw new InvalidOperationException($"CivilianPopulation {fieldName} is invalid.");
             }
+        }
+
+        private static string BuildPublicDisplayName(string firstName, string lastName)
+        {
+            var normalizedFirstName = firstName?.Trim() ?? string.Empty;
+            var normalizedLastName = lastName?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(normalizedFirstName))
+            {
+                return normalizedLastName;
+            }
+
+            if (string.IsNullOrWhiteSpace(normalizedLastName))
+            {
+                return normalizedFirstName;
+            }
+
+            return string.Concat(normalizedFirstName, " ", normalizedLastName);
         }
     }
 }
