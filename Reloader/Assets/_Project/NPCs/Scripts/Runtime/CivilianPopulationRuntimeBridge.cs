@@ -272,7 +272,8 @@ namespace Reloader.NPCs.Runtime
                     populationSlotId: vacated.PopulationSlotId,
                     poolId: vacated.PoolId,
                     areaTag: vacated.AreaTag,
-                    isProtectedFromContracts: vacated.IsProtectedFromContracts));
+                    isProtectedFromContracts: vacated.IsProtectedFromContracts,
+                    reservedPublicDisplayNames: CollectReservedPublicDisplayNames()));
                 occupiedLivePopulationSlotIds.Add(vacated.PopulationSlotId);
 
                 _runtime.PendingReplacements.RemoveAt(i);
@@ -332,7 +333,8 @@ namespace Reloader.NPCs.Runtime
                     populationSlotId: CreateFallbackPopulationSlotId(i),
                     poolId: "townsfolk",
                     areaTag: "maintown",
-                    isProtectedFromContracts: false));
+                    isProtectedFromContracts: false,
+                    reservedPublicDisplayNames: CollectReservedPublicDisplayNames()));
             }
         }
 
@@ -381,7 +383,8 @@ namespace Reloader.NPCs.Runtime
                     populationSlotId: CreateFallbackPopulationSlotId(i),
                     poolId: "townsfolk",
                     areaTag: "maintown",
-                    isProtectedFromContracts: false));
+                    isProtectedFromContracts: false,
+                    reservedPublicDisplayNames: CollectReservedPublicDisplayNames()));
             }
         }
 
@@ -420,7 +423,8 @@ namespace Reloader.NPCs.Runtime
                         populationSlotId: slot.PopulationSlotId,
                         poolId: slot.PoolId,
                         areaTag: slot.AreaTag,
-                        isProtectedFromContracts: slot.IsProtectedFromContracts));
+                        isProtectedFromContracts: slot.IsProtectedFromContracts,
+                        reservedPublicDisplayNames: CollectReservedPublicDisplayNames()));
                 }
             }
         }
@@ -583,7 +587,7 @@ namespace Reloader.NPCs.Runtime
             damageable.Configure(
                 ResolveContractTargetEliminationSink(civilian),
                 targetId: record.CivilianId,
-                displayName: record.CivilianId,
+                displayName: BuildPublicDisplayName(record),
                 authoritativeDistanceMeters: ProceduralContractTargetDistanceMeters,
                 maxHealth: ProceduralContractTargetHealth);
         }
@@ -705,9 +709,9 @@ namespace Reloader.NPCs.Runtime
                 contractId: $"contract.maintown.procedural.{target.CivilianId}",
                 targetId: target.CivilianId,
                 title: "MainTown Contract",
-                targetDisplayName: target.CivilianId,
+                targetDisplayName: BuildPublicDisplayName(target),
                 targetDescription: BuildProceduralTargetDescription(target),
-                briefingText: "Locate and eliminate the live procedural target in MainTown.",
+                briefingText: BuildProceduralBriefingText(target),
                 distanceBand: ProceduralContractTargetDistanceMeters,
                 payout: ProceduralContractPayout);
 
@@ -810,6 +814,16 @@ namespace Reloader.NPCs.Runtime
                 return string.Empty;
             }
 
+            var clues = new List<string>(4);
+            AddUniqueClue(clues, TryDescribeSex(record));
+            AddUniqueClue(clues, TryDescribeClothing(record));
+            AddUniqueClue(clues, TryDescribeHair(record));
+            AddUniqueClue(clues, TryDescribeBeard(record));
+            if (clues.Count >= 2)
+            {
+                return string.Join(", ", clues);
+            }
+
             if (record.GeneratedDescriptionTags != null && record.GeneratedDescriptionTags.Count > 0)
             {
                 return string.Join(", ", record.GeneratedDescriptionTags);
@@ -821,6 +835,407 @@ namespace Reloader.NPCs.Runtime
             }
 
             return record.AreaTag ?? string.Empty;
+        }
+
+        private static string BuildProceduralBriefingText(CivilianPopulationRecord record)
+        {
+            if (record == null)
+            {
+                return "Locate and eliminate the live procedural target in MainTown.";
+            }
+
+            var roleLabel = DescribeContractRole(record.PoolId);
+            var locationLabel = DescribeContractLocation(record.AreaTag);
+            if (!string.IsNullOrWhiteSpace(roleLabel) && !string.IsNullOrWhiteSpace(locationLabel))
+            {
+                return $"Contractor notes: {roleLabel}, usually found around {locationLabel}. Confirm the visual match before taking the shot.";
+            }
+
+            if (!string.IsNullOrWhiteSpace(roleLabel))
+            {
+                return $"Contractor notes: {roleLabel}. Confirm the visual match before taking the shot.";
+            }
+
+            if (!string.IsNullOrWhiteSpace(locationLabel))
+            {
+                return $"Contractor notes: usually found around {locationLabel}. Confirm the visual match before taking the shot.";
+            }
+
+            return "Locate and eliminate the live procedural target in MainTown.";
+        }
+
+        private static void AddUniqueClue(List<string> clues, string clue)
+        {
+            if (clues == null || string.IsNullOrWhiteSpace(clue))
+            {
+                return;
+            }
+
+            if (!clues.Contains(clue))
+            {
+                clues.Add(clue);
+            }
+        }
+
+        private static string TryDescribeSex(CivilianPopulationRecord record)
+        {
+            if (record == null)
+            {
+                return string.Empty;
+            }
+
+            return MainTownCuratedAppearanceRules.TryInferGender(record.BaseBodyId, record.PresentationType, out var gender)
+                ? gender == MainTownAppearanceGender.Female ? "female" : "male"
+                : string.Empty;
+        }
+
+        private static string TryDescribeClothing(CivilianPopulationRecord record)
+        {
+            if (record == null)
+            {
+                return string.Empty;
+            }
+
+            var outerwearId = MainTownCuratedAppearanceRules.NormalizeOuterwearId(record.OuterwearId);
+            var garmentSource = !string.IsNullOrWhiteSpace(outerwearId) ? outerwearId : record.OutfitTopId;
+            var garment = DescribeGarment(garmentSource);
+            if (string.IsNullOrWhiteSpace(garment))
+            {
+                return string.Empty;
+            }
+
+            var color = FirstRecognizedColor(record.MaterialColorIds);
+            if (string.IsNullOrWhiteSpace(color))
+            {
+                color = RecognizeColorFromToken(outerwearId);
+            }
+
+            if (string.IsNullOrWhiteSpace(color))
+            {
+                color = RecognizeColorFromToken(record.OutfitTopId);
+            }
+
+            return string.IsNullOrWhiteSpace(color)
+                ? garment
+                : string.Concat(color, " ", garment);
+        }
+
+        private static string TryDescribeHair(CivilianPopulationRecord record)
+        {
+            if (record == null)
+            {
+                return string.Empty;
+            }
+
+            var hairId = record.HairId?.Trim() ?? string.Empty;
+            if (ContainsToken(hairId, "long"))
+            {
+                return "long hair";
+            }
+
+            if (ContainsToken(hairId, "short"))
+            {
+                return "short hair";
+            }
+
+            if (ContainsToken(hairId, "bob"))
+            {
+                return "bob haircut";
+            }
+
+            if (ContainsToken(hairId, "wavy"))
+            {
+                return "wavy hair";
+            }
+
+            if (ContainsToken(hairId, "parted"))
+            {
+                return "parted hair";
+            }
+
+            if (ContainsToken(hairId, "swept"))
+            {
+                return "swept hair";
+            }
+
+            return string.Empty;
+        }
+
+        private static string TryDescribeBeard(CivilianPopulationRecord record)
+        {
+            if (record == null || !MainTownCuratedAppearanceRules.IsMaleBeardId(record.BeardId))
+            {
+                return string.Empty;
+            }
+
+            var beardId = record.BeardId?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(beardId))
+            {
+                return string.Empty;
+            }
+
+            var beardNumber = ExtractTrailingNumber(beardId);
+            if (beardNumber <= 0)
+            {
+                return "beard";
+            }
+
+            if (beardNumber <= 3)
+            {
+                return "trim beard";
+            }
+
+            if (beardNumber <= 6)
+            {
+                return "short beard";
+            }
+
+            if (beardNumber <= 8)
+            {
+                return "thick beard";
+            }
+
+            return "full beard";
+        }
+
+        private static int ExtractTrailingNumber(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return 0;
+            }
+
+            var end = value.Length - 1;
+            while (end >= 0 && char.IsDigit(value[end]))
+            {
+                end--;
+            }
+
+            if (end == value.Length - 1)
+            {
+                return 0;
+            }
+
+            return int.TryParse(value.Substring(end + 1), out var parsed) ? parsed : 0;
+        }
+
+        private static string DescribeGarment(string garmentId)
+        {
+            if (string.IsNullOrWhiteSpace(garmentId))
+            {
+                return string.Empty;
+            }
+
+            if (ContainsToken(garmentId, "openjacket"))
+            {
+                return "open jacket";
+            }
+
+            if (ContainsToken(garmentId, "hoody") || ContainsToken(garmentId, "hoodie"))
+            {
+                return "hoodie";
+            }
+
+            if (ContainsToken(garmentId, "jacket"))
+            {
+                return "jacket";
+            }
+
+            if (ContainsToken(garmentId, "coat"))
+            {
+                return "coat";
+            }
+
+            if (ContainsToken(garmentId, "tshirt") || ContainsToken(garmentId, "shirt"))
+            {
+                return "t-shirt";
+            }
+
+            return string.Empty;
+        }
+
+        private static string FirstRecognizedColor(List<string> values)
+        {
+            if (values == null)
+            {
+                return string.Empty;
+            }
+
+            for (var i = 0; i < values.Count; i++)
+            {
+                var color = RecognizeColorFromToken(values[i]);
+                if (!string.IsNullOrWhiteSpace(color))
+                {
+                    return color;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private static string RecognizeColorFromToken(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            if (ContainsToken(value, "black"))
+            {
+                return "black";
+            }
+
+            if (ContainsToken(value, "brown"))
+            {
+                return "brown";
+            }
+
+            if (ContainsToken(value, "gray") || ContainsToken(value, "grey"))
+            {
+                return "gray";
+            }
+
+            if (ContainsToken(value, "red"))
+            {
+                return "red";
+            }
+
+            if (ContainsToken(value, "blue"))
+            {
+                return "blue";
+            }
+
+            if (ContainsToken(value, "green"))
+            {
+                return "green";
+            }
+
+            if (ContainsToken(value, "blonde") || ContainsToken(value, "blond"))
+            {
+                return "blonde";
+            }
+
+            if (ContainsToken(value, "white"))
+            {
+                return "white";
+            }
+
+            if (ContainsToken(value, "dark"))
+            {
+                return "dark";
+            }
+
+            return string.Empty;
+        }
+
+        private static bool ContainsToken(string value, string token)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.IsNullOrWhiteSpace(token))
+            {
+                return false;
+            }
+
+            return value.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static string BuildPublicDisplayName(CivilianPopulationRecord record)
+        {
+            if (record == null)
+            {
+                return string.Empty;
+            }
+
+            var firstName = record.FirstName?.Trim() ?? string.Empty;
+            var lastName = record.LastName?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(firstName) && string.IsNullOrWhiteSpace(lastName))
+            {
+                return record.CivilianId ?? string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(firstName))
+            {
+                return lastName;
+            }
+
+            if (string.IsNullOrWhiteSpace(lastName))
+            {
+                return firstName;
+            }
+
+            return string.Concat(firstName, " ", lastName);
+        }
+
+        private static string DescribeContractRole(string poolId)
+        {
+            var normalized = NormalizeIdentifier(poolId);
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                return string.Empty;
+            }
+
+            return normalized switch
+            {
+                "townsfolk" => "local resident",
+                "quarry workers" => "quarry worker",
+                "hobos" => "drifter",
+                "cops" => "police officer",
+                _ => normalized
+            };
+        }
+
+        private static string DescribeContractLocation(string areaTag)
+        {
+            var normalized = NormalizeIdentifier(areaTag);
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                return string.Empty;
+            }
+
+            return normalized switch
+            {
+                "maintown square" => "the town square",
+                "maintown watch" => "the watch post",
+                "maintown alley" => "the alleys",
+                "quarry" => "the quarry",
+                _ when normalized.StartsWith("maintown ", StringComparison.Ordinal) => string.Concat("the ", normalized.Substring("maintown ".Length)),
+                _ => string.Concat("the ", normalized)
+            };
+        }
+
+        private static string NormalizeIdentifier(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            var parts = value.Split(new[] { '.', '_', '-' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            for (var i = 0; i < parts.Length; i++)
+            {
+                parts[i] = parts[i].Trim().ToLowerInvariant();
+            }
+
+            return string.Join(" ", parts);
+        }
+
+        private HashSet<string> CollectReservedPublicDisplayNames()
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            for (var i = 0; i < _runtime.Civilians.Count; i++)
+            {
+                var displayName = BuildPublicDisplayName(_runtime.Civilians[i]);
+                if (!string.IsNullOrWhiteSpace(displayName))
+                {
+                    names.Add(displayName);
+                }
+            }
+
+            return names;
         }
 
         private List<string> NormalizeSpawnAnchors()
@@ -1010,6 +1425,9 @@ namespace Reloader.NPCs.Runtime
                 PopulationSlotId = source?.PopulationSlotId ?? string.Empty,
                 PoolId = source?.PoolId ?? string.Empty,
                 CivilianId = source?.CivilianId ?? string.Empty,
+                FirstName = source?.FirstName ?? string.Empty,
+                LastName = source?.LastName ?? string.Empty,
+                Nickname = source?.Nickname ?? string.Empty,
                 IsAlive = source != null && source.IsAlive,
                 IsContractEligible = source != null && source.IsContractEligible,
                 IsProtectedFromContracts = source != null && source.IsProtectedFromContracts,

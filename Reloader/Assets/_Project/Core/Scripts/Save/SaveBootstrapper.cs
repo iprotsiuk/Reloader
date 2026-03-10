@@ -10,7 +10,7 @@ namespace Reloader.Core.Save
         /// Registration order is deterministic: CoreWorld, CivilianPopulation, Inventory, Weapons, WorldObjectState,
         /// ContainerStorage, PlayerDevice, WorkbenchLoadout, ContractState, PoliceHeatState.
         /// </summary>
-        public static SaveCoordinator CreateDefaultCoordinator(int currentSchemaVersion = 8)
+        public static SaveCoordinator CreateDefaultCoordinator(int currentSchemaVersion = 9)
         {
             return new SaveCoordinator(
                 new SaveFileRepository(),

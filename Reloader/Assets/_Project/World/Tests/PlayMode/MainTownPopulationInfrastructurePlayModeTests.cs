@@ -95,7 +95,8 @@ namespace Reloader.World.Tests.PlayMode
 
             var metadata = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
             Assert.That(metadata.Length, Is.EqualTo(4), "Expected every auto-spawned civilian to carry slot metadata.");
-            Assert.That(metadata.All(component => component.transform.Find("Body/NpcModel") != null), Is.True,
+            Assert.That(metadata.All(component => component.GetComponent<MainTownNpcAppearanceApplicator>() != null),
+                Is.True,
                 "Expected starter civilians to instantiate the authored NPC actor prefab instead of ad-hoc shell objects.");
             Assert.That(metadata.Select(component => component.transform.position).Distinct().Count(), Is.EqualTo(4),
                 "Expected authored population slot anchors to occupy distinct scene positions.");
@@ -252,7 +253,7 @@ namespace Reloader.World.Tests.PlayMode
 
                 envelope.Modules["CivilianPopulation"] = new ModuleSaveBlock
                 {
-                    ModuleVersion = 1,
+                    ModuleVersion = 2,
                     PayloadJson = module.CaptureModuleStateJson()
                 };
 
@@ -264,6 +265,10 @@ namespace Reloader.World.Tests.PlayMode
                 yield return null;
 
                 Assert.That(bridge!.Runtime.Civilians.Count, Is.EqualTo(2), "Expected runtime civilians to reflect the loaded save module.");
+
+                var loadedCivilian = bridge.Runtime.Civilians.Single(record => record.CivilianId == "citizen.mainTown.9001");
+                Assert.That(loadedCivilian.FirstName, Is.EqualTo("Orson"));
+                Assert.That(loadedCivilian.LastName, Is.EqualTo("Vale"));
 
                 var spawned = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
                 Assert.That(spawned.Length, Is.EqualTo(1), "Expected only living civilians from the loaded save to rebuild into the scene.");
@@ -325,6 +330,12 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(replacement.PoolId, Is.EqualTo("townsfolk"));
             Assert.That(replacement.SpawnAnchorId, Is.EqualTo("Anchor_Townsfolk_01"));
             Assert.That(replacement.CreatedAtDay, Is.EqualTo(14));
+            Assert.That(replacement.FirstName, Is.Not.Empty);
+            Assert.That(replacement.LastName, Is.Not.Empty);
+            Assert.That(
+                string.Concat(replacement.FirstName, " ", replacement.LastName),
+                Is.Not.EqualTo("Derek Mullen"),
+                "Expected Monday replacement to become a different persistent person, not a cloned identity.");
 
             var spawned = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
             Assert.That(spawned.Length, Is.EqualTo(1));
@@ -436,6 +447,9 @@ namespace Reloader.World.Tests.PlayMode
                 CivilianId = civilianId,
                 PopulationSlotId = populationSlotId,
                 PoolId = poolId,
+                FirstName = spawnAnchorId == "Anchor_Cop_01" ? "Orson" : "Derek",
+                LastName = spawnAnchorId == "Anchor_Cop_01" ? "Vale" : "Mullen",
+                Nickname = spawnAnchorId == "Anchor_Hobo_01" ? "Tincan" : string.Empty,
                 IsAlive = isAlive,
                 IsContractEligible = isAlive,
                 IsProtectedFromContracts = false,

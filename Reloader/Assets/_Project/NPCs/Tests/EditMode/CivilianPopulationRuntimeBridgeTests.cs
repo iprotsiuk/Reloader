@@ -61,6 +61,39 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void PrepareForSave_WhenSeedingInitialRoster_AssignsUniquePublicNamesAcrossLiveCivilians()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 80,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: new[] { "spawn.busstop.a" },
+                    library: CreateLibrary());
+
+                var module = new CivilianPopulationModule();
+                bridge.PrepareForSave(new[] { new SaveModuleRegistration(1, module) });
+
+                var displayNames = module.Civilians
+                    .Where(record => record.IsAlive)
+                    .Select(record => string.Concat(record.FirstName, " ", record.LastName))
+                    .ToArray();
+
+                Assert.That(displayNames.Length, Is.EqualTo(80));
+                Assert.That(displayNames.Distinct().Count(), Is.EqualTo(displayNames.Length),
+                    "Expected active seeded civilians to keep unique public names so contract/UI target labels stay unambiguous.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void FinalizeAfterLoad_RestoresRuntimeFromModule()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");
@@ -74,6 +107,8 @@ namespace Reloader.NPCs.Tests.EditMode
                     PopulationSlotId = "quarry.worker.004",
                     PoolId = "quarry_workers",
                     CivilianId = "citizen.mainTown.0042",
+                    FirstName = "Ilona",
+                    LastName = "Sidorov",
                     IsAlive = true,
                     IsContractEligible = false,
                     IsProtectedFromContracts = true,
@@ -133,6 +168,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.stale",
+                    FirstName = "Derek",
+                    LastName = "Mullen",
                     PopulationSlotId = "stale.001",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_A",
@@ -147,6 +184,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 module.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0042",
+                    FirstName = "Maksim",
+                    LastName = "Volkov",
                     PopulationSlotId = "cops.001",
                     PoolId = "cops",
                     SpawnAnchorId = "Anchor_B",
@@ -156,6 +195,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 module.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0043",
+                    FirstName = "Vera",
+                    LastName = "Petrov",
                     PopulationSlotId = "hobos.001",
                     PoolId = "hobos",
                     SpawnAnchorId = "Anchor_A",
@@ -205,6 +246,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0042",
+                    FirstName = "Marta",
+                    LastName = "Novak",
                     PopulationSlotId = "townsfolk.004",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_A",
@@ -256,6 +299,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0102",
+                    FirstName = "Nadia",
+                    LastName = "Kozak",
                     PopulationSlotId = "townsfolk.102",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_B",
@@ -282,6 +327,7 @@ namespace Reloader.NPCs.Tests.EditMode
 
                 Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True, "Expected rebuild to publish a procedural contract offer.");
                 Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0101"));
+                Assert.That(snapshot.TargetDisplayName, Is.EqualTo("Derek Mullen"));
 
                 var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
                 var offeredSpawn = spawned.Single(component => component.CivilianId == snapshot.TargetId);
@@ -294,8 +340,11 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(offeredDamageable, Is.Not.Null, "Expected the published procedural target to expose the existing contract target damageable.");
 
                 var targetIdProperty = damageableType!.GetProperty("TargetId", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+                var displayNameProperty = damageableType.GetProperty("DisplayName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
                 Assert.That(targetIdProperty, Is.Not.Null);
+                Assert.That(displayNameProperty, Is.Not.Null);
                 Assert.That((string)targetIdProperty!.GetValue(offeredDamageable)!, Is.EqualTo("citizen.mainTown.0101"));
+                Assert.That((string)displayNameProperty!.GetValue(offeredDamageable)!, Is.EqualTo("Derek Mullen"));
 
                 Assert.That(nonOfferedSpawn.GetComponent(damageableType!), Is.Null, "Expected non-offered civilians to stay outside the contract target path while idle.");
             }
@@ -342,6 +391,180 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.RebuildScenePopulation();
 
                 Assert.That(provider.TryGetContractSnapshot(out _), Is.False, "Expected the bridge to clear stale procedural offers when no eligible civilians remain.");
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenProceduralOfferIsPublished_DerivesTargetDescriptionFromPersistedAppearanceFields()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            CreateAnchor(bridgeGo.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0202",
+                    FirstName = "Nadia",
+                    LastName = "Kozak",
+                    PopulationSlotId = "townsfolk.202",
+                    PoolId = "townsfolk",
+                    SpawnAnchorId = "Anchor_A",
+                    AreaTag = "maintown.square",
+                    IsAlive = true,
+                    IsContractEligible = true,
+                    IsProtectedFromContracts = false,
+                    BaseBodyId = "female.body",
+                    PresentationType = "feminine",
+                    HairId = "hair.long",
+                    HairColorId = "hair.brown",
+                    BeardId = "beard.none",
+                    OutfitTopId = "tshirt1",
+                    OutfitBottomId = "pants1",
+                    OuterwearId = "hoody",
+                    MaterialColorIds = new List<string> { "color.red" },
+                    GeneratedDescriptionTags = new List<string> { "old tag should not win" },
+                    CreatedAtDay = 4,
+                    RetiredAtDay = -1
+                });
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True, "Expected rebuild to publish a procedural contract offer.");
+                Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0202"));
+                Assert.That(snapshot.TargetDescription, Is.EqualTo("female, red hoodie, long hair"));
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenProceduralOfferIsPublished_DerivesBriefingTextFromPoolAndArea()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            CreateAnchor(bridgeGo.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0203",
+                    FirstName = "Derek",
+                    LastName = "Mullen",
+                    PopulationSlotId = "quarry.worker.003",
+                    PoolId = "quarry_workers",
+                    SpawnAnchorId = "Anchor_A",
+                    AreaTag = "quarry",
+                    IsAlive = true,
+                    IsContractEligible = true,
+                    IsProtectedFromContracts = false,
+                    BaseBodyId = "male.body",
+                    PresentationType = "masculine",
+                    HairId = "hair.short",
+                    HairColorId = "hair.black",
+                    BeardId = "beard.full",
+                    OutfitTopId = "top.coat.01",
+                    OutfitBottomId = "pants1",
+                    OuterwearId = "outer.gray.coat",
+                    MaterialColorIds = new List<string> { "color.gray" },
+                    GeneratedDescriptionTags = new List<string> { "stale placeholder text should not win" },
+                    CreatedAtDay = 4,
+                    RetiredAtDay = -1
+                });
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True, "Expected rebuild to publish a procedural contract offer.");
+                Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0203"));
+                Assert.That(snapshot.BriefingText, Is.EqualTo("Contractor notes: quarry worker, usually found around the quarry. Confirm the visual match before taking the shot."));
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenHairColorSeedDoesNotGuaranteeVisiblePalette_OmitsHairColorFromTargetDescription()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            CreateAnchor(bridgeGo.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0204",
+                    FirstName = "Sonya",
+                    LastName = "Novak",
+                    PopulationSlotId = "cops.204",
+                    PoolId = "cops",
+                    SpawnAnchorId = "Anchor_A",
+                    AreaTag = "maintown.watch",
+                    IsAlive = true,
+                    IsContractEligible = true,
+                    IsProtectedFromContracts = false,
+                    BaseBodyId = "female.body",
+                    PresentationType = "feminine",
+                    HairId = "hair.long",
+                    HairColorId = "hair.black",
+                    BeardId = string.Empty,
+                    OutfitTopId = "tshirt1",
+                    OutfitBottomId = "pants1",
+                    OuterwearId = "openJacket",
+                    MaterialColorIds = new List<string> { "style.default" },
+                    GeneratedDescriptionTags = new List<string> { "stale placeholder text should not win" },
+                    CreatedAtDay = 4,
+                    RetiredAtDay = -1
+                });
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True, "Expected rebuild to publish a procedural contract offer.");
+                Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0204"));
+                Assert.That(snapshot.TargetDescription, Is.EqualTo("female, open jacket, long hair"));
             }
             finally
             {
@@ -703,6 +926,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 populationModule.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0007",
+                    FirstName = "Pavel",
+                    LastName = "Dobrev",
                     PopulationSlotId = "townsfolk.001",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_Townsfolk_01",
@@ -786,6 +1011,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0007",
+                    FirstName = "Pavel",
+                    LastName = "Dobrev",
                     PopulationSlotId = "townsfolk.001",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_Townsfolk_01",
@@ -820,7 +1047,7 @@ namespace Reloader.NPCs.Tests.EditMode
                         new(0, new CoreWorldModule()),
                         new(1, new CivilianPopulationModule())
                     },
-                    currentSchemaVersion: 8);
+                    currentSchemaVersion: 9);
 
                 coordinator.Save(savePath, "0.8.0-dev");
 
@@ -872,6 +1099,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0007",
+                    FirstName = "Pavel",
+                    LastName = "Dobrev",
                     PopulationSlotId = "townsfolk.001",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_Townsfolk_01",
@@ -942,6 +1171,8 @@ namespace Reloader.NPCs.Tests.EditMode
                     PopulationSlotId = "townsfolk.021",
                     PoolId = "townsfolk",
                     CivilianId = "citizen.mainTown.0042",
+                    FirstName = "Ilona",
+                    LastName = "Sidorov",
                     IsAlive = true,
                     IsContractEligible = false,
                     IsProtectedFromContracts = false,
@@ -996,6 +1227,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0007",
+                    FirstName = "Pavel",
+                    LastName = "Dobrev",
                     IsAlive = true,
                     IsContractEligible = true,
                     SpawnAnchorId = "spawn.busstop.c",
@@ -1030,6 +1263,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0008",
+                    FirstName = "Nadia",
+                    LastName = "Petrov",
                     IsAlive = true,
                     IsContractEligible = true,
                     SpawnAnchorId = "spawn.busstop.a",
@@ -1068,6 +1303,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0007",
+                    FirstName = "Pavel",
+                    LastName = "Dobrev",
                     PopulationSlotId = "townsfolk.001",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_Townsfolk_01",
@@ -1125,6 +1362,63 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void ExecutePendingReplacements_WhenReplacementSeedCollidesWithLiveRoster_RerollsToUniquePublicName()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_Townsfolk_12", new Vector3(12f, 0f, 0f));
+            CreateAnchor(go.transform, "Anchor_Townsfolk_77", new Vector3(77f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0012",
+                    FirstName = "Ivan",
+                    LastName = "Novak",
+                    PopulationSlotId = "townsfolk.012",
+                    PoolId = "townsfolk",
+                    SpawnAnchorId = "Anchor_Townsfolk_12",
+                    AreaTag = "maintown.square",
+                    IsAlive = true,
+                    IsContractEligible = true,
+                    IsProtectedFromContracts = false
+                });
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0076",
+                    populationSlotId: "townsfolk.077",
+                    spawnAnchorId: "Anchor_Townsfolk_77",
+                    isAlive: false,
+                    retiredAtDay: 9));
+                bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.0076",
+                    QueuedAtDay = 9,
+                    SpawnAnchorId = "Anchor_Townsfolk_77"
+                });
+
+                var replacedCount = InvokeExecutePendingReplacements(bridge, currentDay: 14, currentTimeOfDay: 8f);
+
+                Assert.That(replacedCount, Is.EqualTo(1));
+
+                var replacement = bridge.Runtime.Civilians.Single(record => record.CivilianId == "citizen.mainTown.0077");
+                Assert.That(string.Concat(replacement.FirstName, " ", replacement.LastName), Is.Not.EqualTo("Ivan Novak"),
+                    "Expected Monday replacements to avoid colliding with live public names when the deterministic seed matches an existing civilian.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void ExecutePendingReplacements_WhenMondayRefreshWindowHasNotArrived_DoesNotReplaceEarly()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");
@@ -1142,6 +1436,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0010",
+                    FirstName = "Martin",
+                    LastName = "Kolar",
                     PopulationSlotId = "cops.001",
                     PoolId = "cops",
                     SpawnAnchorId = "Anchor_Cop_01",
@@ -1199,6 +1495,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0011",
+                    FirstName = "Maksim",
+                    LastName = "Volkov",
                     PopulationSlotId = "townsfolk.002",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_Townsfolk_02",
@@ -1257,6 +1555,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0007",
+                    FirstName = "Pavel",
+                    LastName = "Dobrev",
                     PopulationSlotId = "townsfolk.001",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_Townsfolk_01",
@@ -1360,6 +1660,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
                     CivilianId = "citizen.mainTown.0012",
+                    FirstName = "Leon",
+                    LastName = "Hale",
                     PopulationSlotId = "townsfolk.003",
                     PoolId = "townsfolk",
                     SpawnAnchorId = "Anchor_Townsfolk_03",
@@ -1574,6 +1876,8 @@ namespace Reloader.NPCs.Tests.EditMode
             return new CivilianPopulationRecord
             {
                 CivilianId = civilianId,
+                FirstName = "Derek",
+                LastName = "Mullen",
                 PopulationSlotId = populationSlotId,
                 PoolId = "townsfolk",
                 SpawnAnchorId = spawnAnchorId,

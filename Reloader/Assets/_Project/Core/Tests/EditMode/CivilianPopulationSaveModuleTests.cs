@@ -41,9 +41,9 @@ namespace Reloader.Core.Tests.EditMode
             var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
             var envelope = coordinator.CaptureEnvelope("0.7.0-dev");
 
-            Assert.That(envelope.SchemaVersion, Is.EqualTo(8));
+            Assert.That(envelope.SchemaVersion, Is.EqualTo(9));
             Assert.That(envelope.Modules.ContainsKey("CivilianPopulation"), Is.True);
-            Assert.That(envelope.Modules["CivilianPopulation"].ModuleVersion, Is.EqualTo(1));
+            Assert.That(envelope.Modules["CivilianPopulation"].ModuleVersion, Is.EqualTo(2));
         }
 
         [Test]
@@ -62,17 +62,17 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void SaveBootstrapper_DefaultCoordinatorLoad_RejectsSchema7CivilianPayloadBeforeSlotValidation()
+        public void SaveBootstrapper_DefaultCoordinatorLoad_RejectsSchema8CivilianPayloadBeforeSlotValidation()
         {
             var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
             var repository = new SaveFileRepository();
             var envelope = coordinator.CaptureEnvelope("0.7.0-dev");
-            envelope.SchemaVersion = 7;
+            envelope.SchemaVersion = 8;
             envelope.Modules["CivilianPopulation"] = new ModuleSaveBlock
             {
-                ModuleVersion = 1,
+                ModuleVersion = 2,
                 PayloadJson =
-                    "{\"civilians\":[{\"civilianId\":\"citizen.mainTown.0001\",\"isAlive\":true,\"isContractEligible\":true,\"baseBodyId\":\"body.male.a\",\"presentationType\":\"masculine\",\"hairId\":\"hair.short.01\",\"hairColorId\":\"hair.black\",\"beardId\":\"beard.none\",\"outfitTopId\":\"top.coat.01\",\"outfitBottomId\":\"bottom.jeans.01\",\"outerwearId\":\"outer.gray.coat\",\"materialColorIds\":[\"color.gray\"],\"generatedDescriptionTags\":[\"gray coat\"],\"spawnAnchorId\":\"spawn.busstop.a\",\"createdAtDay\":4,\"retiredAtDay\":-1}],\"pendingReplacements\":[]}"
+                    "{\"civilians\":[{\"populationSlotId\":\"townsfolk.001\",\"poolId\":\"townsfolk\",\"civilianId\":\"citizen.mainTown.0001\",\"firstName\":\"Derek\",\"lastName\":\"Mullen\",\"nickname\":\"Socks\",\"isAlive\":true,\"isContractEligible\":true,\"baseBodyId\":\"body.male.a\",\"presentationType\":\"masculine\",\"hairId\":\"hair.short.01\",\"hairColorId\":\"hair.black\",\"beardId\":\"beard.none\",\"outfitTopId\":\"top.coat.01\",\"outfitBottomId\":\"bottom.jeans.01\",\"outerwearId\":\"outer.gray.coat\",\"materialColorIds\":[\"color.gray\"],\"generatedDescriptionTags\":[\"gray coat\"],\"spawnAnchorId\":\"spawn.busstop.a\",\"areaTag\":\"downtown\",\"createdAtDay\":4,\"retiredAtDay\":-1}],\"pendingReplacements\":[]}"
             };
 
             repository.WriteEnvelope(_savePath, envelope);
@@ -114,6 +114,46 @@ namespace Reloader.Core.Tests.EditMode
             var restoredReplacements = GetRequiredList(restored, "PendingReplacements");
             Assert.That(restoredReplacements.Count, Is.EqualTo(1));
             AssertReplacement(restoredReplacements[0]);
+        }
+
+        [Test]
+        public void CivilianPopulationModule_ValidateModuleState_RejectsCitizensMissingFirstName()
+        {
+            var moduleType = ResolveRequiredType(ModuleTypeName);
+            var recordType = ResolveRequiredType(RecordTypeName);
+
+            var module = Activator.CreateInstance(moduleType);
+            var civilians = GetRequiredList(module, "Civilians");
+            var record = CreateCivilianRecord(recordType);
+            SetProperty(record, "FirstName", string.Empty);
+            civilians.Add(record);
+
+            var validateMethod = moduleType.GetMethod("ValidateModuleState", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(validateMethod, Is.Not.Null);
+
+            var ex = Assert.Throws<TargetInvocationException>(() => validateMethod!.Invoke(module, Array.Empty<object>()));
+            Assert.That(ex?.InnerException, Is.Not.Null);
+            Assert.That(ex!.InnerException!.Message, Does.Contain("firstName"));
+        }
+
+        [Test]
+        public void CivilianPopulationModule_ValidateModuleState_RejectsCitizensMissingLastName()
+        {
+            var moduleType = ResolveRequiredType(ModuleTypeName);
+            var recordType = ResolveRequiredType(RecordTypeName);
+
+            var module = Activator.CreateInstance(moduleType);
+            var civilians = GetRequiredList(module, "Civilians");
+            var record = CreateCivilianRecord(recordType);
+            SetProperty(record, "LastName", string.Empty);
+            civilians.Add(record);
+
+            var validateMethod = moduleType.GetMethod("ValidateModuleState", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(validateMethod, Is.Not.Null);
+
+            var ex = Assert.Throws<TargetInvocationException>(() => validateMethod!.Invoke(module, Array.Empty<object>()));
+            Assert.That(ex?.InnerException, Is.Not.Null);
+            Assert.That(ex!.InnerException!.Message, Does.Contain("lastName"));
         }
 
         [Test]
@@ -160,6 +200,33 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(ex?.InnerException, Is.Not.Null);
             Assert.That(ex!.InnerException!.Message, Does.Contain("duplicate live populationSlotId"));
             Assert.That(ex.InnerException!.Message, Does.Contain("townsfolk.001"));
+        }
+
+        [Test]
+        public void CivilianPopulationModule_ValidateModuleState_RejectsDuplicateAlivePublicDisplayNames()
+        {
+            var moduleType = ResolveRequiredType(ModuleTypeName);
+            var recordType = ResolveRequiredType(RecordTypeName);
+
+            var module = Activator.CreateInstance(moduleType);
+            var civilians = GetRequiredList(module, "Civilians");
+
+            var firstRecord = CreateCivilianRecord(recordType);
+            var secondRecord = CreateCivilianRecord(recordType);
+            SetProperty(secondRecord, "CivilianId", "citizen.mainTown.002");
+            SetProperty(secondRecord, "PopulationSlotId", "townsfolk.002");
+            SetProperty(secondRecord, "SpawnAnchorId", "spawn.busstop.b");
+
+            civilians.Add(firstRecord);
+            civilians.Add(secondRecord);
+
+            var validateMethod = moduleType.GetMethod("ValidateModuleState", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(validateMethod, Is.Not.Null);
+
+            var ex = Assert.Throws<TargetInvocationException>(() => validateMethod!.Invoke(module, Array.Empty<object>()));
+            Assert.That(ex?.InnerException, Is.Not.Null);
+            Assert.That(ex!.InnerException!.Message, Does.Contain("duplicate live public display name"));
+            Assert.That(ex.InnerException!.Message, Does.Contain("Derek Mullen"));
         }
 
         [Test]
@@ -381,6 +448,9 @@ namespace Reloader.Core.Tests.EditMode
             SetProperty(record, "PopulationSlotId", "townsfolk.001");
             SetProperty(record, "PoolId", "townsfolk");
             SetProperty(record, "CivilianId", "citizen.mainTown.001");
+            SetProperty(record, "FirstName", "Derek");
+            SetProperty(record, "LastName", "Mullen");
+            SetProperty(record, "Nickname", "Socks");
             SetProperty(record, "IsAlive", true);
             SetProperty(record, "IsContractEligible", true);
             SetProperty(record, "IsProtectedFromContracts", false);
@@ -415,6 +485,9 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(GetProperty<string>(record, "PopulationSlotId"), Is.EqualTo("townsfolk.001"));
             Assert.That(GetProperty<string>(record, "PoolId"), Is.EqualTo("townsfolk"));
             Assert.That(GetProperty<string>(record, "CivilianId"), Is.EqualTo("citizen.mainTown.001"));
+            Assert.That(GetProperty<string>(record, "FirstName"), Is.EqualTo("Derek"));
+            Assert.That(GetProperty<string>(record, "LastName"), Is.EqualTo("Mullen"));
+            Assert.That(GetProperty<string>(record, "Nickname"), Is.EqualTo("Socks"));
             Assert.That(GetProperty<bool>(record, "IsAlive"), Is.True);
             Assert.That(GetProperty<bool>(record, "IsContractEligible"), Is.True);
             Assert.That(GetProperty<bool>(record, "IsProtectedFromContracts"), Is.False);

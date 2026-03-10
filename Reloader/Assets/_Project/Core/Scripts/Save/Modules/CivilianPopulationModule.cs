@@ -25,7 +25,7 @@ namespace Reloader.Core.Save.Modules
         }
 
         public string ModuleKey => "CivilianPopulation";
-        public int ModuleVersion => 1;
+        public int ModuleVersion => 2;
 
         public List<CivilianPopulationRecord> Civilians { get; } = new List<CivilianPopulationRecord>();
         public List<CivilianPopulationReplacementRecord> PendingReplacements { get; } =
@@ -86,6 +86,7 @@ namespace Reloader.Core.Save.Modules
         {
             var seenCivilianIds = new HashSet<string>(StringComparer.Ordinal);
             var seenAlivePopulationSlotIds = new HashSet<string>(StringComparer.Ordinal);
+            var seenAlivePublicDisplayNames = new HashSet<string>(StringComparer.Ordinal);
             var seenPendingReplacementIds = new HashSet<string>(StringComparer.Ordinal);
             var seenPendingReplacementSlotIds = new HashSet<string>(StringComparer.Ordinal);
             var civiliansById = new Dictionary<string, CivilianPopulationRecord>(StringComparer.Ordinal);
@@ -127,11 +128,23 @@ namespace Reloader.Core.Save.Modules
 
                 ValidateRequiredString(record.PopulationSlotId, $"civilians[{i}].populationSlotId");
                 ValidateRequiredString(record.PoolId, $"civilians[{i}].poolId");
+                ValidateRequiredString(record.FirstName, $"civilians[{i}].firstName");
+                ValidateRequiredString(record.LastName, $"civilians[{i}].lastName");
 
                 if (record.IsAlive && !seenAlivePopulationSlotIds.Add(record.PopulationSlotId))
                 {
                     throw new InvalidOperationException(
                         $"CivilianPopulation duplicate live populationSlotId '{record.PopulationSlotId}'.");
+                }
+
+                if (record.IsAlive)
+                {
+                    var publicDisplayName = BuildPublicDisplayName(record.FirstName, record.LastName);
+                    if (!seenAlivePublicDisplayNames.Add(publicDisplayName))
+                    {
+                        throw new InvalidOperationException(
+                            $"CivilianPopulation duplicate live public display name '{publicDisplayName}'.");
+                    }
                 }
 
                 ValidateRequiredString(record.BaseBodyId, $"civilians[{i}].baseBodyId");
@@ -219,6 +232,9 @@ namespace Reloader.Core.Save.Modules
                 PopulationSlotId = source.PopulationSlotId ?? string.Empty,
                 PoolId = source.PoolId ?? string.Empty,
                 CivilianId = source.CivilianId ?? string.Empty,
+                FirstName = source.FirstName ?? string.Empty,
+                LastName = source.LastName ?? string.Empty,
+                Nickname = source.Nickname ?? string.Empty,
                 IsAlive = source.IsAlive,
                 IsContractEligible = source.IsContractEligible,
                 IsProtectedFromContracts = source.IsProtectedFromContracts,
@@ -291,6 +307,23 @@ namespace Reloader.Core.Save.Modules
             {
                 throw new InvalidOperationException($"CivilianPopulation {fieldName} is invalid.");
             }
+        }
+
+        private static string BuildPublicDisplayName(string firstName, string lastName)
+        {
+            var normalizedFirstName = firstName?.Trim() ?? string.Empty;
+            var normalizedLastName = lastName?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(normalizedFirstName))
+            {
+                return normalizedLastName;
+            }
+
+            if (string.IsNullOrWhiteSpace(normalizedLastName))
+            {
+                return normalizedFirstName;
+            }
+
+            return string.Concat(normalizedFirstName, " ", normalizedLastName);
         }
     }
 }

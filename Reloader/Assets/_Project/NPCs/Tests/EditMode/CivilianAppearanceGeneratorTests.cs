@@ -47,6 +47,8 @@ namespace Reloader.NPCs.Tests.EditMode
 
             Assert.That(record, Is.Not.Null);
             Assert.That(GetProperty<string>(record, "CivilianId"), Is.EqualTo("citizen.mainTown.001"));
+            Assert.That(GetProperty<string>(record, "FirstName"), Is.Not.Empty);
+            Assert.That(GetProperty<string>(record, "LastName"), Is.Not.Empty);
             Assert.That(GetProperty<bool>(record, "IsAlive"), Is.True);
             Assert.That(GetProperty<bool>(record, "IsContractEligible"), Is.True);
             Assert.That(GetProperty<string>(record, "BaseBodyId"), Is.EqualTo("body.male.a"));
@@ -62,6 +64,47 @@ namespace Reloader.NPCs.Tests.EditMode
             Assert.That(GetProperty<string>(record, "SpawnAnchorId"), Is.EqualTo("spawn.busstop.a"));
             Assert.That(GetProperty<int>(record, "CreatedAtDay"), Is.EqualTo(4));
             Assert.That(GetProperty<int>(record, "RetiredAtDay"), Is.EqualTo(-1));
+        }
+
+        [Test]
+        public void GenerateRecord_WithSameSeed_ProducesStablePublicIdentity()
+        {
+            var generatorType = ResolveRequiredType(GeneratorTypeName);
+            var libraryType = ResolveRequiredType(LibraryTypeName);
+
+            var generator = Activator.CreateInstance(generatorType);
+            var library = Activator.CreateInstance(libraryType);
+
+            SetProperty(library, "BaseBodyIds", new[] { "body.male.a" });
+            SetProperty(library, "PresentationTypes", new[] { "masculine" });
+            SetProperty(library, "HairIds", new[] { "hair.short.01" });
+            SetProperty(library, "HairColorIds", new[] { "hair.black" });
+            SetProperty(library, "BeardIds", new[] { "beard.none" });
+            SetProperty(library, "OutfitTopIds", new[] { "top.coat.01" });
+            SetProperty(library, "OutfitBottomIds", new[] { "bottom.jeans.01" });
+            SetProperty(library, "OuterwearIds", new[] { "outer.gray.coat" });
+            SetProperty(library, "MaterialColorIds", new[] { "color.gray" });
+            SetProperty(library, "DescriptionTags", new[] { "gray coat" });
+
+            var generateMethod = generatorType.GetMethod(
+                "GenerateRecord",
+                BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: new[] { libraryType, typeof(string), typeof(int), typeof(string), typeof(int), typeof(bool) },
+                modifiers: null);
+
+            Assert.That(generateMethod, Is.Not.Null, "Expected a public GenerateRecord(...) method on CivilianAppearanceGenerator.");
+
+            var first = generateMethod.Invoke(
+                generator,
+                new object[] { library, "citizen.mainTown.001", 4, "spawn.busstop.a", 1337, true });
+            var second = generateMethod.Invoke(
+                generator,
+                new object[] { library, "citizen.mainTown.001", 4, "spawn.busstop.a", 1337, true });
+
+            Assert.That(GetProperty<string>(first, "FirstName"), Is.EqualTo(GetProperty<string>(second, "FirstName")));
+            Assert.That(GetProperty<string>(first, "LastName"), Is.EqualTo(GetProperty<string>(second, "LastName")));
+            Assert.That(GetProperty<string>(first, "Nickname"), Is.EqualTo(GetProperty<string>(second, "Nickname")));
         }
 
         [Test]

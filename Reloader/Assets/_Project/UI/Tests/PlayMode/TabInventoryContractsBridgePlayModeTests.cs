@@ -224,6 +224,8 @@ namespace Reloader.UI.Tests.PlayMode
 
             var record = Activator.CreateInstance(populationRecordType);
             SetProperty(populationRecordType, record, "CivilianId", "target.track");
+            SetProperty(populationRecordType, record, "FirstName", "Tomas");
+            SetProperty(populationRecordType, record, "LastName", "Varga");
             SetProperty(populationRecordType, record, "PopulationSlotId", "townsfolk.001");
             SetProperty(populationRecordType, record, "PoolId", "townsfolk");
             SetProperty(populationRecordType, record, "SpawnAnchorId", "Anchor_Fountain");
@@ -327,6 +329,8 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(civilians, Is.Not.Null);
             var record = Activator.CreateInstance(populationRecordType);
             SetProperty(populationRecordType, record, "CivilianId", "target.track.nofix");
+            SetProperty(populationRecordType, record, "FirstName", "Tomas");
+            SetProperty(populationRecordType, record, "LastName", "Varga");
             SetProperty(populationRecordType, record, "PopulationSlotId", "townsfolk.002");
             SetProperty(populationRecordType, record, "PoolId", "townsfolk");
             SetProperty(populationRecordType, record, "SpawnAnchorId", "Anchor_Fountain");

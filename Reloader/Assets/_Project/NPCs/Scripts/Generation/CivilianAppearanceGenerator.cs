@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Reloader.Core.Save.Modules;
+using SystemRandom = System.Random;
 
 namespace Reloader.NPCs.Generation
 {
@@ -26,7 +27,8 @@ namespace Reloader.NPCs.Generation
                 populationSlotId: string.Empty,
                 poolId: string.Empty,
                 areaTag: string.Empty,
-                isProtectedFromContracts: false);
+                isProtectedFromContracts: false,
+                reservedPublicDisplayNames: null);
         }
 
         public CivilianPopulationRecord GenerateRecord(
@@ -39,7 +41,8 @@ namespace Reloader.NPCs.Generation
             string populationSlotId,
             string poolId,
             string areaTag,
-            bool isProtectedFromContracts)
+            bool isProtectedFromContracts,
+            ISet<string> reservedPublicDisplayNames = null)
         {
             if (library == null)
             {
@@ -56,7 +59,7 @@ namespace Reloader.NPCs.Generation
                 throw new ArgumentException("Spawn anchor id is required.", nameof(spawnAnchorId));
             }
 
-            var random = new Random(seed);
+            var random = new SystemRandom(seed);
 
             if (MainTownCuratedAppearanceRules.IsCuratedStyleLibrary(library))
             {
@@ -70,19 +73,34 @@ namespace Reloader.NPCs.Generation
                     populationSlotId,
                     poolId,
                     areaTag,
-                    isProtectedFromContracts);
+                    isProtectedFromContracts,
+                    reservedPublicDisplayNames);
             }
+
+            var baseBodyId = PickRequired(library.BaseBodyIds, nameof(library.BaseBodyIds), random);
+            var presentationType = PickRequired(library.PresentationTypes, nameof(library.PresentationTypes), random);
+            CivilianPublicIdentityGenerator.Generate(
+                random,
+                baseBodyId,
+                presentationType,
+                reservedPublicDisplayNames,
+                out var firstName,
+                out var lastName,
+                out var nickname);
 
             return new CivilianPopulationRecord
             {
                 PopulationSlotId = populationSlotId?.Trim() ?? string.Empty,
                 PoolId = poolId?.Trim() ?? string.Empty,
                 CivilianId = civilianId.Trim(),
+                FirstName = firstName,
+                LastName = lastName,
+                Nickname = nickname,
                 IsAlive = true,
                 IsContractEligible = isContractEligible,
                 IsProtectedFromContracts = isProtectedFromContracts,
-                BaseBodyId = PickRequired(library.BaseBodyIds, nameof(library.BaseBodyIds), random),
-                PresentationType = PickRequired(library.PresentationTypes, nameof(library.PresentationTypes), random),
+                BaseBodyId = baseBodyId,
+                PresentationType = presentationType,
                 HairId = PickRequired(library.HairIds, nameof(library.HairIds), random),
                 HairColorId = PickRequired(library.HairColorIds, nameof(library.HairColorIds), random),
                 BeardId = PickRequired(library.BeardIds, nameof(library.BeardIds), random),
@@ -108,12 +126,21 @@ namespace Reloader.NPCs.Generation
             string populationSlotId,
             string poolId,
             string areaTag,
-            bool isProtectedFromContracts)
+            bool isProtectedFromContracts,
+            ISet<string> reservedPublicDisplayNames)
         {
             var baseBodyId = PickRequired(library.BaseBodyIds, nameof(library.BaseBodyIds), random);
             var presentationType = MainTownCuratedAppearanceRules.NormalizePresentationType(
                 baseBodyId,
                 PickRequired(library.PresentationTypes, nameof(library.PresentationTypes), random));
+            CivilianPublicIdentityGenerator.Generate(
+                random,
+                baseBodyId,
+                presentationType,
+                reservedPublicDisplayNames,
+                out var firstName,
+                out var lastName,
+                out var nickname);
 
             MainTownCuratedAppearanceRules.TryInferGender(baseBodyId, presentationType, out var gender);
 
@@ -137,6 +164,9 @@ namespace Reloader.NPCs.Generation
                 PopulationSlotId = populationSlotId?.Trim() ?? string.Empty,
                 PoolId = poolId?.Trim() ?? string.Empty,
                 CivilianId = civilianId.Trim(),
+                FirstName = firstName,
+                LastName = lastName,
+                Nickname = nickname,
                 IsAlive = true,
                 IsContractEligible = isContractEligible,
                 IsProtectedFromContracts = isProtectedFromContracts,
