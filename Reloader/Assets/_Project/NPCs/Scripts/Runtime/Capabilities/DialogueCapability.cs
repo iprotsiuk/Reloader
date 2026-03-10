@@ -75,9 +75,10 @@ namespace Reloader.NPCs.Runtime.Capabilities
                 return false;
             }
 
+            var speakerTransform = DialoguePresentationResolver.ResolveFocusTarget(_agent != null ? _agent.transform : transform);
             var request = new DialogueStartRequest(
                 _definition,
-                _agent != null ? _agent.transform : transform,
+                speakerTransform,
                 DialogueStartSourceKind.PlayerInteract,
                 context.Payload,
                 DialogueInterruptPolicy.DenyIfActive);

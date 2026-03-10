@@ -151,7 +151,7 @@ namespace Reloader.UI.Toolkit.Dialogue
             }
 
             var speakerText = conversation?.SpeakerTransform != null
-                ? conversation.SpeakerTransform.name
+                ? DialoguePresentationResolver.ResolveSpeakerDisplayName(conversation.SpeakerTransform)
                 : string.Empty;
 
             return new DialogueOverlayRenderState(

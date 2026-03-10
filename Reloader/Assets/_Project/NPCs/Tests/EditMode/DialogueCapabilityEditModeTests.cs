@@ -220,6 +220,48 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void TryExecuteAction_ProceduralCivilianUsesDedicatedDialogueFocusTarget()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            playerRoot.AddComponent<PlayerNpcInteractionController>();
+            var runtime = playerRoot.AddComponent<DialogueRuntimeController>();
+
+            var go = new GameObject("dialogue-agent");
+            go.transform.SetParent(playerRoot.transform);
+            var agent = go.AddComponent<NpcAgent>();
+            var civilian = go.AddComponent<MainTownPopulationSpawnedCivilian>();
+            var capability = go.AddComponent<DialogueCapability>();
+            civilian.Initialize(new Core.Save.Modules.CivilianPopulationRecord
+            {
+                CivilianId = "citizen.mainTown.0001",
+                FirstName = "Sonya",
+                LastName = "Novak",
+                PopulationSlotId = "townsfolk.001",
+                PoolId = "townsfolk",
+                SpawnAnchorId = "Anchor_A",
+                AreaTag = "maintown.square",
+                IsAlive = true,
+                IsContractEligible = true,
+                IsProtectedFromContracts = false
+            });
+
+            try
+            {
+                var executed = agent.TryExecuteAction(DialogueCapability.ActionKey, string.Empty, out var result);
+
+                Assert.That(executed, Is.True);
+                Assert.That(result.Success, Is.True);
+                Assert.That(runtime.HasActiveConversation, Is.True);
+                Assert.That(runtime.ActiveConversation.SpeakerTransform, Is.Not.EqualTo(go.transform));
+                Assert.That(runtime.ActiveConversation.SpeakerTransform.name, Is.EqualTo("DialogueFocusTarget"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(playerRoot);
+            }
+        }
+
+        [Test]
         public void TryExecuteAction_PoliceConversationAlreadyActive_ReturnsExplicitOverlapFailure()
         {
             var playerRoot = new GameObject("PlayerRoot");

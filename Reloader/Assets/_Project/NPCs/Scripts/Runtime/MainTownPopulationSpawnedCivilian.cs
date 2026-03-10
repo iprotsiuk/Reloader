@@ -6,8 +6,11 @@ using UnityEngine;
 
 namespace Reloader.NPCs.Runtime
 {
-    public sealed class MainTownPopulationSpawnedCivilian : MonoBehaviour
+    public sealed class MainTownPopulationSpawnedCivilian : MonoBehaviour, IDialoguePresentationProvider
     {
+        private const string AmbientGreetingLine = "Nice weather today.";
+        private const string DialogueFocusTargetName = "DialogueFocusTarget";
+
         [SerializeField] private string _civilianId = string.Empty;
         [SerializeField] private string _firstName = string.Empty;
         [SerializeField] private string _lastName = string.Empty;
@@ -19,6 +22,7 @@ namespace Reloader.NPCs.Runtime
         [SerializeField] private string _areaTag = string.Empty;
 
         private DialogueDefinition _runtimeDialogueDefinition;
+        private Transform _dialogueFocusTarget;
 
         public string CivilianId => _civilianId;
         public string FirstName => _firstName;
@@ -29,6 +33,7 @@ namespace Reloader.NPCs.Runtime
         public string PoolId => _poolId;
         public string SpawnAnchorId => _spawnAnchorId;
         public string AreaTag => _areaTag;
+        public string DialogueSpeakerDisplayName => _publicDisplayName;
 
         public void Initialize(CivilianPopulationRecord record)
         {
@@ -42,10 +47,17 @@ namespace Reloader.NPCs.Runtime
             _spawnAnchorId = record?.SpawnAnchorId ?? string.Empty;
             _areaTag = record?.AreaTag ?? string.Empty;
 
+            EnsureDialogueFocusTarget(record);
+
             var appearanceApplicator = GetComponent<MainTownNpcAppearanceApplicator>();
             appearanceApplicator?.Apply(record);
 
             ConfigureRuntimeDialogue(record);
+        }
+
+        public Transform ResolveDialogueFocusTarget()
+        {
+            return _dialogueFocusTarget != null ? _dialogueFocusTarget : transform;
         }
 
         private void OnDestroy()
@@ -79,10 +91,9 @@ namespace Reloader.NPCs.Runtime
         {
             var definition = ScriptableObject.CreateInstance<DialogueDefinition>();
             var safeId = string.IsNullOrWhiteSpace(record?.CivilianId) ? "unknown" : record.CivilianId.Trim();
-            var safeDisplayName = string.IsNullOrWhiteSpace(publicDisplayName) ? safeId : publicDisplayName.Trim();
             var entryNode = new DialogueNodeDefinition(
                 "entry",
-                BuildIdentityLine(safeDisplayName),
+                BuildAmbientLine(),
                 new[]
                 {
                     new DialogueReplyDefinition("reply.leave", "Alright.", string.Empty, string.Empty, string.Empty)
@@ -94,11 +105,34 @@ namespace Reloader.NPCs.Runtime
             return definition;
         }
 
-        private static string BuildIdentityLine(string publicDisplayName)
+        private void EnsureDialogueFocusTarget(CivilianPopulationRecord record)
         {
-            return string.IsNullOrWhiteSpace(publicDisplayName)
-                ? "Yeah?"
-                : $"I'm {publicDisplayName}.";
+            _dialogueFocusTarget = transform.Find(DialogueFocusTargetName);
+            if (_dialogueFocusTarget == null)
+            {
+                var focusTarget = new GameObject(DialogueFocusTargetName);
+                _dialogueFocusTarget = focusTarget.transform;
+                _dialogueFocusTarget.SetParent(transform, false);
+            }
+
+            _dialogueFocusTarget.localPosition = new Vector3(0f, ResolveDialogueFocusHeight(record), 0.08f);
+            _dialogueFocusTarget.localRotation = Quaternion.identity;
+            _dialogueFocusTarget.localScale = Vector3.one;
+        }
+
+        private static float ResolveDialogueFocusHeight(CivilianPopulationRecord record)
+        {
+            if (record != null && Generation.MainTownCuratedAppearanceRules.TryInferGender(record.BaseBodyId, record.PresentationType, out var gender))
+            {
+                return gender == Generation.MainTownAppearanceGender.Female ? 1.52f : 1.6f;
+            }
+
+            return 1.56f;
+        }
+
+        private static string BuildAmbientLine()
+        {
+            return AmbientGreetingLine;
         }
 
         private static void SetPrivateField(object target, string fieldName, object value)

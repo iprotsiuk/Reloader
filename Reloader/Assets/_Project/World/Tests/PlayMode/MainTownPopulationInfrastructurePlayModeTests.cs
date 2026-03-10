@@ -282,7 +282,64 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(interactionResult.ActionKey, Is.EqualTo(DialogueCapability.ActionKey));
             Assert.That(runtime, Is.Not.Null, "Expected player host dialogue runtime after civilian interaction.");
             Assert.That(runtime!.HasActiveConversation, Is.True, "Expected spawned civilian dialogue to open on E press.");
-            Assert.That(runtime.ActiveConversation.CurrentNode.SpeakerText, Does.Contain(targetCivilian.PublicDisplayName));
+            Assert.That(runtime.ActiveConversation.CurrentNode.SpeakerText, Is.EqualTo("Nice weather today."));
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownPopulationRuntime_EachSpawnedCivilian_AllowsTalkInteractionWhenTargeted()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var root = GameObject.Find("MainTownPopulationRuntime");
+            Assert.That(root, Is.Not.Null, "Expected authored MainTown population runtime root.");
+
+            var spawned = root!.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            Assert.That(spawned.Length, Is.GreaterThan(0), "Expected starter population civilians in MainTown.");
+
+            var playerRoot = GameObject.Find("PlayerRoot");
+            Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot in MainTown.");
+
+            var interactionController = playerRoot!.GetComponent<PlayerNpcInteractionController>();
+            var resolver = playerRoot.GetComponent<PlayerNpcResolver>();
+            var playerCamera = playerRoot.GetComponentInChildren<Camera>(includeInactive: true);
+            Assert.That(interactionController, Is.Not.Null);
+            Assert.That(resolver, Is.Not.Null);
+            Assert.That(playerCamera, Is.Not.Null);
+
+            var input = playerRoot.AddComponent<TestInputSource>();
+            interactionController!.Configure(input, resolver!);
+
+            var runtime = playerRoot.GetComponent<DialogueRuntimeController>();
+            if (runtime == null)
+            {
+                runtime = playerRoot.AddComponent<DialogueRuntimeController>();
+            }
+
+            for (var i = 0; i < spawned.Length; i++)
+            {
+                var civilian = spawned[i];
+                runtime.CloseConversation("test.reset");
+
+                var targetPoint = civilian.transform.position + Vector3.up * 1.35f;
+                var cameraOffset = playerCamera!.transform.position - playerRoot.transform.position;
+                playerRoot.transform.position = targetPoint - (Vector3.forward * 2f) - cameraOffset;
+                playerCamera.transform.LookAt(targetPoint);
+                Physics.SyncTransforms();
+
+                Assert.That(interactionController.TryGetInteractionCandidate(out var candidate), Is.True,
+                    $"Expected interaction candidate for {civilian.PublicDisplayName}.");
+                Assert.That(candidate.ActionText, Is.EqualTo("Talk"));
+                Assert.That(candidate.SubjectText, Is.EqualTo(civilian.PublicDisplayName));
+
+                input.PickupPressedThisFrame = true;
+                interactionController.Tick();
+                yield return null;
+
+                Assert.That(runtime.HasActiveConversation, Is.True,
+                    $"Expected dialogue to open for {civilian.PublicDisplayName}.");
+                Assert.That(runtime.ActiveConversation.CurrentNode.SpeakerText, Is.Not.Empty);
+            }
         }
 
         [UnityTest]

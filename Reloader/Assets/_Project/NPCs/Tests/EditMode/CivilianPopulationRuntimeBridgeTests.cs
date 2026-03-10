@@ -272,7 +272,7 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
-        public void RebuildScenePopulation_WhenCivilianSpawns_AssignsRuntimeDialogueThatConfirmsPublicName()
+        public void RebuildScenePopulation_WhenCivilianSpawns_AssignsRuntimeDialogueWithGenericAmbientLine()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");
             var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
@@ -311,7 +311,7 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(capability!.Definition, Is.Not.Null, "Expected spawned civilians to receive a runtime-generated dialogue definition.");
                 Assert.That(capability.Definition.IsValid(out _), Is.True, "Expected runtime-generated civilian dialogue definitions to be valid.");
                 Assert.That(capability.Definition.TryGetEntryNode(out var entryNode), Is.True);
-                Assert.That(entryNode.SpeakerText, Does.Contain("Sonya Novak"));
+                Assert.That(entryNode.SpeakerText, Is.EqualTo("Nice weather today."));
 
                 var actions = spawned[0].GetComponent<NpcAgent>()!.CollectActions();
                 Assert.That(actions.Any(action => action.ActionId == DialogueCapability.ActionKey), Is.True,
