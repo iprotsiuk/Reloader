@@ -14,7 +14,6 @@ namespace Reloader.NPCs.Runtime
         private const string DialogueFocusAnchorName = "DialogueFocusAnchorRuntime";
         private const string DialogueFaceAnchorName = "DialogueFaceAnchorRuntime";
         private static readonly Vector3 DialogueHeadAnchorOffset = new(0f, -0.24f, 0f);
-        private const float DialogueHeadForwardOffset = 0.08f;
 
         private enum AppearanceSource
         {
@@ -163,21 +162,7 @@ namespace Reloader.NPCs.Runtime
                 anchor.SetParent(activeRoot, worldPositionStays: false);
             }
 
-            var faceForward = Vector3.ProjectOnPlane(headBone.forward, Vector3.up);
-            if (faceForward.sqrMagnitude < 0.0001f)
-            {
-                faceForward = Vector3.ProjectOnPlane(activeRoot.forward, Vector3.up);
-            }
-
-            if (faceForward.sqrMagnitude < 0.0001f)
-            {
-                faceForward = Vector3.forward;
-            }
-
-            faceForward.Normalize();
-            var anchorWorldPosition = headBone.position
-                + DialogueHeadAnchorOffset
-                + (faceForward * DialogueHeadForwardOffset);
+            var anchorWorldPosition = headBone.position + DialogueHeadAnchorOffset;
             anchor.position = anchorWorldPosition;
             anchor.rotation = activeRoot.rotation;
             anchor.localScale = Vector3.one;

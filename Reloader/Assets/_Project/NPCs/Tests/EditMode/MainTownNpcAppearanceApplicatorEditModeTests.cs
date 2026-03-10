@@ -381,7 +381,7 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
-        public void ResolveDialogueFocusAnchor_WhenHeadBoneExists_CreatesForwardBiasedFaceAnchor()
+        public void ResolveDialogueFocusAnchor_WhenHeadBoneExists_CreatesHeadAnchoredFaceTarget()
         {
             var root = new GameObject("Npc");
             var visualRoot = new GameObject("VisualRoot").transform;
@@ -406,40 +406,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(anchor, Is.Not.Null, "Expected head-bone framing to produce a runtime face anchor.");
                 Assert.That(anchor!.name, Is.EqualTo("DialogueFaceAnchorRuntime"));
                 Assert.That(anchor.position.y, Is.EqualTo(headBone.position.y - 0.24f).Within(0.001f), "Expected face anchor to sit 0.3 units lower than the prior head-bone framing offset.");
-                Assert.That(anchor.position.x, Is.GreaterThan(headBone.position.x), "Expected face anchor to bias forward from the head along the presentation forward axis.");
-            }
-            finally
-            {
-                Object.DestroyImmediate(root);
-            }
-        }
-
-        [Test]
-        public void ResolveDialogueFocusAnchor_WhenHeadForwardDiffersFromBody_UsesHeadFacingDirection()
-        {
-            var root = new GameObject("Npc");
-            var visualRoot = new GameObject("VisualRoot").transform;
-            visualRoot.SetParent(root.transform, false);
-            var maleRoot = new GameObject("StyleMaleRoot").transform;
-            maleRoot.SetParent(visualRoot, false);
-            maleRoot.rotation = Quaternion.Euler(0f, 90f, 0f);
-            var applicator = root.AddComponent<MainTownNpcAppearanceApplicator>();
-            var headBone = new GameObject("HeadBone").transform;
-            headBone.SetParent(maleRoot, false);
-            headBone.position = new Vector3(1f, 1.6f, 2f);
-            headBone.localRotation = Quaternion.Euler(0f, -90f, 0f);
-
-            try
-            {
-                var method = typeof(MainTownNpcAppearanceApplicator).GetMethod(
-                    "ResolveHeadBoneDialogueFocusAnchor",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
-                Assert.That(method, Is.Not.Null);
-
-                var anchor = method!.Invoke(applicator, new object[] { headBone, maleRoot }) as Transform;
-
-                Assert.That(anchor, Is.Not.Null);
-                Assert.That(anchor!.position.z, Is.GreaterThan(headBone.position.z + 0.04f), "Expected face anchor to bias forward from the head's facing direction when it differs from the body root.");
+                Assert.That(anchor.position.x, Is.EqualTo(headBone.position.x).Within(0.001f), "Expected head-anchored dialogue target to avoid shifting sideways from the head position.");
+                Assert.That(anchor.position.z, Is.EqualTo(headBone.position.z).Within(0.001f), "Expected head-anchored dialogue target to stay inside the face plane rather than pushing in front of the NPC.");
             }
             finally
             {
