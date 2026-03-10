@@ -711,7 +711,7 @@ namespace Reloader.NPCs.Runtime
                 title: "MainTown Contract",
                 targetDisplayName: BuildPublicDisplayName(target),
                 targetDescription: BuildProceduralTargetDescription(target),
-                briefingText: "Locate and eliminate the live procedural target in MainTown.",
+                briefingText: BuildProceduralBriefingText(target),
                 distanceBand: ProceduralContractTargetDistanceMeters,
                 payout: ProceduralContractPayout);
 
@@ -835,6 +835,33 @@ namespace Reloader.NPCs.Runtime
             }
 
             return record.AreaTag ?? string.Empty;
+        }
+
+        private static string BuildProceduralBriefingText(CivilianPopulationRecord record)
+        {
+            if (record == null)
+            {
+                return "Locate and eliminate the live procedural target in MainTown.";
+            }
+
+            var roleLabel = DescribeContractRole(record.PoolId);
+            var locationLabel = DescribeContractLocation(record.AreaTag);
+            if (!string.IsNullOrWhiteSpace(roleLabel) && !string.IsNullOrWhiteSpace(locationLabel))
+            {
+                return $"Contractor notes: {roleLabel}, usually found around {locationLabel}. Confirm the visual match before taking the shot.";
+            }
+
+            if (!string.IsNullOrWhiteSpace(roleLabel))
+            {
+                return $"Contractor notes: {roleLabel}. Confirm the visual match before taking the shot.";
+            }
+
+            if (!string.IsNullOrWhiteSpace(locationLabel))
+            {
+                return $"Contractor notes: usually found around {locationLabel}. Confirm the visual match before taking the shot.";
+            }
+
+            return "Locate and eliminate the live procedural target in MainTown.";
         }
 
         private static void AddUniqueClue(List<string> clues, string clue)
@@ -1137,6 +1164,64 @@ namespace Reloader.NPCs.Runtime
             }
 
             return string.Concat(firstName, " ", lastName);
+        }
+
+        private static string DescribeContractRole(string poolId)
+        {
+            var normalized = NormalizeIdentifier(poolId);
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                return string.Empty;
+            }
+
+            return normalized switch
+            {
+                "townsfolk" => "local resident",
+                "quarry workers" => "quarry worker",
+                "hobos" => "drifter",
+                "cops" => "police officer",
+                _ => normalized
+            };
+        }
+
+        private static string DescribeContractLocation(string areaTag)
+        {
+            var normalized = NormalizeIdentifier(areaTag);
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                return string.Empty;
+            }
+
+            return normalized switch
+            {
+                "maintown square" => "the town square",
+                "maintown watch" => "the watch post",
+                "maintown alley" => "the alleys",
+                "quarry" => "the quarry",
+                _ when normalized.StartsWith("maintown ", StringComparison.Ordinal) => string.Concat("the ", normalized.Substring("maintown ".Length)),
+                _ => string.Concat("the ", normalized)
+            };
+        }
+
+        private static string NormalizeIdentifier(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            var parts = value.Split(new[] { '.', '_', '-' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            for (var i = 0; i < parts.Length; i++)
+            {
+                parts[i] = parts[i].Trim().ToLowerInvariant();
+            }
+
+            return string.Join(" ", parts);
         }
 
         private HashSet<string> CollectReservedPublicDisplayNames()

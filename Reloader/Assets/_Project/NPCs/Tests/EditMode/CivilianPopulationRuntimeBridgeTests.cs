@@ -459,6 +459,64 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void RebuildScenePopulation_WhenProceduralOfferIsPublished_DerivesBriefingTextFromPoolAndArea()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            CreateAnchor(bridgeGo.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0203",
+                    FirstName = "Derek",
+                    LastName = "Mullen",
+                    PopulationSlotId = "quarry.worker.003",
+                    PoolId = "quarry_workers",
+                    SpawnAnchorId = "Anchor_A",
+                    AreaTag = "quarry",
+                    IsAlive = true,
+                    IsContractEligible = true,
+                    IsProtectedFromContracts = false,
+                    BaseBodyId = "male.body",
+                    PresentationType = "masculine",
+                    HairId = "hair.short",
+                    HairColorId = "hair.black",
+                    BeardId = "beard.full",
+                    OutfitTopId = "top.coat.01",
+                    OutfitBottomId = "pants1",
+                    OuterwearId = "outer.gray.coat",
+                    MaterialColorIds = new List<string> { "color.gray" },
+                    GeneratedDescriptionTags = new List<string> { "stale placeholder text should not win" },
+                    CreatedAtDay = 4,
+                    RetiredAtDay = -1
+                });
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True, "Expected rebuild to publish a procedural contract offer.");
+                Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0203"));
+                Assert.That(snapshot.BriefingText, Is.EqualTo("Contractor notes: quarry worker, usually found around the quarry. Confirm the visual match before taking the shot."));
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
         public void RebuildScenePopulation_WhenMultipleEligibleCiviliansExist_OnlyOfferedCivilianGetsContractTargetDamageable()
         {
             var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
