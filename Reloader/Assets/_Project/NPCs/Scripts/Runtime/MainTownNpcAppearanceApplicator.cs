@@ -13,7 +13,8 @@ namespace Reloader.NPCs.Runtime
     {
         private const string DialogueFocusAnchorName = "DialogueFocusAnchorRuntime";
         private const string DialogueFaceAnchorName = "DialogueFaceAnchorRuntime";
-        private static readonly Vector3 DialogueHeadAnchorOffset = new(0f, -0.24f, 0f);
+        private const string MaleStyleRootName = "StyleMaleRoot";
+        private const string FemaleStyleRootName = "StyleFemaleRoot";
 
         private enum AppearanceSource
         {
@@ -21,6 +22,9 @@ namespace Reloader.NPCs.Runtime
             ContextualSeed,
             ExplicitRecord
         }
+
+        [SerializeField] private Vector3 _maleDialogueFaceLocalPoint = new(0f, 1.6f, 0.04f);
+        [SerializeField] private Vector3 _femaleDialogueFaceLocalPoint = new(0f, 1.54f, 0.04f);
 
         private static readonly IReadOnlyDictionary<string, string> MaleHairObjectNames = new Dictionary<string, string>
         {
@@ -135,26 +139,39 @@ namespace Reloader.NPCs.Runtime
                 return null;
             }
 
-            var animator = activeRoot.GetComponent<Animator>();
-            if (animator != null && animator.isHuman)
+            if (TryResolveSharedDialogueFaceLocalPoint(activeRoot, out var localFacePoint))
             {
-                var headBone = animator.GetBoneTransform(HumanBodyBones.Head);
-                if (headBone != null)
-                {
-                    return ResolveHeadBoneDialogueFocusAnchor(headBone, activeRoot);
-                }
+                return ResolveSharedDialogueFaceAnchor(activeRoot, localFacePoint);
             }
 
             return ResolveBoundsDialogueFocusAnchor(activeRoot);
         }
 
-        private Transform ResolveHeadBoneDialogueFocusAnchor(Transform headBone, Transform activeRoot)
+        private bool TryResolveSharedDialogueFaceLocalPoint(Transform activeRoot, out Vector3 localFacePoint)
         {
-            if (headBone == null || activeRoot == null)
+            localFacePoint = default;
+            if (activeRoot == null)
             {
-                return null;
+                return false;
             }
 
+            if (string.Equals(activeRoot.name, MaleStyleRootName, StringComparison.Ordinal))
+            {
+                localFacePoint = _maleDialogueFaceLocalPoint;
+                return true;
+            }
+
+            if (string.Equals(activeRoot.name, FemaleStyleRootName, StringComparison.Ordinal))
+            {
+                localFacePoint = _femaleDialogueFaceLocalPoint;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static Transform ResolveSharedDialogueFaceAnchor(Transform activeRoot, Vector3 localFacePoint)
+        {
             var anchor = activeRoot.Find(DialogueFaceAnchorName);
             if (anchor == null)
             {
@@ -162,8 +179,7 @@ namespace Reloader.NPCs.Runtime
                 anchor.SetParent(activeRoot, worldPositionStays: false);
             }
 
-            var anchorWorldPosition = headBone.position + DialogueHeadAnchorOffset;
-            anchor.position = anchorWorldPosition;
+            anchor.localPosition = localFacePoint;
             anchor.rotation = activeRoot.rotation;
             anchor.localScale = Vector3.one;
             return anchor;
