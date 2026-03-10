@@ -814,6 +814,16 @@ namespace Reloader.NPCs.Runtime
                 return string.Empty;
             }
 
+            var clues = new List<string>(4);
+            AddUniqueClue(clues, TryDescribeSex(record));
+            AddUniqueClue(clues, TryDescribeClothing(record));
+            AddUniqueClue(clues, TryDescribeHair(record));
+            AddUniqueClue(clues, TryDescribeBeard(record));
+            if (clues.Count >= 2)
+            {
+                return string.Join(", ", clues);
+            }
+
             if (record.GeneratedDescriptionTags != null && record.GeneratedDescriptionTags.Count > 0)
             {
                 return string.Join(", ", record.GeneratedDescriptionTags);
@@ -825,6 +835,281 @@ namespace Reloader.NPCs.Runtime
             }
 
             return record.AreaTag ?? string.Empty;
+        }
+
+        private static void AddUniqueClue(List<string> clues, string clue)
+        {
+            if (clues == null || string.IsNullOrWhiteSpace(clue))
+            {
+                return;
+            }
+
+            if (!clues.Contains(clue))
+            {
+                clues.Add(clue);
+            }
+        }
+
+        private static string TryDescribeSex(CivilianPopulationRecord record)
+        {
+            if (record == null)
+            {
+                return string.Empty;
+            }
+
+            return MainTownCuratedAppearanceRules.TryInferGender(record.BaseBodyId, record.PresentationType, out var gender)
+                ? gender == MainTownAppearanceGender.Female ? "female" : "male"
+                : string.Empty;
+        }
+
+        private static string TryDescribeClothing(CivilianPopulationRecord record)
+        {
+            if (record == null)
+            {
+                return string.Empty;
+            }
+
+            var outerwearId = MainTownCuratedAppearanceRules.NormalizeOuterwearId(record.OuterwearId);
+            var garmentSource = !string.IsNullOrWhiteSpace(outerwearId) ? outerwearId : record.OutfitTopId;
+            var garment = DescribeGarment(garmentSource);
+            if (string.IsNullOrWhiteSpace(garment))
+            {
+                return string.Empty;
+            }
+
+            var color = FirstRecognizedColor(record.MaterialColorIds);
+            if (string.IsNullOrWhiteSpace(color))
+            {
+                color = RecognizeColorFromToken(outerwearId);
+            }
+
+            if (string.IsNullOrWhiteSpace(color))
+            {
+                color = RecognizeColorFromToken(record.OutfitTopId);
+            }
+
+            return string.IsNullOrWhiteSpace(color)
+                ? garment
+                : string.Concat(color, " ", garment);
+        }
+
+        private static string TryDescribeHair(CivilianPopulationRecord record)
+        {
+            if (record == null)
+            {
+                return string.Empty;
+            }
+
+            var hairId = record.HairId?.Trim() ?? string.Empty;
+            var hairColor = RecognizeColorFromToken(record.HairColorId);
+            if (ContainsToken(hairId, "long"))
+            {
+                return string.IsNullOrWhiteSpace(hairColor) ? "long hair" : string.Concat("long ", hairColor, " hair");
+            }
+
+            if (ContainsToken(hairId, "short"))
+            {
+                return string.IsNullOrWhiteSpace(hairColor) ? "short hair" : string.Concat("short ", hairColor, " hair");
+            }
+
+            if (ContainsToken(hairId, "bob"))
+            {
+                return string.IsNullOrWhiteSpace(hairColor) ? "bob haircut" : string.Concat(hairColor, " bob haircut");
+            }
+
+            if (ContainsToken(hairId, "wavy"))
+            {
+                return string.IsNullOrWhiteSpace(hairColor) ? "wavy hair" : string.Concat(hairColor, " wavy hair");
+            }
+
+            if (ContainsToken(hairId, "parted"))
+            {
+                return string.IsNullOrWhiteSpace(hairColor) ? "parted hair" : string.Concat(hairColor, " parted hair");
+            }
+
+            if (ContainsToken(hairId, "swept"))
+            {
+                return string.IsNullOrWhiteSpace(hairColor) ? "swept hair" : string.Concat(hairColor, " swept hair");
+            }
+
+            return string.IsNullOrWhiteSpace(hairColor) ? string.Empty : string.Concat(hairColor, " hair");
+        }
+
+        private static string TryDescribeBeard(CivilianPopulationRecord record)
+        {
+            if (record == null || !MainTownCuratedAppearanceRules.IsMaleBeardId(record.BeardId))
+            {
+                return string.Empty;
+            }
+
+            var beardId = record.BeardId?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(beardId))
+            {
+                return string.Empty;
+            }
+
+            var beardNumber = ExtractTrailingNumber(beardId);
+            if (beardNumber <= 0)
+            {
+                return "beard";
+            }
+
+            if (beardNumber <= 3)
+            {
+                return "trim beard";
+            }
+
+            if (beardNumber <= 6)
+            {
+                return "short beard";
+            }
+
+            if (beardNumber <= 8)
+            {
+                return "thick beard";
+            }
+
+            return "full beard";
+        }
+
+        private static int ExtractTrailingNumber(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return 0;
+            }
+
+            var end = value.Length - 1;
+            while (end >= 0 && char.IsDigit(value[end]))
+            {
+                end--;
+            }
+
+            if (end == value.Length - 1)
+            {
+                return 0;
+            }
+
+            return int.TryParse(value.Substring(end + 1), out var parsed) ? parsed : 0;
+        }
+
+        private static string DescribeGarment(string garmentId)
+        {
+            if (string.IsNullOrWhiteSpace(garmentId))
+            {
+                return string.Empty;
+            }
+
+            if (ContainsToken(garmentId, "openjacket"))
+            {
+                return "open jacket";
+            }
+
+            if (ContainsToken(garmentId, "hoody") || ContainsToken(garmentId, "hoodie"))
+            {
+                return "hoodie";
+            }
+
+            if (ContainsToken(garmentId, "jacket"))
+            {
+                return "jacket";
+            }
+
+            if (ContainsToken(garmentId, "coat"))
+            {
+                return "coat";
+            }
+
+            if (ContainsToken(garmentId, "tshirt") || ContainsToken(garmentId, "shirt"))
+            {
+                return "t-shirt";
+            }
+
+            return string.Empty;
+        }
+
+        private static string FirstRecognizedColor(List<string> values)
+        {
+            if (values == null)
+            {
+                return string.Empty;
+            }
+
+            for (var i = 0; i < values.Count; i++)
+            {
+                var color = RecognizeColorFromToken(values[i]);
+                if (!string.IsNullOrWhiteSpace(color))
+                {
+                    return color;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private static string RecognizeColorFromToken(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            if (ContainsToken(value, "black"))
+            {
+                return "black";
+            }
+
+            if (ContainsToken(value, "brown"))
+            {
+                return "brown";
+            }
+
+            if (ContainsToken(value, "gray") || ContainsToken(value, "grey"))
+            {
+                return "gray";
+            }
+
+            if (ContainsToken(value, "red"))
+            {
+                return "red";
+            }
+
+            if (ContainsToken(value, "blue"))
+            {
+                return "blue";
+            }
+
+            if (ContainsToken(value, "green"))
+            {
+                return "green";
+            }
+
+            if (ContainsToken(value, "blonde") || ContainsToken(value, "blond"))
+            {
+                return "blonde";
+            }
+
+            if (ContainsToken(value, "white"))
+            {
+                return "white";
+            }
+
+            if (ContainsToken(value, "dark"))
+            {
+                return "dark";
+            }
+
+            return string.Empty;
+        }
+
+        private static bool ContainsToken(string value, string token)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.IsNullOrWhiteSpace(token))
+            {
+                return false;
+            }
+
+            return value.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static string BuildPublicDisplayName(CivilianPopulationRecord record)

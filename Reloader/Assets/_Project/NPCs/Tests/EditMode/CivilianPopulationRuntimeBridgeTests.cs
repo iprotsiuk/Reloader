@@ -401,6 +401,64 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void RebuildScenePopulation_WhenProceduralOfferIsPublished_DerivesTargetDescriptionFromPersistedAppearanceFields()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            CreateAnchor(bridgeGo.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0202",
+                    FirstName = "Nadia",
+                    LastName = "Kozak",
+                    PopulationSlotId = "townsfolk.202",
+                    PoolId = "townsfolk",
+                    SpawnAnchorId = "Anchor_A",
+                    AreaTag = "maintown.square",
+                    IsAlive = true,
+                    IsContractEligible = true,
+                    IsProtectedFromContracts = false,
+                    BaseBodyId = "female.body",
+                    PresentationType = "feminine",
+                    HairId = "hair.long",
+                    HairColorId = "hair.brown",
+                    BeardId = "beard.none",
+                    OutfitTopId = "tshirt1",
+                    OutfitBottomId = "pants1",
+                    OuterwearId = "hoody",
+                    MaterialColorIds = new List<string> { "color.red" },
+                    GeneratedDescriptionTags = new List<string> { "old tag should not win" },
+                    CreatedAtDay = 4,
+                    RetiredAtDay = -1
+                });
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True, "Expected rebuild to publish a procedural contract offer.");
+                Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0202"));
+                Assert.That(snapshot.TargetDescription, Is.EqualTo("female, red hoodie, long brown hair"));
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
         public void RebuildScenePopulation_WhenMultipleEligibleCiviliansExist_OnlyOfferedCivilianGetsContractTargetDamageable()
         {
             var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
