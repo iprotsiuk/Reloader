@@ -272,6 +272,58 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void RebuildScenePopulation_WhenCivilianSpawns_AssignsRuntimeDialogueThatConfirmsPublicName()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.0044",
+                    FirstName = "Sonya",
+                    LastName = "Novak",
+                    PopulationSlotId = "townsfolk.044",
+                    PoolId = "townsfolk",
+                    SpawnAnchorId = "Anchor_A",
+                    AreaTag = "maintown.square",
+                    IsAlive = true,
+                    IsContractEligible = true,
+                    IsProtectedFromContracts = false
+                });
+
+                bridge.RebuildScenePopulation();
+
+                var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(spawned.Length, Is.EqualTo(1));
+
+                var capability = spawned[0].GetComponent<DialogueCapability>();
+                Assert.That(capability, Is.Not.Null, "Expected spawned civilians to expose the Talk interaction.");
+                Assert.That(capability!.Definition, Is.Not.Null, "Expected spawned civilians to receive a runtime-generated dialogue definition.");
+                Assert.That(capability.Definition.IsValid(out _), Is.True, "Expected runtime-generated civilian dialogue definitions to be valid.");
+                Assert.That(capability.Definition.TryGetEntryNode(out var entryNode), Is.True);
+                Assert.That(entryNode.SpeakerText, Does.Contain("Sonya Novak"));
+
+                var actions = spawned[0].GetComponent<NpcAgent>()!.CollectActions();
+                Assert.That(actions.Any(action => action.ActionId == DialogueCapability.ActionKey), Is.True,
+                    "Expected spawned civilians to publish the Talk action after runtime dialogue binding.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void RebuildScenePopulation_WhenProceduralOfferIsPublished_AddsContractTargetDamageableOnlyToOfferedCivilian()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");

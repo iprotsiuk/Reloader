@@ -1,3 +1,6 @@
+using Reloader.NPCs.Data;
+using Reloader.NPCs.Runtime.Capabilities;
+using Reloader.NPCs.Runtime.Dialogue;
 using Reloader.Core.Save.Modules;
 using UnityEngine;
 
@@ -14,6 +17,8 @@ namespace Reloader.NPCs.Runtime
         [SerializeField] private string _poolId = string.Empty;
         [SerializeField] private string _spawnAnchorId = string.Empty;
         [SerializeField] private string _areaTag = string.Empty;
+
+        private DialogueDefinition _runtimeDialogueDefinition;
 
         public string CivilianId => _civilianId;
         public string FirstName => _firstName;
@@ -39,6 +44,70 @@ namespace Reloader.NPCs.Runtime
 
             var appearanceApplicator = GetComponent<MainTownNpcAppearanceApplicator>();
             appearanceApplicator?.Apply(record);
+
+            ConfigureRuntimeDialogue(record);
+        }
+
+        private void OnDestroy()
+        {
+            if (_runtimeDialogueDefinition != null)
+            {
+                DestroyImmediate(_runtimeDialogueDefinition);
+                _runtimeDialogueDefinition = null;
+            }
+        }
+
+        private void ConfigureRuntimeDialogue(CivilianPopulationRecord record)
+        {
+            var capability = GetComponent<DialogueCapability>();
+            if (capability == null)
+            {
+                return;
+            }
+
+            if (_runtimeDialogueDefinition != null)
+            {
+                DestroyImmediate(_runtimeDialogueDefinition);
+                _runtimeDialogueDefinition = null;
+            }
+
+            _runtimeDialogueDefinition = BuildRuntimeDialogueDefinition(record, _publicDisplayName);
+            capability.ConfigureRuntimeDefinition(_runtimeDialogueDefinition, "Talk");
+        }
+
+        private static DialogueDefinition BuildRuntimeDialogueDefinition(CivilianPopulationRecord record, string publicDisplayName)
+        {
+            var definition = ScriptableObject.CreateInstance<DialogueDefinition>();
+            var safeId = string.IsNullOrWhiteSpace(record?.CivilianId) ? "unknown" : record.CivilianId.Trim();
+            var safeDisplayName = string.IsNullOrWhiteSpace(publicDisplayName) ? safeId : publicDisplayName.Trim();
+            var entryNode = new DialogueNodeDefinition(
+                "entry",
+                BuildIdentityLine(safeDisplayName),
+                new[]
+                {
+                    new DialogueReplyDefinition("reply.leave", "Alright.", string.Empty, string.Empty, string.Empty)
+                });
+
+            SetPrivateField(definition, "_dialogueId", $"dialogue.procedural.{safeId}");
+            SetPrivateField(definition, "_entryNodeId", "entry");
+            SetPrivateField(definition, "_nodes", new[] { entryNode });
+            return definition;
+        }
+
+        private static string BuildIdentityLine(string publicDisplayName)
+        {
+            return string.IsNullOrWhiteSpace(publicDisplayName)
+                ? "Yeah?"
+                : $"I'm {publicDisplayName}.";
+        }
+
+        private static void SetPrivateField(object target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(fieldName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            if (field != null)
+            {
+                field.SetValue(target, value);
+            }
         }
 
         private static string BuildPublicDisplayName(CivilianPopulationRecord record)

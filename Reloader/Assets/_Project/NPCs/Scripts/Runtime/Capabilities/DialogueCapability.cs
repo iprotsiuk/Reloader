@@ -34,6 +34,15 @@ namespace Reloader.NPCs.Runtime.Capabilities
             _agent = null;
         }
 
+        public void ConfigureRuntimeDefinition(DialogueDefinition definition, string displayName = null)
+        {
+            _definition = definition;
+            if (!string.IsNullOrWhiteSpace(displayName))
+            {
+                _displayName = displayName;
+            }
+        }
+
         public NpcActionDefinition[] GetActions()
         {
             if (!HasValidDefinition())

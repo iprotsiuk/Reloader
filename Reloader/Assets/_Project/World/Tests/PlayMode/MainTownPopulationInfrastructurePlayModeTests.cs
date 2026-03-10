@@ -9,6 +9,7 @@ using Reloader.Core.Save;
 using Reloader.Core.Save.IO;
 using Reloader.Core.Save.Modules;
 using Reloader.NPCs.Runtime;
+using Reloader.NPCs.Runtime.Capabilities;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -98,6 +99,19 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(metadata.All(component => component.GetComponent<MainTownNpcAppearanceApplicator>() != null),
                 Is.True,
                 "Expected starter civilians to instantiate the authored NPC actor prefab instead of ad-hoc shell objects.");
+            Assert.That(metadata.All(component => component.GetComponent<DialogueCapability>() != null),
+                Is.True,
+                "Expected every spawned civilian to expose runtime dialogue.");
+            Assert.That(metadata.All(component =>
+            {
+                var capability = component.GetComponent<DialogueCapability>();
+                return capability != null
+                    && capability.Definition != null
+                    && capability.Definition.IsValid(out _)
+                    && capability.Definition.TryGetEntryNode(out var entryNode)
+                    && entryNode != null
+                    && !string.IsNullOrWhiteSpace(entryNode.SpeakerText);
+            }), Is.True, "Expected every spawned civilian to receive a valid runtime-generated dialogue definition.");
             Assert.That(metadata.Select(component => component.transform.position).Distinct().Count(), Is.EqualTo(4),
                 "Expected authored population slot anchors to occupy distinct scene positions.");
 

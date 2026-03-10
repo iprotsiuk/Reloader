@@ -562,6 +562,11 @@ namespace Reloader.NPCs.Runtime
                 civilian.AddComponent<AmbientCitizenCapability>();
             }
 
+            if (civilian.GetComponent<DialogueCapability>() == null)
+            {
+                civilian.AddComponent<DialogueCapability>();
+            }
+
             var metadata = civilian.GetComponent<MainTownPopulationSpawnedCivilian>();
             if (metadata == null)
             {
