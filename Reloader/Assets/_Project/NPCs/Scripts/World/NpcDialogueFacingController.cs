@@ -15,6 +15,27 @@ namespace Reloader.NPCs.World
                 return;
             }
 
+            RotateTowardTarget(_rotationSpeedDegreesPerSecond * Time.deltaTime);
+        }
+
+        public void StartFacing(Transform target)
+        {
+            _target = target;
+            RotateTowardTarget(360f);
+        }
+
+        public void StopFacing()
+        {
+            _target = null;
+        }
+
+        private void RotateTowardTarget(float maxDegreesDelta)
+        {
+            if (_target == null)
+            {
+                return;
+            }
+
             var toTarget = _target.position - transform.position;
             toTarget.y = 0f;
             if (toTarget.sqrMagnitude <= 0.0001f)
@@ -26,17 +47,7 @@ namespace Reloader.NPCs.World
             transform.rotation = Quaternion.RotateTowards(
                 transform.rotation,
                 desiredRotation,
-                _rotationSpeedDegreesPerSecond * Time.deltaTime);
-        }
-
-        public void StartFacing(Transform target)
-        {
-            _target = target;
-        }
-
-        public void StopFacing()
-        {
-            _target = null;
+                maxDegreesDelta);
         }
     }
 }

@@ -11,6 +11,8 @@ namespace Reloader.NPCs.Runtime
     [ExecuteAlways]
     public sealed class MainTownNpcAppearanceApplicator : MonoBehaviour
     {
+        private const string DialogueFocusAnchorName = "DialogueFocusAnchorRuntime";
+
         private enum AppearanceSource
         {
             None,
@@ -125,31 +127,23 @@ namespace Reloader.NPCs.Runtime
                 return null;
             }
 
-            var maleRoot = visualRoot.Find("StyleMaleRoot");
-            if (maleRoot != null && maleRoot.gameObject.activeInHierarchy)
+            var activeRoot = ResolveActivePresentationRoot(visualRoot);
+            if (activeRoot == null)
             {
-                var eyes = maleRoot.Find("Eyes_Eyes_Eyes");
-                if (eyes != null && eyes.gameObject.activeInHierarchy)
-                {
-                    return eyes;
-                }
-
-                return maleRoot.Find("Man_Man_Man") ?? maleRoot;
+                return null;
             }
 
-            var femaleRoot = visualRoot.Find("StyleFemaleRoot");
-            if (femaleRoot != null && femaleRoot.gameObject.activeInHierarchy)
+            var animator = activeRoot.GetComponent<Animator>();
+            if (animator != null && animator.isHuman)
             {
-                var eyes = femaleRoot.Find("Eyes");
-                if (eyes != null && eyes.gameObject.activeInHierarchy)
+                var headBone = animator.GetBoneTransform(HumanBodyBones.Head);
+                if (headBone != null)
                 {
-                    return eyes;
+                    return headBone;
                 }
-
-                return femaleRoot.Find("woman") ?? femaleRoot;
             }
 
-            return null;
+            return ResolveBoundsDialogueFocusAnchor(activeRoot);
         }
 
         private void ApplySeededAppearance(string seedKey, AppearanceSource source)
@@ -360,6 +354,64 @@ namespace Reloader.NPCs.Runtime
             {
                 child.gameObject.SetActive(false);
             }
+        }
+
+        private static Transform ResolveActivePresentationRoot(Transform visualRoot)
+        {
+            if (visualRoot == null)
+            {
+                return null;
+            }
+
+            var maleRoot = visualRoot.Find("StyleMaleRoot");
+            if (maleRoot != null && maleRoot.gameObject.activeInHierarchy)
+            {
+                return maleRoot;
+            }
+
+            var femaleRoot = visualRoot.Find("StyleFemaleRoot");
+            if (femaleRoot != null && femaleRoot.gameObject.activeInHierarchy)
+            {
+                return femaleRoot;
+            }
+
+            return null;
+        }
+
+        private static Transform ResolveBoundsDialogueFocusAnchor(Transform activeRoot)
+        {
+            if (activeRoot == null)
+            {
+                return null;
+            }
+
+            var renderers = activeRoot.GetComponentsInChildren<Renderer>(includeInactive: false);
+            if (renderers == null || renderers.Length == 0)
+            {
+                return activeRoot;
+            }
+
+            var bounds = renderers[0].bounds;
+            for (var i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+
+            var anchor = activeRoot.Find(DialogueFocusAnchorName);
+            if (anchor == null)
+            {
+                anchor = new GameObject(DialogueFocusAnchorName).transform;
+                anchor.SetParent(activeRoot, worldPositionStays: false);
+            }
+
+            var anchorWorldPosition = new Vector3(
+                bounds.center.x,
+                Mathf.Lerp(bounds.center.y, bounds.max.y, 0.85f),
+                bounds.center.z);
+            anchor.position = anchorWorldPosition;
+            anchor.rotation = Quaternion.identity;
+            anchor.localScale = Vector3.one;
+            return anchor;
         }
 
         private static void ApplyMaterialVariants(Transform activeRoot, CivilianPopulationRecord record, MainTownAppearanceGender gender)

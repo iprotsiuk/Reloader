@@ -288,6 +288,8 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(runtime.ActiveConversation.CurrentNode.SpeakerText, Is.EqualTo("Nice weather today."));
             Assert.That(runtime.ActiveConversation.SpeakerTransform.name, Is.Not.EqualTo("DialogueFocusTarget"),
                 "Expected dialogue to frame the live civilian visual anchor instead of the synthetic fallback target.");
+            Assert.That(runtime.ActiveConversation.SpeakerTransform.position.y, Is.GreaterThan(targetCivilian.transform.position.y + 1f),
+                "Expected dialogue focus to lock near the civilian head rather than the root pivot.");
 
             var planarToPlayer = playerRoot.transform.position - targetCivilian.transform.position;
             planarToPlayer.y = 0f;

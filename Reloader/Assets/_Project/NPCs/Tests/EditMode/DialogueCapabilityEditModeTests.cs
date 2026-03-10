@@ -260,7 +260,7 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(result.Success, Is.True);
                 Assert.That(runtime.HasActiveConversation, Is.True);
                 Assert.That(runtime.ActiveConversation.SpeakerTransform, Is.Not.EqualTo(go.transform));
-                Assert.That(runtime.ActiveConversation.SpeakerTransform.name, Is.EqualTo("Eyes"));
+                Assert.That(runtime.ActiveConversation.SpeakerTransform.name, Is.Not.EqualTo("DialogueFocusTarget"));
             }
             finally
             {
