@@ -105,12 +105,6 @@ namespace Reloader.Player
 
             SprintHeld = _sprintAction != null && _sprintAction.IsPressed();
 
-            if (_aimAction != null && _aimAction.WasPressedThisFrame())
-            {
-                AimHeld = !AimHeld;
-                AimToggleQueued = true;
-            }
-
             if (_jumpAction != null && _jumpAction.WasPressedThisFrame())
             {
                 JumpQueued = true;
@@ -132,7 +126,21 @@ namespace Reloader.Player
             }
 
             var keyboard = Keyboard.current;
-            var isDevConsoleVisible = RuntimeKernelBootstrapper.UiStateEvents?.IsDevConsoleVisible == true;
+            var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
+            var isAnyMenuOpen = uiStateEvents?.IsAnyMenuOpen == true;
+            var isDevConsoleVisible = uiStateEvents?.IsDevConsoleVisible == true;
+
+            if (isAnyMenuOpen)
+            {
+                AimHeld = false;
+                AimToggleQueued = false;
+            }
+            else if (_aimAction != null && _aimAction.WasPressedThisFrame())
+            {
+                AimHeld = !AimHeld;
+                AimToggleQueued = true;
+            }
+
             if (keyboard != null && keyboard.backquoteKey.wasPressedThisFrame)
             {
                 DevConsoleToggleQueued = true;
@@ -163,7 +171,7 @@ namespace Reloader.Player
             {
                 // Escape is handled directly by open UI/controllers as a close-only action.
             }
-            else if (_menuToggleAction != null && _menuToggleAction.WasPressedThisFrame())
+            else if (!isDevConsoleVisible && _menuToggleAction != null && _menuToggleAction.WasPressedThisFrame())
             {
                 MenuToggleQueued = true;
             }

@@ -5,6 +5,8 @@ using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 
 namespace Reloader.Player.Tests.PlayMode
 {
@@ -539,6 +541,141 @@ namespace Reloader.Player.Tests.PlayMode
 
             Object.DestroyImmediate(go);
             RuntimeKernelBootstrapper.Events = previousEvents;
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_DoesNotQueueMenuToggleFromAction_WhenDevConsoleIsVisible()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+            runtimeEvents.RaiseDevConsoleVisibilityChanged(true);
+
+            var keyboard = InputSystem.AddDevice<Keyboard>();
+            var actionsAsset = CreatePlayerMenuToggleActionsAsset();
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(actionsAsset);
+
+            try
+            {
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F1));
+                InputSystem.Update();
+
+                reader.SendMessage("Update");
+
+                Assert.That(reader.ConsumeMenuTogglePressed(), Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(actionsAsset);
+                InputSystem.RemoveDevice(keyboard);
+                RuntimeKernelBootstrapper.Events = previousEvents;
+            }
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_QueuesMenuToggleFromAction_WhenDevConsoleIsHidden()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var keyboard = InputSystem.AddDevice<Keyboard>();
+            var actionsAsset = CreatePlayerMenuToggleActionsAsset();
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(actionsAsset);
+
+            try
+            {
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F1));
+                InputSystem.Update();
+
+                reader.SendMessage("Update");
+
+                Assert.That(reader.ConsumeMenuTogglePressed(), Is.True);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(actionsAsset);
+                InputSystem.RemoveDevice(keyboard);
+                RuntimeKernelBootstrapper.Events = previousEvents;
+            }
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_DoesNotToggleAimFromAction_WhenAnyMenuIsOpen()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+            runtimeEvents.RaiseTabInventoryVisibilityChanged(true);
+
+            var keyboard = InputSystem.AddDevice<Keyboard>();
+            var actionsAsset = CreatePlayerAimActionsAsset();
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(actionsAsset);
+
+            try
+            {
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F2));
+                InputSystem.Update();
+
+                reader.SendMessage("Update");
+
+                Assert.That(reader.AimHeld, Is.False);
+                Assert.That(reader.ConsumeAimTogglePressed(), Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(actionsAsset);
+                RuntimeKernelBootstrapper.Events = previousEvents;
+                InputSystem.RemoveDevice(keyboard);
+            }
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_ClearsAimHeld_WhenMenuOpens()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var keyboard = InputSystem.AddDevice<Keyboard>();
+            var actionsAsset = CreatePlayerAimActionsAsset();
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(actionsAsset);
+
+            try
+            {
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F2));
+                InputSystem.Update();
+                reader.SendMessage("Update");
+
+                Assert.That(reader.AimHeld, Is.True);
+                Assert.That(reader.ConsumeAimTogglePressed(), Is.True);
+
+                runtimeEvents.RaiseEscMenuVisibilityChanged(true);
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState());
+                InputSystem.Update();
+                reader.SendMessage("Update");
+
+                Assert.That(reader.AimHeld, Is.False);
+                Assert.That(reader.ConsumeAimTogglePressed(), Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(actionsAsset);
+                RuntimeKernelBootstrapper.Events = previousEvents;
+                InputSystem.RemoveDevice(keyboard);
+            }
         }
 
         [Test]
@@ -1213,6 +1350,24 @@ namespace Reloader.Player.Tests.PlayMode
             updateMethod.Invoke(controller, null);
         }
 
+        private static InputActionAsset CreatePlayerMenuToggleActionsAsset()
+        {
+            var asset = ScriptableObject.CreateInstance<InputActionAsset>();
+            var playerMap = new InputActionMap("Player");
+            playerMap.AddAction("MenuToggle", binding: "<Keyboard>/f1");
+            asset.AddActionMap(playerMap);
+            return asset;
+        }
+
+        private static InputActionAsset CreatePlayerAimActionsAsset()
+        {
+            var asset = ScriptableObject.CreateInstance<InputActionAsset>();
+            var playerMap = new InputActionMap("Player");
+            playerMap.AddAction("Aim", binding: "<Keyboard>/f2");
+            asset.AddActionMap(playerMap);
+            return asset;
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public Vector2 Move;
@@ -1395,5 +1550,6 @@ namespace Reloader.Player.Tests.PlayMode
                 OnShopTradeResultReceived?.Invoke(payload);
             }
         }
+
     }
 }
