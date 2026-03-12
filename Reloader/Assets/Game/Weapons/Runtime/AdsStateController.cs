@@ -14,6 +14,7 @@ namespace Reloader.Game.Weapons
         [SerializeField] private AttachmentManager _attachmentManager;
         [SerializeField] private ScopeMaskController _scopeMaskController;
         [SerializeField] private RenderTextureScopeController _renderTextureScopeController;
+        [SerializeField] private ScopeAdjustmentTooltipOverlay _scopeAdjustmentTooltipOverlay;
         [SerializeField] private PeripheralScopeEffects _peripheralScopeEffects;
         [SerializeField] private WeaponDefinition _weaponDefinition;
 
@@ -153,12 +154,17 @@ namespace Reloader.Game.Weapons
 
             if (_renderTextureScopeController != null)
             {
-                _renderTextureScopeController.SetScopeActive(false, null, null, _baseWorldFov, 1f);
+                _renderTextureScopeController.SetScopeActive(false, null, null, _baseWorldFov, 1f, 0, 0);
             }
 
             if (_peripheralScopeEffects != null)
             {
                 _peripheralScopeEffects.SetState(false, 0f);
+            }
+
+            if (_scopeAdjustmentTooltipOverlay != null)
+            {
+                _scopeAdjustmentTooltipOverlay.SetState(false, 0, 0);
             }
         }
 
@@ -199,6 +205,26 @@ namespace Reloader.Game.Weapons
                 _baseWorldFov = _weaponDefinition.DefaultWorldFov;
                 _baseViewmodelFov = _weaponDefinition.DefaultViewmodelFov;
             }
+        }
+
+        public bool ApplyScopeAdjustmentInput(int windageClicks, int elevationClicks)
+        {
+            var optic = _attachmentManager != null ? _attachmentManager.ActiveOpticDefinition : null;
+            if (!_isAdsHeld || !UsesScopedPip(optic))
+            {
+                return false;
+            }
+
+            var controller = _attachmentManager != null ? _attachmentManager.ActiveScopeAdjustmentController : null;
+            if (controller == null)
+            {
+                return false;
+            }
+
+            controller.AdjustWindageClicks(windageClicks);
+            controller.AdjustElevationClicks(elevationClicks);
+            UpdateScopeAdjustmentTooltip(true, controller);
+            return true;
         }
 
         private void TickInput()
@@ -363,13 +389,27 @@ namespace Reloader.Game.Weapons
                 var scopeReferenceFov = _baseWorldFov;
                 var scopeMagnification = Mathf.Max(MinMagnification, CurrentMagnification);
                 var activeOpticInstance = _attachmentManager != null ? _attachmentManager.ActiveOpticInstance : null;
-                _renderTextureScopeController.SetScopeActive(usePip, optic, activeOpticInstance, scopeReferenceFov, scopeMagnification);
+                var activeAdjustmentController = _attachmentManager != null ? _attachmentManager.ActiveScopeAdjustmentController : null;
+                var windageClicks = activeAdjustmentController != null ? activeAdjustmentController.CurrentWindageClicks : 0;
+                var elevationClicks = activeAdjustmentController != null ? activeAdjustmentController.CurrentElevationClicks : 0;
+                _renderTextureScopeController.SetScopeActive(
+                    usePip,
+                    optic,
+                    activeOpticInstance,
+                    scopeReferenceFov,
+                    scopeMagnification,
+                    windageClicks,
+                    elevationClicks);
 
                 if (_peripheralScopeEffects != null)
                 {
                     _peripheralScopeEffects.SetState(usePip, AdsT);
                 }
             }
+
+            UpdateScopeAdjustmentTooltip(
+                _isAdsHeld && policy == AdsVisualMode.RenderTexturePiP,
+                _attachmentManager != null ? _attachmentManager.ActiveScopeAdjustmentController : null);
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (_logDebugState && Time.unscaledTime >= _nextDebugLogTime)
@@ -508,6 +548,22 @@ namespace Reloader.Game.Weapons
         private bool UsesScopedPip(OpticDefinition optic)
         {
             return optic != null && optic.VisualModePolicy == AdsVisualMode.RenderTexturePiP;
+        }
+
+        private void UpdateScopeAdjustmentTooltip(bool isVisible, ScopeAdjustmentController controller)
+        {
+            if (_scopeAdjustmentTooltipOverlay == null)
+            {
+                return;
+            }
+
+            if (!isVisible || controller == null)
+            {
+                _scopeAdjustmentTooltipOverlay.SetState(false, 0, 0);
+                return;
+            }
+
+            _scopeAdjustmentTooltipOverlay.SetState(true, controller.CurrentWindageClicks, controller.CurrentElevationClicks);
         }
 
         private bool SafeGetKey(KeyCode key)

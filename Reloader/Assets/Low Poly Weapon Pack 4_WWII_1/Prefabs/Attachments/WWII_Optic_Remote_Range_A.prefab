@@ -27,8 +27,8 @@ Transform:
   m_GameObject: {fileID: 24912560557298986}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.05, z: -0.0065}
-  m_LocalScale: {x: 0.01, y: 0.01, z: 0.01}
+  m_LocalPosition: {x: 0, y: 0.05, z: -0.0085}
+  m_LocalScale: {x: 0.012, y: 0.012, z: 0.012}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8433175983297821768}
@@ -80,7 +80,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 10
   m_MaskInteraction: 0
   m_Sprite: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -102,7 +102,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 90e1ee3ab7f0d405ea9011f061c5f8e8, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::Reloader.Game.Weapons.ScopeReticleController
   _reticleRoot: {fileID: 0}
 --- !u!1 &5700527204250208448
@@ -206,8 +206,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a5fb4c2b0e92146c9a1c1efecc5c2a23, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   _targetRenderer: {fileID: 6379749452625415218}
 --- !u!1 &9098247942822831858
 GameObject:
@@ -220,6 +220,7 @@ GameObject:
   - component: {fileID: 8433175983297821768}
   - component: {fileID: 4802934476023624685}
   - component: {fileID: 7296821216932628263}
+  - component: {fileID: 3174207776188509981}
   m_Layer: 0
   m_Name: WWII_Optic_Remote_Range_A
   m_TagString: Untagged
@@ -333,3 +334,24 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &3174207776188509981
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9098247942822831858}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98f99888fc3cb4ddbb32cacccb7c2681, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  _minWindageClicks: -20
+  _maxWindageClicks: 20
+  _minElevationClicks: -20
+  _maxElevationClicks: 20
+  _minZeroSteps: -10
+  _maxZeroSteps: 10
+  _defaultWindageClicks: 0
+  _defaultElevationClicks: 0
+  _defaultZeroSteps: 0

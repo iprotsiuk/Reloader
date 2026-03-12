@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8e9cfcd80ee784ffdb323c57cff5f357, type: 3}
   m_Name: Kar98kScopeRemoteAReticle
   m_EditorClassIdentifier: Assembly-CSharp::Reloader.Game.Weapons.ScopeReticleDefinition
-  _mode: 1
+  _mode: 0
   _referenceMagnification: 4
-  _reticleSprite: {fileID: 21300000, guid: b6b38010a34c907438bccaf68cad56f1, type: 3}
+  _reticleSprite: {fileID: 21300000, guid: 6b07c5fe99674a5ca215cb767f83ba96, type: 3}

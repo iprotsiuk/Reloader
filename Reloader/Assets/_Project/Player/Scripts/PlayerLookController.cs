@@ -10,6 +10,7 @@ namespace Reloader.Player
         [SerializeField] private Vector2 _lookSensitivity = Vector2.one;
         [SerializeField] private Vector2 _pitchClamp = new Vector2(-85f, 85f);
         [SerializeField] private Vector2 _adsSensitivityMultiplier = new Vector2(0.35f, 0.35f);
+        [SerializeField] private Vector2 _runtimeAdsSensitivityMultiplier = Vector2.one;
         [SerializeField] private bool _scaleByDeltaTime;
         [SerializeField] private bool _lookSmoothingEnabled;
         [SerializeField] private float _lookSmoothingSpeed = 20f;
@@ -44,6 +45,14 @@ namespace Reloader.Player
         {
             get => _adsSensitivityMultiplier;
             set => _adsSensitivityMultiplier = value;
+        }
+
+        public Vector2 RuntimeAdsSensitivityMultiplier
+        {
+            get => _runtimeAdsSensitivityMultiplier;
+            set => _runtimeAdsSensitivityMultiplier = new Vector2(
+                Mathf.Max(0.001f, value.x),
+                Mathf.Max(0.001f, value.y));
         }
 
         public bool LookSmoothingEnabled
@@ -124,7 +133,9 @@ namespace Reloader.Player
 
             var lookInput = _inputSource.LookInput;
             lookInput = ApplyLookSmoothing(lookInput, deltaTime);
-            var sensitivity = _inputSource.AimHeld ? Vector2.Scale(_lookSensitivity, _adsSensitivityMultiplier) : _lookSensitivity;
+            var sensitivity = _inputSource.AimHeld
+                ? Vector2.Scale(_lookSensitivity, Vector2.Scale(_adsSensitivityMultiplier, _runtimeAdsSensitivityMultiplier))
+                : _lookSensitivity;
             sensitivity *= GetFieldOfViewSensitivityScale();
             var scale = _scaleByDeltaTime ? deltaTime : 1f;
 

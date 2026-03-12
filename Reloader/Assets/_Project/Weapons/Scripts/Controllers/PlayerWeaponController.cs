@@ -12,6 +12,7 @@ using Reloader.Weapons.Runtime;
 using System;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using URandom = UnityEngine.Random;
 using UObject = UnityEngine.Object;
 #if UNITY_EDITOR
@@ -104,11 +105,14 @@ namespace Reloader.Weapons.Controllers
         private Component _adsStateRuntimeBridge;
         private Component _adsAttachmentManagerRuntimeBridge;
         private Component _weaponAimAlignerRuntimeBridge;
+        private PlayerLookController _playerLookControllerRuntimeBridge;
         private float _scopedAdsPresentationEyeReliefOffset;
         private PropertyInfo _adsActiveOpticProperty;
         private PropertyInfo _adsBlendProperty;
+        private PropertyInfo _adsCurrentSensitivityScaleProperty;
         private MethodInfo _adsSetHeldMethod;
         private MethodInfo _adsSetMagnificationMethod;
+        private MethodInfo _adsApplyScopeAdjustmentInputMethod;
         private PropertyInfo _adsCurrentMagnificationProperty;
         private float _cachedScopeMagnification = 1f;
         private string _pendingEquipItemId;
@@ -399,6 +403,8 @@ namespace Reloader.Weapons.Controllers
             {
                 _cameraDefaults = GetComponent<PlayerCameraDefaults>();
             }
+
+            _playerLookControllerRuntimeBridge ??= GetComponent<PlayerLookController>();
 
             if (!IsReferenceOnPlayerHierarchy(_packAnimator != null ? _packAnimator.transform : null))
             {
@@ -842,6 +848,7 @@ namespace Reloader.Weapons.Controllers
 
             if (string.IsNullOrWhiteSpace(_equippedItemId))
             {
+                ResetScopedAdsLookSensitivityBridge();
                 if (hasFieldOfView)
                 {
                     var baselineFieldOfView = Mathf.Clamp(_baseCameraFieldOfView, 1f, 179f);
@@ -867,6 +874,7 @@ namespace Reloader.Weapons.Controllers
             var packDriver = GetOrCreatePackDriver(_equippedItemId);
             if (packDriver == null)
             {
+                ResetScopedAdsLookSensitivityBridge();
                 return;
             }
 
@@ -875,8 +883,11 @@ namespace Reloader.Weapons.Controllers
                 // Keep pack animator/runtime aim state in sync, but let AdsStateController own camera FOV.
                 packDriver.TickAimFov(_inputSource.AimHeld, _baseCameraFieldOfView, _baseCameraFieldOfView, Time.deltaTime);
                 TickScopedAdsBridgeInput();
+                SyncScopedAdsLookSensitivityBridge();
                 return;
             }
+
+            ResetScopedAdsLookSensitivityBridge();
 
             if (hasFieldOfView && !packDriver.State.IsAiming && Mathf.Abs(packDriver.State.AimFovVelocity) < 0.01f)
             {
@@ -1018,6 +1029,7 @@ namespace Reloader.Weapons.Controllers
 
             _adsSetHeldMethod ??= _adsStateRuntimeBridge.GetType().GetMethod("SetAdsHeld", BindingFlags.Instance | BindingFlags.Public);
             _adsSetMagnificationMethod ??= _adsStateRuntimeBridge.GetType().GetMethod("SetMagnification", BindingFlags.Instance | BindingFlags.Public);
+            _adsApplyScopeAdjustmentInputMethod ??= _adsStateRuntimeBridge.GetType().GetMethod("ApplyScopeAdjustmentInput", BindingFlags.Instance | BindingFlags.Public);
             _adsCurrentMagnificationProperty ??= _adsStateRuntimeBridge.GetType().GetProperty("CurrentMagnification", BindingFlags.Instance | BindingFlags.Public);
 
             _adsSetHeldMethod?.Invoke(_adsStateRuntimeBridge, new object[] { _inputSource != null && _inputSource.AimHeld });
@@ -1031,6 +1043,8 @@ namespace Reloader.Weapons.Controllers
                 _cachedScopeMagnification = currentMagnification;
             }
 
+            TryApplyScopedAdjustmentInput();
+
             var scrollY = _inputSource != null ? _inputSource.ConsumeZoomInput() : 0f;
             if (Mathf.Abs(scrollY) <= 0.01f)
             {
@@ -1039,6 +1053,154 @@ namespace Reloader.Weapons.Controllers
 
             var nextMagnification = _cachedScopeMagnification + scrollY;
             _adsSetMagnificationMethod.Invoke(_adsStateRuntimeBridge, new object[] { nextMagnification });
+        }
+
+        private void SyncScopedAdsLookSensitivityBridge()
+        {
+            _playerLookControllerRuntimeBridge ??= GetComponent<PlayerLookController>();
+            if (_playerLookControllerRuntimeBridge == null || _adsStateRuntimeBridge == null)
+            {
+                return;
+            }
+
+            if (!UsesRenderTexturePipOptic(ResolveActiveOpticDefinition()))
+            {
+                ResetScopedAdsLookSensitivityBridge();
+                return;
+            }
+
+            _adsCurrentSensitivityScaleProperty ??= _adsStateRuntimeBridge.GetType()
+                .GetProperty("CurrentSensitivityScale", BindingFlags.Instance | BindingFlags.Public);
+            if (_adsCurrentSensitivityScaleProperty?.GetValue(_adsStateRuntimeBridge) is not float sensitivityScale)
+            {
+                ResetScopedAdsLookSensitivityBridge();
+                return;
+            }
+
+            var clampedScale = Mathf.Max(0.001f, sensitivityScale);
+            _playerLookControllerRuntimeBridge.RuntimeAdsSensitivityMultiplier = new Vector2(clampedScale, clampedScale);
+        }
+
+        private void ResetScopedAdsLookSensitivityBridge()
+        {
+            _playerLookControllerRuntimeBridge ??= GetComponent<PlayerLookController>();
+            if (_playerLookControllerRuntimeBridge == null)
+            {
+                return;
+            }
+
+            _playerLookControllerRuntimeBridge.RuntimeAdsSensitivityMultiplier = Vector2.one;
+        }
+
+        private static bool UsesRenderTexturePipOptic(UObject opticDefinition)
+        {
+            if (opticDefinition == null)
+            {
+                return false;
+            }
+
+            var property = opticDefinition.GetType().GetProperty("VisualModePolicy", BindingFlags.Instance | BindingFlags.Public);
+            var value = property?.GetValue(opticDefinition);
+            return string.Equals(value?.ToString(), "RenderTexturePiP", StringComparison.Ordinal);
+        }
+
+        private void TryApplyScopedAdjustmentInput()
+        {
+            if (_adsStateRuntimeBridge == null || _adsApplyScopeAdjustmentInputMethod == null)
+            {
+                return;
+            }
+
+            if (!TryReadScopedAdjustmentKeyInput(out var windageClicks, out var elevationClicks))
+            {
+                return;
+            }
+
+            _adsApplyScopeAdjustmentInputMethod.Invoke(_adsStateRuntimeBridge, new object[] { windageClicks, elevationClicks });
+        }
+
+        private static bool TryReadScopedAdjustmentKeyInput(out int windageClicks, out int elevationClicks)
+        {
+            windageClicks = 0;
+            elevationClicks = 0;
+
+            var keyboard = Keyboard.current;
+            if (keyboard != null)
+            {
+                var shiftHeld = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
+                var minusPressed = keyboard.minusKey.wasPressedThisFrame || keyboard.numpadMinusKey.wasPressedThisFrame;
+                var equalsPressed = keyboard.equalsKey.wasPressedThisFrame || keyboard.numpadPlusKey.wasPressedThisFrame;
+                if (!minusPressed && !equalsPressed)
+                {
+                    return false;
+                }
+
+                return ResolveScopedAdjustmentClicks(
+                    shiftHeld,
+                    minusPressed,
+                    equalsPressed,
+                    out windageClicks,
+                    out elevationClicks);
+            }
+
+            try
+            {
+                var shiftHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                var minusPressed = Input.GetKeyDown(KeyCode.Minus);
+                var equalsPressed = Input.GetKeyDown(KeyCode.Equals);
+                if (!minusPressed && !equalsPressed)
+                {
+                    return false;
+                }
+
+                return ResolveScopedAdjustmentClicks(
+                    shiftHeld,
+                    minusPressed,
+                    equalsPressed,
+                    out windageClicks,
+                    out elevationClicks);
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
+        }
+
+        private static bool ResolveScopedAdjustmentClicks(
+            bool shiftHeld,
+            bool minusPressed,
+            bool equalsPressed,
+            out int windageClicks,
+            out int elevationClicks)
+        {
+            windageClicks = 0;
+            elevationClicks = 0;
+
+            if (minusPressed)
+            {
+                if (shiftHeld)
+                {
+                    windageClicks += 1;
+                }
+                else
+                {
+                    elevationClicks += 1;
+                }
+            }
+
+            if (equalsPressed)
+            {
+                if (shiftHeld)
+                {
+                    windageClicks -= 1;
+                }
+                else
+                {
+                    elevationClicks -= 1;
+                }
+            }
+
+            return windageClicks != 0 || elevationClicks != 0;
         }
 
         // Forwarded from PackAnimationEventRelay attached to the animator GameObject.
@@ -1649,6 +1811,7 @@ namespace Reloader.Weapons.Controllers
 
             var unequipMethod = managerType.GetMethod("UnequipOptic", BindingFlags.Instance | BindingFlags.Public);
             var equipMethod = managerType.GetMethod("EquipOptic", BindingFlags.Instance | BindingFlags.Public);
+            var setPendingAdjustmentStateKeyMethod = managerType.GetMethod("SetPendingOpticAdjustmentStateKey", BindingFlags.Instance | BindingFlags.Public);
             if (unequipMethod == null || equipMethod == null)
             {
                 return false;
@@ -1680,6 +1843,7 @@ namespace Reloader.Weapons.Controllers
                     this);
             }
 
+            setPendingAdjustmentStateKeyMethod?.Invoke(manager, new object[] { attachmentItemId });
             var equipSucceeded = equipMethod.Invoke(manager, new object[] { definition }) is bool equipResult && equipResult;
             if (!equipSucceeded)
             {
@@ -1839,6 +2003,7 @@ namespace Reloader.Weapons.Controllers
             EnsureWeaponAimAlignerRuntimeBridge(viewRoot, attachmentManager, adsType, worldCamera);
             EnsureRenderTextureScopeRuntimeBridge(adsType, worldCamera);
             EnsurePeripheralScopeEffectsRuntimeBridge(adsType);
+            EnsureScopeAdjustmentTooltipRuntimeBridge(adsType);
             TryAssignScopedAdsWeaponDefinition(adsType);
 
             var legacyInputField = adsType.GetField("_useLegacyInput", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -1944,6 +2109,29 @@ namespace Reloader.Weapons.Controllers
 
             var peripheralEffectsField = adsType.GetField("_peripheralScopeEffects", BindingFlags.Instance | BindingFlags.NonPublic);
             peripheralEffectsField?.SetValue(_adsStateRuntimeBridge, peripheralEffects);
+        }
+
+        private void EnsureScopeAdjustmentTooltipRuntimeBridge(Type adsType)
+        {
+            if (adsType == null || _adsStateRuntimeBridge == null)
+            {
+                return;
+            }
+
+            var tooltipType = ResolveTypeByName("Reloader.Game.Weapons.ScopeAdjustmentTooltipOverlay");
+            if (tooltipType == null)
+            {
+                return;
+            }
+
+            var tooltipOverlay = gameObject.GetComponent(tooltipType) ?? gameObject.AddComponent(tooltipType);
+            if (tooltipOverlay == null)
+            {
+                return;
+            }
+
+            var tooltipField = adsType.GetField("_scopeAdjustmentTooltipOverlay", BindingFlags.Instance | BindingFlags.NonPublic);
+            tooltipField?.SetValue(_adsStateRuntimeBridge, tooltipOverlay);
         }
 
         private void TryAssignScopedAdsWeaponDefinition(Type adsType)
@@ -2311,9 +2499,12 @@ namespace Reloader.Weapons.Controllers
             _scopedAdsPresentationEyeReliefOffset = 0f;
             _adsActiveOpticProperty = null;
             _adsBlendProperty = null;
+            _adsCurrentSensitivityScaleProperty = null;
             _adsSetHeldMethod = null;
             _adsSetMagnificationMethod = null;
+            _adsApplyScopeAdjustmentInputMethod = null;
             _adsCurrentMagnificationProperty = null;
+            ResetScopedAdsLookSensitivityBridge();
         }
 
         private void ApplyScopedAdsPresentationEyeReliefOffset()
