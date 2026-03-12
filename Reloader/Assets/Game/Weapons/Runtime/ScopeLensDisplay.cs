@@ -27,6 +27,7 @@ namespace Reloader.Game.Weapons
         private GameObject _proxySurface;
         private Renderer _proxyRenderer;
         private MeshFilter _proxyMeshFilter;
+        private Mesh _runtimeProxyMesh;
         private bool _isUsingProxySurface;
 
         public Texture CurrentTexture { get; private set; }
@@ -44,6 +45,7 @@ namespace Reloader.Game.Weapons
         {
             RestoreProxySurface();
             RestoreOriginalMaterials();
+            ReleaseRuntimeProxyMesh();
 
             if (_runtimeDisplayMaterial != null)
             {
@@ -76,15 +78,20 @@ namespace Reloader.Game.Weapons
                 if (ShouldUseProxySurface())
                 {
                     RestoreOriginalMaterials();
-                    EnsureProxySurface();
-                    ApplyTextureToRenderer(_proxyRenderer, texture);
-                    if (_proxyRenderer != null)
+                    if (EnsureProxySurface())
                     {
+                        ApplyTextureToRenderer(_proxyRenderer, texture);
                         _proxyRenderer.enabled = true;
+                        _targetRenderer.enabled = false;
+                        _isUsingProxySurface = true;
                     }
-
-                    _targetRenderer.enabled = false;
-                    _isUsingProxySurface = true;
+                    else
+                    {
+                        RestoreProxySurface();
+                        EnsureDisplayMaterial();
+                        ApplyTextureToRenderer(_targetRenderer, texture);
+                        _isUsingProxySurface = false;
+                    }
                 }
                 else
                 {
@@ -146,17 +153,20 @@ namespace Reloader.Game.Weapons
             _displayMaterialApplied = false;
         }
 
-        private void EnsureProxySurface()
+        private bool EnsureProxySurface()
         {
-            if (_proxySurface != null && _proxyRenderer != null)
+            if (_proxySurface != null &&
+                _proxyRenderer != null &&
+                _proxyMeshFilter != null &&
+                _proxyMeshFilter.sharedMesh != null)
             {
-                return;
+                return true;
             }
 
             _runtimeDisplayMaterial ??= CreateDisplayMaterial();
             if (_runtimeDisplayMaterial == null)
             {
-                return;
+                return false;
             }
 
             if (_proxySurface == null)
@@ -182,10 +192,11 @@ namespace Reloader.Game.Weapons
 
             var sourceMeshFilter = _targetRenderer.GetComponent<MeshFilter>();
             var sourceMesh = sourceMeshFilter != null ? sourceMeshFilter.sharedMesh : null;
+            ReleaseRuntimeProxyMesh();
             var proxyMesh = CreateProxyMesh(sourceMesh);
             if (proxyMesh == null)
             {
-                return;
+                return false;
             }
 
             _proxyMeshFilter.sharedMesh = proxyMesh;
@@ -195,6 +206,7 @@ namespace Reloader.Game.Weapons
             _proxyRenderer.enabled = false;
 
             AlignProxySurface();
+            return true;
         }
 
         private void RestoreProxySurface()
@@ -211,6 +223,22 @@ namespace Reloader.Game.Weapons
             }
 
             _isUsingProxySurface = false;
+        }
+
+        private void ReleaseRuntimeProxyMesh()
+        {
+            if (_runtimeProxyMesh == null)
+            {
+                return;
+            }
+
+            if (_proxyMeshFilter != null && _proxyMeshFilter.sharedMesh == _runtimeProxyMesh)
+            {
+                _proxyMeshFilter.sharedMesh = null;
+            }
+
+            Destroy(_runtimeProxyMesh);
+            _runtimeProxyMesh = null;
         }
 
         private bool ShouldUseProxySurface()
@@ -544,10 +572,12 @@ namespace Reloader.Game.Weapons
                 var flattenedMesh = CreateFlattenedProxyMesh(sourceMesh);
                 if (flattenedMesh != null)
                 {
+                    _runtimeProxyMesh = flattenedMesh;
                     return flattenedMesh;
                 }
             }
 
+            _runtimeProxyMesh = null;
             var temporaryQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
             try
             {
