@@ -19,6 +19,8 @@ namespace Reloader.Player
         private Vector3 _horizontalVelocity;
         private float _jumpBufferTimer;
         private bool _movementLocked;
+        private bool _devNoclipEnabled;
+        private float _devNoclipSpeed = 6f;
 
         public float VerticalVelocity { get; private set; }
         public bool IsGrounded => _isGroundedDebug;
@@ -61,11 +63,34 @@ namespace Reloader.Player
             }
         }
 
+        public void SetDevNoclip(bool isEnabled, float speed)
+        {
+            _devNoclipEnabled = isEnabled;
+            _devNoclipSpeed = Mathf.Max(0.1f, speed);
+            if (!isEnabled)
+            {
+                return;
+            }
+
+            VerticalVelocity = 0f;
+            _horizontalVelocity = Vector3.zero;
+            _jumpBufferTimer = 0f;
+            _isGroundedDebug = false;
+            _lastCollisionFlags = CollisionFlags.None;
+            _jumpBufferTimerDebug = 0f;
+        }
+
         public void Tick(float deltaTime)
         {
             ResolveReferences();
             if (_characterController == null || _inputSource == null || deltaTime <= 0f)
             {
+                return;
+            }
+
+            if (_devNoclipEnabled)
+            {
+                TickDevNoclip(deltaTime);
                 return;
             }
 
@@ -131,6 +156,33 @@ namespace Reloader.Player
         public void PublishLocomotionFrame(Vector3 worldPosition, Vector3 horizontalVelocity, bool isGrounded, float deltaTime)
         {
             LocomotionFramePublished?.Invoke(worldPosition, horizontalVelocity, isGrounded, deltaTime);
+        }
+
+        private void TickDevNoclip(float deltaTime)
+        {
+            var moveInput = _movementLocked
+                ? Vector2.zero
+                : Vector2.ClampMagnitude(_inputSource.MoveInput, 1f);
+            var moveDirection = (transform.right * moveInput.x) + (transform.forward * moveInput.y);
+            moveDirection.y = 0f;
+            if (moveDirection.sqrMagnitude > 1f)
+            {
+                moveDirection.Normalize();
+            }
+
+            var horizontalVelocity = moveDirection.sqrMagnitude > 0.0001f
+                ? moveDirection.normalized * _devNoclipSpeed
+                : Vector3.zero;
+
+            transform.position += horizontalVelocity * deltaTime;
+            VerticalVelocity = 0f;
+            _horizontalVelocity = Vector3.zero;
+            _jumpBufferTimer = 0f;
+            _isGroundedDebug = false;
+            _lastCollisionFlags = CollisionFlags.None;
+            _jumpBufferTimerDebug = 0f;
+            _jumpPressConsumedDebug = false;
+            PublishLocomotionFrame(transform.position, horizontalVelocity, false, deltaTime);
         }
 
         private void ResolveReferences()

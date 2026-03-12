@@ -6,6 +6,7 @@ namespace Reloader.DevTools.Runtime
     public sealed class DevToolsRuntime
     {
         private readonly DevCommandCatalog _catalog;
+        private readonly DevNoclipCommand _noclipCommand = new(new DevPlayerMovementOverride());
         private readonly DevGiveItemCommand _giveItemCommand = new();
 
         public DevToolsRuntime()
@@ -44,6 +45,11 @@ namespace Reloader.DevTools.Runtime
                 return _giveItemCommand.TryExecute(Context, parseResult, out resultMessage);
             }
 
+            if (string.Equals(definition.Name, "noclip", StringComparison.OrdinalIgnoreCase))
+            {
+                return _noclipCommand.TryExecute(parseResult, out resultMessage);
+            }
+
             resultMessage = $"Command '{parseResult.CommandName}' is registered.";
             return true;
         }
@@ -56,6 +62,13 @@ namespace Reloader.DevTools.Runtime
                 && string.Equals(definition.Name, "give", StringComparison.OrdinalIgnoreCase))
             {
                 return _giveItemCommand.GetSuggestions(Context, input, parseResult);
+            }
+
+            if (parseResult.HasCommand
+                && _catalog.TryGet(parseResult.CommandName, out var suggestionDefinition)
+                && string.Equals(suggestionDefinition.Name, "noclip", StringComparison.OrdinalIgnoreCase))
+            {
+                return _noclipCommand.GetSuggestions(input, parseResult);
             }
 
             var prefix = parseResult.HasCommand ? parseResult.CommandName : input?.Trim() ?? string.Empty;

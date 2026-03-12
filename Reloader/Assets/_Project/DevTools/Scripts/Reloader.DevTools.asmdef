@@ -3,7 +3,8 @@
   "rootNamespace": "Reloader.DevTools",
   "references": [
     "Reloader.Core",
-    "Reloader.Inventory"
+    "Reloader.Inventory",
+    "Reloader.Player"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
