@@ -35,5 +35,20 @@ namespace Reloader.DevTools.Tests.EditMode
             Assert.That(first.Select(static suggestion => suggestion.Token), Is.EqualTo(new[] { "noclip" }));
             Assert.That(second.Select(static suggestion => suggestion.Token), Is.EqualTo(new[] { "give" }));
         }
+
+        [Test]
+        public void GetSuggestions_MatchesAliasesAcceptedByExecution()
+        {
+            var catalog = new DevCommandCatalog();
+            catalog.Register(new DevCommandDefinition("teleport", "Move player.", new[] { "tp" }));
+            var runtime = new DevToolsRuntime(catalog, new DevToolsState(), new DevCommandContext());
+
+            var suggestions = runtime.GetSuggestions("tp", 0);
+            var tokens = suggestions.Select(static suggestion => suggestion.Token).ToArray();
+            var labels = suggestions.Select(static suggestion => suggestion.Label).ToArray();
+
+            Assert.That(tokens, Is.EqualTo(new[] { "tp" }));
+            Assert.That(labels, Is.EqualTo(new[] { "teleport (tp)" }));
+        }
     }
 }

@@ -2,6 +2,7 @@
   "name": "Reloader.UI",
   "rootNamespace": "Reloader.UI",
   "references": [
+    "Reloader.DevTools",
     "Reloader.Core",
     "Reloader.Economy",
     "Reloader.Inventory",

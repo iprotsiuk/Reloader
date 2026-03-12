@@ -514,6 +514,34 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerInputReader_Update_ClearsConsoleOnlyInputWhenConsoleIsHidden()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+
+            var autocompleteField = typeof(PlayerInputReader).GetField("_autocompleteQueued", BindingFlags.Instance | BindingFlags.NonPublic);
+            var suggestionDeltaField = typeof(PlayerInputReader).GetField("_suggestionDeltaQueued", BindingFlags.Instance | BindingFlags.NonPublic);
+
+            Assert.That(autocompleteField, Is.Not.Null);
+            Assert.That(suggestionDeltaField, Is.Not.Null);
+
+            autocompleteField.SetValue(reader, true);
+            suggestionDeltaField.SetValue(reader, 1);
+
+            reader.SendMessage("Update");
+
+            Assert.That(reader.ConsumeAutocompletePressed(), Is.False);
+            Assert.That(reader.ConsumeSuggestionDelta(), Is.Zero);
+
+            Object.DestroyImmediate(go);
+            RuntimeKernelBootstrapper.Events = previousEvents;
+        }
+
+        [Test]
         public void PlayerCursorLockController_LockCursor_LocksAndHidesCursor()
         {
             var previousLockState = Cursor.lockState;
@@ -1235,6 +1263,10 @@ namespace Reloader.Player.Tests.PlayMode
                 return false;
             }
 
+            public bool ConsumeDevConsoleTogglePressed() => false;
+            public bool ConsumeAutocompletePressed() => false;
+            public int ConsumeSuggestionDelta() => 0;
+
             public bool ConsumeAimTogglePressed() => false;
             public float ConsumeZoomInput() => 0f;
             public int ConsumeZeroAdjustStep() => 0;
@@ -1292,11 +1324,13 @@ namespace Reloader.Player.Tests.PlayMode
             public bool IsWorkbenchMenuVisible { get; private set; }
             public bool IsTabInventoryVisible { get; private set; }
             public bool IsEscMenuVisible { get; private set; }
-            public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible || IsEscMenuVisible;
+            public bool IsDevConsoleVisible { get; private set; }
+            public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible || IsEscMenuVisible || IsDevConsoleVisible;
 
             public event System.Action<bool> OnWorkbenchMenuVisibilityChanged;
             public event System.Action<bool> OnTabInventoryVisibilityChanged;
             public event System.Action<bool> OnEscMenuVisibilityChanged;
+            public event System.Action<bool> OnDevConsoleVisibilityChanged;
 
             public void RaiseWorkbenchMenuVisibilityChanged(bool isVisible)
             {
@@ -1314,6 +1348,12 @@ namespace Reloader.Player.Tests.PlayMode
             {
                 IsEscMenuVisible = isVisible;
                 OnEscMenuVisibilityChanged?.Invoke(isVisible);
+            }
+
+            public void RaiseDevConsoleVisibilityChanged(bool isVisible)
+            {
+                IsDevConsoleVisible = isVisible;
+                OnDevConsoleVisibilityChanged?.Invoke(isVisible);
             }
 
             public void SetShopTradeMenuOpen(bool isOpen)

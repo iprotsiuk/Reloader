@@ -17,5 +17,8 @@ namespace Reloader.Player
         int ConsumeZeroAdjustStep();
         int ConsumeBeltSelectPressed();
         bool ConsumeMenuTogglePressed();
+        bool ConsumeDevConsoleTogglePressed();
+        bool ConsumeAutocompletePressed();
+        int ConsumeSuggestionDelta();
     }
 }

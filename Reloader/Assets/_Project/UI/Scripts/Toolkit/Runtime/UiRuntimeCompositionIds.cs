@@ -13,6 +13,7 @@ namespace Reloader.UI.Toolkit.Runtime
             public const string ReloadingWorkbench = "reloading-workbench";
             public const string InteractionHint = "interaction-hint";
             public const string DialogueOverlay = "dialogue-overlay";
+            public const string DevConsole = "dev-console";
         }
 
         public static class ControllerObjectNames
@@ -26,6 +27,7 @@ namespace Reloader.UI.Toolkit.Runtime
             public const string ReloadingWorkbench = "reloading-menu-controller";
             public const string InteractionHint = "interaction-hint-controller";
             public const string DialogueOverlay = "dialogue-overlay-controller";
+            public const string DevConsole = "dev-console-controller";
             public const string DeviceTargetSelection = "player-device-target-selection-controller";
         }
 

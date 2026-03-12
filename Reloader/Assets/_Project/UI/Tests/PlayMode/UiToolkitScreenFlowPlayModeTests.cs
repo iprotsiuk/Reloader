@@ -1379,6 +1379,10 @@ namespace Reloader.UI.Tests.PlayMode
                 MenuTogglePressedThisFrame = false;
                 return true;
             }
+
+            public bool ConsumeDevConsoleTogglePressed() => false;
+            public bool ConsumeAutocompletePressed() => false;
+            public int ConsumeSuggestionDelta() => 0;
         }
 
         private sealed class TestUiStateEvents : IUiStateEvents
@@ -1387,12 +1391,14 @@ namespace Reloader.UI.Tests.PlayMode
             public bool IsWorkbenchMenuVisible { get; private set; }
             public bool IsTabInventoryVisible { get; private set; }
             public bool IsEscMenuVisible { get; private set; }
-            public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible || IsEscMenuVisible;
+            public bool IsDevConsoleVisible { get; private set; }
+            public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible || IsEscMenuVisible || IsDevConsoleVisible;
             public int TabInventoryVisibilityRaiseCount { get; private set; }
 
             public event Action<bool> OnWorkbenchMenuVisibilityChanged;
             public event Action<bool> OnTabInventoryVisibilityChanged;
             public event Action<bool> OnEscMenuVisibilityChanged;
+            public event Action<bool> OnDevConsoleVisibilityChanged;
 
             public void RaiseWorkbenchMenuVisibilityChanged(bool isVisible)
             {
@@ -1411,6 +1417,12 @@ namespace Reloader.UI.Tests.PlayMode
             {
                 IsEscMenuVisible = isVisible;
                 OnEscMenuVisibilityChanged?.Invoke(isVisible);
+            }
+
+            public void RaiseDevConsoleVisibilityChanged(bool isVisible)
+            {
+                IsDevConsoleVisible = isVisible;
+                OnDevConsoleVisibilityChanged?.Invoke(isVisible);
             }
         }
 

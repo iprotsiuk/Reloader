@@ -397,6 +397,9 @@ namespace Reloader.UI.Tests.PlayMode
             public int ConsumeZeroAdjustStep() => 0;
             public int ConsumeBeltSelectPressed() => -1;
             public bool ConsumeMenuTogglePressed() => false;
+            public bool ConsumeDevConsoleTogglePressed() => false;
+            public bool ConsumeAutocompletePressed() => false;
+            public int ConsumeSuggestionDelta() => 0;
         }
     }
 }

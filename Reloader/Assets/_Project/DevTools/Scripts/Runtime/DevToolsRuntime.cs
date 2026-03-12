@@ -50,13 +50,15 @@ namespace Reloader.DevTools.Runtime
 
             foreach (var definition in _catalog.GetDefinitions())
             {
-                if (!string.IsNullOrWhiteSpace(prefix)
-                    && !definition.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                if (!TryResolveSuggestionLookup(definition, prefix, out var lookupToken))
                 {
                     continue;
                 }
 
-                suggestions.Add(new DevConsoleSuggestion(definition.Name, definition.Name, definition.Description));
+                var label = string.Equals(lookupToken, definition.Name, StringComparison.OrdinalIgnoreCase)
+                    ? definition.Name
+                    : $"{definition.Name} ({lookupToken})";
+                suggestions.Add(new DevConsoleSuggestion(lookupToken, label, definition.Description));
             }
 
             return suggestions;
@@ -65,6 +67,42 @@ namespace Reloader.DevTools.Runtime
         public void SetConsoleVisible(bool isVisible)
         {
             IsConsoleVisible = isVisible;
+        }
+
+        private static bool TryResolveSuggestionLookup(
+            DevCommandDefinition definition,
+            string prefix,
+            out string lookupToken)
+        {
+            lookupToken = definition?.Name ?? string.Empty;
+            if (definition == null)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(prefix))
+            {
+                return true;
+            }
+
+            if (definition.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                lookupToken = definition.Name;
+                return true;
+            }
+
+            for (var i = 0; i < definition.Aliases.Count; i++)
+            {
+                var alias = definition.Aliases[i];
+                if (!string.IsNullOrWhiteSpace(alias)
+                    && alias.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    lookupToken = alias;
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

@@ -738,6 +738,10 @@ namespace Reloader.UI.Tests.PlayMode
                 MenuTogglePressedThisFrame = false;
                 return result;
             }
+
+            public bool ConsumeDevConsoleTogglePressed() => false;
+            public bool ConsumeAutocompletePressed() => false;
+            public int ConsumeSuggestionDelta() => 0;
         }
 
         private sealed class TestContractController : MonoBehaviour, ITabInventoryContractController
