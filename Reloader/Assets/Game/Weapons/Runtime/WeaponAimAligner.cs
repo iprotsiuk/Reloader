@@ -29,6 +29,7 @@ namespace Reloader.Game.Weapons
         private Transform _pivotParent;
         private Vector3 _restLocalPosition;
         private Quaternion _restLocalRotation;
+        private Transform _restPoseSourcePivot;
         private Transform _cachedMainCameraTransform;
         private float _nextMainCameraRefreshTime;
         private bool _loggedMissingPivot;
@@ -55,11 +56,12 @@ namespace Reloader.Game.Weapons
             AttachmentManager attachmentManager,
             AdsStateController adsStateController)
         {
+            var shouldRefreshRestPose = _adsPivot != adsPivot;
             _adsPivot = adsPivot;
             _cameraTransform = cameraTransform;
             _attachmentManager = attachmentManager;
             _adsStateController = adsStateController;
-            RefreshRuntimeCaches();
+            RefreshRuntimeCaches(shouldRefreshRestPose);
         }
 
         public void SetRuntimeEyeReliefBackOffset(float value)
@@ -170,19 +172,29 @@ namespace Reloader.Game.Weapons
 
         private void RefreshRuntimeCaches()
         {
-            CacheRestPose();
+            RefreshRuntimeCaches(refreshRestPose: false);
+        }
+
+        private void RefreshRuntimeCaches(bool refreshRestPose)
+        {
+            CacheRestPose(refreshRestPose);
             CacheMainCameraTransform();
             _loggedMissingPivot = false;
             _loggedMissingAnchorSource = false;
         }
 
-        private void CacheRestPose()
+        private void CacheRestPose(bool forceRefresh)
         {
-            _pivotParent = null;
-            _restLocalPosition = Vector3.zero;
-            _restLocalRotation = Quaternion.identity;
-
             if (_adsPivot == null)
+            {
+                _pivotParent = null;
+                _restLocalPosition = Vector3.zero;
+                _restLocalRotation = Quaternion.identity;
+                _restPoseSourcePivot = null;
+                return;
+            }
+
+            if (!forceRefresh && _restPoseSourcePivot == _adsPivot)
             {
                 return;
             }
@@ -190,6 +202,7 @@ namespace Reloader.Game.Weapons
             _pivotParent = _adsPivot.parent;
             _restLocalPosition = _adsPivot.localPosition;
             _restLocalRotation = _adsPivot.localRotation;
+            _restPoseSourcePivot = _adsPivot;
         }
 
 #if UNITY_EDITOR

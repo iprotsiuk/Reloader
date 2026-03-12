@@ -1425,9 +1425,7 @@ namespace Reloader.NPCs.Runtime
 
         private static CivilianPopulationRecord CloneRecord(CivilianPopulationRecord source)
         {
-            var isStyleAppearance = MainTownCuratedAppearanceRules.IsCuratedStyleBodyId(source?.BaseBodyId)
-                                    || string.Equals(source?.PresentationType, MainTownCuratedAppearanceRules.MasculinePresentation, StringComparison.Ordinal)
-                                    || string.Equals(source?.PresentationType, MainTownCuratedAppearanceRules.FemininePresentation, StringComparison.Ordinal);
+            var isStyleAppearance = MainTownCuratedAppearanceRules.IsCuratedStyleBodyId(source?.BaseBodyId);
             MainTownCuratedAppearanceRules.TryInferGender(source?.BaseBodyId, source?.PresentationType, out var gender);
             return new CivilianPopulationRecord
             {

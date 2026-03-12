@@ -22,6 +22,31 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
+        public void StyleCrowdReviewSpec_ExposesSeparateRequiredEyebrowLane()
+        {
+            var eyebrowProperty = typeof(StyleCrowdReviewSpec).GetProperty("EyebrowId");
+
+            Assert.That(eyebrowProperty, Is.Not.Null, "STYLE review specs need an explicit eyebrow lane separate from BottomId.");
+        }
+
+        [Test]
+        public void BuildAllSpecs_RequireExplicitEyebrowsAndPants()
+        {
+            var eyebrowProperty = typeof(StyleCrowdReviewSpec).GetProperty("EyebrowId");
+            Assert.That(eyebrowProperty, Is.Not.Null, "STYLE review specs need an explicit eyebrow lane separate from BottomId.");
+
+            var specs = StyleCrowdReviewSpecLibrary.BuildAll();
+
+            foreach (var spec in specs)
+            {
+                var eyebrowId = eyebrowProperty.GetValue(spec) as string;
+
+                Assert.That(eyebrowId, Is.Not.Null.And.Not.Empty, $"{spec.Name} is missing an explicit eyebrow id.");
+                Assert.That(spec.BottomId, Is.EqualTo("pants1"), $"{spec.Name} should always use pants1 as the bottom lane.");
+            }
+        }
+
+        [Test]
         public void GetDirectChildNamesToActivate_ForMaleSpec_EnablesExpectedGroups()
         {
             var spec = new StyleCrowdReviewSpec(
@@ -32,7 +57,8 @@ namespace Reloader.World.Tests.EditMode
                 "hair.parted",
                 "beard3",
                 "openJacket",
-                "brous5");
+                "brous6",
+                "pants1");
 
             var activeNames = StyleCrowdReviewBuilder.GetDirectChildNamesToActivate(spec).ToArray();
 
@@ -43,6 +69,7 @@ namespace Reloader.World.Tests.EditMode
             CollectionAssert.Contains(activeNames, "hair4_hair4_hair4");
             CollectionAssert.Contains(activeNames, "beard3_beard3_beard3");
             CollectionAssert.Contains(activeNames, "jacket_jacket_jacket");
+            CollectionAssert.Contains(activeNames, "brous6_brous6_brous6");
             CollectionAssert.Contains(activeNames, "pants1_pants1_pants1");
         }
 
@@ -57,7 +84,8 @@ namespace Reloader.World.Tests.EditMode
                 "hair.bob",
                 string.Empty,
                 "openJacket",
-                "brous3");
+                "brous3",
+                "pants1");
 
             var activeNames = StyleCrowdReviewBuilder.GetDirectChildNamesToActivate(spec).ToArray();
 
@@ -80,6 +108,7 @@ namespace Reloader.World.Tests.EditMode
                 "hair.short",
                 string.Empty,
                 "jacket",
+                "brous1",
                 "pants1");
 
             var activeNames = StyleCrowdReviewBuilder.GetDirectChildNamesToActivate(spec).ToArray();
@@ -106,7 +135,8 @@ namespace Reloader.World.Tests.EditMode
                 "hair.bob",
                 string.Empty,
                 "hoody",
-                "brous3");
+                "brous7",
+                "pants1");
 
             var activeNames = StyleCrowdReviewBuilder.GetDirectChildNamesToActivate(spec).ToArray();
 
@@ -116,7 +146,8 @@ namespace Reloader.World.Tests.EditMode
             CollectionAssert.Contains(activeNames, "boots1");
             CollectionAssert.Contains(activeNames, "hair1");
             CollectionAssert.Contains(activeNames, "hoody");
-            CollectionAssert.Contains(activeNames, "brous3");
+            CollectionAssert.Contains(activeNames, "brous7");
+            CollectionAssert.Contains(activeNames, "pants1");
             Assert.That(activeNames.Any(name => name.StartsWith("beard")), Is.False);
         }
 
@@ -212,6 +243,25 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
+        public void BuildAllSpecs_ResolveEyebrowAndBottomMaterials_ToTheirOwnFamilies()
+        {
+            var specs = StyleCrowdReviewSpecLibrary.BuildAll();
+
+            foreach (var spec in specs)
+            {
+                var activeChildren = StyleCrowdReviewBuilder.GetDirectChildNamesToActivate(spec).ToArray();
+                var eyebrowChild = activeChildren.Single(name => name.StartsWith("brous", System.StringComparison.OrdinalIgnoreCase));
+                var bottomChild = activeChildren.Single(name => name.Contains("pants1", System.StringComparison.OrdinalIgnoreCase));
+
+                var eyebrowPath = StyleCrowdReviewBuilder.GetExternalMaterialPath(spec.Gender, eyebrowChild);
+                var bottomPath = StyleCrowdReviewBuilder.GetExternalMaterialPath(spec.Gender, bottomChild);
+
+                Assert.That(eyebrowPath, Does.Contain("/Brous/"), $"{spec.Name} mapped eyebrow child '{eyebrowChild}' to non-eyebrow material '{eyebrowPath}'.");
+                Assert.That(bottomPath, Does.Contain("/Pants1/"), $"{spec.Name} mapped bottom child '{bottomChild}' to non-pants material '{bottomPath}'.");
+            }
+        }
+
+        [Test]
         public void GetExternalMaterialPath_WithVariationKey_UsesMoreThanOneSiblingVariant()
         {
             var selectedPaths = Enumerable.Range(0, 16)
@@ -227,10 +277,10 @@ namespace Reloader.World.Tests.EditMode
 
         [TestCase(StyleCrowdReviewGender.Male, "brous1_brous1_brous1", "brous1_brous1_brous1")]
         [TestCase(StyleCrowdReviewGender.Male, "brous6_brous6_brous6", "brous6_brous6_brous6")]
-        [TestCase(StyleCrowdReviewGender.Male, "brous10_brous10_brous10", "pants1_pants1_pants1")]
+        [TestCase(StyleCrowdReviewGender.Male, "brous10_brous10_brous10", "brous6_brous6_brous6")]
         [TestCase(StyleCrowdReviewGender.Female, "brous3", "brous3")]
         [TestCase(StyleCrowdReviewGender.Female, "brous7", "brous7")]
-        [TestCase(StyleCrowdReviewGender.Female, "brous10", "pants1")]
+        [TestCase(StyleCrowdReviewGender.Female, "brous10", "brous7")]
         public void NormalizeChildName_ReplacesUnsupportedLiveVariants(
             StyleCrowdReviewGender gender,
             string childName,

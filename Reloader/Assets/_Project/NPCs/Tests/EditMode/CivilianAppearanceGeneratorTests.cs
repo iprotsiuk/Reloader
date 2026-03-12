@@ -110,6 +110,81 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void GenerateRecord_WhenGenericStyleCompatiblePresentationHasNoEyebrowChoices_FallsBackToDefaultStyleEyebrows()
+        {
+            var generatorType = ResolveRequiredType(GeneratorTypeName);
+            var libraryType = ResolveRequiredType(LibraryTypeName);
+
+            var generator = Activator.CreateInstance(generatorType);
+            var library = Activator.CreateInstance(libraryType);
+
+            SetProperty(library, "BaseBodyIds", new[] { "body.male.a" });
+            SetProperty(library, "PresentationTypes", new[] { "masculine" });
+            SetProperty(library, "HairIds", new[] { "hair.short" });
+            SetProperty(library, "HairColorIds", new[] { "hair.black" });
+            SetProperty(library, "EyebrowIds", Array.Empty<string>());
+            SetProperty(library, "BeardIds", new[] { "beard.none" });
+            SetProperty(library, "OutfitTopIds", new[] { "tshirt1" });
+            SetProperty(library, "OutfitBottomIds", new[] { "pants1" });
+            SetProperty(library, "OuterwearIds", new[] { "jacket" });
+            SetProperty(library, "MaterialColorIds", new[] { "color.gray" });
+            SetProperty(library, "DescriptionTags", new[] { "gray coat" });
+
+            var generateMethod = generatorType.GetMethod(
+                "GenerateRecord",
+                BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: new[] { libraryType, typeof(string), typeof(int), typeof(string), typeof(int), typeof(bool) },
+                modifiers: null);
+
+            Assert.That(generateMethod, Is.Not.Null, "Expected a public GenerateRecord(...) method on CivilianAppearanceGenerator.");
+
+            var record = generateMethod.Invoke(
+                generator,
+                new object[] { library, "citizen.mainTown.003", 4, "spawn.busstop.c", 2026, true });
+
+            Assert.That(GetProperty<string>(record, "EyebrowId"), Is.EqualTo("brous1"));
+        }
+
+        [Test]
+        public void GenerateRecord_WhenGenericStyleCompatiblePresentationHasMissingEyebrowsAndInvalidBottom_NormalizesToApprovedDefaults()
+        {
+            var generatorType = ResolveRequiredType(GeneratorTypeName);
+            var libraryType = ResolveRequiredType(LibraryTypeName);
+
+            var generator = Activator.CreateInstance(generatorType);
+            var library = Activator.CreateInstance(libraryType);
+
+            SetProperty(library, "BaseBodyIds", new[] { "body.male.a" });
+            SetProperty(library, "PresentationTypes", new[] { "masculine" });
+            SetProperty(library, "HairIds", new[] { "hair.short" });
+            SetProperty(library, "HairColorIds", new[] { "hair.black" });
+            SetProperty(library, "EyebrowIds", Array.Empty<string>());
+            SetProperty(library, "BeardIds", new[] { "beard.none" });
+            SetProperty(library, "OutfitTopIds", new[] { "tshirt1" });
+            SetProperty(library, "OutfitBottomIds", new[] { "legacy.bottom.invalid" });
+            SetProperty(library, "OuterwearIds", new[] { "jacket" });
+            SetProperty(library, "MaterialColorIds", new[] { "color.gray" });
+            SetProperty(library, "DescriptionTags", new[] { "gray coat" });
+
+            var generateMethod = generatorType.GetMethod(
+                "GenerateRecord",
+                BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: new[] { libraryType, typeof(string), typeof(int), typeof(string), typeof(int), typeof(bool) },
+                modifiers: null);
+
+            Assert.That(generateMethod, Is.Not.Null, "Expected a public GenerateRecord(...) method on CivilianAppearanceGenerator.");
+
+            var record = generateMethod.Invoke(
+                generator,
+                new object[] { library, "citizen.mainTown.004", 4, "spawn.busstop.d", 2027, true });
+
+            Assert.That(GetProperty<string>(record, "EyebrowId"), Is.EqualTo("brous1"));
+            Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("pants1"));
+        }
+
+        [Test]
         public void CivilianAppearanceLibrary_JsonRoundTrip_PreservesConfiguredArrays()
         {
             var libraryType = ResolveRequiredType(LibraryTypeName);

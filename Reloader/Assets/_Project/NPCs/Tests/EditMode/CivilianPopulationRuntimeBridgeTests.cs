@@ -251,6 +251,54 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void PrepareForSave_WhenRuntimeCivilianIsNonStyleMasculine_PreservesOriginalEyebrowAndBottomIds()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    PopulationSlotId = "townsfolk.legacy.003",
+                    PoolId = "townsfolk",
+                    CivilianId = "citizen.legacy.003",
+                    FirstName = "Marek",
+                    LastName = "Sidorov",
+                    IsAlive = true,
+                    IsContractEligible = true,
+                    BaseBodyId = "body.male.a",
+                    PresentationType = "masculine",
+                    HairId = "hair.short.01",
+                    HairColorId = "hair.black",
+                    EyebrowId = "brows.arch.01",
+                    BeardId = "beard.none",
+                    OutfitTopId = "top.coat.01",
+                    OutfitBottomId = "bottom.jeans.01",
+                    OuterwearId = "outer.gray.coat",
+                    MaterialColorIds = new List<string> { "color.gray" },
+                    GeneratedDescriptionTags = new List<string> { "legacy" },
+                    SpawnAnchorId = "spawn.busstop.a",
+                    AreaTag = "downtown",
+                    CreatedAtDay = 6,
+                    RetiredAtDay = -1
+                });
+
+                var module = new CivilianPopulationModule();
+
+                bridge.PrepareForSave(new[] { new SaveModuleRegistration(1, module) });
+
+                Assert.That(module.Civilians.Count, Is.EqualTo(1));
+                Assert.That(module.Civilians[0].EyebrowId, Is.EqualTo("brows.arch.01"));
+                Assert.That(module.Civilians[0].OutfitBottomId, Is.EqualTo("bottom.jeans.01"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void FinalizeAfterLoad_RebuildsScenePopulationFromLoadedModuleAndClearsPriorSpawnedObjects()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");

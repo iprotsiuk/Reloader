@@ -259,14 +259,8 @@ namespace Reloader.Core.Save.Modules
 
         private static bool IsStyleAppearance(string baseBodyId, string presentationType)
         {
-            if (string.Equals(baseBodyId?.Trim(), "male.body", StringComparison.Ordinal)
-                || string.Equals(baseBodyId?.Trim(), "female.body", StringComparison.Ordinal))
-            {
-                return true;
-            }
-
-            return string.Equals(presentationType?.Trim(), "masculine", StringComparison.Ordinal)
-                   || string.Equals(presentationType?.Trim(), "feminine", StringComparison.Ordinal);
+            return string.Equals(baseBodyId?.Trim(), "male.body", StringComparison.Ordinal)
+                   || string.Equals(baseBodyId?.Trim(), "female.body", StringComparison.Ordinal);
         }
 
         private static string NormalizeStyleBottomId(string bottomId)

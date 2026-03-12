@@ -2114,23 +2114,38 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
-            var bindRuntimeReferences = alignerType.GetMethod("BindRuntimeReferences", BindingFlags.Instance | BindingFlags.Public);
-            if (bindRuntimeReferences != null)
+            var cameraTransform = worldCamera != null ? worldCamera.transform : null;
+            var alignerAdsPivotField = alignerType.GetField("_adsPivot", BindingFlags.Instance | BindingFlags.NonPublic);
+            var alignerCameraField = alignerType.GetField("_cameraTransform", BindingFlags.Instance | BindingFlags.NonPublic);
+            var alignerAttachmentManagerField = alignerType.GetField("_attachmentManager", BindingFlags.Instance | BindingFlags.NonPublic);
+            var alignerAdsStateField = alignerType.GetField("_adsStateController", BindingFlags.Instance | BindingFlags.NonPublic);
+
+            var needsRebind =
+                !ReferenceEquals(alignerAdsPivotField?.GetValue(aligner) as Transform, adsPivot)
+                || !ReferenceEquals(alignerCameraField?.GetValue(aligner) as Transform, cameraTransform)
+                || !ReferenceEquals(alignerAttachmentManagerField?.GetValue(aligner) as Component, attachmentManager)
+                || !ReferenceEquals(alignerAdsStateField?.GetValue(aligner) as Component, _adsStateRuntimeBridge);
+
+            if (needsRebind)
             {
-                bindRuntimeReferences.Invoke(aligner, new object[]
+                var bindRuntimeReferences = alignerType.GetMethod("BindRuntimeReferences", BindingFlags.Instance | BindingFlags.Public);
+                if (bindRuntimeReferences != null)
                 {
-                    adsPivot,
-                    worldCamera != null ? worldCamera.transform : null,
-                    attachmentManager,
-                    _adsStateRuntimeBridge
-                });
-            }
-            else
-            {
-                alignerType.GetField("_adsPivot", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, adsPivot);
-                alignerType.GetField("_cameraTransform", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, worldCamera != null ? worldCamera.transform : null);
-                alignerType.GetField("_attachmentManager", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, attachmentManager);
-                alignerType.GetField("_adsStateController", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, _adsStateRuntimeBridge);
+                    bindRuntimeReferences.Invoke(aligner, new object[]
+                    {
+                        adsPivot,
+                        cameraTransform,
+                        attachmentManager,
+                        _adsStateRuntimeBridge
+                    });
+                }
+                else
+                {
+                    alignerAdsPivotField?.SetValue(aligner, adsPivot);
+                    alignerCameraField?.SetValue(aligner, cameraTransform);
+                    alignerAttachmentManagerField?.SetValue(aligner, attachmentManager);
+                    alignerAdsStateField?.SetValue(aligner, _adsStateRuntimeBridge);
+                }
             }
 
             _weaponAimAlignerRuntimeBridge = aligner;

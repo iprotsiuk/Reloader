@@ -153,6 +153,38 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void CivilianPopulationModule_RoundTrip_NonStyleMasculineRecord_PreservesOriginalEyebrowAndBottomIds()
+        {
+            var moduleType = ResolveRequiredType(ModuleTypeName);
+            var recordType = ResolveRequiredType(RecordTypeName);
+
+            var source = Activator.CreateInstance(moduleType);
+            Assert.That(source, Is.Not.Null);
+
+            var civilians = GetRequiredList(source, "Civilians");
+            var record = CreateCivilianRecord(recordType);
+            SetProperty(record, "BaseBodyId", "body.male.a");
+            SetProperty(record, "PresentationType", "masculine");
+            SetProperty(record, "EyebrowId", "brows.arch.01");
+            SetProperty(record, "OutfitBottomId", "bottom.jeans.01");
+            civilians.Add(record);
+
+            var captureMethod = moduleType.GetMethod("CaptureModuleStateJson", BindingFlags.Public | BindingFlags.Instance);
+            var restoreMethod = moduleType.GetMethod("RestoreModuleStateFromJson", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(captureMethod, Is.Not.Null);
+            Assert.That(restoreMethod, Is.Not.Null);
+
+            var payloadJson = (string)captureMethod.Invoke(source, Array.Empty<object>());
+            var restored = Activator.CreateInstance(moduleType);
+            restoreMethod.Invoke(restored, new object[] { payloadJson });
+
+            var restoredCivilians = GetRequiredList(restored, "Civilians");
+            Assert.That(restoredCivilians.Count, Is.EqualTo(1));
+            Assert.That(GetProperty<string>(restoredCivilians[0], "EyebrowId"), Is.EqualTo("brows.arch.01"));
+            Assert.That(GetProperty<string>(restoredCivilians[0], "OutfitBottomId"), Is.EqualTo("bottom.jeans.01"));
+        }
+
+        [Test]
         public void CivilianPopulationModule_ValidateModuleState_RejectsCitizensMissingFirstName()
         {
             var moduleType = ResolveRequiredType(ModuleTypeName);

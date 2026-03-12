@@ -3342,6 +3342,173 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator TrySwapEquippedWeaponAttachment_AttachingScopeWhileAiming_DoesNotRebaseAdsPivotRestPose()
+        {
+            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            Assert.That(opticDefinitionType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            GameObject worldCameraGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            UnityEngine.Object scopedOpticDefinition = null;
+            GameObject scopedOpticPrefab = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+                runtime.TryAddStackItem("att-optic-4x", 1, out _, out _, out _);
+
+                worldCameraGo = new GameObject("WorldCam");
+                var worldCamera = worldCameraGo.AddComponent<Camera>();
+                worldCamera.tag = "MainCamera";
+                var viewmodelCameraGo = new GameObject("ViewmodelCamera");
+                viewmodelCameraGo.transform.SetParent(worldCamera.transform, false);
+                viewmodelCameraGo.AddComponent<Camera>();
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Kar98k", 5, 0.12f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x" })
+                });
+
+                viewPrefab = new GameObject("Kar98kView");
+                var adsPivot = new GameObject("AdsPivot").transform;
+                adsPivot.SetParent(viewPrefab.transform, false);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(adsPivot, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(adsPivot, false);
+                ironSightAnchor.localPosition = new Vector3(0.05f, 0.02f, 0.4f);
+                ConfigureTestWeaponViewMounts(viewPrefab, adsPivot: adsPivot, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
+
+                scopedOpticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+                scopedOpticPrefab = new GameObject("OpticFourXPrefab");
+                var sightAnchor = new GameObject("SightAnchor").transform;
+                sightAnchor.SetParent(scopedOpticPrefab.transform, false);
+                sightAnchor.localPosition = new Vector3(-0.04f, -0.01f, 0.28f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_opticId", "att-optic-4x");
+                SetField(opticDefinitionType, scopedOpticDefinition, "_isVariableZoom", false);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_magnificationMin", 4f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_magnificationMax", 4f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_magnificationStep", 1f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_visualModePolicy", Enum.Parse(ResolveType("Reloader.Game.Weapons.AdsVisualMode"), "RenderTexturePiP"));
+                SetField(opticDefinitionType, scopedOpticDefinition, "_opticPrefab", scopedOpticPrefab);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_adsCamera", worldCamera);
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests(
+                        "att-optic-4x",
+                        WeaponAttachmentSlotType.Scope,
+                        scopedOpticDefinition)
+                });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
+
+                yield return null;
+
+                var equippedView = controller.EquippedWeaponViewTransform;
+                Assert.That(equippedView, Is.Not.Null);
+
+                var runtimeAdsPivot = equippedView.Find("AdsPivot");
+                Assert.That(runtimeAdsPivot, Is.Not.Null);
+                var authoredRestLocalPosition = runtimeAdsPivot.localPosition;
+
+                runtimeAdsPivot.localPosition = authoredRestLocalPosition + new Vector3(0.08f, -0.03f, 0.05f);
+                runtimeAdsPivot.localRotation = Quaternion.Euler(7f, -4f, 3f);
+
+                input.AimHeldValue = true;
+
+                var adsBridge = GetControllerField<Component>(controller, "_adsStateRuntimeBridge");
+                Assert.That(adsBridge, Is.Not.Null);
+
+                var frames = 0;
+                while ((float)GetProperty(adsBridge, "AdsT") < 0.999f && frames < 90)
+                {
+                    frames++;
+                    yield return null;
+                }
+
+                Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-optic-4x"), Is.True);
+                yield return null;
+
+                input.AimHeldValue = false;
+
+                frames = 0;
+                while ((float)GetProperty(adsBridge, "AdsT") > 0.001f && frames < 90)
+                {
+                    frames++;
+                    yield return null;
+                }
+
+                for (var i = 0; i < 4; i++)
+                {
+                    yield return null;
+                }
+
+                Assert.That(
+                    Vector3.Distance(runtimeAdsPivot.localPosition, authoredRestLocalPosition),
+                    Is.LessThan(0.001f),
+                    "Attaching a scope while ADS is active must not rebase the runtime AdsPivot rest pose to the in-progress irons alignment.");
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (worldCameraGo != null)
+                {
+                    Object.Destroy(worldCameraGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (scopedOpticDefinition != null)
+                {
+                    Object.Destroy(scopedOpticDefinition);
+                }
+
+                if (scopedOpticPrefab != null)
+                {
+                    Object.Destroy(scopedOpticPrefab);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator EquipScopedWeapon_RuntimeBridge_WiresPipScopeControllerAndScopeCamera()
         {
             var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
@@ -4897,6 +5064,192 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator TrySwapEquippedWeaponAttachment_RealKar98kScopeAsset_AdsCycleRestoresViewAndAdsPivotPose()
+        {
+#if UNITY_EDITOR
+            GameObject root = null;
+            GameObject registryGo = null;
+            GameObject worldCameraGo = null;
+            WeaponDefinition definition = null;
+
+            try
+            {
+                var realOpticDefinition = AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                    "Assets/_Project/Weapons/Data/Attachments/Kar98kScopeRemoteA.asset");
+                var rifleViewPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                    "Assets/_Project/Weapons/Prefabs/RifleView.prefab");
+                Assert.That(realOpticDefinition, Is.Not.Null);
+                Assert.That(rifleViewPrefab, Is.Not.Null);
+
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+                runtime.TryAddStackItem("att-kar98k-scope-remote-a", 1, out _, out _, out _);
+
+                worldCameraGo = new GameObject("WorldCam");
+                var worldCamera = worldCameraGo.AddComponent<Camera>();
+                worldCamera.tag = "MainCamera";
+                var viewmodelCameraGo = new GameObject("ViewmodelCamera");
+                viewmodelCameraGo.transform.SetParent(worldCamera.transform, false);
+                viewmodelCameraGo.AddComponent<Camera>();
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Kar98k", 5, 0.12f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-kar98k-scope-remote-a" })
+                });
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, rifleViewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_adsCamera", worldCamera);
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests(
+                        "att-kar98k-scope-remote-a",
+                        WeaponAttachmentSlotType.Scope,
+                        realOpticDefinition)
+                });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", rifleViewPrefab);
+
+                var poseHelper = root.AddComponent<WeaponViewPoseTuningHelper>();
+                var helperType = typeof(WeaponViewPoseTuningHelper);
+                SetField(helperType, poseHelper, "_weaponController", controller);
+                SetField(helperType, poseHelper, "_targetWeaponItemId", "weapon-kar98k");
+                SetField(helperType, poseHelper, "_hipLocalPosition", new Vector3(0.015f, 0.15f, 0.005f));
+                SetField(helperType, poseHelper, "_adsLocalPosition", new Vector3(0f, 0.2f, 0.077f));
+                SetField(helperType, poseHelper, "_hipLocalEuler", Vector3.zero);
+                SetField(helperType, poseHelper, "_adsLocalEuler", Vector3.zero);
+                SetField(helperType, poseHelper, "_rifleLocalEulerOffset", new Vector3(90f, 0f, 0f));
+                SetField(helperType, poseHelper, "_blendSpeed", 24f);
+
+                var overrideType = helperType.GetNestedType("AttachmentPoseOverride", BindingFlags.NonPublic);
+                var overrides = Array.CreateInstance(overrideType, 1);
+                var entry = Activator.CreateInstance(overrideType);
+                SetField(overrideType, entry, "_slotType", WeaponAttachmentSlotType.Scope);
+                SetField(overrideType, entry, "_attachmentItemId", "att-kar98k-scope-remote-a");
+                SetField(overrideType, entry, "_hipLocalPosition", new Vector3(0.015f, 0.15f, 0.005f));
+                SetField(overrideType, entry, "_hipLocalEuler", Vector3.zero);
+                SetField(overrideType, entry, "_adsLocalPosition", new Vector3(0f, 0.2f, 0.05f));
+                SetField(overrideType, entry, "_adsLocalEuler", Vector3.zero);
+                SetField(overrideType, entry, "_rifleLocalEulerOffset", new Vector3(90f, 0f, 0f));
+                SetField(overrideType, entry, "_blendSpeed", 24f);
+                overrides.SetValue(entry, 0);
+                SetField(helperType, poseHelper, "_attachmentPoseOverrides", overrides);
+
+                yield return null;
+
+                Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-kar98k-scope-remote-a"), Is.True);
+                yield return null;
+                if (!Application.isBatchMode)
+                {
+                    yield return new WaitForEndOfFrame();
+                }
+
+                var equippedView = controller.EquippedWeaponViewTransform;
+                Assert.That(equippedView, Is.Not.Null);
+                var runtimeAdsPivot = equippedView.Find("AdsPivot");
+                Assert.That(runtimeAdsPivot, Is.Not.Null, "Expected the real Kar98k view to expose an authored AdsPivot.");
+
+                var restViewPosition = equippedView.localPosition;
+                var restViewRotation = equippedView.localRotation;
+                var restAdsPivotPosition = runtimeAdsPivot.localPosition;
+                var restAdsPivotRotation = runtimeAdsPivot.localRotation;
+
+                input.AimHeldValue = true;
+                var adsBridge = GetControllerField<Component>(controller, "_adsStateRuntimeBridge");
+                Assert.That(adsBridge, Is.Not.Null);
+
+                var frames = 0;
+                while ((float)GetProperty(adsBridge, "AdsT") < 0.999f && frames < 90)
+                {
+                    frames++;
+                    yield return null;
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
+                }
+
+                input.AimHeldValue = false;
+                frames = 0;
+                while ((float)GetProperty(adsBridge, "AdsT") > 0.001f && frames < 90)
+                {
+                    frames++;
+                    yield return null;
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
+                }
+
+                for (var i = 0; i < 4; i++)
+                {
+                    yield return null;
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
+                }
+
+                Assert.That(
+                    Vector3.Distance(equippedView.localPosition, restViewPosition),
+                    Is.LessThan(0.01f),
+                    "Scoped ADS should return the real Kar98k view root to its pre-aim pose after RMB is released.");
+                Assert.That(
+                    Quaternion.Angle(equippedView.localRotation, restViewRotation),
+                    Is.LessThan(0.5f),
+                    "Scoped ADS should restore the real Kar98k view root rotation after RMB is released.");
+                Assert.That(
+                    Vector3.Distance(runtimeAdsPivot.localPosition, restAdsPivotPosition),
+                    Is.LessThan(0.01f),
+                    "Scoped ADS should restore the real Kar98k AdsPivot to its pre-aim rest pose after RMB is released.");
+                Assert.That(
+                    Quaternion.Angle(runtimeAdsPivot.localRotation, restAdsPivotRotation),
+                    Is.LessThan(0.5f),
+                    "Scoped ADS should restore the real Kar98k AdsPivot rotation after RMB is released.");
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (worldCameraGo != null)
+                {
+                    Object.Destroy(worldCameraGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
+#else
+            Assert.Ignore("Requires UnityEditor AssetDatabase.");
+            yield break;
+#endif
+        }
+
+        [UnityTest]
         public IEnumerator WeaponViewPoseTuningHelper_RuntimeScopeOverrideApi_CanInspectAndRetuneActiveOverride()
         {
             var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
@@ -5762,6 +6115,26 @@ namespace Reloader.Weapons.Tests.PlayMode
 
         private sealed class MinimalBridgeMarker : MonoBehaviour
         {
+        }
+
+        private sealed class Vector3EqualityComparer : System.Collections.IEqualityComparer
+        {
+            public static readonly Vector3EqualityComparer Instance = new();
+
+            public new bool Equals(object x, object y)
+            {
+                if (x is not Vector3 lhs || y is not Vector3 rhs)
+                {
+                    return false;
+                }
+
+                return Vector3.Distance(lhs, rhs) <= 0.0001f;
+            }
+
+            public int GetHashCode(object obj)
+            {
+                return obj?.GetHashCode() ?? 0;
+            }
         }
 
         private sealed class TestDamageable : MonoBehaviour, IDamageable

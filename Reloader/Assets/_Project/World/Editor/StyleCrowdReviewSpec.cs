@@ -27,6 +27,7 @@ namespace Reloader.World.Editor
             string hairId,
             string beardId,
             string topId,
+            string eyebrowId,
             string bottomId)
         {
             Name = name?.Trim() ?? string.Empty;
@@ -36,6 +37,7 @@ namespace Reloader.World.Editor
             HairId = hairId?.Trim() ?? string.Empty;
             BeardId = beardId?.Trim() ?? string.Empty;
             TopId = topId?.Trim() ?? string.Empty;
+            EyebrowId = eyebrowId?.Trim() ?? string.Empty;
             BottomId = bottomId?.Trim() ?? string.Empty;
         }
 
@@ -46,6 +48,7 @@ namespace Reloader.World.Editor
         public string HairId { get; }
         public string BeardId { get; }
         public string TopId { get; }
+        public string EyebrowId { get; }
         public string BottomId { get; }
     }
 
@@ -97,7 +100,7 @@ namespace Reloader.World.Editor
             "turtleneck"
         };
 
-        public static readonly IReadOnlyList<string> CommonBottomIds = new[]
+        public static readonly IReadOnlyList<string> CommonEyebrowIds = new[]
         {
             "brous1",
             "brous2",
@@ -108,7 +111,13 @@ namespace Reloader.World.Editor
             "brous7",
             "brous8",
             "brous9",
-            "brous10",
+            "brous10"
+        };
+
+        public const string RequiredBottomId = "pants1";
+
+        public static readonly IReadOnlyList<string> CommonBottomIds = new[]
+        {
             "pants1"
         };
     }
