@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Reloader.Game.Weapons
@@ -21,17 +22,28 @@ namespace Reloader.Game.Weapons
         private Transform _activeSightAnchor;
         private OpticDefinition _activeOpticDefinition;
         private MuzzleAttachmentDefinition _activeMuzzleDefinition;
+        private ScopeAdjustmentController _activeScopeAdjustmentController;
+        private string _activeOpticAdjustmentStateKey = string.Empty;
+        private string _pendingOpticAdjustmentStateKey = string.Empty;
+        private readonly Dictionary<string, ScopeAdjustmentSnapshot> _scopeAdjustmentSnapshotsByKey = new();
 
         public event Action<OpticDefinition> ActiveOpticChanged;
         public OpticDefinition ActiveOpticDefinition => _activeOpticDefinition;
         public MuzzleAttachmentDefinition ActiveMuzzleDefinition => _activeMuzzleDefinition;
         public GameObject ActiveOpticInstance => _equippedOpticInstance;
+        public ScopeAdjustmentController ActiveScopeAdjustmentController => _activeScopeAdjustmentController;
+        public string ActiveOpticAdjustmentStateKey => _activeOpticAdjustmentStateKey;
         public Transform ScopeSlot => _scopeSlot;
         public Transform MuzzleSlot => _muzzleSlot;
 
         private void Awake()
         {
             RefreshSightAnchor();
+        }
+
+        public void SetPendingOpticAdjustmentStateKey(string stateKey)
+        {
+            _pendingOpticAdjustmentStateKey = string.IsNullOrWhiteSpace(stateKey) ? string.Empty : stateKey.Trim();
         }
 
         public void ConfigureMounts(
@@ -76,6 +88,7 @@ namespace Reloader.Game.Weapons
             }
 
             _activeOpticDefinition = optic;
+            _activeOpticAdjustmentStateKey = ResolveOpticAdjustmentStateKey(optic);
             if (_verboseOpticLogs)
             {
                 Debug.Log(
@@ -115,6 +128,7 @@ namespace Reloader.Game.Weapons
                 return false;
             }
             ApplySlotLayer(_scopeSlot);
+            RestoreActiveScopeAdjustments();
 
             if (_verboseOpticLogs)
             {
@@ -129,6 +143,9 @@ namespace Reloader.Game.Weapons
 
         public void UnequipOptic()
         {
+            PersistActiveScopeAdjustments();
+            DetachActiveScopeAdjustmentController();
+
             if (_equippedOpticInstance != null)
             {
                 Destroy(_equippedOpticInstance);
@@ -136,6 +153,7 @@ namespace Reloader.Game.Weapons
             }
 
             _activeOpticDefinition = null;
+            _activeOpticAdjustmentStateKey = string.Empty;
             RefreshSightAnchor();
             if (_verboseOpticLogs)
             {
@@ -146,6 +164,9 @@ namespace Reloader.Game.Weapons
 
         private void DisposeInvalidOpticInstance()
         {
+            PersistActiveScopeAdjustments();
+            DetachActiveScopeAdjustmentController();
+
             if (_equippedOpticInstance != null)
             {
                 _equippedOpticInstance.SetActive(false);
@@ -155,6 +176,7 @@ namespace Reloader.Game.Weapons
             }
 
             _activeOpticDefinition = null;
+            _activeOpticAdjustmentStateKey = string.Empty;
             RefreshSightAnchor();
             if (_verboseOpticLogs)
             {
@@ -284,6 +306,85 @@ namespace Reloader.Game.Weapons
         private void RefreshSightAnchor()
         {
             _activeSightAnchor = _ironSightAnchor;
+        }
+
+        private string ResolveOpticAdjustmentStateKey(OpticDefinition optic)
+        {
+            var explicitKey = _pendingOpticAdjustmentStateKey;
+            _pendingOpticAdjustmentStateKey = string.Empty;
+            if (!string.IsNullOrWhiteSpace(explicitKey))
+            {
+                return explicitKey;
+            }
+
+            if (optic != null && !string.IsNullOrWhiteSpace(optic.OpticId))
+            {
+                return optic.OpticId;
+            }
+
+            if (optic != null && optic.OpticPrefab != null)
+            {
+                return optic.OpticPrefab.name;
+            }
+
+            return string.Empty;
+        }
+
+        private void RestoreActiveScopeAdjustments()
+        {
+            DetachActiveScopeAdjustmentController();
+
+            if (_equippedOpticInstance == null)
+            {
+                return;
+            }
+
+            _activeScopeAdjustmentController = _equippedOpticInstance.GetComponentInChildren<ScopeAdjustmentController>(true);
+            if (_activeScopeAdjustmentController == null)
+            {
+                _activeScopeAdjustmentController = _equippedOpticInstance.AddComponent<ScopeAdjustmentController>();
+            }
+
+            _activeScopeAdjustmentController.ConfigureFromOptic(_activeOpticDefinition);
+            _activeScopeAdjustmentController.AdjustmentChanged += HandleActiveScopeAdjustmentChanged;
+            if (!string.IsNullOrWhiteSpace(_activeOpticAdjustmentStateKey)
+                && _scopeAdjustmentSnapshotsByKey.TryGetValue(_activeOpticAdjustmentStateKey, out var snapshot))
+            {
+                _activeScopeAdjustmentController.RestoreSnapshot(snapshot);
+                return;
+            }
+
+            _activeScopeAdjustmentController.ResetAdjustments();
+            PersistActiveScopeAdjustments();
+        }
+
+        private void PersistActiveScopeAdjustments()
+        {
+            if (_activeScopeAdjustmentController == null || string.IsNullOrWhiteSpace(_activeOpticAdjustmentStateKey))
+            {
+                return;
+            }
+
+            _scopeAdjustmentSnapshotsByKey[_activeOpticAdjustmentStateKey] = _activeScopeAdjustmentController.CaptureSnapshot();
+        }
+
+        private void DetachActiveScopeAdjustmentController()
+        {
+            if (_activeScopeAdjustmentController != null)
+            {
+                _activeScopeAdjustmentController.AdjustmentChanged -= HandleActiveScopeAdjustmentChanged;
+                _activeScopeAdjustmentController = null;
+            }
+        }
+
+        private void HandleActiveScopeAdjustmentChanged(ScopeAdjustmentSnapshot snapshot)
+        {
+            if (string.IsNullOrWhiteSpace(_activeOpticAdjustmentStateKey))
+            {
+                return;
+            }
+
+            _scopeAdjustmentSnapshotsByKey[_activeOpticAdjustmentStateKey] = snapshot;
         }
 
         private static Transform ResolveSightAnchor(Transform root)

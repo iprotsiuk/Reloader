@@ -6,7 +6,8 @@
     "Reloader.Audio",
     "Reloader.PlayerDevice",
     "Reloader.Inventory",
-    "Reloader.Player"
+    "Reloader.Player",
+    "Unity.InputSystem"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

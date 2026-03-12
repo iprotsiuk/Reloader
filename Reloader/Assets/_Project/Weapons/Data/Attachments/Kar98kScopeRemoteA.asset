@@ -16,13 +16,22 @@ MonoBehaviour:
   _category: 5
   _opticPrefab: {fileID: 9098247942822831858, guid: 44d59379fabe01844853ff5d03526c66, type: 3}
   _isVariableZoom: 1
-  _magnificationMin: 4
-  _magnificationMax: 8
+  _magnificationMin: 5
+  _magnificationMax: 25
   _magnificationStep: 1
   _visualModePolicy: 2
-  _eyeReliefBackOffset: 0
-  _reticleUiSprite: {fileID: 21300000, guid: b6b38010a34c907438bccaf68cad56f1, type: 3}
+  _eyeReliefBackOffset: 0.012
+  _reticleUiSprite: {fileID: 21300000, guid: 6b07c5fe99674a5ca215cb767f83ba96, type: 3}
   _scopeReticleDefinition: {fileID: 11400000, guid: fa23f39f258244bd9b91e1f238d74efb, type: 2}
+  _mradPerClick: 0.1
+  _minWindageClicks: -60
+  _maxWindageClicks: 60
+  _minElevationClicks: -60
+  _maxElevationClicks: 60
+  _mechanicalZeroOffsetMrad: {x: 0, y: 0}
+  _projectionCalibrationMultiplier: 6.3
+  _compositeReticleScale: 1.2
+  _compositeReticleOffset: {x: 0, y: 0}
   _hasScopeRenderProfile: 0
   _scopeRenderProfile:
     _renderTextureResolution: 1024

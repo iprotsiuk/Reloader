@@ -29,6 +29,17 @@ namespace Reloader.Game.Weapons
         [SerializeField, Min(0f)] private float _eyeReliefBackOffset;
         [SerializeField] private Sprite _reticleUiSprite;
         [SerializeField] private ScopeReticleDefinition _scopeReticleDefinition;
+        [Header("Scope Adjustment")]
+        [SerializeField, Min(0.001f)] private float _mradPerClick = 0.1f;
+        [SerializeField] private int _minWindageClicks = -20;
+        [SerializeField] private int _maxWindageClicks = 20;
+        [SerializeField] private int _minElevationClicks = -20;
+        [SerializeField] private int _maxElevationClicks = 20;
+        [Header("PiP Calibration")]
+        [SerializeField] private Vector2 _mechanicalZeroOffsetMrad = Vector2.zero;
+        [SerializeField, Min(0.01f)] private float _projectionCalibrationMultiplier = 1f;
+        [SerializeField, Min(0.01f)] private float _compositeReticleScale = 1f;
+        [SerializeField] private Vector2 _compositeReticleOffset = Vector2.zero;
         [SerializeField] private bool _hasScopeRenderProfile;
         [SerializeField] private ScopeRenderProfile _scopeRenderProfile;
 
@@ -47,6 +58,15 @@ namespace Reloader.Game.Weapons
         public float EyeReliefBackOffset => Mathf.Max(0f, _eyeReliefBackOffset);
         public Sprite ReticleUiSprite => _reticleUiSprite;
         public ScopeReticleDefinition ScopeReticleDefinition => _scopeReticleDefinition;
+        public float MradPerClick => Mathf.Max(0.001f, _mradPerClick);
+        public int MinWindageClicks => Mathf.Min(_minWindageClicks, _maxWindageClicks);
+        public int MaxWindageClicks => Mathf.Max(_minWindageClicks, _maxWindageClicks);
+        public int MinElevationClicks => Mathf.Min(_minElevationClicks, _maxElevationClicks);
+        public int MaxElevationClicks => Mathf.Max(_minElevationClicks, _maxElevationClicks);
+        public Vector2 MechanicalZeroOffsetMrad => _mechanicalZeroOffsetMrad;
+        public float ProjectionCalibrationMultiplier => Mathf.Max(0.01f, _projectionCalibrationMultiplier);
+        public float CompositeReticleScale => Mathf.Max(0.01f, _compositeReticleScale);
+        public Vector2 CompositeReticleOffset => _compositeReticleOffset;
         public bool HasScopeRenderProfile => _hasScopeRenderProfile;
         public ScopeRenderProfile RenderProfile => _scopeRenderProfile;
 
