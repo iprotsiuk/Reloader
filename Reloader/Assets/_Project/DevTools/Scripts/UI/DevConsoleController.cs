@@ -117,7 +117,7 @@ namespace Reloader.UI.Toolkit.DevConsole
                 if (_inputSource.ConsumeAutocompletePressed() && _suggestions.Count > 0)
                 {
                     var selected = _suggestions[Mathf.Clamp(_highlightedSuggestionIndex, 0, _suggestions.Count - 1)];
-                    commandText = selected.Token;
+                    commandText = selected.ApplyText;
                     _viewBinder?.SetCommandText(commandText);
                     RefreshSuggestions(commandText);
                 }

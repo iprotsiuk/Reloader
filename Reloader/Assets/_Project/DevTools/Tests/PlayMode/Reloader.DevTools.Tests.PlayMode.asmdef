@@ -1,13 +1,13 @@
 {
-  "name": "Reloader.DevTools.Tests.EditMode",
-  "rootNamespace": "Reloader.DevTools.Tests.EditMode",
+  "name": "Reloader.DevTools.Tests.PlayMode",
+  "rootNamespace": "Reloader.DevTools.Tests.PlayMode",
   "references": [
     "Reloader.DevTools",
-    "Reloader.Core"
+    "Reloader.Core",
+    "Reloader.Inventory",
+    "Reloader.Player"
   ],
-  "includePlatforms": [
-    "Editor"
-  ],
+  "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
   "overrideReferences": false,

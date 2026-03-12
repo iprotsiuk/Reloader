@@ -374,6 +374,31 @@ namespace Reloader.Inventory
             return _itemDefinitionRegistry.ToArray();
         }
 
+        public bool TryGrantItemForDevTools(ItemDefinition definition, int quantity, out PickupRejectReason rejectReason)
+        {
+            rejectReason = PickupRejectReason.InvalidItem;
+            if (Runtime == null
+                || definition == null
+                || string.IsNullOrWhiteSpace(definition.DefinitionId)
+                || quantity <= 0)
+            {
+                return false;
+            }
+
+            EnsureItemDefinitionRegistered(definition);
+            Runtime.SetItemMaxStack(definition.DefinitionId, definition.MaxStack);
+            if (!Runtime.TryAddStackItem(definition.DefinitionId, quantity, out var area, out var index, out rejectReason))
+            {
+                return false;
+            }
+
+            var inventoryEvents = ResolveInventoryEvents();
+            inventoryEvents?.RaiseItemStored(definition.DefinitionId, area, index);
+            inventoryEvents?.RaiseInventoryChanged();
+            UpdateDebugFields();
+            return true;
+        }
+
         private void HandleItemPickupRequested(string itemId)
         {
             if (Runtime == null || string.IsNullOrWhiteSpace(itemId))

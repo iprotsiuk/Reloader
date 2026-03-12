@@ -1,7 +1,10 @@
 {
   "name": "Reloader.DevTools",
   "rootNamespace": "Reloader.DevTools",
-  "references": [],
+  "references": [
+    "Reloader.Core",
+    "Reloader.Inventory"
+  ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,

@@ -6,6 +6,7 @@ namespace Reloader.DevTools.Runtime
     public sealed class DevToolsRuntime
     {
         private readonly DevCommandCatalog _catalog;
+        private readonly DevGiveItemCommand _giveItemCommand = new();
 
         public DevToolsRuntime()
             : this(DevCommandCatalog.CreateDefault(), new DevToolsState(), new DevCommandContext())
@@ -32,10 +33,15 @@ namespace Reloader.DevTools.Runtime
                 return false;
             }
 
-            if (!_catalog.TryGet(parseResult.CommandName, out _))
+            if (!_catalog.TryGet(parseResult.CommandName, out var definition))
             {
                 resultMessage = $"Unknown command '{parseResult.CommandName}'.";
                 return false;
+            }
+
+            if (string.Equals(definition.Name, "give", StringComparison.OrdinalIgnoreCase))
+            {
+                return _giveItemCommand.TryExecute(Context, parseResult, out resultMessage);
             }
 
             resultMessage = $"Command '{parseResult.CommandName}' is registered.";
@@ -45,20 +51,27 @@ namespace Reloader.DevTools.Runtime
         public IReadOnlyList<DevConsoleSuggestion> GetSuggestions(string input, int highlightedIndex)
         {
             var parseResult = DevCommandLineParser.Parse(input);
+            if (parseResult.HasCommand
+                && _catalog.TryGet(parseResult.CommandName, out var definition)
+                && string.Equals(definition.Name, "give", StringComparison.OrdinalIgnoreCase))
+            {
+                return _giveItemCommand.GetSuggestions(Context, input, parseResult);
+            }
+
             var prefix = parseResult.HasCommand ? parseResult.CommandName : input?.Trim() ?? string.Empty;
             var suggestions = new List<DevConsoleSuggestion>();
 
-            foreach (var definition in _catalog.GetDefinitions())
+            foreach (var catalogDefinition in _catalog.GetDefinitions())
             {
-                if (!TryResolveSuggestionLookup(definition, prefix, out var lookupToken))
+                if (!TryResolveSuggestionLookup(catalogDefinition, prefix, out var lookupToken))
                 {
                     continue;
                 }
 
-                var label = string.Equals(lookupToken, definition.Name, StringComparison.OrdinalIgnoreCase)
-                    ? definition.Name
-                    : $"{definition.Name} ({lookupToken})";
-                suggestions.Add(new DevConsoleSuggestion(lookupToken, label, definition.Description));
+                var label = string.Equals(lookupToken, catalogDefinition.Name, StringComparison.OrdinalIgnoreCase)
+                    ? catalogDefinition.Name
+                    : $"{catalogDefinition.Name} ({lookupToken})";
+                suggestions.Add(new DevConsoleSuggestion(lookupToken, label, catalogDefinition.Description, lookupToken));
             }
 
             return suggestions;
