@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a2f74b427c44c4f8d8235290d88a001, type: 3}
+  m_Name: DevNpcSpawnCatalog
+  m_EditorClassIdentifier: Reloader.DevTools::Reloader.DevTools.Data.DevNpcSpawnCatalog
+  _entries:
+  - _spawnId: npc.police
+    _displayName: Police Officer
+    _prefab: {fileID: 100100000, guid: 76e7407fb5a364060aca4fc443b174e8, type: 3}
+  - _spawnId: npc.front-desk-clerk
+    _displayName: Front Desk Clerk
+    _prefab: {fileID: 100100000, guid: f95849ca2022845c3b8177aee029b3a9, type: 3}

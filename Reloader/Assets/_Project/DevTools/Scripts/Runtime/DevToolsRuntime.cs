@@ -8,6 +8,9 @@ namespace Reloader.DevTools.Runtime
         private readonly DevCommandCatalog _catalog;
         private readonly DevNoclipCommand _noclipCommand = new(new DevPlayerMovementOverride());
         private readonly DevGiveItemCommand _giveItemCommand = new();
+        private readonly DevSpawnNpcCommand _spawnNpcCommand = new();
+        private readonly DevTraceRuntime _traceRuntime;
+        private readonly DevTracesCommand _tracesCommand;
 
         public DevToolsRuntime()
             : this(DevCommandCatalog.CreateDefault(), new DevToolsState(), new DevCommandContext())
@@ -19,6 +22,8 @@ namespace Reloader.DevTools.Runtime
             _catalog = catalog ?? DevCommandCatalog.CreateDefault();
             State = state ?? new DevToolsState();
             Context = context ?? new DevCommandContext();
+            _traceRuntime = new DevTraceRuntime(State);
+            _tracesCommand = new DevTracesCommand(State, _traceRuntime);
         }
 
         public DevToolsState State { get; }
@@ -50,6 +55,16 @@ namespace Reloader.DevTools.Runtime
                 return _noclipCommand.TryExecute(parseResult, out resultMessage);
             }
 
+            if (string.Equals(definition.Name, "traces", StringComparison.OrdinalIgnoreCase))
+            {
+                return _tracesCommand.TryExecute(parseResult, out resultMessage);
+            }
+
+            if (string.Equals(definition.Name, "spawn", StringComparison.OrdinalIgnoreCase))
+            {
+                return _spawnNpcCommand.TryExecute(Context, parseResult, out resultMessage);
+            }
+
             resultMessage = $"Command '{parseResult.CommandName}' is registered.";
             return true;
         }
@@ -69,6 +84,20 @@ namespace Reloader.DevTools.Runtime
                 && string.Equals(suggestionDefinition.Name, "noclip", StringComparison.OrdinalIgnoreCase))
             {
                 return _noclipCommand.GetSuggestions(input, parseResult);
+            }
+
+            if (parseResult.HasCommand
+                && _catalog.TryGet(parseResult.CommandName, out var tracesDefinition)
+                && string.Equals(tracesDefinition.Name, "traces", StringComparison.OrdinalIgnoreCase))
+            {
+                return _tracesCommand.GetSuggestions(input, parseResult);
+            }
+
+            if (parseResult.HasCommand
+                && _catalog.TryGet(parseResult.CommandName, out var spawnDefinition)
+                && string.Equals(spawnDefinition.Name, "spawn", StringComparison.OrdinalIgnoreCase))
+            {
+                return _spawnNpcCommand.GetSuggestions(Context, input, parseResult);
             }
 
             var prefix = parseResult.HasCommand ? parseResult.CommandName : input?.Trim() ?? string.Empty;
