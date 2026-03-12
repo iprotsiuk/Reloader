@@ -608,6 +608,51 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerInputReader_Update_SuppressesKeyboardGameplayInput_WhenDevConsoleIsVisible()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+            runtimeEvents.RaiseDevConsoleVisibilityChanged(true);
+
+            var keyboard = InputSystem.AddDevice<Keyboard>();
+            var actionsAsset = CreatePlayerKeyboardGameplayActionsAsset();
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(actionsAsset);
+
+            try
+            {
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(
+                    Key.W,
+                    Key.LeftShift,
+                    Key.Space,
+                    Key.R,
+                    Key.E,
+                    Key.Digit1,
+                    Key.Equals));
+                InputSystem.Update();
+
+                reader.SendMessage("Update");
+
+                Assert.That(reader.MoveInput, Is.EqualTo(Vector2.zero));
+                Assert.That(reader.SprintHeld, Is.False);
+                Assert.That(reader.ConsumeJumpPressed(), Is.False);
+                Assert.That(reader.ConsumeReloadPressed(), Is.False);
+                Assert.That(reader.ConsumePickupPressed(), Is.False);
+                Assert.That(reader.ConsumeBeltSelectPressed(), Is.EqualTo(-1));
+                Assert.That(reader.ConsumeZeroAdjustStep(), Is.Zero);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(actionsAsset);
+                InputSystem.RemoveDevice(keyboard);
+                RuntimeKernelBootstrapper.Events = previousEvents;
+            }
+        }
+
+        [Test]
         public void PlayerInputReader_Update_DoesNotToggleAimFromAction_WhenAnyMenuIsOpen()
         {
             var previousEvents = RuntimeKernelBootstrapper.Events;
@@ -1395,6 +1440,28 @@ namespace Reloader.Player.Tests.PlayMode
             var asset = ScriptableObject.CreateInstance<InputActionAsset>();
             var playerMap = new InputActionMap("Player");
             playerMap.AddAction("Aim", binding: "<Keyboard>/f2");
+            asset.AddActionMap(playerMap);
+            return asset;
+        }
+
+        private static InputActionAsset CreatePlayerKeyboardGameplayActionsAsset()
+        {
+            var asset = ScriptableObject.CreateInstance<InputActionAsset>();
+            var playerMap = new InputActionMap("Player");
+
+            var move = playerMap.AddAction("Move");
+            move.AddCompositeBinding("2DVector")
+                .With("Up", "<Keyboard>/w")
+                .With("Down", "<Keyboard>/s")
+                .With("Left", "<Keyboard>/a")
+                .With("Right", "<Keyboard>/d");
+
+            playerMap.AddAction("Sprint", binding: "<Keyboard>/leftShift");
+            playerMap.AddAction("Jump", binding: "<Keyboard>/space");
+            playerMap.AddAction("Reload", binding: "<Keyboard>/r");
+            playerMap.AddAction("Pickup", binding: "<Keyboard>/e");
+            playerMap.AddAction("BeltSlot1", binding: "<Keyboard>/1");
+
             asset.AddActionMap(playerMap);
             return asset;
         }

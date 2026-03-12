@@ -13,7 +13,7 @@ namespace Reloader.NPCs.Tests.EditMode
     public class MainTownNpcAppearanceApplicatorEditModeTests
     {
         [Test]
-        public void Apply_WhenMaleAppearanceIsProvided_NormalizesToRuntimeSafeBottom()
+        public void Apply_WhenMaleAppearanceIncludesEyebrowId_ActivatesMatchingMaleEyebrowMesh()
         {
             var root = CreateTestRoot();
             try
@@ -24,9 +24,10 @@ namespace Reloader.NPCs.Tests.EditMode
                 {
                     BaseBodyId = "male.body",
                     HairId = "hair.short",
+                    EyebrowId = "brous1",
                     BeardId = "beard4",
                     OutfitTopId = "tshirt1",
-                    OutfitBottomId = "brous1",
+                    OutfitBottomId = "pants1",
                     OuterwearId = "openJacket"
                 };
 
@@ -38,8 +39,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/beard4_beard4_beard4").gameObject.activeSelf, Is.True);
                 Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/T_shirt1__T_shirt1_T_shirt1").gameObject.activeSelf, Is.True);
                 Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/jacket_jacket_jacket").gameObject.activeSelf, Is.True);
+                Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/brous1_brous1_brous1").gameObject.activeSelf, Is.True);
                 Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/pants1_pants1_pants1").gameObject.activeSelf, Is.True);
-                Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot/brous1_brous1_brous1").gameObject.activeSelf, Is.False);
             }
             finally
             {
@@ -48,7 +49,7 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
-        public void Apply_WhenFemaleAppearanceUsesCuratedBottom_NormalizesToRuntimeSafeBottom()
+        public void Apply_WhenFemaleAppearanceIncludesEyebrowId_ActivatesMatchingFemaleEyebrowMesh()
         {
             var root = CreateTestRoot();
             try
@@ -59,17 +60,18 @@ namespace Reloader.NPCs.Tests.EditMode
                 {
                     BaseBodyId = "female.body",
                     HairId = "hair.long",
+                    EyebrowId = "brous7",
                     BeardId = string.Empty,
                     OutfitTopId = "tshirt2",
-                    OutfitBottomId = "brous7",
+                    OutfitBottomId = "pants1",
                     OuterwearId = string.Empty
                 };
 
                 applicator.Apply(record);
 
                 Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot").gameObject.activeSelf, Is.True);
+                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/brous7").gameObject.activeSelf, Is.True);
                 Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/pants1").gameObject.activeSelf, Is.True);
-                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/brous7").gameObject.activeSelf, Is.False);
             }
             finally
             {
@@ -89,9 +91,10 @@ namespace Reloader.NPCs.Tests.EditMode
                 {
                     BaseBodyId = "female.body",
                     HairId = "hair.long",
+                    EyebrowId = "brous10",
                     BeardId = "beard7",
                     OutfitTopId = "tshirt2",
-                    OutfitBottomId = "brous10",
+                    OutfitBottomId = "pants1",
                     OuterwearId = string.Empty
                 };
 
@@ -101,8 +104,8 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(root.transform.Find("VisualRoot/StyleMaleRoot").gameObject.activeSelf, Is.False);
                 Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/hair3").gameObject.activeSelf, Is.True);
                 Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/T_shirt2").gameObject.activeSelf, Is.True);
+                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/brous10").gameObject.activeSelf, Is.True);
                 Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/pants1").gameObject.activeSelf, Is.True);
-                Assert.That(root.transform.Find("VisualRoot/StyleFemaleRoot/brous10").gameObject.activeSelf, Is.False);
             }
             finally
             {
@@ -309,9 +312,10 @@ namespace Reloader.NPCs.Tests.EditMode
                     BaseBodyId = "male.body",
                     HairId = "hair.short",
                     HairColorId = "hair.variant.a",
+                    EyebrowId = "brous1",
                     BeardId = "beard4",
                     OutfitTopId = "tshirt1",
-                    OutfitBottomId = "brous1",
+                    OutfitBottomId = "pants1",
                     OuterwearId = "openJacket",
                     MaterialColorIds = new List<string> { "style.variant.a" }
                 };
@@ -321,9 +325,10 @@ namespace Reloader.NPCs.Tests.EditMode
                     BaseBodyId = "male.body",
                     HairId = "hair.short",
                     HairColorId = "hair.variant.c",
+                    EyebrowId = "brous1",
                     BeardId = "beard4",
                     OutfitTopId = "tshirt1",
-                    OutfitBottomId = "brous1",
+                    OutfitBottomId = "pants1",
                     OuterwearId = "openJacket",
                     MaterialColorIds = new List<string> { "style.variant.c" }
                 };
@@ -361,9 +366,10 @@ namespace Reloader.NPCs.Tests.EditMode
                     BaseBodyId = "female.body",
                     HairId = "hair.long",
                     HairColorId = "hair.variant.b",
+                    EyebrowId = "brous7",
                     BeardId = string.Empty,
                     OutfitTopId = "tshirt2",
-                    OutfitBottomId = "brous7",
+                    OutfitBottomId = "pants1",
                     OuterwearId = string.Empty,
                     MaterialColorIds = new List<string> { "style.variant.b" }
                 };
@@ -466,13 +472,14 @@ namespace Reloader.NPCs.Tests.EditMode
             CreateChild(maleRoot.transform, "Hair_02_hair_hair");
             CreateChild(maleRoot.transform, "hair3_hair3_hair3");
             CreateChild(maleRoot.transform, "hair4_hair4_hair4");
+            CreateChild(maleRoot.transform, "brous1_brous1_brous1");
+            CreateChild(maleRoot.transform, "brous7_brous7_brous7");
             CreateChild(maleRoot.transform, "beard4_beard4_beard4");
             CreateChild(maleRoot.transform, "T_shirt1__T_shirt1_T_shirt1");
             CreateChild(maleRoot.transform, "T_shirt2_T_shirt2_T_shirt2");
             CreateChild(maleRoot.transform, "shirt3_shirt3_shirt3");
             CreateChild(maleRoot.transform, "jacket_jacket_jacket");
             CreateChild(maleRoot.transform, "hoody_hoody_hoody");
-            CreateChild(maleRoot.transform, "brous1_brous1_brous1");
             CreateChild(maleRoot.transform, "pants1_pants1_pants1");
 
             var femaleRoot = new GameObject("StyleFemaleRoot");
@@ -496,19 +503,22 @@ namespace Reloader.NPCs.Tests.EditMode
             AttachMaterialCatalog(maleRoot, new[]
             {
                 "Hair_Hair_Hair",
+                "brous1_brous1_brous1",
+                "brous7_brous7_brous7",
                 "beard4_beard4_beard4",
                 "T_shirt1__T_shirt1_T_shirt1",
                 "T_shirt2_T_shirt2_T_shirt2",
                 "jacket_jacket_jacket",
-                "brous1_brous1_brous1",
                 "pants1_pants1_pants1"
             });
             AttachMaterialCatalog(femaleRoot, new[]
             {
                 "hair3",
+                "brous1_001",
+                "brous7",
+                "brous10",
                 "T_shirt1",
                 "T_shirt2",
-                "brous7",
                 "pants1"
             });
 

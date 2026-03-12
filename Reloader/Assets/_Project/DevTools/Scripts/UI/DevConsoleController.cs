@@ -1,16 +1,25 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Reloader.Core.Runtime;
 using Reloader.DevTools.Runtime;
 using Reloader.Player;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
 
 namespace Reloader.UI.Toolkit.DevConsole
 {
     public sealed class DevConsoleController : MonoBehaviour, IUiController
     {
+        private static readonly PropertyInfo CommandFieldCursorIndexProperty = typeof(TextField).GetProperty(
+            "cursorIndex",
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        private static readonly PropertyInfo CommandFieldSelectIndexProperty = typeof(TextField).GetProperty(
+            "selectIndex",
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
         private sealed class KeyboardDevConsoleKeySource : IDevConsoleKeySource
         {
             public bool ConsumeCancelPressed()
@@ -129,14 +138,20 @@ namespace Reloader.UI.Toolkit.DevConsole
 
                 if (_inputSource.ConsumeAutocompletePressed() && _suggestions.Count > 0)
                 {
-                    var selected = _suggestions[Mathf.Clamp(_highlightedSuggestionIndex, 0, _suggestions.Count - 1)];
-                    commandText = selected.ApplyText;
-                    _viewBinder?.SetCommandText(commandText);
-                    RefreshSuggestions(commandText);
+                    commandText = ApplyHighlightedSuggestion();
+                    MoveCaretToEndOfLine(commandText);
                 }
 
                 if (_consoleKeySource != null && _consoleKeySource.ConsumeSubmitPressed())
                 {
+                    if (TryAcceptHighlightedSuggestionOnSubmit(commandText, out var acceptedCommandText))
+                    {
+                        commandText = acceptedCommandText;
+                        Refresh();
+                        MoveCaretToEndOfLine(commandText);
+                        return;
+                    }
+
                     _runtime.TryExecute(commandText, out _statusText);
                     RefreshSuggestions(commandText);
                 }
@@ -213,6 +228,74 @@ namespace Reloader.UI.Toolkit.DevConsole
             }
 
             _highlightedSuggestionIndex = Mathf.Clamp(_highlightedSuggestionIndex, 0, _suggestions.Count - 1);
+        }
+
+        private string ApplyHighlightedSuggestion()
+        {
+            if (_suggestions.Count == 0)
+            {
+                return _viewBinder?.GetCommandText() ?? string.Empty;
+            }
+
+            var selected = _suggestions[Mathf.Clamp(_highlightedSuggestionIndex, 0, _suggestions.Count - 1)];
+            var acceptedText = selected.ApplyText;
+            _viewBinder?.SetCommandText(acceptedText);
+            RefreshSuggestions(acceptedText);
+            return acceptedText;
+        }
+
+        private bool TryAcceptHighlightedSuggestionOnSubmit(string commandText, out string acceptedCommandText)
+        {
+            acceptedCommandText = commandText ?? string.Empty;
+            if (_suggestions.Count == 0)
+            {
+                return false;
+            }
+
+            var selected = _suggestions[Mathf.Clamp(_highlightedSuggestionIndex, 0, _suggestions.Count - 1)];
+            if (string.IsNullOrWhiteSpace(selected.ApplyText)
+                || string.Equals(selected.ApplyText, acceptedCommandText, StringComparison.Ordinal)
+                || CountTokens(selected.ApplyText) != CountTokens(acceptedCommandText))
+            {
+                return false;
+            }
+
+            acceptedCommandText = ApplyHighlightedSuggestion();
+            return true;
+        }
+
+        private void MoveCaretToEndOfLine(string commandText)
+        {
+            var commandField = _viewBinder?.Root?.Q<TextField>("dev-console__command");
+            if (commandField == null)
+            {
+                return;
+            }
+
+            var endOfLine = commandText?.Length ?? 0;
+            commandField.Focus();
+            SetIntProperty(CommandFieldCursorIndexProperty, commandField, endOfLine);
+            SetIntProperty(CommandFieldSelectIndexProperty, commandField, endOfLine);
+        }
+
+        private static int CountTokens(string commandText)
+        {
+            if (string.IsNullOrWhiteSpace(commandText))
+            {
+                return 0;
+            }
+
+            return commandText.Split((char[])null, StringSplitOptions.RemoveEmptyEntries).Length;
+        }
+
+        private static void SetIntProperty(PropertyInfo property, object target, int value)
+        {
+            if (property?.CanWrite != true || target == null)
+            {
+                return;
+            }
+
+            property.SetValue(target, value);
         }
 
         private IUiStateEvents ResolveUiStateEvents()

@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Events;
@@ -139,6 +140,93 @@ namespace Reloader.Weapons.Tests.PlayMode
                     Object.Destroy(definition);
                 }
             }
+        }
+
+        [UnityTest]
+        public IEnumerator Fire_RealStarterRifleContent_ReachesLongRangeTarget()
+        {
+#if UNITY_EDITOR
+            GameObject root = null;
+            GameObject registryGo = null;
+            GameObject target = null;
+
+            try
+            {
+                var definition = AssetDatabase.LoadAssetAtPath<WeaponDefinition>(
+                    "Assets/_Project/Weapons/Data/Weapons/StarterRifle.asset");
+                Assert.That(definition, Is.Not.Null, "Expected the real StarterRifle weapon definition asset.");
+
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                target.transform.position = new Vector3(0f, -4f, 300f);
+                target.transform.localScale = new Vector3(60f, 120f, 1f);
+                var receiver = target.AddComponent<TestDamageable>();
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                yield return null;
+
+                var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
+                var magazineRounds = new[]
+                {
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj")
+                };
+                Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 4, 0, true), Is.True);
+                Assert.That(controller.ApplyRuntimeBallistics("weapon-kar98k", chamberRound, magazineRounds), Is.True);
+
+                Random.InitState(1337);
+                input.FirePressedThisFrame = true;
+                yield return null;
+
+                var elapsed = 0f;
+                while (receiver.HitCount == 0 && elapsed < 2f)
+                {
+                    elapsed += Time.deltaTime;
+                    yield return null;
+                }
+
+                Assert.That(
+                    receiver.HitCount,
+                    Is.EqualTo(1),
+                    "The real Kar98k content should keep the projectile alive past the old 220m cutoff instead of despawning mid-flight.");
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (target != null)
+                {
+                    Object.Destroy(target);
+                }
+            }
+#else
+            Assert.Ignore("Requires UnityEditor AssetDatabase.");
+            yield break;
+#endif
         }
 
         [UnityTest]
@@ -3105,6 +3193,155 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ApplyRuntimeAttachments_RealKar98kScopeState_ActivatesScopedAdsBridgeWithoutManualSwap()
+        {
+#if UNITY_EDITOR
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            GameObject worldCameraGo = null;
+            WeaponDefinition definition = null;
+
+            try
+            {
+                var realOpticDefinition = AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                    "Assets/_Project/Weapons/Data/Attachments/Kar98kScopeRemoteA.asset");
+                var rifleViewPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                    "Assets/_Project/Weapons/Prefabs/RifleView.prefab");
+                Assert.That(realOpticDefinition, Is.Not.Null);
+                Assert.That(rifleViewPrefab, Is.Not.Null);
+
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                worldCameraGo = new GameObject("WorldCam");
+                var worldCamera = worldCameraGo.AddComponent<Camera>();
+                worldCamera.tag = "MainCamera";
+                var viewmodelCameraGo = new GameObject("ViewmodelCamera");
+                viewmodelCameraGo.transform.SetParent(worldCamera.transform, false);
+                viewmodelCameraGo.AddComponent<Camera>();
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Kar98k", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-kar98k-scope-remote-a" })
+                });
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, rifleViewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_adsCamera", worldCamera);
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests(
+                        "att-kar98k-scope-remote-a",
+                        WeaponAttachmentSlotType.Scope,
+                        realOpticDefinition)
+                });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", rifleViewPrefab);
+
+                yield return null;
+
+                Assert.That(controller.HasActiveScopedAdsAlignment, Is.False, "Expected irons to start without an active scoped ADS bridge.");
+
+                var applied = controller.ApplyRuntimeAttachments(
+                    "weapon-kar98k",
+                    new Dictionary<WeaponAttachmentSlotType, string>
+                    {
+                        [WeaponAttachmentSlotType.Scope] = "att-kar98k-scope-remote-a"
+                    });
+                Assert.That(applied, Is.True);
+
+                yield return null;
+                if (!Application.isBatchMode)
+                {
+                    yield return new WaitForEndOfFrame();
+                }
+
+                yield return null;
+
+                var equippedView = controller.EquippedWeaponViewTransform;
+                Assert.That(equippedView, Is.Not.Null);
+
+                var manager = equippedView.GetComponent(attachmentManagerType);
+                Assert.That(manager, Is.Not.Null);
+
+                var activeOpticProperty = attachmentManagerType.GetProperty("ActiveOpticDefinition", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(activeOpticProperty, Is.Not.Null);
+                var activeOptic = activeOpticProperty.GetValue(manager);
+                Assert.That(activeOptic, Is.Not.Null, "Expected runtime attachment restore to produce a live active optic before any manual swap.");
+
+                Assert.That(controller.HasActiveScopedAdsAlignment, Is.True, "Expected scoped attachment restore to light up the live scoped ADS bridge.");
+
+                input.AimHeldValue = true;
+
+                var adsBridge = GetControllerField<Component>(controller, "_adsStateRuntimeBridge");
+                Assert.That(adsBridge, Is.Not.Null);
+
+                var frames = 0;
+                while ((float)GetProperty(adsBridge, "AdsT") < 0.999f && frames < 90)
+                {
+                    frames++;
+                    yield return null;
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
+                }
+
+                var activeSightAnchor = Invoke(manager, "GetActiveSightAnchor") as Transform;
+                Assert.That(activeSightAnchor, Is.Not.Null);
+
+                var scopedAlignmentDistance = Vector3.Distance(activeSightAnchor.position, worldCamera.transform.position);
+                Assert.That(
+                    scopedAlignmentDistance,
+                    Is.LessThan(0.04f),
+                    "Runtime attachment restore should align the real Kar98k sight anchor to the camera at full ADS instead of leaving the optic buried inside the stock.");
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (worldCameraGo != null)
+                {
+                    Object.Destroy(worldCameraGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
+#else
+            Assert.Ignore("Requires UnityEditor AssetDatabase.");
+            yield break;
+#endif
+        }
+
+        [UnityTest]
         public IEnumerator EquipScopedWeapon_RuntimeBridge_WiresPipScopeControllerAndScopeCamera()
         {
             var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
@@ -5525,6 +5762,18 @@ namespace Reloader.Weapons.Tests.PlayMode
 
         private sealed class MinimalBridgeMarker : MonoBehaviour
         {
+        }
+
+        private sealed class TestDamageable : MonoBehaviour, IDamageable
+        {
+            public int HitCount { get; private set; }
+            public float LastDamage { get; private set; }
+
+            public void ApplyDamage(ProjectileImpactPayload payload)
+            {
+                HitCount++;
+                LastDamage = payload.Damage;
+            }
         }
 
         private sealed class TestPickupResolver : MonoBehaviour, IInventoryPickupTargetResolver

@@ -332,7 +332,7 @@ namespace Reloader.World.Tests.PlayMode
                 yield return null;
             }
 
-            Assert.That(startedTravel, Is.True, "Expected travel trigger to start scene travel.");
+            Assert.That(startedTravel, Is.True, "Expected direct travel to IndoorRange to start.");
 
             yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
             yield return WaitForResolvedEntryPoint("entry.indoor.arrival", SceneSwitchTimeoutSeconds);
@@ -437,6 +437,26 @@ namespace Reloader.World.Tests.PlayMode
 
             Assert.That(weaponItemId, Is.Not.Null.And.Not.Empty, "Expected a weapon item id that accepts runtime state apply.");
 
+            var tryStoreItem = runtime.GetType().GetMethod("TryStoreItem", BindingFlags.Instance | BindingFlags.Public);
+            var selectBeltSlot = runtime.GetType().GetMethod("SelectBeltSlot", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(tryStoreItem, Is.Not.Null, "Expected TryStoreItem on inventory runtime.");
+            Assert.That(selectBeltSlot, Is.Not.Null, "Expected SelectBeltSlot on inventory runtime.");
+
+            var storeArgs = new object[] { weaponItemId, null, -1, null };
+            var storedWeapon = (bool)tryStoreItem.Invoke(runtime, storeArgs);
+            Assert.That(storedWeapon, Is.True, $"Expected '{weaponItemId}' to be stored before travel.");
+
+            var storedBeltIndex = (int)storeArgs[2];
+            selectBeltSlot.Invoke(runtime, new object[] { storedBeltIndex });
+            yield return null;
+
+            var equippedItemIdProperty = weaponController.GetType().GetProperty("EquippedItemId", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(equippedItemIdProperty, Is.Not.Null, "Expected EquippedItemId on PlayerWeaponController.");
+            Assert.That(
+                equippedItemIdProperty.GetValue(weaponController) as string,
+                Is.EqualTo(weaponItemId),
+                "Expected the scoped travel weapon to be equipped before snapshot capture.");
+
             var slotEnumType = System.Type.GetType("Reloader.Weapons.Data.WeaponAttachmentSlotType, Reloader.Weapons");
             Assert.That(slotEnumType, Is.Not.Null, "Expected WeaponAttachmentSlotType enum type.");
             var scopeSlot = System.Enum.Parse(slotEnumType, "Scope");
@@ -452,27 +472,7 @@ namespace Reloader.World.Tests.PlayMode
             var appliedAttachments = (bool)applyRuntimeAttachments.Invoke(weaponController, new object[] { weaponItemId, attachmentsMap });
             Assert.That(appliedAttachments, Is.True, "Expected attachment runtime state to apply before travel.");
 
-            var interactor = CreatePlayerInteractor();
-            var toIndoorObject = GameObject.Find("MainTown_SmokeToIndoor_Trigger");
-            Assert.That(toIndoorObject, Is.Not.Null, "Expected authored smoke trigger in MainTown.");
-            var toIndoor = toIndoorObject.GetComponent<TravelSceneTrigger>();
-            Assert.That(toIndoor, Is.Not.Null);
-
-            var startedTravel = false;
-            var startTimeout = 2f;
-            var elapsedStart = 0f;
-            while (!startedTravel && elapsedStart < startTimeout)
-            {
-                startedTravel = toIndoor.TryHandleInteractor(interactor);
-                if (startedTravel)
-                {
-                    break;
-                }
-
-                elapsedStart += Time.unscaledDeltaTime;
-                yield return null;
-            }
-
+            var startedTravel = WorldTravelCoordinator.TryLoadSceneAtEntry(IndoorRangeSceneName, "entry.indoor.arrival");
             Assert.That(startedTravel, Is.True, "Expected travel trigger to start scene travel.");
             yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
             yield return WaitForResolvedEntryPoint("entry.indoor.arrival", SceneSwitchTimeoutSeconds);
@@ -481,6 +481,10 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(indoorPlayerRoot, Is.Not.Null, "Expected PlayerRoot after arriving to IndoorRange.");
             var indoorWeaponController = indoorPlayerRoot.GetComponent("PlayerWeaponController");
             Assert.That(indoorWeaponController, Is.Not.Null, "Expected PlayerWeaponController after travel.");
+            Assert.That(
+                equippedItemIdProperty.GetValue(indoorWeaponController) as string,
+                Is.EqualTo(weaponItemId),
+                "Expected travel to preserve the equipped weapon item across the scene transition.");
 
             var tryGetRuntimeState = indoorWeaponController.GetType().GetMethod("TryGetRuntimeState", BindingFlags.Instance | BindingFlags.Public);
             Assert.That(tryGetRuntimeState, Is.Not.Null, "Expected TryGetRuntimeState on PlayerWeaponController.");
@@ -504,6 +508,66 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(magazineCount, Is.EqualTo(2), "Expected magazine count to persist across travel.");
             Assert.That(chamberLoaded, Is.True, "Expected chamber loaded state to persist across travel.");
             Assert.That(scopeAttachmentId, Is.EqualTo("att-kar98k-scope-remote-a"), "Expected equipped scope attachment to persist across travel.");
+
+            var hasActiveScopedAdsAlignmentProperty = indoorWeaponController.GetType().GetProperty("HasActiveScopedAdsAlignment", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(hasActiveScopedAdsAlignmentProperty, Is.Not.Null, "Expected HasActiveScopedAdsAlignment on PlayerWeaponController.");
+
+            var alignmentReady = false;
+            var alignmentTimeout = 1f;
+            var alignmentElapsed = 0f;
+            while (!alignmentReady && alignmentElapsed < alignmentTimeout)
+            {
+                alignmentReady = hasActiveScopedAdsAlignmentProperty.GetValue(indoorWeaponController) is true;
+                if (alignmentReady)
+                {
+                    break;
+                }
+
+                alignmentElapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            Assert.That(alignmentReady, Is.True, "Expected travel restore to rebuild the live scoped ADS bridge before the first manual swap.");
+
+            var inputReader = GameObject.Find("PlayerRoot")?.GetComponent("PlayerInputReader");
+            Assert.That(inputReader, Is.Not.Null, "Expected PlayerInputReader on IndoorRange PlayerRoot after travel.");
+
+            var aimHeldProperty = inputReader!.GetType().GetProperty("AimHeld", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(aimHeldProperty, Is.Not.Null, "Expected AimHeld property on PlayerInputReader.");
+            aimHeldProperty!.SetValue(inputReader, true);
+
+            var currentAdsBlendProperty = indoorWeaponController.GetType().GetProperty("CurrentAdsBlendT", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(currentAdsBlendProperty, Is.Not.Null, "Expected CurrentAdsBlendT on PlayerWeaponController.");
+
+            var adsElapsed = 0f;
+            while ((float)currentAdsBlendProperty!.GetValue(indoorWeaponController) < 0.999f && adsElapsed < 1.5f)
+            {
+                adsElapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            var equippedViewTransformProperty = indoorWeaponController.GetType().GetProperty("EquippedWeaponViewTransform", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(equippedViewTransformProperty, Is.Not.Null, "Expected EquippedWeaponViewTransform on PlayerWeaponController.");
+            var equippedView = equippedViewTransformProperty!.GetValue(indoorWeaponController) as Transform;
+            Assert.That(equippedView, Is.Not.Null, "Expected the scoped weapon view to stay mounted after travel.");
+
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            Assert.That(attachmentManagerType, Is.Not.Null, "Expected AttachmentManager runtime type for scoped travel verification.");
+            var manager = equippedView!.GetComponent(attachmentManagerType);
+            Assert.That(manager, Is.Not.Null, "Expected AttachmentManager on the equipped weapon view after travel.");
+
+            var getActiveSightAnchor = attachmentManagerType!.GetMethod("GetActiveSightAnchor", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(getActiveSightAnchor, Is.Not.Null, "Expected GetActiveSightAnchor on AttachmentManager.");
+            var activeSightAnchor = getActiveSightAnchor!.Invoke(manager, null) as Transform;
+            Assert.That(activeSightAnchor, Is.Not.Null, "Expected a live scoped sight anchor after travel.");
+
+            var worldCamera = Camera.main;
+            Assert.That(worldCamera, Is.Not.Null, "Expected IndoorRange main camera after travel.");
+            var scopedAlignmentDistance = Vector3.Distance(activeSightAnchor!.position, worldCamera!.transform.position);
+            Assert.That(
+                scopedAlignmentDistance,
+                Is.LessThan(0.04f),
+                "Expected travel-restored scoped ADS to align the live optic to the camera instead of leaving the sight anchor buried inside the rifle.");
         }
 
         [UnityTest]
@@ -957,6 +1021,27 @@ namespace Reloader.World.Tests.PlayMode
             }
 
             return false;
+        }
+
+        private static Type ResolveType(string fullName)
+        {
+            var direct = Type.GetType(fullName);
+            if (direct != null)
+            {
+                return direct;
+            }
+
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            for (var i = 0; i < assemblies.Length; i++)
+            {
+                var resolved = assemblies[i].GetType(fullName);
+                if (resolved != null)
+                {
+                    return resolved;
+                }
+            }
+
+            return null;
         }
 
         private static IEnumerator TravelViaTrigger(string triggerObjectName, string expectedSceneName, string expectedEntryPointId)

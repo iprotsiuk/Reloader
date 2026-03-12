@@ -10,7 +10,7 @@ namespace Reloader.DevTools.Runtime
         private readonly DevGiveItemCommand _giveItemCommand = new();
         private readonly DevSpawnNpcCommand _spawnNpcCommand = new();
         private DevTraceRuntime _traceRuntime;
-        private DevTracesCommand _tracesCommand;
+        private DevTracesCommand _traceCommand;
 
         public DevToolsRuntime()
             : this(DevCommandCatalog.CreateDefault(), new DevToolsState(), new DevCommandContext())
@@ -53,9 +53,9 @@ namespace Reloader.DevTools.Runtime
                 return _noclipCommand.TryExecute(parseResult, out resultMessage);
             }
 
-            if (string.Equals(definition.Name, "traces", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(definition.Name, "trace", StringComparison.OrdinalIgnoreCase))
             {
-                return GetOrCreateTracesCommand().TryExecute(parseResult, out resultMessage);
+                return GetOrCreateTraceCommand().TryExecute(parseResult, out resultMessage);
             }
 
             if (string.Equals(definition.Name, "spawn", StringComparison.OrdinalIgnoreCase))
@@ -85,10 +85,10 @@ namespace Reloader.DevTools.Runtime
             }
 
             if (parseResult.HasCommand
-                && _catalog.TryGet(parseResult.CommandName, out var tracesDefinition)
-                && string.Equals(tracesDefinition.Name, "traces", StringComparison.OrdinalIgnoreCase))
+                && _catalog.TryGet(parseResult.CommandName, out var traceDefinition)
+                && string.Equals(traceDefinition.Name, "trace", StringComparison.OrdinalIgnoreCase))
             {
-                return GetOrCreateTracesCommand().GetSuggestions(input, parseResult);
+                return GetOrCreateTraceCommand().GetSuggestions(input, parseResult);
             }
 
             if (parseResult.HasCommand
@@ -126,14 +126,14 @@ namespace Reloader.DevTools.Runtime
         {
             _traceRuntime?.Dispose();
             _traceRuntime = null;
-            _tracesCommand = null;
+            _traceCommand = null;
         }
 
-        private DevTracesCommand GetOrCreateTracesCommand()
+        private DevTracesCommand GetOrCreateTraceCommand()
         {
             _traceRuntime ??= new DevTraceRuntime(State);
-            _tracesCommand ??= new DevTracesCommand(State, _traceRuntime);
-            return _tracesCommand;
+            _traceCommand ??= new DevTracesCommand(State, _traceRuntime);
+            return _traceCommand;
         }
 
         private static bool TryResolveSuggestionLookup(

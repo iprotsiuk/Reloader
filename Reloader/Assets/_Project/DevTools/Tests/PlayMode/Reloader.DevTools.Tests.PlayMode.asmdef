@@ -5,7 +5,8 @@
     "Reloader.DevTools",
     "Reloader.Core",
     "Reloader.Inventory",
-    "Reloader.Player"
+    "Reloader.Player",
+    "Reloader.Weapons"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

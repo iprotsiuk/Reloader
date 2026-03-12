@@ -117,6 +117,42 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void CivilianPopulationModule_RoundTrip_InvalidStyleEyebrowAndBottomIds_NormalizesToApprovedDefaults()
+        {
+            var moduleType = ResolveRequiredType(ModuleTypeName);
+            var recordType = ResolveRequiredType(RecordTypeName);
+
+            var source = Activator.CreateInstance(moduleType);
+            Assert.That(source, Is.Not.Null);
+
+            var civilians = GetRequiredList(source, "Civilians");
+            var record = CreateCivilianRecord(recordType);
+            SetProperty(record, "BaseBodyId", "female.body");
+            SetProperty(record, "PresentationType", "feminine");
+            SetProperty(record, "HairId", "hair.long");
+            SetProperty(record, "HairColorId", "hair.brown");
+            SetProperty(record, "EyebrowId", string.Empty);
+            SetProperty(record, "OutfitTopId", "tshirt2");
+            SetProperty(record, "OutfitBottomId", "legacy.bottom.invalid");
+            SetProperty(record, "OuterwearId", "none");
+            civilians.Add(record);
+
+            var captureMethod = moduleType.GetMethod("CaptureModuleStateJson", BindingFlags.Public | BindingFlags.Instance);
+            var restoreMethod = moduleType.GetMethod("RestoreModuleStateFromJson", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(captureMethod, Is.Not.Null);
+            Assert.That(restoreMethod, Is.Not.Null);
+
+            var payloadJson = (string)captureMethod.Invoke(source, Array.Empty<object>());
+            var restored = Activator.CreateInstance(moduleType);
+            restoreMethod.Invoke(restored, new object[] { payloadJson });
+
+            var restoredCivilians = GetRequiredList(restored, "Civilians");
+            Assert.That(restoredCivilians.Count, Is.EqualTo(1));
+            Assert.That(GetProperty<string>(restoredCivilians[0], "EyebrowId"), Is.EqualTo("brous1"));
+            Assert.That(GetProperty<string>(restoredCivilians[0], "OutfitBottomId"), Is.EqualTo("pants1"));
+        }
+
+        [Test]
         public void CivilianPopulationModule_ValidateModuleState_RejectsCitizensMissingFirstName()
         {
             var moduleType = ResolveRequiredType(ModuleTypeName);
@@ -458,6 +494,7 @@ namespace Reloader.Core.Tests.EditMode
             SetProperty(record, "PresentationType", "masculine");
             SetProperty(record, "HairId", "hair.short.01");
             SetProperty(record, "HairColorId", "hair.black");
+            SetProperty(record, "EyebrowId", "brows.arch.01");
             SetProperty(record, "BeardId", "beard.none");
             SetProperty(record, "OutfitTopId", "top.coat.01");
             SetProperty(record, "OutfitBottomId", "bottom.jeans.01");
@@ -495,6 +532,7 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(GetProperty<string>(record, "PresentationType"), Is.EqualTo("masculine"));
             Assert.That(GetProperty<string>(record, "HairId"), Is.EqualTo("hair.short.01"));
             Assert.That(GetProperty<string>(record, "HairColorId"), Is.EqualTo("hair.black"));
+            Assert.That(GetProperty<string>(record, "EyebrowId"), Is.EqualTo("brows.arch.01"));
             Assert.That(GetProperty<string>(record, "BeardId"), Is.EqualTo("beard.none"));
             Assert.That(GetProperty<string>(record, "OutfitTopId"), Is.EqualTo("top.coat.01"));
             Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("bottom.jeans.01"));

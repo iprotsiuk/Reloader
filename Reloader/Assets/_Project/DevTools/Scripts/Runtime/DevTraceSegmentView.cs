@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace Reloader.DevTools.Runtime
 {
@@ -10,8 +11,9 @@ namespace Reloader.DevTools.Runtime
         private bool _isVisible;
 
         public bool IsVisible => _isVisible;
-        public Vector3 StartPoint => _lineRenderer != null ? _lineRenderer.GetPosition(0) : Vector3.zero;
-        public Vector3 EndPoint => _lineRenderer != null ? _lineRenderer.GetPosition(1) : Vector3.zero;
+        public int PointCount => _lineRenderer != null ? _lineRenderer.positionCount : 0;
+        public Vector3 StartPoint => PointCount > 0 ? _lineRenderer.GetPosition(0) : Vector3.zero;
+        public Vector3 EndPoint => PointCount > 0 ? _lineRenderer.GetPosition(PointCount - 1) : Vector3.zero;
 
         private void Awake()
         {
@@ -22,7 +24,7 @@ namespace Reloader.DevTools.Runtime
 
         private void Update()
         {
-            if (_isVisible && Time.unscaledTime >= _hideAt)
+            if (_isVisible && _hideAt >= 0f && Time.unscaledTime >= _hideAt)
             {
                 Hide();
             }
@@ -30,15 +32,38 @@ namespace Reloader.DevTools.Runtime
 
         public void Show(Vector3 startPoint, Vector3 endPoint, Color color, float lifetimeSeconds)
         {
+            ShowPath(new[] { startPoint, endPoint }, color, lifetimeSeconds);
+        }
+
+        public void ShowPath(IReadOnlyList<Vector3> points, Color color, float lifetimeSeconds)
+        {
             EnsureInitialized();
-            _lineRenderer.positionCount = 2;
-            _lineRenderer.SetPosition(0, startPoint);
-            _lineRenderer.SetPosition(1, endPoint);
+            var pointCount = points?.Count ?? 0;
+            if (pointCount < 2)
+            {
+                Hide();
+                return;
+            }
+
+            _lineRenderer.positionCount = pointCount;
+            for (var i = 0; i < pointCount; i++)
+            {
+                _lineRenderer.SetPosition(i, points[i]);
+            }
+
             _lineRenderer.startColor = color;
             _lineRenderer.endColor = color;
             _lineRenderer.enabled = true;
-            _hideAt = Time.unscaledTime + Mathf.Max(0.01f, lifetimeSeconds);
+            _hideAt = lifetimeSeconds < 0f
+                ? -1f
+                : Time.unscaledTime + Mathf.Max(0.01f, lifetimeSeconds);
             _isVisible = true;
+        }
+
+        public Vector3 GetPoint(int index)
+        {
+            EnsureInitialized();
+            return _lineRenderer.GetPosition(index);
         }
 
         public void Hide()

@@ -20,7 +20,7 @@ namespace Reloader.Player
         private float _jumpBufferTimer;
         private bool _movementLocked;
         private bool _devNoclipEnabled;
-        private float _devNoclipSpeed = 6f;
+        private float _devNoclipSpeed;
 
         public float VerticalVelocity { get; private set; }
         public bool IsGrounded => _isGroundedDebug;
@@ -66,7 +66,9 @@ namespace Reloader.Player
         public void SetDevNoclip(bool isEnabled, float speed)
         {
             _devNoclipEnabled = isEnabled;
-            _devNoclipSpeed = Mathf.Max(0.1f, speed);
+            _devNoclipSpeed = speed > 0f
+                ? Mathf.Max(0.1f, speed)
+                : ResolveDefaultDevNoclipSpeed();
             if (!isEnabled)
             {
                 return;
@@ -163,8 +165,8 @@ namespace Reloader.Player
             var moveInput = _movementLocked
                 ? Vector2.zero
                 : Vector2.ClampMagnitude(_inputSource.MoveInput, 1f);
-            var moveDirection = (transform.right * moveInput.x) + (transform.forward * moveInput.y);
-            moveDirection.y = 0f;
+            var moveBasis = ResolveDevNoclipMoveBasis();
+            var moveDirection = (moveBasis.right * moveInput.x) + (moveBasis.forward * moveInput.y);
             if (moveDirection.sqrMagnitude > 1f)
             {
                 moveDirection.Normalize();
@@ -183,6 +185,17 @@ namespace Reloader.Player
             _jumpBufferTimerDebug = 0f;
             _jumpPressConsumedDebug = false;
             PublishLocomotionFrame(transform.position, horizontalVelocity, false, deltaTime);
+        }
+
+        private (Vector3 forward, Vector3 right) ResolveDevNoclipMoveBasis()
+        {
+            var viewTransform = Camera.main != null ? Camera.main.transform : transform;
+            return (viewTransform.forward, viewTransform.right);
+        }
+
+        private float ResolveDefaultDevNoclipSpeed()
+        {
+            return Mathf.Max(0.1f, _settings.WalkSpeed * 5f);
         }
 
         private void ResolveReferences()

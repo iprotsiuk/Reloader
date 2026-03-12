@@ -7,10 +7,16 @@ namespace Reloader.Weapons.Ballistics
 {
     public sealed class WeaponProjectile : MonoBehaviour
     {
+        public interface IPathObserver
+        {
+            void RecordSegment(Vector3 startPoint, Vector3 endPoint);
+            void Complete(Vector3 terminalPoint, bool didHit);
+        }
+
         [SerializeField] private float _speed = 100f;
         [SerializeField] private float _gravityMultiplier = 1f;
         [SerializeField] private float _damage = 20f;
-        [SerializeField] private float _lifetimeSeconds = 5f;
+        [SerializeField] private float _despawnBelowWorldY = -500f;
         [SerializeField] private float _ballisticCoefficientG1 = 0.45f;
         [SerializeField] private float _dragCoefficient = 0.00012f;
         [SerializeField] private LayerMask _hitMask = ~0;
@@ -22,13 +28,14 @@ namespace Reloader.Weapons.Ballistics
         [SerializeField] private ImpactAudioRouter _impactAudioRouter;
 
         private Vector3 _velocity;
-        private float _remainingLifetime;
         private string _itemId;
         private IWeaponEvents _weaponEvents;
         private bool _useRuntimeKernelWeaponEvents = true;
         private Collider[] _ignoredColliders = System.Array.Empty<Collider>();
         private Material _runtimeVisualMaterial;
         private Vector3 _sourcePoint;
+        private IPathObserver _pathObserver;
+        private bool _pathCompleted;
         public float InitialSpeedMetersPerSecond { get; private set; }
         public float CurrentSpeedMetersPerSecond => _velocity.magnitude;
 
@@ -36,7 +43,6 @@ namespace Reloader.Weapons.Ballistics
         {
             _impactAudioRouter ??= ImpactAudioRouter.ResolveOrCreateRuntimeRouter();
             EnsureInFlightVisual();
-            _remainingLifetime = _lifetimeSeconds;
             _velocity = transform.forward * _speed;
             _sourcePoint = transform.position;
         }
@@ -58,21 +64,16 @@ namespace Reloader.Weapons.Ballistics
                 return;
             }
 
-            _remainingLifetime -= dt;
-            if (_remainingLifetime <= 0f)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
-            _velocity += Physics.gravity * (_gravityMultiplier * dt);
-            ApplyDrag(dt);
+            var stepDt = dt;
+            _velocity += Physics.gravity * (_gravityMultiplier * stepDt);
+            ApplyDrag(stepDt);
             var start = transform.position;
-            var next = start + (_velocity * dt);
+            var next = start + (_velocity * stepDt);
             var delta = next - start;
 
             if (TryResolveHit(start, delta, out var hit))
             {
+                RecordObservedSegment(start, hit.point);
                 transform.position = hit.point;
                 var payload = new ProjectileImpactPayload(_itemId, hit.point, hit.normal, _damage, hit.collider.gameObject, _sourcePoint);
                 var damageable = hit.collider.GetComponentInParent<IDamageable>();
@@ -80,29 +81,36 @@ namespace Reloader.Weapons.Ballistics
                 SpawnImpactVfx(hit.point, hit.normal);
                 _impactAudioRouter?.EmitImpact(hit.point, hit.collider);
                 ResolveWeaponEvents()?.RaiseProjectileHit(_itemId, hit.point, _damage);
+                CompleteObservedPath(hit.point, didHit: true);
                 Destroy(gameObject);
                 return;
             }
 
+            RecordObservedSegment(start, next);
             transform.position = next;
             if (_velocity.sqrMagnitude > 0.0001f)
             {
                 transform.forward = _velocity.normalized;
             }
+
+            if (transform.position.y < _despawnBelowWorldY)
+            {
+                CompleteObservedPath(transform.position, didHit: false);
+                Destroy(gameObject);
+            }
         }
 
-        public void Initialize(string itemId, Vector3 direction, float speed, float gravityMultiplier, float damage, float lifetimeSeconds, float ballisticCoefficientG1 = 0.45f, Transform shooterRoot = null)
+        public void Initialize(string itemId, Vector3 direction, float speed, float gravityMultiplier, float damage, float ballisticCoefficientG1 = 0.45f, Transform shooterRoot = null)
         {
             _itemId = itemId;
             _speed = speed;
             _gravityMultiplier = gravityMultiplier;
             _damage = damage;
-            _lifetimeSeconds = lifetimeSeconds;
             _ballisticCoefficientG1 = ballisticCoefficientG1;
-            _remainingLifetime = lifetimeSeconds;
             _velocity = direction.normalized * speed;
             _sourcePoint = transform.position;
             InitialSpeedMetersPerSecond = speed;
+            _pathCompleted = false;
             _ignoredColliders = shooterRoot != null
                 ? shooterRoot.GetComponentsInChildren<Collider>()
                 : System.Array.Empty<Collider>();
@@ -116,6 +124,12 @@ namespace Reloader.Weapons.Ballistics
         {
             _useRuntimeKernelWeaponEvents = weaponEvents == null;
             _weaponEvents = weaponEvents;
+        }
+
+        public void SetPathObserver(IPathObserver pathObserver)
+        {
+            _pathObserver = pathObserver;
+            _pathCompleted = false;
         }
 
         private IWeaponEvents ResolveWeaponEvents()
@@ -187,6 +201,27 @@ namespace Reloader.Weapons.Ballistics
             }
 
             return false;
+        }
+
+        private void RecordObservedSegment(Vector3 startPoint, Vector3 endPoint)
+        {
+            if (_pathObserver == null || _pathCompleted)
+            {
+                return;
+            }
+
+            _pathObserver.RecordSegment(startPoint, endPoint);
+        }
+
+        private void CompleteObservedPath(Vector3 terminalPoint, bool didHit)
+        {
+            if (_pathObserver == null || _pathCompleted)
+            {
+                return;
+            }
+
+            _pathCompleted = true;
+            _pathObserver.Complete(terminalPoint, didHit);
         }
 
         private void SpawnImpactVfx(Vector3 point, Vector3 normal)

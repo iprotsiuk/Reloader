@@ -103,6 +103,7 @@ namespace Reloader.NPCs.Generation
                 PresentationType = presentationType,
                 HairId = PickRequired(library.HairIds, nameof(library.HairIds), random),
                 HairColorId = PickRequired(library.HairColorIds, nameof(library.HairColorIds), random),
+                EyebrowId = PickOptionalValue(library.EyebrowIds, random),
                 BeardId = PickRequired(library.BeardIds, nameof(library.BeardIds), random),
                 OutfitTopId = PickRequired(library.OutfitTopIds, nameof(library.OutfitTopIds), random),
                 OutfitBottomId = PickRequired(library.OutfitBottomIds, nameof(library.OutfitBottomIds), random),
@@ -145,13 +146,17 @@ namespace Reloader.NPCs.Generation
             MainTownCuratedAppearanceRules.TryInferGender(baseBodyId, presentationType, out var gender);
 
             var hairId = PickRequired(MainTownCuratedAppearanceRules.GetCompatibleHairIds(library, gender), nameof(library.HairIds), random);
+            var eyebrowId = MainTownCuratedAppearanceRules.NormalizeEyebrowId(
+                PickRequired(MainTownCuratedAppearanceRules.GetCompatibleEyebrowIds(library), nameof(library.EyebrowIds), random));
             var beardChoices = MainTownCuratedAppearanceRules.GetCompatibleBeardIds(library, gender);
             var beardId = beardChoices.Count > 0
                 ? PickRequired(beardChoices, nameof(library.BeardIds), random)
                 : NoBeardId;
 
             var outfitTopId = PickRequired(MainTownCuratedAppearanceRules.GetCompatibleBaseTopIds(library), nameof(library.OutfitTopIds), random);
-            var outfitBottomId = PickRequired(MainTownCuratedAppearanceRules.GetCompatibleBottomIds(library, gender), nameof(library.OutfitBottomIds), random);
+            var outfitBottomId = MainTownCuratedAppearanceRules.NormalizeBottomId(
+                gender,
+                PickRequired(MainTownCuratedAppearanceRules.GetCompatibleBottomIds(library, gender), nameof(library.OutfitBottomIds), random));
             var outerwearRaw = PickRequired(MainTownCuratedAppearanceRules.GetCompatibleOuterwearIds(library), nameof(library.OuterwearIds), random);
             var outerwearId = MainTownCuratedAppearanceRules.NormalizeOuterwearId(outerwearRaw);
             if (string.IsNullOrWhiteSpace(outerwearId))
@@ -174,6 +179,7 @@ namespace Reloader.NPCs.Generation
                 PresentationType = presentationType,
                 HairId = hairId,
                 HairColorId = PickRequired(library.HairColorIds, nameof(library.HairColorIds), random),
+                EyebrowId = eyebrowId,
                 BeardId = beardId,
                 OutfitTopId = outfitTopId,
                 OutfitBottomId = outfitBottomId,
@@ -209,6 +215,25 @@ namespace Reloader.NPCs.Generation
             }
 
             return candidates[random.Next(candidates.Count)];
+        }
+
+        private static string PickOptionalValue(IReadOnlyList<string> values, Random random)
+        {
+            if (values == null || values.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var candidates = new List<string>(values.Count);
+            for (var i = 0; i < values.Count; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(values[i]))
+                {
+                    candidates.Add(values[i].Trim());
+                }
+            }
+
+            return candidates.Count > 0 ? candidates[random.Next(candidates.Count)] : string.Empty;
         }
 
         private static List<string> PickOptionalList(IReadOnlyList<string> values, Random random)

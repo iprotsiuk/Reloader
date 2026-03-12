@@ -1,12 +1,43 @@
 using System;
 using System.Collections.Generic;
 using Reloader.Core.Runtime;
+using Reloader.Weapons.Ballistics;
 using UnityEngine;
 
 namespace Reloader.DevTools.Runtime
 {
     public sealed class DevTraceRuntime : IDisposable
     {
+        private static DevTraceRuntime s_activeRuntime;
+
+        private sealed class ProjectileTracePath
+        {
+            public readonly List<Vector3> Points = new();
+            public DevTraceSegmentView SegmentView;
+            public bool Completed;
+        }
+
+        private sealed class ProjectilePathObserver : WeaponProjectile.IPathObserver
+        {
+            private readonly DevTraceRuntime _owner;
+            private readonly ProjectileTracePath _tracePath = new();
+
+            public ProjectilePathObserver(DevTraceRuntime owner)
+            {
+                _owner = owner;
+            }
+
+            public void RecordSegment(Vector3 startPoint, Vector3 endPoint)
+            {
+                _owner.RecordProjectileSegment(_tracePath, startPoint, endPoint);
+            }
+
+            public void Complete(Vector3 terminalPoint, bool didHit)
+            {
+                _owner.CompleteProjectileTrace(_tracePath, terminalPoint);
+            }
+        }
+
         private sealed class Driver : MonoBehaviour
         {
             public DevTraceRuntime Owner { get; set; }
@@ -38,7 +69,6 @@ namespace Reloader.DevTools.Runtime
         private readonly Dictionary<string, List<PendingShot>> _pendingShotsByItemId = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<DevTraceSegmentView> _segmentPool = new();
         private readonly Color _traceColor = new(1f, 0.7f, 0.1f, 1f);
-        private readonly float _traceLifetimeSeconds = 5f;
         private readonly float _fallbackDistanceMeters = 120f;
         private readonly float _pendingFallbackDelaySeconds = 0.05f;
         private readonly float _pendingCleanupLifetimeSeconds = 10f;
@@ -46,10 +76,12 @@ namespace Reloader.DevTools.Runtime
         private readonly Driver _driver;
         private IWeaponEvents _weaponEvents;
         private bool _disposed;
+        private int _pendingObserverShotClaims;
 
         public DevTraceRuntime(DevToolsState state, IWeaponEvents weaponEvents = null)
         {
             _state = state ?? new DevToolsState();
+            s_activeRuntime = this;
             _root = new GameObject("DevTraceRuntime");
             _root.hideFlags = HideFlags.HideAndDontSave;
             _driver = _root.AddComponent<Driver>();
@@ -68,6 +100,11 @@ namespace Reloader.DevTools.Runtime
             }
 
             _disposed = true;
+            if (ReferenceEquals(s_activeRuntime, this))
+            {
+                s_activeRuntime = null;
+            }
+
             _pendingShotsByItemId.Clear();
             RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
             Bind(null);
@@ -77,14 +114,25 @@ namespace Reloader.DevTools.Runtime
             }
         }
 
-        public void SetPersistentTracesEnabled(bool isEnabled)
+        public void SetTraceTtlSeconds(float ttlSeconds)
         {
-            _state.PersistentTracesEnabled = isEnabled;
-            if (!isEnabled)
+            _state.TraceTtlSeconds = ttlSeconds;
+            if (!AreTracesEnabled())
             {
                 _pendingShotsByItemId.Clear();
                 ClearVisibleSegments();
             }
+        }
+
+        public WeaponProjectile.IPathObserver CreateProjectilePathObserver()
+        {
+            _pendingObserverShotClaims++;
+            return new ProjectilePathObserver(this);
+        }
+
+        public static WeaponProjectile.IPathObserver TryCreateActiveProjectilePathObserver()
+        {
+            return s_activeRuntime?.CreateProjectilePathObserver();
         }
 
         private void HandleRuntimeEventsReconfigured()
@@ -120,8 +168,14 @@ namespace Reloader.DevTools.Runtime
 
         private void HandleWeaponFired(string itemId, Vector3 origin, Vector3 direction)
         {
-            if (!_state.PersistentTracesEnabled)
+            if (!AreTracesEnabled())
             {
+                return;
+            }
+
+            if (_pendingObserverShotClaims > 0)
+            {
+                _pendingObserverShotClaims--;
                 return;
             }
 
@@ -141,7 +195,7 @@ namespace Reloader.DevTools.Runtime
 
         private void HandleProjectileHit(string itemId, Vector3 point, float _)
         {
-            if (!_state.PersistentTracesEnabled)
+            if (!AreTracesEnabled())
             {
                 return;
             }
@@ -165,7 +219,12 @@ namespace Reloader.DevTools.Runtime
 
         private void Tick(float now)
         {
-            if (!_state.PersistentTracesEnabled || _pendingShotsByItemId.Count == 0)
+            if (!AreTracesEnabled())
+            {
+                return;
+            }
+
+            if (_pendingShotsByItemId.Count == 0)
             {
                 return;
             }
@@ -206,13 +265,56 @@ namespace Reloader.DevTools.Runtime
 
         private void ShowSegment(Vector3 startPoint, Vector3 endPoint)
         {
-            GetOrCreateSegment().Show(startPoint, endPoint, _traceColor, _traceLifetimeSeconds);
+            GetOrCreateSegment().Show(startPoint, endPoint, _traceColor, ResolveVisibleLifetimeSeconds());
+        }
+
+        private void RecordProjectileSegment(ProjectileTracePath tracePath, Vector3 startPoint, Vector3 endPoint)
+        {
+            if (!AreTracesEnabled() || tracePath == null || tracePath.Completed)
+            {
+                return;
+            }
+
+            if (tracePath.Points.Count == 0)
+            {
+                tracePath.Points.Add(startPoint);
+            }
+            else if (Vector3.Distance(tracePath.Points[^1], startPoint) > 0.001f)
+            {
+                tracePath.Points.Add(startPoint);
+            }
+
+            tracePath.Points.Add(endPoint);
+            tracePath.SegmentView ??= GetOrCreateSegment();
+            tracePath.SegmentView.ShowPath(tracePath.Points, _traceColor, -1f);
+        }
+
+        private void CompleteProjectileTrace(ProjectileTracePath tracePath, Vector3 terminalPoint)
+        {
+            if (!AreTracesEnabled() || tracePath == null || tracePath.Completed)
+            {
+                return;
+            }
+
+            tracePath.Completed = true;
+            if (tracePath.Points.Count == 0)
+            {
+                return;
+            }
+
+            if (Vector3.Distance(tracePath.Points[^1], terminalPoint) > 0.001f)
+            {
+                tracePath.Points.Add(terminalPoint);
+            }
+
+            tracePath.SegmentView ??= GetOrCreateSegment();
+            tracePath.SegmentView.ShowPath(tracePath.Points, _traceColor, ResolveVisibleLifetimeSeconds());
         }
 
         private DevTraceSegmentView ShowPendingShotSegment(PendingShot pendingShot, Vector3 endPoint)
         {
             var segment = pendingShot.SegmentView ?? GetOrCreateSegment();
-            segment.Show(pendingShot.Origin, endPoint, _traceColor, _traceLifetimeSeconds);
+            segment.Show(pendingShot.Origin, endPoint, _traceColor, ResolveVisibleLifetimeSeconds());
             return segment;
         }
 
@@ -245,6 +347,21 @@ namespace Reloader.DevTools.Runtime
         private static string NormalizeItemId(string itemId)
         {
             return string.IsNullOrWhiteSpace(itemId) ? string.Empty : itemId.Trim();
+        }
+
+        private bool AreTracesEnabled()
+        {
+            return _state.TraceTtlSeconds > 0f || Mathf.Approximately(_state.TraceTtlSeconds, -1f);
+        }
+
+        private float ResolveVisibleLifetimeSeconds()
+        {
+            if (_state.TraceTtlSeconds < 0f)
+            {
+                return -1f;
+            }
+
+            return Mathf.Max(0.01f, _state.TraceTtlSeconds);
         }
     }
 }

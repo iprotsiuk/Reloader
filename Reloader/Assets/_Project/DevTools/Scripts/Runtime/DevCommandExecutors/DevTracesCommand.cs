@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using UnityEngine;
 
 namespace Reloader.DevTools.Runtime
 {
@@ -16,17 +18,16 @@ namespace Reloader.DevTools.Runtime
 
         public bool TryExecute(DevCommandParseResult parseResult, out string resultMessage)
         {
-            if (parseResult.Arguments.Length < 2
-                || !string.Equals(parseResult.Arguments[0], "persistent", StringComparison.OrdinalIgnoreCase)
-                || !TryParseToggle(parseResult.Arguments[1], out var isEnabled))
+            if (parseResult.Arguments.Length != 1
+                || !TryParseTtl(parseResult.Arguments[0], out var ttlSeconds))
             {
-                resultMessage = "Usage: traces persistent [on|off|toggle]";
+                resultMessage = "Usage: trace <seconds|-1>";
                 return false;
             }
 
-            _state.PersistentTracesEnabled = isEnabled;
-            _traceRuntime?.SetPersistentTracesEnabled(isEnabled);
-            resultMessage = isEnabled ? "Persistent traces enabled." : "Persistent traces disabled.";
+            _state.TraceTtlSeconds = ttlSeconds;
+            _traceRuntime?.SetTraceTtlSeconds(ttlSeconds);
+            resultMessage = FormatResultMessage(ttlSeconds);
             return true;
         }
 
@@ -34,27 +35,28 @@ namespace Reloader.DevTools.Runtime
         {
             if (parseResult.Arguments.Length == 0)
             {
-                return new[] { new DevConsoleSuggestion("persistent", "persistent", applyText: "traces persistent") };
+                return BuildTtlSuggestions(string.Empty);
             }
 
-            if (!"persistent".StartsWith(parseResult.Arguments[0], StringComparison.OrdinalIgnoreCase))
+            if (parseResult.Arguments.Length > 1)
             {
                 return Array.Empty<DevConsoleSuggestion>();
             }
 
-            if (parseResult.Arguments.Length == 1)
-            {
-                return new[] { new DevConsoleSuggestion("persistent", "persistent", applyText: "traces persistent") };
-            }
+            return BuildTtlSuggestions(parseResult.Arguments[0]);
+        }
 
+        private static IReadOnlyList<DevConsoleSuggestion> BuildTtlSuggestions(string prefix)
+        {
             var suggestions = new List<DevConsoleSuggestion>();
-            AddToggleSuggestion(suggestions, "on", parseResult.Arguments[1]);
-            AddToggleSuggestion(suggestions, "off", parseResult.Arguments[1]);
-            AddToggleSuggestion(suggestions, "toggle", parseResult.Arguments[1]);
+            AddSuggestion(suggestions, "-1", "permanent", prefix);
+            AddSuggestion(suggestions, "0", "disable", prefix);
+            AddSuggestion(suggestions, "1", "1 second", prefix);
+            AddSuggestion(suggestions, "5", "5 seconds", prefix);
             return suggestions;
         }
 
-        private static void AddToggleSuggestion(ICollection<DevConsoleSuggestion> suggestions, string token, string prefix)
+        private static void AddSuggestion(ICollection<DevConsoleSuggestion> suggestions, string token, string label, string prefix)
         {
             if (!string.IsNullOrWhiteSpace(prefix)
                 && !token.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
@@ -62,31 +64,46 @@ namespace Reloader.DevTools.Runtime
                 return;
             }
 
-            suggestions.Add(new DevConsoleSuggestion(token, token, applyText: $"traces persistent {token}"));
+            suggestions.Add(new DevConsoleSuggestion(token, label, applyText: $"trace {token}"));
         }
 
-        private bool TryParseToggle(string value, out bool isEnabled)
+        private static bool TryParseTtl(string value, out float ttlSeconds)
         {
-            if (string.Equals(value, "on", StringComparison.OrdinalIgnoreCase))
+            if (!float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out ttlSeconds))
             {
-                isEnabled = true;
-                return true;
+                ttlSeconds = 0f;
+                return false;
             }
 
-            if (string.Equals(value, "off", StringComparison.OrdinalIgnoreCase))
+            if (ttlSeconds < 0f && !Mathf.Approximately(ttlSeconds, -1f))
             {
-                isEnabled = false;
-                return true;
+                ttlSeconds = 0f;
+                return false;
             }
 
-            if (string.Equals(value, "toggle", StringComparison.OrdinalIgnoreCase))
+            return true;
+        }
+
+        private static string FormatResultMessage(float ttlSeconds)
+        {
+            if (Mathf.Approximately(ttlSeconds, 0f))
             {
-                isEnabled = !_state.PersistentTracesEnabled;
-                return true;
+                return "Trace TTL disabled and visible traces cleared.";
             }
 
-            isEnabled = false;
-            return false;
+            if (ttlSeconds < 0f)
+            {
+                return "Trace TTL set to permanent.";
+            }
+
+            var wholeSeconds = Mathf.RoundToInt(ttlSeconds);
+            if (Mathf.Approximately(ttlSeconds, wholeSeconds))
+            {
+                var suffix = wholeSeconds == 1 ? "second" : "seconds";
+                return $"Trace TTL set to {wholeSeconds} {suffix}.";
+            }
+
+            return $"Trace TTL set to {ttlSeconds.ToString("0.###", CultureInfo.InvariantCulture)} seconds.";
         }
     }
 }

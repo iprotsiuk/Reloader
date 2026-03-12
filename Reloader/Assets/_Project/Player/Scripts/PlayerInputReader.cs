@@ -93,42 +93,58 @@ namespace Reloader.Player
                 _playerMap.Enable();
             }
 
-            if (_moveAction != null)
-            {
-                MoveInput = _moveAction.ReadValue<Vector2>();
-            }
+            var keyboard = Keyboard.current;
+            var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
+            var isDevConsoleVisible = uiStateEvents?.IsDevConsoleVisible == true;
+            var isGameplayInputSuppressed = isDevConsoleVisible;
 
-            if (_lookAction != null)
-            {
-                LookInput = _lookAction.ReadValue<Vector2>();
-            }
+            MoveInput = !isGameplayInputSuppressed && _moveAction != null
+                ? _moveAction.ReadValue<Vector2>()
+                : Vector2.zero;
 
-            SprintHeld = _sprintAction != null && _sprintAction.IsPressed();
+            LookInput = !isGameplayInputSuppressed && _lookAction != null
+                ? _lookAction.ReadValue<Vector2>()
+                : Vector2.zero;
 
-            if (_jumpAction != null && _jumpAction.WasPressedThisFrame())
+            SprintHeld = !isGameplayInputSuppressed && _sprintAction != null && _sprintAction.IsPressed();
+
+            if (!isGameplayInputSuppressed && _jumpAction != null && _jumpAction.WasPressedThisFrame())
             {
                 JumpQueued = true;
             }
+            else if (isGameplayInputSuppressed)
+            {
+                JumpQueued = false;
+            }
 
-            if (_fireAction != null && _fireAction.WasPressedThisFrame())
+            if (!isGameplayInputSuppressed && _fireAction != null && _fireAction.WasPressedThisFrame())
             {
                 FireQueued = true;
             }
+            else if (isGameplayInputSuppressed)
+            {
+                FireQueued = false;
+            }
 
-            if (_reloadAction != null && _reloadAction.WasPressedThisFrame())
+            if (!isGameplayInputSuppressed && _reloadAction != null && _reloadAction.WasPressedThisFrame())
             {
                 ReloadQueued = true;
             }
+            else if (isGameplayInputSuppressed)
+            {
+                ReloadQueued = false;
+            }
 
-            if (_pickupAction != null && _pickupAction.WasPressedThisFrame())
+            if (!isGameplayInputSuppressed && _pickupAction != null && _pickupAction.WasPressedThisFrame())
             {
                 PickupQueued = true;
             }
+            else if (isGameplayInputSuppressed)
+            {
+                PickupQueued = false;
+            }
 
-            var keyboard = Keyboard.current;
-            var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
             var isAnyMenuOpen = PlayerCursorLockController.IsAnyMenuOpen || uiStateEvents?.IsAnyMenuOpen == true;
-            var isDevConsoleVisible = uiStateEvents?.IsDevConsoleVisible == true;
 
             if (isAnyMenuOpen)
             {
@@ -171,6 +187,10 @@ namespace Reloader.Player
             {
                 // Escape is handled directly by open UI/controllers as a close-only action.
             }
+            else if (isDevConsoleVisible)
+            {
+                MenuToggleQueued = false;
+            }
             else if (!isDevConsoleVisible && _menuToggleAction != null && _menuToggleAction.WasPressedThisFrame())
             {
                 MenuToggleQueued = true;
@@ -181,27 +201,30 @@ namespace Reloader.Player
             }
 
             var scrollY = 0f;
-            var pointer = Pointer.current;
-            if (pointer != null)
+            if (!isGameplayInputSuppressed)
             {
-                var pointerScrollControl = pointer.TryGetChildControl<Vector2Control>("scroll");
-                if (pointerScrollControl != null)
+                var pointer = Pointer.current;
+                if (pointer != null)
                 {
-                    var pointerScrollY = pointerScrollControl.ReadValue().y;
-                    if (Mathf.Abs(pointerScrollY) > 0.0001f)
+                    var pointerScrollControl = pointer.TryGetChildControl<Vector2Control>("scroll");
+                    if (pointerScrollControl != null)
                     {
-                        scrollY += pointerScrollY;
+                        var pointerScrollY = pointerScrollControl.ReadValue().y;
+                        if (Mathf.Abs(pointerScrollY) > 0.0001f)
+                        {
+                            scrollY += pointerScrollY;
+                        }
                     }
                 }
-            }
 
-            var mouse = Mouse.current;
-            if (mouse != null && !ReferenceEquals(mouse, pointer))
-            {
-                var mouseScrollY = mouse.scroll.ReadValue().y;
-                if (Mathf.Abs(mouseScrollY) > 0.0001f)
+                var mouse = Mouse.current;
+                if (mouse != null && !ReferenceEquals(mouse, pointer))
                 {
-                    scrollY += mouseScrollY;
+                    var mouseScrollY = mouse.scroll.ReadValue().y;
+                    if (Mathf.Abs(mouseScrollY) > 0.0001f)
+                    {
+                        scrollY += mouseScrollY;
+                    }
                 }
             }
 
@@ -209,10 +232,14 @@ namespace Reloader.Player
             {
                 _zoomQueued += scrollY;
             }
+            else if (isGameplayInputSuppressed)
+            {
+                _zoomQueued = 0f;
+            }
 
             var plusPressed = false;
             var minusPressed = false;
-            if (keyboard != null)
+            if (!isGameplayInputSuppressed && keyboard != null)
             {
                 plusPressed = keyboard.equalsKey.wasPressedThisFrame || keyboard.numpadPlusKey.wasPressedThisFrame;
                 minusPressed = keyboard.minusKey.wasPressedThisFrame || keyboard.numpadMinusKey.wasPressedThisFrame;
@@ -227,12 +254,23 @@ namespace Reloader.Player
             {
                 _zeroAdjustQueued -= 1;
             }
-
-            for (var i = 0; i < _beltSlotActions.Length; i++)
+            else if (isGameplayInputSuppressed)
             {
-                if (_beltSlotActions[i] != null && _beltSlotActions[i].WasPressedThisFrame())
+                _zeroAdjustQueued = 0;
+            }
+
+            if (isGameplayInputSuppressed)
+            {
+                _beltSlotQueued = -1;
+            }
+            else
+            {
+                for (var i = 0; i < _beltSlotActions.Length; i++)
                 {
-                    _beltSlotQueued = i;
+                    if (_beltSlotActions[i] != null && _beltSlotActions[i].WasPressedThisFrame())
+                    {
+                        _beltSlotQueued = i;
+                    }
                 }
             }
         }
