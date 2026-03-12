@@ -15,6 +15,18 @@ namespace Reloader.UI.Tests.PlayMode
 {
     public class EscMenuUiToolkitPlayModeTests
     {
+        [SetUp]
+        public void SetUp()
+        {
+            ResetConsumedEscapeFrame();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            ResetConsumedEscapeFrame();
+        }
+
         [Test]
         public void EscMenuController_Tick_EscapeOpensOnlyWhenNoOtherMenuOpen()
         {
@@ -43,6 +55,7 @@ namespace Reloader.UI.Tests.PlayMode
             uiStateEvents.IsTabInventoryVisible = false;
             controller.Tick();
 
+            ResetConsumedEscapeFrame();
             keySource.PressedThisFrame = true;
             controller.Tick();
 
@@ -80,6 +93,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.None));
 
             // Next frame Escape can open ESC menu normally.
+            ResetConsumedEscapeFrame();
             keySource.PressedThisFrame = true;
             controller.Tick();
             Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.Flex));
@@ -133,6 +147,7 @@ namespace Reloader.UI.Tests.PlayMode
             var panel = root.Q<VisualElement>("esc-menu__panel");
             Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.Flex));
 
+            ResetConsumedEscapeFrame();
             keySource.PressedThisFrame = true;
             controller.Tick();
 
@@ -170,6 +185,7 @@ namespace Reloader.UI.Tests.PlayMode
             escController.Tick();
             Assert.That(uiStateEvents.IsEscMenuVisible, Is.True);
 
+            ResetConsumedEscapeFrame();
             escKeySource.PressedThisFrame = true;
             escController.Tick();
             Assert.That(uiStateEvents.IsEscMenuVisible, Is.False);
@@ -348,6 +364,32 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void EscMenuController_Tick_ConsumedEscapeDoesNotOpenMenu()
+        {
+            var go = new GameObject("esc-menu-controller-consumed-escape");
+            var root = BuildEscRoot();
+            var binder = new EscMenuViewBinder();
+            binder.Initialize(root);
+
+            var uiStateEvents = new TestUiStateEvents();
+            var keySource = new TestEscKeySource { PressedThisFrame = true };
+
+            var controller = go.AddComponent<EscMenuController>();
+            controller.Configure(uiStateEvents);
+            controller.SetEscKeySource(keySource);
+            controller.SetViewBinder(binder);
+
+            PlayerCursorLockController.MarkEscapeConsumedThisFrame();
+            controller.Tick();
+
+            var panel = root.Q<VisualElement>("esc-menu__panel");
+            Assert.That(uiStateEvents.IsEscMenuVisible, Is.False);
+            Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.None));
+
+            UnityEngine.Object.DestroyImmediate(go);
+        }
+
+        [Test]
         public void UnityEscMenuSettingsRuntime_ApplySoundsVolume_UpdatesLiveSoundsChannelAudioSource()
         {
             var runtime = new UnityEscMenuSettingsRuntime();
@@ -504,6 +546,15 @@ namespace Reloader.UI.Tests.PlayMode
             return root;
         }
 
+        private static void ResetConsumedEscapeFrame()
+        {
+            var field = typeof(PlayerCursorLockController).GetField(
+                "_escapeConsumedFrame",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            field.SetValue(null, -1);
+        }
+
         private sealed class TestEscKeySource : IEscMenuKeySource
         {
             public bool PressedThisFrame;
@@ -542,11 +593,13 @@ namespace Reloader.UI.Tests.PlayMode
             public bool IsWorkbenchMenuVisible { get; set; }
             public bool IsTabInventoryVisible { get; set; }
             public bool IsEscMenuVisible { get; set; }
-            public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible || IsEscMenuVisible;
+            public bool IsDevConsoleVisible { get; set; }
+            public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible || IsEscMenuVisible || IsDevConsoleVisible;
 
             public event Action<bool> OnWorkbenchMenuVisibilityChanged;
             public event Action<bool> OnTabInventoryVisibilityChanged;
             public event Action<bool> OnEscMenuVisibilityChanged;
+            public event Action<bool> OnDevConsoleVisibilityChanged;
 
             public void RaiseWorkbenchMenuVisibilityChanged(bool isVisible)
             {
@@ -564,6 +617,12 @@ namespace Reloader.UI.Tests.PlayMode
             {
                 IsEscMenuVisible = isVisible;
                 OnEscMenuVisibilityChanged?.Invoke(isVisible);
+            }
+
+            public void RaiseDevConsoleVisibilityChanged(bool isVisible)
+            {
+                IsDevConsoleVisible = isVisible;
+                OnDevConsoleVisibilityChanged?.Invoke(isVisible);
             }
         }
 

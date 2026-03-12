@@ -5,6 +5,7 @@ using Reloader.Contracts.Runtime;
 using Reloader.Core;
 using Reloader.Core.Items;
 using Reloader.Core.Runtime;
+using Reloader.DevTools.Runtime;
 using Reloader.Economy;
 using Reloader.Inventory;
 using Reloader.NPCs.Runtime;
@@ -15,6 +16,7 @@ using Reloader.UI.Toolkit.AmmoHud;
 using Reloader.UI.Toolkit.BeltHud;
 using Reloader.UI.Toolkit.ChestInventory;
 using Reloader.UI.Toolkit.Contracts;
+using Reloader.UI.Toolkit.DevConsole;
 using Reloader.UI.Toolkit.Dialogue;
 using Reloader.UI.Toolkit.EscMenu;
 using Reloader.UI.Toolkit.InteractionHint;
@@ -38,6 +40,7 @@ namespace Reloader.UI.Toolkit.Runtime
             new(UiRuntimeCompositionIds.ScreenIds.AmmoHud, UiRuntimeCompositionIds.ControllerObjectNames.AmmoHud, ScreenBindingKind.AmmoHud, DependencyRequirement.Weapon),
             new(UiRuntimeCompositionIds.ScreenIds.TabInventory, UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, ScreenBindingKind.TabInventory, DependencyRequirement.Inventory | DependencyRequirement.Input),
             new(UiRuntimeCompositionIds.ScreenIds.EscMenu, UiRuntimeCompositionIds.ControllerObjectNames.EscMenu, ScreenBindingKind.EscMenu, DependencyRequirement.None),
+            new(UiRuntimeCompositionIds.ScreenIds.DevConsole, UiRuntimeCompositionIds.ControllerObjectNames.DevConsole, ScreenBindingKind.DevConsole, DependencyRequirement.Input),
             new(UiRuntimeCompositionIds.ScreenIds.ChestInventory, UiRuntimeCompositionIds.ControllerObjectNames.ChestInventory, ScreenBindingKind.ChestInventory, DependencyRequirement.Inventory | DependencyRequirement.Input),
             new(UiRuntimeCompositionIds.ScreenIds.Trade, UiRuntimeCompositionIds.ControllerObjectNames.Trade, ScreenBindingKind.Trade, DependencyRequirement.None),
             new(UiRuntimeCompositionIds.ScreenIds.ReloadingWorkbench, UiRuntimeCompositionIds.ControllerObjectNames.ReloadingWorkbench, ScreenBindingKind.ReloadingWorkbench, DependencyRequirement.None),
@@ -52,6 +55,7 @@ namespace Reloader.UI.Toolkit.Runtime
         private PlayerDeviceRuntimeState _playerDeviceRuntimeState;
         private PlayerDeviceController _playerDeviceController;
         private PlayerInventoryController _playerDeviceInventoryController;
+        private DevToolsRuntime _devToolsRuntime;
         private int _playerDeviceInputSourceHash;
         private float _nextSelfHealAt;
 
@@ -70,6 +74,11 @@ namespace Reloader.UI.Toolkit.Runtime
         {
             DisposeSubscriptions();
             ReleasePlayerDeviceController();
+        }
+
+        private void OnDestroy()
+        {
+            ReleaseDevToolsRuntime();
         }
 
         private void Update()
@@ -172,6 +181,7 @@ namespace Reloader.UI.Toolkit.Runtime
                 ScreenBindingKind.AmmoHud => BindAmmoHud(root, definition.ControllerObjectName, dependencies.WeaponController),
                 ScreenBindingKind.TabInventory => BindTabInventory(root, definition.ControllerObjectName, dependencies.InventoryController, dependencies.InputSource),
                 ScreenBindingKind.EscMenu => BindEscMenu(root, definition.ControllerObjectName),
+                ScreenBindingKind.DevConsole => BindDevConsole(root, definition.ControllerObjectName, dependencies.InputSource),
                 ScreenBindingKind.ChestInventory => BindChestInventory(root, definition.ControllerObjectName, dependencies.InventoryController, dependencies.InputSource),
                 ScreenBindingKind.Trade => BindTrade(root, definition.ControllerObjectName),
                 ScreenBindingKind.ReloadingWorkbench => BindReloadingWorkbench(root, definition.ControllerObjectName),
@@ -408,6 +418,23 @@ namespace Reloader.UI.Toolkit.Runtime
             return UiContractGuard.Bind(controller, viewBinder);
         }
 
+        private IDisposable BindDevConsole(
+            VisualElement root,
+            string controllerName,
+            IPlayerInputSource inputSource)
+        {
+            var viewBinder = new DevConsoleViewBinder();
+            viewBinder.Initialize(root);
+
+            var controller = GetOrAddController<DevConsoleController>(controllerName);
+            _devToolsRuntime ??= new DevToolsRuntime();
+            controller.SetRuntime(_devToolsRuntime);
+            controller.SetInputSource(inputSource);
+            controller.Configure();
+            controller.SetViewBinder(viewBinder);
+            return UiContractGuard.Bind(controller, viewBinder);
+        }
+
         private IDisposable BindTrade(VisualElement root, string controllerName)
         {
             var viewBinder = new TradeViewBinder();
@@ -622,6 +649,12 @@ namespace Reloader.UI.Toolkit.Runtime
             _playerDeviceController = null;
             _playerDeviceInventoryController = null;
             _playerDeviceInputSourceHash = 0;
+        }
+
+        private void ReleaseDevToolsRuntime()
+        {
+            _devToolsRuntime?.Dispose();
+            _devToolsRuntime = null;
         }
 
         private void UnbindScreen(string screenId)
@@ -909,6 +942,7 @@ namespace Reloader.UI.Toolkit.Runtime
             AmmoHud,
             TabInventory,
             EscMenu,
+            DevConsole,
             ChestInventory,
             Trade,
             ReloadingWorkbench,

@@ -93,6 +93,9 @@ namespace Reloader.Weapons.Tests.PlayMode
             public bool ConsumeReloadPressed() => false;
             public int ConsumeBeltSelectPressed() => -1;
             public bool ConsumeMenuTogglePressed() => false;
+            public bool ConsumeDevConsoleTogglePressed() => false;
+            public bool ConsumeAutocompletePressed() => false;
+            public int ConsumeSuggestionDelta() => 0;
             public bool ConsumeAimTogglePressed() => false;
             public float ConsumeZoomInput() => 0f;
             public int ConsumeZeroAdjustStep() => 0;

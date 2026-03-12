@@ -3,8 +3,11 @@ using Reloader.Player;
 using Reloader.Player.Viewmodel;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using Reloader.Inventory;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 
 namespace Reloader.Player.Tests.PlayMode
 {
@@ -511,6 +514,199 @@ namespace Reloader.Player.Tests.PlayMode
             });
 
             Object.DestroyImmediate(go);
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_ClearsConsoleOnlyInputWhenConsoleIsHidden()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+
+            var autocompleteField = typeof(PlayerInputReader).GetField("_autocompleteQueued", BindingFlags.Instance | BindingFlags.NonPublic);
+            var suggestionDeltaField = typeof(PlayerInputReader).GetField("_suggestionDeltaQueued", BindingFlags.Instance | BindingFlags.NonPublic);
+
+            Assert.That(autocompleteField, Is.Not.Null);
+            Assert.That(suggestionDeltaField, Is.Not.Null);
+
+            autocompleteField.SetValue(reader, true);
+            suggestionDeltaField.SetValue(reader, 1);
+
+            reader.SendMessage("Update");
+
+            Assert.That(reader.ConsumeAutocompletePressed(), Is.False);
+            Assert.That(reader.ConsumeSuggestionDelta(), Is.Zero);
+
+            Object.DestroyImmediate(go);
+            RuntimeKernelBootstrapper.Events = previousEvents;
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_DoesNotQueueMenuToggleFromAction_WhenDevConsoleIsVisible()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+            runtimeEvents.RaiseDevConsoleVisibilityChanged(true);
+
+            var keyboard = InputSystem.AddDevice<Keyboard>();
+            var actionsAsset = CreatePlayerMenuToggleActionsAsset();
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(actionsAsset);
+
+            try
+            {
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F1));
+                InputSystem.Update();
+
+                reader.SendMessage("Update");
+
+                Assert.That(reader.ConsumeMenuTogglePressed(), Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(actionsAsset);
+                InputSystem.RemoveDevice(keyboard);
+                RuntimeKernelBootstrapper.Events = previousEvents;
+            }
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_QueuesMenuToggleFromAction_WhenDevConsoleIsHidden()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var keyboard = InputSystem.AddDevice<Keyboard>();
+            var actionsAsset = CreatePlayerMenuToggleActionsAsset();
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(actionsAsset);
+
+            try
+            {
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F1));
+                InputSystem.Update();
+
+                reader.SendMessage("Update");
+
+                Assert.That(reader.ConsumeMenuTogglePressed(), Is.True);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(actionsAsset);
+                InputSystem.RemoveDevice(keyboard);
+                RuntimeKernelBootstrapper.Events = previousEvents;
+            }
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_DoesNotToggleAimFromAction_WhenAnyMenuIsOpen()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+            runtimeEvents.RaiseTabInventoryVisibilityChanged(true);
+
+            var keyboard = InputSystem.AddDevice<Keyboard>();
+            var actionsAsset = CreatePlayerAimActionsAsset();
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(actionsAsset);
+
+            try
+            {
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F2));
+                InputSystem.Update();
+
+                reader.SendMessage("Update");
+
+                Assert.That(reader.AimHeld, Is.False);
+                Assert.That(reader.ConsumeAimTogglePressed(), Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(actionsAsset);
+                RuntimeKernelBootstrapper.Events = previousEvents;
+                InputSystem.RemoveDevice(keyboard);
+            }
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_ClearsAimHeld_WhenMenuOpens()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+
+            try
+            {
+                SetAimHeldForTests(reader, true);
+                Assert.That(reader.AimHeld, Is.True);
+
+                runtimeEvents.RaiseEscMenuVisibilityChanged(true);
+                reader.SendMessage("Update");
+
+                Assert.That(reader.AimHeld, Is.False);
+                Assert.That(reader.ConsumeAimTogglePressed(), Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                RuntimeKernelBootstrapper.Events = previousEvents;
+            }
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_ClearsAimHeld_WhenStorageUiSessionOpens()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+            var cursorLockGo = new GameObject("CursorLock");
+            var cursorLockController = cursorLockGo.AddComponent<PlayerCursorLockController>();
+            cursorLockController.Configure(runtimeEvents, runtimeEvents);
+
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+
+            try
+            {
+                SetAimHeldForTests(reader, true);
+                Assert.That(reader.AimHeld, Is.True);
+
+                StorageUiSession.Open("storage.qa");
+                cursorLockController.SendMessage("Update");
+                reader.SendMessage("Update");
+
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+                Assert.That(reader.AimHeld, Is.False);
+                Assert.That(reader.ConsumeAimTogglePressed(), Is.False);
+            }
+            finally
+            {
+                StorageUiSession.Close();
+                cursorLockController.SendMessage("Update");
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(cursorLockGo);
+                RuntimeKernelBootstrapper.Events = previousEvents;
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
         }
 
         [Test]
@@ -1185,6 +1381,31 @@ namespace Reloader.Player.Tests.PlayMode
             updateMethod.Invoke(controller, null);
         }
 
+        private static InputActionAsset CreatePlayerMenuToggleActionsAsset()
+        {
+            var asset = ScriptableObject.CreateInstance<InputActionAsset>();
+            var playerMap = new InputActionMap("Player");
+            playerMap.AddAction("MenuToggle", binding: "<Keyboard>/f1");
+            asset.AddActionMap(playerMap);
+            return asset;
+        }
+
+        private static InputActionAsset CreatePlayerAimActionsAsset()
+        {
+            var asset = ScriptableObject.CreateInstance<InputActionAsset>();
+            var playerMap = new InputActionMap("Player");
+            playerMap.AddAction("Aim", binding: "<Keyboard>/f2");
+            asset.AddActionMap(playerMap);
+            return asset;
+        }
+
+        private static void SetAimHeldForTests(PlayerInputReader reader, bool value)
+        {
+            var field = typeof(PlayerInputReader).GetField("<AimHeld>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            field!.SetValue(reader, value);
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public Vector2 Move;
@@ -1234,6 +1455,10 @@ namespace Reloader.Player.Tests.PlayMode
             {
                 return false;
             }
+
+            public bool ConsumeDevConsoleTogglePressed() => false;
+            public bool ConsumeAutocompletePressed() => false;
+            public int ConsumeSuggestionDelta() => 0;
 
             public bool ConsumeAimTogglePressed() => false;
             public float ConsumeZoomInput() => 0f;
@@ -1292,11 +1517,13 @@ namespace Reloader.Player.Tests.PlayMode
             public bool IsWorkbenchMenuVisible { get; private set; }
             public bool IsTabInventoryVisible { get; private set; }
             public bool IsEscMenuVisible { get; private set; }
-            public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible || IsEscMenuVisible;
+            public bool IsDevConsoleVisible { get; private set; }
+            public bool IsAnyMenuOpen => IsShopTradeMenuOpen || IsWorkbenchMenuVisible || IsTabInventoryVisible || IsEscMenuVisible || IsDevConsoleVisible;
 
             public event System.Action<bool> OnWorkbenchMenuVisibilityChanged;
             public event System.Action<bool> OnTabInventoryVisibilityChanged;
             public event System.Action<bool> OnEscMenuVisibilityChanged;
+            public event System.Action<bool> OnDevConsoleVisibilityChanged;
 
             public void RaiseWorkbenchMenuVisibilityChanged(bool isVisible)
             {
@@ -1314,6 +1541,12 @@ namespace Reloader.Player.Tests.PlayMode
             {
                 IsEscMenuVisible = isVisible;
                 OnEscMenuVisibilityChanged?.Invoke(isVisible);
+            }
+
+            public void RaiseDevConsoleVisibilityChanged(bool isVisible)
+            {
+                IsDevConsoleVisible = isVisible;
+                OnDevConsoleVisibilityChanged?.Invoke(isVisible);
             }
 
             public void SetShopTradeMenuOpen(bool isOpen)
@@ -1355,5 +1588,6 @@ namespace Reloader.Player.Tests.PlayMode
                 OnShopTradeResultReceived?.Invoke(payload);
             }
         }
+
     }
 }

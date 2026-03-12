@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="../USS/DevConsole.uss" />
+    <ui:VisualElement name="dev-console__screen" class="dev-console__screen">
+        <ui:VisualElement name="dev-console__panel" class="dev-console__panel">
+            <ui:Label name="dev-console__prompt" class="dev-console__prompt" text=">" />
+            <ui:TextField name="dev-console__command" class="dev-console__command" />
+            <ui:VisualElement name="dev-console__suggestions" class="dev-console__suggestions" />
+            <ui:Label name="dev-console__status" class="dev-console__status" text="" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

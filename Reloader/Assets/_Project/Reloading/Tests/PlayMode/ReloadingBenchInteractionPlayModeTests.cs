@@ -427,6 +427,9 @@ namespace Reloader.Reloading.Tests.PlayMode
             public bool ConsumeReloadPressed() => false;
             public int ConsumeBeltSelectPressed() => -1;
             public bool ConsumeMenuTogglePressed() => false;
+            public bool ConsumeDevConsoleTogglePressed() => false;
+            public bool ConsumeAutocompletePressed() => false;
+            public int ConsumeSuggestionDelta() => 0;
             public bool ConsumeAimTogglePressed() => false;
             public float ConsumeZoomInput() => 0f;
             public int ConsumeZeroAdjustStep() => 0;
@@ -479,12 +482,14 @@ namespace Reloader.Reloading.Tests.PlayMode
             public bool IsWorkbenchMenuVisible { get; private set; }
             public bool IsTabInventoryVisible => false;
             public bool IsEscMenuVisible => false;
-            public bool IsAnyMenuOpen => IsWorkbenchMenuVisible;
+            public bool IsDevConsoleVisible => false;
+            public bool IsAnyMenuOpen => IsWorkbenchMenuVisible || IsDevConsoleVisible;
             public int WorkbenchVisibilityRaiseCount { get; private set; }
 
             public event System.Action<bool> OnWorkbenchMenuVisibilityChanged;
             public event System.Action<bool> OnTabInventoryVisibilityChanged;
             public event System.Action<bool> OnEscMenuVisibilityChanged;
+            public event System.Action<bool> OnDevConsoleVisibilityChanged;
 
             public void RaiseWorkbenchMenuVisibilityChanged(bool isVisible)
             {
@@ -501,6 +506,11 @@ namespace Reloader.Reloading.Tests.PlayMode
             public void RaiseEscMenuVisibilityChanged(bool isVisible)
             {
                 OnEscMenuVisibilityChanged?.Invoke(isVisible);
+            }
+
+            public void RaiseDevConsoleVisibilityChanged(bool isVisible)
+            {
+                OnDevConsoleVisibilityChanged?.Invoke(isVisible);
             }
         }
 

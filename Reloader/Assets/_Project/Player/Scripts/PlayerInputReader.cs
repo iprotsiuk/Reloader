@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
+using Reloader.Core.Runtime;
 
 namespace Reloader.Player
 {
@@ -34,6 +35,7 @@ namespace Reloader.Player
         public bool ReloadQueued { get; private set; }
         public bool PickupQueued { get; private set; }
         public bool MenuToggleQueued { get; private set; }
+        public bool DevConsoleToggleQueued { get; private set; }
 
         private InputActionMap _playerMap;
         private InputAction _moveAction;
@@ -49,6 +51,8 @@ namespace Reloader.Player
         private int _beltSlotQueued = -1;
         private float _zoomQueued;
         private int _zeroAdjustQueued;
+        private bool _autocompleteQueued;
+        private int _suggestionDeltaQueued;
         private bool _missingAssetWarningLogged;
 
         private void Awake()
@@ -74,9 +78,12 @@ namespace Reloader.Player
             ReloadQueued = false;
             PickupQueued = false;
             MenuToggleQueued = false;
+            DevConsoleToggleQueued = false;
             _beltSlotQueued = -1;
             _zoomQueued = 0f;
             _zeroAdjustQueued = 0;
+            _autocompleteQueued = false;
+            _suggestionDeltaQueued = 0;
         }
 
         private void Update()
@@ -97,12 +104,6 @@ namespace Reloader.Player
             }
 
             SprintHeld = _sprintAction != null && _sprintAction.IsPressed();
-
-            if (_aimAction != null && _aimAction.WasPressedThisFrame())
-            {
-                AimHeld = !AimHeld;
-                AimToggleQueued = true;
-            }
 
             if (_jumpAction != null && _jumpAction.WasPressedThisFrame())
             {
@@ -125,15 +126,56 @@ namespace Reloader.Player
             }
 
             var keyboard = Keyboard.current;
+            var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
+            var isAnyMenuOpen = PlayerCursorLockController.IsAnyMenuOpen || uiStateEvents?.IsAnyMenuOpen == true;
+            var isDevConsoleVisible = uiStateEvents?.IsDevConsoleVisible == true;
+
+            if (isAnyMenuOpen)
+            {
+                AimHeld = false;
+                AimToggleQueued = false;
+            }
+            else if (_aimAction != null && _aimAction.WasPressedThisFrame())
+            {
+                AimHeld = !AimHeld;
+                AimToggleQueued = true;
+            }
+
+            if (keyboard != null && keyboard.backquoteKey.wasPressedThisFrame)
+            {
+                DevConsoleToggleQueued = true;
+            }
+
+            if (!isDevConsoleVisible)
+            {
+                _autocompleteQueued = false;
+                _suggestionDeltaQueued = 0;
+            }
+
+            if (isDevConsoleVisible && keyboard != null && keyboard.tabKey.wasPressedThisFrame)
+            {
+                _autocompleteQueued = true;
+            }
+
+            if (isDevConsoleVisible && keyboard != null && keyboard.upArrowKey.wasPressedThisFrame)
+            {
+                _suggestionDeltaQueued -= 1;
+            }
+
+            if (isDevConsoleVisible && keyboard != null && keyboard.downArrowKey.wasPressedThisFrame)
+            {
+                _suggestionDeltaQueued += 1;
+            }
+
             if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
             {
                 // Escape is handled directly by open UI/controllers as a close-only action.
             }
-            else if (_menuToggleAction != null && _menuToggleAction.WasPressedThisFrame())
+            else if (!isDevConsoleVisible && _menuToggleAction != null && _menuToggleAction.WasPressedThisFrame())
             {
                 MenuToggleQueued = true;
             }
-            else if (keyboard != null && keyboard.tabKey.wasPressedThisFrame)
+            else if (!isDevConsoleVisible && keyboard != null && keyboard.tabKey.wasPressedThisFrame)
             {
                 MenuToggleQueued = true;
             }
@@ -248,6 +290,52 @@ namespace Reloader.Player
 
             ReloadQueued = false;
             return true;
+        }
+
+        public bool ConsumeDevConsoleTogglePressed()
+        {
+            if (!DevConsoleToggleQueued)
+            {
+                return false;
+            }
+
+            DevConsoleToggleQueued = false;
+            return true;
+        }
+
+        public bool ConsumeAutocompletePressed()
+        {
+            if (RuntimeKernelBootstrapper.UiStateEvents?.IsDevConsoleVisible != true)
+            {
+                _autocompleteQueued = false;
+                return false;
+            }
+
+            if (!_autocompleteQueued)
+            {
+                return false;
+            }
+
+            _autocompleteQueued = false;
+            return true;
+        }
+
+        public int ConsumeSuggestionDelta()
+        {
+            if (RuntimeKernelBootstrapper.UiStateEvents?.IsDevConsoleVisible != true)
+            {
+                _suggestionDeltaQueued = 0;
+                return 0;
+            }
+
+            if (_suggestionDeltaQueued == 0)
+            {
+                return 0;
+            }
+
+            var delta = _suggestionDeltaQueued;
+            _suggestionDeltaQueued = 0;
+            return delta;
         }
 
         public float ConsumeZoomInput()

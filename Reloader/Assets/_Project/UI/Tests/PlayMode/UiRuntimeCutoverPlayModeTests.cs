@@ -23,6 +23,7 @@ namespace Reloader.UI.Tests.PlayMode
         private const string ReloadingScreenId = UiRuntimeCompositionIds.ScreenIds.ReloadingWorkbench;
         private const string InteractionHintScreenId = UiRuntimeCompositionIds.ScreenIds.InteractionHint;
         private const string DialogueOverlayScreenId = UiRuntimeCompositionIds.ScreenIds.DialogueOverlay;
+        private const string DevConsoleScreenId = UiRuntimeCompositionIds.ScreenIds.DevConsole;
 
         [SetUp]
         public void SetUp()
@@ -83,6 +84,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(bridge.IsScreenBoundForTests(ReloadingScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(InteractionHintScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(EscMenuScreenId), Is.True);
+            Assert.That(bridge.IsScreenBoundForTests(DevConsoleScreenId), Is.False);
             Assert.That(bridge.IsScreenBoundForTests(BeltHudScreenId), Is.False);
             Assert.That(bridge.IsScreenBoundForTests(TabInventoryScreenId), Is.False);
             Assert.That(bridge.IsScreenBoundForTests(AmmoHudScreenId), Is.False);
@@ -106,7 +108,8 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(bridge.IsScreenBoundForTests(InteractionHintScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(EscMenuScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(DialogueOverlayScreenId), Is.True);
-            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(9));
+            Assert.That(bridge.IsScreenBoundForTests(DevConsoleScreenId), Is.True);
+            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(10));
         }
 
         [UnityTest]
@@ -129,7 +132,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(runtimeRoot, Is.Not.Null);
             var bridge = runtimeRoot.GetComponent<UiToolkitScreenRuntimeBridge>();
             Assert.That(bridge, Is.Not.Null);
-            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(9));
+            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(10));
 
             bridge.enabled = false;
             yield return null;
@@ -137,7 +140,7 @@ namespace Reloader.UI.Tests.PlayMode
 
             bridge.enabled = true;
             yield return null;
-            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(9));
+            Assert.That(bridge.BoundScreenCountForTests(), Is.EqualTo(10));
 
             Assert.That(bridge.IsScreenBoundForTests(BeltHudScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(TabInventoryScreenId), Is.True);
@@ -148,6 +151,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(bridge.IsScreenBoundForTests(InteractionHintScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(EscMenuScreenId), Is.True);
             Assert.That(bridge.IsScreenBoundForTests(DialogueOverlayScreenId), Is.True);
+            Assert.That(bridge.IsScreenBoundForTests(DevConsoleScreenId), Is.True);
         }
 
         [UnityTest]
@@ -258,6 +262,9 @@ namespace Reloader.UI
         public bool ConsumePickupPressed() => false;
         public int ConsumeBeltSelectPressed() => -1;
         public bool ConsumeMenuTogglePressed() => false;
+        public bool ConsumeDevConsoleTogglePressed() => false;
+        public bool ConsumeAutocompletePressed() => false;
+        public int ConsumeSuggestionDelta() => 0;
         public bool ConsumeAimTogglePressed() => false;
         public float ConsumeZoomInput() => 0f;
         public int ConsumeZeroAdjustStep() => 0;

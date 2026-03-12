@@ -1,0 +1,22 @@
+{
+  "name": "Reloader.DevTools.Tests.EditMode",
+  "rootNamespace": "Reloader.DevTools.Tests.EditMode",
+  "references": [
+    "Reloader.DevTools",
+    "Reloader.Core"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

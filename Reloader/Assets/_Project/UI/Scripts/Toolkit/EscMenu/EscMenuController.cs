@@ -86,6 +86,12 @@ namespace Reloader.UI.Toolkit.EscMenu
                 nonEscMenuOpenNow = storageMenuOpenNow;
             }
 
+            if (PlayerCursorLockController.WasEscapeConsumedThisFrame())
+            {
+                _nonEscMenuWasOpenLastFrame = nonEscMenuOpenNow;
+                return;
+            }
+
             if (!_keySource.ConsumeEscapePressedThisFrame())
             {
                 _nonEscMenuWasOpenLastFrame = nonEscMenuOpenNow;

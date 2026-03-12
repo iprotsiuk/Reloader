@@ -2,6 +2,7 @@
   "name": "Reloader.UI.Tests.PlayMode",
   "rootNamespace": "Reloader.UI.Tests.PlayMode",
   "references": [
+    "Reloader.DevTools",
     "Reloader.UI",
     "Reloader.Inventory",
     "Reloader.Core",

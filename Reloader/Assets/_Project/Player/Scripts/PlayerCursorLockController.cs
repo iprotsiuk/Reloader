@@ -23,6 +23,7 @@ namespace Reloader.Player
         private bool _isWorkbenchMenuOpen;
         private bool _isTabInventoryOpen;
         private bool _isEscMenuOpen;
+        private bool _isDevConsoleOpen;
         private bool _isStorageMenuOpen;
         private RuntimeHubChannelBinder<IUiStateEvents> _uiStateEventsBinder;
         private RuntimeHubChannelBinder<IShopEvents> _shopEventsBinder;
@@ -186,6 +187,12 @@ namespace Reloader.Player
             ApplyCursorState();
         }
 
+        private void HandleDevConsoleVisibilityChanged(bool isVisible)
+        {
+            _isDevConsoleOpen = isVisible;
+            ApplyCursorState();
+        }
+
         private void HandleRuntimeEventsReconfigured()
         {
             if (!isActiveAndEnabled)
@@ -209,7 +216,7 @@ namespace Reloader.Player
 
         private void ApplyCursorState()
         {
-            IsAnyMenuOpen = _isTradeMenuOpen || _isWorkbenchMenuOpen || _isTabInventoryOpen || _isEscMenuOpen || _isStorageMenuOpen;
+            IsAnyMenuOpen = _isTradeMenuOpen || _isWorkbenchMenuOpen || _isTabInventoryOpen || _isEscMenuOpen || _isDevConsoleOpen || _isStorageMenuOpen;
             IsGameplayInputBlocked = _forcedCursorUnlock || IsAnyMenuOpen;
             if (IsGameplayInputBlocked)
             {
@@ -244,6 +251,7 @@ namespace Reloader.Player
                 _isWorkbenchMenuOpen = uiStateEvents.IsWorkbenchMenuVisible;
                 _isTabInventoryOpen = uiStateEvents.IsTabInventoryVisible;
                 _isEscMenuOpen = uiStateEvents.IsEscMenuVisible;
+                _isDevConsoleOpen = uiStateEvents.IsDevConsoleVisible;
                 _isStorageMenuOpen = IsStorageUiOpen();
             }
             else if (UiStateEventsBinder.UsesRuntimeChannel)
@@ -251,6 +259,7 @@ namespace Reloader.Player
                 _isWorkbenchMenuOpen = false;
                 _isTabInventoryOpen = false;
                 _isEscMenuOpen = false;
+                _isDevConsoleOpen = false;
                 _isStorageMenuOpen = IsStorageUiOpen();
             }
         }
@@ -270,6 +279,7 @@ namespace Reloader.Player
             uiStateEvents.OnWorkbenchMenuVisibilityChanged += HandleWorkbenchMenuVisibilityChanged;
             uiStateEvents.OnTabInventoryVisibilityChanged += HandleTabInventoryVisibilityChanged;
             uiStateEvents.OnEscMenuVisibilityChanged += HandleEscMenuVisibilityChanged;
+            uiStateEvents.OnDevConsoleVisibilityChanged += HandleDevConsoleVisibilityChanged;
         }
 
         private void UnsubscribeFromUiStateEvents(IUiStateEvents uiStateEvents)
@@ -277,6 +287,7 @@ namespace Reloader.Player
             uiStateEvents.OnWorkbenchMenuVisibilityChanged -= HandleWorkbenchMenuVisibilityChanged;
             uiStateEvents.OnTabInventoryVisibilityChanged -= HandleTabInventoryVisibilityChanged;
             uiStateEvents.OnEscMenuVisibilityChanged -= HandleEscMenuVisibilityChanged;
+            uiStateEvents.OnDevConsoleVisibilityChanged -= HandleDevConsoleVisibilityChanged;
         }
 
         private void SubscribeToShopEvents(IShopEvents shopEvents)
