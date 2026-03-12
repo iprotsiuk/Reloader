@@ -76,6 +76,11 @@ namespace Reloader.UI.Toolkit.Runtime
             ReleasePlayerDeviceController();
         }
 
+        private void OnDestroy()
+        {
+            ReleaseDevToolsRuntime();
+        }
+
         private void Update()
         {
             if (_runtimeRoot == null)
@@ -644,6 +649,12 @@ namespace Reloader.UI.Toolkit.Runtime
             _playerDeviceController = null;
             _playerDeviceInventoryController = null;
             _playerDeviceInputSourceHash = 0;
+        }
+
+        private void ReleaseDevToolsRuntime()
+        {
+            _devToolsRuntime?.Dispose();
+            _devToolsRuntime = null;
         }
 
         private void UnbindScreen(string screenId)

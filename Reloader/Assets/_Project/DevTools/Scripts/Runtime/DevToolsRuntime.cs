@@ -3,14 +3,14 @@ using System.Collections.Generic;
 
 namespace Reloader.DevTools.Runtime
 {
-    public sealed class DevToolsRuntime
+    public sealed class DevToolsRuntime : IDisposable
     {
         private readonly DevCommandCatalog _catalog;
         private readonly DevNoclipCommand _noclipCommand = new(new DevPlayerMovementOverride());
         private readonly DevGiveItemCommand _giveItemCommand = new();
         private readonly DevSpawnNpcCommand _spawnNpcCommand = new();
-        private readonly DevTraceRuntime _traceRuntime;
-        private readonly DevTracesCommand _tracesCommand;
+        private DevTraceRuntime _traceRuntime;
+        private DevTracesCommand _tracesCommand;
 
         public DevToolsRuntime()
             : this(DevCommandCatalog.CreateDefault(), new DevToolsState(), new DevCommandContext())
@@ -22,8 +22,6 @@ namespace Reloader.DevTools.Runtime
             _catalog = catalog ?? DevCommandCatalog.CreateDefault();
             State = state ?? new DevToolsState();
             Context = context ?? new DevCommandContext();
-            _traceRuntime = new DevTraceRuntime(State);
-            _tracesCommand = new DevTracesCommand(State, _traceRuntime);
         }
 
         public DevToolsState State { get; }
@@ -57,7 +55,7 @@ namespace Reloader.DevTools.Runtime
 
             if (string.Equals(definition.Name, "traces", StringComparison.OrdinalIgnoreCase))
             {
-                return _tracesCommand.TryExecute(parseResult, out resultMessage);
+                return GetOrCreateTracesCommand().TryExecute(parseResult, out resultMessage);
             }
 
             if (string.Equals(definition.Name, "spawn", StringComparison.OrdinalIgnoreCase))
@@ -90,7 +88,7 @@ namespace Reloader.DevTools.Runtime
                 && _catalog.TryGet(parseResult.CommandName, out var tracesDefinition)
                 && string.Equals(tracesDefinition.Name, "traces", StringComparison.OrdinalIgnoreCase))
             {
-                return _tracesCommand.GetSuggestions(input, parseResult);
+                return GetOrCreateTracesCommand().GetSuggestions(input, parseResult);
             }
 
             if (parseResult.HasCommand
@@ -122,6 +120,20 @@ namespace Reloader.DevTools.Runtime
         public void SetConsoleVisible(bool isVisible)
         {
             IsConsoleVisible = isVisible;
+        }
+
+        public void Dispose()
+        {
+            _traceRuntime?.Dispose();
+            _traceRuntime = null;
+            _tracesCommand = null;
+        }
+
+        private DevTracesCommand GetOrCreateTracesCommand()
+        {
+            _traceRuntime ??= new DevTraceRuntime(State);
+            _tracesCommand ??= new DevTracesCommand(State, _traceRuntime);
+            return _tracesCommand;
         }
 
         private static bool TryResolveSuggestionLookup(

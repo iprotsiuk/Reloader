@@ -27,7 +27,7 @@ namespace Reloader.DevTools.Tests.EditMode
         [Test]
         public void GetSuggestions_ReturnsStableSnapshotsAcrossCalls()
         {
-            var runtime = new DevToolsRuntime();
+            using var runtime = new DevToolsRuntime();
 
             var first = runtime.GetSuggestions("n", 0);
             var second = runtime.GetSuggestions("g", 0);
@@ -41,7 +41,7 @@ namespace Reloader.DevTools.Tests.EditMode
         {
             var catalog = new DevCommandCatalog();
             catalog.Register(new DevCommandDefinition("teleport", "Move player.", new[] { "tp" }));
-            var runtime = new DevToolsRuntime(catalog, new DevToolsState(), new DevCommandContext());
+            using var runtime = new DevToolsRuntime(catalog, new DevToolsState(), new DevCommandContext());
 
             var suggestions = runtime.GetSuggestions("tp", 0);
             var tokens = suggestions.Select(static suggestion => suggestion.Token).ToArray();

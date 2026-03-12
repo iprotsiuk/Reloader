@@ -17,27 +17,31 @@ namespace Reloader.DevTools.Runtime
             }
         }
 
-        private readonly struct PendingShot
+        private sealed class PendingShot
         {
-            public PendingShot(Vector3 origin, Vector3 direction, float expiresAt)
+            public PendingShot(Vector3 origin, Vector3 direction, float fallbackAt, float cleanupAt)
             {
                 Origin = origin;
                 Direction = direction;
-                ExpiresAt = expiresAt;
+                FallbackAt = fallbackAt;
+                CleanupAt = cleanupAt;
             }
 
             public Vector3 Origin { get; }
             public Vector3 Direction { get; }
-            public float ExpiresAt { get; }
+            public float FallbackAt { get; }
+            public float CleanupAt { get; }
+            public DevTraceSegmentView SegmentView { get; set; }
         }
 
         private readonly DevToolsState _state;
-        private readonly Dictionary<string, PendingShot> _pendingShotsByItemId = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, List<PendingShot>> _pendingShotsByItemId = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<DevTraceSegmentView> _segmentPool = new();
         private readonly Color _traceColor = new(1f, 0.7f, 0.1f, 1f);
         private readonly float _traceLifetimeSeconds = 5f;
         private readonly float _fallbackDistanceMeters = 120f;
-        private readonly float _pendingLifetimeSeconds = 0.05f;
+        private readonly float _pendingFallbackDelaySeconds = 0.05f;
+        private readonly float _pendingCleanupLifetimeSeconds = 10f;
         private readonly GameObject _root;
         private readonly Driver _driver;
         private IWeaponEvents _weaponEvents;
@@ -64,6 +68,7 @@ namespace Reloader.DevTools.Runtime
             }
 
             _disposed = true;
+            _pendingShotsByItemId.Clear();
             RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
             Bind(null);
             if (_root != null)
@@ -121,15 +126,17 @@ namespace Reloader.DevTools.Runtime
             }
 
             var normalizedItemId = NormalizeItemId(itemId);
-            if (_pendingShotsByItemId.TryGetValue(normalizedItemId, out var previousShot))
+            if (!_pendingShotsByItemId.TryGetValue(normalizedItemId, out var pendingShots))
             {
-                ShowSegment(previousShot.Origin, previousShot.Origin + previousShot.Direction * _fallbackDistanceMeters);
+                pendingShots = new List<PendingShot>();
+                _pendingShotsByItemId[normalizedItemId] = pendingShots;
             }
 
-            _pendingShotsByItemId[normalizedItemId] = new PendingShot(
+            pendingShots.Add(new PendingShot(
                 origin,
                 direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector3.forward,
-                Time.unscaledTime + _pendingLifetimeSeconds);
+                Time.unscaledTime + _pendingFallbackDelaySeconds,
+                Time.unscaledTime + _pendingCleanupLifetimeSeconds));
         }
 
         private void HandleProjectileHit(string itemId, Vector3 point, float _)
@@ -140,13 +147,20 @@ namespace Reloader.DevTools.Runtime
             }
 
             var normalizedItemId = NormalizeItemId(itemId);
-            if (!_pendingShotsByItemId.TryGetValue(normalizedItemId, out var pendingShot))
+            if (!_pendingShotsByItemId.TryGetValue(normalizedItemId, out var pendingShots)
+                || pendingShots.Count == 0)
             {
                 return;
             }
 
-            _pendingShotsByItemId.Remove(normalizedItemId);
-            ShowSegment(pendingShot.Origin, point);
+            var pendingShot = pendingShots[0];
+            pendingShots.RemoveAt(0);
+            if (pendingShots.Count == 0)
+            {
+                _pendingShotsByItemId.Remove(normalizedItemId);
+            }
+
+            ShowPendingShotSegment(pendingShot, point);
         }
 
         private void Tick(float now)
@@ -159,13 +173,29 @@ namespace Reloader.DevTools.Runtime
             var expiredKeys = new List<string>();
             foreach (var entry in _pendingShotsByItemId)
             {
-                if (now < entry.Value.ExpiresAt)
+                var pendingShots = entry.Value;
+                for (var i = pendingShots.Count - 1; i >= 0; i--)
                 {
-                    continue;
+                    var pendingShot = pendingShots[i];
+                    if (pendingShot.SegmentView == null && now >= pendingShot.FallbackAt)
+                    {
+                        pendingShot.SegmentView = ShowPendingShotSegment(
+                            pendingShot,
+                            pendingShot.Origin + pendingShot.Direction * _fallbackDistanceMeters);
+                    }
+
+                    if (now < pendingShot.CleanupAt)
+                    {
+                        continue;
+                    }
+
+                    pendingShots.RemoveAt(i);
                 }
 
-                ShowSegment(entry.Value.Origin, entry.Value.Origin + entry.Value.Direction * _fallbackDistanceMeters);
-                expiredKeys.Add(entry.Key);
+                if (pendingShots.Count == 0)
+                {
+                    expiredKeys.Add(entry.Key);
+                }
             }
 
             for (var i = 0; i < expiredKeys.Count; i++)
@@ -177,6 +207,13 @@ namespace Reloader.DevTools.Runtime
         private void ShowSegment(Vector3 startPoint, Vector3 endPoint)
         {
             GetOrCreateSegment().Show(startPoint, endPoint, _traceColor, _traceLifetimeSeconds);
+        }
+
+        private DevTraceSegmentView ShowPendingShotSegment(PendingShot pendingShot, Vector3 endPoint)
+        {
+            var segment = pendingShot.SegmentView ?? GetOrCreateSegment();
+            segment.Show(pendingShot.Origin, endPoint, _traceColor, _traceLifetimeSeconds);
+            return segment;
         }
 
         private void ClearVisibleSegments()

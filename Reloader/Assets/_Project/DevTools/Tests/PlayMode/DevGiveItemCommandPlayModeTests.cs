@@ -35,7 +35,7 @@ namespace Reloader.DevTools.Tests.PlayMode
                 "_itemDefinitionRegistry",
                 new List<ItemDefinition> { ammo });
 
-            var runtime = new DevToolsRuntime();
+            using var runtime = new DevToolsRuntime();
             runtime.Context.InventoryController = inventoryController;
 
             var suggestions = runtime.GetSuggestions("give item 308", 0).ToArray();
@@ -70,7 +70,7 @@ namespace Reloader.DevTools.Tests.PlayMode
                 "_itemDefinitionRegistry",
                 new List<ItemDefinition> { ammo });
 
-            var runtime = new DevToolsRuntime();
+            using var runtime = new DevToolsRuntime();
             runtime.Context.InventoryController = inventoryController;
 
             yield return null;

@@ -31,6 +31,7 @@ namespace Reloader.UI.Toolkit.DevConsole
         private IUiStateEvents _uiStateEvents;
         private IDevConsoleKeySource _consoleKeySource;
         private bool _useRuntimeKernelUiStateEvents = true;
+        private bool _ownsRuntime;
         private int _highlightedSuggestionIndex;
         private IReadOnlyList<DevConsoleSuggestion> _suggestions = Array.Empty<DevConsoleSuggestion>();
         private string _statusText = string.Empty;
@@ -40,7 +41,6 @@ namespace Reloader.UI.Toolkit.DevConsole
         private void OnEnable()
         {
             SubscribeToRuntimeHubReconfigure();
-            _runtime ??= new DevToolsRuntime();
             _consoleKeySource ??= new KeyboardDevConsoleKeySource();
             Refresh();
         }
@@ -52,6 +52,11 @@ namespace Reloader.UI.Toolkit.DevConsole
             {
                 SetConsoleOpen(false);
             }
+        }
+
+        private void OnDestroy()
+        {
+            DisposeOwnedRuntime();
         }
 
         private void Update()
@@ -67,7 +72,14 @@ namespace Reloader.UI.Toolkit.DevConsole
 
         public void SetRuntime(DevToolsRuntime runtime)
         {
+            if (ReferenceEquals(_runtime, runtime))
+            {
+                return;
+            }
+
+            DisposeOwnedRuntime();
             _runtime = runtime;
+            _ownsRuntime = false;
             Refresh();
         }
 
@@ -89,6 +101,7 @@ namespace Reloader.UI.Toolkit.DevConsole
 
         public void Tick()
         {
+            EnsureRuntime();
             if (_runtime == null || _inputSource == null)
             {
                 return;
@@ -250,6 +263,29 @@ namespace Reloader.UI.Toolkit.DevConsole
             uiStateEvents.RaiseDevConsoleVisibilityChanged(isVisible);
             _lastPublishedUiStateEvents = uiStateEvents;
             _lastPublishedVisibility = isVisible;
+        }
+
+        private void EnsureRuntime()
+        {
+            if (_runtime != null)
+            {
+                return;
+            }
+
+            _runtime = new DevToolsRuntime();
+            _ownsRuntime = true;
+        }
+
+        private void DisposeOwnedRuntime()
+        {
+            if (!_ownsRuntime || _runtime == null)
+            {
+                return;
+            }
+
+            _runtime.Dispose();
+            _runtime = null;
+            _ownsRuntime = false;
         }
     }
 

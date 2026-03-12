@@ -1,8 +1,11 @@
+using System;
 using System.Collections;
+using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Runtime;
 using Reloader.DevTools.Runtime;
 using Reloader.Player;
+using Reloader.UI.Toolkit.Runtime;
 using Reloader.UI.Toolkit.DevConsole;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -23,7 +26,7 @@ namespace Reloader.UI.Tests.PlayMode
             var consoleGo = new GameObject("DevConsole");
             var controller = consoleGo.AddComponent<DevConsoleController>();
             var input = new TestInputSource();
-            var runtime = new DevToolsRuntime();
+            using var runtime = new DevToolsRuntime();
             var binder = BuildBinder();
             controller.SetRuntime(runtime);
             controller.SetInputSource(input);
@@ -40,8 +43,8 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
             Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.True);
 
-            Object.DestroyImmediate(consoleGo);
-            Object.DestroyImmediate(cursorLockGo);
+            UnityEngine.Object.DestroyImmediate(consoleGo);
+            UnityEngine.Object.DestroyImmediate(cursorLockGo);
         }
 
         [UnityTest]
@@ -55,7 +58,7 @@ namespace Reloader.UI.Tests.PlayMode
             var consoleGo = new GameObject("DevConsole");
             var controller = consoleGo.AddComponent<DevConsoleController>();
             var input = new TestInputSource();
-            var runtime = new DevToolsRuntime();
+            using var runtime = new DevToolsRuntime();
             var binder = BuildBinder();
             controller.SetRuntime(runtime);
             controller.SetInputSource(input);
@@ -74,8 +77,8 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
             Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.False);
 
-            Object.DestroyImmediate(consoleGo);
-            Object.DestroyImmediate(cursorLockGo);
+            UnityEngine.Object.DestroyImmediate(consoleGo);
+            UnityEngine.Object.DestroyImmediate(cursorLockGo);
         }
 
         [UnityTest]
@@ -85,7 +88,7 @@ namespace Reloader.UI.Tests.PlayMode
             var consoleGo = new GameObject("DevConsole");
             var controller = consoleGo.AddComponent<DevConsoleController>();
             var input = new TestInputSource();
-            var runtime = new DevToolsRuntime();
+            using var runtime = new DevToolsRuntime();
             var binder = BuildBinder();
             controller.SetRuntime(runtime);
             controller.SetInputSource(input);
@@ -106,7 +109,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(input.SuggestionDeltaConsumeCount, Is.EqualTo(1));
             Assert.That(input.AutocompleteConsumeCount, Is.EqualTo(1));
 
-            Object.DestroyImmediate(consoleGo);
+            UnityEngine.Object.DestroyImmediate(consoleGo);
         }
 
         [UnityTest]
@@ -116,7 +119,7 @@ namespace Reloader.UI.Tests.PlayMode
             var consoleGo = new GameObject("DevConsole");
             var controller = consoleGo.AddComponent<DevConsoleController>();
             var input = new TestInputSource();
-            var runtime = new DevToolsRuntime();
+            using var runtime = new DevToolsRuntime();
             var binder = BuildBinder();
             controller.SetRuntime(runtime);
             controller.SetInputSource(input);
@@ -139,7 +142,7 @@ namespace Reloader.UI.Tests.PlayMode
 
             Assert.That(binder.GetCommandText(), Is.EqualTo("noclip"));
 
-            Object.DestroyImmediate(consoleGo);
+            UnityEngine.Object.DestroyImmediate(consoleGo);
         }
 
         [UnityTest]
@@ -150,7 +153,7 @@ namespace Reloader.UI.Tests.PlayMode
             var controller = consoleGo.AddComponent<DevConsoleController>();
             var input = new TestInputSource();
             var commandKeys = new TestConsoleKeySource();
-            var runtime = new DevToolsRuntime();
+            using var runtime = new DevToolsRuntime();
             var binder = BuildBinder();
             controller.SetRuntime(runtime);
             controller.SetInputSource(input);
@@ -176,7 +179,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(runtime.IsConsoleVisible, Is.False);
             Assert.That(runtimeEvents.IsDevConsoleVisible, Is.False);
 
-            Object.DestroyImmediate(consoleGo);
+            UnityEngine.Object.DestroyImmediate(consoleGo);
         }
 
         [UnityTest]
@@ -193,7 +196,7 @@ namespace Reloader.UI.Tests.PlayMode
             var consoleGo = new GameObject("DevConsole");
             var controller = consoleGo.AddComponent<DevConsoleController>();
             var input = new TestInputSource();
-            var runtime = new DevToolsRuntime();
+            using var runtime = new DevToolsRuntime();
             var binder = BuildBinder();
             controller.SetRuntime(runtime);
             controller.SetInputSource(input);
@@ -213,9 +216,41 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(replacementEvents.IsDevConsoleVisible, Is.True);
             Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.True);
 
-            Object.DestroyImmediate(consoleGo);
-            Object.DestroyImmediate(cursorLockGo);
+            UnityEngine.Object.DestroyImmediate(consoleGo);
+            UnityEngine.Object.DestroyImmediate(cursorLockGo);
             RuntimeKernelBootstrapper.Events = previousEvents;
+        }
+
+        [Test]
+        public void BridgeBindDevConsole_ReusesSingleTraceRuntime_AndCleansUpOnDestroy()
+        {
+            var initialCount = CountTraceRuntimeRoots();
+            var bridgeGo = new GameObject("UiBridge");
+
+            try
+            {
+                var bridge = bridgeGo.AddComponent<UiToolkitScreenRuntimeBridge>();
+                var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod("BindDevConsole", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(bindMethod, Is.Not.Null);
+
+                bindMethod!.Invoke(bridge, new object[] { BuildBinder().Root, "DevConsoleController", new TestInputSource() });
+
+                Assert.That(CountTraceRuntimeRoots(), Is.EqualTo(initialCount));
+
+                UnityEngine.Object.DestroyImmediate(bridgeGo);
+                bridgeGo = null;
+
+                Assert.That(CountTraceRuntimeRoots(), Is.EqualTo(initialCount));
+            }
+            finally
+            {
+                if (bridgeGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(bridgeGo);
+                }
+
+                DestroyAllTraceRuntimeRoots();
+            }
         }
 
         private static DevConsoleViewBinder BuildBinder()
@@ -235,6 +270,33 @@ namespace Reloader.UI.Tests.PlayMode
             var binder = new DevConsoleViewBinder();
             binder.Initialize(screen);
             return binder;
+        }
+
+        private static int CountTraceRuntimeRoots()
+        {
+            var gameObjects = Resources.FindObjectsOfTypeAll<GameObject>();
+            var count = 0;
+            for (var i = 0; i < gameObjects.Length; i++)
+            {
+                if (gameObjects[i] != null && gameObjects[i].name == "DevTraceRuntime")
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        private static void DestroyAllTraceRuntimeRoots()
+        {
+            var gameObjects = Resources.FindObjectsOfTypeAll<GameObject>();
+            for (var i = 0; i < gameObjects.Length; i++)
+            {
+                if (gameObjects[i] != null && gameObjects[i].name == "DevTraceRuntime")
+                {
+                    UnityEngine.Object.DestroyImmediate(gameObjects[i]);
+                }
+            }
         }
 
         private sealed class TestInputSource : IPlayerInputSource
