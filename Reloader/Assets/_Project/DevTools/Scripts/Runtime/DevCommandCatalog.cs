@@ -23,6 +23,26 @@ namespace Reloader.DevTools.Runtime
                 throw new InvalidOperationException($"Command name '{commandName}' is already registered as an alias.");
             }
 
+            var aliases = new List<string>();
+            for (var i = 0; i < definition.Aliases.Count; i++)
+            {
+                var alias = definition.Aliases[i];
+                if (string.IsNullOrWhiteSpace(alias)
+                    || string.Equals(alias, commandName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (_definitionsByLookup.TryGetValue(alias, out var existingAliasOwner)
+                    && !string.Equals(existingAliasOwner.Name, commandName, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"Alias '{alias}' is already registered to command '{existingAliasOwner.Name}'.");
+                }
+
+                aliases.Add(alias);
+            }
+
             if (_aliasesByCommandName.TryGetValue(commandName, out var oldAliases))
             {
                 for (var i = 0; i < oldAliases.Count; i++)
@@ -46,29 +66,10 @@ namespace Reloader.DevTools.Runtime
             }
 
             _definitionsByLookup[commandName] = definition;
-            var aliases = new List<string>();
-            for (var i = 0; i < definition.Aliases.Count; i++)
+            for (var i = 0; i < aliases.Count; i++)
             {
-                var alias = definition.Aliases[i];
-                if (string.IsNullOrWhiteSpace(alias))
-                {
-                    continue;
-                }
-
-                if (string.Equals(alias, commandName, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (_definitionsByLookup.TryGetValue(alias, out var existingAliasOwner)
-                    && !string.Equals(existingAliasOwner.Name, commandName, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidOperationException(
-                        $"Alias '{alias}' is already registered to command '{existingAliasOwner.Name}'.");
-                }
-
+                var alias = aliases[i];
                 _definitionsByLookup[alias] = definition;
-                aliases.Add(alias);
             }
 
             _aliasesByCommandName[commandName] = aliases;

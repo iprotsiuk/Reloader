@@ -42,6 +42,22 @@ namespace Reloader.DevTools.Tests.EditMode
         }
 
         [Test]
+        public void Register_AliasCollisionDuringReplacement_PreservesPreviousState()
+        {
+            var catalog = new DevCommandCatalog();
+            catalog.Register(new DevCommandDefinition("give", "first", new[] { "g", "grant" }));
+            catalog.Register(new DevCommandDefinition("god", "second", new[] { "godmode" }));
+
+            Assert.That(
+                () => catalog.Register(new DevCommandDefinition("give", "replacement", new[] { "g", "godmode" })),
+                Throws.TypeOf<InvalidOperationException>());
+
+            Assert.That(catalog.Contains("grant"), Is.True);
+            Assert.That(catalog.TryGet("give", out var definition), Is.True);
+            Assert.That(definition.Description, Is.EqualTo("first"));
+        }
+
+        [Test]
         public void GetDefinitions_PreservesRegistrationOrder()
         {
             var catalog = DevCommandCatalog.CreateDefault();
