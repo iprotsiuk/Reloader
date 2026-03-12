@@ -6,7 +6,6 @@ namespace Reloader.DevTools.Runtime
     public sealed class DevToolsRuntime
     {
         private readonly DevCommandCatalog _catalog;
-        private readonly List<DevConsoleSuggestion> _suggestions = new();
 
         public DevToolsRuntime()
             : this(DevCommandCatalog.CreateDefault(), new DevToolsState(), new DevCommandContext())
@@ -45,9 +44,9 @@ namespace Reloader.DevTools.Runtime
 
         public IReadOnlyList<DevConsoleSuggestion> GetSuggestions(string input, int highlightedIndex)
         {
-            _suggestions.Clear();
             var parseResult = DevCommandLineParser.Parse(input);
             var prefix = parseResult.HasCommand ? parseResult.CommandName : input?.Trim() ?? string.Empty;
+            var suggestions = new List<DevConsoleSuggestion>();
 
             foreach (var definition in _catalog.GetDefinitions())
             {
@@ -57,10 +56,10 @@ namespace Reloader.DevTools.Runtime
                     continue;
                 }
 
-                _suggestions.Add(new DevConsoleSuggestion(definition.Name, definition.Name, definition.Description));
+                suggestions.Add(new DevConsoleSuggestion(definition.Name, definition.Name, definition.Description));
             }
 
-            return _suggestions;
+            return suggestions;
         }
 
         public void SetConsoleVisible(bool isVisible)

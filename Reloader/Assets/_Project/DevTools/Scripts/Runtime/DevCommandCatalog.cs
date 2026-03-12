@@ -5,7 +5,9 @@ namespace Reloader.DevTools.Runtime
 {
     public sealed class DevCommandCatalog
     {
-        private readonly Dictionary<string, DevCommandDefinition> _definitionsByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, DevCommandDefinition> _definitionsByLookup = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, List<string>> _aliasesByCommandName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<DevCommandDefinition> _definitionsInOrder = new();
 
         public void Register(DevCommandDefinition definition)
         {
@@ -14,7 +16,37 @@ namespace Reloader.DevTools.Runtime
                 return;
             }
 
-            _definitionsByName[definition.Name] = definition;
+            var commandName = definition.Name;
+            if (_definitionsByLookup.TryGetValue(commandName, out var existingByLookup)
+                && !string.Equals(existingByLookup.Name, commandName, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"Command name '{commandName}' is already registered as an alias.");
+            }
+
+            if (_aliasesByCommandName.TryGetValue(commandName, out var oldAliases))
+            {
+                for (var i = 0; i < oldAliases.Count; i++)
+                {
+                    _definitionsByLookup.Remove(oldAliases[i]);
+                }
+            }
+
+            if (_definitionsByLookup.TryGetValue(commandName, out var existingDefinition))
+            {
+                var existingIndex = _definitionsInOrder.FindIndex(
+                    existing => ReferenceEquals(existing, existingDefinition));
+                if (existingIndex >= 0)
+                {
+                    _definitionsInOrder[existingIndex] = definition;
+                }
+            }
+            else
+            {
+                _definitionsInOrder.Add(definition);
+            }
+
+            _definitionsByLookup[commandName] = definition;
+            var aliases = new List<string>();
             for (var i = 0; i < definition.Aliases.Count; i++)
             {
                 var alias = definition.Aliases[i];
@@ -23,14 +55,29 @@ namespace Reloader.DevTools.Runtime
                     continue;
                 }
 
-                _definitionsByName[alias] = definition;
+                if (string.Equals(alias, commandName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (_definitionsByLookup.TryGetValue(alias, out var existingAliasOwner)
+                    && !string.Equals(existingAliasOwner.Name, commandName, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"Alias '{alias}' is already registered to command '{existingAliasOwner.Name}'.");
+                }
+
+                _definitionsByLookup[alias] = definition;
+                aliases.Add(alias);
             }
+
+            _aliasesByCommandName[commandName] = aliases;
         }
 
         public bool Contains(string commandName)
         {
             return !string.IsNullOrWhiteSpace(commandName)
-                   && _definitionsByName.ContainsKey(commandName);
+                   && _definitionsByLookup.ContainsKey(commandName);
         }
 
         public bool TryGet(string commandName, out DevCommandDefinition definition)
@@ -41,13 +88,12 @@ namespace Reloader.DevTools.Runtime
                 return false;
             }
 
-            return _definitionsByName.TryGetValue(commandName, out definition);
+            return _definitionsByLookup.TryGetValue(commandName, out definition);
         }
 
         public IReadOnlyCollection<DevCommandDefinition> GetDefinitions()
         {
-            var uniqueDefinitions = new HashSet<DevCommandDefinition>(_definitionsByName.Values);
-            return new List<DevCommandDefinition>(uniqueDefinitions);
+            return _definitionsInOrder.ToArray();
         }
 
         public static DevCommandCatalog CreateDefault()
