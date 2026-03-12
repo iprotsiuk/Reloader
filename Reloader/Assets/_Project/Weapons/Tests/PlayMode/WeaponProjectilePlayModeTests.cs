@@ -278,6 +278,42 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Projectile_IgnoresIntermediateTriggerColliders_AndHitsSolidTarget()
+        {
+            var projectileGo = new GameObject("Projectile");
+            projectileGo.transform.position = new Vector3(0f, 1f, 0f);
+            projectileGo.transform.forward = Vector3.forward;
+            var projectile = projectileGo.AddComponent<WeaponProjectile>();
+
+            var triggerVolume = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            triggerVolume.transform.position = new Vector3(0f, 1f, 2f);
+            triggerVolume.transform.localScale = new Vector3(2f, 2f, 0.25f);
+            var triggerCollider = triggerVolume.GetComponent<Collider>();
+            triggerCollider.isTrigger = true;
+
+            var target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            target.transform.position = new Vector3(0f, 1f, 4f);
+            target.transform.localScale = new Vector3(1f, 1f, 1f);
+            var receiver = target.AddComponent<TestDamageable>();
+
+            projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 120f, gravityMultiplier: 0f, damage: 22f);
+
+            var elapsed = 0f;
+            while (receiver.HitCount == 0 && elapsed < 0.5f)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            Assert.That(receiver.HitCount, Is.EqualTo(1));
+            Assert.That(projectile == null || projectile.Equals(null), Is.True);
+
+            Object.Destroy(projectileGo);
+            Object.Destroy(triggerVolume);
+            Object.Destroy(target);
+        }
+
+        [UnityTest]
         public IEnumerator Projectile_SpawnsImpactVfx_OnAnySurfaceCollision()
         {
             var baselineParticles = Object.FindObjectsByType<ParticleSystem>(FindObjectsSortMode.None).Length;

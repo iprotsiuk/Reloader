@@ -1,7 +1,9 @@
 using System.Collections;
+using System.Linq;
 using NUnit.Framework;
 using Reloader.Core.Runtime;
 using Reloader.DevTools.Runtime;
+using Reloader.Weapons.Ballistics;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -51,6 +53,35 @@ namespace Reloader.DevTools.Tests.PlayMode
             Assert.That(segments[0].GetPoint(1), Is.EqualTo(new Vector3(0f, 2.95f, 5f)).Using(Vector3EqualityComparer.Instance));
             Assert.That(segments[0].GetPoint(2), Is.EqualTo(new Vector3(0f, 2.8f, 10f)).Using(Vector3EqualityComparer.Instance));
             Assert.That(segments[0].GetPoint(3), Is.EqualTo(new Vector3(0f, 2.55f, 14f)).Using(Vector3EqualityComparer.Instance));
+        }
+
+        [UnityTest]
+        public IEnumerator PositiveTraceTtl_RealProjectileObserverKeepsExactPathUntilWorldFloorTermination()
+        {
+            DestroyTraceRuntimeRoots();
+            yield return null;
+
+            var state = new DevToolsState { TraceTtlSeconds = 1f };
+            var runtimeEvents = new DefaultRuntimeEvents();
+            using var traceRuntime = new DevTraceRuntime(state, runtimeEvents);
+
+            var projectileGo = new GameObject("TraceProjectile");
+            projectileGo.transform.position = new Vector3(0f, -499.8f, 0f);
+            projectileGo.transform.forward = Vector3.down;
+
+            var projectile = projectileGo.AddComponent<WeaponProjectile>();
+            projectile.SetPathObserver(traceRuntime.CreateProjectilePathObserver());
+            projectile.Initialize("rifle-01", Vector3.down, speed: 30f, gravityMultiplier: 0f, damage: 10f);
+
+            yield return new WaitForSeconds(0.1f);
+
+            var visibleSegments = Object.FindObjectsByType<DevTraceSegmentView>(FindObjectsSortMode.None)
+                .Where(segment => segment.IsVisible)
+                .ToArray();
+            Assert.That(visibleSegments, Has.Length.EqualTo(1));
+            Assert.That(visibleSegments[0].PointCount, Is.GreaterThanOrEqualTo(2));
+            Assert.That(visibleSegments[0].GetPoint(0), Is.EqualTo(new Vector3(0f, -499.8f, 0f)).Using(Vector3EqualityComparer.Instance));
+            Assert.That(visibleSegments[0].GetPoint(visibleSegments[0].PointCount - 1).y, Is.LessThan(-500f));
         }
 
         [UnityTest]
@@ -239,6 +270,18 @@ namespace Reloader.DevTools.Tests.PlayMode
             public int GetHashCode(object obj)
             {
                 return obj?.GetHashCode() ?? 0;
+            }
+        }
+
+        private static void DestroyTraceRuntimeRoots()
+        {
+            var objects = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            for (var i = 0; i < objects.Length; i++)
+            {
+                if (objects[i] != null && objects[i].name == "DevTraceRuntime")
+                {
+                    Object.DestroyImmediate(objects[i]);
+                }
             }
         }
     }

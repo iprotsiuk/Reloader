@@ -178,7 +178,9 @@ namespace Reloader.Weapons.Ballistics
             for (var i = 0; i < hits.Length; i++)
             {
                 var candidate = hits[i];
-                if (candidate.collider == null || IsIgnoredCollider(candidate.collider))
+                if (candidate.collider == null
+                    || candidate.collider.isTrigger
+                    || IsIgnoredCollider(candidate.collider))
                 {
                     continue;
                 }
