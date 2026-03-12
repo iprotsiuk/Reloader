@@ -127,7 +127,7 @@ namespace Reloader.Player
 
             var keyboard = Keyboard.current;
             var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
-            var isAnyMenuOpen = uiStateEvents?.IsAnyMenuOpen == true;
+            var isAnyMenuOpen = PlayerCursorLockController.IsAnyMenuOpen || uiStateEvents?.IsAnyMenuOpen == true;
             var isDevConsoleVisible = uiStateEvents?.IsDevConsoleVisible == true;
 
             if (isAnyMenuOpen)

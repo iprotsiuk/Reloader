@@ -3,6 +3,7 @@ using Reloader.Player;
 using Reloader.Player.Viewmodel;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using Reloader.Inventory;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -646,24 +647,15 @@ namespace Reloader.Player.Tests.PlayMode
             var runtimeEvents = new DefaultRuntimeEvents();
             RuntimeKernelBootstrapper.Events = runtimeEvents;
 
-            var keyboard = InputSystem.AddDevice<Keyboard>();
-            var actionsAsset = CreatePlayerAimActionsAsset();
             var go = new GameObject("InputReader");
             var reader = go.AddComponent<PlayerInputReader>();
-            reader.SetActionsAsset(actionsAsset);
 
             try
             {
-                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F2));
-                InputSystem.Update();
-                reader.SendMessage("Update");
-
+                SetAimHeldForTests(reader, true);
                 Assert.That(reader.AimHeld, Is.True);
-                Assert.That(reader.ConsumeAimTogglePressed(), Is.True);
 
                 runtimeEvents.RaiseEscMenuVisibilityChanged(true);
-                InputSystem.QueueStateEvent(keyboard, new KeyboardState());
-                InputSystem.Update();
                 reader.SendMessage("Update");
 
                 Assert.That(reader.AimHeld, Is.False);
@@ -672,9 +664,48 @@ namespace Reloader.Player.Tests.PlayMode
             finally
             {
                 Object.DestroyImmediate(go);
-                Object.DestroyImmediate(actionsAsset);
                 RuntimeKernelBootstrapper.Events = previousEvents;
-                InputSystem.RemoveDevice(keyboard);
+            }
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_ClearsAimHeld_WhenStorageUiSessionOpens()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+            var cursorLockGo = new GameObject("CursorLock");
+            var cursorLockController = cursorLockGo.AddComponent<PlayerCursorLockController>();
+            cursorLockController.Configure(runtimeEvents, runtimeEvents);
+
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+
+            try
+            {
+                SetAimHeldForTests(reader, true);
+                Assert.That(reader.AimHeld, Is.True);
+
+                StorageUiSession.Open("storage.qa");
+                cursorLockController.SendMessage("Update");
+                reader.SendMessage("Update");
+
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+                Assert.That(reader.AimHeld, Is.False);
+                Assert.That(reader.ConsumeAimTogglePressed(), Is.False);
+            }
+            finally
+            {
+                StorageUiSession.Close();
+                cursorLockController.SendMessage("Update");
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(cursorLockGo);
+                RuntimeKernelBootstrapper.Events = previousEvents;
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
             }
         }
 
@@ -1366,6 +1397,13 @@ namespace Reloader.Player.Tests.PlayMode
             playerMap.AddAction("Aim", binding: "<Keyboard>/f2");
             asset.AddActionMap(playerMap);
             return asset;
+        }
+
+        private static void SetAimHeldForTests(PlayerInputReader reader, bool value)
+        {
+            var field = typeof(PlayerInputReader).GetField("<AimHeld>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            field!.SetValue(reader, value);
         }
 
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
