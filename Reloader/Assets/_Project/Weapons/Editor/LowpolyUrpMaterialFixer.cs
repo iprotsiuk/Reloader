@@ -11,7 +11,8 @@ namespace Reloader.Weapons.Editor
         {
             "Assets/ThirdParty/Polygon-Mega Weapone Kit",
             "Assets/Polygon-Mega Survival",
-            "Assets/STYLE - Character Customization Kit"
+            "Assets/STYLE - Character Customization Kit",
+            "Assets/LowPoly Environment Pack"
         };
 
         private const string DummyMaterialsDir = "Assets/_Project/Weapons/Materials";

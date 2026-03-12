@@ -14,7 +14,7 @@ namespace Reloader.Player
         [SerializeField] private Transform _cameraFollowTarget;
         [SerializeField] private Transform _cameraLookTarget;
         [SerializeField] private float _nearClipPlane = 0.001f;
-        [SerializeField] private float _farClipPlane = 1000f;
+        [SerializeField] private float _farClipPlane = 2828f;
 
         private void Awake()
         {

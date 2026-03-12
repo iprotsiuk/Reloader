@@ -935,7 +935,7 @@ namespace Reloader.Player.Tests.PlayMode
             Assert.That(updateMethodValue?.ToString(), Is.EqualTo("LateUpdate"));
             Assert.That(blendMethodValue?.ToString(), Is.EqualTo("LateUpdate"));
             Assert.That(camera.nearClipPlane, Is.EqualTo(0.001f).Within(0.0001f));
-            Assert.That(camera.farClipPlane, Is.GreaterThan(camera.nearClipPlane));
+            Assert.That(camera.farClipPlane, Is.EqualTo(2828f).Within(0.0001f));
 
             Object.DestroyImmediate(root);
         }
