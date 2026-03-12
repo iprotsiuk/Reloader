@@ -168,7 +168,7 @@ namespace Reloader.UI.Tests.PlayMode
             controller.Tick();
 
             var status = binder.Root.Q<Label>("dev-console__status");
-            Assert.That(status.text, Does.Contain("Command 'noclip' is registered."));
+            Assert.That(status.text, Does.Contain("Noclip enabled."));
 
             commandKeys.QueueCancel();
             controller.Tick();
