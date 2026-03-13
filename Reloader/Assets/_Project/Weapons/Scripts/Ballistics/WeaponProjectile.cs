@@ -49,6 +49,8 @@ namespace Reloader.Weapons.Ballistics
 
         private void OnDestroy()
         {
+            CompleteObservedPath(transform.position, didHit: false);
+
             if (_runtimeVisualMaterial != null)
             {
                 Destroy(_runtimeVisualMaterial);

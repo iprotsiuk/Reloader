@@ -3657,6 +3657,14 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(scopeCameraComponent, Is.Not.Null);
                 Assert.That(GetField(renderTextureScopeControllerType, renderTextureScopeController, "_scopeCamera"), Is.SameAs(scopeCameraComponent));
 
+                var additionalCameraDataType = ResolveType("UnityEngine.Rendering.Universal.UniversalAdditionalCameraData");
+                Assert.That(additionalCameraDataType, Is.Not.Null, "Expected URP additional camera data type to be available.");
+                var scopeCameraData = scopeCameraComponent.GetComponent(additionalCameraDataType);
+                Assert.That(scopeCameraData, Is.Not.Null, "Runtime-created PiP scope camera should carry URP additional camera data so it renders as a real URP camera.");
+                Assert.That(GetProperty(scopeCameraData, "renderType")?.ToString(), Is.EqualTo("Base"), "PiP scope camera should render as a standalone URP base camera instead of an overlay camera.");
+                Assert.That(GetProperty(scopeCameraData, "cameraStack") as System.Collections.ICollection, Is.Empty,
+                    "PiP scope camera should not inherit any overlay stack while rendering into its own target texture.");
+
                 var viewmodelLayer = LayerMask.NameToLayer("Viewmodel");
                 Assert.That(viewmodelLayer, Is.GreaterThanOrEqualTo(0), "Project should define a dedicated Viewmodel layer.");
                 Assert.That((scopeCameraComponent.cullingMask & (1 << viewmodelLayer)) == 0, Is.True, "Scope camera must exclude the Viewmodel layer.");
@@ -3669,6 +3677,158 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(equippedScopeSlot, Is.Not.Null);
                 Assert.That(equippedScopeSlot.childCount, Is.EqualTo(1));
                 Assert.That(equippedScopeSlot.GetChild(0).gameObject.layer, Is.EqualTo(viewmodelLayer), "Mounted scoped optics should inherit the Viewmodel layer.");
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (worldCameraGo != null)
+                {
+                    Object.Destroy(worldCameraGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (opticDefinition != null)
+                {
+                    Object.Destroy(opticDefinition);
+                }
+
+                if (opticPrefab != null)
+                {
+                    Object.Destroy(opticPrefab);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator EquipScopedWeapon_RuntimeBridgeRefresh_DoesNotResetLiveScopeCamera()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+            Assert.That(opticDefinitionType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            GameObject worldCameraGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            UnityEngine.Object opticDefinition = null;
+            GameObject opticPrefab = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+                runtime.TryAddStackItem("att-optic-pip-refresh", 1, out _, out _, out _);
+
+                worldCameraGo = new GameObject("WorldCam");
+                var worldCamera = worldCameraGo.AddComponent<Camera>();
+                worldCamera.tag = "MainCamera";
+                var viewmodelCameraGo = new GameObject("ViewmodelCamera");
+                viewmodelCameraGo.transform.SetParent(worldCamera.transform, false);
+                viewmodelCameraGo.AddComponent<Camera>();
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Kar98k", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-pip-refresh" })
+                });
+
+                viewPrefab = new GameObject("Kar98kView");
+                var adsPivot = new GameObject("AdsPivot").transform;
+                adsPivot.SetParent(viewPrefab.transform, false);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(adsPivot, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(adsPivot, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, adsPivot: adsPivot, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                opticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+                opticPrefab = new GameObject("OpticPiPRefreshPrefab");
+                new GameObject("SightAnchor").transform.SetParent(opticPrefab.transform, false);
+                SetField(opticDefinitionType, opticDefinition, "_opticId", "att-optic-pip-refresh");
+                SetField(opticDefinitionType, opticDefinition, "_isVariableZoom", true);
+                SetField(opticDefinitionType, opticDefinition, "_magnificationMin", 4f);
+                SetField(opticDefinitionType, opticDefinition, "_magnificationMax", 8f);
+                SetField(opticDefinitionType, opticDefinition, "_magnificationStep", 1f);
+                SetField(opticDefinitionType, opticDefinition, "_visualModePolicy", Enum.Parse(ResolveType("Reloader.Game.Weapons.AdsVisualMode"), "RenderTexturePiP"));
+                SetField(opticDefinitionType, opticDefinition, "_opticPrefab", opticPrefab);
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_adsCamera", worldCamera);
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests("att-optic-pip-refresh", WeaponAttachmentSlotType.Scope, opticDefinition)
+                });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
+
+                yield return null;
+                Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-optic-pip-refresh"), Is.True);
+                yield return null;
+
+                var adsBridge = GetControllerField<Component>(controller, "_adsStateRuntimeBridge");
+                var equippedView = GetControllerField<GameObject>(controller, "_equippedWeaponView");
+                var attachmentManager = equippedView != null ? equippedView.GetComponent(attachmentManagerType) : null;
+                var renderTextureScopeController = root.GetComponent(renderTextureScopeControllerType);
+                var scopeCamera = worldCamera.transform.Find("ScopeCamera")?.GetComponent<Camera>();
+                Assert.That(adsBridge, Is.Not.Null);
+                Assert.That(equippedView, Is.Not.Null);
+                Assert.That(attachmentManager, Is.Not.Null);
+                Assert.That(renderTextureScopeController, Is.Not.Null);
+                Assert.That(scopeCamera, Is.Not.Null);
+
+                Invoke(adsBridge, "SetAdsHeld", true);
+                Invoke(adsBridge, "SetMagnification", 6f);
+                yield return null;
+                yield return null;
+
+                var originalTargetTexture = scopeCamera.targetTexture;
+                Assert.That(scopeCamera.enabled, Is.True);
+                Assert.That(originalTargetTexture, Is.Not.Null);
+
+                Invoke(controller, "EnsureScopedAdsRuntimeBridge", equippedView, attachmentManager);
+                yield return null;
+                yield return null;
+
+                Assert.That(scopeCamera.enabled, Is.True, "Refreshing the scoped ADS bridge should not disable the live PiP scope camera.");
+                Assert.That(scopeCamera.targetTexture, Is.SameAs(originalTargetTexture), "Refreshing the scoped ADS bridge should preserve the live PiP render texture binding.");
             }
             finally
             {
@@ -6034,7 +6194,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(method, Is.Not.Null);
 
             Assert.That((float)method!.Invoke(null, new object[] { 120f }), Is.EqualTo(1f).Within(0.001f));
-            Assert.That((float)method.Invoke(null, new object[] { 12f }), Is.EqualTo(0.1f).Within(0.001f));
+            Assert.That((float)method.Invoke(null, new object[] { 12f }), Is.EqualTo(1f).Within(0.001f));
             Assert.That((float)method.Invoke(null, new object[] { 0.25f }), Is.EqualTo(0.4f).Within(0.001f));
         }
 
@@ -6049,7 +6209,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             try
             {
                 input.AimHeldValue = true;
-                input.ZoomQueued = 0.1f;
+                input.ZoomQueued = 1f;
                 adsBridge.SetMagnification(5f);
 
                 SetControllerField(controller, "_inputSource", input);
@@ -6057,11 +6217,171 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 Invoke(controller, "TickScopedAdsBridgeInput");
 
-                Assert.That(adsBridge.LastSetMagnification, Is.EqualTo(5.1f).Within(0.001f));
+                Assert.That(adsBridge.LastSetMagnification, Is.EqualTo(6f).Within(0.001f));
             }
             finally
             {
                 Object.DestroyImmediate(root);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ScopedPipAds_MagnificationDoesNotResetWhileSameScopeRemainsMounted()
+        {
+            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            var adsVisualModeType = ResolveType("Reloader.Game.Weapons.AdsVisualMode");
+            Assert.That(opticDefinitionType, Is.Not.Null);
+            Assert.That(adsVisualModeType, Is.Not.Null);
+
+            GameObject root = null;
+            GameObject registryGo = null;
+            GameObject worldCameraGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            UnityEngine.Object scopedOpticDefinition = null;
+            GameObject scopedOpticPrefab = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                worldCameraGo = new GameObject("WorldCam");
+                var worldCamera = worldCameraGo.AddComponent<Camera>();
+                worldCamera.tag = "MainCamera";
+                worldCamera.fieldOfView = 80f;
+                var viewmodelCameraGo = new GameObject("ViewmodelCamera");
+                viewmodelCameraGo.transform.SetParent(worldCamera.transform, false);
+                viewmodelCameraGo.AddComponent<Camera>();
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Kar98k", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x" })
+                });
+
+                viewPrefab = new GameObject("Kar98kView");
+                var adsPivot = new GameObject("AdsPivot").transform;
+                adsPivot.SetParent(viewPrefab.transform, false);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(adsPivot, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(adsPivot, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, adsPivot: adsPivot, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
+
+                scopedOpticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+                scopedOpticPrefab = new GameObject("OpticFourXPrefab");
+                var sightAnchor = new GameObject("SightAnchor").transform;
+                sightAnchor.SetParent(scopedOpticPrefab.transform, false);
+                sightAnchor.localPosition = new Vector3(0f, 0f, 0.4f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_opticId", "att-optic-4x");
+                SetField(opticDefinitionType, scopedOpticDefinition, "_isVariableZoom", true);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_magnificationMin", 4f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_magnificationMax", 8f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_magnificationStep", 1f);
+                SetField(opticDefinitionType, scopedOpticDefinition, "_visualModePolicy", Enum.Parse(adsVisualModeType, "RenderTexturePiP"));
+                SetField(opticDefinitionType, scopedOpticDefinition, "_opticPrefab", scopedOpticPrefab);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_adsCamera", worldCamera);
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests(
+                        "att-optic-4x",
+                        WeaponAttachmentSlotType.Scope,
+                        scopedOpticDefinition)
+                });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
+
+                yield return null;
+                Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+                state.SetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope, "att-optic-4x");
+
+                runtime.SelectBeltSlot(1);
+                yield return null;
+                runtime.SelectBeltSlot(0);
+                yield return null;
+
+                input.AimHeldValue = true;
+
+                var adsBridge = GetControllerField<Component>(controller, "_adsStateRuntimeBridge");
+                Assert.That(adsBridge, Is.Not.Null);
+                SetField(adsBridge.GetType(), adsBridge, "_magnificationLerpSpeed", 1000f);
+
+                var frames = 0;
+                while ((float)GetProperty(adsBridge, "AdsT") < 0.999f && frames < 60)
+                {
+                    frames++;
+                    yield return null;
+                }
+
+                Invoke(adsBridge, "SetMagnification", 8f);
+                frames = 0;
+                while (Mathf.Abs((float)GetProperty(adsBridge, "CurrentMagnification") - 8f) > 0.01f && frames < 10)
+                {
+                    frames++;
+                    yield return null;
+                }
+
+                Assert.That((float)GetProperty(adsBridge, "CurrentMagnification"), Is.EqualTo(8f).Within(0.01f));
+
+                yield return null;
+                yield return null;
+                yield return null;
+
+                Assert.That((float)GetProperty(adsBridge, "CurrentMagnification"), Is.EqualTo(8f).Within(0.01f));
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (worldCameraGo != null)
+                {
+                    Object.Destroy(worldCameraGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (scopedOpticDefinition != null)
+                {
+                    Object.Destroy(scopedOpticDefinition);
+                }
+
+                if (scopedOpticPrefab != null)
+                {
+                    Object.Destroy(scopedOpticPrefab);
+                }
             }
         }
 

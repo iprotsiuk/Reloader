@@ -243,6 +243,28 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Projectile_PathObserverCompletesWhenProjectileIsDestroyedExternally()
+        {
+            var projectileGo = new GameObject("Projectile");
+            projectileGo.transform.position = new Vector3(1f, 2f, 3f);
+            projectileGo.transform.forward = Vector3.forward;
+            var projectile = projectileGo.AddComponent<WeaponProjectile>();
+            var observer = new RecordingPathObserver();
+            projectile.SetPathObserver(observer);
+            projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 30f, gravityMultiplier: 0f, damage: 1f);
+
+            yield return null;
+
+            Object.Destroy(projectileGo);
+            yield return null;
+
+            Assert.That(observer.Segments.Count, Is.GreaterThan(0));
+            Assert.That(observer.TerminalPoint.HasValue, Is.True, "Destroying a projectile externally should still complete the observed path.");
+            Assert.That(observer.TerminalDidHit, Is.False);
+            Assert.That(observer.TerminalPoint.Value, Is.EqualTo(observer.Segments[^1].EndPoint).Using(Vector3EqualityComparer.Instance));
+        }
+
+        [UnityTest]
         public IEnumerator Projectile_IgnoresShooterColliders_AndHitsTarget()
         {
             var shooter = new GameObject("Shooter");

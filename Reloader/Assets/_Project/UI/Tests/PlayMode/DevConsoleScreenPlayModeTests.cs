@@ -195,6 +195,47 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator OpenConsole_EnterAcceptsHighlightedSuggestionThatAddsArgumentsWithoutExecuting()
+        {
+            var runtimeEvents = new DefaultRuntimeEvents();
+            var consoleGo = new GameObject("DevConsole");
+            var controller = consoleGo.AddComponent<DevConsoleController>();
+            var input = new TestInputSource();
+            var commandKeys = new TestConsoleKeySource();
+            using var runtime = new DevToolsRuntime();
+            var binder = BuildBinder();
+            controller.SetRuntime(runtime);
+            controller.SetInputSource(input);
+            controller.SetConsoleKeySource(commandKeys);
+            controller.Configure(runtimeEvents);
+            controller.SetViewBinder(binder);
+
+            binder.SetCommandText("give");
+
+            yield return null;
+
+            input.QueueDevConsoleToggle();
+            controller.Tick();
+
+            var suggestionsRoot = binder.Root.Q<VisualElement>("dev-console__suggestions");
+            var status = binder.Root.Q<Label>("dev-console__status");
+            var commandField = binder.Root.Q<TextField>("dev-console__command");
+            Assert.That(suggestionsRoot, Is.Not.Null);
+            Assert.That(status, Is.Not.Null);
+            Assert.That(commandField, Is.Not.Null);
+            Assert.That(suggestionsRoot!.childCount, Is.GreaterThan(0));
+            Assert.That(((Label)suggestionsRoot[0]).text, Is.EqualTo("item"));
+
+            commandKeys.QueueSubmit();
+            controller.Tick();
+
+            Assert.That(binder.GetCommandText(), Is.EqualTo("give item"));
+            Assert.That(status!.text, Is.EqualTo("Developer tools active"));
+
+            UnityEngine.Object.DestroyImmediate(consoleGo);
+        }
+
+        [UnityTest]
         public IEnumerator OpenConsole_RendersReadableDarkTextAcrossConsoleSurface()
         {
             var runtimeEvents = new DefaultRuntimeEvents();

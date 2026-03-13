@@ -254,8 +254,7 @@ namespace Reloader.UI.Toolkit.DevConsole
 
             var selected = _suggestions[Mathf.Clamp(_highlightedSuggestionIndex, 0, _suggestions.Count - 1)];
             if (string.IsNullOrWhiteSpace(selected.ApplyText)
-                || string.Equals(selected.ApplyText, acceptedCommandText, StringComparison.Ordinal)
-                || CountTokens(selected.ApplyText) != CountTokens(acceptedCommandText))
+                || string.Equals(selected.ApplyText, acceptedCommandText, StringComparison.Ordinal))
             {
                 return false;
             }
@@ -276,16 +275,6 @@ namespace Reloader.UI.Toolkit.DevConsole
             commandField.Focus();
             SetIntProperty(CommandFieldCursorIndexProperty, commandField, endOfLine);
             SetIntProperty(CommandFieldSelectIndexProperty, commandField, endOfLine);
-        }
-
-        private static int CountTokens(string commandText)
-        {
-            if (string.IsNullOrWhiteSpace(commandText))
-            {
-                return 0;
-            }
-
-            return commandText.Split((char[])null, StringSplitOptions.RemoveEmptyEntries).Length;
         }
 
         private static void SetIntProperty(PropertyInfo property, object target, int value)

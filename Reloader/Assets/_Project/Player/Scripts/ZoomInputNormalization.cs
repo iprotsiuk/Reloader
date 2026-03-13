@@ -12,9 +12,14 @@ namespace Reloader.Player
                 return 0f;
             }
 
-            if (abs > 10f)
+            if (abs >= 60f)
             {
                 return scrollDelta / 120f;
+            }
+
+            if (abs >= 8f)
+            {
+                return scrollDelta / 12f;
             }
 
             if (abs < 1f)

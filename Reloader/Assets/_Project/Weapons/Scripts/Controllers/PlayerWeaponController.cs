@@ -1885,6 +1885,8 @@ namespace Reloader.Weapons.Controllers
                 return false;
             }
 
+            var activeOpticProperty = managerType.GetProperty("ActiveOpticDefinition", BindingFlags.Instance | BindingFlags.Public);
+            var getActiveSightAnchorMethod = managerType.GetMethod("GetActiveSightAnchor", BindingFlags.Instance | BindingFlags.Public);
             var unequipMethod = managerType.GetMethod("UnequipOptic", BindingFlags.Instance | BindingFlags.Public);
             var equipMethod = managerType.GetMethod("EquipOptic", BindingFlags.Instance | BindingFlags.Public);
             var setPendingAdjustmentStateKeyMethod = managerType.GetMethod("SetPendingOpticAdjustmentStateKey", BindingFlags.Instance | BindingFlags.Public);
@@ -1919,6 +1921,15 @@ namespace Reloader.Weapons.Controllers
                     this);
             }
 
+            if (activeOpticProperty?.GetValue(manager) is UObject activeOpticDefinition
+                && string.Equals(GetOpticDefinitionId(activeOpticDefinition), attachmentItemId, StringComparison.Ordinal)
+                && getActiveSightAnchorMethod?.Invoke(manager, null) is Transform)
+            {
+                EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
+                NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
+                return true;
+            }
+
             setPendingAdjustmentStateKeyMethod?.Invoke(manager, new object[] { attachmentItemId });
             var equipSucceeded = equipMethod.Invoke(manager, new object[] { definition }) is bool equipResult && equipResult;
             if (!equipSucceeded)
@@ -1931,6 +1942,17 @@ namespace Reloader.Weapons.Controllers
             EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
             NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
             return equipSucceeded;
+        }
+
+        private static string GetOpticDefinitionId(UObject opticDefinition)
+        {
+            if (opticDefinition == null)
+            {
+                return string.Empty;
+            }
+
+            var opticIdProperty = opticDefinition.GetType().GetProperty("OpticId", BindingFlags.Instance | BindingFlags.Public);
+            return opticIdProperty?.GetValue(opticDefinition) as string ?? string.Empty;
         }
 
         private bool ApplyMuzzleAttachmentToViewRuntime(string attachmentItemId)
@@ -2309,6 +2331,7 @@ namespace Reloader.Weapons.Controllers
 
             var scopeTransform = worldCamera.transform.Find("ScopeCamera");
             Camera scopeCamera;
+            var createdScopeCamera = false;
             if (scopeTransform != null)
             {
                 scopeCamera = scopeTransform.GetComponent<Camera>();
@@ -2319,6 +2342,7 @@ namespace Reloader.Weapons.Controllers
                 scopeTransform = scopeCameraGo.transform;
                 scopeTransform.SetParent(worldCamera.transform, false);
                 scopeCamera = scopeCameraGo.AddComponent<Camera>();
+                createdScopeCamera = true;
             }
 
             if (scopeCamera == null)
@@ -2330,7 +2354,6 @@ namespace Reloader.Weapons.Controllers
             scopeTransform.localRotation = Quaternion.identity;
             scopeTransform.localScale = Vector3.one;
 
-            scopeCamera.enabled = false;
             scopeCamera.clearFlags = worldCamera.clearFlags;
             scopeCamera.backgroundColor = worldCamera.backgroundColor;
             scopeCamera.cullingMask = ExcludeViewmodelLayer(worldCamera.cullingMask);
@@ -2340,9 +2363,40 @@ namespace Reloader.Weapons.Controllers
             scopeCamera.allowMSAA = worldCamera.allowMSAA;
             scopeCamera.orthographic = worldCamera.orthographic;
             scopeCamera.depthTextureMode = worldCamera.depthTextureMode;
-            scopeCamera.fieldOfView = worldCamera.fieldOfView;
-            scopeCamera.targetTexture = null;
+            if (createdScopeCamera)
+            {
+                scopeCamera.enabled = false;
+                scopeCamera.fieldOfView = worldCamera.fieldOfView;
+                scopeCamera.targetTexture = null;
+            }
+            EnsureScopeCameraUniversalRenderPipelineData(scopeCamera);
             return scopeCamera;
+        }
+
+        private static void EnsureScopeCameraUniversalRenderPipelineData(Camera scopeCamera)
+        {
+            if (scopeCamera == null)
+            {
+                return;
+            }
+
+            var additionalCameraDataType = ResolveTypeByName("UnityEngine.Rendering.Universal.UniversalAdditionalCameraData");
+            if (additionalCameraDataType == null || !typeof(Component).IsAssignableFrom(additionalCameraDataType))
+            {
+                return;
+            }
+
+            var additionalCameraData = scopeCamera.GetComponent(additionalCameraDataType)
+                ?? scopeCamera.gameObject.AddComponent(additionalCameraDataType);
+            var renderTypeProperty = additionalCameraDataType.GetProperty("renderType", BindingFlags.Instance | BindingFlags.Public);
+            if (renderTypeProperty?.CanWrite == true)
+            {
+                renderTypeProperty.SetValue(additionalCameraData, Enum.Parse(renderTypeProperty.PropertyType, "Base"));
+            }
+
+            var cameraStackProperty = additionalCameraDataType.GetProperty("cameraStack", BindingFlags.Instance | BindingFlags.Public);
+            var clearMethod = cameraStackProperty?.GetValue(additionalCameraData)?.GetType().GetMethod("Clear", BindingFlags.Instance | BindingFlags.Public);
+            clearMethod?.Invoke(cameraStackProperty.GetValue(additionalCameraData), null);
         }
 
         private static int ExcludeViewmodelLayer(int cullingMask)
