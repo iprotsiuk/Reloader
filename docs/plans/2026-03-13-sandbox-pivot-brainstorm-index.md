@@ -17,3 +17,6 @@ Use this file as the first stop when you need the split brainstorm set instead o
 
 - [2026-03-13-combat-feedback-and-damage-brainstorm.md](2026-03-13-combat-feedback-and-damage-brainstorm.md)
   Hit detection, body-region damage, and slow-mo long-shot presentation.
+
+- [2026-03-13-assassin-reputation-and-job-quality-brainstorm.md](2026-03-13-assassin-reputation-and-job-quality-brainstorm.md)
+  Professional-versus-butcher assassin reputation, and how it should bias job quality, pay, and unlocks.
