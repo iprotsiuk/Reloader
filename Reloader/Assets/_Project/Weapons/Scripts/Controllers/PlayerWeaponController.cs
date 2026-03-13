@@ -384,31 +384,42 @@ namespace Reloader.Weapons.Controllers
             var equippedAttachmentItemId = state.GetEquippedAttachmentItemId(slotType);
             if (!CanApplyAttachmentToViewRuntime(slotType, equippedAttachmentItemId))
             {
-                ApplyEquippedAttachmentSlotToViewRuntime(slotType, string.Empty);
-                ResolveInventoryEvents()?.RaiseInventoryChanged();
-                return true;
+                RollBackAttachmentSwap(slotType, previousAttachmentItemId, state);
+                return false;
             }
 
             var applied = ApplyEquippedAttachmentSlotToViewRuntime(slotType, equippedAttachmentItemId);
             if (!applied)
             {
-                var reverted = WeaponAttachmentSwapService.TrySwap(
-                    _inventoryController.Runtime,
-                    _equippedDefinition,
-                    state,
-                    BuildAttachmentSlotLookup(BuildAttachmentMetadataLookup()),
-                    slotType,
-                    previousAttachmentItemId);
-                if (reverted)
-                {
-                    ApplyEquippedAttachmentSlotToViewRuntime(slotType, previousAttachmentItemId);
-                }
-
+                RollBackAttachmentSwap(slotType, previousAttachmentItemId, state);
                 return false;
             }
 
             ResolveInventoryEvents()?.RaiseInventoryChanged();
             return true;
+        }
+
+        private void RollBackAttachmentSwap(
+            WeaponAttachmentSlotType slotType,
+            string previousAttachmentItemId,
+            WeaponRuntimeState state)
+        {
+            if (_inventoryController?.Runtime == null || _equippedDefinition == null || state == null)
+            {
+                return;
+            }
+
+            var reverted = WeaponAttachmentSwapService.TrySwap(
+                _inventoryController.Runtime,
+                _equippedDefinition,
+                state,
+                BuildAttachmentSlotLookup(BuildAttachmentMetadataLookup()),
+                slotType,
+                previousAttachmentItemId);
+            if (reverted)
+            {
+                ApplyEquippedAttachmentSlotToViewRuntime(slotType, previousAttachmentItemId);
+            }
         }
 
         private bool CanApplyAttachmentToViewRuntime(WeaponAttachmentSlotType slotType, string attachmentItemId)
