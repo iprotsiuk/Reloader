@@ -6,6 +6,7 @@ using Reloader.Audio;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.Weapons.Ballistics;
+using Reloader.Weapons.Cinematics;
 using Reloader.Weapons.Data;
 using Reloader.Weapons.PackRuntime;
 using Reloader.Weapons.Runtime;
@@ -81,9 +82,12 @@ namespace Reloader.Weapons.Controllers
         [SerializeField] private Transform _weaponViewParent;
         [SerializeField] private WeaponViewPrefabBinding[] _weaponViewPrefabs = System.Array.Empty<WeaponViewPrefabBinding>();
         [SerializeField] private WeaponAttachmentItemMetadata[] _attachmentItemMetadata = System.Array.Empty<WeaponAttachmentItemMetadata>();
+        [SerializeField] private MonoBehaviour _shotCameraRuntimeBehaviour;
+        [SerializeField] private ShotCameraSettings _shotCameraSettings = new ShotCameraSettings(true, 100f, 0.1f, 0.25f);
         [SerializeField] private bool _allowSceneWideDependencyLookup;
 
         private IPlayerInputSource _inputSource;
+        private IShotCameraRuntime _shotCameraRuntime;
         private readonly Dictionary<string, WeaponRuntimeState> _statesByItemId = new Dictionary<string, WeaponRuntimeState>();
         private readonly Dictionary<string, PackWeaponRuntimeDriver> _packDriversByItemId = new Dictionary<string, PackWeaponRuntimeDriver>();
         private IWeaponEvents _weaponEvents;
@@ -489,6 +493,8 @@ namespace Reloader.Weapons.Controllers
             {
                 _weaponViewParent = ResolveDefaultWeaponViewParent();
             }
+
+            _shotCameraRuntime = _shotCameraRuntimeBehaviour as IShotCameraRuntime;
         }
 
         private void ResyncAfterActivation()
@@ -810,6 +816,7 @@ namespace Reloader.Weapons.Controllers
                 _equippedDefinition.BaseDamage,
                 ballisticSpec.BallisticCoefficientG1,
                 transform);
+            TryRegisterQualifiedShotCamera(projectile);
 
             NotifyViewWeaponFired(_equippedItemId);
             var muzzleAudioOverride = ResolveMuzzleAudioOverride();
@@ -862,6 +869,95 @@ namespace Reloader.Weapons.Controllers
             }
 
             return s_createActiveProjectilePathObserverMethod?.Invoke(null, null) as WeaponProjectile.IPathObserver;
+        }
+
+        private void TryRegisterQualifiedShotCamera(WeaponProjectile projectile)
+        {
+            if (!TryBuildShotCameraRequest(projectile, out var request))
+            {
+                return;
+            }
+
+            if (_shotCameraRuntime != null && _shotCameraRuntime.TryRegisterShot(request))
+            {
+                return;
+            }
+
+            if (_shotCameraRuntimeBehaviour == null)
+            {
+                return;
+            }
+
+            var compatibilityMethod = _shotCameraRuntimeBehaviour.GetType().GetMethod(
+                "RegisterShotCameraRequest",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                binder: null,
+                types: new[] { typeof(WeaponProjectile) },
+                modifiers: null);
+            compatibilityMethod?.Invoke(_shotCameraRuntimeBehaviour, new object[] { projectile });
+        }
+
+        private bool TryBuildShotCameraRequest(WeaponProjectile projectile, out ShotCameraRequest request)
+        {
+            request = default;
+            if (projectile == null
+                || !_shotCameraSettings.Enabled
+                || _inputSource == null
+                || !_inputSource.AimHeld)
+            {
+                return false;
+            }
+
+            if (!TryPredictShotCameraImpactPoint(out var predictedImpactPoint, out var predictedDistanceMeters))
+            {
+                return false;
+            }
+
+            if (predictedDistanceMeters <= _shotCameraSettings.MinimumPredictedDistanceMeters)
+            {
+                return false;
+            }
+
+            request = new ShotCameraRequest(projectile, projectile.transform.position, predictedImpactPoint, predictedDistanceMeters);
+            return true;
+        }
+
+        private bool TryPredictShotCameraImpactPoint(out Vector3 predictedImpactPoint, out float predictedDistanceMeters)
+        {
+            predictedImpactPoint = default;
+            predictedDistanceMeters = 0f;
+
+            var camera = ResolveAdsCamera();
+            if (camera == null)
+            {
+                return false;
+            }
+
+            var ray = camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            var hits = Physics.RaycastAll(ray, float.PositiveInfinity, ~0, QueryTriggerInteraction.Ignore);
+            if (hits == null || hits.Length == 0)
+            {
+                return false;
+            }
+
+            Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
+            for (var i = 0; i < hits.Length; i++)
+            {
+                var candidate = hits[i];
+                if (candidate.collider == null
+                    || candidate.collider.isTrigger
+                    || candidate.collider.transform.IsChildOf(transform))
+                {
+                    continue;
+                }
+
+                predictedImpactPoint = candidate.point;
+                var origin = _muzzleTransform != null ? _muzzleTransform.position : transform.position;
+                predictedDistanceMeters = Vector3.Distance(origin, predictedImpactPoint);
+                return true;
+            }
+
+            return false;
         }
 
         private void TickReload()
