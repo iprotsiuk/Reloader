@@ -8,7 +8,7 @@ namespace Reloader.UI.Toolkit.CompassHud
 {
     public sealed class CompassHudViewBinder : IUiViewBinder, IDisposable
     {
-        private const float DefaultLaneWidth = 360f;
+        private const float DefaultLaneWidth = 260f;
 
         private VisualElement _root;
         private VisualElement _entriesRoot;

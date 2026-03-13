@@ -78,7 +78,7 @@ namespace Reloader.UI.Tests.EditMode
             Assert.That(marker, Is.Not.Null);
             Assert.That(marker.viewDataKey, Is.EqualTo("marker:target"));
             Assert.That(marker.ClassListContains("compass-hud__entry--marker"), Is.True);
-            Assert.That(marker.style.left.value.value, Is.GreaterThan(180f));
+            Assert.That(marker.style.left.value.value, Is.GreaterThan(130f));
         }
 
         [Test]

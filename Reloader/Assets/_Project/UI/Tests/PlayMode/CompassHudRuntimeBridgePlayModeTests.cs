@@ -43,7 +43,7 @@ namespace Reloader.UI.Tests.PlayMode
 
                 var north = FindLabel(entries, "N");
                 Assert.That(north, Is.Not.Null);
-                Assert.That(north!.style.left.value.value, Is.EqualTo(180f).Within(0.01f));
+                Assert.That(north!.style.left.value.value, Is.EqualTo(130f).Within(0.01f));
             }
             finally
             {
@@ -112,7 +112,7 @@ namespace Reloader.UI.Tests.PlayMode
                 Assert.That(entries, Is.Not.Null);
                 var marker = FindEntry(entries, "contract-target");
                 Assert.That(marker, Is.Not.Null);
-                Assert.That(marker.style.left.value.value, Is.GreaterThan(180f));
+                Assert.That(marker.style.left.value.value, Is.GreaterThan(130f));
             }
             finally
             {

@@ -53,7 +53,7 @@ namespace Reloader.UI.Tests.EditMode
 
                 var cachedMarker = FindEntry(fixture.EntriesRoot, "contract-target");
                 Assert.That(cachedMarker, Is.Not.Null);
-                Assert.That(cachedMarker.style.left.value.value, Is.GreaterThan(180f));
+                Assert.That(cachedMarker.style.left.value.value, Is.GreaterThan(130f));
             }
             finally
             {
