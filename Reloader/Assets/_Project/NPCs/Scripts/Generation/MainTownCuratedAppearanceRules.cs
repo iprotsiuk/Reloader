@@ -46,6 +46,20 @@ namespace Reloader.NPCs.Generation
             "beard10"
         };
 
+        private static readonly string[] ApprovedEyebrowIds =
+        {
+            "brous1",
+            "brous2",
+            "brous3",
+            "brous4",
+            "brous5",
+            "brous6",
+            "brous7",
+            "brous8",
+            "brous9",
+            "brous10"
+        };
+
         private static readonly string[] ApprovedBaseTopIds =
         {
             "tshirt1",
@@ -73,6 +87,7 @@ namespace Reloader.NPCs.Generation
                 PresentationTypes = new[] { MasculinePresentation, FemininePresentation },
                 HairIds = MaleHairIds.Concat(FemaleHairIds).ToArray(),
                 HairColorIds = new[] { "hair.variant.a", "hair.variant.b", "hair.variant.c", "hair.variant.d" },
+                EyebrowIds = ApprovedEyebrowIds,
                 BeardIds = MaleBeardIds,
                 OutfitTopIds = ApprovedBaseTopIds,
                 OutfitBottomIds = ApprovedBottomIds,
@@ -128,6 +143,12 @@ namespace Reloader.NPCs.Generation
             return false;
         }
 
+        public static bool IsCuratedStyleBodyId(string baseBodyId)
+        {
+            return string.Equals(baseBodyId?.Trim(), MaleBodyId, StringComparison.Ordinal)
+                || string.Equals(baseBodyId?.Trim(), FemaleBodyId, StringComparison.Ordinal);
+        }
+
         public static string NormalizePresentationType(string baseBodyId, string presentationType)
         {
             if (TryInferGender(baseBodyId, presentationType, out var gender))
@@ -145,7 +166,25 @@ namespace Reloader.NPCs.Generation
                 return "pants1";
             }
 
-            return "pants1";
+            var normalized = bottomId.Trim();
+            return Contains(ApprovedBottomIds, normalized) ? normalized : "pants1";
+        }
+
+        public static string NormalizeEyebrowId(string eyebrowId, string legacyCarrierId = null)
+        {
+            var normalized = eyebrowId?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(normalized)
+                && IsApprovedEyebrowId(legacyCarrierId))
+            {
+                normalized = legacyCarrierId.Trim();
+            }
+
+            if (IsApprovedEyebrowId(normalized))
+            {
+                return normalized;
+            }
+
+            return ApprovedEyebrowIds[0];
         }
 
         public static string NormalizeOuterwearId(string outerwearId)
@@ -161,6 +200,7 @@ namespace Reloader.NPCs.Generation
 
         public static bool IsMaleHairId(string hairId) => Contains(MaleHairIds, hairId);
         public static bool IsFemaleHairId(string hairId) => Contains(FemaleHairIds, hairId);
+        public static bool IsApprovedEyebrowId(string eyebrowId) => Contains(ApprovedEyebrowIds, eyebrowId);
         public static bool IsMaleBeardId(string beardId) => Contains(MaleBeardIds, beardId);
         public static bool IsApprovedBaseTopId(string topId) => Contains(ApprovedBaseTopIds, topId);
         public static bool IsApprovedOuterwearId(string outerwearId) => string.IsNullOrWhiteSpace(outerwearId) || Contains(ApprovedOuterwearIds, outerwearId);
@@ -182,6 +222,12 @@ namespace Reloader.NPCs.Generation
 
             var filtered = Filter(library?.BeardIds, IsMaleBeardId);
             return filtered.Count > 0 ? filtered : MaleBeardIds;
+        }
+
+        public static IReadOnlyList<string> GetCompatibleEyebrowIds(CivilianAppearanceLibrary library)
+        {
+            var filtered = Filter(library?.EyebrowIds, IsApprovedEyebrowId);
+            return filtered.Count > 0 ? filtered : ApprovedEyebrowIds;
         }
 
         public static IReadOnlyList<string> GetCompatibleBaseTopIds(CivilianAppearanceLibrary library)

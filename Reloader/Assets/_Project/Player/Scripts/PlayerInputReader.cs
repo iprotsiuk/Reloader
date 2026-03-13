@@ -1,12 +1,13 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.Controls;
 using Reloader.Core.Runtime;
 
 namespace Reloader.Player
 {
     public sealed class PlayerInputReader : MonoBehaviour, IPlayerInputSource
     {
+        private const string DefaultScrollWheelActionName = "ScrollWheel";
+
         [Header("Actions")]
         [SerializeField] private InputActionAsset _actionsAsset;
         [SerializeField] private string _mapName = "Player";
@@ -18,6 +19,7 @@ namespace Reloader.Player
         [SerializeField] private string _fireActionName = "Attack";
         [SerializeField] private string _reloadActionName = "Reload";
         [SerializeField] private string _pickupActionName = "Pickup";
+        [SerializeField] private string _scrollWheelActionName = "ScrollWheel";
         [SerializeField] private string _menuToggleActionName = "MenuToggle";
         [SerializeField] private string _beltSlot1ActionName = "BeltSlot1";
         [SerializeField] private string _beltSlot2ActionName = "BeltSlot2";
@@ -46,6 +48,7 @@ namespace Reloader.Player
         private InputAction _fireAction;
         private InputAction _reloadAction;
         private InputAction _pickupAction;
+        private InputAction _scrollWheelAction;
         private InputAction _menuToggleAction;
         private readonly InputAction[] _beltSlotActions = new InputAction[5];
         private int _beltSlotQueued = -1;
@@ -93,42 +96,58 @@ namespace Reloader.Player
                 _playerMap.Enable();
             }
 
-            if (_moveAction != null)
-            {
-                MoveInput = _moveAction.ReadValue<Vector2>();
-            }
+            var keyboard = Keyboard.current;
+            var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
+            var isDevConsoleVisible = uiStateEvents?.IsDevConsoleVisible == true;
+            var isGameplayInputSuppressed = isDevConsoleVisible;
 
-            if (_lookAction != null)
-            {
-                LookInput = _lookAction.ReadValue<Vector2>();
-            }
+            MoveInput = !isGameplayInputSuppressed && _moveAction != null
+                ? _moveAction.ReadValue<Vector2>()
+                : Vector2.zero;
 
-            SprintHeld = _sprintAction != null && _sprintAction.IsPressed();
+            LookInput = !isGameplayInputSuppressed && _lookAction != null
+                ? _lookAction.ReadValue<Vector2>()
+                : Vector2.zero;
 
-            if (_jumpAction != null && _jumpAction.WasPressedThisFrame())
+            SprintHeld = !isGameplayInputSuppressed && _sprintAction != null && _sprintAction.IsPressed();
+
+            if (!isGameplayInputSuppressed && _jumpAction != null && _jumpAction.WasPressedThisFrame())
             {
                 JumpQueued = true;
             }
+            else if (isGameplayInputSuppressed)
+            {
+                JumpQueued = false;
+            }
 
-            if (_fireAction != null && _fireAction.WasPressedThisFrame())
+            if (!isGameplayInputSuppressed && _fireAction != null && _fireAction.WasPressedThisFrame())
             {
                 FireQueued = true;
             }
+            else if (isGameplayInputSuppressed)
+            {
+                FireQueued = false;
+            }
 
-            if (_reloadAction != null && _reloadAction.WasPressedThisFrame())
+            if (!isGameplayInputSuppressed && _reloadAction != null && _reloadAction.WasPressedThisFrame())
             {
                 ReloadQueued = true;
             }
+            else if (isGameplayInputSuppressed)
+            {
+                ReloadQueued = false;
+            }
 
-            if (_pickupAction != null && _pickupAction.WasPressedThisFrame())
+            if (!isGameplayInputSuppressed && _pickupAction != null && _pickupAction.WasPressedThisFrame())
             {
                 PickupQueued = true;
             }
+            else if (isGameplayInputSuppressed)
+            {
+                PickupQueued = false;
+            }
 
-            var keyboard = Keyboard.current;
-            var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
             var isAnyMenuOpen = PlayerCursorLockController.IsAnyMenuOpen || uiStateEvents?.IsAnyMenuOpen == true;
-            var isDevConsoleVisible = uiStateEvents?.IsDevConsoleVisible == true;
 
             if (isAnyMenuOpen)
             {
@@ -171,6 +190,10 @@ namespace Reloader.Player
             {
                 // Escape is handled directly by open UI/controllers as a close-only action.
             }
+            else if (isDevConsoleVisible)
+            {
+                MenuToggleQueued = false;
+            }
             else if (!isDevConsoleVisible && _menuToggleAction != null && _menuToggleAction.WasPressedThisFrame())
             {
                 MenuToggleQueued = true;
@@ -180,39 +203,22 @@ namespace Reloader.Player
                 MenuToggleQueued = true;
             }
 
-            var scrollY = 0f;
-            var pointer = Pointer.current;
-            if (pointer != null)
+            var scrollY = !isGameplayInputSuppressed && _scrollWheelAction != null
+                ? _scrollWheelAction.ReadValue<Vector2>().y
+                : 0f;
+            var normalizedScrollY = ZoomInputNormalization.NormalizeScrollDelta(scrollY);
+            if (Mathf.Abs(normalizedScrollY) > 0.0001f)
             {
-                var pointerScrollControl = pointer.TryGetChildControl<Vector2Control>("scroll");
-                if (pointerScrollControl != null)
-                {
-                    var pointerScrollY = pointerScrollControl.ReadValue().y;
-                    if (Mathf.Abs(pointerScrollY) > 0.0001f)
-                    {
-                        scrollY += pointerScrollY;
-                    }
-                }
+                _zoomQueued += normalizedScrollY;
             }
-
-            var mouse = Mouse.current;
-            if (mouse != null && !ReferenceEquals(mouse, pointer))
+            else if (isGameplayInputSuppressed)
             {
-                var mouseScrollY = mouse.scroll.ReadValue().y;
-                if (Mathf.Abs(mouseScrollY) > 0.0001f)
-                {
-                    scrollY += mouseScrollY;
-                }
-            }
-
-            if (Mathf.Abs(scrollY) > 0.0001f)
-            {
-                _zoomQueued += scrollY;
+                _zoomQueued = 0f;
             }
 
             var plusPressed = false;
             var minusPressed = false;
-            if (keyboard != null)
+            if (!isGameplayInputSuppressed && keyboard != null)
             {
                 plusPressed = keyboard.equalsKey.wasPressedThisFrame || keyboard.numpadPlusKey.wasPressedThisFrame;
                 minusPressed = keyboard.minusKey.wasPressedThisFrame || keyboard.numpadMinusKey.wasPressedThisFrame;
@@ -227,12 +233,23 @@ namespace Reloader.Player
             {
                 _zeroAdjustQueued -= 1;
             }
-
-            for (var i = 0; i < _beltSlotActions.Length; i++)
+            else if (isGameplayInputSuppressed)
             {
-                if (_beltSlotActions[i] != null && _beltSlotActions[i].WasPressedThisFrame())
+                _zeroAdjustQueued = 0;
+            }
+
+            if (isGameplayInputSuppressed)
+            {
+                _beltSlotQueued = -1;
+            }
+            else
+            {
+                for (var i = 0; i < _beltSlotActions.Length; i++)
                 {
-                    _beltSlotQueued = i;
+                    if (_beltSlotActions[i] != null && _beltSlotActions[i].WasPressedThisFrame())
+                    {
+                        _beltSlotQueued = i;
+                    }
                 }
             }
         }
@@ -417,6 +434,7 @@ namespace Reloader.Player
                 _fireAction = null;
                 _reloadAction = null;
                 _pickupAction = null;
+                _scrollWheelAction = null;
                 _menuToggleAction = null;
                 for (var i = 0; i < _beltSlotActions.Length; i++)
                 {
@@ -435,6 +453,10 @@ namespace Reloader.Player
             _fireAction = _playerMap != null ? _playerMap.FindAction(_fireActionName, false) : null;
             _reloadAction = _playerMap != null ? _playerMap.FindAction(_reloadActionName, false) : null;
             _pickupAction = _playerMap != null ? _playerMap.FindAction(_pickupActionName, false) : null;
+            var scrollWheelActionName = string.IsNullOrWhiteSpace(_scrollWheelActionName)
+                ? DefaultScrollWheelActionName
+                : _scrollWheelActionName;
+            _scrollWheelAction = _playerMap != null ? _playerMap.FindAction(scrollWheelActionName, false) : null;
             _menuToggleAction = _playerMap != null ? _playerMap.FindAction(_menuToggleActionName, false) : null;
             _beltSlotActions[0] = _playerMap != null ? _playerMap.FindAction(_beltSlot1ActionName, false) : null;
             _beltSlotActions[1] = _playerMap != null ? _playerMap.FindAction(_beltSlot2ActionName, false) : null;

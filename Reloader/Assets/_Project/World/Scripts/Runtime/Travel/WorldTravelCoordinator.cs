@@ -17,6 +17,7 @@ namespace Reloader.World.Travel
         private static bool _isSubscribedToSceneLoaded;
         private static float _travelSuppressedUntilRealtime;
         private static Dictionary<string, int> _pendingInventoryQuantities = new();
+        private static int _pendingSelectedBeltIndex = -1;
         private static readonly List<WeaponRuntimeSnapshotCapture> _pendingWeaponSnapshots = new();
         private const string FpsArmsPrefabResourcePath = "Viewmodels/Characters/FPS_Arms";
         private const string FpsArmsControllerResourcePath = "Viewmodels/Characters/ViewmodelArms";
@@ -36,6 +37,7 @@ namespace Reloader.World.Travel
             _isSubscribedToSceneLoaded = false;
             _travelSuppressedUntilRealtime = 0f;
             _pendingInventoryQuantities = new Dictionary<string, int>();
+            _pendingSelectedBeltIndex = -1;
             _pendingWeaponSnapshots.Clear();
             _pendingTravelPopulationModule = null;
         }
@@ -313,11 +315,11 @@ namespace Reloader.World.Travel
             {
                 ResetRuntimeUiStateAfterTravel();
                 ApplyInventorySnapshotAfterTravel(activeScenePlayerRoot);
-                ApplyWeaponRuntimeSnapshotAfterTravel(activeScenePlayerRoot);
                 activeScenePlayerRoot.position = entryPointTransform.position;
                 activeScenePlayerRoot.rotation = entryPointTransform.rotation;
                 EnsureViewmodelRigAfterTravel(activeScenePlayerRoot);
                 RestorePlayerControlsAfterTravel(activeScenePlayerRoot);
+                ApplyWeaponRuntimeSnapshotAfterTravel(activeScenePlayerRoot);
             }
 
         }
@@ -356,6 +358,7 @@ namespace Reloader.World.Travel
         private static void CaptureInventorySnapshotForTravel()
         {
             _pendingInventoryQuantities.Clear();
+            _pendingSelectedBeltIndex = -1;
 
             var activeScene = SceneManager.GetActiveScene();
             var playerRoot = FindPlayerRootInScene(activeScene);
@@ -386,6 +389,12 @@ namespace Reloader.World.Travel
                 return;
             }
 
+            var selectedBeltIndexProperty = runtime.GetType().GetProperty("SelectedBeltIndex", BindingFlags.Instance | BindingFlags.Public);
+            if (selectedBeltIndexProperty?.GetValue(runtime) is int selectedBeltIndex)
+            {
+                _pendingSelectedBeltIndex = selectedBeltIndex;
+            }
+
             foreach (var itemId in itemIds)
             {
                 if (string.IsNullOrWhiteSpace(itemId))
@@ -405,6 +414,7 @@ namespace Reloader.World.Travel
         {
             if (_pendingInventoryQuantities == null || _pendingInventoryQuantities.Count == 0 || playerRootTransform == null)
             {
+                _pendingSelectedBeltIndex = -1;
                 return;
             }
 
@@ -412,6 +422,7 @@ namespace Reloader.World.Travel
             if (inventoryController == null)
             {
                 _pendingInventoryQuantities.Clear();
+                _pendingSelectedBeltIndex = -1;
                 return;
             }
 
@@ -419,6 +430,7 @@ namespace Reloader.World.Travel
             if (runtime == null)
             {
                 _pendingInventoryQuantities.Clear();
+                _pendingSelectedBeltIndex = -1;
                 return;
             }
 
@@ -428,6 +440,7 @@ namespace Reloader.World.Travel
             if (getItemQuantity == null || (tryAddStackItem == null && tryStoreItem == null))
             {
                 _pendingInventoryQuantities.Clear();
+                _pendingSelectedBeltIndex = -1;
                 return;
             }
 
@@ -474,6 +487,13 @@ namespace Reloader.World.Travel
             }
 
             _pendingInventoryQuantities.Clear();
+            if (_pendingSelectedBeltIndex >= 0)
+            {
+                var selectBeltSlot = runtime.GetType().GetMethod("SelectBeltSlot", BindingFlags.Instance | BindingFlags.Public);
+                selectBeltSlot?.Invoke(runtime, new object[] { _pendingSelectedBeltIndex });
+            }
+
+            _pendingSelectedBeltIndex = -1;
         }
 
         private static void CaptureWeaponRuntimeSnapshotForTravel()
@@ -644,6 +664,12 @@ namespace Reloader.World.Travel
                         new[] { (object)snapshot.ItemId, snapshot.EquippedAttachmentItemIdsBySlot });
                 }
             }
+
+            var refreshEquipFromSelection = weaponController.GetType().GetMethod("UpdateEquipFromSelection", BindingFlags.Instance | BindingFlags.NonPublic);
+            refreshEquipFromSelection?.Invoke(weaponController, null);
+
+            var ensureEquippedViewMatchesRuntimeState = weaponController.GetType().GetMethod("EnsureEquippedViewMatchesRuntimeState", BindingFlags.Instance | BindingFlags.NonPublic);
+            ensureEquippedViewMatchesRuntimeState?.Invoke(weaponController, null);
 
             _pendingWeaponSnapshots.Clear();
         }

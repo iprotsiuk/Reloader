@@ -102,6 +102,9 @@ namespace Reloader.Game.Weapons
             var projectionCalibrationMultiplier = ResolveProjectionCalibrationMultiplier(optic);
             var compositeReticleScale = ResolveCompositeReticleScale(optic);
             var compositeReticleOffset = ResolveCompositeReticleOffset(optic);
+            var renderTextureStateMatches = !isActive || ScopeRenderTextureMatches(requestedResolution);
+            var scopeCameraStateMatches = ScopeCameraStateMatches(isActive, requestedFov);
+            var lensDisplayStateMatches = !isActive || (lensDisplay != null && ReferenceEquals(lensDisplay.CurrentTexture, _scopeRenderTexture));
 
             if (_initialized
                 && _lastIsActive == isActive
@@ -117,7 +120,10 @@ namespace Reloader.Game.Weapons
                 && Mathf.Approximately(_lastCompositeReticleScale, compositeReticleScale)
                 && Approximately(_lastCompositeReticleOffset, compositeReticleOffset)
                 && ReferenceEquals(_lastLensDisplay, lensDisplay)
-                && ReferenceEquals(_lastReticleController, reticleController))
+                && ReferenceEquals(_lastReticleController, reticleController)
+                && renderTextureStateMatches
+                && scopeCameraStateMatches
+                && lensDisplayStateMatches)
             {
                 return;
             }
@@ -167,10 +173,10 @@ namespace Reloader.Game.Weapons
         {
             if (_scopeCamera != null)
             {
-                _scopeCamera.enabled = isActive;
                 _scopeCamera.fieldOfView = isActive ? requestedFov : _defaultScopeCameraFov;
                 _scopeCamera.targetTexture = isActive ? _scopeRenderTexture : null;
                 ApplyProjectionOffset(isActive, effectiveAdjustmentMrad, projectionCalibrationMultiplier);
+                _scopeCamera.enabled = isActive;
             }
 
             _currentEffectiveAdjustmentMrad = isActive ? effectiveAdjustmentMrad : Vector2.zero;
@@ -251,6 +257,28 @@ namespace Reloader.Game.Weapons
                 name = $"ScopeRT_{safeResolution}"
             };
             _scopeRenderTexture.Create();
+        }
+
+        private bool ScopeRenderTextureMatches(int resolution)
+        {
+            return _scopeRenderTexture != null
+                && _scopeRenderTexture.width == resolution
+                && _scopeRenderTexture.height == resolution
+                && _scopeRenderTexture.IsCreated();
+        }
+
+        private bool ScopeCameraStateMatches(bool isActive, float requestedFov)
+        {
+            if (_scopeCamera == null)
+            {
+                return !isActive;
+            }
+
+            var expectedTargetTexture = isActive ? _scopeRenderTexture : null;
+            var expectedFieldOfView = isActive ? requestedFov : _defaultScopeCameraFov;
+            return _scopeCamera.enabled == isActive
+                && ReferenceEquals(_scopeCamera.targetTexture, expectedTargetTexture)
+                && Mathf.Approximately(_scopeCamera.fieldOfView, expectedFieldOfView);
         }
 
         private void BindLensDisplay(bool isActive, ScopeLensDisplay lensDisplay)

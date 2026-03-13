@@ -8,6 +8,9 @@ using System.Reflection;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Reloader.Player.Tests.PlayMode
 {
@@ -605,6 +608,117 @@ namespace Reloader.Player.Tests.PlayMode
                 InputSystem.RemoveDevice(keyboard);
                 RuntimeKernelBootstrapper.Events = previousEvents;
             }
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_SuppressesKeyboardGameplayInput_WhenDevConsoleIsVisible()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+            runtimeEvents.RaiseDevConsoleVisibilityChanged(true);
+
+            var keyboard = InputSystem.AddDevice<Keyboard>();
+            var actionsAsset = CreatePlayerKeyboardGameplayActionsAsset();
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(actionsAsset);
+
+            try
+            {
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(
+                    Key.W,
+                    Key.LeftShift,
+                    Key.Space,
+                    Key.R,
+                    Key.E,
+                    Key.Digit1,
+                    Key.Equals));
+                InputSystem.Update();
+
+                reader.SendMessage("Update");
+
+                Assert.That(reader.MoveInput, Is.EqualTo(Vector2.zero));
+                Assert.That(reader.SprintHeld, Is.False);
+                Assert.That(reader.ConsumeJumpPressed(), Is.False);
+                Assert.That(reader.ConsumeReloadPressed(), Is.False);
+                Assert.That(reader.ConsumePickupPressed(), Is.False);
+                Assert.That(reader.ConsumeBeltSelectPressed(), Is.EqualTo(-1));
+                Assert.That(reader.ConsumeZeroAdjustStep(), Is.Zero);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(actionsAsset);
+                InputSystem.RemoveDevice(keyboard);
+                RuntimeKernelBootstrapper.Events = previousEvents;
+            }
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_NormalizesScrollWheelActionDeltaIntoZoomSteps()
+        {
+            Assert.That(ZoomInputNormalization.NormalizeScrollDelta(120f), Is.EqualTo(1f).Within(0.001f));
+            Assert.That(ZoomInputNormalization.NormalizeScrollDelta(12f), Is.EqualTo(1f).Within(0.001f));
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_UsesDefaultScrollWheelActionName_WhenSerializedFieldIsMissing()
+        {
+            var actionsAsset = CreatePlayerZoomActionsAsset();
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(actionsAsset);
+
+            var scrollWheelNameField = typeof(PlayerInputReader).GetField("_scrollWheelActionName", BindingFlags.Instance | BindingFlags.NonPublic);
+            var scrollWheelActionField = typeof(PlayerInputReader).GetField("_scrollWheelAction", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(scrollWheelNameField, Is.Not.Null);
+            Assert.That(scrollWheelActionField, Is.Not.Null);
+
+            try
+            {
+                scrollWheelNameField!.SetValue(reader, string.Empty);
+                reader.SetActionsAsset(actionsAsset);
+                Assert.That(scrollWheelActionField!.GetValue(reader), Is.Not.Null, "Expected PlayerInputReader to fall back to the default ScrollWheel action when the serialized action name is empty.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(actionsAsset);
+            }
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_ConsumesScrollWheelFromProjectInputAsset()
+        {
+#if UNITY_EDITOR
+            var mouse = InputSystem.AddDevice<Mouse>();
+            var asset = AssetDatabase.LoadAssetAtPath<InputActionAsset>("Assets/_Project/Player/InputSystem_Actions.inputactions");
+            Assert.That(asset, Is.Not.Null);
+
+            var runtimeAsset = Object.Instantiate(asset);
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(runtimeAsset);
+
+            try
+            {
+                InputSystem.QueueStateEvent(mouse, new MouseState { scroll = new Vector2(0f, 120f) });
+                InputSystem.Update();
+
+                reader.SendMessage("Update");
+
+                Assert.That(reader.ConsumeZoomInput(), Is.GreaterThan(0.5f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(runtimeAsset);
+                InputSystem.RemoveDevice(mouse);
+            }
+#else
+            Assert.Ignore("Requires UnityEditor AssetDatabase.");
+#endif
         }
 
         [Test]
@@ -1395,6 +1509,37 @@ namespace Reloader.Player.Tests.PlayMode
             var asset = ScriptableObject.CreateInstance<InputActionAsset>();
             var playerMap = new InputActionMap("Player");
             playerMap.AddAction("Aim", binding: "<Keyboard>/f2");
+            asset.AddActionMap(playerMap);
+            return asset;
+        }
+
+        private static InputActionAsset CreatePlayerZoomActionsAsset()
+        {
+            var asset = ScriptableObject.CreateInstance<InputActionAsset>();
+            var playerMap = new InputActionMap("Player");
+            playerMap.AddAction("ScrollWheel", binding: "<Mouse>/scroll");
+            asset.AddActionMap(playerMap);
+            return asset;
+        }
+
+        private static InputActionAsset CreatePlayerKeyboardGameplayActionsAsset()
+        {
+            var asset = ScriptableObject.CreateInstance<InputActionAsset>();
+            var playerMap = new InputActionMap("Player");
+
+            var move = playerMap.AddAction("Move");
+            move.AddCompositeBinding("2DVector")
+                .With("Up", "<Keyboard>/w")
+                .With("Down", "<Keyboard>/s")
+                .With("Left", "<Keyboard>/a")
+                .With("Right", "<Keyboard>/d");
+
+            playerMap.AddAction("Sprint", binding: "<Keyboard>/leftShift");
+            playerMap.AddAction("Jump", binding: "<Keyboard>/space");
+            playerMap.AddAction("Reload", binding: "<Keyboard>/r");
+            playerMap.AddAction("Pickup", binding: "<Keyboard>/e");
+            playerMap.AddAction("BeltSlot1", binding: "<Keyboard>/1");
+
             asset.AddActionMap(playerMap);
             return asset;
         }

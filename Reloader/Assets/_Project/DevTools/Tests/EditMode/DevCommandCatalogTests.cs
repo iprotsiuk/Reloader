@@ -14,7 +14,7 @@ namespace Reloader.DevTools.Tests.EditMode
 
             Assert.That(catalog.Contains("noclip"), Is.True);
             Assert.That(catalog.Contains("give"), Is.True);
-            Assert.That(catalog.Contains("traces"), Is.True);
+            Assert.That(catalog.Contains("trace"), Is.True);
             Assert.That(catalog.Contains("spawn"), Is.True);
         }
 
@@ -64,7 +64,7 @@ namespace Reloader.DevTools.Tests.EditMode
 
             var names = catalog.GetDefinitions().Select(static definition => definition.Name).ToArray();
 
-            Assert.That(names, Is.EqualTo(new[] { "noclip", "give", "traces", "spawn" }));
+            Assert.That(names, Is.EqualTo(new[] { "noclip", "give", "trace", "spawn" }));
         }
     }
 }

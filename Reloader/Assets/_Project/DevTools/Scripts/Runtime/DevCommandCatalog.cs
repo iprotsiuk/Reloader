@@ -102,7 +102,7 @@ namespace Reloader.DevTools.Runtime
             var catalog = new DevCommandCatalog();
             catalog.Register(new DevCommandDefinition("noclip", "Toggle collision-free movement."));
             catalog.Register(new DevCommandDefinition("give", "Grant an item or resource."));
-            catalog.Register(new DevCommandDefinition("traces", "Control debug trace visualization."));
+            catalog.Register(new DevCommandDefinition("trace", "Set debug trace TTL in seconds."));
             catalog.Register(new DevCommandDefinition("spawn", "Spawn a configured runtime object."));
             return catalog;
         }

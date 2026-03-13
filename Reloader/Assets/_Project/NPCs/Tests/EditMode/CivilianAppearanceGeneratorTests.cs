@@ -25,6 +25,7 @@ namespace Reloader.NPCs.Tests.EditMode
             SetProperty(library, "PresentationTypes", new[] { "masculine" });
             SetProperty(library, "HairIds", new[] { "hair.short.01" });
             SetProperty(library, "HairColorIds", new[] { "hair.black" });
+            SetProperty(library, "EyebrowIds", new[] { "brows.arch.01" });
             SetProperty(library, "BeardIds", new[] { "beard.none" });
             SetProperty(library, "OutfitTopIds", new[] { "top.coat.01" });
             SetProperty(library, "OutfitBottomIds", new[] { "bottom.jeans.01" });
@@ -55,6 +56,7 @@ namespace Reloader.NPCs.Tests.EditMode
             Assert.That(GetProperty<string>(record, "PresentationType"), Is.EqualTo("masculine"));
             Assert.That(GetProperty<string>(record, "HairId"), Is.EqualTo("hair.short.01"));
             Assert.That(GetProperty<string>(record, "HairColorId"), Is.EqualTo("hair.black"));
+            Assert.That(GetProperty<string>(record, "EyebrowId"), Is.EqualTo("brows.arch.01"));
             Assert.That(GetProperty<string>(record, "BeardId"), Is.EqualTo("beard.none"));
             Assert.That(GetProperty<string>(record, "OutfitTopId"), Is.EqualTo("top.coat.01"));
             Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("bottom.jeans.01"));
@@ -108,6 +110,119 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void GenerateRecord_WhenGenericStyleCompatiblePresentationHasNoEyebrowChoices_FallsBackToDefaultStyleEyebrows()
+        {
+            var generatorType = ResolveRequiredType(GeneratorTypeName);
+            var libraryType = ResolveRequiredType(LibraryTypeName);
+
+            var generator = Activator.CreateInstance(generatorType);
+            var library = Activator.CreateInstance(libraryType);
+
+            SetProperty(library, "BaseBodyIds", new[] { "body.male.a" });
+            SetProperty(library, "PresentationTypes", new[] { "masculine" });
+            SetProperty(library, "HairIds", new[] { "hair.short" });
+            SetProperty(library, "HairColorIds", new[] { "hair.black" });
+            SetProperty(library, "EyebrowIds", Array.Empty<string>());
+            SetProperty(library, "BeardIds", new[] { "beard.none" });
+            SetProperty(library, "OutfitTopIds", new[] { "tshirt1" });
+            SetProperty(library, "OutfitBottomIds", new[] { "pants1" });
+            SetProperty(library, "OuterwearIds", new[] { "jacket" });
+            SetProperty(library, "MaterialColorIds", new[] { "color.gray" });
+            SetProperty(library, "DescriptionTags", new[] { "gray coat" });
+
+            var generateMethod = generatorType.GetMethod(
+                "GenerateRecord",
+                BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: new[] { libraryType, typeof(string), typeof(int), typeof(string), typeof(int), typeof(bool) },
+                modifiers: null);
+
+            Assert.That(generateMethod, Is.Not.Null, "Expected a public GenerateRecord(...) method on CivilianAppearanceGenerator.");
+
+            var record = generateMethod.Invoke(
+                generator,
+                new object[] { library, "citizen.mainTown.003", 4, "spawn.busstop.c", 2026, true });
+
+            Assert.That(GetProperty<string>(record, "EyebrowId"), Is.EqualTo("brous1"));
+        }
+
+        [Test]
+        public void GenerateRecord_WhenGenericStyleCompatiblePresentationHasMissingEyebrowsAndInvalidBottom_NormalizesToApprovedDefaults()
+        {
+            var generatorType = ResolveRequiredType(GeneratorTypeName);
+            var libraryType = ResolveRequiredType(LibraryTypeName);
+
+            var generator = Activator.CreateInstance(generatorType);
+            var library = Activator.CreateInstance(libraryType);
+
+            SetProperty(library, "BaseBodyIds", new[] { "body.male.a" });
+            SetProperty(library, "PresentationTypes", new[] { "masculine" });
+            SetProperty(library, "HairIds", new[] { "hair.short" });
+            SetProperty(library, "HairColorIds", new[] { "hair.black" });
+            SetProperty(library, "EyebrowIds", Array.Empty<string>());
+            SetProperty(library, "BeardIds", new[] { "beard.none" });
+            SetProperty(library, "OutfitTopIds", new[] { "tshirt1" });
+            SetProperty(library, "OutfitBottomIds", new[] { "legacy.bottom.invalid" });
+            SetProperty(library, "OuterwearIds", new[] { "jacket" });
+            SetProperty(library, "MaterialColorIds", new[] { "color.gray" });
+            SetProperty(library, "DescriptionTags", new[] { "gray coat" });
+
+            var generateMethod = generatorType.GetMethod(
+                "GenerateRecord",
+                BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: new[] { libraryType, typeof(string), typeof(int), typeof(string), typeof(int), typeof(bool) },
+                modifiers: null);
+
+            Assert.That(generateMethod, Is.Not.Null, "Expected a public GenerateRecord(...) method on CivilianAppearanceGenerator.");
+
+            var record = generateMethod.Invoke(
+                generator,
+                new object[] { library, "citizen.mainTown.004", 4, "spawn.busstop.d", 2027, true });
+
+            Assert.That(GetProperty<string>(record, "EyebrowId"), Is.EqualTo("brous1"));
+            Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("pants1"));
+        }
+
+        [Test]
+        public void GenerateRecord_WhenGenericStyleCompatiblePresentationHasInvalidEyebrowAndInvalidBottom_NormalizesToApprovedDefaults()
+        {
+            var generatorType = ResolveRequiredType(GeneratorTypeName);
+            var libraryType = ResolveRequiredType(LibraryTypeName);
+
+            var generator = Activator.CreateInstance(generatorType);
+            var library = Activator.CreateInstance(libraryType);
+
+            SetProperty(library, "BaseBodyIds", new[] { "body.male.a" });
+            SetProperty(library, "PresentationTypes", new[] { "masculine" });
+            SetProperty(library, "HairIds", new[] { "hair.short" });
+            SetProperty(library, "HairColorIds", new[] { "hair.black" });
+            SetProperty(library, "EyebrowIds", new[] { "legacy.brows.invalid" });
+            SetProperty(library, "BeardIds", new[] { "beard.none" });
+            SetProperty(library, "OutfitTopIds", new[] { "tshirt1" });
+            SetProperty(library, "OutfitBottomIds", new[] { "legacy.bottom.invalid" });
+            SetProperty(library, "OuterwearIds", new[] { "jacket" });
+            SetProperty(library, "MaterialColorIds", new[] { "color.gray" });
+            SetProperty(library, "DescriptionTags", new[] { "gray coat" });
+
+            var generateMethod = generatorType.GetMethod(
+                "GenerateRecord",
+                BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: new[] { libraryType, typeof(string), typeof(int), typeof(string), typeof(int), typeof(bool) },
+                modifiers: null);
+
+            Assert.That(generateMethod, Is.Not.Null, "Expected a public GenerateRecord(...) method on CivilianAppearanceGenerator.");
+
+            var record = generateMethod.Invoke(
+                generator,
+                new object[] { library, "citizen.mainTown.004b", 4, "spawn.busstop.db", 2028, true });
+
+            Assert.That(GetProperty<string>(record, "EyebrowId"), Is.EqualTo("brous1"));
+            Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("pants1"));
+        }
+
+        [Test]
         public void CivilianAppearanceLibrary_JsonRoundTrip_PreservesConfiguredArrays()
         {
             var libraryType = ResolveRequiredType(LibraryTypeName);
@@ -116,6 +231,7 @@ namespace Reloader.NPCs.Tests.EditMode
             SetProperty(library, "BaseBodyIds", new[] { "body.male.a" });
             SetProperty(library, "PresentationTypes", new[] { "masculine" });
             SetProperty(library, "HairIds", new[] { "hair.short.01" });
+            SetProperty(library, "EyebrowIds", new[] { "brows.arch.01" });
 
             var json = JsonUtility.ToJson(library);
             var restored = JsonUtility.FromJson(json, libraryType);
@@ -123,6 +239,7 @@ namespace Reloader.NPCs.Tests.EditMode
             CollectionAssert.AreEqual(new[] { "body.male.a" }, (IEnumerable)GetProperty<object>(restored, "BaseBodyIds"));
             CollectionAssert.AreEqual(new[] { "masculine" }, (IEnumerable)GetProperty<object>(restored, "PresentationTypes"));
             CollectionAssert.AreEqual(new[] { "hair.short.01" }, (IEnumerable)GetProperty<object>(restored, "HairIds"));
+            CollectionAssert.AreEqual(new[] { "brows.arch.01" }, (IEnumerable)GetProperty<object>(restored, "EyebrowIds"));
         }
 
         [Test]
@@ -138,9 +255,10 @@ namespace Reloader.NPCs.Tests.EditMode
             SetProperty(library, "PresentationTypes", new[] { "masculine" });
             SetProperty(library, "HairIds", new[] { "hair.short", "hair.long" });
             SetProperty(library, "HairColorIds", new[] { "hair.black" });
+            SetProperty(library, "EyebrowIds", new[] { "brous1", "brous10" });
             SetProperty(library, "BeardIds", new[] { "beard4" });
             SetProperty(library, "OutfitTopIds", new[] { "tshirt2", "turtleneck" });
-            SetProperty(library, "OutfitBottomIds", new[] { "brous1" });
+            SetProperty(library, "OutfitBottomIds", new[] { "pants1" });
             SetProperty(library, "OuterwearIds", new[] { "openJacket", "coat" });
             SetProperty(library, "MaterialColorIds", new[] { "style.default" });
             SetProperty(library, "DescriptionTags", new[] { "worker" });
@@ -160,6 +278,7 @@ namespace Reloader.NPCs.Tests.EditMode
 
             Assert.That(GetProperty<string>(record, "BaseBodyId"), Is.EqualTo("male.body"));
             Assert.That(GetProperty<string>(record, "HairId"), Is.EqualTo("hair.short"));
+            Assert.That(GetProperty<string>(record, "EyebrowId"), Is.EqualTo("brous1"));
             Assert.That(GetProperty<string>(record, "BeardId"), Is.EqualTo("beard4"));
             Assert.That(GetProperty<string>(record, "OutfitTopId"), Is.EqualTo("tshirt2"));
             Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("pants1"));
@@ -179,9 +298,10 @@ namespace Reloader.NPCs.Tests.EditMode
             SetProperty(library, "PresentationTypes", new[] { "feminine" });
             SetProperty(library, "HairIds", new[] { "hair.short", "hair.long" });
             SetProperty(library, "HairColorIds", new[] { "hair.brown" });
+            SetProperty(library, "EyebrowIds", new[] { "brous10" });
             SetProperty(library, "BeardIds", new[] { "beard7" });
             SetProperty(library, "OutfitTopIds", new[] { "tshirt1" });
-            SetProperty(library, "OutfitBottomIds", new[] { "brous10" });
+            SetProperty(library, "OutfitBottomIds", new[] { "pants1" });
             SetProperty(library, "OuterwearIds", new[] { "hoody" });
             SetProperty(library, "MaterialColorIds", new[] { "style.default" });
             SetProperty(library, "DescriptionTags", new[] { "townsfolk" });
@@ -201,6 +321,7 @@ namespace Reloader.NPCs.Tests.EditMode
 
             Assert.That(GetProperty<string>(record, "BaseBodyId"), Is.EqualTo("female.body"));
             Assert.That(GetProperty<string>(record, "HairId"), Is.EqualTo("hair.long"));
+            Assert.That(GetProperty<string>(record, "EyebrowId"), Is.EqualTo("brous10"));
             Assert.That(GetProperty<string>(record, "BeardId"), Is.EqualTo("beard.none"));
             Assert.That(GetProperty<string>(record, "OutfitTopId"), Is.EqualTo("tshirt1"));
             Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("pants1"));
@@ -209,7 +330,7 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
-        public void GenerateRecord_WhenFemaleBodyUsesApprovedCuratedBottom_PreservesThatBottom()
+        public void GenerateRecord_WhenFemaleBodyUsesApprovedCuratedEyebrow_PreservesThatEyebrow()
         {
             var generatorType = ResolveRequiredType(GeneratorTypeName);
             var libraryType = ResolveRequiredType(LibraryTypeName);
@@ -221,9 +342,10 @@ namespace Reloader.NPCs.Tests.EditMode
             SetProperty(library, "PresentationTypes", new[] { "feminine" });
             SetProperty(library, "HairIds", new[] { "hair.long" });
             SetProperty(library, "HairColorIds", new[] { "hair.brown" });
+            SetProperty(library, "EyebrowIds", new[] { "brous7" });
             SetProperty(library, "BeardIds", new[] { "beard7" });
             SetProperty(library, "OutfitTopIds", new[] { "tshirt2" });
-            SetProperty(library, "OutfitBottomIds", new[] { "brous7" });
+            SetProperty(library, "OutfitBottomIds", new[] { "pants1" });
             SetProperty(library, "OuterwearIds", new[] { string.Empty });
             SetProperty(library, "MaterialColorIds", new[] { "style.default" });
             SetProperty(library, "DescriptionTags", new[] { "townsfolk" });
@@ -241,6 +363,7 @@ namespace Reloader.NPCs.Tests.EditMode
                 generator,
                 new object[] { library, "citizen.mainTown.203", 3, "Anchor_Townsfolk_03", 5, true });
 
+            Assert.That(GetProperty<string>(record, "EyebrowId"), Is.EqualTo("brous7"));
             Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("pants1"));
         }
 
@@ -257,6 +380,7 @@ namespace Reloader.NPCs.Tests.EditMode
             SetProperty(library, "PresentationTypes", new[] { "feminine" });
             SetProperty(library, "HairIds", new[] { "hair.long" });
             SetProperty(library, "HairColorIds", new[] { "hair.brown" });
+            SetProperty(library, "EyebrowIds", new[] { "brous7" });
             SetProperty(library, "BeardIds", new[] { string.Empty });
             SetProperty(library, "OutfitTopIds", new[] { "tshirt2" });
             SetProperty(library, "OutfitBottomIds", new[] { "pants1" });
@@ -294,6 +418,7 @@ namespace Reloader.NPCs.Tests.EditMode
             SetProperty(library, "PresentationTypes", new[] { "feminine" });
             SetProperty(library, "HairIds", new[] { "hair.short", "hair.long" });
             SetProperty(library, "HairColorIds", new[] { "hair.black" });
+            SetProperty(library, "EyebrowIds", new[] { "brous1" });
             SetProperty(library, "BeardIds", new[] { "beard4" });
             SetProperty(library, "OutfitTopIds", new[] { "tshirt1" });
             SetProperty(library, "OutfitBottomIds", new[] { "pants1" });

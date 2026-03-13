@@ -46,6 +46,9 @@ namespace Reloader.Core.Save.Modules
         [JsonProperty("hairColorId")]
         public string HairColorId { get; set; } = string.Empty;
 
+        [JsonProperty("eyebrowId")]
+        public string EyebrowId { get; set; } = "brous1";
+
         [JsonProperty("beardId")]
         public string BeardId { get; set; } = string.Empty;
 

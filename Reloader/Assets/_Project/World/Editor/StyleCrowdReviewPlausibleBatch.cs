@@ -14,14 +14,14 @@ namespace Reloader.World.Editor
                 CreateTemplate(StyleCrowdReviewGender.Male, "hair.short", "beard4", "jacket", "brous1"),
                 CreateTemplate(StyleCrowdReviewGender.Male, "hair.parted", string.Empty, "jacket", "brous2"),
                 CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "tshirt2", "brous3"),
-                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "jacket", "pants1")
+                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "jacket", "brous7")
             });
 
             AddRole(specs, "EMS", 4, new[]
             {
-                CreateTemplate(StyleCrowdReviewGender.Male, "hair.short", string.Empty, "jacket", "pants1"),
+                CreateTemplate(StyleCrowdReviewGender.Male, "hair.short", string.Empty, "jacket", "brous1"),
                 CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "jacket", "brous3"),
-                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "tshirt1", "pants1")
+                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "tshirt1", "brous7")
             });
 
             AddRole(specs, "BlueCollar", 8, new[]
@@ -29,23 +29,23 @@ namespace Reloader.World.Editor
                 CreateTemplate(StyleCrowdReviewGender.Male, "hair.short", "beard2", "tshirt1", "brous5"),
                 CreateTemplate(StyleCrowdReviewGender.Male, "hair.wavy", "beard6", "jacket", "brous6"),
                 CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "tshirt2", "brous7"),
-                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "tshirt1", "pants1")
+                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "tshirt1", "brous3")
             });
 
             AddRole(specs, "Jogger", 6, new[]
             {
-                CreateTemplate(StyleCrowdReviewGender.Male, "hair.short", string.Empty, "tshirt1", "pants1"),
-                CreateTemplate(StyleCrowdReviewGender.Male, "hair.wavy", string.Empty, "tshirt2", "pants1"),
-                CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "tshirt2", "pants1"),
-                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "tshirt1", "pants1")
+                CreateTemplate(StyleCrowdReviewGender.Male, "hair.short", string.Empty, "tshirt1", "brous1"),
+                CreateTemplate(StyleCrowdReviewGender.Male, "hair.wavy", string.Empty, "tshirt2", "brous6"),
+                CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "tshirt2", "brous3"),
+                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "tshirt1", "brous7")
             });
 
             AddRole(specs, "Hunter", 6, new[]
             {
                 CreateTemplate(StyleCrowdReviewGender.Male, "hair.parted", "beard5", "jacket", "brous9"),
                 CreateTemplate(StyleCrowdReviewGender.Male, "hair.parted", "beard7", "jacket", "brous10"),
-                CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "jacket", "pants1"),
-                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "tshirt1", "pants1")
+                CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "jacket", "brous3"),
+                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "tshirt1", "brous7")
             });
 
             AddRole(specs, "ParkRanger", 4, new[]
@@ -53,14 +53,14 @@ namespace Reloader.World.Editor
                 CreateTemplate(StyleCrowdReviewGender.Male, "hair.short", string.Empty, "jacket", "brous2"),
                 CreateTemplate(StyleCrowdReviewGender.Male, "hair.parted", "beard1", "jacket", "brous5"),
                 CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "jacket", "brous3"),
-                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "tshirt2", "pants1")
+                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "tshirt2", "brous7")
             });
 
             AddRole(specs, "Hiker", 4, new[]
             {
                 CreateTemplate(StyleCrowdReviewGender.Male, "hair.wavy", string.Empty, "jacket", "brous6"),
-                CreateTemplate(StyleCrowdReviewGender.Male, "hair.parted", "beard3", "jacket", "pants1"),
-                CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "tshirt1", "pants1"),
+                CreateTemplate(StyleCrowdReviewGender.Male, "hair.parted", "beard3", "jacket", "brous1"),
+                CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "tshirt1", "brous3"),
                 CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "jacket", "brous7")
             });
 
@@ -68,15 +68,15 @@ namespace Reloader.World.Editor
             {
                 CreateTemplate(StyleCrowdReviewGender.Male, "hair.parted", string.Empty, "jacket", "brous1"),
                 CreateTemplate(StyleCrowdReviewGender.Male, "hair.short", string.Empty, "jacket", "brous2"),
-                CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "tshirt2", "pants1"),
-                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "jacket", "pants1")
+                CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "tshirt2", "brous3"),
+                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "jacket", "brous7")
             });
 
             AddRole(specs, "Student", 4, new[]
             {
-                CreateTemplate(StyleCrowdReviewGender.Male, "hair.wavy", string.Empty, "tshirt2", "pants1"),
+                CreateTemplate(StyleCrowdReviewGender.Male, "hair.wavy", string.Empty, "tshirt2", "brous6"),
                 CreateTemplate(StyleCrowdReviewGender.Male, "hair.parted", string.Empty, "tshirt1", "brous4"),
-                CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "tshirt1", "pants1"),
+                CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "tshirt1", "brous3"),
                 CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "tshirt2", "brous6")
             });
 
@@ -84,8 +84,8 @@ namespace Reloader.World.Editor
             {
                 CreateTemplate(StyleCrowdReviewGender.Male, "hair.wavy", "beard8", "jacket", "brous7"),
                 CreateTemplate(StyleCrowdReviewGender.Male, "hair.parted", "beard10", "jacket", "brous8"),
-                CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "jacket", "pants1"),
-                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "tshirt1", "pants1")
+                CreateTemplate(StyleCrowdReviewGender.Female, "hair.bob", string.Empty, "jacket", "brous3"),
+                CreateTemplate(StyleCrowdReviewGender.Female, "hair.long", string.Empty, "tshirt1", "brous7")
             });
 
             return specs;
@@ -109,6 +109,7 @@ namespace Reloader.World.Editor
                     template.HairId,
                     template.BeardId,
                     template.TopId,
+                    template.EyebrowId,
                     template.BottomId));
             }
         }
@@ -118,19 +119,20 @@ namespace Reloader.World.Editor
             string hairId,
             string beardId,
             string topId,
-            string bottomId)
+            string eyebrowId)
         {
-            return new RoleTemplate(gender, hairId, beardId, topId, bottomId);
+            return new RoleTemplate(gender, hairId, beardId, topId, eyebrowId, StyleCrowdReviewCatalog.RequiredBottomId);
         }
 
         private readonly struct RoleTemplate
         {
-            public RoleTemplate(StyleCrowdReviewGender gender, string hairId, string beardId, string topId, string bottomId)
+            public RoleTemplate(StyleCrowdReviewGender gender, string hairId, string beardId, string topId, string eyebrowId, string bottomId)
             {
                 Gender = gender;
                 HairId = hairId;
                 BeardId = beardId;
                 TopId = topId;
+                EyebrowId = eyebrowId;
                 BottomId = bottomId;
             }
 
@@ -138,6 +140,7 @@ namespace Reloader.World.Editor
             public string HairId { get; }
             public string BeardId { get; }
             public string TopId { get; }
+            public string EyebrowId { get; }
             public string BottomId { get; }
         }
     }

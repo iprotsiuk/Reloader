@@ -19,6 +19,8 @@ namespace Reloader.World.Editor
 
     public sealed class StyleCrowdReviewSpec
     {
+        private const string DefaultEyebrowId = "brous1";
+
         public StyleCrowdReviewSpec(
             string name,
             string archetype,
@@ -27,6 +29,7 @@ namespace Reloader.World.Editor
             string hairId,
             string beardId,
             string topId,
+            string eyebrowId,
             string bottomId)
         {
             Name = name?.Trim() ?? string.Empty;
@@ -36,7 +39,8 @@ namespace Reloader.World.Editor
             HairId = hairId?.Trim() ?? string.Empty;
             BeardId = beardId?.Trim() ?? string.Empty;
             TopId = topId?.Trim() ?? string.Empty;
-            BottomId = bottomId?.Trim() ?? string.Empty;
+            EyebrowId = NormalizeEyebrowId(eyebrowId);
+            BottomId = NormalizeBottomId(bottomId);
         }
 
         public string Name { get; }
@@ -46,7 +50,24 @@ namespace Reloader.World.Editor
         public string HairId { get; }
         public string BeardId { get; }
         public string TopId { get; }
+        public string EyebrowId { get; }
         public string BottomId { get; }
+
+        private static string NormalizeEyebrowId(string eyebrowId)
+        {
+            var normalized = eyebrowId?.Trim() ?? string.Empty;
+            return StyleCrowdReviewCatalog.CommonEyebrowIds.Contains(normalized, StringComparer.Ordinal)
+                ? normalized
+                : DefaultEyebrowId;
+        }
+
+        private static string NormalizeBottomId(string bottomId)
+        {
+            var normalized = bottomId?.Trim() ?? string.Empty;
+            return StyleCrowdReviewCatalog.CommonBottomIds.Contains(normalized, StringComparer.Ordinal)
+                ? normalized
+                : StyleCrowdReviewCatalog.RequiredBottomId;
+        }
     }
 
     public static class StyleCrowdReviewCatalog
@@ -97,7 +118,7 @@ namespace Reloader.World.Editor
             "turtleneck"
         };
 
-        public static readonly IReadOnlyList<string> CommonBottomIds = new[]
+        public static readonly IReadOnlyList<string> CommonEyebrowIds = new[]
         {
             "brous1",
             "brous2",
@@ -108,7 +129,13 @@ namespace Reloader.World.Editor
             "brous7",
             "brous8",
             "brous9",
-            "brous10",
+            "brous10"
+        };
+
+        public const string RequiredBottomId = "pants1";
+
+        public static readonly IReadOnlyList<string> CommonBottomIds = new[]
+        {
             "pants1"
         };
     }

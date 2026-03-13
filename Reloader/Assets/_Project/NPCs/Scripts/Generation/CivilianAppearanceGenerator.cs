@@ -88,6 +88,23 @@ namespace Reloader.NPCs.Generation
                 out var lastName,
                 out var nickname);
 
+            var hairId = PickRequired(library.HairIds, nameof(library.HairIds), random);
+            var hairColorId = PickRequired(library.HairColorIds, nameof(library.HairColorIds), random);
+            var eyebrowId = PickOptionalValue(library.EyebrowIds, random);
+            var beardId = PickRequired(library.BeardIds, nameof(library.BeardIds), random);
+            var outfitTopId = PickRequired(library.OutfitTopIds, nameof(library.OutfitTopIds), random);
+            var outfitBottomId = PickRequired(library.OutfitBottomIds, nameof(library.OutfitBottomIds), random);
+            var outerwearId = PickRequired(library.OuterwearIds, nameof(library.OuterwearIds), random);
+            var materialColorIds = PickOptionalList(library.MaterialColorIds, random);
+            var generatedDescriptionTags = PickOptionalList(library.DescriptionTags, random);
+
+            if (IsStyleCompatibleAppearance(baseBodyId, presentationType, outfitTopId, outfitBottomId, outerwearId)
+                && MainTownCuratedAppearanceRules.TryInferGender(baseBodyId, presentationType, out var gender))
+            {
+                eyebrowId = MainTownCuratedAppearanceRules.NormalizeEyebrowId(eyebrowId);
+                outfitBottomId = MainTownCuratedAppearanceRules.NormalizeBottomId(gender, outfitBottomId);
+            }
+
             return new CivilianPopulationRecord
             {
                 PopulationSlotId = populationSlotId?.Trim() ?? string.Empty,
@@ -101,14 +118,15 @@ namespace Reloader.NPCs.Generation
                 IsProtectedFromContracts = isProtectedFromContracts,
                 BaseBodyId = baseBodyId,
                 PresentationType = presentationType,
-                HairId = PickRequired(library.HairIds, nameof(library.HairIds), random),
-                HairColorId = PickRequired(library.HairColorIds, nameof(library.HairColorIds), random),
-                BeardId = PickRequired(library.BeardIds, nameof(library.BeardIds), random),
-                OutfitTopId = PickRequired(library.OutfitTopIds, nameof(library.OutfitTopIds), random),
-                OutfitBottomId = PickRequired(library.OutfitBottomIds, nameof(library.OutfitBottomIds), random),
-                OuterwearId = PickRequired(library.OuterwearIds, nameof(library.OuterwearIds), random),
-                MaterialColorIds = PickOptionalList(library.MaterialColorIds, random),
-                GeneratedDescriptionTags = PickOptionalList(library.DescriptionTags, random),
+                HairId = hairId,
+                HairColorId = hairColorId,
+                EyebrowId = eyebrowId,
+                BeardId = beardId,
+                OutfitTopId = outfitTopId,
+                OutfitBottomId = outfitBottomId,
+                OuterwearId = outerwearId,
+                MaterialColorIds = materialColorIds,
+                GeneratedDescriptionTags = generatedDescriptionTags,
                 SpawnAnchorId = spawnAnchorId.Trim(),
                 AreaTag = areaTag?.Trim() ?? string.Empty,
                 CreatedAtDay = Math.Max(0, createdAtDay),
@@ -145,13 +163,17 @@ namespace Reloader.NPCs.Generation
             MainTownCuratedAppearanceRules.TryInferGender(baseBodyId, presentationType, out var gender);
 
             var hairId = PickRequired(MainTownCuratedAppearanceRules.GetCompatibleHairIds(library, gender), nameof(library.HairIds), random);
+            var eyebrowId = MainTownCuratedAppearanceRules.NormalizeEyebrowId(
+                PickRequired(MainTownCuratedAppearanceRules.GetCompatibleEyebrowIds(library), nameof(library.EyebrowIds), random));
             var beardChoices = MainTownCuratedAppearanceRules.GetCompatibleBeardIds(library, gender);
             var beardId = beardChoices.Count > 0
                 ? PickRequired(beardChoices, nameof(library.BeardIds), random)
                 : NoBeardId;
 
             var outfitTopId = PickRequired(MainTownCuratedAppearanceRules.GetCompatibleBaseTopIds(library), nameof(library.OutfitTopIds), random);
-            var outfitBottomId = PickRequired(MainTownCuratedAppearanceRules.GetCompatibleBottomIds(library, gender), nameof(library.OutfitBottomIds), random);
+            var outfitBottomId = MainTownCuratedAppearanceRules.NormalizeBottomId(
+                gender,
+                PickRequired(MainTownCuratedAppearanceRules.GetCompatibleBottomIds(library, gender), nameof(library.OutfitBottomIds), random));
             var outerwearRaw = PickRequired(MainTownCuratedAppearanceRules.GetCompatibleOuterwearIds(library), nameof(library.OuterwearIds), random);
             var outerwearId = MainTownCuratedAppearanceRules.NormalizeOuterwearId(outerwearRaw);
             if (string.IsNullOrWhiteSpace(outerwearId))
@@ -174,6 +196,7 @@ namespace Reloader.NPCs.Generation
                 PresentationType = presentationType,
                 HairId = hairId,
                 HairColorId = PickRequired(library.HairColorIds, nameof(library.HairColorIds), random),
+                EyebrowId = eyebrowId,
                 BeardId = beardId,
                 OutfitTopId = outfitTopId,
                 OutfitBottomId = outfitBottomId,
@@ -209,6 +232,58 @@ namespace Reloader.NPCs.Generation
             }
 
             return candidates[random.Next(candidates.Count)];
+        }
+
+        private static string PickOptionalValue(IReadOnlyList<string> values, Random random)
+        {
+            if (values == null || values.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var candidates = new List<string>(values.Count);
+            for (var i = 0; i < values.Count; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(values[i]))
+                {
+                    candidates.Add(values[i].Trim());
+                }
+            }
+
+            return candidates.Count > 0 ? candidates[random.Next(candidates.Count)] : string.Empty;
+        }
+
+        private static bool IsStyleCompatibleAppearance(
+            string baseBodyId,
+            string presentationType,
+            string outfitTopId,
+            string outfitBottomId,
+            string outerwearId)
+        {
+            if (MainTownCuratedAppearanceRules.IsCuratedStyleBodyId(baseBodyId))
+            {
+                return true;
+            }
+
+            if (!MainTownCuratedAppearanceRules.TryInferGender(baseBodyId, presentationType, out _))
+            {
+                return false;
+            }
+
+            if (MainTownCuratedAppearanceRules.IsApprovedBaseTopId(outfitTopId))
+            {
+                return true;
+            }
+
+            if (string.Equals(outfitBottomId?.Trim(), "pants1", StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            var normalizedOuterwearId = outerwearId?.Trim() ?? string.Empty;
+            return !string.IsNullOrWhiteSpace(normalizedOuterwearId)
+                   && !string.Equals(normalizedOuterwearId, MainTownCuratedAppearanceRules.NoOuterwearId, StringComparison.Ordinal)
+                   && MainTownCuratedAppearanceRules.IsApprovedOuterwearId(normalizedOuterwearId);
         }
 
         private static List<string> PickOptionalList(IReadOnlyList<string> values, Random random)

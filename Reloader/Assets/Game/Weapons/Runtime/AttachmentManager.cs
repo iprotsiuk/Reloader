@@ -305,6 +305,16 @@ namespace Reloader.Game.Weapons
 
         private void RefreshSightAnchor()
         {
+            if (_equippedOpticInstance != null)
+            {
+                var opticSightAnchor = ResolveSightAnchor(_equippedOpticInstance.transform);
+                if (opticSightAnchor != null)
+                {
+                    _activeSightAnchor = opticSightAnchor;
+                    return;
+                }
+            }
+
             _activeSightAnchor = _ironSightAnchor;
         }
 

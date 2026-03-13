@@ -6,7 +6,7 @@ namespace Reloader.DevTools.Runtime
     public sealed class DevPlayerMovementOverride
     {
         public bool IsNoclipEnabled { get; private set; }
-        public float NoclipSpeed { get; private set; } = 6f;
+        public float NoclipSpeed { get; private set; }
         public PlayerMover PlayerMover { get; set; }
 
         public void SetNoclipEnabled(bool isEnabled)

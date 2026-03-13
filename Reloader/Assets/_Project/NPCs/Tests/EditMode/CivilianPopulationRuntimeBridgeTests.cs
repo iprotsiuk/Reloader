@@ -156,6 +156,149 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void FinalizeAfterLoad_WhenStyleAppearanceIdsAreInvalid_NormalizesEyebrowsAndPants()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                var module = new CivilianPopulationModule();
+                module.Civilians.Add(new CivilianPopulationRecord
+                {
+                    PopulationSlotId = "townsfolk.legacy.001",
+                    PoolId = "townsfolk",
+                    CivilianId = "citizen.legacy.001",
+                    FirstName = "Ilona",
+                    LastName = "Sidorov",
+                    IsAlive = true,
+                    IsContractEligible = false,
+                    IsProtectedFromContracts = true,
+                    BaseBodyId = "female.body",
+                    PresentationType = "feminine",
+                    HairId = "hair.long",
+                    HairColorId = "hair.red",
+                    EyebrowId = string.Empty,
+                    BeardId = "beard.none",
+                    OutfitTopId = "tshirt2",
+                    OutfitBottomId = "legacy.bottom.invalid",
+                    OuterwearId = "none",
+                    MaterialColorIds = new List<string> { "style.variant.a" },
+                    GeneratedDescriptionTags = new List<string> { "legacy" },
+                    SpawnAnchorId = "spawn.busstop.b",
+                    AreaTag = "maintown",
+                    CreatedAtDay = 6,
+                    RetiredAtDay = -1
+                });
+
+                bridge.FinalizeAfterLoad(new[] { new SaveModuleRegistration(1, module) });
+
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(1));
+                Assert.That(bridge.Runtime.Civilians[0].EyebrowId, Is.EqualTo("brous1"));
+                Assert.That(bridge.Runtime.Civilians[0].OutfitBottomId, Is.EqualTo("pants1"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void PrepareForSave_WhenRuntimeStyleAppearanceIdsAreInvalid_NormalizesEyebrowsAndPantsIntoModule()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    PopulationSlotId = "townsfolk.legacy.002",
+                    PoolId = "townsfolk",
+                    CivilianId = "citizen.legacy.002",
+                    FirstName = "Vera",
+                    LastName = "Petrov",
+                    IsAlive = true,
+                    IsContractEligible = true,
+                    BaseBodyId = "female.body",
+                    PresentationType = "feminine",
+                    HairId = "hair.long",
+                    HairColorId = "hair.red",
+                    EyebrowId = string.Empty,
+                    BeardId = "beard.none",
+                    OutfitTopId = "tshirt2",
+                    OutfitBottomId = "legacy.bottom.invalid",
+                    OuterwearId = "none",
+                    MaterialColorIds = new List<string> { "style.variant.a" },
+                    GeneratedDescriptionTags = new List<string> { "legacy" },
+                    SpawnAnchorId = "spawn.busstop.b",
+                    AreaTag = "maintown",
+                    CreatedAtDay = 6,
+                    RetiredAtDay = -1
+                });
+
+                var module = new CivilianPopulationModule();
+                bridge.PrepareForSave(new[] { new SaveModuleRegistration(1, module) });
+
+                Assert.That(module.Civilians.Count, Is.EqualTo(1));
+                Assert.That(module.Civilians[0].EyebrowId, Is.EqualTo("brous1"));
+                Assert.That(module.Civilians[0].OutfitBottomId, Is.EqualTo("pants1"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void PrepareForSave_WhenRuntimeCivilianIsNonStyleMasculine_PreservesOriginalEyebrowAndBottomIds()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    PopulationSlotId = "townsfolk.legacy.003",
+                    PoolId = "townsfolk",
+                    CivilianId = "citizen.legacy.003",
+                    FirstName = "Marek",
+                    LastName = "Sidorov",
+                    IsAlive = true,
+                    IsContractEligible = true,
+                    BaseBodyId = "body.male.a",
+                    PresentationType = "masculine",
+                    HairId = "hair.short.01",
+                    HairColorId = "hair.black",
+                    EyebrowId = "brows.arch.01",
+                    BeardId = "beard.none",
+                    OutfitTopId = "top.coat.01",
+                    OutfitBottomId = "bottom.jeans.01",
+                    OuterwearId = "outer.gray.coat",
+                    MaterialColorIds = new List<string> { "color.gray" },
+                    GeneratedDescriptionTags = new List<string> { "legacy" },
+                    SpawnAnchorId = "spawn.busstop.a",
+                    AreaTag = "downtown",
+                    CreatedAtDay = 6,
+                    RetiredAtDay = -1
+                });
+
+                var module = new CivilianPopulationModule();
+
+                bridge.PrepareForSave(new[] { new SaveModuleRegistration(1, module) });
+
+                Assert.That(module.Civilians.Count, Is.EqualTo(1));
+                Assert.That(module.Civilians[0].EyebrowId, Is.EqualTo("brows.arch.01"));
+                Assert.That(module.Civilians[0].OutfitBottomId, Is.EqualTo("bottom.jeans.01"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void FinalizeAfterLoad_RebuildsScenePopulationFromLoadedModuleAndClearsPriorSpawnedObjects()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");

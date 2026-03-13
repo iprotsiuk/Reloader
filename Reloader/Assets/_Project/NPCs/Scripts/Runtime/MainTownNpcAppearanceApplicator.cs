@@ -60,16 +60,40 @@ namespace Reloader.NPCs.Runtime
 
         private static readonly IReadOnlyDictionary<string, string> MaleBottomObjectNames = new Dictionary<string, string>
         {
-            ["brous1"] = "brous1_brous1_brous1",
-            ["brous7"] = "brous7_brous7_brous7",
             ["pants1"] = "pants1_pants1_pants1"
         };
 
         private static readonly IReadOnlyDictionary<string, string> FemaleBottomObjectNames = new Dictionary<string, string>
         {
-            ["brous1"] = "brous1_001",
-            ["brous7"] = "brous7",
             ["pants1"] = "pants1"
+        };
+
+        private static readonly IReadOnlyDictionary<string, string> MaleEyebrowObjectNames = new Dictionary<string, string>
+        {
+            ["brous1"] = "brous1_brous1_brous1",
+            ["brous2"] = "brous2_brous2_brous2",
+            ["brous3"] = "brous3_brous3_brous3",
+            ["brous4"] = "brous4_brous4_brous4",
+            ["brous5"] = "brous5_brous5_brous5",
+            ["brous6"] = "brous6_brous6_brous6",
+            ["brous7"] = "brous7_brous7_brous7",
+            ["brous8"] = "brous8_brous8_brous8",
+            ["brous9"] = "brous9_brous9_brous9",
+            ["brous10"] = "brous10_brous10_brous10"
+        };
+
+        private static readonly IReadOnlyDictionary<string, string> FemaleEyebrowObjectNames = new Dictionary<string, string>
+        {
+            ["brous1"] = "brous1_001",
+            ["brous2"] = "brous2",
+            ["brous3"] = "brous3",
+            ["brous4"] = "brous4",
+            ["brous5"] = "brous5",
+            ["brous6"] = "brous6",
+            ["brous7"] = "brous7",
+            ["brous8"] = "brous8",
+            ["brous9"] = "brous9",
+            ["brous10"] = "brous10"
         };
 
         private static readonly IReadOnlyDictionary<string, string> MaleBeardObjectNames = new Dictionary<string, string>
@@ -237,6 +261,7 @@ namespace Reloader.NPCs.Runtime
                 ActivateChild(activeRoot, "Eyes_Eyes_Eyes");
                 ActivateChild(activeRoot, "boots1_boots1_boots1");
                 ActivateMappedChild(activeRoot, MaleHairObjectNames, record.HairId);
+                ActivateMappedChild(activeRoot, MaleEyebrowObjectNames, ResolveEyebrowId(record));
                 if (MainTownCuratedAppearanceRules.IsMaleBeardId(record.BeardId))
                 {
                     ActivateMappedChild(activeRoot, MaleBeardObjectNames, record.BeardId);
@@ -248,6 +273,7 @@ namespace Reloader.NPCs.Runtime
                 ActivateChild(activeRoot, "Eyes");
                 ActivateChild(activeRoot, "boots1");
                 ActivateMappedChild(activeRoot, FemaleHairObjectNames, record.HairId);
+                ActivateMappedChild(activeRoot, FemaleEyebrowObjectNames, ResolveEyebrowId(record));
             }
 
             var baseTopId = MainTownCuratedAppearanceRules.IsApprovedBaseTopId(record.OutfitTopId)
@@ -358,6 +384,7 @@ namespace Reloader.NPCs.Runtime
                 PresentationType = presentationType,
                 HairId = PickStable(MainTownCuratedAppearanceRules.GetCompatibleHairIds(library, gender), seedKey, "hair"),
                 HairColorId = PickStable(library.HairColorIds, seedKey, "hairColor"),
+                EyebrowId = PickStable(MainTownCuratedAppearanceRules.GetCompatibleEyebrowIds(library), seedKey, "eyebrow"),
                 BeardId = gender == MainTownAppearanceGender.Male
                     ? PickStable(MainTownCuratedAppearanceRules.GetCompatibleBeardIds(library, gender), seedKey, "beard")
                     : string.Empty,
@@ -385,6 +412,13 @@ namespace Reloader.NPCs.Runtime
 
             var index = GetDeterministicSeed($"{seedKey}|{salt}") % values.Count;
             return values[index];
+        }
+
+        private static string ResolveEyebrowId(CivilianPopulationRecord record)
+        {
+            return MainTownCuratedAppearanceRules.NormalizeEyebrowId(
+                record?.EyebrowId,
+                record?.OutfitBottomId);
         }
 
         private static void SetAllChildrenInactive(Transform parent)
@@ -546,8 +580,11 @@ namespace Reloader.NPCs.Runtime
             }
 
             return gender == MainTownAppearanceGender.Male
-                ? MaleHairObjectNames.Values.Contains(childName) || MaleBeardObjectNames.Values.Contains(childName)
-                : FemaleHairObjectNames.Values.Contains(childName);
+                ? MaleHairObjectNames.Values.Contains(childName)
+                  || MaleEyebrowObjectNames.Values.Contains(childName)
+                  || MaleBeardObjectNames.Values.Contains(childName)
+                : FemaleHairObjectNames.Values.Contains(childName)
+                  || FemaleEyebrowObjectNames.Values.Contains(childName);
         }
     }
 }

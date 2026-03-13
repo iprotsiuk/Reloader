@@ -10,6 +10,7 @@ namespace Reloader.NPCs.Generation
         [SerializeField] private string[] _presentationTypes = Array.Empty<string>();
         [SerializeField] private string[] _hairIds = Array.Empty<string>();
         [SerializeField] private string[] _hairColorIds = Array.Empty<string>();
+        [SerializeField] private string[] _eyebrowIds = { "brous1" };
         [SerializeField] private string[] _beardIds = Array.Empty<string>();
         [SerializeField] private string[] _outfitTopIds = Array.Empty<string>();
         [SerializeField] private string[] _outfitBottomIds = Array.Empty<string>();
@@ -21,6 +22,7 @@ namespace Reloader.NPCs.Generation
         public string[] PresentationTypes { get => _presentationTypes; set => _presentationTypes = value ?? Array.Empty<string>(); }
         public string[] HairIds { get => _hairIds; set => _hairIds = value ?? Array.Empty<string>(); }
         public string[] HairColorIds { get => _hairColorIds; set => _hairColorIds = value ?? Array.Empty<string>(); }
+        public string[] EyebrowIds { get => _eyebrowIds; set => _eyebrowIds = value ?? Array.Empty<string>(); }
         public string[] BeardIds { get => _beardIds; set => _beardIds = value ?? Array.Empty<string>(); }
         public string[] OutfitTopIds { get => _outfitTopIds; set => _outfitTopIds = value ?? Array.Empty<string>(); }
         public string[] OutfitBottomIds { get => _outfitBottomIds; set => _outfitBottomIds = value ?? Array.Empty<string>(); }

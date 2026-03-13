@@ -21,9 +21,9 @@ namespace Reloader.DevTools.Tests.PlayMode
                 Assert.That(disposeMethod, Is.Not.Null);
                 Assert.That(CountTraceRuntimeRoots(), Is.Zero);
 
-                var executed = runtime.TryExecute("traces persistent on", out var resultMessage);
+                var executed = runtime.TryExecute("trace -1", out var resultMessage);
                 Assert.That(executed, Is.True);
-                Assert.That(resultMessage, Does.Contain("Persistent traces enabled."));
+                Assert.That(resultMessage, Does.Contain("Trace TTL set to permanent."));
                 Assert.That(CountTraceRuntimeRoots(), Is.EqualTo(1));
 
                 disposeMethod!.Invoke(runtime, null);
@@ -33,6 +33,65 @@ namespace Reloader.DevTools.Tests.PlayMode
             finally
             {
                 DestroyTraceRuntimeRoots();
+            }
+        }
+
+        [Test]
+        public void TryExecute_TraceNegativeOne_EnablesPermanentTraces()
+        {
+            var runtime = new DevToolsRuntime();
+
+            try
+            {
+                var executed = runtime.TryExecute("trace -1", out var resultMessage);
+
+                Assert.That(executed, Is.True);
+                Assert.That(runtime.State.TraceTtlSeconds, Is.EqualTo(-1f));
+                Assert.That(resultMessage, Is.EqualTo("Trace TTL set to permanent."));
+            }
+            finally
+            {
+                runtime.Dispose();
+            }
+        }
+
+        [Test]
+        public void TryExecute_TraceOne_SetsFiniteTraceTtl()
+        {
+            var runtime = new DevToolsRuntime();
+
+            try
+            {
+                var executed = runtime.TryExecute("trace 1", out var resultMessage);
+
+                Assert.That(executed, Is.True);
+                Assert.That(runtime.State.TraceTtlSeconds, Is.EqualTo(1f));
+                Assert.That(resultMessage, Is.EqualTo("Trace TTL set to 1 second."));
+            }
+            finally
+            {
+                runtime.Dispose();
+            }
+        }
+
+        [Test]
+        public void TryExecute_TraceZero_DisablesAndClearsTraces()
+        {
+            var runtime = new DevToolsRuntime();
+
+            try
+            {
+                Assert.That(runtime.TryExecute("trace 1", out _), Is.True);
+
+                var executed = runtime.TryExecute("trace 0", out var resultMessage);
+
+                Assert.That(executed, Is.True);
+                Assert.That(runtime.State.TraceTtlSeconds, Is.Zero);
+                Assert.That(resultMessage, Is.EqualTo("Trace TTL disabled and visible traces cleared."));
+            }
+            finally
+            {
+                runtime.Dispose();
             }
         }
 

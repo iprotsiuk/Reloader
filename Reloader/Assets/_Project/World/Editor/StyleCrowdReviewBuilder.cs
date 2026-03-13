@@ -79,7 +79,7 @@ namespace Reloader.World.Editor
             "T_shirt2"
         };
 
-        private static readonly IReadOnlyDictionary<string, string> MaleBottomObjectNames = new Dictionary<string, string>
+        private static readonly IReadOnlyDictionary<string, string> MaleEyebrowObjectNames = new Dictionary<string, string>
         {
             ["brous1"] = "brous1_brous1_brous1",
             ["brous2"] = "brous2_brous2_brous2",
@@ -90,11 +90,15 @@ namespace Reloader.World.Editor
             ["brous7"] = "brous7_brous7_brous7",
             ["brous8"] = "brous8_brous8_brous8",
             ["brous9"] = "brous9_brous9_brous9",
-            ["brous10"] = "brous10_brous10_brous10",
+            ["brous10"] = "brous10_brous10_brous10"
+        };
+
+        private static readonly IReadOnlyDictionary<string, string> MaleBottomObjectNames = new Dictionary<string, string>
+        {
             ["pants1"] = "pants1_pants1_pants1"
         };
 
-        private static readonly IReadOnlyDictionary<string, string> FemaleBottomObjectNames = new Dictionary<string, string>
+        private static readonly IReadOnlyDictionary<string, string> FemaleEyebrowObjectNames = new Dictionary<string, string>
         {
             ["brous1"] = "brous1_001",
             ["brous2"] = "brous2",
@@ -105,7 +109,11 @@ namespace Reloader.World.Editor
             ["brous7"] = "brous7",
             ["brous8"] = "brous8",
             ["brous9"] = "brous9",
-            ["brous10"] = "brous10",
+            ["brous10"] = "brous10"
+        };
+
+        private static readonly IReadOnlyDictionary<string, string> FemaleBottomObjectNames = new Dictionary<string, string>
+        {
             ["pants1"] = "pants1"
         };
 
@@ -364,6 +372,7 @@ namespace Reloader.World.Editor
                 activeNames.Add("boots1_boots1_boots1");
                 activeNames.Add(GetMappedName(MaleHairObjectNames, spec.HairId, nameof(spec.HairId), spec.Name));
                 AddTopLayerNames(activeNames, spec);
+                activeNames.Add(NormalizeChildName(spec.Gender, GetMappedName(MaleEyebrowObjectNames, spec.EyebrowId, nameof(spec.EyebrowId), spec.Name)));
                 activeNames.Add(NormalizeChildName(spec.Gender, GetMappedName(MaleBottomObjectNames, spec.BottomId, nameof(spec.BottomId), spec.Name)));
                 if (!string.IsNullOrWhiteSpace(spec.BeardId))
                 {
@@ -377,6 +386,7 @@ namespace Reloader.World.Editor
                 activeNames.Add("boots1");
                 activeNames.Add(GetMappedName(FemaleHairObjectNames, spec.HairId, nameof(spec.HairId), spec.Name));
                 AddTopLayerNames(activeNames, spec);
+                activeNames.Add(NormalizeChildName(spec.Gender, GetMappedName(FemaleEyebrowObjectNames, spec.EyebrowId, nameof(spec.EyebrowId), spec.Name)));
                 activeNames.Add(NormalizeChildName(spec.Gender, GetMappedName(FemaleBottomObjectNames, spec.BottomId, nameof(spec.BottomId), spec.Name)));
             }
 
@@ -654,28 +664,28 @@ namespace Reloader.World.Editor
             {
                 return childName switch
                 {
-                    "brous2_brous2_brous2" => "pants1_pants1_pants1",
-                    "brous3_brous3_brous3" => "pants1_pants1_pants1",
-                    "brous4_brous4_brous4" => "pants1_pants1_pants1",
-                    "brous5_brous5_brous5" => "pants1_pants1_pants1",
-                    "brous7_brous7_brous7" => "pants1_pants1_pants1",
-                    "brous8_brous8_brous8" => "pants1_pants1_pants1",
-                    "brous9_brous9_brous9" => "pants1_pants1_pants1",
-                    "brous10_brous10_brous10" => "pants1_pants1_pants1",
+                    "brous2_brous2_brous2" => "brous1_brous1_brous1",
+                    "brous3_brous3_brous3" => "brous1_brous1_brous1",
+                    "brous4_brous4_brous4" => "brous1_brous1_brous1",
+                    "brous5_brous5_brous5" => "brous1_brous1_brous1",
+                    "brous7_brous7_brous7" => "brous6_brous6_brous6",
+                    "brous8_brous8_brous8" => "brous6_brous6_brous6",
+                    "brous9_brous9_brous9" => "brous6_brous6_brous6",
+                    "brous10_brous10_brous10" => "brous6_brous6_brous6",
                     _ => childName
                 };
             }
 
             return childName switch
             {
-                "brous1_001" => "pants1",
-                "brous2" => "pants1",
-                "brous4" => "pants1",
-                "brous5" => "pants1",
-                "brous6" => "pants1",
-                "brous8" => "pants1",
-                "brous9" => "pants1",
-                "brous10" => "pants1",
+                "brous1_001" => "brous3",
+                "brous2" => "brous3",
+                "brous4" => "brous3",
+                "brous5" => "brous3",
+                "brous6" => "brous7",
+                "brous8" => "brous7",
+                "brous9" => "brous7",
+                "brous10" => "brous7",
                 _ => childName
             };
         }
@@ -800,6 +810,7 @@ namespace Reloader.World.Editor
             seed = (seed * 31) + GetDeterministicStringHash(spec.Name);
             seed = (seed * 31) + GetDeterministicStringHash(spec.Archetype);
             seed = (seed * 31) + GetDeterministicStringHash(spec.HairId);
+            seed = (seed * 31) + GetDeterministicStringHash(spec.EyebrowId);
             seed = (seed * 31) + GetDeterministicStringHash(spec.BottomId);
 
             var index = Math.Abs(seed % candidates.Length);
@@ -879,7 +890,7 @@ namespace Reloader.World.Editor
                 "\n",
                 StyleCrowdReviewSpecLibrary.BuildAll()
                     .Select(spec =>
-                        $"{spec.Name}|{spec.Archetype}|{spec.BatchKind}|{spec.Gender}|{spec.HairId}|{spec.BeardId}|{spec.TopId}|{spec.BottomId}"));
+                        $"{spec.Name}|{spec.Archetype}|{spec.BatchKind}|{spec.Gender}|{spec.HairId}|{spec.BeardId}|{spec.TopId}|{spec.EyebrowId}|{spec.BottomId}"));
         }
 
         private static GameObject FindRootByPrefix(Scene scene, string prefix)

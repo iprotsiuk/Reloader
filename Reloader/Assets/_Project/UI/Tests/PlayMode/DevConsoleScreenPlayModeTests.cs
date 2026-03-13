@@ -146,6 +146,161 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator OpenConsole_EnterAcceptsHighlightedSuggestionWithoutExecuting()
+        {
+            var runtimeEvents = new DefaultRuntimeEvents();
+            var consoleGo = new GameObject("DevConsole");
+            var controller = consoleGo.AddComponent<DevConsoleController>();
+            var input = new TestInputSource();
+            var commandKeys = new TestConsoleKeySource();
+            using var runtime = new DevToolsRuntime();
+            var binder = BuildBinder();
+            controller.SetRuntime(runtime);
+            controller.SetInputSource(input);
+            controller.SetConsoleKeySource(commandKeys);
+            controller.Configure(runtimeEvents);
+            controller.SetViewBinder(binder);
+
+            binder.SetCommandText("n");
+
+            yield return null;
+
+            input.QueueDevConsoleToggle();
+            controller.Tick();
+
+            var suggestionsRoot = binder.Root.Q<VisualElement>("dev-console__suggestions");
+            var status = binder.Root.Q<Label>("dev-console__status");
+            var commandField = binder.Root.Q<TextField>("dev-console__command");
+            Assert.That(suggestionsRoot, Is.Not.Null);
+            Assert.That(status, Is.Not.Null);
+            Assert.That(commandField, Is.Not.Null);
+            Assert.That(suggestionsRoot!.childCount, Is.GreaterThan(0));
+            Assert.That(((Label)suggestionsRoot[0]).text, Does.Contain("noclip"));
+
+            commandKeys.QueueSubmit();
+            controller.Tick();
+
+            Assert.That(binder.GetCommandText(), Is.EqualTo("noclip"));
+            Assert.That(status!.text, Is.EqualTo("Developer tools active"));
+            AssertCaretAtEndOfLine(commandField!, "noclip");
+
+            commandKeys.QueueSubmit();
+            controller.Tick();
+
+            Assert.That(status.text, Does.Contain("Noclip enabled."));
+            Assert.That(binder.GetCommandText(), Is.EqualTo("noclip"));
+            AssertCaretAtEndOfLine(commandField, "noclip");
+
+            UnityEngine.Object.DestroyImmediate(consoleGo);
+        }
+
+        [UnityTest]
+        public IEnumerator OpenConsole_EnterAcceptsHighlightedSuggestionThatAddsArgumentsWithoutExecuting()
+        {
+            var runtimeEvents = new DefaultRuntimeEvents();
+            var consoleGo = new GameObject("DevConsole");
+            var controller = consoleGo.AddComponent<DevConsoleController>();
+            var input = new TestInputSource();
+            var commandKeys = new TestConsoleKeySource();
+            using var runtime = new DevToolsRuntime();
+            var binder = BuildBinder();
+            controller.SetRuntime(runtime);
+            controller.SetInputSource(input);
+            controller.SetConsoleKeySource(commandKeys);
+            controller.Configure(runtimeEvents);
+            controller.SetViewBinder(binder);
+
+            binder.SetCommandText("give");
+
+            yield return null;
+
+            input.QueueDevConsoleToggle();
+            controller.Tick();
+
+            var suggestionsRoot = binder.Root.Q<VisualElement>("dev-console__suggestions");
+            var status = binder.Root.Q<Label>("dev-console__status");
+            var commandField = binder.Root.Q<TextField>("dev-console__command");
+            Assert.That(suggestionsRoot, Is.Not.Null);
+            Assert.That(status, Is.Not.Null);
+            Assert.That(commandField, Is.Not.Null);
+            Assert.That(suggestionsRoot!.childCount, Is.GreaterThan(0));
+            Assert.That(((Label)suggestionsRoot[0]).text, Is.EqualTo("item"));
+
+            commandKeys.QueueSubmit();
+            controller.Tick();
+
+            Assert.That(binder.GetCommandText(), Is.EqualTo("give item"));
+            Assert.That(status!.text, Is.EqualTo("Developer tools active"));
+
+            UnityEngine.Object.DestroyImmediate(consoleGo);
+        }
+
+        [UnityTest]
+        public IEnumerator OpenConsole_RendersReadableDarkTextAcrossConsoleSurface()
+        {
+            var runtimeEvents = new DefaultRuntimeEvents();
+            var consoleGo = new GameObject("DevConsole");
+            var controller = consoleGo.AddComponent<DevConsoleController>();
+            var input = new TestInputSource();
+            using var runtime = new DevToolsRuntime();
+            var binder = BuildBinder();
+            controller.SetRuntime(runtime);
+            controller.SetInputSource(input);
+            controller.Configure(runtimeEvents);
+            controller.SetViewBinder(binder);
+
+            var prompt = binder.Root.Q<Label>("dev-console__prompt");
+            var command = binder.Root.Q<TextField>("dev-console__command");
+            var suggestions = binder.Root.Q<VisualElement>("dev-console__suggestions");
+            var status = binder.Root.Q<Label>("dev-console__status");
+            Assert.That(prompt, Is.Not.Null);
+            Assert.That(command, Is.Not.Null);
+            Assert.That(suggestions, Is.Not.Null);
+            Assert.That(status, Is.Not.Null);
+
+            var unreadableColor = new Color(0.9f, 1f, 0.95f, 1f);
+            prompt!.style.color = unreadableColor;
+            command!.style.color = unreadableColor;
+            status!.style.color = unreadableColor;
+            binder.SetCommandText("n");
+
+            yield return null;
+
+            input.QueueDevConsoleToggle();
+            controller.Tick();
+
+            Assert.That(prompt.style.color.value, Is.EqualTo(Color.black));
+            Assert.That(command.style.color.value, Is.EqualTo(Color.black));
+            Assert.That(status.style.color.value, Is.EqualTo(Color.black));
+            Assert.That(suggestions.childCount, Is.GreaterThan(0));
+            Assert.That(((Label)suggestions[0]).style.color.value, Is.EqualTo(Color.black));
+
+            UnityEngine.Object.DestroyImmediate(consoleGo);
+        }
+
+        [Test]
+        public void OpenConsole_FirstBackquoteKeyDown_IsSuppressed()
+        {
+            var binder = BuildBinder();
+            var keyHandler = typeof(DevConsoleViewBinder).GetMethod("HandleCommandFieldKeyDown", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(keyHandler, Is.Not.Null);
+
+            binder.Render(new DevConsoleUiState(
+                isVisible: true,
+                promptText: ">",
+                inputText: string.Empty,
+                statusText: string.Empty,
+                suggestions: Array.Empty<DevConsoleSuggestion>(),
+                highlightedSuggestionIndex: 0));
+
+            binder.SetCommandText("`");
+            using var keyDown = KeyDownEvent.GetPooled('`', KeyCode.BackQuote, EventModifiers.None);
+            keyHandler!.Invoke(binder, new object[] { keyDown });
+
+            Assert.That(binder.GetCommandText(), Is.EqualTo(string.Empty));
+        }
+
+        [UnityTest]
         public IEnumerator OpenConsole_SubmitAndCancelUseInjectedConsoleKeySource()
         {
             var runtimeEvents = new DefaultRuntimeEvents();
@@ -297,6 +452,23 @@ namespace Reloader.UI.Tests.PlayMode
                     UnityEngine.Object.DestroyImmediate(gameObjects[i]);
                 }
             }
+        }
+
+        private static void AssertCaretAtEndOfLine(TextField field, string text)
+        {
+            var expectedIndex = text.Length;
+            Assert.That(GetTextFieldIntProperty(field, "cursorIndex"), Is.EqualTo(expectedIndex));
+            Assert.That(GetTextFieldIntProperty(field, "selectIndex"), Is.EqualTo(expectedIndex));
+        }
+
+        private static int GetTextFieldIntProperty(TextField field, string propertyName)
+        {
+            var property = typeof(TextField).GetProperty(
+                propertyName,
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(property, Is.Not.Null, $"Expected TextField to expose '{propertyName}'.");
+            Assert.That(property!.GetValue(field), Is.TypeOf<int>(), $"Expected '{propertyName}' to be an int.");
+            return (int)property.GetValue(field);
         }
 
         private sealed class TestInputSource : IPlayerInputSource

@@ -166,6 +166,62 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
+        [Test]
+        public void MainTownScene_PlayerRoot_Kar98kScopedOverride_KeepsAuthoredMoveAwayOffset()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var playerRoot = FindRoot(scene, "PlayerRoot");
+                Assert.That(playerRoot, Is.Not.Null, "Expected authored PlayerRoot in MainTown.");
+
+                var helper = playerRoot!.GetComponent<WeaponViewPoseTuningHelper>();
+                Assert.That(helper, Is.Not.Null, "Expected WeaponViewPoseTuningHelper on MainTown PlayerRoot.");
+
+                var helperObject = new SerializedObject(helper);
+                var overrides = helperObject.FindProperty("_attachmentPoseOverrides");
+                Assert.That(overrides, Is.Not.Null);
+                Assert.That(overrides!.isArray, Is.True);
+
+                SerializedProperty scopedOverride = null;
+                for (var i = 0; i < overrides.arraySize; i++)
+                {
+                    var entry = overrides.GetArrayElementAtIndex(i);
+                    if (entry.FindPropertyRelative("_slotType").enumValueIndex != (int)Reloader.Weapons.Data.WeaponAttachmentSlotType.Scope)
+                    {
+                        continue;
+                    }
+
+                    if (!string.Equals(
+                            entry.FindPropertyRelative("_attachmentItemId").stringValue,
+                            "att-kar98k-scope-remote-a",
+                            StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    scopedOverride = entry;
+                    break;
+                }
+
+                Assert.That(scopedOverride, Is.Not.Null, "Expected MainTown to author a scoped Kar98k pose override.");
+                Assert.That(
+                    scopedOverride!.FindPropertyRelative("_scopedAdsEyeReliefBackOffset").floatValue,
+                    Is.EqualTo(-0.1f).Within(0.0001f),
+                    "MainTown scoped Kar98k tuning must keep the authored move-away offset so the PiP eyepiece stays out of the player camera.");
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
         private static bool InvokeShouldSeedDefaultWeaponPoseTuning(SerializedObject serializedObject)
         {
             Assert.That(ShouldSeedDefaultWeaponPoseTuningMethod, Is.Not.Null);

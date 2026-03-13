@@ -227,6 +227,7 @@ namespace Reloader.Core.Save.Modules
 
         private static CivilianPopulationRecord CloneRecord(CivilianPopulationRecord source)
         {
+            var isStyleAppearance = IsStyleAppearance(source?.BaseBodyId, source?.PresentationType);
             return new CivilianPopulationRecord
             {
                 PopulationSlotId = source.PopulationSlotId ?? string.Empty,
@@ -242,9 +243,10 @@ namespace Reloader.Core.Save.Modules
                 PresentationType = source.PresentationType ?? string.Empty,
                 HairId = source.HairId ?? string.Empty,
                 HairColorId = source.HairColorId ?? string.Empty,
+                EyebrowId = isStyleAppearance ? NormalizeStyleEyebrowId(source.EyebrowId, source.OutfitBottomId) : source.EyebrowId ?? string.Empty,
                 BeardId = source.BeardId ?? string.Empty,
                 OutfitTopId = source.OutfitTopId ?? string.Empty,
-                OutfitBottomId = source.OutfitBottomId ?? string.Empty,
+                OutfitBottomId = isStyleAppearance ? NormalizeStyleBottomId(source.OutfitBottomId) : source.OutfitBottomId ?? string.Empty,
                 OuterwearId = source.OuterwearId ?? string.Empty,
                 MaterialColorIds = NormalizeStringList(source.MaterialColorIds),
                 GeneratedDescriptionTags = NormalizeStringList(source.GeneratedDescriptionTags),
@@ -253,6 +255,53 @@ namespace Reloader.Core.Save.Modules
                 CreatedAtDay = source.CreatedAtDay,
                 RetiredAtDay = source.RetiredAtDay
             };
+        }
+
+        private static bool IsStyleAppearance(string baseBodyId, string presentationType)
+        {
+            return string.Equals(baseBodyId?.Trim(), "male.body", StringComparison.Ordinal)
+                   || string.Equals(baseBodyId?.Trim(), "female.body", StringComparison.Ordinal);
+        }
+
+        private static string NormalizeStyleBottomId(string bottomId)
+        {
+            return string.Equals(bottomId?.Trim(), "pants1", StringComparison.Ordinal) ? "pants1" : "pants1";
+        }
+
+        private static string NormalizeStyleEyebrowId(string eyebrowId, string legacyCarrierId)
+        {
+            var normalized = eyebrowId?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                normalized = legacyCarrierId?.Trim() ?? string.Empty;
+            }
+
+            return IsApprovedStyleEyebrowId(normalized) ? normalized : "brous1";
+        }
+
+        private static bool IsApprovedStyleEyebrowId(string eyebrowId)
+        {
+            if (string.IsNullOrWhiteSpace(eyebrowId))
+            {
+                return false;
+            }
+
+            switch (eyebrowId.Trim())
+            {
+                case "brous1":
+                case "brous2":
+                case "brous3":
+                case "brous4":
+                case "brous5":
+                case "brous6":
+                case "brous7":
+                case "brous8":
+                case "brous9":
+                case "brous10":
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         private static CivilianPopulationReplacementRecord CloneReplacement(CivilianPopulationReplacementRecord source)

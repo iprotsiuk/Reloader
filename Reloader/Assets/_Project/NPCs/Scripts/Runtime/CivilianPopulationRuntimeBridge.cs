@@ -1425,6 +1425,8 @@ namespace Reloader.NPCs.Runtime
 
         private static CivilianPopulationRecord CloneRecord(CivilianPopulationRecord source)
         {
+            var isStyleAppearance = MainTownCuratedAppearanceRules.IsCuratedStyleBodyId(source?.BaseBodyId);
+            MainTownCuratedAppearanceRules.TryInferGender(source?.BaseBodyId, source?.PresentationType, out var gender);
             return new CivilianPopulationRecord
             {
                 PopulationSlotId = source?.PopulationSlotId ?? string.Empty,
@@ -1440,9 +1442,14 @@ namespace Reloader.NPCs.Runtime
                 PresentationType = source?.PresentationType ?? string.Empty,
                 HairId = source?.HairId ?? string.Empty,
                 HairColorId = source?.HairColorId ?? string.Empty,
+                EyebrowId = isStyleAppearance
+                    ? MainTownCuratedAppearanceRules.NormalizeEyebrowId(source?.EyebrowId, source?.OutfitBottomId)
+                    : source?.EyebrowId ?? string.Empty,
                 BeardId = source?.BeardId ?? string.Empty,
                 OutfitTopId = source?.OutfitTopId ?? string.Empty,
-                OutfitBottomId = source?.OutfitBottomId ?? string.Empty,
+                OutfitBottomId = isStyleAppearance
+                    ? MainTownCuratedAppearanceRules.NormalizeBottomId(gender, source?.OutfitBottomId)
+                    : source?.OutfitBottomId ?? string.Empty,
                 OuterwearId = source?.OuterwearId ?? string.Empty,
                 MaterialColorIds = source?.MaterialColorIds != null ? new List<string>(source.MaterialColorIds) : new List<string>(),
                 GeneratedDescriptionTags = source?.GeneratedDescriptionTags != null ? new List<string>(source.GeneratedDescriptionTags) : new List<string>(),
