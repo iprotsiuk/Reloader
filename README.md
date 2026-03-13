@@ -162,19 +162,97 @@ This matters for portfolio review because the repo is meant to show both the gam
 
 The repo also includes workflow tooling around Unity-safe opening, command-line test execution, YAML merge setup, and AI-assisted development support.
 
-## Testing and Development Discipline
+## Testing / Verification
 
-One of the main goals of this repository is to show not only the game idea, but how I build.
+One of the main goals of this repository is to show not only the game idea, but how I build and validate it.
 
-- Modular asmdefs keep compile boundaries explicit
-- EditMode and PlayMode tests cover both system contracts and gameplay slices
-- Design docs distinguish clearly between implemented behavior and target vision
-- The status board ties major claims to concrete runtime or test evidence
-- The project is developed as a solo effort with AI assistance, but with explicit architecture contracts, planning docs, and verification rather than opaque automation
+### EditMode Coverage
 
-This is important to me because ambitious sandbox projects collapse quickly without structure. I want the repo to be readable, extensible, and honest about current scope.
+EditMode tests are used for fast structural and contract checks:
 
-If you are evaluating me as an engineer, this is the part of the project I would pay attention to: feature boundaries, save/load contracts, tests around gameplay slices, and the way the docs separate current reality from future ambition.
+- save/load module invariants and schema expectations
+- runtime state models and item-definition rules
+- scene and wiring validation for authored content
+- UI contracts and layout guardrails
+- dialogue, economy, and cross-domain runtime boundaries
+
+Examples:
+
+- `WorldObjectStateSaveModuleTests`
+- `WorkbenchRuntimeSaveBridgeEditModeTests`
+- `ContractRuntimeControllerTests`
+- `WorldSceneContractValidatorEditModeTests`
+- `TabInventoryResponsiveLayoutEditModeTests`
+
+### PlayMode Coverage
+
+PlayMode tests are used for live gameplay slices and regression-prone flows:
+
+- player movement, interaction, and inventory behavior
+- workbench and reloading interaction loops
+- world travel and authored scene transitions
+- contract, vendor, and dialogue flows
+- projectile, optic, and combat behavior
+
+Examples:
+
+- `PlayerControllerPlayModeTests`
+- `ReloadingBenchInteractionPlayModeTests`
+- `RoundTripTravelPlayModeTests`
+- `MainTownContractSlicePlayModeTests`
+- `WeaponProjectilePlayModeTests`
+- `EconomyControllerCheckoutPlayModeTests`
+
+### Save / Load Consistency
+
+Save/load correctness is treated as a first-class engineering problem, not a late integration detail. The current architecture centers on `SaveCoordinator`, versioned `SaveEnvelope` payloads, and deterministic per-module restore order.
+
+The current verification focus is on guarding against regressions such as:
+
+- dropped or duplicated world items after travel/load
+- broken workbench or mounted-runtime restoration
+- invalid module registration or schema mismatch
+- scene transitions that lose ownership or persistence state
+
+Concrete examples in the repo:
+
+- `WorldObjectStateSaveModuleTests`
+- `WorldObjectPersistenceRuntimeBridgePlayModeTests`
+- `WorkbenchRuntimeSaveBridgeEditModeTests`
+- `RoundTripTravelPlayModeTests`
+
+Named test assemblies include:
+
+- `Reloader.Core.Tests.EditMode`
+- `Reloader.Core.Tests.PlayMode`
+- `Reloader.World.Tests.EditMode`
+- `Reloader.World.Tests.PlayMode`
+- `Reloader.UI.Tests.EditMode`
+- `Reloader.UI.Tests.PlayMode`
+- `Reloader.Weapons.Tests.PlayMode`
+- `Reloader.PlayerDevice.Tests.EditMode`
+- `Reloader.PlayerDevice.Tests.PlayMode`
+
+This is important to me because ambitious sandbox projects collapse quickly without verification. I want the repo to be readable, extensible, and honest about current scope.
+
+## Developer Tooling
+
+The project includes both repository-level scripts and in-project developer utilities to keep iteration sane.
+
+Repository tooling:
+
+- `scripts/open-unity-safe.sh` prevents launching Unity when copy-suffix asset duplicates are detected
+- `scripts/run-unity-tests.sh` runs EditMode or PlayMode suites from the command line
+- `scripts/setup-unity-yaml-merge.sh` and `scripts/setup-git-hooks.sh` help keep Unity version control behavior under control
+- `scripts/verify-docs-and-context.sh` and `scripts/verify-extensible-development-contracts.sh` validate docs and architecture guardrails
+
+In-project tooling:
+
+- `Reloader/Assets/_Project/DevTools/**` contains runtime developer support for commands, tracing, and content-side debugging
+- dedicated test assemblies exist for this tooling: `Reloader.DevTools.Tests.EditMode` and `Reloader.DevTools.Tests.PlayMode`
+- example coverage includes `DevGiveItemCommandPlayModeTests`, `DevSpawnNpcCommandPlayModeTests`, and `DevTraceRuntimePlayModeTests`
+
+The repo is developed as a solo effort with AI assistance, but with explicit architecture contracts, planning docs, tooling, and verification rather than opaque automation.
 
 ## Getting Started
 
