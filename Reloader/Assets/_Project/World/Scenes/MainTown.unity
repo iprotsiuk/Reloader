@@ -5059,7 +5059,7 @@ MonoBehaviour:
     _adsLocalEuler: {x: 0, y: 0, z: 0}
     _blendSpeed: 24
     _rifleLocalEulerOffset: {x: 90, y: 0, z: 0}
-    _scopedAdsEyeReliefBackOffset: -0.1
+    _scopedAdsEyeReliefBackOffset: 0
   _activePoseSource: Base
   _activeAttachmentItemId: 
 --- !u!114 &573788857

@@ -19,6 +19,8 @@ namespace Reloader.World.Editor
 
     public sealed class StyleCrowdReviewSpec
     {
+        private const string DefaultEyebrowId = "brous1";
+
         public StyleCrowdReviewSpec(
             string name,
             string archetype,
@@ -37,8 +39,8 @@ namespace Reloader.World.Editor
             HairId = hairId?.Trim() ?? string.Empty;
             BeardId = beardId?.Trim() ?? string.Empty;
             TopId = topId?.Trim() ?? string.Empty;
-            EyebrowId = eyebrowId?.Trim() ?? string.Empty;
-            BottomId = bottomId?.Trim() ?? string.Empty;
+            EyebrowId = NormalizeEyebrowId(eyebrowId);
+            BottomId = NormalizeBottomId(bottomId);
         }
 
         public string Name { get; }
@@ -50,6 +52,22 @@ namespace Reloader.World.Editor
         public string TopId { get; }
         public string EyebrowId { get; }
         public string BottomId { get; }
+
+        private static string NormalizeEyebrowId(string eyebrowId)
+        {
+            var normalized = eyebrowId?.Trim() ?? string.Empty;
+            return StyleCrowdReviewCatalog.CommonEyebrowIds.Contains(normalized, StringComparer.Ordinal)
+                ? normalized
+                : DefaultEyebrowId;
+        }
+
+        private static string NormalizeBottomId(string bottomId)
+        {
+            var normalized = bottomId?.Trim() ?? string.Empty;
+            return StyleCrowdReviewCatalog.CommonBottomIds.Contains(normalized, StringComparer.Ordinal)
+                ? normalized
+                : StyleCrowdReviewCatalog.RequiredBottomId;
+        }
     }
 
     public static class StyleCrowdReviewCatalog

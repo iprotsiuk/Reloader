@@ -56,7 +56,7 @@ namespace Reloader.Game.Weapons
             AttachmentManager attachmentManager,
             AdsStateController adsStateController)
         {
-            var shouldRefreshRestPose = _adsPivot != adsPivot;
+            var shouldRefreshRestPose = _adsPivot != adsPivot || !ShouldPreserveCurrentRestPose(adsStateController);
             _adsPivot = adsPivot;
             _cameraTransform = cameraTransform;
             _attachmentManager = attachmentManager;
@@ -203,6 +203,11 @@ namespace Reloader.Game.Weapons
             _restLocalPosition = _adsPivot.localPosition;
             _restLocalRotation = _adsPivot.localRotation;
             _restPoseSourcePivot = _adsPivot;
+        }
+
+        private static bool ShouldPreserveCurrentRestPose(AdsStateController adsStateController)
+        {
+            return adsStateController != null && adsStateController.AdsT > 0.001f;
         }
 
 #if UNITY_EDITOR

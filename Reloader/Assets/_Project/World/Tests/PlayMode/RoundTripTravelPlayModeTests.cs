@@ -546,6 +546,12 @@ namespace Reloader.World.Tests.PlayMode
                 yield return null;
             }
 
+            yield return null;
+            if (!Application.isBatchMode)
+            {
+                yield return new WaitForEndOfFrame();
+            }
+
             var equippedViewTransformProperty = indoorWeaponController.GetType().GetProperty("EquippedWeaponViewTransform", BindingFlags.Instance | BindingFlags.Public);
             Assert.That(equippedViewTransformProperty, Is.Not.Null, "Expected EquippedWeaponViewTransform on PlayerWeaponController.");
             var equippedView = equippedViewTransformProperty!.GetValue(indoorWeaponController) as Transform;

@@ -101,11 +101,7 @@ namespace Reloader.NPCs.Generation
             if (IsStyleCompatibleAppearance(baseBodyId, presentationType, outfitTopId, outfitBottomId, outerwearId)
                 && MainTownCuratedAppearanceRules.TryInferGender(baseBodyId, presentationType, out var gender))
             {
-                if (string.IsNullOrWhiteSpace(eyebrowId))
-                {
-                    eyebrowId = MainTownCuratedAppearanceRules.NormalizeEyebrowId(eyebrowId);
-                }
-
+                eyebrowId = MainTownCuratedAppearanceRules.NormalizeEyebrowId(eyebrowId);
                 outfitBottomId = MainTownCuratedAppearanceRules.NormalizeBottomId(gender, outfitBottomId);
             }
 

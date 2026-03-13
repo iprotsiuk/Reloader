@@ -47,6 +47,44 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
+        public void StyleCrowdReviewSpec_WhenEyebrowAndBottomAreMissing_NormalizesToRequiredDefaults()
+        {
+            var spec = new StyleCrowdReviewSpec(
+                "Recovered_Missing_01",
+                "Recovered",
+                StyleCrowdReviewBatchKind.Recovered,
+                StyleCrowdReviewGender.Female,
+                "hair.bob",
+                string.Empty,
+                "tshirt1",
+                string.Empty,
+                string.Empty);
+
+            Assert.That(spec.EyebrowId, Is.EqualTo("brous1"));
+            Assert.That(spec.BottomId, Is.EqualTo("pants1"));
+        }
+
+        [Test]
+        public void GetDirectChildNamesToActivate_WhenSpecCarriesInvalidEyebrowAndBottom_HealsToSupportedDefaults()
+        {
+            var spec = new StyleCrowdReviewSpec(
+                "Recovered_Invalid_01",
+                "Recovered",
+                StyleCrowdReviewBatchKind.Recovered,
+                StyleCrowdReviewGender.Male,
+                "hair.short",
+                string.Empty,
+                "tshirt1",
+                "legacy.brows.invalid",
+                "legacy.bottom.invalid");
+
+            var activeNames = StyleCrowdReviewBuilder.GetDirectChildNamesToActivate(spec).ToArray();
+
+            CollectionAssert.Contains(activeNames, "brous1_brous1_brous1");
+            CollectionAssert.Contains(activeNames, "pants1_pants1_pants1");
+        }
+
+        [Test]
         public void GetDirectChildNamesToActivate_ForMaleSpec_EnablesExpectedGroups()
         {
             var spec = new StyleCrowdReviewSpec(

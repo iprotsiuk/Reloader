@@ -3255,6 +3255,32 @@ namespace Reloader.Weapons.Tests.PlayMode
                 });
                 SetControllerWeaponViewBinding(controller, "weapon-kar98k", rifleViewPrefab);
 
+                var poseHelper = root.AddComponent<WeaponViewPoseTuningHelper>();
+                var helperType = typeof(WeaponViewPoseTuningHelper);
+                SetField(helperType, poseHelper, "_weaponController", controller);
+                SetField(helperType, poseHelper, "_targetWeaponItemId", "weapon-kar98k");
+                SetField(helperType, poseHelper, "_hipLocalPosition", new Vector3(0.015f, 0.15f, 0.005f));
+                SetField(helperType, poseHelper, "_adsLocalPosition", new Vector3(0f, 0.2f, 0.077f));
+                SetField(helperType, poseHelper, "_hipLocalEuler", Vector3.zero);
+                SetField(helperType, poseHelper, "_adsLocalEuler", Vector3.zero);
+                SetField(helperType, poseHelper, "_rifleLocalEulerOffset", new Vector3(90f, 0f, 0f));
+                SetField(helperType, poseHelper, "_blendSpeed", 24f);
+
+                var overrideType = helperType.GetNestedType("AttachmentPoseOverride", BindingFlags.NonPublic);
+                var overrides = Array.CreateInstance(overrideType, 1);
+                var entry = Activator.CreateInstance(overrideType);
+                SetField(overrideType, entry, "_slotType", WeaponAttachmentSlotType.Scope);
+                SetField(overrideType, entry, "_attachmentItemId", "att-kar98k-scope-remote-a");
+                SetField(overrideType, entry, "_hipLocalPosition", new Vector3(0.015f, 0.15f, 0.005f));
+                SetField(overrideType, entry, "_hipLocalEuler", Vector3.zero);
+                SetField(overrideType, entry, "_adsLocalPosition", new Vector3(0f, 0.2f, 0.05f));
+                SetField(overrideType, entry, "_adsLocalEuler", Vector3.zero);
+                SetField(overrideType, entry, "_rifleLocalEulerOffset", new Vector3(90f, 0f, 0f));
+                SetField(overrideType, entry, "_blendSpeed", 24f);
+                SetField(overrideType, entry, "_scopedAdsEyeReliefBackOffset", 0f);
+                overrides.SetValue(entry, 0);
+                SetField(helperType, poseHelper, "_attachmentPoseOverrides", overrides);
+
                 yield return null;
 
                 Assert.That(controller.HasActiveScopedAdsAlignment, Is.False, "Expected irons to start without an active scoped ADS bridge.");
@@ -3304,8 +3330,20 @@ namespace Reloader.Weapons.Tests.PlayMode
                     }
                 }
 
+                yield return null;
+                if (!Application.isBatchMode)
+                {
+                    yield return new WaitForEndOfFrame();
+                }
+
                 var activeSightAnchor = Invoke(manager, "GetActiveSightAnchor") as Transform;
                 Assert.That(activeSightAnchor, Is.Not.Null);
+                var mounts = equippedView.GetComponent<WeaponViewAttachmentMounts>();
+                Assert.That(mounts, Is.Not.Null);
+                Assert.That(
+                    activeSightAnchor,
+                    Is.Not.SameAs(mounts!.IronSightAnchor),
+                    "Runtime attachment restore should keep AttachmentManager bound to the optic's authored SightAnchor instead of silently falling back to irons.");
 
                 var scopedAlignmentDistance = Vector3.Distance(activeSightAnchor.position, worldCamera.transform.position);
                 Assert.That(
@@ -4993,6 +5031,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetField(overrideType, entry, "_adsLocalEuler", Vector3.zero);
                 SetField(overrideType, entry, "_rifleLocalEulerOffset", new Vector3(90f, 0f, 0f));
                 SetField(overrideType, entry, "_blendSpeed", 24f);
+                SetField(overrideType, entry, "_scopedAdsEyeReliefBackOffset", 0f);
                 overrides.SetValue(entry, 0);
                 SetField(helperType, poseHelper, "_attachmentPoseOverrides", overrides);
 
@@ -5067,6 +5106,9 @@ namespace Reloader.Weapons.Tests.PlayMode
         public IEnumerator TrySwapEquippedWeaponAttachment_RealKar98kScopeAsset_AdsCycleRestoresViewAndAdsPivotPose()
         {
 #if UNITY_EDITOR
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+
             GameObject root = null;
             GameObject registryGo = null;
             GameObject worldCameraGo = null;
@@ -5182,6 +5224,16 @@ namespace Reloader.Weapons.Tests.PlayMode
                         yield return new WaitForEndOfFrame();
                     }
                 }
+
+                var manager = equippedView.GetComponent(attachmentManagerType);
+                Assert.That(manager, Is.Not.Null);
+                var activeSightAnchor = Invoke(manager, "GetActiveSightAnchor") as Transform;
+                Assert.That(activeSightAnchor, Is.Not.Null);
+                var scopedAlignmentDistance = Vector3.Distance(activeSightAnchor.position, worldCamera.transform.position);
+                Assert.That(
+                    scopedAlignmentDistance,
+                    Is.LessThan(0.04f),
+                    "Live Kar98k scope swaps should align the active sight anchor to the camera at full ADS instead of aiming through the stock.");
 
                 input.AimHeldValue = false;
                 frames = 0;
