@@ -430,3 +430,99 @@ Use readable escalation with evidence-based intervention:
 - identification should be conditional
 - `person of interest` should be enough to justify stop-and-frisk
 - hard arrest state should still require stronger confirmation, resistance, or incriminating discovery
+
+---
+
+## Driving And Island Setting Brainstorm
+
+Two additional direction changes should be captured together:
+- driving should become a real part of the core sandbox
+- the setting should pivot from a generic inland town read toward an island location
+
+These ideas reinforce each other. An island naturally makes roads, chokepoints, coastlines, ferry access, lighthouse jobs, and police containment more legible.
+
+### Why Driving Matters
+
+Driving should not be treated as a side feature or only a future travel screen wrapper.
+It should become part of the player's everyday criminal and civilian loop.
+
+Driving can support:
+- getting to jobs and shifts on time
+- carrying rifles, ammo, and contraband in vehicle storage
+- moving between firing positions and fallback routes
+- escaping police searches after a shot
+- relocating before the firing zone collapses around the player
+- passing through police stops and checkpoints while under suspicion
+
+If jobs are part of the fantasy, driving also supports the ordinary life layer:
+- commuting to work
+- arriving at authored locations with believable rhythm
+- parking near access points and hides
+- deciding what to leave in the car versus carry on-body
+
+### Why An Island Setting Helps
+
+Switching the location to an island is a strong fantasy and systems choice.
+
+It helps because:
+- geography becomes easier to read
+- escape routes become naturally limited
+- police containment makes more sense
+- harbors, ferries, bridges, and coastal roads become strong world anchors
+- cliffs, shorelines, ridges, and lighthouses create memorable shot positions
+- the town can feel more specific and less generic
+
+An island also strengthens the employment-as-cover idea:
+- lighthouse keeper
+- harbor worker
+- ferry operator or dock labor
+- maintenance or utility worker
+- coastal police patrol
+
+These roles feel more grounded and spatially important on an island than in an anonymous inland sandbox.
+
+### Core World Implications
+
+An island pivot should not just be visual dressing.
+It should shape the whole sandbox.
+
+Recommended island-world advantages:
+- fewer but more meaningful road routes
+- strong ingress/egress bottlenecks
+- clear districts with different visibility and law-enforcement pressure
+- coastal vantage points for long shots
+- harbors and ferries as civilian and police traffic anchors
+- more believable route planning for both player and police
+
+This also improves missed-shot and wanted-state gameplay:
+- police can lock down exits
+- bridges, ferry terminals, and causeways become natural search pressure points
+- vehicle checks become more meaningful
+- relocating across the island remains possible, but not trivial
+
+### Driving As Core Sandbox Verb
+
+Recommended rule:
+- driving should become a core sandbox verb, not just a traversal shortcut
+
+That means vehicles should matter for:
+- logistics
+- concealment
+- timing
+- escape
+- police exposure
+
+Examples:
+- stash the rifle in the trunk before a stop-and-frisk
+- leave a vantage point before witnesses produce a stronger lead
+- risk driving through a checkpoint while only a person of interest
+- use a work vehicle or job access route as legal cover
+
+### Recommendation
+
+Capture both pivots as part of the broader sandbox direction:
+- `driving` should be promoted from future flavor to core loop support
+- `island setting` should be treated as a serious world-direction pivot because it improves readability, tone, containment, and employment/location fantasy
+
+The island should not be chosen only because it sounds cool.
+It should be chosen because it gives the game stronger geography for contracts, jobs, investigation, checkpoints, and escape.
