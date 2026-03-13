@@ -209,6 +209,8 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier:
   _targetRenderer: {fileID: 6379749452625415218}
+  _proxyDisplayLocalOffset: {x: 0, y: 0, z: 0}
+  _proxyDisplayScaleMultiplier: 0.95
 --- !u!1 &9098247942822831858
 GameObject:
   m_ObjectHideFlags: 0

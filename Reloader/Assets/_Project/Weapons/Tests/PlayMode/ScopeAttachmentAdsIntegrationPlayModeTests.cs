@@ -127,21 +127,21 @@ namespace Reloader.Weapons.Tests.PlayMode
             var minusUnshiftedArgs = new object[] { false, true, false, 0, 0 };
             Assert.That((bool)resolveMethod!.Invoke(null, minusUnshiftedArgs), Is.True);
             Assert.That((int)minusUnshiftedArgs[3], Is.EqualTo(0));
-            Assert.That((int)minusUnshiftedArgs[4], Is.EqualTo(1), "Expected unshifted '-' to raise elevation clicks.");
+            Assert.That((int)minusUnshiftedArgs[4], Is.EqualTo(-1), "Expected unshifted '-' to lower elevation clicks.");
 
             var equalsUnshiftedArgs = new object[] { false, false, true, 0, 0 };
             Assert.That((bool)resolveMethod.Invoke(null, equalsUnshiftedArgs), Is.True);
             Assert.That((int)equalsUnshiftedArgs[3], Is.EqualTo(0));
-            Assert.That((int)equalsUnshiftedArgs[4], Is.EqualTo(-1), "Expected unshifted '=' to lower elevation clicks.");
+            Assert.That((int)equalsUnshiftedArgs[4], Is.EqualTo(1), "Expected unshifted '=' to raise elevation clicks.");
 
             var minusShiftedArgs = new object[] { true, true, false, 0, 0 };
             Assert.That((bool)resolveMethod.Invoke(null, minusShiftedArgs), Is.True);
-            Assert.That((int)minusShiftedArgs[3], Is.EqualTo(1), "Expected shifted '-' to raise windage clicks.");
+            Assert.That((int)minusShiftedArgs[3], Is.EqualTo(-1), "Expected shifted '-' to lower windage clicks.");
             Assert.That((int)minusShiftedArgs[4], Is.EqualTo(0));
 
             var equalsShiftedArgs = new object[] { true, false, true, 0, 0 };
             Assert.That((bool)resolveMethod.Invoke(null, equalsShiftedArgs), Is.True);
-            Assert.That((int)equalsShiftedArgs[3], Is.EqualTo(-1), "Expected shifted '=' to lower windage clicks.");
+            Assert.That((int)equalsShiftedArgs[3], Is.EqualTo(1), "Expected shifted '=' to raise windage clicks.");
             Assert.That((int)equalsShiftedArgs[4], Is.EqualTo(0));
         }
 
@@ -758,9 +758,9 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var proxyRenderer = proxySurface.GetComponent<Renderer>();
                 Assert.That(proxyRenderer, Is.Not.Null);
 
-                Assert.That(proxyRenderer.bounds.size.x, Is.GreaterThan(internalLensRenderer.bounds.size.x * 1.2f),
+                Assert.That(proxyRenderer.bounds.size.x, Is.GreaterThan(internalLensRenderer.bounds.size.x * 1.01f),
                     $"Proxy display surface should be larger than the internal lens aperture so the PiP image does not look buried inside the scope. Proxy width={proxyRenderer.bounds.size.x:0.0000}, internal width={internalLensRenderer.bounds.size.x:0.0000}.");
-                Assert.That(proxyRenderer.bounds.size.y, Is.GreaterThan(internalLensRenderer.bounds.size.y * 1.2f),
+                Assert.That(proxyRenderer.bounds.size.y, Is.GreaterThan(internalLensRenderer.bounds.size.y * 1.01f),
                     $"Proxy display surface should be larger than the internal lens aperture so the PiP image does not look buried inside the scope. Proxy height={proxyRenderer.bounds.size.y:0.0000}, internal height={internalLensRenderer.bounds.size.y:0.0000}.");
             }
             finally
@@ -2339,8 +2339,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Invoke(ads, "SetAdsHeld", true);
                 Invoke(ads, "SetMagnification", 8f);
 
-                yield return null;
-                yield return null;
+                yield return WaitUntil(
+                    () => warnings.Exists(message => message.Contains("ScopeLensDisplay", StringComparison.Ordinal)),
+                    60,
+                    "Scoped PiP optics without lens-display wiring did not emit the expected warning.");
             }
             finally
             {

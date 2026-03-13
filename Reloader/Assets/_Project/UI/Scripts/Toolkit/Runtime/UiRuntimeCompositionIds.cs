@@ -5,6 +5,7 @@ namespace Reloader.UI.Toolkit.Runtime
         public static class ScreenIds
         {
             public const string BeltHud = "belt-hud";
+            public const string CompassHud = "compass-hud";
             public const string AmmoHud = "ammo-hud";
             public const string TabInventory = "tab-inventory";
             public const string EscMenu = "esc-menu";
@@ -19,6 +20,7 @@ namespace Reloader.UI.Toolkit.Runtime
         public static class ControllerObjectNames
         {
             public const string BeltHud = "belt-hud-controller";
+            public const string CompassHud = "compass-hud-controller";
             public const string AmmoHud = "ammo-hud-controller";
             public const string TabInventory = "tab-menu-controller";
             public const string EscMenu = "esc-menu-controller";

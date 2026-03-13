@@ -13,6 +13,7 @@ using Reloader.Weapons.Controllers;
 using Reloader.Weapons.Data;
 using Reloader.Weapons.Runtime;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
@@ -25,17 +26,53 @@ namespace Reloader.Weapons.Tests.PlayMode
     public class PlayerWeaponControllerPlayModeTests
     {
         private IGameEventsRuntimeHub _runtimeEventsBeforeEachTest;
+        private readonly HashSet<int> _baselineRootInstanceIds = new();
 
         [SetUp]
         public void SetUp()
         {
             _runtimeEventsBeforeEachTest = RuntimeKernelBootstrapper.Events;
+            _baselineRootInstanceIds.Clear();
+
+            var activeScene = SceneManager.GetActiveScene();
+            var roots = activeScene.GetRootGameObjects();
+            for (var i = 0; i < roots.Length; i++)
+            {
+                var root = roots[i];
+                if (root == null)
+                {
+                    continue;
+                }
+
+                _baselineRootInstanceIds.Add(root.GetInstanceID());
+            }
         }
 
         [TearDown]
         public void TearDown()
         {
             RuntimeKernelBootstrapper.Events = _runtimeEventsBeforeEachTest;
+        }
+
+        [UnityTearDown]
+        public IEnumerator UnityTearDown()
+        {
+            RuntimeKernelBootstrapper.Events = _runtimeEventsBeforeEachTest;
+
+            var activeScene = SceneManager.GetActiveScene();
+            var roots = activeScene.GetRootGameObjects();
+            for (var i = 0; i < roots.Length; i++)
+            {
+                var root = roots[i];
+                if (root == null || _baselineRootInstanceIds.Contains(root.GetInstanceID()))
+                {
+                    continue;
+                }
+
+                Object.Destroy(root);
+            }
+
+            yield return null;
         }
 
         [UnityTest]
@@ -62,6 +99,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             try
             {
                 root = new GameObject("PlayerRoot");
+                root.transform.position = new Vector3(0f, 1000f, 0f);
                 var input = root.AddComponent<TestInputSource>();
                 var resolver = root.AddComponent<TestPickupResolver>();
                 var inventoryController = root.AddComponent<PlayerInventoryController>();
@@ -95,6 +133,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 fallbackHandlersRegistered = true;
 
                 var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
                 controller.Configure(weaponEvents: injectedEvents, inventoryEvents: injectedEvents);
                 yield return null;
 
@@ -157,6 +196,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(definition, Is.Not.Null, "Expected the real StarterRifle weapon definition asset.");
 
                 root = new GameObject("PlayerRoot");
+                root.transform.position = new Vector3(0f, 1000f, 0f);
                 var input = root.AddComponent<TestInputSource>();
                 var resolver = root.AddComponent<TestPickupResolver>();
                 var inventoryController = root.AddComponent<PlayerInventoryController>();
@@ -171,7 +211,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 registry.SetDefinitionsForTests(new[] { definition });
 
                 target = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                target.transform.position = new Vector3(0f, -4f, 300f);
+                target.transform.position = new Vector3(0f, 1000f, 300f);
                 target.transform.localScale = new Vector3(60f, 120f, 1f);
                 var receiver = target.AddComponent<TestDamageable>();
 
@@ -243,6 +283,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             try
             {
                 root = new GameObject("PlayerRoot");
+                root.transform.position = new Vector3(0f, 1000f, 0f);
                 var input = root.AddComponent<TestInputSource>();
                 var resolver = root.AddComponent<TestPickupResolver>();
                 var inventoryController = root.AddComponent<PlayerInventoryController>();
@@ -320,6 +361,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             try
             {
                 root = new GameObject("PlayerRoot");
+                root.transform.position = new Vector3(0f, 1000f, 0f);
                 var input = root.AddComponent<TestInputSource>();
                 var resolver = root.AddComponent<TestPickupResolver>();
                 var inventoryController = root.AddComponent<PlayerInventoryController>();
@@ -336,8 +378,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 registry.SetDefinitionsForTests(new[] { definition });
 
                 target = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                target.transform.position = new Vector3(0f, 0f, 2f);
-                target.transform.localScale = new Vector3(8f, 8f, 0.5f);
+                target.transform.position = new Vector3(0f, 1000f, 20f);
+                target.transform.localScale = new Vector3(40f, 40f, 8f);
 
                 var injectedEvents = new DefaultRuntimeEvents();
                 var injectedProjectileHitRaised = 0;
@@ -769,6 +811,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_weaponRegistry", registry);
 
             string equipped = null;
             string fired = null;
@@ -849,7 +892,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
             registry.SetDefinitionsForTests(new[] { definition });
 
-            root.AddComponent<PlayerWeaponController>();
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_weaponRegistry", registry);
 
             string equipped = null;
             runtimeEvents.OnWeaponEquipped += OnEquipped;
@@ -1402,7 +1446,6 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var controller = root.AddComponent<PlayerWeaponController>();
                 SetControllerField(controller, "_weaponRegistry", registry);
                 SetControllerField(controller, "_weaponViewParent", root.transform);
-                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
                 yield return null;
 
                 var equippedView = root.transform.Find("EquippedView_weapon-kar98k");
@@ -1522,10 +1565,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var controller = root.AddComponent<PlayerWeaponController>();
                 SetControllerField(controller, "_weaponRegistry", registry);
                 SetControllerField(controller, "_weaponViewParent", root.transform);
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
                 yield return null;
 
                 var viewName = "EquippedView_weapon-kar98k";
-                Assert.That(root.transform.Find(viewName), Is.Not.Null);
+                Assert.That(root.transform.Find(viewName), Is.Not.Null, "Initial equip should spawn the bound weapon view.");
                 Assert.That(equipStartedCount, Is.EqualTo(1));
                 Assert.That(unequipStartedCount, Is.EqualTo(0));
 
@@ -1782,6 +1826,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             try
             {
                 root = new GameObject("PlayerRoot");
+                root.transform.position = new Vector3(0f, 1000f, 0f);
                 var input = root.AddComponent<TestInputSource>();
                 var resolver = root.AddComponent<TestPickupResolver>();
                 var inventoryController = root.AddComponent<PlayerInventoryController>();
@@ -2072,6 +2117,9 @@ namespace Reloader.Weapons.Tests.PlayMode
         [UnityTest]
         public IEnumerator TrySwapEquippedWeaponAttachment_WithOwnedCompatibleAttachment_PerformsAtomicSwapAndUpdatesRuntimeState()
         {
+            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            Assert.That(opticDefinitionType, Is.Not.Null);
+
             var root = new GameObject("PlayerRoot");
             var input = root.AddComponent<TestInputSource>();
             var resolver = root.AddComponent<TestPickupResolver>();
@@ -2097,6 +2145,18 @@ namespace Reloader.Weapons.Tests.PlayMode
             {
                 WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x", "att-optic-8x" })
             });
+            var lowOpticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+            var lowOpticPrefab = new GameObject("OpticFourXPrefab");
+            new GameObject("SightAnchor").transform.SetParent(lowOpticPrefab.transform, false);
+            SetField(opticDefinitionType, lowOpticDefinition, "_opticId", "att-optic-4x");
+            SetField(opticDefinitionType, lowOpticDefinition, "_opticPrefab", lowOpticPrefab);
+
+            var highOpticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+            var highOpticPrefab = new GameObject("OpticEightXPrefab");
+            new GameObject("SightAnchor").transform.SetParent(highOpticPrefab.transform, false);
+            SetField(opticDefinitionType, highOpticDefinition, "_opticId", "att-optic-8x");
+            SetField(opticDefinitionType, highOpticDefinition, "_opticPrefab", highOpticPrefab);
+
             var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(iconPrefabField, Is.Not.Null);
             iconPrefabField.SetValue(definition, viewPrefab);
@@ -2106,8 +2166,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             SetControllerField(controller, "_weaponRegistry", registry);
             SetControllerField(controller, "_attachmentItemMetadata", new[]
             {
-                WeaponAttachmentItemMetadata.CreateForTests("att-optic-4x", WeaponAttachmentSlotType.Scope),
-                WeaponAttachmentItemMetadata.CreateForTests("att-optic-8x", WeaponAttachmentSlotType.Scope)
+                WeaponAttachmentItemMetadata.CreateForTests("att-optic-4x", WeaponAttachmentSlotType.Scope, lowOpticDefinition),
+                WeaponAttachmentItemMetadata.CreateForTests("att-optic-8x", WeaponAttachmentSlotType.Scope, highOpticDefinition)
             });
             SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
@@ -2128,11 +2188,20 @@ namespace Reloader.Weapons.Tests.PlayMode
             Object.Destroy(registryGo);
             Object.Destroy(definition);
             Object.Destroy(viewPrefab);
+            Object.Destroy(lowOpticDefinition);
+            Object.Destroy(lowOpticPrefab);
+            Object.Destroy(highOpticDefinition);
+            Object.Destroy(highOpticPrefab);
         }
 
         [UnityTest]
         public IEnumerator TrySwapEquippedWeaponAttachment_AllowsCompatibilityBasedSwap_WhenMetadataLookupIsEmpty()
         {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(opticDefinitionType, Is.Not.Null);
+
             var root = new GameObject("PlayerRoot");
             var input = root.AddComponent<TestInputSource>();
             var resolver = root.AddComponent<TestPickupResolver>();
@@ -2153,11 +2222,28 @@ namespace Reloader.Weapons.Tests.PlayMode
             var ironSightAnchor = new GameObject("IronSightAnchor").transform;
             ironSightAnchor.SetParent(viewPrefab.transform, false);
             ConfigureTestWeaponViewMounts(viewPrefab, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
+            var manager = viewPrefab.AddComponent(attachmentManagerType);
+            var scopeSlotField = attachmentManagerType.GetField("_scopeSlot", BindingFlags.Instance | BindingFlags.NonPublic);
+            var ironSightField = attachmentManagerType.GetField("_ironSightAnchor", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(scopeSlotField, Is.Not.Null);
+            Assert.That(ironSightField, Is.Not.Null);
+            scopeSlotField.SetValue(manager, scopeSlot);
+            ironSightField.SetValue(manager, ironSightAnchor);
             definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
             definition.SetAttachmentCompatibilitiesForTests(new[]
             {
                 WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-4x" })
             });
+            var opticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+            var opticPrefab = new GameObject("OpticFourXPrefab");
+            new GameObject("SightAnchor").transform.SetParent(opticPrefab.transform, false);
+            SetField(opticDefinitionType, opticDefinition, "_opticId", "att-optic-4x");
+            SetField(opticDefinitionType, opticDefinition, "_isVariableZoom", false);
+            SetField(opticDefinitionType, opticDefinition, "_magnificationMin", 1f);
+            SetField(opticDefinitionType, opticDefinition, "_magnificationMax", 1f);
+            SetField(opticDefinitionType, opticDefinition, "_magnificationStep", 1f);
+            SetField(opticDefinitionType, opticDefinition, "_visualModePolicy", Enum.Parse(ResolveType("Reloader.Game.Weapons.AdsVisualMode"), "Auto"));
+            SetField(opticDefinitionType, opticDefinition, "_opticPrefab", opticPrefab);
             var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(iconPrefabField, Is.Not.Null);
             iconPrefabField.SetValue(definition, viewPrefab);
@@ -2178,6 +2264,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             Object.Destroy(registryGo);
             Object.Destroy(definition);
             Object.Destroy(viewPrefab);
+            Object.Destroy(opticDefinition);
+            Object.Destroy(opticPrefab);
         }
 
         [UnityTest]
@@ -2278,9 +2366,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetControllerField(controller, "_weaponRegistry", registry);
                 SetControllerField(controller, "_attachmentItemMetadata", new[]
                 {
-                    WeaponAttachmentItemMetadata.CreateForTests("att-optic-4x", WeaponAttachmentSlotType.Scope),
-                    WeaponAttachmentItemMetadata.CreateForTests("att-optic-8x", WeaponAttachmentSlotType.Scope)
+                    WeaponAttachmentItemMetadata.CreateForTests("att-optic-4x", WeaponAttachmentSlotType.Scope, lowOpticDefinition),
+                    WeaponAttachmentItemMetadata.CreateForTests("att-optic-8x", WeaponAttachmentSlotType.Scope, highOpticDefinition)
                 });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
                 yield return null;
                 Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
@@ -2300,8 +2389,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(activeOpticProperty, Is.Not.Null);
                 var activeOptic = activeOpticProperty.GetValue(bridgedManager);
                 Assert.That(activeOptic, Is.Not.Null);
-                Assert.That(scopeSlot.childCount, Is.EqualTo(1), "Scope should be mounted into scope slot.");
-                Assert.That(scopeSlot.GetChild(0).gameObject.layer, Is.EqualTo(scopeSlot.gameObject.layer), "Mounted scope visual must inherit slot layer so the viewmodel camera can render it.");
+                var runtimeScopeSlot = equippedView.transform.Find("ScopeSlot");
+                Assert.That(runtimeScopeSlot, Is.Not.Null);
+                Assert.That(runtimeScopeSlot.childCount, Is.EqualTo(1), "Scope should be mounted into scope slot.");
+                Assert.That(runtimeScopeSlot.GetChild(0).gameObject.layer, Is.EqualTo(runtimeScopeSlot.gameObject.layer), "Mounted scope visual must inherit slot layer so the viewmodel camera can render it.");
                 var opticIdProperty = opticDefinitionType.GetProperty("OpticId", BindingFlags.Instance | BindingFlags.Public);
                 Assert.That(opticIdProperty, Is.Not.Null);
                 Assert.That((string)opticIdProperty.GetValue(activeOptic), Is.EqualTo("att-optic-8x"));
@@ -2330,8 +2421,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 yield return null;
                 yield return null;
                 Assert.That((bool)GetProperty(scopeMask, "IsMaskVisible"), Is.False);
-                Assert.That(scopeSlot.childCount, Is.EqualTo(1), "Scope should remain mounted after hot swap.");
-                Assert.That(scopeSlot.GetChild(0).gameObject.layer, Is.EqualTo(scopeSlot.gameObject.layer), "Swapped scope visual must inherit slot layer.");
+                Assert.That(runtimeScopeSlot.childCount, Is.EqualTo(1), "Scope should remain mounted after hot swap.");
+                Assert.That(runtimeScopeSlot.GetChild(0).gameObject.layer, Is.EqualTo(runtimeScopeSlot.gameObject.layer), "Swapped scope visual must inherit slot layer.");
 
                 activeOptic = activeOpticProperty.GetValue(bridgedManager);
                 Assert.That((string)opticIdProperty.GetValue(activeOptic), Is.EqualTo("att-optic-4x"));
@@ -2455,6 +2546,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                         WeaponAttachmentSlotType.Scope,
                         opticDefinition)
                 });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
                 yield return null;
 
@@ -2621,6 +2713,90 @@ namespace Reloader.Weapons.Tests.PlayMode
                 if (opticPrefab != null)
                 {
                     Object.Destroy(opticPrefab);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator TrySwapEquippedWeaponAttachment_ReturnsFalse_WhenDefinitionIsUnresolved_AndRollsBackInventory()
+        {
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+                runtime.TryAddStackItem("att-optic-unresolved", 1, out _, out _, out _);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-unresolved" })
+                });
+
+                viewPrefab = new GameObject("Kar98kView");
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(viewPrefab.transform, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(viewPrefab.transform, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests("att-optic-unresolved", WeaponAttachmentSlotType.Scope)
+                });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
+
+                yield return null;
+
+                Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+                Assert.That(state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.EqualTo(string.Empty));
+                Assert.That(runtime.GetItemQuantity("att-optic-unresolved"), Is.EqualTo(1));
+
+                var swapped = controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-optic-unresolved");
+                Assert.That(swapped, Is.False, "Swap must fail when runtime definition cannot be resolved.");
+                Assert.That(state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.EqualTo(string.Empty), "State should roll back when runtime definition is unresolved.");
+                Assert.That(runtime.GetItemQuantity("att-optic-unresolved"), Is.EqualTo(1), "Inventory should not consume attachment on unresolved runtime definition.");
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
                 }
             }
         }
@@ -2850,8 +3026,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetControllerField(controller, "_combatAudioEmitter", emitterSpy);
                 SetControllerField(controller, "_attachmentItemMetadata", new[]
                 {
-                    WeaponAttachmentItemMetadata.CreateForTests("att-muzzle-a", WeaponAttachmentSlotType.Muzzle),
-                    WeaponAttachmentItemMetadata.CreateForTests("att-muzzle-b", WeaponAttachmentSlotType.Muzzle)
+                    WeaponAttachmentItemMetadata.CreateForTests("att-muzzle-a", WeaponAttachmentSlotType.Muzzle, muzzleA),
+                    WeaponAttachmentItemMetadata.CreateForTests("att-muzzle-b", WeaponAttachmentSlotType.Muzzle, muzzleB)
                 });
                 SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
@@ -2868,6 +3044,13 @@ namespace Reloader.Weapons.Tests.PlayMode
                 yield return null;
                 Assert.That(emitterSpy.LastFireOverrideClip, Is.SameAs(clipB), "Initial equipped muzzle override should match runtime slot id.");
 
+                var fireReadyDeadline = Time.time + 1f;
+                while (!state.CanFire(Time.time) && Time.time < fireReadyDeadline)
+                {
+                    yield return null;
+                }
+
+                Assert.That(state.CanFire(Time.time), Is.True, "Expected the weapon to clear its fire interval before validating the hot-swapped muzzle override.");
                 Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Muzzle, "att-muzzle-a"), Is.True);
                 input.FirePressedThisFrame = true;
                 yield return null;
@@ -3724,10 +3907,12 @@ namespace Reloader.Weapons.Tests.PlayMode
             var adsControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
             var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
             var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            var scopeLensDisplayType = ResolveType("Reloader.Game.Weapons.ScopeLensDisplay");
             Assert.That(attachmentManagerType, Is.Not.Null);
             Assert.That(adsControllerType, Is.Not.Null);
             Assert.That(renderTextureScopeControllerType, Is.Not.Null);
             Assert.That(opticDefinitionType, Is.Not.Null);
+            Assert.That(scopeLensDisplayType, Is.Not.Null);
 
             GameObject root = null;
             GameObject registryGo = null;
@@ -3782,6 +3967,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 opticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
                 opticPrefab = new GameObject("OpticPiPRefreshPrefab");
                 new GameObject("SightAnchor").transform.SetParent(opticPrefab.transform, false);
+                var lensDisplayGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                lensDisplayGo.name = "LensDisplay";
+                lensDisplayGo.transform.SetParent(opticPrefab.transform, false);
+                var prefabLensDisplay = lensDisplayGo.AddComponent(scopeLensDisplayType);
+                SetField(scopeLensDisplayType, prefabLensDisplay, "_targetRenderer", lensDisplayGo.GetComponent<Renderer>());
                 SetField(opticDefinitionType, opticDefinition, "_opticId", "att-optic-pip-refresh");
                 SetField(opticDefinitionType, opticDefinition, "_isVariableZoom", true);
                 SetField(opticDefinitionType, opticDefinition, "_magnificationMin", 4f);
@@ -3814,18 +4004,26 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(renderTextureScopeController, Is.Not.Null);
                 Assert.That(scopeCamera, Is.Not.Null);
 
-                Invoke(adsBridge, "SetAdsHeld", true);
+                input.AimHeldValue = true;
                 Invoke(adsBridge, "SetMagnification", 6f);
-                yield return null;
-                yield return null;
+                var activationElapsed = 0f;
+                while ((!scopeCamera.enabled || scopeCamera.targetTexture == null) && activationElapsed < 0.5f)
+                {
+                    activationElapsed += Time.deltaTime;
+                    yield return null;
+                }
 
                 var originalTargetTexture = scopeCamera.targetTexture;
                 Assert.That(scopeCamera.enabled, Is.True);
                 Assert.That(originalTargetTexture, Is.Not.Null);
 
                 Invoke(controller, "EnsureScopedAdsRuntimeBridge", equippedView, attachmentManager);
-                yield return null;
-                yield return null;
+                var refreshElapsed = 0f;
+                while ((!scopeCamera.enabled || !ReferenceEquals(scopeCamera.targetTexture, originalTargetTexture)) && refreshElapsed < 0.5f)
+                {
+                    refreshElapsed += Time.deltaTime;
+                    yield return null;
+                }
 
                 Assert.That(scopeCamera.enabled, Is.True, "Refreshing the scoped ADS bridge should not disable the live PiP scope camera.");
                 Assert.That(scopeCamera.targetTexture, Is.SameAs(originalTargetTexture), "Refreshing the scoped ADS bridge should preserve the live PiP render texture binding.");
@@ -4596,7 +4794,12 @@ namespace Reloader.Weapons.Tests.PlayMode
                 equippedView.localPosition = Vector3.zero;
                 input.AimHeldValue = true;
 
-                yield return null;
+                var aimElapsed = 0f;
+                while (equippedView.localPosition.x <= 0.1f && aimElapsed < 0.5f)
+                {
+                    aimElapsed += Time.deltaTime;
+                    yield return null;
+                }
 
                 Assert.That(equippedView.localPosition.x, Is.GreaterThan(0.1f), "1x optics should still use tuned ADS pose instead of bypassing pose updates.");
             }
@@ -4882,12 +5085,37 @@ namespace Reloader.Weapons.Tests.PlayMode
                 runtime.SelectBeltSlot(0);
                 yield return null;
 
+                var bridgeFrames = 0;
+                while (!controller.HasActiveScopedAdsAlignment && bridgeFrames < 60)
+                {
+                    bridgeFrames++;
+                    yield return null;
+                }
+
+                Assert.That(controller.HasActiveScopedAdsAlignment, Is.True);
                 input.AimHeldValue = true;
-                yield return null;
-                yield return new WaitForEndOfFrame();
 
                 var adsBridge = GetControllerField<Component>(controller, "_adsStateRuntimeBridge");
                 Assert.That(adsBridge, Is.Not.Null);
+
+                var syncFrames = 0;
+                while (syncFrames < 60)
+                {
+                    syncFrames++;
+                    yield return null;
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
+
+                    var adsBlendSample = (float)GetProperty(adsBridge, "AdsT");
+                    var helperBlendSample = (float)GetField(helperType, poseHelper, "_blendT");
+                    if (Mathf.Abs(helperBlendSample - adsBlendSample) <= 0.001f)
+                    {
+                        break;
+                    }
+                }
+
                 var adsBlendT = (float)GetProperty(adsBridge, "AdsT");
                 var helperBlendT = (float)GetField(helperType, poseHelper, "_blendT");
 
@@ -5028,6 +5256,14 @@ namespace Reloader.Weapons.Tests.PlayMode
                 runtime.SelectBeltSlot(0);
                 yield return null;
 
+                var bridgeFrames = 0;
+                while (!controller.HasActiveScopedAdsAlignment && bridgeFrames < 60)
+                {
+                    bridgeFrames++;
+                    yield return null;
+                }
+
+                Assert.That(controller.HasActiveScopedAdsAlignment, Is.True);
                 input.AimHeldValue = true;
 
                 var adsBridge = GetControllerField<Component>(controller, "_adsStateRuntimeBridge");
@@ -5038,6 +5274,15 @@ namespace Reloader.Weapons.Tests.PlayMode
                 {
                     frames++;
                     yield return null;
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
+                }
+
+                yield return null;
+                if (!Application.isBatchMode)
+                {
                     yield return new WaitForEndOfFrame();
                 }
 
@@ -5053,7 +5298,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 for (var i = 0; i < 10; i++)
                 {
                     yield return null;
-                    yield return new WaitForEndOfFrame();
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
                 }
 
                 var settledAlignmentDistance = Vector3.Distance(activeSightAnchor.position, worldCamera.transform.position);
@@ -5209,7 +5457,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 {
                     frames++;
                     yield return null;
-                    yield return new WaitForEndOfFrame();
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
                 }
 
                 var equippedView = controller.EquippedWeaponViewTransform;
@@ -5223,7 +5474,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 for (var i = 0; i < 10; i++)
                 {
                     yield return null;
-                    yield return new WaitForEndOfFrame();
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
                 }
 
                 var distanceAfterSettle = Vector3.Distance(activeSightAnchor.position, worldCamera.transform.position);
@@ -5755,7 +6009,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 {
                     frames++;
                     yield return null;
-                    yield return new WaitForEndOfFrame();
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
                 }
 
                 var equippedView = controller.EquippedWeaponViewTransform;
@@ -5771,7 +6028,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(poseHelper.TrySetAttachmentPoseOverride(activeSlot, activeAttachmentItemId, activeValues), Is.True);
 
                 yield return null;
-                yield return new WaitForEndOfFrame();
+                if (!Application.isBatchMode)
+                {
+                    yield return new WaitForEndOfFrame();
+                }
 
                 var afterRetune = runtimeAdsPivot.localPosition;
                 Assert.That(

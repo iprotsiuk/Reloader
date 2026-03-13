@@ -7,6 +7,7 @@ namespace Reloader.UI.Toolkit.Runtime
     {
         [SerializeField] private PanelSettings _panelSettings;
         [SerializeField] private VisualTreeAsset _beltHudTree;
+        [SerializeField] private VisualTreeAsset _compassHudTree;
         [SerializeField] private VisualTreeAsset _ammoHudTree;
         [SerializeField] private VisualTreeAsset _tabInventoryTree;
         [SerializeField] private VisualTreeAsset _escMenuTree;
@@ -24,6 +25,7 @@ namespace Reloader.UI.Toolkit.Runtime
             ResolveDefaultReferencesIfNeeded();
             _runtimeRoot = EnsureRuntimeRoot();
             EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.BeltHud, _beltHudTree);
+            EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.CompassHud, _compassHudTree);
             EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.AmmoHud, _ammoHudTree);
             EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.TabInventory, _tabInventoryTree);
             EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.EscMenu, _escMenuTree);
@@ -53,6 +55,7 @@ namespace Reloader.UI.Toolkit.Runtime
         {
 #if UNITY_EDITOR
             _beltHudTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/BeltHud.uxml");
+            _compassHudTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/CompassHud.uxml");
             _ammoHudTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/AmmoHud.uxml");
             _tabInventoryTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/TabInventory.uxml");
             _escMenuTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/EscMenu.uxml");

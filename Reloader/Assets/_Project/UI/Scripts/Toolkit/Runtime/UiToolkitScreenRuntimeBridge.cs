@@ -15,6 +15,7 @@ using Reloader.PlayerDevice.World;
 using Reloader.UI.Toolkit.AmmoHud;
 using Reloader.UI.Toolkit.BeltHud;
 using Reloader.UI.Toolkit.ChestInventory;
+using Reloader.UI.Toolkit.CompassHud;
 using Reloader.UI.Toolkit.Contracts;
 using Reloader.UI.Toolkit.DevConsole;
 using Reloader.UI.Toolkit.Dialogue;
@@ -37,6 +38,7 @@ namespace Reloader.UI.Toolkit.Runtime
         private static readonly ScreenBindingDefinition[] ScreenBindings =
         {
             new(UiRuntimeCompositionIds.ScreenIds.BeltHud, UiRuntimeCompositionIds.ControllerObjectNames.BeltHud, ScreenBindingKind.BeltHud, DependencyRequirement.Inventory),
+            new(UiRuntimeCompositionIds.ScreenIds.CompassHud, UiRuntimeCompositionIds.ControllerObjectNames.CompassHud, ScreenBindingKind.CompassHud, DependencyRequirement.Inventory),
             new(UiRuntimeCompositionIds.ScreenIds.AmmoHud, UiRuntimeCompositionIds.ControllerObjectNames.AmmoHud, ScreenBindingKind.AmmoHud, DependencyRequirement.Weapon),
             new(UiRuntimeCompositionIds.ScreenIds.TabInventory, UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, ScreenBindingKind.TabInventory, DependencyRequirement.Inventory | DependencyRequirement.Input),
             new(UiRuntimeCompositionIds.ScreenIds.EscMenu, UiRuntimeCompositionIds.ControllerObjectNames.EscMenu, ScreenBindingKind.EscMenu, DependencyRequirement.None),
@@ -178,6 +180,7 @@ namespace Reloader.UI.Toolkit.Runtime
             IDisposable subscription = definition.Kind switch
             {
                 ScreenBindingKind.BeltHud => BindBeltHud(root, definition.ControllerObjectName, dependencies.InventoryController),
+                ScreenBindingKind.CompassHud => BindCompassHud(root, definition.ControllerObjectName, dependencies.InventoryController),
                 ScreenBindingKind.AmmoHud => BindAmmoHud(root, definition.ControllerObjectName, dependencies.WeaponController),
                 ScreenBindingKind.TabInventory => BindTabInventory(root, definition.ControllerObjectName, dependencies.InventoryController, dependencies.InputSource),
                 ScreenBindingKind.EscMenu => BindEscMenu(root, definition.ControllerObjectName),
@@ -208,6 +211,19 @@ namespace Reloader.UI.Toolkit.Runtime
 
             var controller = GetOrAddController<BeltHudController>(controllerName);
             controller.SetInventoryController(inventoryController);
+            controller.SetViewBinder(viewBinder);
+            return UiContractGuard.Bind(controller, viewBinder);
+        }
+
+        private IDisposable BindCompassHud(VisualElement root, string controllerName, PlayerInventoryController inventoryController)
+        {
+            var viewBinder = new CompassHudViewBinder();
+            viewBinder.Initialize(root);
+
+            var controller = GetOrAddController<CompassHudController>(controllerName);
+            controller.SetInventoryController(inventoryController);
+            controller.SetContractRuntimeProvider(ResolveContractRuntimeProvider());
+            controller.SetPopulationBridge(ResolveCivilianPopulationRuntimeBridge());
             controller.SetViewBinder(viewBinder);
             return UiContractGuard.Bind(controller, viewBinder);
         }
@@ -939,6 +955,7 @@ namespace Reloader.UI.Toolkit.Runtime
         private enum ScreenBindingKind
         {
             BeltHud,
+            CompassHud,
             AmmoHud,
             TabInventory,
             EscMenu,

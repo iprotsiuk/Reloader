@@ -36,7 +36,7 @@ namespace Reloader.UI.Toolkit.Contracts
 
             void Handle(UiIntent intent) => controller.HandleIntent(intent);
             viewBinder.IntentRaised += Handle;
-            return new Subscription(viewBinder, Handle);
+            return new Subscription(controller, viewBinder, Handle);
         }
 
         public static bool TryResolveCommand(UiIntent intent, UiActionMapConfig actionMap, out string commandName)
@@ -54,12 +54,16 @@ namespace Reloader.UI.Toolkit.Contracts
         {
             private readonly IUiViewBinder _viewBinder;
             private readonly Action<UiIntent> _handler;
+            private readonly IDisposable _controllerDisposable;
+            private readonly IDisposable _binderDisposable;
             private bool _disposed;
 
-            public Subscription(IUiViewBinder viewBinder, Action<UiIntent> handler)
+            public Subscription(IUiController controller, IUiViewBinder viewBinder, Action<UiIntent> handler)
             {
                 _viewBinder = viewBinder;
                 _handler = handler;
+                _controllerDisposable = controller as IDisposable;
+                _binderDisposable = viewBinder as IDisposable;
             }
 
             public void Dispose()
@@ -71,6 +75,8 @@ namespace Reloader.UI.Toolkit.Contracts
 
                 _disposed = true;
                 _viewBinder.IntentRaised -= _handler;
+                _controllerDisposable?.Dispose();
+                _binderDisposable?.Dispose();
             }
         }
     }

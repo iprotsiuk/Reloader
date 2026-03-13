@@ -6,7 +6,8 @@
     "Reloader.UI.Editor",
     "Reloader.Core",
     "Reloader.Inventory",
-    "Reloader.NPCs"
+    "Reloader.NPCs",
+    "Reloader.Player"
   ],
   "includePlatforms": [
     "Editor"

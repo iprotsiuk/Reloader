@@ -47,10 +47,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _panelSettings: {fileID: 11400000, guid: 32788a5cc7b214905a24465a5dd574a0, type: 2}
   _beltHudTree: {fileID: 9197481963319205126, guid: f14667513408e469bad5f3c6c2beb80f, type: 3}
+  _compassHudTree: {fileID: 9197481963319205126, guid: 3d3687f2320c74881b69285f5ee2047f, type: 3}
   _ammoHudTree: {fileID: 9197481963319205126, guid: 48a4288a3c1e240a2badd1ba8d734752, type: 3}
   _tabInventoryTree: {fileID: 9197481963319205126, guid: 908c82c4cb4e74b929fc290dca571084, type: 3}
+  _escMenuTree: {fileID: 9197481963319205126, guid: a05fe232e30c484a826c1e9ee22b853e, type: 3}
+  _chestInventoryTree: {fileID: 9197481963319205126, guid: ba28f081655b4ddb96395cf4e4a60532, type: 3}
   _tradeTree: {fileID: 9197481963319205126, guid: a1bf8f3d5679c4bc4ad79c2b20fed8a4, type: 3}
   _reloadingTree: {fileID: 9197481963319205126, guid: 338bbb26a75d545b2bad648d79ce1244, type: 3}
+  _interactionHintTree: {fileID: 9197481963319205126, guid: 75aee3e90d50458397ba96765817ee2d, type: 3}
+  _dialogueOverlayTree: {fileID: 9197481963319205126, guid: c5c201f86d1f64f5693c208af6415020, type: 3}
+  _devConsoleTree: {fileID: 9197481963319205126, guid: ec607d9127c8c47e4805522b893f99ea, type: 3}
   _disableLegacyRuntimePresenters: 1
 --- !u!114 &1140000000000000001
 MonoBehaviour:

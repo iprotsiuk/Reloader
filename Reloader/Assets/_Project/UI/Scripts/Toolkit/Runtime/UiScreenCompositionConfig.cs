@@ -44,6 +44,7 @@ namespace Reloader.UI.Toolkit.Runtime
         {
             var config = new UiScreenCompositionConfig();
             config.SetComponents(UiRuntimeCompositionIds.ScreenIds.BeltHud, new[] { "belt.slots" });
+            config.SetComponents(UiRuntimeCompositionIds.ScreenIds.CompassHud, new[] { "compass.cardinals", "compass.markers" });
             config.SetComponents(UiRuntimeCompositionIds.ScreenIds.AmmoHud, new[] { "ammo.label" });
             config.SetComponents(UiRuntimeCompositionIds.ScreenIds.TabInventory, new[] { "inventory.slots", "inventory.tooltip", "inventory.drag" });
             config.SetComponents(UiRuntimeCompositionIds.ScreenIds.EscMenu, new[] { "esc.menu.panel", "esc.menu.actions", "esc.menu.settings" });

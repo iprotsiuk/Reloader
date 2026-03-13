@@ -3,6 +3,7 @@ using NUnit.Framework;
 using Reloader.Core.Runtime;
 using Reloader.Weapons.Ballistics;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 
 namespace Reloader.Weapons.Tests.PlayMode
@@ -10,17 +11,53 @@ namespace Reloader.Weapons.Tests.PlayMode
     public class WeaponProjectilePlayModeTests
     {
         private IGameEventsRuntimeHub _runtimeEventsBeforeEachTest;
+        private readonly System.Collections.Generic.HashSet<int> _baselineRootInstanceIds = new();
 
         [SetUp]
         public void SetUp()
         {
             _runtimeEventsBeforeEachTest = RuntimeKernelBootstrapper.Events;
+            _baselineRootInstanceIds.Clear();
+
+            var activeScene = SceneManager.GetActiveScene();
+            var roots = activeScene.GetRootGameObjects();
+            for (var i = 0; i < roots.Length; i++)
+            {
+                var root = roots[i];
+                if (root == null)
+                {
+                    continue;
+                }
+
+                _baselineRootInstanceIds.Add(root.GetInstanceID());
+            }
         }
 
         [TearDown]
         public void TearDown()
         {
             RuntimeKernelBootstrapper.Events = _runtimeEventsBeforeEachTest;
+        }
+
+        [UnityTearDown]
+        public IEnumerator UnityTearDown()
+        {
+            RuntimeKernelBootstrapper.Events = _runtimeEventsBeforeEachTest;
+
+            var activeScene = SceneManager.GetActiveScene();
+            var roots = activeScene.GetRootGameObjects();
+            for (var i = 0; i < roots.Length; i++)
+            {
+                var root = roots[i];
+                if (root == null || _baselineRootInstanceIds.Contains(root.GetInstanceID()))
+                {
+                    continue;
+                }
+
+                Object.Destroy(root);
+            }
+
+            yield return null;
         }
 
         [UnityTest]
@@ -268,18 +305,19 @@ namespace Reloader.Weapons.Tests.PlayMode
         public IEnumerator Projectile_IgnoresShooterColliders_AndHitsTarget()
         {
             var shooter = new GameObject("Shooter");
+            shooter.transform.position = new Vector3(0f, 999f, 0f);
             var shooterCollider = shooter.AddComponent<CapsuleCollider>();
             shooterCollider.center = new Vector3(0f, 1f, 0f);
             shooterCollider.height = 2f;
             shooterCollider.radius = 0.35f;
 
             var projectileGo = new GameObject("Projectile");
-            projectileGo.transform.position = new Vector3(0f, 1f, 0f);
+            projectileGo.transform.position = new Vector3(0f, 1000f, 0f);
             projectileGo.transform.forward = Vector3.forward;
             var projectile = projectileGo.AddComponent<WeaponProjectile>();
 
             var target = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            target.transform.position = new Vector3(0f, 1f, 4f);
+            target.transform.position = new Vector3(0f, 1000f, 4f);
             var receiver = target.AddComponent<TestDamageable>();
 
             projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 120f, gravityMultiplier: 0f, damage: 22f, shooterRoot: shooter.transform);
@@ -303,18 +341,18 @@ namespace Reloader.Weapons.Tests.PlayMode
         public IEnumerator Projectile_IgnoresIntermediateTriggerColliders_AndHitsSolidTarget()
         {
             var projectileGo = new GameObject("Projectile");
-            projectileGo.transform.position = new Vector3(0f, 1f, 0f);
+            projectileGo.transform.position = new Vector3(0f, 1000f, 0f);
             projectileGo.transform.forward = Vector3.forward;
             var projectile = projectileGo.AddComponent<WeaponProjectile>();
 
             var triggerVolume = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            triggerVolume.transform.position = new Vector3(0f, 1f, 2f);
+            triggerVolume.transform.position = new Vector3(0f, 1000f, 2f);
             triggerVolume.transform.localScale = new Vector3(2f, 2f, 0.25f);
             var triggerCollider = triggerVolume.GetComponent<Collider>();
             triggerCollider.isTrigger = true;
 
             var target = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            target.transform.position = new Vector3(0f, 1f, 4f);
+            target.transform.position = new Vector3(0f, 1000f, 4f);
             target.transform.localScale = new Vector3(1f, 1f, 1f);
             var receiver = target.AddComponent<TestDamageable>();
 
@@ -328,6 +366,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
 
             Assert.That(receiver.HitCount, Is.EqualTo(1));
+            yield return null;
             Assert.That(projectile == null || projectile.Equals(null), Is.True);
 
             Object.Destroy(projectileGo);
@@ -371,13 +410,13 @@ namespace Reloader.Weapons.Tests.PlayMode
         {
             var lowGo = new GameObject("LowBcProjectile");
             var low = lowGo.AddComponent<WeaponProjectile>();
-            lowGo.transform.position = Vector3.zero;
+            lowGo.transform.position = new Vector3(0f, 1000f, 0f);
             lowGo.transform.forward = Vector3.forward;
             low.Initialize("weapon-kar98k", Vector3.forward, speed: 220f, gravityMultiplier: 0f, damage: 10f, ballisticCoefficientG1: 0.2f);
 
             var highGo = new GameObject("HighBcProjectile");
             var high = highGo.AddComponent<WeaponProjectile>();
-            highGo.transform.position = new Vector3(0f, 1f, 0f);
+            highGo.transform.position = new Vector3(0f, 1001f, 0f);
             highGo.transform.forward = Vector3.forward;
             high.Initialize("weapon-kar98k", Vector3.forward, speed: 220f, gravityMultiplier: 0f, damage: 10f, ballisticCoefficientG1: 0.7f);
 

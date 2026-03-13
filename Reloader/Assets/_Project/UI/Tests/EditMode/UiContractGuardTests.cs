@@ -35,6 +35,21 @@ namespace Reloader.UI.Tests.EditMode
         }
 
         [Test]
+        public void UiContractGuard_Dispose_DisposesControllerBeforeBinder()
+        {
+            var lifecycle = new System.Collections.Generic.List<string>();
+            var view = new TestBinder(lifecycle);
+            var controller = new TestController(lifecycle);
+
+            var binding = UiContractGuard.Bind(controller, view);
+            binding.Dispose();
+
+            Assert.That(controller.IsDisposed, Is.True);
+            Assert.That(view.IsDisposed, Is.True);
+            Assert.That(lifecycle, Is.EqualTo(new[] { "controller", "binder" }));
+        }
+
+        [Test]
         public void UiContractGuard_TryResolveCommand_WhenMissingActionMap_ReturnsFalse()
         {
             var map = new Reloader.UI.Toolkit.Runtime.UiActionMapConfig();
@@ -46,11 +61,19 @@ namespace Reloader.UI.Tests.EditMode
             Assert.That(commandName, Is.Null);
         }
 
-        private sealed class TestBinder : IUiViewBinder
+        private sealed class TestBinder : IUiViewBinder, IDisposable
         {
+            private readonly System.Collections.Generic.IList<string> _lifecycle;
+
+            public TestBinder(System.Collections.Generic.IList<string> lifecycle = null)
+            {
+                _lifecycle = lifecycle;
+            }
+
             public event Action<UiIntent> IntentRaised;
 
             public UiRenderState LastState { get; private set; }
+            public bool IsDisposed { get; private set; }
 
             public void Emit(UiIntent intent)
             {
@@ -61,17 +84,37 @@ namespace Reloader.UI.Tests.EditMode
             {
                 LastState = state;
             }
+
+            public void Dispose()
+            {
+                IsDisposed = true;
+                _lifecycle?.Add("binder");
+            }
         }
 
-        private sealed class TestController : IUiController
+        private sealed class TestController : IUiController, IDisposable
         {
+            private readonly System.Collections.Generic.IList<string> _lifecycle;
+
+            public TestController(System.Collections.Generic.IList<string> lifecycle = null)
+            {
+                _lifecycle = lifecycle;
+            }
+
             public int ReceivedCount { get; private set; }
             public UiIntent LastIntent { get; private set; }
+            public bool IsDisposed { get; private set; }
 
             public void HandleIntent(UiIntent intent)
             {
                 ReceivedCount++;
                 LastIntent = intent;
+            }
+
+            public void Dispose()
+            {
+                IsDisposed = true;
+                _lifecycle?.Add("controller");
             }
         }
     }

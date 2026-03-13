@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Audio;
@@ -113,9 +114,7 @@ namespace Reloader.Weapons.Ballistics
             _sourcePoint = transform.position;
             InitialSpeedMetersPerSecond = speed;
             _pathCompleted = false;
-            _ignoredColliders = shooterRoot != null
-                ? shooterRoot.GetComponentsInChildren<Collider>()
-                : System.Array.Empty<Collider>();
+            _ignoredColliders = CollectIgnoredColliders(shooterRoot);
             if (_velocity.sqrMagnitude > 0.0001f)
             {
                 transform.forward = _velocity.normalized;
@@ -205,6 +204,34 @@ namespace Reloader.Weapons.Ballistics
             }
 
             return false;
+        }
+
+        private Collider[] CollectIgnoredColliders(Transform shooterRoot)
+        {
+            var colliders = new List<Collider>();
+            AddIgnoredColliders(colliders, shooterRoot);
+            AddIgnoredColliders(colliders, transform);
+            return colliders.Count > 0 ? colliders.ToArray() : System.Array.Empty<Collider>();
+        }
+
+        private static void AddIgnoredColliders(List<Collider> colliders, Transform root)
+        {
+            if (colliders == null || root == null)
+            {
+                return;
+            }
+
+            var resolved = root.GetComponentsInChildren<Collider>(true);
+            for (var i = 0; i < resolved.Length; i++)
+            {
+                var collider = resolved[i];
+                if (collider == null || colliders.Contains(collider))
+                {
+                    continue;
+                }
+
+                colliders.Add(collider);
+            }
         }
 
         private void RecordObservedSegment(Vector3 startPoint, Vector3 endPoint)
@@ -373,7 +400,7 @@ namespace Reloader.Weapons.Ballistics
             var visualCollider = visual.GetComponent<Collider>();
             if (visualCollider != null)
             {
-                Destroy(visualCollider);
+                DestroyImmediate(visualCollider);
             }
 
             var renderer = visual.GetComponent<MeshRenderer>();
