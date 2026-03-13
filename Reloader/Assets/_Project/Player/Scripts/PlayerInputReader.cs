@@ -1,12 +1,13 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.Controls;
 using Reloader.Core.Runtime;
 
 namespace Reloader.Player
 {
     public sealed class PlayerInputReader : MonoBehaviour, IPlayerInputSource
     {
+        private const string DefaultScrollWheelActionName = "ScrollWheel";
+
         [Header("Actions")]
         [SerializeField] private InputActionAsset _actionsAsset;
         [SerializeField] private string _mapName = "Player";
@@ -18,6 +19,7 @@ namespace Reloader.Player
         [SerializeField] private string _fireActionName = "Attack";
         [SerializeField] private string _reloadActionName = "Reload";
         [SerializeField] private string _pickupActionName = "Pickup";
+        [SerializeField] private string _scrollWheelActionName = "ScrollWheel";
         [SerializeField] private string _menuToggleActionName = "MenuToggle";
         [SerializeField] private string _beltSlot1ActionName = "BeltSlot1";
         [SerializeField] private string _beltSlot2ActionName = "BeltSlot2";
@@ -46,6 +48,7 @@ namespace Reloader.Player
         private InputAction _fireAction;
         private InputAction _reloadAction;
         private InputAction _pickupAction;
+        private InputAction _scrollWheelAction;
         private InputAction _menuToggleAction;
         private readonly InputAction[] _beltSlotActions = new InputAction[5];
         private int _beltSlotQueued = -1;
@@ -200,37 +203,13 @@ namespace Reloader.Player
                 MenuToggleQueued = true;
             }
 
-            var scrollY = 0f;
-            if (!isGameplayInputSuppressed)
+            var scrollY = !isGameplayInputSuppressed && _scrollWheelAction != null
+                ? _scrollWheelAction.ReadValue<Vector2>().y
+                : 0f;
+            var normalizedScrollY = ZoomInputNormalization.NormalizeScrollDelta(scrollY);
+            if (Mathf.Abs(normalizedScrollY) > 0.0001f)
             {
-                var pointer = Pointer.current;
-                if (pointer != null)
-                {
-                    var pointerScrollControl = pointer.TryGetChildControl<Vector2Control>("scroll");
-                    if (pointerScrollControl != null)
-                    {
-                        var pointerScrollY = pointerScrollControl.ReadValue().y;
-                        if (Mathf.Abs(pointerScrollY) > 0.0001f)
-                        {
-                            scrollY += pointerScrollY;
-                        }
-                    }
-                }
-
-                var mouse = Mouse.current;
-                if (mouse != null && !ReferenceEquals(mouse, pointer))
-                {
-                    var mouseScrollY = mouse.scroll.ReadValue().y;
-                    if (Mathf.Abs(mouseScrollY) > 0.0001f)
-                    {
-                        scrollY += mouseScrollY;
-                    }
-                }
-            }
-
-            if (Mathf.Abs(scrollY) > 0.0001f)
-            {
-                _zoomQueued += scrollY;
+                _zoomQueued += normalizedScrollY;
             }
             else if (isGameplayInputSuppressed)
             {
@@ -455,6 +434,7 @@ namespace Reloader.Player
                 _fireAction = null;
                 _reloadAction = null;
                 _pickupAction = null;
+                _scrollWheelAction = null;
                 _menuToggleAction = null;
                 for (var i = 0; i < _beltSlotActions.Length; i++)
                 {
@@ -473,6 +453,10 @@ namespace Reloader.Player
             _fireAction = _playerMap != null ? _playerMap.FindAction(_fireActionName, false) : null;
             _reloadAction = _playerMap != null ? _playerMap.FindAction(_reloadActionName, false) : null;
             _pickupAction = _playerMap != null ? _playerMap.FindAction(_pickupActionName, false) : null;
+            var scrollWheelActionName = string.IsNullOrWhiteSpace(_scrollWheelActionName)
+                ? DefaultScrollWheelActionName
+                : _scrollWheelActionName;
+            _scrollWheelAction = _playerMap != null ? _playerMap.FindAction(scrollWheelActionName, false) : null;
             _menuToggleAction = _playerMap != null ? _playerMap.FindAction(_menuToggleActionName, false) : null;
             _beltSlotActions[0] = _playerMap != null ? _playerMap.FindAction(_beltSlot1ActionName, false) : null;
             _beltSlotActions[1] = _playerMap != null ? _playerMap.FindAction(_beltSlot2ActionName, false) : null;

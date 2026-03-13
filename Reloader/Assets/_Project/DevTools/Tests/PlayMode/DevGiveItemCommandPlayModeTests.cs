@@ -111,13 +111,9 @@ namespace Reloader.DevTools.Tests.PlayMode
                 ItemStackPolicy.NonStackable,
                 maxStack: 1);
 
-            var starterAmmo = ScriptableObject.CreateInstance<ItemDefinition>();
-            starterAmmo.SetValuesForTests(
-                StarterAmmoItemId,
-                ItemCategory.Consumable,
-                ".308 Winchester FMJ",
-                ItemStackPolicy.StackByDefinition,
-                maxStack: 999);
+            var starterAmmo = AssetDatabase.LoadAssetAtPath<ItemDefinition>(
+                "Assets/_Project/Inventory/Data/Items/Cartridge_308_147_FMJ_PMC_Bronze.asset");
+            Assert.That(starterAmmo, Is.Not.Null);
 
             SetPrivateField(
                 typeof(PlayerInventoryController),
@@ -197,7 +193,6 @@ namespace Reloader.DevTools.Tests.PlayMode
                 "give test should leave the real Kar98k optic aligned to the camera at full ADS instead of burying the scope anchor inside the stock.");
 
             UnityEngine.Object.DestroyImmediate(starterWeapon);
-            UnityEngine.Object.DestroyImmediate(starterAmmo);
             UnityEngine.Object.DestroyImmediate(worldCameraGo);
             UnityEngine.Object.DestroyImmediate(weaponRegistry.gameObject);
             UnityEngine.Object.DestroyImmediate(root);
@@ -336,6 +331,166 @@ namespace Reloader.DevTools.Tests.PlayMode
             UnityEngine.Object.DestroyImmediate(starterScope);
             UnityEngine.Object.DestroyImmediate(starterAmmo);
             UnityEngine.Object.DestroyImmediate(root);
+        }
+
+        [UnityTest]
+        public IEnumerator GiveTest_WhenStarterAmmoGrantFails_RollsBackGrantedWeapon()
+        {
+            var root = new GameObject("DevGiveTestAmmoFailureRoot");
+            var inputSource = root.AddComponent<StubInputSource>();
+            var inventoryRuntime = new PlayerInventoryRuntime();
+            inventoryRuntime.SetBackpackCapacity(0);
+            inventoryRuntime.SelectBeltSlot(0);
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            inventoryController.Configure(inputSource, null, inventoryRuntime);
+
+            for (var i = 1; i < PlayerInventoryRuntime.BeltSlotCount; i++)
+            {
+                var fillerItemId = $"ammo-failure-filler-{i}";
+                inventoryRuntime.SetItemMaxStack(fillerItemId, 1);
+                inventoryRuntime.BeltSlotItemIds[i] = fillerItemId;
+            }
+
+            var starterWeapon = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterWeapon.SetValuesForTests(
+                "weapon-kar98k",
+                ItemCategory.Weapon,
+                "Kar98k (.308)",
+                ItemStackPolicy.NonStackable,
+                maxStack: 1);
+
+            var starterScope = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterScope.SetValuesForTests(
+                "att-kar98k-scope-remote-a",
+                ItemCategory.Misc,
+                "Kar98k Scope Remote A",
+                ItemStackPolicy.NonStackable,
+                maxStack: 1);
+
+            var starterAmmo = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterAmmo.SetValuesForTests(
+                StarterAmmoItemId,
+                ItemCategory.Consumable,
+                ".308 Winchester FMJ",
+                ItemStackPolicy.StackByDefinition,
+                maxStack: 999);
+
+            SetPrivateField(
+                typeof(PlayerInventoryController),
+                inventoryController,
+                "_itemDefinitionRegistry",
+                new List<ItemDefinition> { starterWeapon, starterScope, starterAmmo });
+
+            var runtime = new DevToolsRuntime();
+            runtime.Context.InventoryController = inventoryController;
+            runtime.Context.WeaponController = root.AddComponent<StubWeaponControllerMarker>();
+
+            yield return null;
+
+            var executed = runtime.TryExecute("give test", out var resultMessage);
+
+            Assert.That(executed, Is.False);
+            Assert.That(resultMessage, Does.Contain(StarterAmmoItemId));
+            Assert.That(inventoryRuntime.GetItemQuantity("weapon-kar98k"), Is.EqualTo(0));
+            Assert.That(inventoryRuntime.GetItemQuantity(StarterAmmoItemId), Is.EqualTo(0));
+            Assert.That(inventoryRuntime.GetItemQuantity("att-kar98k-scope-remote-a"), Is.EqualTo(0));
+            Assert.That(inventoryRuntime.SelectedBeltIndex, Is.EqualTo(0));
+            Assert.That(string.IsNullOrWhiteSpace(inventoryRuntime.SelectedBeltItemId), Is.True);
+
+            UnityEngine.Object.DestroyImmediate(starterWeapon);
+            UnityEngine.Object.DestroyImmediate(starterScope);
+            UnityEngine.Object.DestroyImmediate(starterAmmo);
+            UnityEngine.Object.DestroyImmediate(root);
+        }
+
+        [UnityTest]
+        public IEnumerator GiveTest_WhenStarterScopeGrantFails_RollsBackSeededRuntimeState()
+        {
+#if UNITY_EDITOR
+            var root = new GameObject("DevGiveTestRuntimeRollbackRoot");
+            var inputSource = root.AddComponent<StubInputSource>();
+            var inventoryRuntime = new PlayerInventoryRuntime();
+            inventoryRuntime.SetBackpackCapacity(1);
+            inventoryRuntime.SelectBeltSlot(0);
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            inventoryController.Configure(inputSource, null, inventoryRuntime);
+
+            for (var i = 1; i < PlayerInventoryRuntime.BeltSlotCount; i++)
+            {
+                var fillerItemId = $"runtime-rollback-filler-{i}";
+                inventoryRuntime.SetItemMaxStack(fillerItemId, 1);
+                inventoryRuntime.BeltSlotItemIds[i] = fillerItemId;
+            }
+
+            var starterWeapon = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterWeapon.SetValuesForTests(
+                "weapon-kar98k",
+                ItemCategory.Weapon,
+                "Kar98k (.308)",
+                ItemStackPolicy.NonStackable,
+                maxStack: 1);
+
+            var starterScope = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterScope.SetValuesForTests(
+                "att-kar98k-scope-remote-a",
+                ItemCategory.Misc,
+                "Kar98k Scope Remote A",
+                ItemStackPolicy.NonStackable,
+                maxStack: 1);
+
+            var starterAmmo = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterAmmo.SetValuesForTests(
+                StarterAmmoItemId,
+                ItemCategory.Consumable,
+                ".308 Winchester FMJ",
+                ItemStackPolicy.StackByDefinition,
+                maxStack: 999);
+
+            SetPrivateField(
+                typeof(PlayerInventoryController),
+                inventoryController,
+                "_itemDefinitionRegistry",
+                new List<ItemDefinition> { starterWeapon, starterScope, starterAmmo });
+
+            var weaponRegistry = CreateWeaponRegistry();
+            var weaponController = root.AddComponent(ResolveRequiredType("Reloader.Weapons.Controllers.PlayerWeaponController"));
+            SetPrivateField(weaponController.GetType(), weaponController, "_weaponRegistry", weaponRegistry);
+            var worldCameraGo = ConfigureScopedKar98kViewRuntime(weaponController);
+
+            var runtime = new DevToolsRuntime();
+            runtime.Context.InventoryController = inventoryController;
+            runtime.Context.WeaponController = weaponController as MonoBehaviour;
+
+            yield return null;
+
+            var executed = runtime.TryExecute("give test", out var resultMessage);
+
+            yield return null;
+
+            Assert.That(executed, Is.False);
+            Assert.That(resultMessage, Does.Contain("att-kar98k-scope-remote-a"));
+            Assert.That(inventoryRuntime.GetItemQuantity("weapon-kar98k"), Is.EqualTo(0));
+            Assert.That(inventoryRuntime.GetItemQuantity(StarterAmmoItemId), Is.EqualTo(0));
+            Assert.That(inventoryRuntime.GetItemQuantity("att-kar98k-scope-remote-a"), Is.EqualTo(0));
+            Assert.That(GetPropertyValue<string>(weaponController, "EquippedItemId"), Is.Empty);
+            Assert.That(GetPropertyValue<bool>(weaponController, "HasActiveScopedAdsAlignment"), Is.False);
+
+            var state = GetWeaponRuntimeState(weaponController, "weapon-kar98k");
+            Assert.That(GetPropertyValue<bool>(state, "ChamberLoaded"), Is.False);
+            Assert.That(GetPropertyValue<int>(state, "MagazineCount"), Is.EqualTo(0));
+            Assert.That(GetPropertyValue<int>(state, "ReserveCount"), Is.EqualTo(0));
+            Assert.That(string.IsNullOrWhiteSpace(GetEquippedAttachmentItemId(state, "Scope")), Is.True);
+
+            UnityEngine.Object.DestroyImmediate(starterWeapon);
+            UnityEngine.Object.DestroyImmediate(starterScope);
+            UnityEngine.Object.DestroyImmediate(starterAmmo);
+            UnityEngine.Object.DestroyImmediate(worldCameraGo);
+            UnityEngine.Object.DestroyImmediate(weaponRegistry.gameObject);
+            UnityEngine.Object.DestroyImmediate(root);
+#else
+            Assert.Ignore("Requires UnityEditor AssetDatabase.");
+            yield break;
+#endif
         }
 
         private static void SetPrivateField(System.Type ownerType, object instance, string fieldName, object value)

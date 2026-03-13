@@ -653,6 +653,69 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerInputReader_Update_NormalizesScrollWheelActionDeltaIntoZoomSteps()
+        {
+            var mouse = InputSystem.AddDevice<Mouse>();
+            var actionsAsset = CreatePlayerZoomActionsAsset();
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(actionsAsset);
+
+            try
+            {
+                InputSystem.QueueStateEvent(mouse, new MouseState { scroll = new Vector2(0f, 120f) });
+                InputSystem.Update();
+
+                reader.SendMessage("Update");
+
+                Assert.That(reader.ConsumeZoomInput(), Is.EqualTo(1f).Within(0.001f));
+
+                InputSystem.QueueStateEvent(mouse, new MouseState { scroll = new Vector2(0f, 12f) });
+                InputSystem.Update();
+
+                reader.SendMessage("Update");
+
+                Assert.That(reader.ConsumeZoomInput(), Is.EqualTo(0.1f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(actionsAsset);
+                InputSystem.RemoveDevice(mouse);
+            }
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_UsesDefaultScrollWheelActionName_WhenSerializedFieldIsMissing()
+        {
+            var mouse = InputSystem.AddDevice<Mouse>();
+            var actionsAsset = CreatePlayerZoomActionsAsset();
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(actionsAsset);
+
+            var scrollWheelNameField = typeof(PlayerInputReader).GetField("_scrollWheelActionName", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(scrollWheelNameField, Is.Not.Null);
+
+            try
+            {
+                scrollWheelNameField!.SetValue(reader, string.Empty);
+                InputSystem.QueueStateEvent(mouse, new MouseState { scroll = new Vector2(0f, 120f) });
+                InputSystem.Update();
+
+                reader.SendMessage("Update");
+
+                Assert.That(reader.ConsumeZoomInput(), Is.EqualTo(1f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(actionsAsset);
+                InputSystem.RemoveDevice(mouse);
+            }
+        }
+
+        [Test]
         public void PlayerInputReader_Update_DoesNotToggleAimFromAction_WhenAnyMenuIsOpen()
         {
             var previousEvents = RuntimeKernelBootstrapper.Events;
@@ -1440,6 +1503,15 @@ namespace Reloader.Player.Tests.PlayMode
             var asset = ScriptableObject.CreateInstance<InputActionAsset>();
             var playerMap = new InputActionMap("Player");
             playerMap.AddAction("Aim", binding: "<Keyboard>/f2");
+            asset.AddActionMap(playerMap);
+            return asset;
+        }
+
+        private static InputActionAsset CreatePlayerZoomActionsAsset()
+        {
+            var asset = ScriptableObject.CreateInstance<InputActionAsset>();
+            var playerMap = new InputActionMap("Player");
+            playerMap.AddAction("ScrollWheel", binding: "<Mouse>/scroll");
             asset.AddActionMap(playerMap);
             return asset;
         }

@@ -6022,6 +6022,22 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void ScopedPipZoomInput_NormalizesRawWheelDeltaBeforeApplyingMagnification()
+        {
+            var normalizationType = typeof(PlayerInputReader).Assembly.GetType("Reloader.Player.ZoomInputNormalization");
+            Assert.That(normalizationType, Is.Not.Null);
+
+            var method = normalizationType!.GetMethod(
+                "NormalizeScrollDelta",
+                BindingFlags.Static | BindingFlags.Public);
+            Assert.That(method, Is.Not.Null);
+
+            Assert.That((float)method!.Invoke(null, new object[] { 120f }), Is.EqualTo(1f).Within(0.001f));
+            Assert.That((float)method.Invoke(null, new object[] { 12f }), Is.EqualTo(0.1f).Within(0.001f));
+            Assert.That((float)method.Invoke(null, new object[] { 0.25f }), Is.EqualTo(0.4f).Within(0.001f));
+        }
+
         private static object Invoke(object instance, string methodName, params object[] args)
         {
             var method = instance.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);

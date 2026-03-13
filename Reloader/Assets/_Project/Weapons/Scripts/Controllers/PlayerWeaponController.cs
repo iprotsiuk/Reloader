@@ -1095,7 +1095,7 @@ namespace Reloader.Weapons.Controllers
 
             TryApplyScopedAdjustmentInput();
 
-            var scrollY = _inputSource != null ? _inputSource.ConsumeZoomInput() : 0f;
+            var scrollY = _inputSource != null ? ZoomInputNormalization.NormalizeScrollDelta(_inputSource.ConsumeZoomInput()) : 0f;
             if (Mathf.Abs(scrollY) <= 0.01f)
             {
                 return;

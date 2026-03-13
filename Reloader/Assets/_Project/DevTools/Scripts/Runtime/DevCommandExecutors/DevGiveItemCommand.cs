@@ -24,6 +24,18 @@ namespace Reloader.DevTools.Runtime
         private const string StarterScopeDefinitionPath = "Assets/_Project/Inventory/Data/Items/Kar98k_Scope_Remote_A.asset";
         private const string StarterAmmoDefinitionPath = "Assets/_Project/Inventory/Data/Items/Cartridge_308_147_FMJ_PMC_Bronze.asset";
 
+        private readonly struct StarterRuntimeRollbackState
+        {
+            public StarterRuntimeRollbackState(bool hasSnapshot, object snapshot)
+            {
+                HasSnapshot = hasSnapshot;
+                Snapshot = snapshot;
+            }
+
+            public bool HasSnapshot { get; }
+            public object Snapshot { get; }
+        }
+
         public bool TryExecute(DevCommandContext context, DevCommandParseResult parseResult, out string resultMessage)
         {
             var inventoryController = context?.ResolveInventoryController();
@@ -217,9 +229,15 @@ namespace Reloader.DevTools.Runtime
             }
 
             var previousSelectedBeltIndex = inventoryController.Runtime.SelectedBeltIndex;
-            if (!TryGrantStarterDefinition(inventoryController, weaponDefinition, 1, out resultMessage)
-                || !TryGrantStarterDefinition(inventoryController, ammoDefinition, StarterAmmoQuantity, out resultMessage))
+            var runtimeRollbackState = CaptureStarterRuntimeRollbackState(weaponController);
+            if (!TryGrantStarterDefinition(inventoryController, weaponDefinition, 1, out resultMessage))
             {
+                return false;
+            }
+
+            if (!TryGrantStarterDefinition(inventoryController, ammoDefinition, StarterAmmoQuantity, out resultMessage))
+            {
+                RollbackStarterKitGrant(inventoryController, previousSelectedBeltIndex);
                 return false;
             }
 
@@ -236,6 +254,7 @@ namespace Reloader.DevTools.Runtime
             if (!TryApplyStarterWeaponState(weaponController, inventoryController, scopeDefinition, out resultMessage))
             {
                 RollbackStarterKitGrant(inventoryController, previousSelectedBeltIndex);
+                RestoreStarterRuntimeRollbackState(weaponController, runtimeRollbackState);
                 return false;
             }
 
@@ -427,6 +446,116 @@ namespace Reloader.DevTools.Runtime
             {
                 runtime.SelectBeltSlot(previousSelectedBeltIndex);
             }
+        }
+
+        private static StarterRuntimeRollbackState CaptureStarterRuntimeRollbackState(MonoBehaviour weaponController)
+        {
+            if (weaponController == null)
+            {
+                return default;
+            }
+
+            var getSnapshots = weaponController.GetType().GetMethod("GetRuntimeStateSnapshots", BindingFlags.Instance | BindingFlags.Public);
+            if (getSnapshots == null)
+            {
+                return default;
+            }
+
+            if (getSnapshots.Invoke(weaponController, null) is not System.Collections.IEnumerable snapshots)
+            {
+                return default;
+            }
+
+            foreach (var snapshot in snapshots)
+            {
+                if (snapshot == null)
+                {
+                    continue;
+                }
+
+                var itemId = snapshot.GetType().GetProperty("ItemId", BindingFlags.Instance | BindingFlags.Public)?.GetValue(snapshot) as string;
+                if (string.Equals(itemId, StarterWeaponId, StringComparison.Ordinal))
+                {
+                    return new StarterRuntimeRollbackState(true, snapshot);
+                }
+            }
+
+            return default;
+        }
+
+        private static void RestoreStarterRuntimeRollbackState(MonoBehaviour weaponController, StarterRuntimeRollbackState rollbackState)
+        {
+            if (weaponController == null)
+            {
+                return;
+            }
+
+            var controllerType = weaponController.GetType();
+            var applyRuntimeState = controllerType.GetMethod("ApplyRuntimeState", BindingFlags.Instance | BindingFlags.Public);
+            var applyRuntimeBallistics = controllerType.GetMethod("ApplyRuntimeBallistics", BindingFlags.Instance | BindingFlags.Public);
+            var applyRuntimeAttachments = controllerType.GetMethod("ApplyRuntimeAttachments", BindingFlags.Instance | BindingFlags.Public);
+            if (applyRuntimeState == null || applyRuntimeBallistics == null || applyRuntimeAttachments == null)
+            {
+                return;
+            }
+
+            if (!rollbackState.HasSnapshot || rollbackState.Snapshot == null)
+            {
+                var emptyAttachments = CreateEmptyAttachmentMap(applyRuntimeAttachments);
+                var emptyMagazineRounds = CreateEmptyMagazineRounds(applyRuntimeBallistics);
+                applyRuntimeState.Invoke(weaponController, new object[] { StarterWeaponId, 0, 0, false });
+                applyRuntimeBallistics.Invoke(weaponController, new object[] { StarterWeaponId, null, emptyMagazineRounds });
+                applyRuntimeAttachments.Invoke(weaponController, new object[] { StarterWeaponId, emptyAttachments });
+                SyncStarterWeaponEquipFromSelection(weaponController);
+                return;
+            }
+
+            var snapshotType = rollbackState.Snapshot.GetType();
+            var chamberLoadedValue = snapshotType.GetProperty("ChamberLoaded", BindingFlags.Instance | BindingFlags.Public)?.GetValue(rollbackState.Snapshot);
+            var magCountValue = snapshotType.GetProperty("MagCount", BindingFlags.Instance | BindingFlags.Public)?.GetValue(rollbackState.Snapshot);
+            var reserveCountValue = snapshotType.GetProperty("ReserveCount", BindingFlags.Instance | BindingFlags.Public)?.GetValue(rollbackState.Snapshot);
+            var chamberRound = snapshotType.GetProperty("ChamberRound", BindingFlags.Instance | BindingFlags.Public)?.GetValue(rollbackState.Snapshot);
+            var magazineRounds = snapshotType.GetProperty("MagazineRounds", BindingFlags.Instance | BindingFlags.Public)?.GetValue(rollbackState.Snapshot);
+            var attachments = snapshotType.GetProperty("EquippedAttachmentItemIdsBySlot", BindingFlags.Instance | BindingFlags.Public)?.GetValue(rollbackState.Snapshot);
+
+            var chamberLoaded = chamberLoadedValue is bool boolValue && boolValue;
+            var magCount = magCountValue is int magCountInt ? magCountInt : 0;
+            var reserveCount = reserveCountValue is int reserveCountInt ? reserveCountInt : 0;
+            applyRuntimeState.Invoke(weaponController, new object[] { StarterWeaponId, magCount, reserveCount, chamberLoaded });
+            applyRuntimeBallistics.Invoke(weaponController, new[] { (object)StarterWeaponId, chamberRound, magazineRounds });
+            applyRuntimeAttachments.Invoke(weaponController, new[] { (object)StarterWeaponId, attachments });
+            SyncStarterWeaponEquipFromSelection(weaponController);
+        }
+
+        private static object CreateEmptyAttachmentMap(MethodInfo applyRuntimeAttachmentsMethod)
+        {
+            var parameterType = applyRuntimeAttachmentsMethod.GetParameters()[1].ParameterType;
+            var slotType = ResolveRuntimeType("Reloader.Weapons.Data.WeaponAttachmentSlotType");
+            var dictionaryType = typeof(Dictionary<,>).MakeGenericType(slotType ?? typeof(object), typeof(string));
+            if (parameterType.IsAssignableFrom(dictionaryType))
+            {
+                return Activator.CreateInstance(dictionaryType);
+            }
+
+            return null;
+        }
+
+        private static object CreateEmptyMagazineRounds(MethodInfo applyRuntimeBallisticsMethod)
+        {
+            var parameters = applyRuntimeBallisticsMethod.GetParameters();
+            if (parameters.Length < 3)
+            {
+                return Array.Empty<object>();
+            }
+
+            var listType = parameters[2].ParameterType;
+            if (!listType.IsGenericType)
+            {
+                return Array.Empty<object>();
+            }
+
+            var itemType = listType.GetGenericArguments()[0];
+            return Array.CreateInstance(itemType, 0);
         }
 
         private static bool TryApplyStarterWeaponState(
