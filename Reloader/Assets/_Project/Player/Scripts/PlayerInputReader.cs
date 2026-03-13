@@ -4,7 +4,7 @@ using Reloader.Core.Runtime;
 
 namespace Reloader.Player
 {
-    public sealed class PlayerInputReader : MonoBehaviour, IPlayerInputSource
+    public sealed class PlayerInputReader : MonoBehaviour, IPlayerInputSource, IShotCameraInputSource
     {
         private const string DefaultScrollWheelActionName = "ScrollWheel";
 
@@ -31,11 +31,13 @@ namespace Reloader.Player
         public Vector2 LookInput { get; private set; }
         public bool SprintHeld { get; private set; }
         public bool AimHeld { get; private set; }
+        public bool ShotCameraSpeedUpHeld { get; private set; }
         public bool JumpQueued { get; private set; }
         public bool AimToggleQueued { get; private set; }
         public bool FireQueued { get; private set; }
         public bool ReloadQueued { get; private set; }
         public bool PickupQueued { get; private set; }
+        public bool ShotCameraCancelQueued { get; private set; }
         public bool MenuToggleQueued { get; private set; }
         public bool DevConsoleToggleQueued { get; private set; }
 
@@ -75,11 +77,13 @@ namespace Reloader.Player
             LookInput = Vector2.zero;
             SprintHeld = false;
             AimHeld = false;
+            ShotCameraSpeedUpHeld = false;
             JumpQueued = false;
             AimToggleQueued = false;
             FireQueued = false;
             ReloadQueued = false;
             PickupQueued = false;
+            ShotCameraCancelQueued = false;
             MenuToggleQueued = false;
             DevConsoleToggleQueued = false;
             _beltSlotQueued = -1;
@@ -148,6 +152,10 @@ namespace Reloader.Player
             }
 
             var isAnyMenuOpen = PlayerCursorLockController.IsAnyMenuOpen || uiStateEvents?.IsAnyMenuOpen == true;
+            ShotCameraSpeedUpHeld = !isGameplayInputSuppressed
+                && !isAnyMenuOpen
+                && keyboard != null
+                && keyboard.spaceKey.isPressed;
 
             if (isAnyMenuOpen)
             {
@@ -158,6 +166,15 @@ namespace Reloader.Player
             {
                 AimHeld = !AimHeld;
                 AimToggleQueued = true;
+            }
+
+            if (!isGameplayInputSuppressed && !isAnyMenuOpen && keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
+            {
+                ShotCameraCancelQueued = true;
+            }
+            else if (isGameplayInputSuppressed || isAnyMenuOpen)
+            {
+                ShotCameraCancelQueued = false;
             }
 
             if (keyboard != null && keyboard.backquoteKey.wasPressedThisFrame)
@@ -295,6 +312,17 @@ namespace Reloader.Player
             }
 
             FireQueued = false;
+            return true;
+        }
+
+        public bool ConsumeShotCameraCancelPressed()
+        {
+            if (!ShotCameraCancelQueued)
+            {
+                return false;
+            }
+
+            ShotCameraCancelQueued = false;
             return true;
         }
 

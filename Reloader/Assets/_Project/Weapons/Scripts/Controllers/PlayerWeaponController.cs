@@ -494,6 +494,20 @@ namespace Reloader.Weapons.Controllers
                 _weaponViewParent = ResolveDefaultWeaponViewParent();
             }
 
+            if (_shotCameraRuntimeBehaviour == null && _shotCameraSettings.Enabled)
+            {
+                _shotCameraRuntimeBehaviour = GetComponent<ShotCameraRuntime>();
+                if (_shotCameraRuntimeBehaviour == null)
+                {
+                    _shotCameraRuntimeBehaviour = gameObject.AddComponent<ShotCameraRuntime>();
+                }
+            }
+
+            if (_shotCameraRuntimeBehaviour is ShotCameraRuntime shotCameraRuntime)
+            {
+                shotCameraRuntime.Configure(_inputSource as IShotCameraInputSource, _shotCameraSettings);
+            }
+
             _shotCameraRuntime = _shotCameraRuntimeBehaviour as IShotCameraRuntime;
         }
 
@@ -918,7 +932,12 @@ namespace Reloader.Weapons.Controllers
                 return false;
             }
 
-            request = new ShotCameraRequest(projectile, projectile.transform.position, predictedImpactPoint, predictedDistanceMeters);
+            request = new ShotCameraRequest(
+                projectile,
+                projectile.transform.position,
+                predictedImpactPoint,
+                predictedDistanceMeters,
+                _shotCameraSettings);
             return true;
         }
 

@@ -7,7 +7,8 @@
     "Reloader.PlayerDevice",
     "Reloader.Inventory",
     "Reloader.Player",
-    "Unity.InputSystem"
+    "Unity.InputSystem",
+    "Unity.Cinemachine"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

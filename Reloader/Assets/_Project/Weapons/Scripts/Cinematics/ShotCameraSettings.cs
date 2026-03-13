@@ -27,18 +27,25 @@ namespace Reloader.Weapons.Cinematics
 
     public readonly struct ShotCameraRequest
     {
-        public ShotCameraRequest(WeaponProjectile projectile, Vector3 projectileOrigin, Vector3 predictedImpactPoint, float predictedDistanceMeters)
+        public ShotCameraRequest(
+            WeaponProjectile projectile,
+            Vector3 projectileOrigin,
+            Vector3 predictedImpactPoint,
+            float predictedDistanceMeters,
+            ShotCameraSettings settings)
         {
             Projectile = projectile;
             ProjectileOrigin = projectileOrigin;
             PredictedImpactPoint = predictedImpactPoint;
             PredictedDistanceMeters = predictedDistanceMeters;
+            Settings = settings;
         }
 
         public WeaponProjectile Projectile { get; }
         public Vector3 ProjectileOrigin { get; }
         public Vector3 PredictedImpactPoint { get; }
         public float PredictedDistanceMeters { get; }
+        public ShotCameraSettings Settings { get; }
     }
 
     public interface IShotCameraRuntime
