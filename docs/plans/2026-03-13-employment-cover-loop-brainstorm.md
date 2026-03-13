@@ -526,3 +526,100 @@ Capture both pivots as part of the broader sandbox direction:
 
 The island should not be chosen only because it sounds cool.
 It should be chosen because it gives the game stronger geography for contracts, jobs, investigation, checkpoints, and escape.
+
+---
+
+## Employment-Driven Town Population Brainstorm
+
+Town population should be derived from `jobs`, not from arbitrary floating civilians.
+
+Recommended world rule:
+- every civilian belongs to a job slot
+- `unemployed` is also a job category
+- each job definition has a fixed number of positions
+- the town population is the sum of all available job positions
+
+This makes the population feel authored and systemic at the same time.
+People are in town because they occupy a role, not because the game spawned random ambient bodies.
+
+### Core Model
+
+Recommended structure:
+- `JobDefinition`
+  - job id
+  - workplace or district
+  - role type
+  - shift schedule
+  - access privileges
+  - number of positions
+
+- `JobSlot`
+  - references one job definition
+  - can be occupied or vacant
+  - points to the current civilian assigned to that role
+
+- `Unemployed`
+  - treated as a real job bucket with its own slots
+  - supports civilians who wander town, loiter, socialize, or perform lightweight everyday routines without formal workplace access
+
+This creates a clean rule:
+- population = total job slots
+
+### Vacancy Rule
+
+If the player kills someone, that person's job slot becomes vacant.
+
+This is the critical systemic behavior because it means murder changes the town's labor structure instead of only removing a body from the map.
+
+Consequences of a death:
+- the victim is removed from their job slot
+- the job slot becomes open
+- the workplace can visibly function with a missing role or partial disruption
+- the player may be able to pursue that vacancy if the job is one that players can hold
+
+This directly supports ideas like:
+- kill the lighthouse worker
+- lighthouse position opens
+- player takes the job and gains access, cover, and new leverage
+
+### Weekly Replacement Rule
+
+Recommended replenishment rule:
+- on Monday, replacement civilians are generated or assigned to fill all currently vacant jobs
+
+This does several useful things:
+- prevents the town from permanently hollowing out too quickly
+- creates a readable world rhythm
+- gives the player a window to exploit a vacancy before normalcy begins to restore itself
+- avoids instantly respawning replacements in a fake-feeling way
+
+Important exception:
+- if the player takes a vacant job before Monday, that position is no longer available for civilian replacement
+
+This gives job theft a clear systemic payoff.
+
+### Why This Is Strong
+
+This model solves multiple problems at once:
+- town population feels grounded instead of arbitrary
+- vacancies become meaningful world-state changes
+- jobs become the bridge between civilians, access, schedules, and replacement logic
+- the player can manipulate the town by changing who occupies key roles
+- employed and unemployed civilians still fit the same systemic framework
+
+It also makes the island/town feel more like a real place:
+- every visible civilian has a role
+- every workplace has capacity
+- every absence matters
+
+### Recommendation
+
+Use `employment-driven population` as a major world rule.
+
+The town should be built from:
+- fixed job slots
+- unemployed slots
+- weekly replacement cadence
+- player ability to occupy some vacancies before the replacement cycle refreshes the town
+
+This is a stronger foundation than arbitrary ambient spawning because it ties population, jobs, routine, access, and murder consequences into one shared system.
