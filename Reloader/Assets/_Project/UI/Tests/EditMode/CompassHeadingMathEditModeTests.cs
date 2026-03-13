@@ -45,12 +45,26 @@ namespace Reloader.UI.Tests.EditMode
             var entries = CompassHeadingMath.CreateCardinalEntries(currentHeadingDegrees: 0f, visibleHalfAngleDegrees: 100f);
 
             Assert.That(entries, Has.Length.EqualTo(3));
+            Assert.That(entries[0].Key, Is.EqualTo("W:-90"));
             Assert.That(entries[0].Label, Is.EqualTo("W"));
             Assert.That(entries[0].SignedAngleDeltaDegrees, Is.EqualTo(-90f).Within(0.001f));
+            Assert.That(entries[1].Key, Is.EqualTo("N:0"));
             Assert.That(entries[1].Label, Is.EqualTo("N"));
             Assert.That(entries[1].SignedAngleDeltaDegrees, Is.EqualTo(0f).Within(0.001f));
+            Assert.That(entries[2].Key, Is.EqualTo("E:90"));
             Assert.That(entries[2].Label, Is.EqualTo("E"));
             Assert.That(entries[2].SignedAngleDeltaDegrees, Is.EqualTo(90f).Within(0.001f));
+        }
+
+        [Test]
+        public void CreateCardinalEntries_WhenWindowSpansPastOneRotation_ReturnsRepeatedCardinalsWithUniqueKeys()
+        {
+            var entries = CompassHeadingMath.CreateCardinalEntries(currentHeadingDegrees: 0f, visibleHalfAngleDegrees: 400f);
+
+            Assert.That(entries, Has.Length.GreaterThan(4));
+            Assert.That(entries, Has.Some.Matches<CompassHudUiState.EntryState>(entry => entry.Key == "N:-360" && entry.Label == "N"));
+            Assert.That(entries, Has.Some.Matches<CompassHudUiState.EntryState>(entry => entry.Key == "N:0" && entry.Label == "N"));
+            Assert.That(entries, Has.Some.Matches<CompassHudUiState.EntryState>(entry => entry.Key == "N:360" && entry.Label == "N"));
         }
     }
 }

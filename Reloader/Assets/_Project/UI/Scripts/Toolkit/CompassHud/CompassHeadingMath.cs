@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using UnityEngine;
 
 namespace Reloader.UI.Toolkit.CompassHud
@@ -52,19 +53,29 @@ namespace Reloader.UI.Toolkit.CompassHud
         public static CompassHudUiState.EntryState[] CreateCardinalEntries(float currentHeadingDegrees, float visibleHalfAngleDegrees)
         {
             var entries = new List<CompassHudUiState.EntryState>(CardinalHeadings.Length);
+            var normalizedHeading = NormalizeDegrees(currentHeadingDegrees);
+            var cycleSpan = Mathf.Max(1, Mathf.CeilToInt(Mathf.Max(0f, visibleHalfAngleDegrees) / 360f) + 1);
             for (var i = 0; i < CardinalHeadings.Length; i++)
             {
                 var cardinal = CardinalHeadings[i];
-                var delta = ResolveSignedDeltaDegrees(currentHeadingDegrees, cardinal.HeadingDegrees);
-                if (Mathf.Abs(delta) > visibleHalfAngleDegrees)
+                for (var cycle = -cycleSpan; cycle <= cycleSpan; cycle++)
                 {
-                    continue;
-                }
+                    var absoluteHeading = cardinal.HeadingDegrees + (360f * cycle);
+                    var delta = absoluteHeading - normalizedHeading;
+                    if (Mathf.Abs(delta) > visibleHalfAngleDegrees)
+                    {
+                        continue;
+                    }
 
-                entries.Add(new CompassHudUiState.EntryState(
-                    CompassHudUiState.EntryKind.Cardinal,
-                    cardinal.Label,
-                    delta));
+                    entries.Add(new CompassHudUiState.EntryState(
+                        string.Concat(
+                            cardinal.Label,
+                            ":",
+                            absoluteHeading.ToString("0.###", CultureInfo.InvariantCulture)),
+                        CompassHudUiState.EntryKind.Cardinal,
+                        cardinal.Label,
+                        delta));
+                }
             }
 
             entries.Sort(static (left, right) => left.SignedAngleDeltaDegrees.CompareTo(right.SignedAngleDeltaDegrees));
