@@ -172,7 +172,7 @@ namespace Reloader.Player
             {
                 ShotCameraCancelQueued = true;
             }
-            else if (isGameplayInputSuppressed || isAnyMenuOpen)
+            else
             {
                 ShotCameraCancelQueued = false;
             }

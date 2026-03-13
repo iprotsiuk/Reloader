@@ -65,9 +65,17 @@ namespace Reloader.Weapons.Cinematics
             }
 
             ResolveInputSource();
+            if (!_isShotActive)
+            {
+                _baselineFixedDeltaTime = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+            }
+            else if (_activeProjectile != null && _activeProjectile != request.Projectile)
+            {
+                _activeProjectile.SetShotCameraPresentationActive(false);
+            }
+
             _activeProjectile = request.Projectile;
             _activeSettings = request.Settings;
-            _baselineFixedDeltaTime = Mathf.Max(0.0001f, Time.fixedDeltaTime);
             _isShotActive = true;
             _hasActiveCinematicCamera = true;
             _activeProjectile.SetShotCameraPresentationActive(true);
