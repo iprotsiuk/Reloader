@@ -148,12 +148,14 @@ namespace Reloader.Game.Weapons
 
             if (_equippedOpticInstance != null)
             {
+                _equippedOpticInstance.transform.SetParent(null, false);
                 Destroy(_equippedOpticInstance);
                 _equippedOpticInstance = null;
             }
 
             _activeOpticDefinition = null;
             _activeOpticAdjustmentStateKey = string.Empty;
+            ClearSlotChildren(_scopeSlot);
             RefreshSightAnchor();
             if (_verboseOpticLogs)
             {
@@ -240,15 +242,7 @@ namespace Reloader.Game.Weapons
                 _muzzleRuntime.Unequip();
             }
 
-            if (_muzzleSlot == null)
-            {
-                return;
-            }
-
-            for (var i = _muzzleSlot.childCount - 1; i >= 0; i--)
-            {
-                Destroy(_muzzleSlot.GetChild(i).gameObject);
-            }
+            ClearSlotChildren(_muzzleSlot);
         }
 
         private bool TryEquipMuzzleWithRuntime(MuzzleAttachmentDefinition muzzle)
@@ -269,11 +263,15 @@ namespace Reloader.Game.Weapons
             _muzzleRuntime.Equip(muzzle);
             if (_muzzleRuntime.ActiveAttachment != muzzle)
             {
+                _muzzleRuntime.Unequip();
+                ClearSlotChildren(slot);
                 return false;
             }
 
             if (slot.childCount == 0)
             {
+                _muzzleRuntime.Unequip();
+                ClearSlotChildren(slot);
                 return false;
             }
 
@@ -289,7 +287,29 @@ namespace Reloader.Game.Weapons
                 }
             }
 
+            _muzzleRuntime.Unequip();
+            ClearSlotChildren(slot);
             return false;
+        }
+
+        private static void ClearSlotChildren(Transform slot)
+        {
+            if (slot == null)
+            {
+                return;
+            }
+
+            for (var i = slot.childCount - 1; i >= 0; i--)
+            {
+                var child = slot.GetChild(i);
+                if (child == null)
+                {
+                    continue;
+                }
+
+                child.SetParent(null, false);
+                Destroy(child.gameObject);
+            }
         }
 
         private static Transform ResolveRuntimeAttachmentSlot(MuzzleAttachmentRuntime runtime)

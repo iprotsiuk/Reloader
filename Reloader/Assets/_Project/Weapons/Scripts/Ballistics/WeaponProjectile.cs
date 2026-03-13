@@ -373,7 +373,7 @@ namespace Reloader.Weapons.Ballistics
             var visualCollider = visual.GetComponent<Collider>();
             if (visualCollider != null)
             {
-                Destroy(visualCollider);
+                DestroyImmediate(visualCollider);
             }
 
             var renderer = visual.GetComponent<MeshRenderer>();

@@ -358,7 +358,21 @@ namespace Reloader.Weapons.Controllers
                 return true;
             }
 
-            var applied = ApplyEquippedAttachmentSlotToViewRuntime(slotType, state.GetEquippedAttachmentItemId(slotType));
+            if (_equippedWeaponView == null)
+            {
+                ResolveInventoryEvents()?.RaiseInventoryChanged();
+                return true;
+            }
+
+            var equippedAttachmentItemId = state.GetEquippedAttachmentItemId(slotType);
+            if (!CanApplyAttachmentToViewRuntime(slotType, equippedAttachmentItemId))
+            {
+                ApplyEquippedAttachmentSlotToViewRuntime(slotType, string.Empty);
+                ResolveInventoryEvents()?.RaiseInventoryChanged();
+                return true;
+            }
+
+            var applied = ApplyEquippedAttachmentSlotToViewRuntime(slotType, equippedAttachmentItemId);
             if (!applied)
             {
                 var reverted = WeaponAttachmentSwapService.TrySwap(
@@ -378,6 +392,21 @@ namespace Reloader.Weapons.Controllers
 
             ResolveInventoryEvents()?.RaiseInventoryChanged();
             return true;
+        }
+
+        private bool CanApplyAttachmentToViewRuntime(WeaponAttachmentSlotType slotType, string attachmentItemId)
+        {
+            if (string.IsNullOrWhiteSpace(attachmentItemId))
+            {
+                return true;
+            }
+
+            return slotType switch
+            {
+                WeaponAttachmentSlotType.Scope => ResolveOpticDefinition(attachmentItemId) != null,
+                WeaponAttachmentSlotType.Muzzle => ResolveMuzzleAttachmentDefinition(attachmentItemId) != null,
+                _ => false
+            };
         }
 
         private void ResolveReferences()
@@ -1110,6 +1139,12 @@ namespace Reloader.Weapons.Controllers
             _playerLookControllerRuntimeBridge ??= GetComponent<PlayerLookController>();
             if (_playerLookControllerRuntimeBridge == null || _adsStateRuntimeBridge == null)
             {
+                return;
+            }
+
+            if (_inputSource == null || !_inputSource.AimHeld)
+            {
+                ResetScopedAdsLookSensitivityBridge();
                 return;
             }
 
@@ -2617,6 +2652,7 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
+            _equippedWeaponView.transform.SetParent(null, false);
             Destroy(_equippedWeaponView);
             _equippedWeaponView = null;
             if (_adsStateRuntimeBridge != null)
@@ -2906,6 +2942,14 @@ namespace Reloader.Weapons.Controllers
                 }
 
                 if (behaviour is WeaponViewAttachmentMounts)
+                {
+                    continue;
+                }
+
+                var fullTypeName = behaviour.GetType().FullName;
+                if (string.Equals(fullTypeName, "Reloader.Game.Weapons.MuzzleAttachmentRuntime", StringComparison.Ordinal)
+                    || string.Equals(fullTypeName, "Reloader.Game.Weapons.DetachableMagazineRuntime", StringComparison.Ordinal)
+                    || string.Equals(fullTypeName, "Reloader.Game.Weapons.AttachmentManager", StringComparison.Ordinal))
                 {
                     continue;
                 }

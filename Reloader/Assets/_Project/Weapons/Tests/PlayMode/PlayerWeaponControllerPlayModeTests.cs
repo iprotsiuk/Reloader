@@ -1402,7 +1402,6 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var controller = root.AddComponent<PlayerWeaponController>();
                 SetControllerField(controller, "_weaponRegistry", registry);
                 SetControllerField(controller, "_weaponViewParent", root.transform);
-                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
                 yield return null;
 
                 var equippedView = root.transform.Find("EquippedView_weapon-kar98k");

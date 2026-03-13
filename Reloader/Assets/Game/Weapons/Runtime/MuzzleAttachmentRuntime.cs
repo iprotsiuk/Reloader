@@ -50,6 +50,7 @@ namespace Reloader.Game.Weapons
         {
             if (_equippedMuzzleInstance != null)
             {
+                _equippedMuzzleInstance.transform.SetParent(null, false);
                 Destroy(_equippedMuzzleInstance);
                 _equippedMuzzleInstance = null;
             }
