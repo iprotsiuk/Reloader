@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System;
+using System.Reflection;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -15,12 +16,46 @@ namespace Reloader.World.Editor
         private const string TerrainRootName = "MainTownTerrain";
         private const string TerrainFolderPath = "Assets/_Project/World/Terrain/MainTown";
         private const string TerrainDataPath = TerrainFolderPath + "/MainTownTerrainData.asset";
+        private const string OpaqueOceanMaterialPath = TerrainFolderPath + "/MainTown_Ocean.mat";
         private const string WaterMaterialPath = "Assets/ThirdParty/Polygon-Mega Survival Forest/Materials/Water.mat";
         private const string BlueMaterialPath = "Assets/ThirdParty/Polygon-Mega Survival Forest/Materials/Blue.mat";
+        private const float TerrainWidthMeters = 3000f;
+        private const float TerrainDepthMeters = 3000f;
+        private const float TerrainHeightMeters = 500f;
+        private const float TerrainHalfWidthMeters = TerrainWidthMeters * 0.5f;
+        private const float TerrainHalfDepthMeters = TerrainDepthMeters * 0.5f;
+        private const float SeaLevelMeters = 20f;
+        private const float LandBaselineMeters = 40f;
+        private const float DefaultTerrainClearanceMeters = 0.05f;
 
         private static readonly string[] TreePrefabPaths =
         {
             "Assets/ThirdParty/Polygon-Mega Survival Forest/Prefabs/SM_Pine.prefab",
+        };
+
+        private static readonly string[] NonLiftedSceneRootNames =
+        {
+            "Directional Light",
+            "Global Volume",
+            "TownGround",
+            "BeltHud",
+            "EventSystem",
+            "EconomyController",
+            "ItemIconCatalogProvider",
+            "WeaponRegistry",
+            "MainTownContractRuntime",
+            "MainTownPopulationRuntime",
+            "CoreWorldController",
+        };
+
+        private static readonly string[] TerrainPresentationRootNames =
+        {
+            TerrainRootName,
+            "BasinFloor",
+            "Water_RiverChannel",
+            "Water_ReservoirBasin",
+            "Water_OceanHorizon",
+            "Water_OceanBoundary",
         };
 
         private static readonly LayerSpec[] TerrainLayerSpecs =
@@ -83,6 +118,78 @@ namespace Reloader.World.Editor
             Selection.activeObject = terrainObject;
 
             Debug.Log($"MainTown terrain bootstrap complete. Seeded {terrainData.terrainLayers.Length} terrain layers on '{TerrainRootName}'.");
+        }
+
+        [MenuItem("Tools/Reloader/World/Apply MainTown Island Pass")]
+        public static void ApplyMainTownIslandPass()
+        {
+            EnsureFolderPath(TerrainFolderPath);
+
+            var scene = EnsureMainTownSceneLoaded();
+            var worldShell = FindRoot(scene, WorldShellName);
+            if (worldShell == null)
+            {
+                Debug.LogError($"Island pass aborted. Root '{WorldShellName}' was not found in MainTown.");
+                return;
+            }
+
+            var terrainData = LoadOrCreateTerrainData();
+            ConfigureTerrainData(terrainData);
+            terrainData.terrainLayers = EnsureTerrainLayers();
+
+            var terrainObject = LoadOrCreateTerrainObject(worldShell.transform, terrainData);
+            var terrain = terrainObject.GetComponent<Terrain>();
+            var terrainCollider = terrainObject.GetComponent<TerrainCollider>();
+            terrain.terrainData = terrainData;
+            terrain.drawInstanced = true;
+            terrainCollider.terrainData = terrainData;
+
+            ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Selection.activeObject = terrainObject;
+
+            Debug.Log("MainTown island pass complete. Saved raised island terrain and horizon ocean to MainTown.");
+        }
+
+        [MenuItem("Tools/Reloader/World/Lift MainTown Authored Content To Terrain")]
+        public static void LiftMainTownAuthoredContentToTerrain()
+        {
+            var scene = EnsureMainTownSceneLoaded();
+            var worldShell = FindRoot(scene, WorldShellName);
+            if (worldShell == null)
+            {
+                Debug.LogError($"Lift authored content aborted. Root '{WorldShellName}' was not found in MainTown.");
+                return;
+            }
+
+            var terrainTransform = worldShell.transform.GetComponentsInChildren<Transform>(true)
+                .FirstOrDefault(child => child.name == TerrainRootName);
+            if (terrainTransform == null)
+            {
+                Debug.LogError($"Lift authored content aborted. '{TerrainRootName}' was not found in MainTown.");
+                return;
+            }
+
+            var terrain = terrainTransform.GetComponent<Terrain>();
+            if (terrain == null)
+            {
+                Debug.LogError($"Lift authored content aborted. '{TerrainRootName}' has no Terrain component.");
+                return;
+            }
+
+            LiftSceneContentToTerrain(scene, worldShell.transform, terrain);
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Selection.activeObject = worldShell;
+
+            Debug.Log("MainTown authored content lifted to match the island terrain.");
         }
 
         [MenuItem("Tools/Reloader/World/Apply MainTown Dramatic Terrain Redesign")]
@@ -212,7 +319,7 @@ namespace Reloader.World.Editor
             terrainData.alphamapResolution = 1024;
             terrainData.baseMapResolution = 1024;
             terrainData.SetDetailResolution(1024, 16);
-            terrainData.size = new Vector3(2000f, 120f, 2000f);
+            terrainData.size = new Vector3(TerrainWidthMeters, TerrainHeightMeters, TerrainDepthMeters);
         }
 
         private static TerrainLayer[] EnsureTerrainLayers()
@@ -278,7 +385,7 @@ namespace Reloader.World.Editor
                 terrainObject.transform.SetParent(worldShell, false);
             }
 
-            terrainObject.transform.localPosition = new Vector3(-1000f, 0f, -1000f);
+            terrainObject.transform.localPosition = new Vector3(-TerrainHalfWidthMeters, 0f, -TerrainHalfDepthMeters);
             terrainObject.transform.localRotation = Quaternion.identity;
             terrainObject.transform.localScale = Vector3.one;
 
@@ -306,6 +413,24 @@ namespace Reloader.World.Editor
             EnablePlanningFloor(worldShell);
         }
 
+        public static void ApplyLoadedMainTownIslandPass(Transform worldShell, Terrain terrain)
+        {
+            var terrainData = terrain.terrainData;
+            ConfigureTerrainData(terrainData);
+            terrain.drawInstanced = true;
+            terrainData.SetTreeInstances(Array.Empty<TreeInstance>(), true);
+
+            SculptIslandTerrain(terrain);
+            RemoveWaterPresentation(worldShell);
+            EnsureOceanHorizonPresentation(worldShell);
+            EnsureOceanBoundaryBlockers(worldShell);
+            LiftSceneContentToTerrain(worldShell.gameObject.scene, worldShell, terrain);
+            DisablePlanningFloor(worldShell);
+
+            EditorUtility.SetDirty(terrainData);
+            EditorUtility.SetDirty(terrain.gameObject);
+        }
+
         private static void SculptDramaticTerrain(Terrain terrain)
         {
             var terrainData = terrain.terrainData;
@@ -321,6 +446,28 @@ namespace Reloader.World.Editor
                     var worldX = normalizedX * terrainData.size.x - 1000f;
                     var worldZ = normalizedZ * terrainData.size.z - 1000f;
                     heights[z, x] = CalculateDramaticHeight(worldX, worldZ);
+                }
+            }
+
+            terrainData.SetHeights(0, 0, heights);
+        }
+
+        private static void SculptIslandTerrain(Terrain terrain)
+        {
+            var terrainData = terrain.terrainData;
+            var resolution = terrainData.heightmapResolution;
+            var heights = new float[resolution, resolution];
+
+            for (var z = 0; z < resolution; z++)
+            {
+                for (var x = 0; x < resolution; x++)
+                {
+                    var normalizedX = x / (float)(resolution - 1);
+                    var normalizedZ = z / (float)(resolution - 1);
+                    var worldX = normalizedX * terrainData.size.x - TerrainHalfWidthMeters;
+                    var worldZ = normalizedZ * terrainData.size.z - TerrainHalfDepthMeters;
+                    var heightMeters = CalculateIslandHeightMeters(worldX, worldZ);
+                    heights[z, x] = Mathf.Clamp01(heightMeters / terrainData.size.y);
                 }
             }
 
@@ -353,6 +500,41 @@ namespace Reloader.World.Editor
             height += 0.05f * (Gaussian(worldX, worldZ, 420f, -260f, 320f, 250f) - Gaussian(worldX, worldZ, 420f, -260f, 220f, 170f));
 
             return Mathf.Clamp(height, 0.02f, 0.5f);
+        }
+
+        private static float CalculateIslandHeightMeters(float worldX, float worldZ)
+        {
+            var offsetX = worldX - 35f;
+            var offsetZ = worldZ + 20f;
+            var radialDistance = Mathf.Sqrt(offsetX * offsetX + offsetZ * offsetZ);
+            var angle = Mathf.Atan2(offsetZ, offsetX);
+
+            var shorelineRadius = 1420f
+                + 105f * Mathf.Sin(angle * 2.1f + 0.35f)
+                + 82.5f * Mathf.Sin(angle * 3.8f - 1.15f)
+                + 52.5f * Mathf.Cos(angle * 5.2f + 0.9f);
+
+            var broadUndulation = 2.2f * Mathf.Sin(worldX * 0.0042f)
+                + 1.8f * Mathf.Cos(worldZ * 0.0036f)
+                + 1.3f * Mathf.Sin((worldX + worldZ) * 0.0028f);
+            var centerLift = 6f * (1f - SmoothRange01(140f, 860f, radialDistance));
+            var shorelineFalloff = SmoothRange01(shorelineRadius - 190f, shorelineRadius + 150f, radialDistance);
+            var cornerSink = SmoothRange01(1800f, 2150f, radialDistance);
+            var shorelineVariation = shorelineFalloff * (
+                4f * Mathf.Sin(angle * 7.1f + worldX * 0.0015f)
+                + 2f * Mathf.Cos(angle * 4.4f - worldZ * 0.0019f));
+
+            var interiorHeight = LandBaselineMeters + centerLift + broadUndulation;
+            var coastlineHeight = SeaLevelMeters - 10f + shorelineVariation;
+            var height = Mathf.Lerp(interiorHeight, coastlineHeight, shorelineFalloff);
+            height -= cornerSink * 7f;
+
+            return Mathf.Clamp(height, 0f, TerrainHeightMeters - 4f);
+        }
+
+        private static float SmoothRange01(float min, float max, float value)
+        {
+            return Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(min, max, value));
         }
 
         private static float Gaussian(float x, float z, float centerX, float centerZ, float radiusX, float radiusZ)
@@ -647,9 +829,286 @@ namespace Reloader.World.Editor
             EnsureWaterSegment(reservoirRoot, "ReservoirSurface", waterMaterial, new Vector3(-620f, 5.4f, 520f), new Vector3(250f, 0.25f, 190f), 8f);
         }
 
+        private static void EnsureOceanHorizonPresentation(Transform worldShell)
+        {
+            var waterMaterial = EnsureOpaqueOceanMaterial();
+            if (waterMaterial == null)
+            {
+                Debug.LogWarning("MainTown island pass could not create a reusable ocean material.");
+                return;
+            }
+
+            var oceanRoot = EnsureChildRoot(worldShell, "Water_OceanHorizon", Vector3.zero);
+            EnsureWaterSegment(
+                oceanRoot,
+                "OceanSurface",
+                waterMaterial,
+                new Vector3(0f, SeaLevelMeters, 0f),
+                new Vector3(40000f, 0.25f, 40000f),
+                0f);
+        }
+
+        private static void EnsureOceanBoundaryBlockers(Transform worldShell)
+        {
+            var blockerRoot = EnsureChildRoot(worldShell, "Water_OceanBoundary", Vector3.zero);
+            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_North", new Vector3(0f, 60f, 1460f), new Vector3(2400f, 120f, 40f), 0f);
+            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_South", new Vector3(0f, 60f, -1460f), new Vector3(2400f, 120f, 40f), 0f);
+            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_East", new Vector3(1460f, 60f, 0f), new Vector3(40f, 120f, 2400f), 0f);
+            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_West", new Vector3(-1460f, 60f, 0f), new Vector3(40f, 120f, 2400f), 0f);
+            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_NorthEast", new Vector3(1140f, 60f, 1140f), new Vector3(1500f, 120f, 40f), 45f);
+            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_NorthWest", new Vector3(-1140f, 60f, 1140f), new Vector3(1500f, 120f, 40f), -45f);
+            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_SouthEast", new Vector3(1140f, 60f, -1140f), new Vector3(1500f, 120f, 40f), -45f);
+            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_SouthWest", new Vector3(-1140f, 60f, -1140f), new Vector3(1500f, 120f, 40f), 45f);
+        }
+
+        private static void LiftSceneContentToTerrain(Scene scene, Transform worldShell, Terrain terrain)
+        {
+            foreach (Transform child in worldShell)
+            {
+                LiftTransformHierarchyToTerrain(child, terrain);
+            }
+
+            foreach (var sceneRoot in scene.GetRootGameObjects())
+            {
+                if (sceneRoot == worldShell.gameObject || NonLiftedSceneRootNames.Contains(sceneRoot.name))
+                {
+                    continue;
+                }
+
+                LiftTransformHierarchyToTerrain(sceneRoot.transform, terrain);
+            }
+        }
+
+        private static void LiftTransformHierarchyToTerrain(Transform root, Terrain terrain)
+        {
+            if (root == null || TerrainPresentationRootNames.Contains(root.name))
+            {
+                return;
+            }
+
+            if (IsGroupingTransform(root))
+            {
+                foreach (Transform child in root)
+                {
+                    LiftTransformHierarchyToTerrain(child, terrain);
+                }
+
+                var groupingTargetY = CalculateTargetRootY(root, terrain, DetermineTerrainClearance(root));
+                if (!float.IsNaN(groupingTargetY) && Mathf.Abs(groupingTargetY - root.position.y) > 0.001f)
+                {
+                    var groupingPosition = root.position;
+                    root.position = new Vector3(groupingPosition.x, groupingTargetY, groupingPosition.z);
+                }
+
+                return;
+            }
+
+            var targetY = CalculateTargetRootY(root, terrain, DetermineTerrainClearance(root));
+            if (!float.IsNaN(targetY) && Mathf.Abs(targetY - root.position.y) > 0.001f)
+            {
+                var position = root.position;
+                root.position = new Vector3(position.x, targetY, position.z);
+            }
+        }
+
+        private static bool IsGroupingTransform(Transform root)
+        {
+            return root.name.StartsWith("District_", StringComparison.Ordinal) ||
+                root.name is "PerimeterLoopRoad" or "MainStreetSpine" or "ServiceRoads";
+        }
+
+        private static float CalculateTargetRootY(Transform root, Terrain terrain, float clearance)
+        {
+            var targetY = float.NaN;
+            var hasShape = false;
+
+            foreach (var shape in EnumeratePlacementShapes(root))
+            {
+                hasShape = true;
+                var terrainHeight = SampleMaximumTerrainHeight(terrain, shape.SampleWorldPoints);
+                var desiredRootY = terrainHeight + clearance - shape.LowestRootLocalY;
+                targetY = float.IsNaN(targetY) ? desiredRootY : Mathf.Max(targetY, desiredRootY);
+            }
+
+            if (!hasShape && HasPlacementAnchorComponent(root))
+            {
+                var terrainHeight = terrain.SampleHeight(root.position) + terrain.transform.position.y;
+                targetY = terrainHeight + clearance;
+            }
+
+            return targetY;
+        }
+
+        private static IEnumerable<PlacementShape> EnumeratePlacementShapes(Transform root)
+        {
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!IsTerrainPresentationObject(renderer.transform))
+                {
+                    yield return CreatePlacementShape(root, renderer.transform, renderer.localBounds);
+                }
+            }
+
+            foreach (var collider in root.GetComponentsInChildren<Collider>(true))
+            {
+                if (IsTerrainPresentationObject(collider.transform))
+                {
+                    continue;
+                }
+
+                if (TryGetLocalBounds(collider, out var localBounds))
+                {
+                    yield return CreatePlacementShape(root, collider.transform, localBounds);
+                }
+            }
+
+            foreach (var controller in root.GetComponentsInChildren<CharacterController>(true))
+            {
+                if (!IsTerrainPresentationObject(controller.transform))
+                {
+                    var localBounds = new Bounds(
+                        controller.center,
+                        new Vector3(controller.radius * 2f, controller.height, controller.radius * 2f));
+                    yield return CreatePlacementShape(root, controller.transform, localBounds);
+                }
+            }
+        }
+
+        private static PlacementShape CreatePlacementShape(Transform root, Transform contentTransform, Bounds localBounds)
+        {
+            var localSamplePoints = new[]
+            {
+                new Vector3(localBounds.center.x, localBounds.min.y, localBounds.center.z),
+                new Vector3(localBounds.min.x, localBounds.min.y, localBounds.min.z),
+                new Vector3(localBounds.min.x, localBounds.min.y, localBounds.max.z),
+                new Vector3(localBounds.max.x, localBounds.min.y, localBounds.min.z),
+                new Vector3(localBounds.max.x, localBounds.min.y, localBounds.max.z),
+            };
+
+            var sampleWorldPoints = new Vector3[localSamplePoints.Length];
+            var localToWorld = contentTransform.localToWorldMatrix;
+            var toRootLocal = root.worldToLocalMatrix * localToWorld;
+            var lowestRootLocalY = float.MaxValue;
+
+            for (var index = 0; index < localSamplePoints.Length; index++)
+            {
+                var localSamplePoint = localSamplePoints[index];
+                sampleWorldPoints[index] = localToWorld.MultiplyPoint3x4(localSamplePoint);
+                var rootLocalPoint = toRootLocal.MultiplyPoint3x4(localSamplePoint);
+                lowestRootLocalY = Mathf.Min(lowestRootLocalY, rootLocalPoint.y);
+            }
+
+            return new PlacementShape(lowestRootLocalY, sampleWorldPoints);
+        }
+
+        private static bool TryGetLocalBounds(Collider collider, out Bounds localBounds)
+        {
+            switch (collider)
+            {
+                case BoxCollider boxCollider:
+                    localBounds = new Bounds(boxCollider.center, boxCollider.size);
+                    return true;
+                case SphereCollider sphereCollider:
+                    localBounds = new Bounds(
+                        sphereCollider.center,
+                        Vector3.one * sphereCollider.radius * 2f);
+                    return true;
+                case CapsuleCollider capsuleCollider:
+                    localBounds = new Bounds(
+                        capsuleCollider.center,
+                        GetCapsuleLocalSize(capsuleCollider));
+                    return true;
+                case MeshCollider meshCollider when meshCollider.sharedMesh != null:
+                    localBounds = meshCollider.sharedMesh.bounds;
+                    return true;
+                default:
+                    localBounds = default;
+                    return false;
+            }
+        }
+
+        private static Vector3 GetCapsuleLocalSize(CapsuleCollider capsuleCollider)
+        {
+            var diameter = capsuleCollider.radius * 2f;
+            return capsuleCollider.direction switch
+            {
+                0 => new Vector3(capsuleCollider.height, diameter, diameter),
+                2 => new Vector3(diameter, diameter, capsuleCollider.height),
+                _ => new Vector3(diameter, capsuleCollider.height, diameter),
+            };
+        }
+
+        private static bool IsTerrainPresentationObject(Transform transform)
+        {
+            var current = transform;
+            while (current != null)
+            {
+                if (TerrainPresentationRootNames.Contains(current.name))
+                {
+                    return true;
+                }
+
+                current = current.parent;
+            }
+
+            return false;
+        }
+
+        private static float SampleMaximumTerrainHeight(Terrain terrain, IEnumerable<Vector3> sampleWorldPoints)
+        {
+            var maxHeight = float.MinValue;
+            foreach (var samplePoint in sampleWorldPoints)
+            {
+                var height = terrain.SampleHeight(samplePoint) + terrain.transform.position.y;
+                maxHeight = Mathf.Max(maxHeight, height);
+            }
+
+            return maxHeight;
+        }
+
+        private static float DetermineTerrainClearance(Transform root)
+        {
+            if (root.name.StartsWith("Label_", StringComparison.Ordinal))
+            {
+                return 2f;
+            }
+
+            if (root.name.StartsWith("Landmark_", StringComparison.Ordinal) || HasAncestorNamed(root, "District_"))
+            {
+                return 2f;
+            }
+
+            return DefaultTerrainClearanceMeters;
+        }
+
+        private static bool HasAncestorNamed(Transform root, string prefix)
+        {
+            var current = root.parent;
+            while (current != null)
+            {
+                if (current.name.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+
+                current = current.parent;
+            }
+
+            return false;
+        }
+
+        private static bool HasPlacementAnchorComponent(Transform root)
+        {
+            return root.GetComponents<Component>()
+                .Any(component =>
+                    component != null &&
+                    component.GetType() != typeof(Transform) &&
+                    component.GetType().Assembly != typeof(Transform).Assembly);
+        }
+
         private static void RemoveWaterPresentation(Transform worldShell)
         {
-            foreach (var waterRootName in new[] { "Water_RiverChannel", "Water_ReservoirBasin" })
+            foreach (var waterRootName in new[] { "Water_RiverChannel", "Water_ReservoirBasin", "Water_OceanHorizon", "Water_OceanBoundary" })
             {
                 var waterRoot = worldShell.GetComponentsInChildren<Transform>(true)
                     .FirstOrDefault(child => child.name == waterRootName);
@@ -659,6 +1118,60 @@ namespace Reloader.World.Editor
                     waterRoot.gameObject.SetActive(false);
                 }
             }
+        }
+
+        private static Material EnsureOpaqueOceanMaterial()
+        {
+            var material = AssetDatabase.LoadAssetAtPath<Material>(OpaqueOceanMaterialPath);
+            if (material == null)
+            {
+                var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+                if (shader == null)
+                {
+                    return AssetDatabase.LoadAssetAtPath<Material>(BlueMaterialPath);
+                }
+
+                material = new Material(shader)
+                {
+                    name = "MainTown_Ocean",
+                };
+                AssetDatabase.CreateAsset(material, OpaqueOceanMaterialPath);
+            }
+
+            var oceanColor = new Color(0.055f, 0.29f, 0.38f, 1f);
+            if (material.HasProperty("_BaseColor"))
+            {
+                material.SetColor("_BaseColor", oceanColor);
+            }
+
+            if (material.HasProperty("_Color"))
+            {
+                material.SetColor("_Color", oceanColor);
+            }
+
+            if (material.HasProperty("_Surface"))
+            {
+                material.SetFloat("_Surface", 0f);
+            }
+
+            if (material.HasProperty("_Smoothness"))
+            {
+                material.SetFloat("_Smoothness", 0.85f);
+            }
+
+            if (material.HasProperty("_Glossiness"))
+            {
+                material.SetFloat("_Glossiness", 0.85f);
+            }
+
+            if (material.HasProperty("_Metallic"))
+            {
+                material.SetFloat("_Metallic", 0f);
+            }
+
+            material.renderQueue = -1;
+            EditorUtility.SetDirty(material);
+            return material;
         }
 
         private static Transform EnsureChildRoot(Transform parent, string name, Vector3 localPosition)
@@ -711,6 +1224,57 @@ namespace Reloader.World.Editor
                 renderer.sharedMaterial = material;
                 renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
+        }
+
+        private static void EnsureOceanBlockerSegment(Transform parent, string name, Vector3 localPosition, Vector3 localScale, float yRotation)
+        {
+            var existing = parent.GetComponentsInChildren<Transform>(true).FirstOrDefault(child => child.name == name);
+            GameObject gameObject;
+            if (existing != null)
+            {
+                gameObject = existing.gameObject;
+            }
+            else
+            {
+                gameObject = new GameObject(name);
+                gameObject.transform.SetParent(parent, false);
+            }
+
+            gameObject.transform.localPosition = localPosition;
+            gameObject.transform.localRotation = Quaternion.Euler(0f, yRotation, 0f);
+            gameObject.transform.localScale = localScale;
+
+            var collider = gameObject.GetComponent<BoxCollider>();
+            if (collider == null)
+            {
+                collider = gameObject.AddComponent<BoxCollider>();
+            }
+
+            collider.isTrigger = false;
+
+            var meshRenderer = gameObject.GetComponent<MeshRenderer>();
+            if (meshRenderer != null)
+            {
+                meshRenderer.enabled = false;
+            }
+
+            var meshFilter = gameObject.GetComponent<MeshFilter>();
+            if (meshFilter != null)
+            {
+                UnityEngine.Object.DestroyImmediate(meshFilter);
+            }
+        }
+
+        private readonly struct PlacementShape
+        {
+            public PlacementShape(float lowestRootLocalY, Vector3[] sampleWorldPoints)
+            {
+                LowestRootLocalY = lowestRootLocalY;
+                SampleWorldPoints = sampleWorldPoints;
+            }
+
+            public float LowestRootLocalY { get; }
+            public Vector3[] SampleWorldPoints { get; }
         }
 
         private readonly struct LayerSpec

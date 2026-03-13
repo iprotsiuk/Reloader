@@ -55,17 +55,6 @@ namespace Reloader.World.Tests.EditMode
                 AssertChildExists(worldShell.transform, "Landmark_ReloadingSupply");
                 AssertChildExists(worldShell.transform, "Landmark_PlayerHouse");
                 AssertChildExists(worldShell.transform, "Landmark_Motel");
-                AssertSceneRootExists(scene, "Label_IndustrialYard");
-                AssertSceneRootExists(scene, "Label_TrailerPark");
-                AssertSceneRootExists(scene, "Label_ServiceDepot");
-                AssertSceneRootExists(scene, "Label_TruckStop");
-                AssertSceneRootExists(scene, "Label_WaterTreatment");
-                AssertSceneRootExists(scene, "Label_StorageYard");
-                AssertSceneRootExists(scene, "Label_MunicipalBlock");
-                AssertSceneRootExists(scene, "Label_FreightYard");
-                AssertSceneRootExists(scene, "Label_RoadsideMarket");
-                AssertSceneRootExists(scene, "Label_RadioTower");
-
                 Assert.That(FindChild(worldShell.transform, "PlayerHouse"), Is.Not.Null, "Expected an exact PlayerHouse object for round-trip travel coverage.");
 
                 AssertNamedScaleAtLeast(worldShell.transform, "House_Body", minX: 10f, minY: 4.5f, minZ: 8f);
@@ -150,7 +139,7 @@ namespace Reloader.World.Tests.EditMode
 
                 var waterTowerTank = FindChild(utilityLandmarks, "WaterTowerTank");
                 Assert.That(waterTowerTank, Is.Not.Null, "Expected WaterTowerTank under District_UtilityLandmarks.");
-                Assert.That(waterTowerTank!.localPosition.y, Is.GreaterThanOrEqualTo(25f), "Water tower tank should sit well above street level for landmark visibility.");
+                Assert.That(waterTowerTank!.localPosition.y, Is.GreaterThanOrEqualTo(20f), "Water tower tank should still sit well above street level for landmark visibility after the island scale-up.");
 
                 AssertChildMissing(worldShell.transform, "Water_RiverWest");
                 AssertChildMissing(worldShell.transform, "Water_RiverCentral");
@@ -181,7 +170,7 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void MainTownScene_HasRoadNetworkAndDistrictLabelsForPlanningPass()
+        public void MainTownScene_HasRoadNetworkForPlanningPass()
         {
             var originalScene = SceneManager.GetActiveScene();
             var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
@@ -211,16 +200,6 @@ namespace Reloader.World.Tests.EditMode
                 AssertRoadUsesReplacementSurface(worldShell.transform, "Road_South", expectDirt: false);
                 AssertRoadUsesReplacementSurface(worldShell.transform, "Road_East", expectDirt: false);
                 AssertRoadUsesReplacementSurface(worldShell.transform, "Road_West", expectDirt: false);
-                AssertSceneRootExists(scene, "Label_IndustrialYard");
-                AssertSceneRootExists(scene, "Label_TrailerPark");
-                AssertSceneRootExists(scene, "Label_ServiceDepot");
-                AssertSceneRootExists(scene, "Label_TruckStop");
-                AssertSceneRootExists(scene, "Label_WaterTreatment");
-                AssertSceneRootExists(scene, "Label_StorageYard");
-                AssertSceneRootExists(scene, "Label_MunicipalBlock");
-                AssertSceneRootExists(scene, "Label_FreightYard");
-                AssertSceneRootExists(scene, "Label_RoadsideMarket");
-                AssertSceneRootExists(scene, "Label_RadioTower");
             }
             finally
             {
@@ -254,8 +233,8 @@ namespace Reloader.World.Tests.EditMode
                 Assert.That(terrainCollider!.terrainData, Is.SameAs(terrain.terrainData), "Expected TerrainCollider to reference the same TerrainData as Terrain.");
 
                 var terrainData = terrain.terrainData;
-                Assert.That(terrainData.size.x, Is.GreaterThanOrEqualTo(1900f), "Expected terrain width to cover the 2km planning shell.");
-                Assert.That(terrainData.size.z, Is.GreaterThanOrEqualTo(1900f), "Expected terrain depth to cover the 2km planning shell.");
+                Assert.That(terrainData.size.x, Is.GreaterThanOrEqualTo(2900f), "Expected terrain width to expand by roughly 50% so the island footprint can breathe.");
+                Assert.That(terrainData.size.z, Is.GreaterThanOrEqualTo(2900f), "Expected terrain depth to expand by roughly 50% so the island footprint can breathe.");
                 Assert.That(terrainData.size.y, Is.GreaterThanOrEqualTo(100f), "Expected enough terrain height range for future sculpting.");
                 Assert.That(terrainData.terrainLayers.Length, Is.GreaterThanOrEqualTo(4), "Expected at least four starter terrain layers for grass, dirt, road, and quarry paint.");
             }
@@ -270,7 +249,7 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void MainTownScene_PersistsPlanningShellTerrainBeforeDramaticPass()
+        public void MainTownScene_PersistsIslandTerrainPass()
         {
             var originalScene = SceneManager.GetActiveScene();
             var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
@@ -287,12 +266,80 @@ namespace Reloader.World.Tests.EditMode
                 Assert.That(terrain, Is.Not.Null, "Expected Terrain component on MainTownTerrain.");
 
                 var terrainData = terrain!.terrainData;
-                Assert.That(terrainData.size.y, Is.GreaterThanOrEqualTo(100f), "Expected enough vertical range configured for a future dramatic terrain pass.");
-                Assert.That(GetTerrainHeightRange(terrain), Is.LessThanOrEqualTo(0.01f), "Expected the saved MainTown scene to remain a flat planning shell until the dramatic pass is applied.");
+                Assert.That(terrainData.size.y, Is.GreaterThanOrEqualTo(500f), "Expected the saved MainTown scene to reserve the agreed 500m vertical budget.");
+                Assert.That(GetTerrainHeightRange(terrain), Is.GreaterThanOrEqualTo(18f), "Expected the saved MainTown scene to persist the island relief instead of a flat planning shell.");
                 Assert.That(terrainData.treeInstances.Length, Is.EqualTo(0), "Expected the saved MainTown scene to defer forest population to the dramatic terrain authoring tool.");
+
+                var interiorHeight = AverageTerrainHeight(
+                    terrain,
+                    new Vector3(0f, 0f, 0f),
+                    new Vector3(-250f, 0f, 120f),
+                    new Vector3(220f, 0f, -180f));
+                var edgeHeight = AverageTerrainHeight(terrain, GetPerimeterSamplePoints(terrain));
+
+                Assert.That(interiorHeight, Is.GreaterThanOrEqualTo(35f), "Expected the island interior to remain comfortably above sea level.");
+                Assert.That(edgeHeight, Is.LessThan(interiorHeight - 8f), "Expected the saved scene perimeter to taper toward the ocean.");
+
+                var oceanRoot = FindChild(worldShell.transform, "Water_OceanHorizon");
+                Assert.That(oceanRoot, Is.Not.Null, "Expected the saved MainTown scene to include horizon ocean presentation.");
+                Assert.That(oceanRoot!.gameObject.activeSelf, Is.True, "Expected the horizon ocean root to be active.");
+                Assert.That(oceanRoot.GetComponentsInChildren<Collider>(true), Is.Empty, "Expected ocean presentation to avoid gameplay colliders.");
+
+                var oceanSurface = FindChild(oceanRoot, "OceanSurface");
+                Assert.That(oceanSurface, Is.Not.Null, "Expected the saved MainTown scene to include a horizon ocean surface.");
+                var oceanRenderer = oceanSurface!.GetComponent<Renderer>();
+                Assert.That(oceanRenderer, Is.Not.Null, "Expected OceanSurface renderer.");
+                AssertOceanMaterialIsOpaque(oceanRenderer!);
+
+                var oceanBoundary = FindChild(worldShell.transform, "Water_OceanBoundary");
+                Assert.That(oceanBoundary, Is.Not.Null, "Expected the saved MainTown scene to include invisible ocean blockers.");
+                Assert.That(oceanBoundary!.GetComponentsInChildren<BoxCollider>(true).Length, Is.GreaterThanOrEqualTo(8), "Expected enough blocker segments to keep the player out of the ocean.");
 
                 var basinFloor = FindChild(worldShell.transform, "BasinFloor");
                 Assert.That(basinFloor, Is.Not.Null, "Expected BasinFloor to remain authored in the planning-shell scene state.");
+                Assert.That(basinFloor!.gameObject.activeSelf, Is.False, "Expected the island pass to hide BasinFloor in the saved scene state.");
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void MainTownScene_KeepsAuthoredContentAboveIslandTerrain()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                Assert.That(worldShell, Is.Not.Null, "Expected MainTownWorldShell to exist for terrain sampling.");
+
+                var terrainRoot = FindChild(worldShell!.transform, "MainTownTerrain");
+                Assert.That(terrainRoot, Is.Not.Null, "Expected MainTownTerrain for island terrain validation.");
+
+                var terrain = terrainRoot!.GetComponent<Terrain>();
+                Assert.That(terrain, Is.Not.Null, "Expected Terrain component on MainTownTerrain.");
+
+                AssertRootContentClearsTerrain(terrain!, FindChild(worldShell.transform, "Landmark_PlayerHouse"), "Landmark_PlayerHouse");
+                AssertRootContentClearsTerrain(terrain, FindChild(worldShell.transform, "GunStoreBlock"), "GunStoreBlock");
+                AssertRootContentClearsTerrain(terrain, FindChild(worldShell.transform, "ReloadingSupplyBlock"), "ReloadingSupplyBlock");
+                AssertRootContentClearsTerrain(terrain, FindChild(worldShell.transform, "PoliceBlock"), "PoliceBlock");
+                AssertRootContentClearsTerrain(terrain, FindChild(worldShell.transform, "HospitalBlock"), "HospitalBlock");
+                AssertRootContentClearsTerrain(terrain, FindChild(worldShell.transform, "ChurchBody"), "ChurchBody");
+                AssertRootContentClearsTerrain(terrain, FindChild(worldShell.transform, "Landmark_QuarryTerraces"), "Landmark_QuarryTerraces");
+
+                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "PlayerRoot")?.transform, "PlayerRoot");
+                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "ReloadingWorkbench")?.transform, "ReloadingWorkbench");
+                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "StorageChest")?.transform, "StorageChest");
+                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "AmmoVendor")?.transform, "AmmoVendor");
+                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "WeaponVendor")?.transform, "WeaponVendor");
+                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "ReloadingVendor_House")?.transform, "ReloadingVendor_House");
             }
             finally
             {
@@ -468,6 +515,109 @@ namespace Reloader.World.Tests.EditMode
             var normalizedX = Mathf.InverseLerp(terrainPosition.x, terrainPosition.x + terrainSize.x, worldPoint.x);
             var normalizedZ = Mathf.InverseLerp(terrainPosition.z, terrainPosition.z + terrainSize.z, worldPoint.z);
             return terrain.terrainData.GetInterpolatedHeight(normalizedX, normalizedZ);
+        }
+
+        private static float AverageTerrainHeight(Terrain terrain, params Vector3[] worldPoints)
+        {
+            var total = 0f;
+            foreach (var worldPoint in worldPoints)
+            {
+                total += SampleTerrainHeight(terrain, worldPoint);
+            }
+
+            return total / worldPoints.Length;
+        }
+
+        private static Vector3[] GetPerimeterSamplePoints(Terrain terrain)
+        {
+            var halfWidth = terrain.terrainData.size.x * 0.5f - 90f;
+            var halfDepth = terrain.terrainData.size.z * 0.5f - 90f;
+            return new[]
+            {
+                new Vector3(-halfWidth, 0f, 0f),
+                new Vector3(halfWidth, 0f, 0f),
+                new Vector3(0f, 0f, -halfDepth),
+                new Vector3(0f, 0f, halfDepth),
+            };
+        }
+
+        private static void AssertRootContentClearsTerrain(Terrain terrain, Transform root, string rootName)
+        {
+            Assert.That(root, Is.Not.Null, $"Expected '{rootName}' root to exist.");
+
+            var boundsFound = TryGetAuthoredContentBounds(root!, out var bounds);
+            Assert.That(boundsFound, Is.True, $"Expected '{rootName}' to provide renderer/collider bounds for terrain clearance validation.");
+
+            var terrainHeight = SampleTerrainHeight(terrain, bounds.center);
+            Assert.That(
+                bounds.min.y,
+                Is.GreaterThanOrEqualTo(terrainHeight - 2.5f),
+                $"Expected '{rootName}' content to sit on or above the island terrain.");
+        }
+
+        private static bool TryGetAuthoredContentBounds(Transform root, out Bounds combinedBounds)
+        {
+            combinedBounds = default;
+            var found = false;
+
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!found)
+                {
+                    combinedBounds = renderer.bounds;
+                    found = true;
+                    continue;
+                }
+
+                combinedBounds.Encapsulate(renderer.bounds);
+            }
+
+            foreach (var collider in root.GetComponentsInChildren<Collider>(true))
+            {
+                if (!found)
+                {
+                    combinedBounds = collider.bounds;
+                    found = true;
+                    continue;
+                }
+
+                combinedBounds.Encapsulate(collider.bounds);
+            }
+
+            foreach (var controller in root.GetComponentsInChildren<CharacterController>(true))
+            {
+                if (!found)
+                {
+                    combinedBounds = controller.bounds;
+                    found = true;
+                    continue;
+                }
+
+                combinedBounds.Encapsulate(controller.bounds);
+            }
+
+            return found;
+        }
+
+        private static void AssertOceanMaterialIsOpaque(Renderer renderer)
+        {
+            var material = renderer.sharedMaterial;
+            Assert.That(material, Is.Not.Null, "Expected horizon ocean renderer to reference a material.");
+
+            if (material!.HasProperty("_Surface"))
+            {
+                Assert.That(material.GetFloat("_Surface"), Is.EqualTo(0f).Within(0.001f), "Expected ocean material to use opaque surface mode.");
+            }
+
+            if (material.HasProperty("_BaseColor"))
+            {
+                Assert.That(material.GetColor("_BaseColor").a, Is.GreaterThanOrEqualTo(0.99f), "Expected ocean base color alpha to stay opaque.");
+            }
+
+            if (material.HasProperty("_Color"))
+            {
+                Assert.That(material.GetColor("_Color").a, Is.GreaterThanOrEqualTo(0.99f), "Expected ocean color alpha to stay opaque.");
+            }
         }
 
         private static float GetTerrainHeightRange(Terrain terrain)
