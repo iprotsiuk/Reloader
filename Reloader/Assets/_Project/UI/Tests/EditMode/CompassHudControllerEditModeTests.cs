@@ -129,6 +129,42 @@ namespace Reloader.UI.Tests.EditMode
             }
         }
 
+        [Test]
+        public void Refresh_WhenAssignedPopulationBridgeWasDestroyed_ReacquiresLiveSceneBridge()
+        {
+            var fixture = new CompassHudFixture();
+            GameObject stalePopulationGo = null;
+
+            try
+            {
+                fixture.InventoryController.transform.position = Vector3.zero;
+                fixture.InventoryController.transform.forward = Vector3.forward;
+                fixture.SetTargetPosition(new Vector3(30f, 2f, 0f));
+
+                stalePopulationGo = new GameObject("DestroyedCompassPopulationBridge");
+                var stalePopulationBridge = stalePopulationGo.AddComponent<CivilianPopulationRuntimeBridge>();
+                fixture.Controller.SetPopulationBridge(stalePopulationBridge);
+
+                UnityEngine.Object.DestroyImmediate(stalePopulationGo);
+                stalePopulationGo = null;
+
+                fixture.Controller.Refresh();
+
+                var marker = FindEntry(fixture.EntriesRoot, "contract-target");
+                Assert.That(marker, Is.Not.Null);
+                Assert.That(marker.style.left.value.value, Is.GreaterThan(130f));
+            }
+            finally
+            {
+                if (stalePopulationGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(stalePopulationGo);
+                }
+
+                fixture.Dispose();
+            }
+        }
+
         private static VisualElement FindEntry(VisualElement root, string entryKey)
         {
             for (var i = 0; i < root.childCount; i++)

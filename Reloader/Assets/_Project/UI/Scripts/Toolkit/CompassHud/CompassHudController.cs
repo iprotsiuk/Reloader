@@ -106,7 +106,15 @@ namespace Reloader.UI.Toolkit.CompassHud
                     FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None));
             }
 
-            _populationBridge ??= FindFirstObjectByType<CivilianPopulationRuntimeBridge>(FindObjectsInactive.Include);
+            if (!IsReferenceAlive(_populationBridge))
+            {
+                _populationBridge = null;
+            }
+
+            if (_populationBridge == null)
+            {
+                _populationBridge = FindFirstObjectByType<CivilianPopulationRuntimeBridge>(FindObjectsInactive.Include);
+            }
         }
 
         private bool TryBuildTargetMarker(Transform viewer, float headingDegrees, out CompassHudUiState.EntryState markerEntry)
