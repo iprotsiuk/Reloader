@@ -127,21 +127,21 @@ namespace Reloader.Weapons.Tests.PlayMode
             var minusUnshiftedArgs = new object[] { false, true, false, 0, 0 };
             Assert.That((bool)resolveMethod!.Invoke(null, minusUnshiftedArgs), Is.True);
             Assert.That((int)minusUnshiftedArgs[3], Is.EqualTo(0));
-            Assert.That((int)minusUnshiftedArgs[4], Is.EqualTo(1), "Expected unshifted '-' to raise elevation clicks.");
+            Assert.That((int)minusUnshiftedArgs[4], Is.EqualTo(-1), "Expected unshifted '-' to lower elevation clicks.");
 
             var equalsUnshiftedArgs = new object[] { false, false, true, 0, 0 };
             Assert.That((bool)resolveMethod.Invoke(null, equalsUnshiftedArgs), Is.True);
             Assert.That((int)equalsUnshiftedArgs[3], Is.EqualTo(0));
-            Assert.That((int)equalsUnshiftedArgs[4], Is.EqualTo(-1), "Expected unshifted '=' to lower elevation clicks.");
+            Assert.That((int)equalsUnshiftedArgs[4], Is.EqualTo(1), "Expected unshifted '=' to raise elevation clicks.");
 
             var minusShiftedArgs = new object[] { true, true, false, 0, 0 };
             Assert.That((bool)resolveMethod.Invoke(null, minusShiftedArgs), Is.True);
-            Assert.That((int)minusShiftedArgs[3], Is.EqualTo(1), "Expected shifted '-' to raise windage clicks.");
+            Assert.That((int)minusShiftedArgs[3], Is.EqualTo(-1), "Expected shifted '-' to lower windage clicks.");
             Assert.That((int)minusShiftedArgs[4], Is.EqualTo(0));
 
             var equalsShiftedArgs = new object[] { true, false, true, 0, 0 };
             Assert.That((bool)resolveMethod.Invoke(null, equalsShiftedArgs), Is.True);
-            Assert.That((int)equalsShiftedArgs[3], Is.EqualTo(-1), "Expected shifted '=' to lower windage clicks.");
+            Assert.That((int)equalsShiftedArgs[3], Is.EqualTo(1), "Expected shifted '=' to raise windage clicks.");
             Assert.That((int)equalsShiftedArgs[4], Is.EqualTo(0));
         }
 

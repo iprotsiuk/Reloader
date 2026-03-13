@@ -1230,11 +1230,11 @@ namespace Reloader.Weapons.Controllers
             {
                 if (shiftHeld)
                 {
-                    windageClicks += 1;
+                    windageClicks -= 1;
                 }
                 else
                 {
-                    elevationClicks += 1;
+                    elevationClicks -= 1;
                 }
             }
 
@@ -1242,11 +1242,11 @@ namespace Reloader.Weapons.Controllers
             {
                 if (shiftHeld)
                 {
-                    windageClicks -= 1;
+                    windageClicks += 1;
                 }
                 else
                 {
-                    elevationClicks -= 1;
+                    elevationClicks += 1;
                 }
             }
 
