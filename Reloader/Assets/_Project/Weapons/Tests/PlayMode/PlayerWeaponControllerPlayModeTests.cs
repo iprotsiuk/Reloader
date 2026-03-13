@@ -512,7 +512,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 input.FirePressedThisFrame = true;
                 yield return null;
 
+                var projectile = Object.FindFirstObjectByType<WeaponProjectile>();
+                Assert.That(projectile, Is.Not.Null);
                 Assert.That(shotCameraRuntime.IsShotActive, Is.True);
+                Assert.That(shotCameraRuntime.HasActiveCinematicCamera, Is.True);
+                Assert.That(projectile!.IsShotCameraPresentationActive, Is.True);
                 Assert.That(Time.timeScale, Is.EqualTo(0.1f).Within(0.001f));
             }
             finally
@@ -613,6 +617,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 input.FirePressedThisFrame = true;
                 yield return null;
 
+                var projectile = Object.FindFirstObjectByType<WeaponProjectile>();
+                Assert.That(projectile, Is.Not.Null);
                 input.ShotCameraSpeedUpHeldValue = true;
                 yield return null;
 
@@ -728,9 +734,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 yield return null;
 
                 Assert.That(shotCameraRuntime.IsShotActive, Is.False);
+                Assert.That(shotCameraRuntime.HasActiveCinematicCamera, Is.False);
                 Assert.That(Time.timeScale, Is.EqualTo(1f).Within(0.001f));
                 Assert.That(projectile, Is.Not.Null);
                 Assert.That(projectile.gameObject, Is.Not.Null);
+                Assert.That(projectile.IsShotCameraPresentationActive, Is.False);
             }
             finally
             {

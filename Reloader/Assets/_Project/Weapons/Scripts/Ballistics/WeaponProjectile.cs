@@ -34,11 +34,15 @@ namespace Reloader.Weapons.Ballistics
         private bool _useRuntimeKernelWeaponEvents = true;
         private Collider[] _ignoredColliders = System.Array.Empty<Collider>();
         private Material _runtimeVisualMaterial;
+        private Transform _runtimeVisualTransform;
+        private Vector3 _runtimeVisualBaseScale = Vector3.one * 0.02f;
         private Vector3 _sourcePoint;
         private IPathObserver _pathObserver;
         private bool _pathCompleted;
+        private bool _isShotCameraPresentationActive;
         public float InitialSpeedMetersPerSecond { get; private set; }
         public float CurrentSpeedMetersPerSecond => _velocity.magnitude;
+        public bool IsShotCameraPresentationActive => _isShotCameraPresentationActive;
 
         private void Awake()
         {
@@ -131,6 +135,16 @@ namespace Reloader.Weapons.Ballistics
         {
             _pathObserver = pathObserver;
             _pathCompleted = false;
+        }
+
+        public void SetShotCameraPresentationActive(bool isActive)
+        {
+            EnsureInFlightVisual();
+            _isShotCameraPresentationActive = isActive;
+            if (_runtimeVisualTransform != null)
+            {
+                _runtimeVisualTransform.localScale = _runtimeVisualBaseScale * (isActive ? 2.5f : 1f);
+            }
         }
 
         private IWeaponEvents ResolveWeaponEvents()
@@ -396,7 +410,9 @@ namespace Reloader.Weapons.Ballistics
             var visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             visual.name = "ProjectileVisual";
             visual.transform.SetParent(transform, false);
-            visual.transform.localScale = Vector3.one * 0.02f;
+            _runtimeVisualBaseScale = Vector3.one * 0.02f;
+            visual.transform.localScale = _runtimeVisualBaseScale;
+            _runtimeVisualTransform = visual.transform;
             var visualCollider = visual.GetComponent<Collider>();
             if (visualCollider != null)
             {

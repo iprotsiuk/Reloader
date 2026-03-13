@@ -219,6 +219,32 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Projectile_ShotCameraPresentationToggle_UpdatesReadableVisualState()
+        {
+            var projectileGo = new GameObject("Projectile");
+            projectileGo.transform.position = Vector3.zero;
+            projectileGo.transform.forward = Vector3.forward;
+            var projectile = projectileGo.AddComponent<WeaponProjectile>();
+            yield return null;
+
+            var visual = projectileGo.transform.Find("ProjectileVisual");
+            Assert.That(visual, Is.Not.Null, "Expected runtime projectile visuals to exist for shot-camera presentation.");
+
+            var baselineScale = visual!.localScale;
+            Assert.That(projectile.IsShotCameraPresentationActive, Is.False);
+
+            projectile.SetShotCameraPresentationActive(true);
+            Assert.That(projectile.IsShotCameraPresentationActive, Is.True);
+            Assert.That(visual.localScale.x, Is.GreaterThan(baselineScale.x));
+
+            projectile.SetShotCameraPresentationActive(false);
+            Assert.That(projectile.IsShotCameraPresentationActive, Is.False);
+            Assert.That(visual.localScale, Is.EqualTo(baselineScale).Using(Vector3EqualityComparer.Instance));
+
+            Object.Destroy(projectileGo);
+        }
+
+        [UnityTest]
         public IEnumerator Projectile_PathObserverReportsExactCurvedSegments()
         {
             var projectileGo = new GameObject("Projectile");

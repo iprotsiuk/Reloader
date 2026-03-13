@@ -14,8 +14,11 @@ namespace Reloader.Weapons.Cinematics
         private WeaponProjectile _activeProjectile;
         private ShotCameraSettings _activeSettings;
         private float _baselineFixedDeltaTime = DefaultFixedDeltaTime;
+        private bool _isShotActive;
+        private bool _hasActiveCinematicCamera;
 
-        public bool IsShotActive => _activeProjectile != null;
+        public bool IsShotActive => _isShotActive;
+        public bool HasActiveCinematicCamera => _hasActiveCinematicCamera;
 
         private void Awake()
         {
@@ -35,7 +38,7 @@ namespace Reloader.Weapons.Cinematics
 
         private void Update()
         {
-            if (!IsShotActive)
+            if (!_isShotActive)
             {
                 return;
             }
@@ -45,12 +48,6 @@ namespace Reloader.Weapons.Cinematics
             if (ShouldCancelShotCamera())
             {
                 PlayerCursorLockController.MarkEscapeConsumedThisFrame();
-                EndShotCamera();
-                return;
-            }
-
-            if (_activeProjectile == null)
-            {
                 EndShotCamera();
                 return;
             }
@@ -71,6 +68,9 @@ namespace Reloader.Weapons.Cinematics
             _activeProjectile = request.Projectile;
             _activeSettings = request.Settings;
             _baselineFixedDeltaTime = Mathf.Max(0.0001f, Time.fixedDeltaTime);
+            _isShotActive = true;
+            _hasActiveCinematicCamera = true;
+            _activeProjectile.SetShotCameraPresentationActive(true);
             ApplyTimeScale(_activeSettings.SlowMotionTimeScale);
             return true;
         }
@@ -105,7 +105,14 @@ namespace Reloader.Weapons.Cinematics
 
         private void EndShotCamera()
         {
+            if (_activeProjectile != null)
+            {
+                _activeProjectile.SetShotCameraPresentationActive(false);
+            }
+
             _activeProjectile = null;
+            _isShotActive = false;
+            _hasActiveCinematicCamera = false;
             Time.timeScale = 1f;
             Time.fixedDeltaTime = _baselineFixedDeltaTime > 0f ? _baselineFixedDeltaTime : DefaultFixedDeltaTime;
         }
