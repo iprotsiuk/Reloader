@@ -623,3 +623,98 @@ The town should be built from:
 - player ability to occupy some vacancies before the replacement cycle refreshes the town
 
 This is a stronger foundation than arbitrary ambient spawning because it ties population, jobs, routine, access, and murder consequences into one shared system.
+
+---
+
+## Combat Feedback And Damage Model Brainstorm
+
+The game needs more readable and more satisfying shot feedback.
+
+Two linked changes should be treated as important combat-direction work:
+- NPC collision should move beyond simple broad capsules toward mesh-driven hit detection or mesh-aligned hit zones
+- damage resolution should distinguish between head, torso, and limb hits
+
+This is important both for realism-adjacent readability and for the fantasy of precision long-range shooting.
+
+### Hit Detection Direction
+
+Recommended rule:
+- stop relying on a single generic humanoid collision capsule as the meaningful shot target
+- use mesh-aligned hitboxes or named body-region colliders for real shot resolution
+
+This does not require full soft-body simulation.
+It does require that bullet hits map to body regions that players can understand and intentionally target.
+
+Mandatory body regions for first pass:
+- `Head`
+- `Torso`
+- `Arms`
+- `Legs`
+
+### Damage Model Direction
+
+Recommended first-pass damage behavior:
+- `Headshot`
+  - highest lethality
+  - strongest chance of immediate kill or incapacitation
+  - should be the clean premium sniper outcome
+
+- `Torso`
+  - high lethality, but less guaranteed than head
+  - can still produce survivable or delayed-collapse states depending on context later
+
+- `Limb hit`
+  - lower lethality
+  - high chance to wound, stagger, panic, or trigger flee/hide behavior instead of instant death
+
+This matters a lot for missed-shot and botched-shot gameplay:
+- a limb hit can turn a clean kill into a wounded fleeing target
+- a body hit can create a panic scene without instant resolution
+- a headshot can remain the most reliable precision payoff
+
+### Why Collision Needs To Improve
+
+If the game wants:
+- meaningful ammo choice
+- long-range precision identity
+- target panic and wound states
+- high-stakes contract shots
+
+then crude capsule-only NPC collision will undermine all of it.
+
+Players need to feel that:
+- headshots are earned
+- bad hits are visibly bad hits
+- misses near limbs or partial cover failures are believable
+
+### Slow-Mo Bullet Camera
+
+The game should also have a slow-motion bullet camera for especially strong long shots.
+
+Recommended direction:
+- add a cinematic bullet-follow / impact-confirm camera inspired by `Sniper Elite`
+- reserve it for notable long-range hits, premium kills, or especially clean shots
+- use it as reward feedback, not for every routine shot
+
+This should be treated as a major fantasy amplifier, not a gimmick.
+The game's commercial and emotional identity benefits a lot from occasionally letting the player savor a difficult long shot.
+
+### Cinemachine Note
+
+Probable implementation direction:
+- use `Cinemachine` as the first candidate for the slow-motion bullet camera system
+
+Why it fits:
+- camera blending is already a solved problem there
+- it should be easier to author a temporary shot-follow camera than to build a full custom cinematic stack first
+- it can support clean transition back to player control after the impact moment
+
+### Recommendation
+
+Capture these as linked combat priorities:
+- improve NPC hit detection from capsule-style simplification toward mesh/body-region hitboxes
+- add distinct damage resolution for head, torso, and limbs
+- plan for a selective slow-motion bullet camera to sell premium long shots
+
+These are not isolated polish requests.
+They directly support the game's precision-shooter identity and make both success and failure more legible.
