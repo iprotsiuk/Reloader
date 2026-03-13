@@ -223,3 +223,127 @@ The first serious candidate should be the lighthouse role because it is structur
 2. How much friction should hiring have in the first version: instant acceptance, dialogue gate, or reputation gate?
 3. Should job loss come mostly from missed shifts, suspicious behavior, or explicit witnessed crimes tied to that workplace?
 4. Should some contracts explicitly require job-based access, or should jobs remain optional leverage at first?
+
+---
+
+## Missed Shot And Police Reaction Brainstorm
+
+The game should punish a missed shot by collapsing the player's clean firing opportunity and starting an investigation, not by despawning the target or auto-failing every contract.
+
+Baseline rule:
+- the target stays in the town until they die
+- a miss does not end the contract by default
+- only contracts with explicit `no alarm raised` or similar restrictions should fail immediately from panic or witness escalation
+
+This keeps the world believable while still making misses expensive.
+
+### Target Reaction
+
+After a near miss, visible impact, or obvious incoming shot, the target should immediately break routine and try to survive.
+
+Recommended first target states:
+- `Covering` if immediate hard cover is available
+- `Hiding` if they can reach a secure interior or protected room
+- `Fleeing` if they have an escape route, vehicle, or escort support
+
+Important rule:
+- the target should not simply disappear from the game
+- the player should still be able to recover the contract unless that contract explicitly forbids alarm
+
+The punishment is:
+- the clean shot window is gone
+- the target becomes harder to reach
+- witnesses panic and call police
+- repeated shots from the same area become much riskier
+
+### Police Investigation Flow
+
+Police should respond to the impact site first, not teleport directly to the player.
+
+Recommended investigation loop:
+
+1. A shot event or miss is reported.
+2. Police arrive at the impact site, target location, or panic cluster.
+3. Police secure the area and question witnesses.
+4. Witness statements create a `probable firing zone`.
+5. Police move outward to check likely shot positions.
+6. Repeated evidence tightens the search into a more accurate local hunt.
+
+This creates a better sandbox rule than omniscient police:
+- cops know where the shot probably came from
+- cops do not know the player's exact coordinates unless someone actually saw flash, silhouette, movement, or escape
+
+### Witness Evidence Model
+
+Shots should generate different evidence channels instead of a single stealth value.
+
+Recommended evidence channels:
+- `Impact evidence` — where the bullet landed, what it broke, and who panicked there
+- `Audio origin evidence` — where witnesses think the shot came from based on muzzle blast
+- `Visual origin evidence` — muzzle flash, silhouette, window movement, rooftop movement
+- `Escape evidence` — movement after the shot, vehicle departure, fleeing from a vantage point
+
+Impact evidence anchors the case.
+Police go there first, then build a lead from witnesses.
+
+Readable witness logic:
+- `heard only` = rough direction
+- `saw flash` = much tighter likely firing point
+- `saw shooter or movement` = near-exact firing position or escape lead
+
+### Search Zone Logic
+
+Once police have statements, they should investigate likely firing locations rather than magically pathing to the player.
+
+Typical search targets:
+- windows facing the impact site
+- rooftops
+- towers and lighthouses
+- treelines and ridgelines
+- parked vehicles or obvious hides with a line of fire
+
+Repeated shots from the same position should increase police confidence and tighten the zone quickly.
+
+### Attachment And Ammo Effects
+
+Attachment and ammo choice should affect which evidence channels become strong, not act as one generic stealth modifier.
+
+Recommended first-pass behavior:
+
+- `Flash hider`
+  - reduces visual origin evidence
+  - especially useful at dusk, night, or against witnesses with a direct line to the firing point
+
+- `Suppressor`
+  - reduces muzzle-blast audio evidence
+  - lowers witness confidence in the origin area
+  - should help, but should not erase investigation on its own
+
+- `Subsonic ammo`
+  - removes the supersonic crack
+  - makes directional audio inference much worse for people near the bullet path
+  - should pair strongly with suppressors for the best stealth package
+  - should pay for that stealth with worse long-range performance and more drop
+
+- `Muzzle brake`
+  - increases audio origin evidence
+  - should be the worst stealth option
+  - more people should orient toward the firing area after the shot
+
+Recommended stealth hierarchy:
+- `muzzle brake + supersonic` = easiest to localize
+- `flash hider + supersonic` = harder to see, still easy to hear
+- `suppressor + supersonic` = quieter muzzle, but crack still gives the event away
+- `suppressor + subsonic` = best stealth combination, with meaningful ballistic tradeoffs
+
+### Contract Rule
+
+Default contract behavior after a miss:
+- contract remains active
+- target reaction escalates difficulty
+- police and witness pressure increases
+
+Special contract behavior:
+- some contracts can explicitly fail if the target panics, civilians alert authorities, or any public alarm state is raised
+
+This preserves the sandbox while still allowing authored high-discipline contracts later.
