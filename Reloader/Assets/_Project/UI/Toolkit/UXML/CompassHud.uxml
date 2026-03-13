@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="../USS/CompassHud.uss" />
+    <ui:VisualElement name="compass-hud__screen" class="compass-hud__screen" picking-mode="Ignore">
+        <ui:VisualElement name="compass-hud__root" class="compass-hud" picking-mode="Ignore">
+            <ui:VisualElement name="compass-hud__frame" class="compass-hud__frame" picking-mode="Ignore">
+                <ui:VisualElement name="compass-hud__lane" class="compass-hud__lane" picking-mode="Ignore">
+                    <ui:VisualElement name="compass-hud__entries" class="compass-hud__entries" picking-mode="Ignore" />
+                    <ui:VisualElement name="compass-hud__center-tick" class="compass-hud__center-tick" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

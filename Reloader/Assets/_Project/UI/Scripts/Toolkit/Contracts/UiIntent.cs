@@ -54,12 +54,14 @@ namespace Reloader.UI.Toolkit.Contracts
         {
             private readonly IUiViewBinder _viewBinder;
             private readonly Action<UiIntent> _handler;
+            private readonly IDisposable _binderDisposable;
             private bool _disposed;
 
             public Subscription(IUiViewBinder viewBinder, Action<UiIntent> handler)
             {
                 _viewBinder = viewBinder;
                 _handler = handler;
+                _binderDisposable = viewBinder as IDisposable;
             }
 
             public void Dispose()
@@ -71,6 +73,7 @@ namespace Reloader.UI.Toolkit.Contracts
 
                 _disposed = true;
                 _viewBinder.IntentRaised -= _handler;
+                _binderDisposable?.Dispose();
             }
         }
     }
