@@ -347,3 +347,86 @@ Special contract behavior:
 - some contracts can explicitly fail if the target panics, civilians alert authorities, or any public alarm state is raised
 
 This preserves the sandbox while still allowing authored high-discipline contracts later.
+
+---
+
+## Police Identification And Stop-Frisk Brainstorm
+
+Police response should separate `area alert` from `player identification`.
+
+The world can know that a shooting happened without instantly knowing that the player was the shooter. This creates a more believable escalation ladder and gives the player room to recover if they break contact early, hide weapons, or leave the firing zone before stronger evidence appears.
+
+### Identification Ladder
+
+Recommended player-facing police identification states:
+- `Unknown` — police are responding to an incident, but have no player-specific lead
+- `Person of Interest` — police believe the player may be connected and can actively intervene
+- `Identified Suspect` — police have enough evidence to treat the player as the likely shooter
+- `Wanted / Arrest Target` — police commit to arrest, chase, confiscation, and persistent suspect handling
+
+This should sit alongside area-level police heat instead of replacing it.
+
+### Person Of Interest Rule
+
+Locked-in rule:
+- if the player is a `person of interest`, police are allowed to stop and frisk them
+
+This should be the main bridge between soft investigation and hard confirmation.
+
+The player becomes a person of interest through evidence such as:
+- being near the probable firing zone
+- leaving an obvious vantage point after the shot
+- matching witness description
+- behaving evasively near an active search
+- carrying visible suspicious gear
+
+### Stop And Frisk Purpose
+
+Stop-and-frisk should not exist as random ambient harassment.
+It should exist to answer the police question:
+
+"Is this person plausibly connected to the reported shooting?"
+
+The stop creates a high-tension checkpoint where the player may still survive the investigation if they look clean enough.
+
+Examples of what a frisk can reveal:
+- carried rifle or sidearm
+- illegal ammo
+- suspicious attachments
+- contraband tied to the shooting setup
+- other evidence that upgrades the player from `person of interest` to `identified suspect`
+
+### Escalation Rule
+
+Recommended escalation logic:
+- `Unknown -> Person of Interest`
+  - witness reports, firing-zone proximity, or suspicious movement tie the player to the incident
+
+- `Person of Interest -> Identified Suspect`
+  - frisk finds incriminating evidence
+  - officers directly see a weapon, flash position, or escape behavior
+  - multiple witness statements strongly agree on the player
+
+- `Identified Suspect -> Wanted / Arrest Target`
+  - the player flees the stop
+  - the player resists
+  - police confirm enough evidence to arrest
+
+### Wanted Decay Shape
+
+This also implies that wanted state should not disappear through one blunt cooldown.
+
+Recommended decay tracks:
+- `Immediate pursuit` ends first after line-of-sight break
+- `Local search` ends later after the firing zone is checked without confirmation
+- `Person of Interest` suspicion ends last if police fail to connect the player to hard evidence
+
+Because police can stop and frisk a person of interest, the suspicion phase remains dangerous even after the hot chase is over.
+
+### Design Rule
+
+Use readable escalation with evidence-based intervention:
+- area alert can be broad
+- identification should be conditional
+- `person of interest` should be enough to justify stop-and-frisk
+- hard arrest state should still require stronger confirmation, resistance, or incriminating discovery
