@@ -215,6 +215,81 @@ namespace Reloader.DevTools.Tests.PlayMode
             Assert.That(segments[0].IsVisible, Is.False);
         }
 
+        [UnityTest]
+        public IEnumerator DisabledTraces_CreateProjectilePathObserver_DoesNotConsumeNextFallbackShotAfterReenable()
+        {
+            var state = new DevToolsState { TraceTtlSeconds = 0f };
+            var runtimeEvents = new DefaultRuntimeEvents();
+            using var traceRuntime = new DevTraceRuntime(state, runtimeEvents);
+
+            traceRuntime.CreateProjectilePathObserver();
+            traceRuntime.SetTraceTtlSeconds(1f);
+            runtimeEvents.RaiseWeaponFired("rifle-01", Vector3.zero, Vector3.forward);
+            runtimeEvents.RaiseProjectileHit("rifle-01", new Vector3(0f, 0f, 12f), 10f);
+
+            yield return null;
+
+            var segments = Object.FindObjectsByType<DevTraceSegmentView>(FindObjectsSortMode.None);
+            Assert.That(segments, Has.Length.EqualTo(1));
+            Assert.That(segments[0].IsVisible, Is.True);
+            Assert.That(segments[0].StartPoint, Is.EqualTo(Vector3.zero).Using(Vector3EqualityComparer.Instance));
+            Assert.That(segments[0].EndPoint, Is.EqualTo(new Vector3(0f, 0f, 12f)).Using(Vector3EqualityComparer.Instance));
+        }
+
+        [UnityTest]
+        public IEnumerator ZeroTraceTtl_ClearsPendingObserverShotClaimsBeforeLaterReenable()
+        {
+            var state = new DevToolsState { TraceTtlSeconds = 1f };
+            var runtimeEvents = new DefaultRuntimeEvents();
+            using var traceRuntime = new DevTraceRuntime(state, runtimeEvents);
+
+            traceRuntime.CreateProjectilePathObserver();
+            traceRuntime.SetTraceTtlSeconds(0f);
+            traceRuntime.SetTraceTtlSeconds(1f);
+            runtimeEvents.RaiseWeaponFired("rifle-01", new Vector3(1f, 0f, 0f), Vector3.forward);
+            runtimeEvents.RaiseProjectileHit("rifle-01", new Vector3(1f, 0f, 12f), 10f);
+
+            yield return null;
+
+            var segments = Object.FindObjectsByType<DevTraceSegmentView>(FindObjectsSortMode.None);
+            Assert.That(segments, Has.Length.EqualTo(1));
+            Assert.That(segments[0].IsVisible, Is.True);
+            Assert.That(segments[0].StartPoint, Is.EqualTo(new Vector3(1f, 0f, 0f)).Using(Vector3EqualityComparer.Instance));
+            Assert.That(segments[0].EndPoint, Is.EqualTo(new Vector3(1f, 0f, 12f)).Using(Vector3EqualityComparer.Instance));
+        }
+
+        [UnityTest]
+        public IEnumerator TraceClearCommand_ClearsVisibleSegmentsWithoutDisablingConfiguredTtl()
+        {
+            var state = new DevToolsState { TraceTtlSeconds = 1f };
+            var runtimeEvents = new DefaultRuntimeEvents();
+            using var traceRuntime = new DevTraceRuntime(state, runtimeEvents);
+            var command = new DevTracesCommand(state, traceRuntime);
+
+            runtimeEvents.RaiseWeaponFired("rifle-01", Vector3.zero, Vector3.forward);
+            runtimeEvents.RaiseProjectileHit("rifle-01", new Vector3(0f, 0f, 12f), 10f);
+
+            yield return null;
+
+            var segments = Object.FindObjectsByType<DevTraceSegmentView>(FindObjectsSortMode.None);
+            Assert.That(segments, Has.Length.EqualTo(1));
+            Assert.That(segments[0].IsVisible, Is.True);
+
+            var executed = command.TryExecute(
+                new DevCommandParseResult("trace", new[] { "clear" }, new[] { "trace", "clear" }),
+                out var resultMessage);
+
+            yield return null;
+
+            Assert.That(executed, Is.True);
+            Assert.That(state.TraceTtlSeconds, Is.EqualTo(1f));
+            Assert.That(resultMessage, Is.EqualTo("Visible traces cleared."));
+
+            segments = Object.FindObjectsByType<DevTraceSegmentView>(FindObjectsSortMode.None);
+            Assert.That(segments, Has.Length.EqualTo(1));
+            Assert.That(segments[0].IsVisible, Is.False);
+        }
+
         private static bool HasVisibleSegment(DevTraceSegmentView[] segments, Vector3 startPoint, Vector3 endPoint)
         {
             for (var i = 0; i < segments.Length; i++)

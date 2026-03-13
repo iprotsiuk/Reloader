@@ -210,6 +210,13 @@ namespace Reloader.DevTools.Runtime
                 return false;
             }
 
+            if (!CanEquipStarterWeaponFromInventory(inventoryController.Runtime))
+            {
+                resultMessage = $"Unable to locate '{StarterWeaponId}' on the player belt.";
+                return false;
+            }
+
+            var previousSelectedBeltIndex = inventoryController.Runtime.SelectedBeltIndex;
             if (!TryGrantStarterDefinition(inventoryController, weaponDefinition, 1, out resultMessage)
                 || !TryGrantStarterDefinition(inventoryController, ammoDefinition, StarterAmmoQuantity, out resultMessage))
             {
@@ -219,6 +226,7 @@ namespace Reloader.DevTools.Runtime
             var beltIndex = FindBeltSlotIndex(inventoryController.Runtime, StarterWeaponId);
             if (beltIndex < 0)
             {
+                RollbackStarterKitGrant(inventoryController, previousSelectedBeltIndex);
                 resultMessage = $"Unable to locate '{StarterWeaponId}' on the player belt.";
                 return false;
             }
@@ -227,6 +235,7 @@ namespace Reloader.DevTools.Runtime
             SyncStarterWeaponEquipFromSelection(weaponController);
             if (!TryApplyStarterWeaponState(weaponController, inventoryController, scopeDefinition, out resultMessage))
             {
+                RollbackStarterKitGrant(inventoryController, previousSelectedBeltIndex);
                 return false;
             }
 
@@ -377,6 +386,47 @@ namespace Reloader.DevTools.Runtime
             }
 
             return -1;
+        }
+
+        private static bool CanEquipStarterWeaponFromInventory(PlayerInventoryRuntime runtime)
+        {
+            if (runtime == null)
+            {
+                return false;
+            }
+
+            if (FindBeltSlotIndex(runtime, StarterWeaponId) >= 0)
+            {
+                return true;
+            }
+
+            for (var i = 0; i < PlayerInventoryRuntime.BeltSlotCount; i++)
+            {
+                if (string.IsNullOrWhiteSpace(runtime.BeltSlotItemIds[i]))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static void RollbackStarterKitGrant(PlayerInventoryController inventoryController, int previousSelectedBeltIndex)
+        {
+            var runtime = inventoryController?.Runtime;
+            if (runtime == null)
+            {
+                return;
+            }
+
+            runtime.TryRemoveStackItem(StarterScopeId, 1);
+            runtime.TryRemoveStackItem(StarterAmmoId, StarterAmmoQuantity);
+            runtime.TryRemoveStackItem(StarterWeaponId, 1);
+
+            if (previousSelectedBeltIndex >= 0 && previousSelectedBeltIndex < PlayerInventoryRuntime.BeltSlotCount)
+            {
+                runtime.SelectBeltSlot(previousSelectedBeltIndex);
+            }
         }
 
         private static bool TryApplyStarterWeaponState(

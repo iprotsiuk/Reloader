@@ -18,7 +18,6 @@ namespace Reloader.Game.Weapons
         [Header("Alignment")]
         [SerializeField, Min(0f)] private float _positionLerpSpeed = 24f;
         [SerializeField, Min(0f)] private float _rotationLerpSpeed = 24f;
-        [SerializeField, Min(0f)] private float _extraEyeReliefBackOffset;
 
         [Header("Debug")]
         [SerializeField] private bool _drawDebugGizmos = true;
@@ -114,7 +113,9 @@ namespace Reloader.Game.Weapons
                 opticEyeRelief = activeOptic.EyeReliefBackOffset;
             }
 
-            var totalEyeRelief = opticEyeRelief + _extraEyeReliefBackOffset + _runtimeEyeReliefBackOffset;
+            // Final scoped distance comes from authored optic eye relief plus the
+            // active weapon-presentation offset. Do not stack ad hoc scene offsets here.
+            var totalEyeRelief = opticEyeRelief + _runtimeEyeReliefBackOffset;
             targetWorldPosition += (-sightAnchor.forward) * totalEyeRelief;
 
             Vector3 targetLocalPosition;

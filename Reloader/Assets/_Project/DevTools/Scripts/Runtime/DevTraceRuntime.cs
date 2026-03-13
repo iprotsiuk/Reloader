@@ -119,6 +119,7 @@ namespace Reloader.DevTools.Runtime
             _state.TraceTtlSeconds = ttlSeconds;
             if (!AreTracesEnabled())
             {
+                _pendingObserverShotClaims = 0;
                 _pendingShotsByItemId.Clear();
                 ClearVisibleSegments();
             }
@@ -126,8 +127,18 @@ namespace Reloader.DevTools.Runtime
 
         public WeaponProjectile.IPathObserver CreateProjectilePathObserver()
         {
+            if (!AreTracesEnabled())
+            {
+                return null;
+            }
+
             _pendingObserverShotClaims++;
             return new ProjectilePathObserver(this);
+        }
+
+        public void ClearVisibleTraces()
+        {
+            ClearVisibleSegments();
         }
 
         public static WeaponProjectile.IPathObserver TryCreateActiveProjectilePathObserver()

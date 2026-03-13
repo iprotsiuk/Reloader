@@ -18,10 +18,22 @@ namespace Reloader.DevTools.Runtime
 
         public bool TryExecute(DevCommandParseResult parseResult, out string resultMessage)
         {
-            if (parseResult.Arguments.Length != 1
-                || !TryParseTtl(parseResult.Arguments[0], out var ttlSeconds))
+            if (parseResult.Arguments.Length != 1)
             {
-                resultMessage = "Usage: trace <seconds|-1>";
+                resultMessage = "Usage: trace <seconds|-1|clear>";
+                return false;
+            }
+
+            if (string.Equals(parseResult.Arguments[0], "clear", StringComparison.OrdinalIgnoreCase))
+            {
+                _traceRuntime?.ClearVisibleTraces();
+                resultMessage = "Visible traces cleared.";
+                return true;
+            }
+
+            if (!TryParseTtl(parseResult.Arguments[0], out var ttlSeconds))
+            {
+                resultMessage = "Usage: trace <seconds|-1|clear>";
                 return false;
             }
 
@@ -49,6 +61,7 @@ namespace Reloader.DevTools.Runtime
         private static IReadOnlyList<DevConsoleSuggestion> BuildTtlSuggestions(string prefix)
         {
             var suggestions = new List<DevConsoleSuggestion>();
+            AddSuggestion(suggestions, "clear", "clear visible traces", prefix);
             AddSuggestion(suggestions, "-1", "permanent", prefix);
             AddSuggestion(suggestions, "0", "disable", prefix);
             AddSuggestion(suggestions, "1", "1 second", prefix);

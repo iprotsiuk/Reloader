@@ -255,6 +255,89 @@ namespace Reloader.DevTools.Tests.PlayMode
 #endif
         }
 
+        [UnityTest]
+        public IEnumerator GiveTest_WhenStarterWeaponCannotReachBelt_RollsBackGrantedItems()
+        {
+            var root = new GameObject("DevGiveTestAtomicityRoot");
+            var inputSource = root.AddComponent<StubInputSource>();
+            var inventoryRuntime = new PlayerInventoryRuntime();
+            inventoryRuntime.SetBackpackCapacity(8);
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            inventoryController.Configure(inputSource, null, inventoryRuntime);
+
+            for (var i = 0; i < PlayerInventoryRuntime.BeltSlotCount; i++)
+            {
+                var fillerItemId = $"belt-filler-{i}";
+                inventoryRuntime.SetItemMaxStack(fillerItemId, 1);
+                var stored = inventoryRuntime.TryAddStackItem(fillerItemId, 1, out _, out _, out _);
+                Assert.That(stored, Is.True);
+            }
+
+            inventoryRuntime.SelectBeltSlot(0);
+
+            var starterWeapon = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterWeapon.SetValuesForTests(
+                "weapon-kar98k",
+                ItemCategory.Weapon,
+                "Kar98k (.308)",
+                ItemStackPolicy.NonStackable,
+                maxStack: 1);
+
+            var starterScope = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterScope.SetValuesForTests(
+                "att-kar98k-scope-remote-a",
+                ItemCategory.Misc,
+                "Kar98k Scope Remote A",
+                ItemStackPolicy.NonStackable,
+                maxStack: 1);
+
+            var starterAmmo = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterAmmo.SetValuesForTests(
+                StarterAmmoItemId,
+                ItemCategory.Consumable,
+                ".308 Winchester FMJ",
+                ItemStackPolicy.StackByDefinition,
+                maxStack: 999);
+
+            SetPrivateField(
+                typeof(PlayerInventoryController),
+                inventoryController,
+                "_itemDefinitionRegistry",
+                new List<ItemDefinition> { starterWeapon, starterScope, starterAmmo });
+
+            var runtime = new DevToolsRuntime();
+            runtime.Context.InventoryController = inventoryController;
+            runtime.Context.WeaponController = root.AddComponent<StubWeaponControllerMarker>();
+
+            yield return null;
+
+            var executed = runtime.TryExecute("give test", out var resultMessage);
+
+            Assert.That(executed, Is.False);
+            Assert.That(resultMessage, Is.EqualTo("Unable to locate 'weapon-kar98k' on the player belt."));
+            Assert.That(inventoryRuntime.GetItemQuantity("weapon-kar98k"), Is.EqualTo(0), "Starter weapon grant should be rolled back when equip preconditions fail.");
+            Assert.That(inventoryRuntime.GetItemQuantity("att-kar98k-scope-remote-a"), Is.EqualTo(0), "Starter scope grant should not leak on failure.");
+            Assert.That(inventoryRuntime.GetItemQuantity(StarterAmmoItemId), Is.EqualTo(0), "Starter ammo grant should be rolled back when equip preconditions fail.");
+            Assert.That(inventoryRuntime.SelectedBeltIndex, Is.EqualTo(0), "Atomic rollback should preserve the previously selected belt slot.");
+            Assert.That(inventoryRuntime.SelectedBeltItemId, Is.EqualTo("belt-filler-0"));
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    "belt-filler-0",
+                    "belt-filler-1",
+                    "belt-filler-2",
+                    "belt-filler-3",
+                    "belt-filler-4"
+                },
+                inventoryRuntime.BeltSlotItemIds,
+                "Atomic rollback should leave the existing belt layout untouched.");
+
+            UnityEngine.Object.DestroyImmediate(starterWeapon);
+            UnityEngine.Object.DestroyImmediate(starterScope);
+            UnityEngine.Object.DestroyImmediate(starterAmmo);
+            UnityEngine.Object.DestroyImmediate(root);
+        }
+
         private static void SetPrivateField(System.Type ownerType, object instance, string fieldName, object value)
         {
             var field = ownerType.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
@@ -486,6 +569,10 @@ namespace Reloader.DevTools.Tests.PlayMode
             public bool ConsumeDevConsoleTogglePressed() => false;
             public bool ConsumeAutocompletePressed() => false;
             public int ConsumeSuggestionDelta() => 0;
+        }
+
+        private sealed class StubWeaponControllerMarker : MonoBehaviour
+        {
         }
     }
 }
