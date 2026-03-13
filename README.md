@@ -166,6 +166,8 @@ The repo also includes workflow tooling around Unity-safe opening, command-line 
 
 One of the main goals of this repository is to show not only the game idea, but how I build and validate it.
 
+The project is developed with a TDD-oriented approach where practical: define or tighten the contract first, add focused EditMode or PlayMode coverage around the behavior, then implement or harden the runtime until the expected path and regression cases are covered.
+
 ### EditMode Coverage
 
 EditMode tests are used for fast structural and contract checks:
