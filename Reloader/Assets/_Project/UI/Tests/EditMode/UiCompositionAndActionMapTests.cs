@@ -6,6 +6,7 @@ namespace Reloader.UI.Tests.EditMode
     public class UiCompositionAndActionMapTests
     {
         [TestCase(UiRuntimeCompositionIds.ScreenIds.BeltHud)]
+        [TestCase(UiRuntimeCompositionIds.ScreenIds.CompassHud)]
         [TestCase(UiRuntimeCompositionIds.ScreenIds.AmmoHud)]
         [TestCase(UiRuntimeCompositionIds.ScreenIds.TabInventory)]
         [TestCase(UiRuntimeCompositionIds.ScreenIds.EscMenu)]
