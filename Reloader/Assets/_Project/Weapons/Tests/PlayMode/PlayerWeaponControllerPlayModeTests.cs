@@ -3877,18 +3877,26 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(renderTextureScopeController, Is.Not.Null);
                 Assert.That(scopeCamera, Is.Not.Null);
 
-                Invoke(adsBridge, "SetAdsHeld", true);
+                input.AimHeldValue = true;
                 Invoke(adsBridge, "SetMagnification", 6f);
-                yield return null;
-                yield return null;
+                var activationElapsed = 0f;
+                while ((!scopeCamera.enabled || scopeCamera.targetTexture == null) && activationElapsed < 0.5f)
+                {
+                    activationElapsed += Time.deltaTime;
+                    yield return null;
+                }
 
                 var originalTargetTexture = scopeCamera.targetTexture;
                 Assert.That(scopeCamera.enabled, Is.True);
                 Assert.That(originalTargetTexture, Is.Not.Null);
 
                 Invoke(controller, "EnsureScopedAdsRuntimeBridge", equippedView, attachmentManager);
-                yield return null;
-                yield return null;
+                var refreshElapsed = 0f;
+                while ((!scopeCamera.enabled || !ReferenceEquals(scopeCamera.targetTexture, originalTargetTexture)) && refreshElapsed < 0.5f)
+                {
+                    refreshElapsed += Time.deltaTime;
+                    yield return null;
+                }
 
                 Assert.That(scopeCamera.enabled, Is.True, "Refreshing the scoped ADS bridge should not disable the live PiP scope camera.");
                 Assert.That(scopeCamera.targetTexture, Is.SameAs(originalTargetTexture), "Refreshing the scoped ADS bridge should preserve the live PiP render texture binding.");
@@ -4659,7 +4667,12 @@ namespace Reloader.Weapons.Tests.PlayMode
                 equippedView.localPosition = Vector3.zero;
                 input.AimHeldValue = true;
 
-                yield return null;
+                var aimElapsed = 0f;
+                while (equippedView.localPosition.x <= 0.1f && aimElapsed < 0.5f)
+                {
+                    aimElapsed += Time.deltaTime;
+                    yield return null;
+                }
 
                 Assert.That(equippedView.localPosition.x, Is.GreaterThan(0.1f), "1x optics should still use tuned ADS pose instead of bypassing pose updates.");
             }
@@ -4945,12 +4958,37 @@ namespace Reloader.Weapons.Tests.PlayMode
                 runtime.SelectBeltSlot(0);
                 yield return null;
 
+                var bridgeFrames = 0;
+                while (!controller.HasActiveScopedAdsAlignment && bridgeFrames < 60)
+                {
+                    bridgeFrames++;
+                    yield return null;
+                }
+
+                Assert.That(controller.HasActiveScopedAdsAlignment, Is.True);
                 input.AimHeldValue = true;
-                yield return null;
-                yield return new WaitForEndOfFrame();
 
                 var adsBridge = GetControllerField<Component>(controller, "_adsStateRuntimeBridge");
                 Assert.That(adsBridge, Is.Not.Null);
+
+                var syncFrames = 0;
+                while (syncFrames < 60)
+                {
+                    syncFrames++;
+                    yield return null;
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
+
+                    var adsBlendSample = (float)GetProperty(adsBridge, "AdsT");
+                    var helperBlendSample = (float)GetField(helperType, poseHelper, "_blendT");
+                    if (Mathf.Abs(helperBlendSample - adsBlendSample) <= 0.001f)
+                    {
+                        break;
+                    }
+                }
+
                 var adsBlendT = (float)GetProperty(adsBridge, "AdsT");
                 var helperBlendT = (float)GetField(helperType, poseHelper, "_blendT");
 
@@ -5091,6 +5129,14 @@ namespace Reloader.Weapons.Tests.PlayMode
                 runtime.SelectBeltSlot(0);
                 yield return null;
 
+                var bridgeFrames = 0;
+                while (!controller.HasActiveScopedAdsAlignment && bridgeFrames < 60)
+                {
+                    bridgeFrames++;
+                    yield return null;
+                }
+
+                Assert.That(controller.HasActiveScopedAdsAlignment, Is.True);
                 input.AimHeldValue = true;
 
                 var adsBridge = GetControllerField<Component>(controller, "_adsStateRuntimeBridge");
@@ -5101,6 +5147,15 @@ namespace Reloader.Weapons.Tests.PlayMode
                 {
                     frames++;
                     yield return null;
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
+                }
+
+                yield return null;
+                if (!Application.isBatchMode)
+                {
                     yield return new WaitForEndOfFrame();
                 }
 
@@ -5116,7 +5171,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 for (var i = 0; i < 10; i++)
                 {
                     yield return null;
-                    yield return new WaitForEndOfFrame();
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
                 }
 
                 var settledAlignmentDistance = Vector3.Distance(activeSightAnchor.position, worldCamera.transform.position);
@@ -5272,7 +5330,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 {
                     frames++;
                     yield return null;
-                    yield return new WaitForEndOfFrame();
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
                 }
 
                 var equippedView = controller.EquippedWeaponViewTransform;
@@ -5286,7 +5347,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 for (var i = 0; i < 10; i++)
                 {
                     yield return null;
-                    yield return new WaitForEndOfFrame();
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
                 }
 
                 var distanceAfterSettle = Vector3.Distance(activeSightAnchor.position, worldCamera.transform.position);
@@ -5818,7 +5882,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 {
                     frames++;
                     yield return null;
-                    yield return new WaitForEndOfFrame();
+                    if (!Application.isBatchMode)
+                    {
+                        yield return new WaitForEndOfFrame();
+                    }
                 }
 
                 var equippedView = controller.EquippedWeaponViewTransform;
@@ -5834,7 +5901,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(poseHelper.TrySetAttachmentPoseOverride(activeSlot, activeAttachmentItemId, activeValues), Is.True);
 
                 yield return null;
-                yield return new WaitForEndOfFrame();
+                if (!Application.isBatchMode)
+                {
+                    yield return new WaitForEndOfFrame();
+                }
 
                 var afterRetune = runtimeAdsPivot.localPosition;
                 Assert.That(
