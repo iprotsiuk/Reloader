@@ -404,6 +404,78 @@ namespace Reloader.DevTools.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator GiveTest_WhenStarterAmmoGrantFails_PreservesPreexistingStarterAmmo()
+        {
+            var root = new GameObject("DevGiveTestAmmoPreservationRoot");
+            var inputSource = root.AddComponent<StubInputSource>();
+            var inventoryRuntime = new PlayerInventoryRuntime();
+            inventoryRuntime.SetBackpackCapacity(1);
+            inventoryRuntime.SelectBeltSlot(0);
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            inventoryController.Configure(inputSource, null, inventoryRuntime);
+
+            for (var i = 1; i < PlayerInventoryRuntime.BeltSlotCount; i++)
+            {
+                var fillerItemId = $"ammo-preservation-filler-{i}";
+                inventoryRuntime.SetItemMaxStack(fillerItemId, 1);
+                inventoryRuntime.BeltSlotItemIds[i] = fillerItemId;
+            }
+
+            inventoryRuntime.SetItemMaxStack(StarterAmmoItemId, 999);
+            var inserted = inventoryRuntime.TryInsertBackpackStack(0, StarterAmmoItemId, 999, 999);
+            Assert.That(inserted, Is.True, "Test setup should create a pre-existing full ammo stack so the starter ammo grant fails without empty space.");
+
+            var starterWeapon = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterWeapon.SetValuesForTests(
+                "weapon-kar98k",
+                ItemCategory.Weapon,
+                "Kar98k (.308)",
+                ItemStackPolicy.NonStackable,
+                maxStack: 1);
+
+            var starterScope = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterScope.SetValuesForTests(
+                "att-kar98k-scope-remote-a",
+                ItemCategory.Misc,
+                "Kar98k Scope Remote A",
+                ItemStackPolicy.NonStackable,
+                maxStack: 1);
+
+            var starterAmmo = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterAmmo.SetValuesForTests(
+                StarterAmmoItemId,
+                ItemCategory.Consumable,
+                ".308 Winchester FMJ",
+                ItemStackPolicy.StackByDefinition,
+                maxStack: 999);
+
+            SetPrivateField(
+                typeof(PlayerInventoryController),
+                inventoryController,
+                "_itemDefinitionRegistry",
+                new List<ItemDefinition> { starterWeapon, starterScope, starterAmmo });
+
+            var runtime = new DevToolsRuntime();
+            runtime.Context.InventoryController = inventoryController;
+            runtime.Context.WeaponController = root.AddComponent<StubWeaponControllerMarker>();
+
+            yield return null;
+
+            var executed = runtime.TryExecute("give test", out var resultMessage);
+
+            Assert.That(executed, Is.False);
+            Assert.That(resultMessage, Does.Contain(StarterAmmoItemId));
+            Assert.That(inventoryRuntime.GetItemQuantity(StarterAmmoItemId), Is.EqualTo(999), "Rollback should not consume ammo the player already had before the failed starter-kit grant.");
+            Assert.That(inventoryRuntime.GetItemQuantity("weapon-kar98k"), Is.EqualTo(0));
+            Assert.That(inventoryRuntime.BeltSlotItemIds[0], Is.Null.Or.Empty);
+
+            UnityEngine.Object.DestroyImmediate(starterWeapon);
+            UnityEngine.Object.DestroyImmediate(starterScope);
+            UnityEngine.Object.DestroyImmediate(starterAmmo);
+            UnityEngine.Object.DestroyImmediate(root);
+        }
+
+        [UnityTest]
         public IEnumerator GiveTest_WhenStarterScopeGrantFails_RollsBackSeededRuntimeState()
         {
 #if UNITY_EDITOR

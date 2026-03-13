@@ -36,6 +36,35 @@ namespace Reloader.DevTools.Runtime
             public object Snapshot { get; }
         }
 
+        private readonly struct StarterInventoryRollbackState
+        {
+            public StarterInventoryRollbackState(
+                int backpackCapacity,
+                int selectedBeltIndex,
+                string[] beltSlotItemIds,
+                List<string> backpackItemIds,
+                Dictionary<string, int> itemQuantities,
+                Dictionary<string, int> itemMaxStacks,
+                Dictionary<string, object> slotStackStates)
+            {
+                BackpackCapacity = backpackCapacity;
+                SelectedBeltIndex = selectedBeltIndex;
+                BeltSlotItemIds = beltSlotItemIds;
+                BackpackItemIds = backpackItemIds;
+                ItemQuantities = itemQuantities;
+                ItemMaxStacks = itemMaxStacks;
+                SlotStackStates = slotStackStates;
+            }
+
+            public int BackpackCapacity { get; }
+            public int SelectedBeltIndex { get; }
+            public string[] BeltSlotItemIds { get; }
+            public List<string> BackpackItemIds { get; }
+            public Dictionary<string, int> ItemQuantities { get; }
+            public Dictionary<string, int> ItemMaxStacks { get; }
+            public Dictionary<string, object> SlotStackStates { get; }
+        }
+
         public bool TryExecute(DevCommandContext context, DevCommandParseResult parseResult, out string resultMessage)
         {
             var inventoryController = context?.ResolveInventoryController();
@@ -228,7 +257,7 @@ namespace Reloader.DevTools.Runtime
                 return false;
             }
 
-            var previousSelectedBeltIndex = inventoryController.Runtime.SelectedBeltIndex;
+            var inventoryRollbackState = CaptureStarterInventoryRollbackState(inventoryController.Runtime);
             var runtimeRollbackState = CaptureStarterRuntimeRollbackState(weaponController);
             if (!TryGrantStarterDefinition(inventoryController, weaponDefinition, 1, out resultMessage))
             {
@@ -237,14 +266,14 @@ namespace Reloader.DevTools.Runtime
 
             if (!TryGrantStarterDefinition(inventoryController, ammoDefinition, StarterAmmoQuantity, out resultMessage))
             {
-                RollbackStarterKitGrant(inventoryController, previousSelectedBeltIndex);
+                RestoreStarterInventoryRollbackState(inventoryController.Runtime, inventoryRollbackState);
                 return false;
             }
 
             var beltIndex = FindBeltSlotIndex(inventoryController.Runtime, StarterWeaponId);
             if (beltIndex < 0)
             {
-                RollbackStarterKitGrant(inventoryController, previousSelectedBeltIndex);
+                RestoreStarterInventoryRollbackState(inventoryController.Runtime, inventoryRollbackState);
                 resultMessage = $"Unable to locate '{StarterWeaponId}' on the player belt.";
                 return false;
             }
@@ -253,7 +282,7 @@ namespace Reloader.DevTools.Runtime
             SyncStarterWeaponEquipFromSelection(weaponController);
             if (!TryApplyStarterWeaponState(weaponController, inventoryController, scopeDefinition, out resultMessage))
             {
-                RollbackStarterKitGrant(inventoryController, previousSelectedBeltIndex);
+                RestoreStarterInventoryRollbackState(inventoryController.Runtime, inventoryRollbackState);
                 RestoreStarterRuntimeRollbackState(weaponController, runtimeRollbackState);
                 return false;
             }
@@ -430,22 +459,48 @@ namespace Reloader.DevTools.Runtime
             return false;
         }
 
-        private static void RollbackStarterKitGrant(PlayerInventoryController inventoryController, int previousSelectedBeltIndex)
+        private static StarterInventoryRollbackState CaptureStarterInventoryRollbackState(PlayerInventoryRuntime runtime)
         {
-            var runtime = inventoryController?.Runtime;
+            if (runtime == null)
+            {
+                return default;
+            }
+
+            return new StarterInventoryRollbackState(
+                runtime.BackpackCapacity,
+                runtime.SelectedBeltIndex,
+                (string[])runtime.BeltSlotItemIds.Clone(),
+                new List<string>(runtime.BackpackItemIds),
+                CloneStringIntDictionary(runtime, "_itemQuantities"),
+                CloneStringIntDictionary(runtime, "_itemMaxStacks"),
+                CloneSlotStateDictionary(runtime));
+        }
+
+        private static void RestoreStarterInventoryRollbackState(PlayerInventoryRuntime runtime, StarterInventoryRollbackState rollbackState)
+        {
             if (runtime == null)
             {
                 return;
             }
 
-            runtime.TryRemoveStackItem(StarterScopeId, 1);
-            runtime.TryRemoveStackItem(StarterAmmoId, StarterAmmoQuantity);
-            runtime.TryRemoveStackItem(StarterWeaponId, 1);
+            runtime.ClearCarriedItems();
+            SetPrivateAutoProperty(runtime, nameof(PlayerInventoryRuntime.BackpackCapacity), rollbackState.BackpackCapacity);
 
-            if (previousSelectedBeltIndex >= 0 && previousSelectedBeltIndex < PlayerInventoryRuntime.BeltSlotCount)
+            for (var i = 0; i < PlayerInventoryRuntime.BeltSlotCount && rollbackState.BeltSlotItemIds != null; i++)
             {
-                runtime.SelectBeltSlot(previousSelectedBeltIndex);
+                runtime.BeltSlotItemIds[i] = rollbackState.BeltSlotItemIds[i];
             }
+
+            runtime.BackpackItemIds.Clear();
+            if (rollbackState.BackpackItemIds != null)
+            {
+                runtime.BackpackItemIds.AddRange(rollbackState.BackpackItemIds);
+            }
+
+            RestoreStringIntDictionary(runtime, "_itemQuantities", rollbackState.ItemQuantities);
+            RestoreStringIntDictionary(runtime, "_itemMaxStacks", rollbackState.ItemMaxStacks);
+            RestoreSlotStateDictionary(runtime, rollbackState.SlotStackStates);
+            SetPrivateAutoProperty(runtime, nameof(PlayerInventoryRuntime.SelectedBeltIndex), rollbackState.SelectedBeltIndex);
         }
 
         private static StarterRuntimeRollbackState CaptureStarterRuntimeRollbackState(MonoBehaviour weaponController)
@@ -556,6 +611,101 @@ namespace Reloader.DevTools.Runtime
 
             var itemType = listType.GetGenericArguments()[0];
             return Array.CreateInstance(itemType, 0);
+        }
+
+        private static Dictionary<string, int> CloneStringIntDictionary(PlayerInventoryRuntime runtime, string fieldName)
+        {
+            var field = typeof(PlayerInventoryRuntime).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field?.GetValue(runtime) is not Dictionary<string, int> source)
+            {
+                return new Dictionary<string, int>(StringComparer.Ordinal);
+            }
+
+            return new Dictionary<string, int>(source, StringComparer.Ordinal);
+        }
+
+        private static Dictionary<string, object> CloneSlotStateDictionary(PlayerInventoryRuntime runtime)
+        {
+            var field = typeof(PlayerInventoryRuntime).GetField("_slotStackStates", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field?.GetValue(runtime) is not System.Collections.IDictionary source)
+            {
+                return new Dictionary<string, object>(StringComparer.Ordinal);
+            }
+
+            var cloned = new Dictionary<string, object>(StringComparer.Ordinal);
+            foreach (System.Collections.DictionaryEntry entry in source)
+            {
+                if (entry.Key is not string key)
+                {
+                    continue;
+                }
+
+                cloned[key] = CloneSlotStackState(entry.Value);
+            }
+
+            return cloned;
+        }
+
+        private static object CloneSlotStackState(object slotState)
+        {
+            if (slotState == null)
+            {
+                return null;
+            }
+
+            var cloneMethod = slotState.GetType().GetMethod("Clone", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            return cloneMethod != null ? cloneMethod.Invoke(slotState, null) : slotState;
+        }
+
+        private static void RestoreStringIntDictionary(PlayerInventoryRuntime runtime, string fieldName, Dictionary<string, int> snapshot)
+        {
+            var field = typeof(PlayerInventoryRuntime).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field?.GetValue(runtime) is not Dictionary<string, int> target)
+            {
+                return;
+            }
+
+            target.Clear();
+            if (snapshot == null)
+            {
+                return;
+            }
+
+            foreach (var pair in snapshot)
+            {
+                target[pair.Key] = pair.Value;
+            }
+        }
+
+        private static void RestoreSlotStateDictionary(PlayerInventoryRuntime runtime, Dictionary<string, object> snapshot)
+        {
+            var field = typeof(PlayerInventoryRuntime).GetField("_slotStackStates", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (field?.GetValue(runtime) is not System.Collections.IDictionary target)
+            {
+                return;
+            }
+
+            target.Clear();
+            if (snapshot == null)
+            {
+                return;
+            }
+
+            foreach (var pair in snapshot)
+            {
+                target[pair.Key] = CloneSlotStackState(pair.Value);
+            }
+        }
+
+        private static void SetPrivateAutoProperty(object instance, string propertyName, object value)
+        {
+            if (instance == null || string.IsNullOrWhiteSpace(propertyName))
+            {
+                return;
+            }
+
+            var property = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            property?.SetValue(instance, value);
         }
 
         private static bool TryApplyStarterWeaponState(

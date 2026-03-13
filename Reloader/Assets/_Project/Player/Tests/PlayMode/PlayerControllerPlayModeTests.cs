@@ -8,6 +8,9 @@ using System.Reflection;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Reloader.Player.Tests.PlayMode
 {
@@ -713,6 +716,39 @@ namespace Reloader.Player.Tests.PlayMode
                 Object.DestroyImmediate(actionsAsset);
                 InputSystem.RemoveDevice(mouse);
             }
+        }
+
+        [Test]
+        public void PlayerInputReader_Update_ConsumesScrollWheelFromProjectInputAsset()
+        {
+#if UNITY_EDITOR
+            var mouse = InputSystem.AddDevice<Mouse>();
+            var asset = AssetDatabase.LoadAssetAtPath<InputActionAsset>("Assets/_Project/Player/InputSystem_Actions.inputactions");
+            Assert.That(asset, Is.Not.Null);
+
+            var runtimeAsset = Object.Instantiate(asset);
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(runtimeAsset);
+
+            try
+            {
+                InputSystem.QueueStateEvent(mouse, new MouseState { scroll = new Vector2(0f, 120f) });
+                InputSystem.Update();
+
+                reader.SendMessage("Update");
+
+                Assert.That(reader.ConsumeZoomInput(), Is.GreaterThan(0.5f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(runtimeAsset);
+                InputSystem.RemoveDevice(mouse);
+            }
+#else
+            Assert.Ignore("Requires UnityEditor AssetDatabase.");
+#endif
         }
 
         [Test]

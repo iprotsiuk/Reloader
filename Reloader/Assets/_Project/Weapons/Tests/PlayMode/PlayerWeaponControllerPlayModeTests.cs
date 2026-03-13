@@ -6038,6 +6038,33 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That((float)method.Invoke(null, new object[] { 0.25f }), Is.EqualTo(0.4f).Within(0.001f));
         }
 
+        [Test]
+        public void TickScopedAdsBridgeInput_DoesNotRenormalizeConsumedZoomInput()
+        {
+            var root = new GameObject("ScopedZoomInputRoot");
+            var controller = root.AddComponent<PlayerWeaponController>();
+            var input = root.AddComponent<TestInputSource>();
+            var adsBridge = root.AddComponent<StubAdsStateRuntimeBridge>();
+
+            try
+            {
+                input.AimHeldValue = true;
+                input.ZoomQueued = 0.1f;
+                adsBridge.SetMagnification(5f);
+
+                SetControllerField(controller, "_inputSource", input);
+                SetControllerField(controller, "_adsStateRuntimeBridge", adsBridge);
+
+                Invoke(controller, "TickScopedAdsBridgeInput");
+
+                Assert.That(adsBridge.LastSetMagnification, Is.EqualTo(5.1f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
         private static object Invoke(object instance, string methodName, params object[] args)
         {
             var method = instance.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -6183,6 +6210,27 @@ namespace Reloader.Weapons.Tests.PlayMode
 
         private sealed class MinimalBridgeMarker : MonoBehaviour
         {
+        }
+
+        private sealed class StubAdsStateRuntimeBridge : MonoBehaviour
+        {
+            public float CurrentMagnification { get; private set; } = 1f;
+            public float LastSetMagnification { get; private set; } = float.NaN;
+
+            public void SetAdsHeld(bool held)
+            {
+            }
+
+            public void SetMagnification(float magnification)
+            {
+                LastSetMagnification = magnification;
+                CurrentMagnification = magnification;
+            }
+
+            public bool ApplyScopeAdjustmentInput(int windageClicks, int elevationClicks)
+            {
+                return false;
+            }
         }
 
         private sealed class Vector3EqualityComparer : System.Collections.IEqualityComparer
