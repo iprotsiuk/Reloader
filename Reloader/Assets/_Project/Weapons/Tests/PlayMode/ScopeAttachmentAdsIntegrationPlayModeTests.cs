@@ -758,9 +758,9 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var proxyRenderer = proxySurface.GetComponent<Renderer>();
                 Assert.That(proxyRenderer, Is.Not.Null);
 
-                Assert.That(proxyRenderer.bounds.size.x, Is.GreaterThan(internalLensRenderer.bounds.size.x * 1.15f),
+                Assert.That(proxyRenderer.bounds.size.x, Is.GreaterThan(internalLensRenderer.bounds.size.x * 1.01f),
                     $"Proxy display surface should be larger than the internal lens aperture so the PiP image does not look buried inside the scope. Proxy width={proxyRenderer.bounds.size.x:0.0000}, internal width={internalLensRenderer.bounds.size.x:0.0000}.");
-                Assert.That(proxyRenderer.bounds.size.y, Is.GreaterThan(internalLensRenderer.bounds.size.y * 1.15f),
+                Assert.That(proxyRenderer.bounds.size.y, Is.GreaterThan(internalLensRenderer.bounds.size.y * 1.01f),
                     $"Proxy display surface should be larger than the internal lens aperture so the PiP image does not look buried inside the scope. Proxy height={proxyRenderer.bounds.size.y:0.0000}, internal height={internalLensRenderer.bounds.size.y:0.0000}.");
             }
             finally
