@@ -116,7 +116,13 @@ namespace Reloader.UI.Toolkit.CompassHud
         private static string BuildElementKey(string key)
         {
             var bytes = Encoding.UTF8.GetBytes(key);
-            return Convert.ToHexString(bytes);
+            var builder = new StringBuilder(bytes.Length * 2);
+            for (var i = 0; i < bytes.Length; i++)
+            {
+                builder.Append(bytes[i].ToString("X2"));
+            }
+
+            return builder.ToString();
         }
 
         private void RegisterRelayoutCallbacks()
