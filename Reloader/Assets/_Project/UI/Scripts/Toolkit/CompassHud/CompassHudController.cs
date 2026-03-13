@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Reloader.Contracts.Runtime;
 using Reloader.Inventory;
@@ -7,14 +8,17 @@ using UnityEngine;
 
 namespace Reloader.UI.Toolkit.CompassHud
 {
-    public sealed class CompassHudController : MonoBehaviour, IUiController
+    public sealed class CompassHudController : MonoBehaviour, IUiController, IDisposable
     {
         private const float VisibleHalfAngleDegrees = 100f;
+        private const float HorizontalDirectionEpsilonSqr = 0.0001f;
 
         private CompassHudViewBinder _viewBinder;
         private PlayerInventoryController _inventoryController;
         private IContractRuntimeProvider _contractRuntimeProvider;
         private CivilianPopulationRuntimeBridge _populationBridge;
+        private string _resolvedTargetId = string.Empty;
+        private Transform _resolvedTargetTransform;
 
         private void LateUpdate()
         {
@@ -47,6 +51,15 @@ namespace Reloader.UI.Toolkit.CompassHud
 
         public void HandleIntent(UiIntent intent)
         {
+        }
+
+        public void Dispose()
+        {
+            _viewBinder = null;
+            _inventoryController = null;
+            _contractRuntimeProvider = null;
+            _populationBridge = null;
+            ClearResolvedTarget();
         }
 
         public void Refresh()
@@ -95,14 +108,25 @@ namespace Reloader.UI.Toolkit.CompassHud
             if (_contractRuntimeProvider == null
                 || !_contractRuntimeProvider.TryGetContractSnapshot(out var snapshot)
                 || !snapshot.HasActiveContract
-                || _populationBridge == null
-                || !_populationBridge.TryResolveSpawnedCivilian(snapshot.TargetId, out var spawnedCivilian)
-                || spawnedCivilian == null)
+                || string.IsNullOrWhiteSpace(snapshot.TargetId))
+            {
+                ClearResolvedTarget();
+                return false;
+            }
+
+            if (!TryResolveTargetTransform(snapshot.TargetId, out var targetTransform))
             {
                 return false;
             }
 
-            var bearingDegrees = CompassHeadingMath.ResolveBearingDegrees(viewer.position, spawnedCivilian.transform.position);
+            var horizontalOffset = targetTransform.position - viewer.position;
+            horizontalOffset.y = 0f;
+            if (horizontalOffset.sqrMagnitude <= HorizontalDirectionEpsilonSqr)
+            {
+                return false;
+            }
+
+            var bearingDegrees = CompassHeadingMath.ResolveHeadingDegrees(horizontalOffset);
             var signedDelta = CompassHeadingMath.ResolveSignedDeltaDegrees(headingDegrees, bearingDegrees);
             markerEntry = new CompassHudUiState.EntryState(
                 "contract-target",
@@ -110,6 +134,39 @@ namespace Reloader.UI.Toolkit.CompassHud
                 string.Empty,
                 signedDelta);
             return true;
+        }
+
+        private bool TryResolveTargetTransform(string targetId, out Transform targetTransform)
+        {
+            targetTransform = null;
+            if (!string.Equals(_resolvedTargetId, targetId, StringComparison.Ordinal))
+            {
+                _resolvedTargetId = targetId;
+                _resolvedTargetTransform = null;
+            }
+
+            if (_resolvedTargetTransform != null)
+            {
+                targetTransform = _resolvedTargetTransform;
+                return true;
+            }
+
+            if (_populationBridge == null
+                || !_populationBridge.TryResolveSpawnedCivilian(targetId, out var spawnedCivilian)
+                || spawnedCivilian == null)
+            {
+                return false;
+            }
+
+            _resolvedTargetTransform = spawnedCivilian.transform;
+            targetTransform = _resolvedTargetTransform;
+            return targetTransform != null;
+        }
+
+        private void ClearResolvedTarget()
+        {
+            _resolvedTargetId = string.Empty;
+            _resolvedTargetTransform = null;
         }
     }
 }
