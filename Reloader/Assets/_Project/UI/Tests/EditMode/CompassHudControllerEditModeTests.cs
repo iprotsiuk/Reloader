@@ -34,6 +34,27 @@ namespace Reloader.UI.Tests.EditMode
         }
 
         [Test]
+        public void Refresh_WhenTargetFallsOutsideVisibleCompassSpan_HidesMarker()
+        {
+            var fixture = new CompassHudFixture();
+
+            try
+            {
+                fixture.InventoryController.transform.position = Vector3.zero;
+                fixture.InventoryController.transform.forward = Vector3.forward;
+                fixture.SetTargetPosition(new Vector3(0f, 1f, -30f));
+
+                fixture.Controller.Refresh();
+
+                Assert.That(FindEntry(fixture.EntriesRoot, "contract-target"), Is.Null);
+            }
+            finally
+            {
+                fixture.Dispose();
+            }
+        }
+
+        [Test]
         public void Refresh_WhenTargetWasResolved_KeepsUsingCachedTransformWithoutPopulationBridge()
         {
             var fixture = new CompassHudFixture();
@@ -57,6 +78,53 @@ namespace Reloader.UI.Tests.EditMode
             }
             finally
             {
+                fixture.Dispose();
+            }
+        }
+
+        [Test]
+        public void Refresh_WhenAssignedProviderWasDestroyed_ReacquiresLiveSceneProvider()
+        {
+            var fixture = new CompassHudFixture();
+            GameObject staleProviderGo = null;
+            GameObject replacementProviderGo = null;
+
+            try
+            {
+                fixture.InventoryController.transform.position = Vector3.zero;
+                fixture.InventoryController.transform.forward = Vector3.forward;
+                fixture.SetTargetPosition(new Vector3(30f, 2f, 0f));
+
+                staleProviderGo = new GameObject("DestroyedCompassProvider");
+                var staleProvider = staleProviderGo.AddComponent<TestContractRuntimeProviderBehaviour>();
+                staleProvider.SetSnapshot(CompassHudFixture.ActiveSnapshot);
+                fixture.Controller.SetContractRuntimeProvider(staleProvider);
+
+                UnityEngine.Object.DestroyImmediate(staleProviderGo);
+                staleProviderGo = null;
+
+                replacementProviderGo = new GameObject("ReplacementCompassProvider");
+                var replacementProvider = replacementProviderGo.AddComponent<TestContractRuntimeProviderBehaviour>();
+                replacementProvider.SetSnapshot(CompassHudFixture.ActiveSnapshot);
+
+                fixture.Controller.Refresh();
+
+                var marker = FindEntry(fixture.EntriesRoot, "contract-target");
+                Assert.That(marker, Is.Not.Null);
+                Assert.That(marker.style.left.value.value, Is.GreaterThan(130f));
+            }
+            finally
+            {
+                if (replacementProviderGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(replacementProviderGo);
+                }
+
+                if (staleProviderGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(staleProviderGo);
+                }
+
                 fixture.Dispose();
             }
         }
@@ -91,6 +159,26 @@ namespace Reloader.UI.Tests.EditMode
 
         private sealed class CompassHudFixture : IDisposable
         {
+            public static readonly ContractOfferSnapshot ActiveSnapshot = new ContractOfferSnapshot(
+                hasAvailableContract: false,
+                hasActiveContract: true,
+                hasFailedContract: false,
+                contractId: "contract.compass",
+                title: "Compass Contract",
+                targetId: "target.compass",
+                targetDisplayName: "Target Compass",
+                targetDescription: string.Empty,
+                briefingText: string.Empty,
+                distanceBandMeters: 0f,
+                payout: 0,
+                canAccept: false,
+                canCancel: true,
+                canClaimReward: false,
+                restrictionsText: string.Empty,
+                failureConditionsText: string.Empty,
+                canClearFailed: false,
+                statusText: "Active contract");
+
             private readonly GameObject _controllerGo;
             private readonly GameObject _populationGo;
             private readonly GameObject _targetGo;
@@ -109,25 +197,7 @@ namespace Reloader.UI.Tests.EditMode
                 InventoryController = _controllerGo.AddComponent<PlayerInventoryController>();
                 InventoryController.Configure(null, null, new PlayerInventoryRuntime());
 
-                Provider = new TestContractRuntimeProvider(new ContractOfferSnapshot(
-                    hasAvailableContract: false,
-                    hasActiveContract: true,
-                    hasFailedContract: false,
-                    contractId: "contract.compass",
-                    title: "Compass Contract",
-                    targetId: "target.compass",
-                    targetDisplayName: "Target Compass",
-                    targetDescription: string.Empty,
-                    briefingText: string.Empty,
-                    distanceBandMeters: 0f,
-                    payout: 0,
-                    canAccept: false,
-                    canCancel: true,
-                    canClaimReward: false,
-                    restrictionsText: string.Empty,
-                    failureConditionsText: string.Empty,
-                    canClearFailed: false,
-                    statusText: "Active contract"));
+                Provider = new TestContractRuntimeProvider(ActiveSnapshot);
 
                 _populationGo = new GameObject("CompassPopulationFixture");
                 PopulationBridge = _populationGo.AddComponent<CivilianPopulationRuntimeBridge>();
@@ -181,6 +251,42 @@ namespace Reloader.UI.Tests.EditMode
             private readonly ContractOfferSnapshot _snapshot;
 
             public TestContractRuntimeProvider(ContractOfferSnapshot snapshot)
+            {
+                _snapshot = snapshot;
+            }
+
+            public bool TryGetContractSnapshot(out ContractOfferSnapshot snapshot)
+            {
+                snapshot = _snapshot;
+                return true;
+            }
+
+            public bool AcceptAvailableContract()
+            {
+                return false;
+            }
+
+            public bool CancelActiveContract()
+            {
+                return false;
+            }
+
+            public bool ClearFailedContract()
+            {
+                return false;
+            }
+
+            public bool ClaimCompletedContractReward()
+            {
+                return false;
+            }
+        }
+
+        private sealed class TestContractRuntimeProviderBehaviour : MonoBehaviour, IContractRuntimeProvider
+        {
+            private ContractOfferSnapshot _snapshot;
+
+            public void SetSnapshot(ContractOfferSnapshot snapshot)
             {
                 _snapshot = snapshot;
             }

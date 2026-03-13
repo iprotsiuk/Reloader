@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Reloader.Core;
 using Reloader.Contracts.Runtime;
 using Reloader.Inventory;
 using Reloader.NPCs.Runtime;
@@ -94,9 +95,15 @@ namespace Reloader.UI.Toolkit.CompassHud
         {
             _inventoryController ??= FindFirstObjectByType<PlayerInventoryController>(FindObjectsInactive.Include);
 
+            if (!IsReferenceAlive(_contractRuntimeProvider))
+            {
+                _contractRuntimeProvider = null;
+            }
+
             if (_contractRuntimeProvider == null)
             {
-                _contractRuntimeProvider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
+                _contractRuntimeProvider = DependencyResolutionGuard.FindInterface<IContractRuntimeProvider>(
+                    FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None));
             }
 
             _populationBridge ??= FindFirstObjectByType<CivilianPopulationRuntimeBridge>(FindObjectsInactive.Include);
@@ -128,6 +135,11 @@ namespace Reloader.UI.Toolkit.CompassHud
 
             var bearingDegrees = CompassHeadingMath.ResolveHeadingDegrees(horizontalOffset);
             var signedDelta = CompassHeadingMath.ResolveSignedDeltaDegrees(headingDegrees, bearingDegrees);
+            if (Mathf.Abs(signedDelta) > VisibleHalfAngleDegrees)
+            {
+                return false;
+            }
+
             markerEntry = new CompassHudUiState.EntryState(
                 "contract-target",
                 CompassHudUiState.EntryKind.Marker,
@@ -167,6 +179,21 @@ namespace Reloader.UI.Toolkit.CompassHud
         {
             _resolvedTargetId = string.Empty;
             _resolvedTargetTransform = null;
+        }
+
+        private static bool IsReferenceAlive(object instance)
+        {
+            if (instance == null)
+            {
+                return false;
+            }
+
+            if (instance is UnityEngine.Object unityObject && unityObject == null)
+            {
+                return false;
+            }
+
+            return true;
         }
     }
 }
