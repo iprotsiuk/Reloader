@@ -102,6 +102,7 @@ namespace Reloader.Weapons.Controllers
         private bool _pendingUnequipFovBaselineRestore;
         private Transform _defaultMuzzleTransform;
         private GameObject _equippedWeaponView;
+        private bool _activationResyncReady;
         private Component _adsStateRuntimeBridge;
         private Component _adsAttachmentManagerRuntimeBridge;
         private Component _weaponAimAlignerRuntimeBridge;
@@ -139,9 +140,25 @@ namespace Reloader.Weapons.Controllers
             SetArmsVisible(false);
         }
 
+        private void OnEnable()
+        {
+            if (!_activationResyncReady)
+            {
+                return;
+            }
+
+            ResyncAfterActivation();
+        }
+
         private void OnDisable()
         {
             DestroyEquippedWeaponView();
+        }
+
+        private void Start()
+        {
+            _activationResyncReady = true;
+            ResyncAfterActivation();
         }
 
         private void Update()
@@ -461,6 +478,18 @@ namespace Reloader.Weapons.Controllers
             {
                 _weaponViewParent = ResolveDefaultWeaponViewParent();
             }
+        }
+
+        private void ResyncAfterActivation()
+        {
+            ResolveReferences();
+            if (_inventoryController == null || _weaponRegistry == null)
+            {
+                return;
+            }
+
+            UpdateEquipFromSelection();
+            EnsureEquippedViewMatchesRuntimeState();
         }
 
         private void UpdateEquipFromSelection()
@@ -1932,7 +1961,9 @@ namespace Reloader.Weapons.Controllers
 
             if (string.IsNullOrWhiteSpace(attachmentItemId))
             {
+                var authoredOpticVisualName = ResolveOpticPrefabName(activeOpticProperty?.GetValue(manager) as UObject);
                 unequipMethod.Invoke(manager, null);
+                RemoveDetachedAuthoredAttachmentVisuals(_equippedWeaponView, authoredOpticVisualName);
                 EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
                 NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
                 return true;
@@ -1944,7 +1975,10 @@ namespace Reloader.Weapons.Controllers
                 Debug.LogWarning(
                     $"PlayerWeaponController: Scope definition resolve failed for attachmentItemId='{attachmentItemId}'.",
                     this);
-                return false;
+                unequipMethod.Invoke(manager, null);
+                EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
+                NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
+                return true;
             }
 
             var opticPrefabProperty = opticDefinitionType.GetProperty("OpticPrefab", BindingFlags.Instance | BindingFlags.Public);
@@ -1990,6 +2024,40 @@ namespace Reloader.Weapons.Controllers
             return opticIdProperty?.GetValue(opticDefinition) as string ?? string.Empty;
         }
 
+        private static string ResolveOpticPrefabName(UObject opticDefinition)
+        {
+            if (opticDefinition == null)
+            {
+                return string.Empty;
+            }
+
+            var opticPrefabProperty = opticDefinition.GetType().GetProperty("OpticPrefab", BindingFlags.Instance | BindingFlags.Public);
+            return opticPrefabProperty?.GetValue(opticDefinition) is GameObject prefab ? prefab.name : string.Empty;
+        }
+
+        private static void RemoveDetachedAuthoredAttachmentVisuals(GameObject viewRoot, string visualRootName)
+        {
+            if (viewRoot == null || string.IsNullOrWhiteSpace(visualRootName))
+            {
+                return;
+            }
+
+            var transforms = viewRoot.GetComponentsInChildren<Transform>(true);
+            for (var i = 0; i < transforms.Length; i++)
+            {
+                var candidate = transforms[i];
+                if (candidate == null
+                    || candidate == viewRoot.transform
+                    || !string.Equals(candidate.name, visualRootName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                candidate.SetParent(null, false);
+                Destroy(candidate.gameObject);
+            }
+        }
+
         private bool ApplyMuzzleAttachmentToViewRuntime(string attachmentItemId)
         {
             if (_equippedWeaponView == null)
@@ -2027,7 +2095,10 @@ namespace Reloader.Weapons.Controllers
             var definition = ResolveMuzzleAttachmentDefinition(attachmentItemId);
             if (definition == null)
             {
-                return false;
+                unequipMethod.Invoke(manager, null);
+                EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
+                NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
+                return true;
             }
 
             var equipSucceeded = equipMethod.Invoke(manager, new object[] { definition }) is bool equipResult && equipResult;
@@ -2062,13 +2133,6 @@ namespace Reloader.Weapons.Controllers
                 return null;
             }
 
-            var ironSightAnchor = mounts.IronSightAnchor;
-            if (ironSightAnchor == null)
-            {
-                Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing an authored IronSightAnchor.", this);
-                return null;
-            }
-
             Transform scopeSlot = null;
             Transform muzzleSlot = null;
             mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Scope, out scopeSlot);
@@ -2078,6 +2142,14 @@ namespace Reloader.Weapons.Controllers
             {
                 Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing explicit attachment slots.", this);
                 return null;
+            }
+
+            var ironSightAnchor = mounts.IronSightAnchor != null ? mounts.IronSightAnchor : viewRoot.transform;
+            if (mounts.IronSightAnchor == null && scopeSlot != null)
+            {
+                Debug.LogWarning(
+                    $"PlayerWeaponController: View '{viewRoot.name}' is missing an authored IronSightAnchor. Falling back to the view root for attachment manager runtime.",
+                    this);
             }
 
             var configureMethod = managerType.GetMethod("ConfigureMounts", BindingFlags.Instance | BindingFlags.Public);
@@ -2138,6 +2210,8 @@ namespace Reloader.Weapons.Controllers
             EnsurePeripheralScopeEffectsRuntimeBridge(adsType);
             EnsureScopeAdjustmentTooltipRuntimeBridge(adsType);
             TryAssignScopedAdsWeaponDefinition(adsType);
+            adsType.GetMethod("TickVisualMode", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.Invoke(_adsStateRuntimeBridge, null);
 
             var legacyInputField = adsType.GetField("_useLegacyInput", BindingFlags.Instance | BindingFlags.NonPublic);
             legacyInputField?.SetValue(_adsStateRuntimeBridge, false);
@@ -2652,7 +2726,11 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
-            _equippedWeaponView.transform.SetParent(null, false);
+            if (transform.gameObject.activeInHierarchy && _equippedWeaponView.transform.parent != null)
+            {
+                _equippedWeaponView.transform.SetParent(null, false);
+            }
+
             Destroy(_equippedWeaponView);
             _equippedWeaponView = null;
             if (_adsStateRuntimeBridge != null)
