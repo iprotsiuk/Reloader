@@ -812,11 +812,15 @@ namespace Reloader.NPCs.Tests.EditMode
 
                 var damageableType = System.Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons", throwOnError: false);
                 Assert.That(damageableType, Is.Not.Null, "Expected contract target damageable type to exist.");
+                var sharedReceiverType = System.Type.GetType("Reloader.NPCs.Combat.HumanoidDamageReceiver, Reloader.NPCs", throwOnError: false);
+                Assert.That(sharedReceiverType, Is.Not.Null, "Expected shared humanoid receiver type to exist on NPCs.");
 
                 Assert.That(offeredSpawn.GetComponent(damageableType!), Is.Not.Null,
                     "Expected the currently offered civilian to expose the contract-target seam.");
                 Assert.That(nonOfferedSpawn.GetComponent(damageableType!), Is.Null,
                     "Expected non-offered civilians to stay outside the contract-target seam while idle.");
+                Assert.That(spawned.All(component => component.GetComponent(sharedReceiverType!) != null), Is.True,
+                    "Expected every spawned civilian to expose the shared humanoid combat receiver while the contract seam stays narrow.");
             }
             finally
             {
