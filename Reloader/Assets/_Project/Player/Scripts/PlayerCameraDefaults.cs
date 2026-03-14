@@ -129,7 +129,7 @@ namespace Reloader.Player
 
         public void RestoreGameplayView()
         {
-            if (_mainCamera == null || _cameraFollowTarget == null)
+            if (_cameraFollowTarget == null || !TryGetMainCamera(out var mainCamera))
             {
                 return;
             }
@@ -140,7 +140,7 @@ namespace Reloader.Player
                 ? Quaternion.LookRotation(lookDirection.normalized, Vector3.up)
                 : _cameraFollowTarget.rotation;
 
-            _mainCamera.transform.SetPositionAndRotation(_cameraFollowTarget.position, rotation);
+            mainCamera.transform.SetPositionAndRotation(_cameraFollowTarget.position, rotation);
         }
 
         private static void EnsurePipelineComponents(CinemachineCamera cinemachineCamera)
