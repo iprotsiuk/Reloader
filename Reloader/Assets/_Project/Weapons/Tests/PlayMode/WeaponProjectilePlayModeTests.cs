@@ -4,6 +4,7 @@ using Reloader.Core.Runtime;
 using Reloader.Player;
 using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.Cinematics;
+using Reloader.Weapons.Runtime;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -204,6 +205,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         public IEnumerator Projectile_ForwardsImpactDirectionAndEnergyDrivingMetadata_IntoHitPayload()
         {
             const float expectedImpactSpeedMetersPerSecond = 120f;
+            var expectedProjectileMassGrains = WeaponAmmoDefaults.DefaultProjectileMassGrains;
             const float grainsToKilograms = 0.00006479891f;
 
             var projectileGo = new GameObject("Projectile");
@@ -240,14 +242,14 @@ namespace Reloader.Weapons.Tests.PlayMode
             var payloadProjectileMassGrains = ReadPayloadFloatProperty(payload, "ProjectileMassGrains");
             var payloadDeliveredEnergyJoules = ReadPayloadFloatProperty(payload, "DeliveredEnergyJoules");
             var expectedDeliveredEnergyJoules = 0.5f
-                * (payloadProjectileMassGrains * grainsToKilograms)
-                * payloadImpactSpeedMetersPerSecond
-                * payloadImpactSpeedMetersPerSecond;
+                * (expectedProjectileMassGrains * grainsToKilograms)
+                * expectedImpactSpeedMetersPerSecond
+                * expectedImpactSpeedMetersPerSecond;
 
             Assert.That(payloadDirection.sqrMagnitude, Is.EqualTo(1f).Within(0.0001f));
             Assert.That(Vector3.Dot(payloadDirection, Vector3.forward), Is.GreaterThan(0.99999f));
             Assert.That(payloadImpactSpeedMetersPerSecond, Is.EqualTo(expectedImpactSpeedMetersPerSecond).Within(0.01f));
-            Assert.That(payloadProjectileMassGrains, Is.GreaterThan(0f));
+            Assert.That(payloadProjectileMassGrains, Is.EqualTo(expectedProjectileMassGrains).Within(0.001f));
             Assert.That(payloadDeliveredEnergyJoules, Is.EqualTo(expectedDeliveredEnergyJoules).Within(0.1f));
 
             Object.Destroy(projectileGo);
