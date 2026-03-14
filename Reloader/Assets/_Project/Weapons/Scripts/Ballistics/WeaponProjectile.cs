@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Audio;
@@ -8,6 +9,8 @@ namespace Reloader.Weapons.Ballistics
 {
     public sealed class WeaponProjectile : MonoBehaviour
     {
+        public event Action<WeaponProjectile, bool> LifecycleEnded;
+
         public interface IPathObserver
         {
             void RecordSegment(Vector3 startPoint, Vector3 endPoint);
@@ -40,6 +43,7 @@ namespace Reloader.Weapons.Ballistics
         private IPathObserver _pathObserver;
         private bool _pathCompleted;
         private bool _isShotCameraPresentationActive;
+        private bool _lifecycleEndedNotified;
         public float InitialSpeedMetersPerSecond { get; private set; }
         public float CurrentSpeedMetersPerSecond => _velocity.magnitude;
         public bool IsShotCameraPresentationActive => _isShotCameraPresentationActive;
@@ -55,6 +59,7 @@ namespace Reloader.Weapons.Ballistics
         private void OnDestroy()
         {
             CompleteObservedPath(transform.position, didHit: false);
+            NotifyLifecycleEnded(didHit: false);
 
             if (_runtimeVisualMaterial != null)
             {
@@ -89,6 +94,7 @@ namespace Reloader.Weapons.Ballistics
                 _impactAudioRouter?.EmitImpact(hit.point, hit.collider);
                 ResolveWeaponEvents()?.RaiseProjectileHit(_itemId, hit.point, _damage);
                 CompleteObservedPath(hit.point, didHit: true);
+                NotifyLifecycleEnded(didHit: true);
                 Destroy(gameObject);
                 return;
             }
@@ -103,6 +109,7 @@ namespace Reloader.Weapons.Ballistics
             if (transform.position.y < _despawnBelowWorldY)
             {
                 CompleteObservedPath(transform.position, didHit: false);
+                NotifyLifecycleEnded(didHit: false);
                 Destroy(gameObject);
             }
         }
@@ -118,6 +125,7 @@ namespace Reloader.Weapons.Ballistics
             _sourcePoint = transform.position;
             InitialSpeedMetersPerSecond = speed;
             _pathCompleted = false;
+            _lifecycleEndedNotified = false;
             _ignoredColliders = CollectIgnoredColliders(shooterRoot);
             if (_velocity.sqrMagnitude > 0.0001f)
             {
@@ -435,6 +443,17 @@ namespace Reloader.Weapons.Ballistics
 
                 renderer.sharedMaterial = _runtimeVisualMaterial;
             }
+        }
+
+        private void NotifyLifecycleEnded(bool didHit)
+        {
+            if (_lifecycleEndedNotified)
+            {
+                return;
+            }
+
+            _lifecycleEndedNotified = true;
+            LifecycleEnded?.Invoke(this, didHit);
         }
     }
 }

@@ -86,10 +86,12 @@ namespace Reloader.Weapons.Cinematics
             }
             else if (_activeProjectile != null && _activeProjectile != request.Projectile)
             {
+                UnbindActiveProjectile();
                 _activeProjectile.SetShotCameraPresentationActive(false);
             }
 
             _activeProjectile = request.Projectile;
+            BindActiveProjectile();
             _activeSettings = request.Settings;
             _isShotActive = true;
             EnsureCinematicCamera();
@@ -188,6 +190,7 @@ namespace Reloader.Weapons.Cinematics
         {
             if (_activeProjectile != null)
             {
+                UnbindActiveProjectile();
                 _activeProjectile.SetShotCameraPresentationActive(false);
             }
 
@@ -197,6 +200,27 @@ namespace Reloader.Weapons.Cinematics
             _hasActiveCinematicCamera = false;
             Time.timeScale = 1f;
             Time.fixedDeltaTime = _baselineFixedDeltaTime > 0f ? _baselineFixedDeltaTime : DefaultFixedDeltaTime;
+        }
+
+        private void BindActiveProjectile()
+        {
+            if (_activeProjectile == null)
+            {
+                return;
+            }
+
+            _activeProjectile.LifecycleEnded -= HandleActiveProjectileLifecycleEnded;
+            _activeProjectile.LifecycleEnded += HandleActiveProjectileLifecycleEnded;
+        }
+
+        private void UnbindActiveProjectile()
+        {
+            if (_activeProjectile == null)
+            {
+                return;
+            }
+
+            _activeProjectile.LifecycleEnded -= HandleActiveProjectileLifecycleEnded;
         }
 
         private void DestroyCinematicCamera()
@@ -222,6 +246,16 @@ namespace Reloader.Weapons.Cinematics
             Time.timeScale = clampedScale;
             var baseline = _baselineFixedDeltaTime > 0f ? _baselineFixedDeltaTime : DefaultFixedDeltaTime;
             Time.fixedDeltaTime = baseline * clampedScale;
+        }
+
+        private void HandleActiveProjectileLifecycleEnded(WeaponProjectile projectile, bool _)
+        {
+            if (projectile == null || projectile != _activeProjectile)
+            {
+                return;
+            }
+
+            EndShotCamera();
         }
 
         private static void EnsurePipelineComponents(CinemachineCamera cinemachineCamera)

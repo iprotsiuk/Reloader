@@ -818,6 +818,7 @@ namespace Reloader.Weapons.Controllers
             packDriver.NotifyFire(Time.time, state.FireIntervalSeconds);
 
             var ballisticSpec = ResolveBallisticSpec(fireData);
+            var hasQualifiedShotCameraPrediction = TryBuildShotCameraPrediction(out var predictedImpactPoint, out var predictedDistanceMeters);
             var projectile = SpawnProjectile();
             projectile?.Configure(_useRuntimeKernelWeaponEvents ? null : _weaponEvents);
             projectile?.SetPathObserver(TryCreateActiveTracePathObserver());
@@ -830,7 +831,10 @@ namespace Reloader.Weapons.Controllers
                 _equippedDefinition.BaseDamage,
                 ballisticSpec.BallisticCoefficientG1,
                 transform);
-            TryRegisterQualifiedShotCamera(projectile);
+            if (hasQualifiedShotCameraPrediction)
+            {
+                TryRegisterQualifiedShotCamera(projectile, predictedImpactPoint, predictedDistanceMeters);
+            }
 
             NotifyViewWeaponFired(_equippedItemId);
             var muzzleAudioOverride = ResolveMuzzleAudioOverride();
@@ -885,9 +889,10 @@ namespace Reloader.Weapons.Controllers
             return s_createActiveProjectilePathObserverMethod?.Invoke(null, null) as WeaponProjectile.IPathObserver;
         }
 
-        private void TryRegisterQualifiedShotCamera(WeaponProjectile projectile)
+        private void TryRegisterQualifiedShotCamera(WeaponProjectile projectile, Vector3 predictedImpactPoint, float predictedDistanceMeters)
         {
-            if (!TryBuildShotCameraRequest(projectile, out var request))
+            if (projectile == null
+                || !TryBuildShotCameraRequest(projectile, predictedImpactPoint, predictedDistanceMeters, out var request))
             {
                 return;
             }
@@ -911,23 +916,37 @@ namespace Reloader.Weapons.Controllers
             compatibilityMethod?.Invoke(_shotCameraRuntimeBehaviour, new object[] { projectile });
         }
 
-        private bool TryBuildShotCameraRequest(WeaponProjectile projectile, out ShotCameraRequest request)
+        private bool TryBuildShotCameraPrediction(out Vector3 predictedImpactPoint, out float predictedDistanceMeters)
         {
-            request = default;
-            if (projectile == null
-                || !_shotCameraSettings.Enabled
+            predictedImpactPoint = default;
+            predictedDistanceMeters = 0f;
+            if (!_shotCameraSettings.Enabled
                 || _inputSource == null
                 || !_inputSource.AimHeld)
             {
                 return false;
             }
 
-            if (!TryPredictShotCameraImpactPoint(out var predictedImpactPoint, out var predictedDistanceMeters))
+            if (!TryPredictShotCameraImpactPoint(out predictedImpactPoint, out predictedDistanceMeters))
             {
                 return false;
             }
 
-            if (predictedDistanceMeters <= _shotCameraSettings.MinimumPredictedDistanceMeters)
+            return predictedDistanceMeters > _shotCameraSettings.MinimumPredictedDistanceMeters;
+        }
+
+        private bool TryBuildShotCameraRequest(
+            WeaponProjectile projectile,
+            Vector3 predictedImpactPoint,
+            float predictedDistanceMeters,
+            out ShotCameraRequest request)
+        {
+            request = default;
+            if (projectile == null
+                || !_shotCameraSettings.Enabled
+                || _inputSource == null
+                || !_inputSource.AimHeld
+                || predictedDistanceMeters <= _shotCameraSettings.MinimumPredictedDistanceMeters)
             {
                 return false;
             }
@@ -952,6 +971,7 @@ namespace Reloader.Weapons.Controllers
                 return false;
             }
 
+            Physics.SyncTransforms();
             var ray = camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
             var hits = Physics.RaycastAll(ray, float.PositiveInfinity, ~0, QueryTriggerInteraction.Ignore);
             if (hits == null || hits.Length == 0)
