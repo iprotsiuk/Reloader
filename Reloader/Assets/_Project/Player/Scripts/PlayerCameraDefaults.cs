@@ -27,6 +27,15 @@ namespace Reloader.Player
         [ContextMenu("Apply Camera Defaults")]
         public void ApplyDefaults()
         {
+            if (_mainCamera != null && _brain == null)
+            {
+                _brain = _mainCamera.GetComponent<CinemachineBrain>();
+                if (_brain == null)
+                {
+                    _brain = _mainCamera.gameObject.AddComponent<CinemachineBrain>();
+                }
+            }
+
             if (_enableVSync)
             {
                 QualitySettings.vSyncCount = 1;
@@ -64,6 +73,23 @@ namespace Reloader.Player
             }
         }
 
+        public bool TryGetMainCamera(out Camera mainCamera)
+        {
+            mainCamera = _mainCamera != null ? _mainCamera : Camera.main;
+            return mainCamera != null;
+        }
+
+        public bool TryGetPresentationCamera(out Camera presentationCamera)
+        {
+            presentationCamera = ShotCameraGameplayState.PresentationCamera;
+            if (presentationCamera != null)
+            {
+                return true;
+            }
+
+            return TryGetMainCamera(out presentationCamera);
+        }
+
         public bool TryGetEffectiveFieldOfView(out float fieldOfView)
         {
             if (_cinemachineCamera != null)
@@ -99,6 +125,22 @@ namespace Reloader.Player
             }
 
             return false;
+        }
+
+        public void RestoreGameplayView()
+        {
+            if (_cameraFollowTarget == null || !TryGetMainCamera(out var mainCamera))
+            {
+                return;
+            }
+
+            var lookTarget = _cameraLookTarget != null ? _cameraLookTarget : _cameraFollowTarget;
+            var lookDirection = lookTarget.position - _cameraFollowTarget.position;
+            var rotation = lookDirection.sqrMagnitude > 0.0001f
+                ? Quaternion.LookRotation(lookDirection.normalized, Vector3.up)
+                : _cameraFollowTarget.rotation;
+
+            mainCamera.transform.SetPositionAndRotation(_cameraFollowTarget.position, rotation);
         }
 
         private static void EnsurePipelineComponents(CinemachineCamera cinemachineCamera)

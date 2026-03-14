@@ -656,6 +656,42 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerInputReader_Update_AllowsShotCameraSpeedUpWhileShotCameraIsActive()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var keyboard = InputSystem.AddDevice<Keyboard>();
+            var actionsAsset = CreatePlayerKeyboardGameplayActionsAsset();
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(actionsAsset);
+
+            try
+            {
+                ShotCameraGameplayState.PushActive();
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Space));
+                InputSystem.Update();
+
+                reader.SendMessage("Update");
+
+                Assert.That(reader.MoveInput, Is.EqualTo(Vector2.zero));
+                Assert.That(reader.ConsumeJumpPressed(), Is.False);
+                Assert.That(reader.ShotCameraSpeedUpHeld, Is.True,
+                    "Expected PlayerInputReader to preserve hold-to-speed-up input while shot cam is active.");
+            }
+            finally
+            {
+                ShotCameraGameplayState.Reset();
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(actionsAsset);
+                InputSystem.RemoveDevice(keyboard);
+                RuntimeKernelBootstrapper.Events = previousEvents;
+            }
+        }
+
+        [Test]
         public void PlayerInputReader_Update_NormalizesScrollWheelActionDeltaIntoZoomSteps()
         {
             Assert.That(ZoomInputNormalization.NormalizeScrollDelta(120f), Is.EqualTo(1f).Within(0.001f));
@@ -1246,6 +1282,35 @@ namespace Reloader.Player.Tests.PlayMode
             Assert.That(blendMethodValue?.ToString(), Is.EqualTo("LateUpdate"));
             Assert.That(camera.nearClipPlane, Is.EqualTo(0.001f).Within(0.0001f));
             Assert.That(camera.farClipPlane, Is.EqualTo(2828f).Within(0.0001f));
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void PlayerCameraDefaults_ApplyDefaults_AddsMissingBrainToMainCamera()
+        {
+            var root = new GameObject("CameraDefaultsRoot");
+            var camera = root.AddComponent<Camera>();
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+            var brainType = System.Type.GetType("Unity.Cinemachine.CinemachineBrain, Unity.Cinemachine");
+            Assert.That(brainType, Is.Not.Null, "Expected Cinemachine package type resolution for CinemachineBrain.");
+
+            defaults.GetType()
+                .GetField("_mainCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, camera);
+
+            Assert.That(camera.GetComponent(brainType), Is.Null);
+
+            defaults.ApplyDefaults();
+
+            var brain = camera.GetComponent(brainType);
+            Assert.That(brain, Is.Not.Null, "Expected PlayerCameraDefaults to self-heal a missing CinemachineBrain on the main camera.");
+            Assert.That(
+                brainType.GetProperty("UpdateMethod")?.GetValue(brain)?.ToString(),
+                Is.EqualTo("LateUpdate"));
+            Assert.That(
+                brainType.GetProperty("BlendUpdateMethod")?.GetValue(brain)?.ToString(),
+                Is.EqualTo("LateUpdate"));
 
             Object.DestroyImmediate(root);
         }

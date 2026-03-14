@@ -120,6 +120,11 @@ namespace Reloader.Player
                 return;
             }
 
+            if (ShotCameraGameplayState.IsActive)
+            {
+                return;
+            }
+
             if (_focusTargetOverride != null)
             {
                 ApplyFocusTargetOverride(deltaTime);

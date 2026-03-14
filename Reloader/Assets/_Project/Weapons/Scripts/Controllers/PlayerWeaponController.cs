@@ -6,6 +6,7 @@ using Reloader.Audio;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.Weapons.Ballistics;
+using Reloader.Weapons.Cinematics;
 using Reloader.Weapons.Data;
 using Reloader.Weapons.PackRuntime;
 using Reloader.Weapons.Runtime;
@@ -65,6 +66,30 @@ namespace Reloader.Weapons.Controllers
 
     public sealed class PlayerWeaponController : MonoBehaviour
     {
+        private readonly struct RendererVisibilityState
+        {
+            public RendererVisibilityState(Renderer renderer, bool wasEnabled)
+            {
+                Renderer = renderer;
+                WasEnabled = wasEnabled;
+            }
+
+            public Renderer Renderer { get; }
+            public bool WasEnabled { get; }
+        }
+
+        private readonly struct CameraEnabledState
+        {
+            public CameraEnabledState(Camera camera, bool wasEnabled)
+            {
+                Camera = camera;
+                WasEnabled = wasEnabled;
+            }
+
+            public Camera Camera { get; }
+            public bool WasEnabled { get; }
+        }
+
         private const float FeetToMeters = 0.3048f;
         private const float DefaultFov = 60f;
 
@@ -81,9 +106,12 @@ namespace Reloader.Weapons.Controllers
         [SerializeField] private Transform _weaponViewParent;
         [SerializeField] private WeaponViewPrefabBinding[] _weaponViewPrefabs = System.Array.Empty<WeaponViewPrefabBinding>();
         [SerializeField] private WeaponAttachmentItemMetadata[] _attachmentItemMetadata = System.Array.Empty<WeaponAttachmentItemMetadata>();
+        [SerializeField] private MonoBehaviour _shotCameraRuntimeBehaviour;
+        [SerializeField] private ShotCameraSettings _shotCameraSettings = new ShotCameraSettings(true, 100f, 0.1f, 0.25f);
         [SerializeField] private bool _allowSceneWideDependencyLookup;
 
         private IPlayerInputSource _inputSource;
+        private IShotCameraRuntime _shotCameraRuntime;
         private readonly Dictionary<string, WeaponRuntimeState> _statesByItemId = new Dictionary<string, WeaponRuntimeState>();
         private readonly Dictionary<string, PackWeaponRuntimeDriver> _packDriversByItemId = new Dictionary<string, PackWeaponRuntimeDriver>();
         private IWeaponEvents _weaponEvents;
@@ -122,6 +150,11 @@ namespace Reloader.Weapons.Controllers
         [SerializeField, Min(0f)] private float _holsterHideDelaySeconds = 0.2f;
         private float _scheduledArmsHideTime = -1f;
         private readonly List<Renderer> _packRenderers = new List<Renderer>();
+        private readonly List<RendererVisibilityState> _shotCameraSuppressedRenderers = new List<RendererVisibilityState>();
+        private readonly List<CameraEnabledState> _shotCameraSuppressedCameras = new List<CameraEnabledState>();
+        private readonly HashSet<int> _shotCameraSuppressedRendererIds = new HashSet<int>();
+        private readonly HashSet<int> _shotCameraSuppressedCameraIds = new HashSet<int>();
+        private bool _isShotCameraPresentationSuppressed;
         private static readonly Bounds ViewmodelSkinnedBounds = new Bounds(Vector3.zero, new Vector3(8f, 8f, 8f));
         private static readonly Dictionary<int, Material> MaterialUpgradeCacheBySourceId = new Dictionary<int, Material>();
         private static MethodInfo s_createActiveProjectilePathObserverMethod;
@@ -152,6 +185,8 @@ namespace Reloader.Weapons.Controllers
 
         private void OnDisable()
         {
+            RestoreShotCameraPresentation();
+            _isShotCameraPresentationSuppressed = false;
             DestroyEquippedWeaponView();
         }
 
@@ -489,6 +524,22 @@ namespace Reloader.Weapons.Controllers
             {
                 _weaponViewParent = ResolveDefaultWeaponViewParent();
             }
+
+            if (_shotCameraRuntimeBehaviour == null && _shotCameraSettings.Enabled)
+            {
+                _shotCameraRuntimeBehaviour = GetComponent<ShotCameraRuntime>();
+                if (_shotCameraRuntimeBehaviour == null)
+                {
+                    _shotCameraRuntimeBehaviour = gameObject.AddComponent<ShotCameraRuntime>();
+                }
+            }
+
+            if (_shotCameraRuntimeBehaviour is ShotCameraRuntime shotCameraRuntime)
+            {
+                shotCameraRuntime.Configure(_inputSource as IShotCameraInputSource, _shotCameraSettings);
+            }
+
+            _shotCameraRuntime = _shotCameraRuntimeBehaviour as IShotCameraRuntime;
         }
 
         private void ResyncAfterActivation()
@@ -739,6 +790,28 @@ namespace Reloader.Weapons.Controllers
             }
         }
 
+        public void SetShotCameraPresentationSuppressed(bool suppressed)
+        {
+            if (_isShotCameraPresentationSuppressed == suppressed)
+            {
+                return;
+            }
+
+            _isShotCameraPresentationSuppressed = suppressed;
+            if (suppressed)
+            {
+                CaptureAndDisableShotCameraPresentation();
+                return;
+            }
+
+            RestoreShotCameraPresentation();
+        }
+
+        public void SetShotCameraPresentationActive(bool active)
+        {
+            SetShotCameraPresentationSuppressed(active);
+        }
+
         private void ConfigureViewmodelRenderers()
         {
             for (var i = 0; i < _packRenderers.Count; i++)
@@ -759,6 +832,77 @@ namespace Reloader.Weapons.Controllers
                     skinned.localBounds = ViewmodelSkinnedBounds;
                 }
             }
+        }
+
+        private void CaptureAndDisableShotCameraPresentation()
+        {
+            _shotCameraSuppressedRenderers.Clear();
+            _shotCameraSuppressedCameras.Clear();
+            _shotCameraSuppressedRendererIds.Clear();
+            _shotCameraSuppressedCameraIds.Clear();
+
+            CaptureAndDisableRenderers(_packAnimator != null ? _packAnimator.GetComponentsInChildren<Renderer>(true) : System.Array.Empty<Renderer>());
+            CaptureAndDisableRenderers(_equippedWeaponView != null ? _equippedWeaponView.GetComponentsInChildren<Renderer>(true) : System.Array.Empty<Renderer>());
+
+            var worldCamera = ResolveAdsCamera();
+            CaptureAndDisableCamera(ResolveViewmodelCamera(worldCamera));
+            CaptureAndDisableCamera(worldCamera != null ? worldCamera.transform.Find("ScopeCamera")?.GetComponent<Camera>() : null);
+        }
+
+        private void RestoreShotCameraPresentation()
+        {
+            for (var i = _shotCameraSuppressedRenderers.Count - 1; i >= 0; i--)
+            {
+                var state = _shotCameraSuppressedRenderers[i];
+                if (state.Renderer == null)
+                {
+                    continue;
+                }
+
+                state.Renderer.enabled = state.WasEnabled;
+            }
+
+            for (var i = _shotCameraSuppressedCameras.Count - 1; i >= 0; i--)
+            {
+                var state = _shotCameraSuppressedCameras[i];
+                if (state.Camera == null)
+                {
+                    continue;
+                }
+
+                state.Camera.enabled = state.WasEnabled;
+            }
+
+            _shotCameraSuppressedRenderers.Clear();
+            _shotCameraSuppressedCameras.Clear();
+            _shotCameraSuppressedRendererIds.Clear();
+            _shotCameraSuppressedCameraIds.Clear();
+        }
+
+        private void CaptureAndDisableRenderers(Renderer[] renderers)
+        {
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                var renderer = renderers[i];
+                if (renderer == null || !_shotCameraSuppressedRendererIds.Add(renderer.GetInstanceID()))
+                {
+                    continue;
+                }
+
+                _shotCameraSuppressedRenderers.Add(new RendererVisibilityState(renderer, renderer.enabled));
+                renderer.enabled = false;
+            }
+        }
+
+        private void CaptureAndDisableCamera(Camera camera)
+        {
+            if (camera == null || !_shotCameraSuppressedCameraIds.Add(camera.GetInstanceID()))
+            {
+                return;
+            }
+
+            _shotCameraSuppressedCameras.Add(new CameraEnabledState(camera, camera.enabled));
+            camera.enabled = false;
         }
 
         private void TickFire()
@@ -798,6 +942,7 @@ namespace Reloader.Weapons.Controllers
             packDriver.NotifyFire(Time.time, state.FireIntervalSeconds);
 
             var ballisticSpec = ResolveBallisticSpec(fireData);
+            var hasQualifiedShotCameraPrediction = TryBuildShotCameraPrediction(out var predictedImpactPoint, out var predictedDistanceMeters);
             var projectile = SpawnProjectile();
             projectile?.Configure(_useRuntimeKernelWeaponEvents ? null : _weaponEvents);
             projectile?.SetPathObserver(TryCreateActiveTracePathObserver());
@@ -810,6 +955,10 @@ namespace Reloader.Weapons.Controllers
                 _equippedDefinition.BaseDamage,
                 ballisticSpec.BallisticCoefficientG1,
                 transform);
+            if (hasQualifiedShotCameraPrediction)
+            {
+                TryRegisterQualifiedShotCamera(projectile, predictedImpactPoint, predictedDistanceMeters);
+            }
 
             NotifyViewWeaponFired(_equippedItemId);
             var muzzleAudioOverride = ResolveMuzzleAudioOverride();
@@ -819,6 +968,11 @@ namespace Reloader.Weapons.Controllers
 
         private static bool IsFireInputBlocked()
         {
+            if (ShotCameraRuntime.IsAnyShotCameraActive)
+            {
+                return true;
+            }
+
             if (PlayerCursorLockController.IsGameplayInputBlocked)
             {
                 return true;
@@ -864,8 +1018,124 @@ namespace Reloader.Weapons.Controllers
             return s_createActiveProjectilePathObserverMethod?.Invoke(null, null) as WeaponProjectile.IPathObserver;
         }
 
+        private void TryRegisterQualifiedShotCamera(WeaponProjectile projectile, Vector3 predictedImpactPoint, float predictedDistanceMeters)
+        {
+            if (projectile == null
+                || !TryBuildShotCameraRequest(projectile, predictedImpactPoint, predictedDistanceMeters, out var request))
+            {
+                return;
+            }
+
+            if (_shotCameraRuntime != null && _shotCameraRuntime.TryRegisterShot(request))
+            {
+                return;
+            }
+
+            if (_shotCameraRuntimeBehaviour == null)
+            {
+                return;
+            }
+
+            var compatibilityMethod = _shotCameraRuntimeBehaviour.GetType().GetMethod(
+                "RegisterShotCameraRequest",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                binder: null,
+                types: new[] { typeof(WeaponProjectile) },
+                modifiers: null);
+            compatibilityMethod?.Invoke(_shotCameraRuntimeBehaviour, new object[] { projectile });
+        }
+
+        private bool TryBuildShotCameraPrediction(out Vector3 predictedImpactPoint, out float predictedDistanceMeters)
+        {
+            predictedImpactPoint = default;
+            predictedDistanceMeters = 0f;
+            if (!_shotCameraSettings.Enabled
+                || _inputSource == null
+                || !_inputSource.AimHeld)
+            {
+                return false;
+            }
+
+            if (!TryPredictShotCameraImpactPoint(out predictedImpactPoint, out predictedDistanceMeters))
+            {
+                return false;
+            }
+
+            return predictedDistanceMeters > _shotCameraSettings.MinimumPredictedDistanceMeters;
+        }
+
+        private bool TryBuildShotCameraRequest(
+            WeaponProjectile projectile,
+            Vector3 predictedImpactPoint,
+            float predictedDistanceMeters,
+            out ShotCameraRequest request)
+        {
+            request = default;
+            if (projectile == null
+                || !_shotCameraSettings.Enabled
+                || _inputSource == null
+                || !_inputSource.AimHeld
+                || predictedDistanceMeters <= _shotCameraSettings.MinimumPredictedDistanceMeters)
+            {
+                return false;
+            }
+
+            request = new ShotCameraRequest(
+                projectile,
+                projectile.transform.position,
+                predictedImpactPoint,
+                predictedDistanceMeters,
+                _shotCameraSettings);
+            return true;
+        }
+
+        private bool TryPredictShotCameraImpactPoint(out Vector3 predictedImpactPoint, out float predictedDistanceMeters)
+        {
+            predictedImpactPoint = default;
+            predictedDistanceMeters = 0f;
+
+            var camera = ResolveAdsCamera();
+            if (camera == null)
+            {
+                return false;
+            }
+
+            Physics.SyncTransforms();
+            var ray = camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            var hits = Physics.RaycastAll(ray, float.PositiveInfinity, ~0, QueryTriggerInteraction.Ignore);
+            if (hits == null || hits.Length == 0)
+            {
+                return false;
+            }
+
+            Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
+            for (var i = 0; i < hits.Length; i++)
+            {
+                var candidate = hits[i];
+                if (candidate.collider == null
+                    || candidate.collider.isTrigger
+                    || candidate.collider.transform.IsChildOf(transform))
+                {
+                    continue;
+                }
+
+                predictedImpactPoint = candidate.point;
+                var origin = _muzzleTransform != null ? _muzzleTransform.position : transform.position;
+                predictedDistanceMeters = Vector3.Distance(origin, predictedImpactPoint);
+                return true;
+            }
+
+            return false;
+        }
+
         private void TickReload()
         {
+            if (ShotCameraRuntime.IsAnyShotCameraActive)
+            {
+                _inputSource?.ConsumeReloadPressed();
+                return;
+            }
+
             if (!_inputSource.ConsumeReloadPressed())
             {
                 return;
@@ -909,6 +1179,11 @@ namespace Reloader.Weapons.Controllers
 
         private void TickReloadCancellation()
         {
+            if (ShotCameraRuntime.IsAnyShotCameraActive)
+            {
+                return;
+            }
+
             if (!_inputSource.SprintHeld)
             {
                 return;

@@ -1,7 +1,9 @@
 using System.Collections;
 using NUnit.Framework;
 using Reloader.Core.Runtime;
+using Reloader.Player;
 using Reloader.Weapons.Ballistics;
+using Reloader.Weapons.Cinematics;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -216,6 +218,180 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(end.y, Is.LessThan(start.y));
 
             Object.Destroy(projectileGo);
+        }
+
+        [UnityTest]
+        public IEnumerator Projectile_ShotCameraPresentationToggle_UpdatesReadableVisualState()
+        {
+            var projectileGo = new GameObject("Projectile");
+            projectileGo.transform.position = Vector3.zero;
+            projectileGo.transform.forward = Vector3.forward;
+            var projectile = projectileGo.AddComponent<WeaponProjectile>();
+            yield return null;
+
+            var visual = projectileGo.transform.Find("ProjectileVisual");
+            Assert.That(visual, Is.Not.Null, "Expected runtime projectile visuals to exist for shot-camera presentation.");
+
+            var baselineScale = visual!.localScale;
+            Assert.That(projectile.IsShotCameraPresentationActive, Is.False);
+
+            projectile.SetShotCameraPresentationActive(true);
+            Assert.That(projectile.IsShotCameraPresentationActive, Is.True);
+            Assert.That(visual.localScale.x, Is.GreaterThan(baselineScale.x));
+
+            projectile.SetShotCameraPresentationActive(false);
+            Assert.That(projectile.IsShotCameraPresentationActive, Is.False);
+            Assert.That(visual.localScale, Is.EqualTo(baselineScale).Using(Vector3EqualityComparer.Instance));
+
+            Object.Destroy(projectileGo);
+        }
+
+        [UnityTest]
+        public IEnumerator ShotCameraRuntime_ProjectileDespawn_RestoresRealtimeAndClearsCinematicCamera()
+        {
+            GameObject runtimeRoot = null;
+            GameObject projectileGo = null;
+            var previousTimeScale = Time.timeScale;
+            var previousFixedDeltaTime = Time.fixedDeltaTime;
+
+            try
+            {
+                Time.timeScale = 1f;
+                runtimeRoot = new GameObject("ShotCameraRuntimeRoot");
+                var runtime = runtimeRoot.AddComponent<ShotCameraRuntime>();
+                var settings = new ShotCameraSettings(true, 100f, 0.1f, 0.25f);
+                runtime.Configure(null, settings);
+
+                projectileGo = new GameObject("Projectile");
+                projectileGo.transform.position = new Vector3(0f, -499.8f, 0f);
+                projectileGo.transform.forward = Vector3.down;
+                var projectile = projectileGo.AddComponent<WeaponProjectile>();
+                projectile.Initialize("weapon-kar98k", Vector3.down, speed: 30f, gravityMultiplier: 0f, damage: 1f);
+
+                var request = new ShotCameraRequest(
+                    projectile,
+                    projectileGo.transform.position,
+                    projectileGo.transform.position + (Vector3.down * 120f),
+                    120f,
+                    settings);
+                Assert.That(runtime.TryRegisterShot(request), Is.True);
+                Assert.That(FindShotRenderCamera(), Is.Not.Null, "Expected shot cam registration to create a temporary render camera.");
+                Assert.That(ShotCameraGameplayState.PresentationCamera, Is.SameAs(FindShotRenderCamera()), "Expected projectile shot cam to publish the temporary render camera as the current presentation camera.");
+
+                var lingerStartTime = Time.unscaledTime;
+                var elapsed = 0f;
+                while (runtime.IsShotActive && elapsed < 3f)
+                {
+                    elapsed += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+
+                Assert.That(runtime.IsShotActive, Is.False, "Expected projectile despawn termination to end shot cam automatically.");
+                Assert.That(runtime.HasActiveCinematicCamera, Is.False, "Expected projectile despawn termination to clear the temporary cinematic camera.");
+                Assert.That(Time.unscaledTime - lingerStartTime, Is.GreaterThanOrEqualTo(0.9f), "Expected miss/despawn termination to linger at the terminal point before restoring the player camera.");
+                Assert.That(Time.timeScale, Is.EqualTo(1f).Within(0.001f));
+                Assert.That(FindShotRenderCamera(), Is.Null, "Expected the temporary shot camera to be removed after projectile despawn.");
+                Assert.That(ShotCameraGameplayState.PresentationCamera, Is.Null, "Expected shot-cam teardown to clear the current presentation camera.");
+            }
+            finally
+            {
+                Time.timeScale = previousTimeScale;
+                Time.fixedDeltaTime = previousFixedDeltaTime;
+
+                foreach (var projectile in Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(projectile.gameObject);
+                }
+
+                foreach (var cinematicCamera in FindAllCinemachineCameras())
+                {
+                    Object.Destroy(cinematicCamera.gameObject);
+                }
+
+                if (projectileGo != null)
+                {
+                    Object.Destroy(projectileGo);
+                }
+
+                if (runtimeRoot != null)
+                {
+                    Object.Destroy(runtimeRoot);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ShotCameraRuntime_ProjectileDespawn_LingersForMissBeforeRestore()
+        {
+            GameObject runtimeRoot = null;
+            GameObject projectileGo = null;
+            GameObject cameraGo = null;
+            var previousTimeScale = Time.timeScale;
+            var previousFixedDeltaTime = Time.fixedDeltaTime;
+
+            try
+            {
+                Time.timeScale = 1f;
+                runtimeRoot = new GameObject("ShotCameraRuntimeRoot");
+                var runtime = runtimeRoot.AddComponent<ShotCameraRuntime>();
+                var settings = new ShotCameraSettings(true, 100f, 0.1f, 0.25f);
+                runtime.Configure(null, settings);
+
+                cameraGo = new GameObject("WorldCamera");
+                var worldCamera = cameraGo.AddComponent<Camera>();
+                worldCamera.tag = "MainCamera";
+
+                projectileGo = new GameObject("Projectile");
+                projectileGo.transform.position = new Vector3(0f, -499.8f, 0f);
+                projectileGo.transform.forward = Vector3.down;
+                var projectile = projectileGo.AddComponent<WeaponProjectile>();
+                projectile.Initialize("weapon-kar98k", Vector3.down, speed: 30f, gravityMultiplier: 0f, damage: 1f);
+
+                var request = new ShotCameraRequest(
+                    projectile,
+                    projectileGo.transform.position,
+                    projectileGo.transform.position + (Vector3.down * 120f),
+                    120f,
+                    settings);
+                Assert.That(runtime.TryRegisterShot(request), Is.True);
+                Assert.That(runtime.IsShotActive, Is.True);
+
+                yield return new WaitForSecondsRealtime(0.5f);
+                Assert.That(runtime.IsShotActive, Is.True, "Expected missed shots to hold the impact camera briefly before restoring gameplay.");
+
+                yield return new WaitForSecondsRealtime(0.8f);
+                Assert.That(runtime.IsShotActive, Is.False, "Expected missed-shot linger to end after roughly one second.");
+            }
+            finally
+            {
+                Time.timeScale = previousTimeScale;
+                Time.fixedDeltaTime = previousFixedDeltaTime;
+
+                foreach (var projectile in Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(projectile.gameObject);
+                }
+
+                foreach (var cinematicCamera in FindAllCinemachineCameras())
+                {
+                    Object.Destroy(cinematicCamera.gameObject);
+                }
+
+                if (cameraGo != null)
+                {
+                    Object.Destroy(cameraGo);
+                }
+
+                if (projectileGo != null)
+                {
+                    Object.Destroy(projectileGo);
+                }
+
+                if (runtimeRoot != null)
+                {
+                    Object.Destroy(runtimeRoot);
+                }
+            }
         }
 
         [UnityTest]
@@ -457,6 +633,33 @@ namespace Reloader.Weapons.Tests.PlayMode
                 TerminalPoint = terminalPoint;
                 TerminalDidHit = didHit;
             }
+        }
+
+        private static Camera FindShotRenderCamera()
+        {
+            foreach (var camera in Object.FindObjectsByType<Camera>(FindObjectsSortMode.None))
+            {
+                if (camera != null && camera.name == "ShotCameraRuntime_Camera")
+                {
+                    return camera;
+                }
+            }
+
+            return null;
+        }
+
+        private static System.Collections.Generic.List<MonoBehaviour> FindAllCinemachineCameras()
+        {
+            var matches = new System.Collections.Generic.List<MonoBehaviour>();
+            foreach (var behaviour in Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+            {
+                if (behaviour != null && behaviour.GetType().FullName == "Unity.Cinemachine.CinemachineCamera")
+                {
+                    matches.Add(behaviour);
+                }
+            }
+
+            return matches;
         }
 
         private sealed class Vector3EqualityComparer : System.Collections.IEqualityComparer

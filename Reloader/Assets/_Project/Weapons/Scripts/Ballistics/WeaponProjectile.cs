@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Audio;
@@ -6,8 +7,26 @@ using UnityEngine;
 
 namespace Reloader.Weapons.Ballistics
 {
+    public readonly struct ProjectileLifecycleEndInfo
+    {
+        public ProjectileLifecycleEndInfo(bool didHit, bool hitNpc, Vector3 terminalPoint)
+        {
+            DidHit = didHit;
+            HitNpc = hitNpc;
+            TerminalPoint = terminalPoint;
+        }
+
+        public bool DidHit { get; }
+        public bool HitNpc { get; }
+        public Vector3 TerminalPoint { get; }
+    }
+
     public sealed class WeaponProjectile : MonoBehaviour
     {
+        public event Action<WeaponProjectile, ProjectileLifecycleEndInfo> LifecycleEnded;
+
+        private const string NpcAgentTypeName = "Reloader.NPCs.Runtime.NpcAgent, Reloader.NPCs";
+
         public interface IPathObserver
         {
             void RecordSegment(Vector3 startPoint, Vector3 endPoint);
@@ -34,11 +53,19 @@ namespace Reloader.Weapons.Ballistics
         private bool _useRuntimeKernelWeaponEvents = true;
         private Collider[] _ignoredColliders = System.Array.Empty<Collider>();
         private Material _runtimeVisualMaterial;
+        private Transform _runtimeVisualTransform;
+        private Vector3 _runtimeVisualBaseScale = Vector3.one * 0.02f;
         private Vector3 _sourcePoint;
         private IPathObserver _pathObserver;
         private bool _pathCompleted;
+        private bool _isShotCameraPresentationActive;
+        private bool _lifecycleEndedNotified;
+        private static Type s_npcAgentType;
+        private static bool s_attemptedNpcAgentTypeResolution;
         public float InitialSpeedMetersPerSecond { get; private set; }
         public float CurrentSpeedMetersPerSecond => _velocity.magnitude;
+        public Vector3 CurrentDirection => _velocity.sqrMagnitude > 0.0001f ? _velocity.normalized : transform.forward;
+        public bool IsShotCameraPresentationActive => _isShotCameraPresentationActive;
 
         private void Awake()
         {
@@ -51,6 +78,7 @@ namespace Reloader.Weapons.Ballistics
         private void OnDestroy()
         {
             CompleteObservedPath(transform.position, didHit: false);
+            NotifyLifecycleEnded(new ProjectileLifecycleEndInfo(didHit: false, hitNpc: false, transform.position));
 
             if (_runtimeVisualMaterial != null)
             {
@@ -85,6 +113,10 @@ namespace Reloader.Weapons.Ballistics
                 _impactAudioRouter?.EmitImpact(hit.point, hit.collider);
                 ResolveWeaponEvents()?.RaiseProjectileHit(_itemId, hit.point, _damage);
                 CompleteObservedPath(hit.point, didHit: true);
+                NotifyLifecycleEnded(new ProjectileLifecycleEndInfo(
+                    didHit: true,
+                    hitNpc: IsNpcHit(hit.collider),
+                    terminalPoint: hit.point));
                 Destroy(gameObject);
                 return;
             }
@@ -99,6 +131,7 @@ namespace Reloader.Weapons.Ballistics
             if (transform.position.y < _despawnBelowWorldY)
             {
                 CompleteObservedPath(transform.position, didHit: false);
+                NotifyLifecycleEnded(new ProjectileLifecycleEndInfo(didHit: false, hitNpc: false, transform.position));
                 Destroy(gameObject);
             }
         }
@@ -114,6 +147,7 @@ namespace Reloader.Weapons.Ballistics
             _sourcePoint = transform.position;
             InitialSpeedMetersPerSecond = speed;
             _pathCompleted = false;
+            _lifecycleEndedNotified = false;
             _ignoredColliders = CollectIgnoredColliders(shooterRoot);
             if (_velocity.sqrMagnitude > 0.0001f)
             {
@@ -131,6 +165,16 @@ namespace Reloader.Weapons.Ballistics
         {
             _pathObserver = pathObserver;
             _pathCompleted = false;
+        }
+
+        public void SetShotCameraPresentationActive(bool isActive)
+        {
+            EnsureInFlightVisual();
+            _isShotCameraPresentationActive = isActive;
+            if (_runtimeVisualTransform != null)
+            {
+                _runtimeVisualTransform.localScale = _runtimeVisualBaseScale * (isActive ? 2.5f : 1f);
+            }
         }
 
         private IWeaponEvents ResolveWeaponEvents()
@@ -396,7 +440,9 @@ namespace Reloader.Weapons.Ballistics
             var visual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             visual.name = "ProjectileVisual";
             visual.transform.SetParent(transform, false);
-            visual.transform.localScale = Vector3.one * 0.02f;
+            _runtimeVisualBaseScale = Vector3.one * 0.02f;
+            visual.transform.localScale = _runtimeVisualBaseScale;
+            _runtimeVisualTransform = visual.transform;
             var visualCollider = visual.GetComponent<Collider>();
             if (visualCollider != null)
             {
@@ -419,6 +465,33 @@ namespace Reloader.Weapons.Ballistics
 
                 renderer.sharedMaterial = _runtimeVisualMaterial;
             }
+        }
+
+        private void NotifyLifecycleEnded(ProjectileLifecycleEndInfo lifecycleEndInfo)
+        {
+            if (_lifecycleEndedNotified)
+            {
+                return;
+            }
+
+            _lifecycleEndedNotified = true;
+            LifecycleEnded?.Invoke(this, lifecycleEndInfo);
+        }
+
+        private static bool IsNpcHit(Collider collider)
+        {
+            if (collider == null)
+            {
+                return false;
+            }
+
+            if (!s_attemptedNpcAgentTypeResolution)
+            {
+                s_attemptedNpcAgentTypeResolution = true;
+                s_npcAgentType = Type.GetType(NpcAgentTypeName, throwOnError: false);
+            }
+
+            return s_npcAgentType != null && collider.GetComponentInParent(s_npcAgentType) != null;
         }
     }
 }

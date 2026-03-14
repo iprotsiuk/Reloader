@@ -90,6 +90,12 @@ namespace Reloader.Player
                 return;
             }
 
+            if (ShotCameraGameplayState.IsActive)
+            {
+                PublishLocomotionFrame(transform.position, Vector3.zero, _characterController.isGrounded, deltaTime);
+                return;
+            }
+
             if (_devNoclipEnabled)
             {
                 TickDevNoclip(deltaTime);
