@@ -251,6 +251,74 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator SharedHumanoidReceiver_WhenTargetIsReactivated_ResetsSharedDeathState()
+        {
+            GameObject targetGo = null;
+            GameObject headZoneGo = null;
+            try
+            {
+                var sharedReceiverType = ResolveType("Reloader.NPCs.Combat.HumanoidDamageReceiver", "Reloader.NPCs");
+                var bodyZoneHitboxType = ResolveType("Reloader.NPCs.Combat.BodyZoneHitbox", "Reloader.NPCs");
+                var bodyZoneType = ResolveType("Reloader.NPCs.Combat.HumanoidBodyZone", "Reloader.NPCs");
+                Assert.That(sharedReceiverType, Is.Not.Null, "Expected shared humanoid receiver to exist.");
+                Assert.That(bodyZoneHitboxType, Is.Not.Null, "Expected body-zone hitbox type.");
+                Assert.That(bodyZoneType, Is.Not.Null, "Expected body-zone enum type.");
+
+                targetGo = new GameObject("ContractTarget");
+                var target = targetGo.AddComponent<ContractTargetDamageable>();
+                targetGo.AddComponent<BoxCollider>();
+                SetPrivateField(target, "_targetId", "target.alpha");
+                SetPrivateField(target, "_displayName", "Victor Hale");
+                SetPrivateField(target, "_maxHealth", 1000f);
+
+                var sharedReceiver = targetGo.AddComponent(sharedReceiverType!);
+
+                headZoneGo = new GameObject("HeadZone");
+                headZoneGo.transform.SetParent(targetGo.transform, false);
+                headZoneGo.transform.localPosition = new Vector3(0f, 0f, -0.4f);
+                headZoneGo.AddComponent<SphereCollider>().radius = 0.2f;
+                var hitbox = headZoneGo.AddComponent(bodyZoneHitboxType!);
+                ConfigureBodyZoneHitbox(hitbox, bodyZoneType!, "Head");
+
+                yield return null;
+
+                InvokeApplyDamage(sharedReceiver, new ProjectileImpactPayload(
+                    itemId: "weapon-kar98k",
+                    point: headZoneGo.transform.position,
+                    normal: Vector3.back,
+                    damage: 1f,
+                    hitObject: headZoneGo,
+                    sourcePoint: targetGo.transform.position + (Vector3.back * 25f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 240f,
+                    projectileMassGrains: 175f,
+                    deliveredEnergyJoules: 900f));
+
+                Assert.That(targetGo.activeSelf, Is.False, "Expected lethal shared-receiver hit to deactivate the target.");
+
+                targetGo.SetActive(true);
+                yield return null;
+
+                Assert.That(targetGo.activeSelf, Is.True,
+                    "Expected reactivating a target to clear the shared receiver death state instead of immediately eliminating it again.");
+                var isDead = ReadReceiverProperty(sharedReceiver, "IsDead");
+                Assert.That(isDead, Is.EqualTo(false));
+            }
+            finally
+            {
+                if (headZoneGo != null)
+                {
+                    UnityEngine.Object.Destroy(headZoneGo);
+                }
+
+                if (targetGo != null)
+                {
+                    UnityEngine.Object.Destroy(targetGo);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator BodyZoneHitbox_SharedReceiverPath_StillIngestsImpactTelemetry()
         {
             var playerDeviceRuntimeStateType = ResolveType("Reloader.PlayerDevice.Runtime.PlayerDeviceRuntimeState", "Reloader.PlayerDevice");

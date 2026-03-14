@@ -58,7 +58,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                 projectileGo.transform.position = Vector3.zero;
                 projectileGo.transform.forward = Vector3.forward;
                 var projectile = projectileGo.AddComponent(weaponProjectileType!);
-                InitializeProjectile(projectile, "weapon-kar98k", Vector3.forward, speed: 120f, gravityMultiplier: 0f, damage: 25f);
+                InitializeProjectile(projectile, "weapon-kar98k", Vector3.forward, speed: 240f, gravityMultiplier: 0f, damage: 25f);
 
                 var elapsed = 0f;
                 while (elapsed < 1f &&
@@ -145,6 +145,66 @@ namespace Reloader.NPCs.Tests.PlayMode
                 if (root != null)
                 {
                     UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
+        public void SharedReceiver_WhenExplicitLowEnergyIsProvided_DoesNotEscalateFromLegacyDamageFallback()
+        {
+            var sharedReceiverType = ResolveType("Reloader.NPCs.Combat.HumanoidDamageReceiver", "Reloader.NPCs");
+            var bodyZoneHitboxType = ResolveType("Reloader.NPCs.Combat.BodyZoneHitbox", "Reloader.NPCs");
+            var bodyZoneType = ResolveType("Reloader.NPCs.Combat.HumanoidBodyZone", "Reloader.NPCs");
+            var projectileImpactPayloadType = ResolveType("Reloader.Weapons.Ballistics.ProjectileImpactPayload", "Reloader.Weapons");
+            Assert.That(sharedReceiverType, Is.Not.Null, "Expected shared humanoid receiver type.");
+            Assert.That(bodyZoneHitboxType, Is.Not.Null, "Expected body-zone hitbox component type.");
+            Assert.That(bodyZoneType, Is.Not.Null, "Expected HumanoidBodyZone enum type.");
+            Assert.That(projectileImpactPayloadType, Is.Not.Null, "Expected ProjectileImpactPayload type.");
+
+            GameObject npcRoot = null;
+            GameObject torsoZone = null;
+            try
+            {
+                var hitboxRigType = ResolveType("Reloader.NPCs.Combat.HumanoidHitboxRig", "Reloader.NPCs");
+                npcRoot = new GameObject("NpcRoot");
+                Assert.That(hitboxRigType, Is.Not.Null, "Expected HumanoidHitboxRig type.");
+                npcRoot.AddComponent(hitboxRigType!);
+                var sharedReceiver = npcRoot.AddComponent(sharedReceiverType!);
+
+                torsoZone = new GameObject("TorsoZone");
+                torsoZone.transform.SetParent(npcRoot.transform, false);
+                torsoZone.AddComponent<BoxCollider>();
+                var hitbox = torsoZone.AddComponent(bodyZoneHitboxType!);
+                ConfigureBodyZoneHitbox(hitbox, bodyZoneType!, "Torso");
+
+                InvokeApplyDamage(sharedReceiver, CreateImpactPayload(
+                    projectileImpactPayloadType!,
+                    itemId: "weapon-kar98k",
+                    point: torsoZone.transform.position,
+                    normal: Vector3.up,
+                    damage: 25f,
+                    hitObject: torsoZone,
+                    sourcePoint: torsoZone.transform.position + (Vector3.back * 50f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 0f,
+                    projectileMassGrains: 0f,
+                    deliveredEnergyJoules: 50f));
+
+                var lastResultProperty = sharedReceiverType!.GetProperty("LastResult", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(lastResultProperty, Is.Not.Null, "Expected shared receiver to expose LastResult.");
+                Assert.That(IsLastResultLethal(sharedReceiver, lastResultProperty!), Is.False,
+                    "Expected explicit low-energy payloads to stay non-lethal instead of being inflated by the legacy damage heuristic.");
+            }
+            finally
+            {
+                if (torsoZone != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(torsoZone);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(npcRoot);
                 }
             }
         }
@@ -276,6 +336,46 @@ namespace Reloader.NPCs.Tests.PlayMode
 
             Assert.That(method, Is.Not.Null, "Expected WeaponProjectile.Initialize signature for runtime routing coverage.");
             method!.Invoke(projectile, new object[] { itemId, direction, speed, gravityMultiplier, damage, 0.45f, 175f, null });
+        }
+
+        private static object CreateImpactPayload(
+            Type payloadType,
+            string itemId,
+            Vector3 point,
+            Vector3 normal,
+            float damage,
+            GameObject hitObject,
+            Vector3? sourcePoint,
+            Vector3? direction,
+            float impactSpeedMetersPerSecond,
+            float projectileMassGrains,
+            float deliveredEnergyJoules)
+        {
+            return Activator.CreateInstance(
+                payloadType,
+                itemId,
+                point,
+                normal,
+                damage,
+                hitObject,
+                sourcePoint,
+                direction,
+                impactSpeedMetersPerSecond,
+                projectileMassGrains,
+                deliveredEnergyJoules);
+        }
+
+        private static void InvokeApplyDamage(Component damageableComponent, object payload)
+        {
+            var payloadType = payload.GetType();
+            var method = damageableComponent.GetType().GetMethod(
+                "ApplyDamage",
+                BindingFlags.Instance | BindingFlags.Public,
+                binder: null,
+                types: new[] { payloadType },
+                modifiers: null);
+            Assert.That(method, Is.Not.Null, "Expected ApplyDamage to exist on the shared receiver.");
+            method!.Invoke(damageableComponent, new[] { payload });
         }
 
         private static bool IsLastResultLethal(object receiver, PropertyInfo lastResultProperty)

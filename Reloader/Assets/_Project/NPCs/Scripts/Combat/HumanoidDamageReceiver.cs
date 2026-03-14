@@ -119,17 +119,20 @@ namespace Reloader.NPCs.Combat
         private static float ResolveDeliveredEnergy(ProjectileImpactPayload payload)
         {
             var explicitEnergy = payload.DeliveredEnergyJoules;
-            if (explicitEnergy <= 0f &&
-                payload.ImpactSpeedMetersPerSecond > 0f &&
+            if (explicitEnergy > 0f)
+            {
+                return explicitEnergy;
+            }
+
+            if (payload.ImpactSpeedMetersPerSecond > 0f &&
                 payload.ProjectileMassGrains > 0f)
             {
-                explicitEnergy = HumanoidImpactResolution.ComputeDeliveredEnergyJoules(
+                return HumanoidImpactResolution.ComputeDeliveredEnergyJoules(
                     payload.ImpactSpeedMetersPerSecond,
                     payload.ProjectileMassGrains);
             }
 
-            var damageDerivedEnergy = Mathf.Max(0f, payload.Damage) * 100f;
-            return Mathf.Max(explicitEnergy, damageDerivedEnergy);
+            return Mathf.Max(0f, payload.Damage) * 100f;
         }
 
         private void ResolveRig()

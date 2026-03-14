@@ -13,6 +13,7 @@ namespace Reloader.Weapons.World
         private const string SharedReceiverLethalEventName = "LethalResolved";
         private const string SharedReceiverDeathEventName = "Died";
         private const string SharedReceiverIsDeadPropertyName = "IsDead";
+        private const string SharedReceiverResetRuntimeMethodName = "ResetRuntime";
         private const string RagdollControllerTypeName = "Reloader.NPCs.Combat.HumanoidRagdollController, Reloader.NPCs";
         private const string RagdollControllerCanPresentDeathStatePropertyName = "CanPresentDeathState";
 
@@ -52,6 +53,7 @@ namespace Reloader.Weapons.World
             }
 
             ResolveEliminationSink();
+            ResetSharedReceiverRuntime();
             BindSharedReceiver();
         }
 
@@ -85,6 +87,7 @@ namespace Reloader.Weapons.World
             _disableGameObjectOnElimination = disableGameObjectOnElimination;
             ResetRuntime();
             ResolveEliminationSink();
+            ResetSharedReceiverRuntime();
             BindSharedReceiver();
         }
 
@@ -220,6 +223,34 @@ namespace Reloader.Weapons.World
 
             _sharedReceiverApplyDamageMethod.Invoke(_sharedReceiver, new object[] { payload });
             return true;
+        }
+
+        private void ResetSharedReceiverRuntime()
+        {
+            var sharedReceiverType = System.Type.GetType(SharedReceiverTypeName, throwOnError: false);
+            if (sharedReceiverType == null)
+            {
+                return;
+            }
+
+            var receiver = GetComponent(sharedReceiverType);
+            if (receiver == null)
+            {
+                return;
+            }
+
+            var resetMethod = sharedReceiverType.GetMethod(
+                SharedReceiverResetRuntimeMethodName,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public,
+                binder: null,
+                types: System.Type.EmptyTypes,
+                modifiers: null);
+            if (resetMethod == null)
+            {
+                return;
+            }
+
+            resetMethod.Invoke(receiver, null);
         }
 
         private void ApplyFallbackHealthDamage(ProjectileImpactPayload payload)
