@@ -249,6 +249,42 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
+        public void MainTownScene_UsesLinearFogAtOnePointSixKilometers()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var originalFog = RenderSettings.fog;
+            var originalFogMode = RenderSettings.fogMode;
+            var originalFogStart = RenderSettings.fogStartDistance;
+            var originalFogEnd = RenderSettings.fogEndDistance;
+            var originalFogColor = RenderSettings.fogColor;
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SceneManager.SetActiveScene(scene);
+
+                Assert.That(RenderSettings.fog, Is.True, "Expected MainTown to enable scene fog for the island horizon.");
+                Assert.That(RenderSettings.fogMode, Is.EqualTo(FogMode.Linear), "Expected MainTown to use linear distance fog.");
+                Assert.That(RenderSettings.fogEndDistance, Is.EqualTo(1600f).Within(1f), "Expected MainTown fog to fade to the horizon at about 1.6km.");
+                Assert.That(RenderSettings.fogStartDistance, Is.LessThan(RenderSettings.fogEndDistance), "Expected fog start distance to remain below the fog end distance.");
+            }
+            finally
+            {
+                RenderSettings.fog = originalFog;
+                RenderSettings.fogMode = originalFogMode;
+                RenderSettings.fogStartDistance = originalFogStart;
+                RenderSettings.fogEndDistance = originalFogEnd;
+                RenderSettings.fogColor = originalFogColor;
+
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
         public void MainTownScene_PersistsIslandTerrainPass()
         {
             var originalScene = SceneManager.GetActiveScene();

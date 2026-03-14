@@ -62,6 +62,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 563d70aa0889144c5b58d772c18112dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Runtime.MainTownNpcAppearanceApplicator
+  _maleDialogueFaceLocalPoint: {x: 0, y: 1.6, z: 0.04}
+  _femaleDialogueFaceLocalPoint: {x: 0, y: 1.54, z: 0.04}
   _lastContextualSeedKey: vendor.vendor-reloading-store
 --- !u!114 &3671882300544858041
 MonoBehaviour:
@@ -679,7 +681,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1126971684135939333, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1329771913436149886, guid: 6f81693a642923e40bd7ff7b3b6670b4, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
