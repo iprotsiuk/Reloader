@@ -123,6 +123,11 @@ namespace Reloader.NPCs.Tests.PlayMode
                     "Expected lethal head impact to still request the impact blood effect.");
                 Assert.That(requestedEffects, Does.Contain("DeathPuddle"),
                     "Expected lethal impact to request a follow-up death puddle effect.");
+                var requestedPositions = ReadRequestedEffectPositions(controller);
+                Assert.That(requestedPositions.Count, Is.EqualTo(requestedEffects.Count),
+                    "Expected blood controller to record a position for each semantic request.");
+                Assert.That(requestedPositions[requestedPositions.Count - 1], Is.EqualTo(npcRoot.transform.position).Using(Vector3EqualityComparer.Instance),
+                    "Expected death puddle request to use the NPC root position rather than the impact point.");
             }
             finally
             {
@@ -159,6 +164,27 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
 
             return names;
+        }
+
+        private static IReadOnlyList<Vector3> ReadRequestedEffectPositions(Component controller)
+        {
+            var positionsProperty = controller.GetType().GetProperty("RequestedEffectPositions", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(positionsProperty, Is.Not.Null, "Expected HumanoidBloodController to expose RequestedEffectPositions for placement verification.");
+
+            var value = positionsProperty!.GetValue(controller);
+            Assert.That(value, Is.Not.Null, "Expected RequestedEffectPositions to return a collection.");
+            Assert.That(value, Is.InstanceOf<System.Collections.IEnumerable>(), "Expected RequestedEffectPositions to be enumerable.");
+
+            var positions = new List<Vector3>();
+            foreach (var position in (System.Collections.IEnumerable)value)
+            {
+                if (position is Vector3 vector)
+                {
+                    positions.Add(vector);
+                }
+            }
+
+            return positions;
         }
 
         private static object CreateImpactPayload(
@@ -231,6 +257,21 @@ namespace Reloader.NPCs.Tests.PlayMode
 
             public HumanoidBodyZone Zone { get; }
             public string ExpectedEffectKindName { get; }
+        }
+
+        private sealed class Vector3EqualityComparer : IEqualityComparer<Vector3>
+        {
+            public static readonly Vector3EqualityComparer Instance = new Vector3EqualityComparer();
+
+            public bool Equals(Vector3 x, Vector3 y)
+            {
+                return Vector3.Distance(x, y) <= 0.0001f;
+            }
+
+            public int GetHashCode(Vector3 obj)
+            {
+                return obj.GetHashCode();
+            }
         }
     }
 }

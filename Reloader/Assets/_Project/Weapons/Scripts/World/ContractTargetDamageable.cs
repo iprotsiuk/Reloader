@@ -13,6 +13,8 @@ namespace Reloader.Weapons.World
         private const string SharedReceiverLethalEventName = "LethalResolved";
         private const string SharedReceiverDeathEventName = "Died";
         private const string SharedReceiverIsDeadPropertyName = "IsDead";
+        private const string RagdollControllerTypeName = "Reloader.NPCs.Combat.HumanoidRagdollController, Reloader.NPCs";
+        private const string RagdollControllerCanPresentDeathStatePropertyName = "CanPresentDeathState";
 
         [SerializeField] private MonoBehaviour _eliminationSinkBehaviour;
         [SerializeField] private string _targetId = string.Empty;
@@ -264,10 +266,36 @@ namespace Reloader.Weapons.World
 
             _isEliminated = true;
             ResolveEliminationSink()?.ReportContractTargetEliminated(TargetId, _reportAsExposed);
-            if (_disableGameObjectOnElimination)
+            if (_disableGameObjectOnElimination && !HasRagdollDeathPresentation())
             {
                 gameObject.SetActive(false);
             }
+        }
+
+        private bool HasRagdollDeathPresentation()
+        {
+            var ragdollControllerType = System.Type.GetType(RagdollControllerTypeName, throwOnError: false);
+            if (ragdollControllerType == null)
+            {
+                return false;
+            }
+
+            var ragdollController = GetComponent(ragdollControllerType);
+            if (ragdollController == null)
+            {
+                return false;
+            }
+
+            var canPresentProperty = ragdollControllerType.GetProperty(
+                RagdollControllerCanPresentDeathStatePropertyName,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+            if (canPresentProperty == null || canPresentProperty.PropertyType != typeof(bool))
+            {
+                return false;
+            }
+
+            var value = canPresentProperty.GetValue(ragdollController);
+            return value is bool canPresentDeathState && canPresentDeathState;
         }
 
         private static bool IsReferenceAlive(object instance)

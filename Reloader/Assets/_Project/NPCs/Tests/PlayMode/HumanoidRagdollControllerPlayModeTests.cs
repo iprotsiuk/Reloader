@@ -153,6 +153,76 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator ResetRuntime_AfterLethalImpact_RestoresDormantBodiesAndDependencies()
+        {
+            var controllerType = ResolveType("Reloader.NPCs.Combat.HumanoidRagdollController", "Reloader.NPCs");
+            Assert.That(controllerType, Is.Not.Null, "Expected HumanoidRagdollController to exist.");
+
+            GameObject npcRoot = null;
+            GameObject torsoZone = null;
+            try
+            {
+                var projectileImpactPayloadType = ResolveType("Reloader.Weapons.Ballistics.ProjectileImpactPayload", "Reloader.Weapons");
+                Assert.That(projectileImpactPayloadType, Is.Not.Null, "Expected ProjectileImpactPayload to exist.");
+
+                npcRoot = new GameObject("NpcRoot");
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                var receiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
+                var animator = npcRoot.AddComponent<Animator>();
+                var aiController = npcRoot.AddComponent<NpcAiController>();
+                var patrolMotion = npcRoot.AddComponent<ContractTargetPatrolMotion>();
+                var controller = npcRoot.AddComponent(controllerType!);
+
+                torsoZone = new GameObject("TorsoZone");
+                torsoZone.transform.SetParent(npcRoot.transform, false);
+                var torsoCollider = torsoZone.AddComponent<CapsuleCollider>();
+                torsoCollider.enabled = false;
+                var torsoBody = torsoZone.AddComponent<Rigidbody>();
+                torsoBody.isKinematic = true;
+                torsoBody.useGravity = false;
+                torsoZone.AddComponent<BodyZoneHitbox>().Configure(HumanoidBodyZone.Torso);
+
+                yield return null;
+
+                InvokeApplyDamage(receiver, CreateImpactPayload(
+                    projectileImpactPayloadType!,
+                    itemId: "weapon-kar98k",
+                    point: torsoZone.transform.position,
+                    normal: Vector3.back,
+                    damage: 1f,
+                    hitObject: torsoZone,
+                    sourcePoint: torsoZone.transform.position + (Vector3.back * 25f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 240f,
+                    projectileMassGrains: 175f,
+                    deliveredEnergyJoules: 900f));
+
+                yield return new WaitForFixedUpdate();
+
+                InvokeResetRuntime(controller);
+
+                Assert.That(animator.enabled, Is.True, "Expected ResetRuntime to re-enable the animator.");
+                Assert.That(aiController.enabled, Is.True, "Expected ResetRuntime to re-enable NPC AI.");
+                Assert.That(patrolMotion.enabled, Is.True, "Expected ResetRuntime to re-enable patrol motion.");
+                Assert.That(torsoBody.isKinematic, Is.True, "Expected ResetRuntime to restore dormant kinematic ragdoll bodies.");
+                Assert.That(torsoBody.useGravity, Is.False, "Expected ResetRuntime to restore dormant ragdoll gravity state.");
+                Assert.That(torsoCollider.enabled, Is.False, "Expected ResetRuntime to restore dormant collider state.");
+            }
+            finally
+            {
+                if (torsoZone != null)
+                {
+                    UnityEngine.Object.Destroy(torsoZone);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.Destroy(npcRoot);
+                }
+            }
+        }
+
         private static Type ResolveType(string fullName, string assemblyName)
         {
             var type = Type.GetType($"{fullName}, {assemblyName}", throwOnError: false);
@@ -211,6 +281,15 @@ namespace Reloader.NPCs.Tests.PlayMode
                 modifiers: null);
             Assert.That(method, Is.Not.Null, "Expected HumanoidDamageReceiver.ApplyDamage to exist.");
             method!.Invoke(receiver, new[] { payload });
+        }
+
+        private static void InvokeResetRuntime(Component controller)
+        {
+            var method = controller.GetType().GetMethod(
+                "ResetRuntime",
+                BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(method, Is.Not.Null, "Expected HumanoidRagdollController.ResetRuntime to exist.");
+            method!.Invoke(controller, null);
         }
 
         private static Vector3 ReadLinearVelocity(Rigidbody rigidbody)
