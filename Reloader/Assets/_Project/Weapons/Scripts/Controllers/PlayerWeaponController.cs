@@ -66,6 +66,30 @@ namespace Reloader.Weapons.Controllers
 
     public sealed class PlayerWeaponController : MonoBehaviour
     {
+        private readonly struct RendererVisibilityState
+        {
+            public RendererVisibilityState(Renderer renderer, bool wasEnabled)
+            {
+                Renderer = renderer;
+                WasEnabled = wasEnabled;
+            }
+
+            public Renderer Renderer { get; }
+            public bool WasEnabled { get; }
+        }
+
+        private readonly struct CameraEnabledState
+        {
+            public CameraEnabledState(Camera camera, bool wasEnabled)
+            {
+                Camera = camera;
+                WasEnabled = wasEnabled;
+            }
+
+            public Camera Camera { get; }
+            public bool WasEnabled { get; }
+        }
+
         private const float FeetToMeters = 0.3048f;
         private const float DefaultFov = 60f;
 
@@ -126,6 +150,11 @@ namespace Reloader.Weapons.Controllers
         [SerializeField, Min(0f)] private float _holsterHideDelaySeconds = 0.2f;
         private float _scheduledArmsHideTime = -1f;
         private readonly List<Renderer> _packRenderers = new List<Renderer>();
+        private readonly List<RendererVisibilityState> _shotCameraSuppressedRenderers = new List<RendererVisibilityState>();
+        private readonly List<CameraEnabledState> _shotCameraSuppressedCameras = new List<CameraEnabledState>();
+        private readonly HashSet<int> _shotCameraSuppressedRendererIds = new HashSet<int>();
+        private readonly HashSet<int> _shotCameraSuppressedCameraIds = new HashSet<int>();
+        private bool _isShotCameraPresentationSuppressed;
         private static readonly Bounds ViewmodelSkinnedBounds = new Bounds(Vector3.zero, new Vector3(8f, 8f, 8f));
         private static readonly Dictionary<int, Material> MaterialUpgradeCacheBySourceId = new Dictionary<int, Material>();
         private static MethodInfo s_createActiveProjectilePathObserverMethod;
@@ -156,6 +185,8 @@ namespace Reloader.Weapons.Controllers
 
         private void OnDisable()
         {
+            RestoreShotCameraPresentation();
+            _isShotCameraPresentationSuppressed = false;
             DestroyEquippedWeaponView();
         }
 
@@ -759,6 +790,28 @@ namespace Reloader.Weapons.Controllers
             }
         }
 
+        public void SetShotCameraPresentationSuppressed(bool suppressed)
+        {
+            if (_isShotCameraPresentationSuppressed == suppressed)
+            {
+                return;
+            }
+
+            _isShotCameraPresentationSuppressed = suppressed;
+            if (suppressed)
+            {
+                CaptureAndDisableShotCameraPresentation();
+                return;
+            }
+
+            RestoreShotCameraPresentation();
+        }
+
+        public void SetShotCameraPresentationActive(bool active)
+        {
+            SetShotCameraPresentationSuppressed(active);
+        }
+
         private void ConfigureViewmodelRenderers()
         {
             for (var i = 0; i < _packRenderers.Count; i++)
@@ -779,6 +832,77 @@ namespace Reloader.Weapons.Controllers
                     skinned.localBounds = ViewmodelSkinnedBounds;
                 }
             }
+        }
+
+        private void CaptureAndDisableShotCameraPresentation()
+        {
+            _shotCameraSuppressedRenderers.Clear();
+            _shotCameraSuppressedCameras.Clear();
+            _shotCameraSuppressedRendererIds.Clear();
+            _shotCameraSuppressedCameraIds.Clear();
+
+            CaptureAndDisableRenderers(_packAnimator != null ? _packAnimator.GetComponentsInChildren<Renderer>(true) : System.Array.Empty<Renderer>());
+            CaptureAndDisableRenderers(_equippedWeaponView != null ? _equippedWeaponView.GetComponentsInChildren<Renderer>(true) : System.Array.Empty<Renderer>());
+
+            var worldCamera = ResolveAdsCamera();
+            CaptureAndDisableCamera(ResolveViewmodelCamera(worldCamera));
+            CaptureAndDisableCamera(worldCamera != null ? worldCamera.transform.Find("ScopeCamera")?.GetComponent<Camera>() : null);
+        }
+
+        private void RestoreShotCameraPresentation()
+        {
+            for (var i = _shotCameraSuppressedRenderers.Count - 1; i >= 0; i--)
+            {
+                var state = _shotCameraSuppressedRenderers[i];
+                if (state.Renderer == null)
+                {
+                    continue;
+                }
+
+                state.Renderer.enabled = state.WasEnabled;
+            }
+
+            for (var i = _shotCameraSuppressedCameras.Count - 1; i >= 0; i--)
+            {
+                var state = _shotCameraSuppressedCameras[i];
+                if (state.Camera == null)
+                {
+                    continue;
+                }
+
+                state.Camera.enabled = state.WasEnabled;
+            }
+
+            _shotCameraSuppressedRenderers.Clear();
+            _shotCameraSuppressedCameras.Clear();
+            _shotCameraSuppressedRendererIds.Clear();
+            _shotCameraSuppressedCameraIds.Clear();
+        }
+
+        private void CaptureAndDisableRenderers(Renderer[] renderers)
+        {
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                var renderer = renderers[i];
+                if (renderer == null || !_shotCameraSuppressedRendererIds.Add(renderer.GetInstanceID()))
+                {
+                    continue;
+                }
+
+                _shotCameraSuppressedRenderers.Add(new RendererVisibilityState(renderer, renderer.enabled));
+                renderer.enabled = false;
+            }
+        }
+
+        private void CaptureAndDisableCamera(Camera camera)
+        {
+            if (camera == null || !_shotCameraSuppressedCameraIds.Add(camera.GetInstanceID()))
+            {
+                return;
+            }
+
+            _shotCameraSuppressedCameras.Add(new CameraEnabledState(camera, camera.enabled));
+            camera.enabled = false;
         }
 
         private void TickFire()
@@ -844,6 +968,11 @@ namespace Reloader.Weapons.Controllers
 
         private static bool IsFireInputBlocked()
         {
+            if (ShotCameraRuntime.IsAnyShotCameraActive)
+            {
+                return true;
+            }
+
             if (PlayerCursorLockController.IsGameplayInputBlocked)
             {
                 return true;
@@ -1001,6 +1130,12 @@ namespace Reloader.Weapons.Controllers
 
         private void TickReload()
         {
+            if (ShotCameraRuntime.IsAnyShotCameraActive)
+            {
+                _inputSource?.ConsumeReloadPressed();
+                return;
+            }
+
             if (!_inputSource.ConsumeReloadPressed())
             {
                 return;
@@ -1044,6 +1179,11 @@ namespace Reloader.Weapons.Controllers
 
         private void TickReloadCancellation()
         {
+            if (ShotCameraRuntime.IsAnyShotCameraActive)
+            {
+                return;
+            }
+
             if (!_inputSource.SprintHeld)
             {
                 return;

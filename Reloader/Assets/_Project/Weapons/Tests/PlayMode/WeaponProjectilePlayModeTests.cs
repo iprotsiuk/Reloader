@@ -276,8 +276,9 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(runtime.TryRegisterShot(request), Is.True);
                 Assert.That(FindFirstCinemachineCamera(), Is.Not.Null, "Expected shot cam registration to create a temporary cinematic camera.");
 
+                var lingerStartTime = Time.unscaledTime;
                 var elapsed = 0f;
-                while (runtime.IsShotActive && elapsed < 2f)
+                while (runtime.IsShotActive && elapsed < 3f)
                 {
                     elapsed += Time.unscaledDeltaTime;
                     yield return null;
@@ -285,6 +286,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 Assert.That(runtime.IsShotActive, Is.False, "Expected projectile despawn termination to end shot cam automatically.");
                 Assert.That(runtime.HasActiveCinematicCamera, Is.False, "Expected projectile despawn termination to clear the temporary cinematic camera.");
+                Assert.That(Time.unscaledTime - lingerStartTime, Is.GreaterThanOrEqualTo(0.9f), "Expected miss/despawn termination to linger at the terminal point before restoring the player camera.");
                 Assert.That(Time.timeScale, Is.EqualTo(1f).Within(0.001f));
                 Assert.That(FindFirstCinemachineCamera(), Is.Null, "Expected the temporary shot camera to be removed after projectile despawn.");
             }
@@ -301,6 +303,80 @@ namespace Reloader.Weapons.Tests.PlayMode
                 foreach (var cinematicCamera in FindAllCinemachineCameras())
                 {
                     Object.Destroy(cinematicCamera.gameObject);
+                }
+
+                if (projectileGo != null)
+                {
+                    Object.Destroy(projectileGo);
+                }
+
+                if (runtimeRoot != null)
+                {
+                    Object.Destroy(runtimeRoot);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ShotCameraRuntime_ProjectileDespawn_LingersForMissBeforeRestore()
+        {
+            GameObject runtimeRoot = null;
+            GameObject projectileGo = null;
+            GameObject cameraGo = null;
+            var previousTimeScale = Time.timeScale;
+            var previousFixedDeltaTime = Time.fixedDeltaTime;
+
+            try
+            {
+                Time.timeScale = 1f;
+                runtimeRoot = new GameObject("ShotCameraRuntimeRoot");
+                var runtime = runtimeRoot.AddComponent<ShotCameraRuntime>();
+                var settings = new ShotCameraSettings(true, 100f, 0.1f, 0.25f);
+                runtime.Configure(null, settings);
+
+                cameraGo = new GameObject("WorldCamera");
+                var worldCamera = cameraGo.AddComponent<Camera>();
+                worldCamera.tag = "MainCamera";
+
+                projectileGo = new GameObject("Projectile");
+                projectileGo.transform.position = new Vector3(0f, -499.8f, 0f);
+                projectileGo.transform.forward = Vector3.down;
+                var projectile = projectileGo.AddComponent<WeaponProjectile>();
+                projectile.Initialize("weapon-kar98k", Vector3.down, speed: 30f, gravityMultiplier: 0f, damage: 1f);
+
+                var request = new ShotCameraRequest(
+                    projectile,
+                    projectileGo.transform.position,
+                    projectileGo.transform.position + (Vector3.down * 120f),
+                    120f,
+                    settings);
+                Assert.That(runtime.TryRegisterShot(request), Is.True);
+                Assert.That(runtime.IsShotActive, Is.True);
+
+                yield return new WaitForSecondsRealtime(0.5f);
+                Assert.That(runtime.IsShotActive, Is.True, "Expected missed shots to hold the impact camera briefly before restoring gameplay.");
+
+                yield return new WaitForSecondsRealtime(0.8f);
+                Assert.That(runtime.IsShotActive, Is.False, "Expected missed-shot linger to end after roughly one second.");
+            }
+            finally
+            {
+                Time.timeScale = previousTimeScale;
+                Time.fixedDeltaTime = previousFixedDeltaTime;
+
+                foreach (var projectile in Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(projectile.gameObject);
+                }
+
+                foreach (var cinematicCamera in FindAllCinemachineCameras())
+                {
+                    Object.Destroy(cinematicCamera.gameObject);
+                }
+
+                if (cameraGo != null)
+                {
+                    Object.Destroy(cameraGo);
                 }
 
                 if (projectileGo != null)

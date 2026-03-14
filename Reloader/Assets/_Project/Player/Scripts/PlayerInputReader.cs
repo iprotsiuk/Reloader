@@ -103,13 +103,14 @@ namespace Reloader.Player
             var keyboard = Keyboard.current;
             var uiStateEvents = RuntimeKernelBootstrapper.UiStateEvents;
             var isDevConsoleVisible = uiStateEvents?.IsDevConsoleVisible == true;
-            var isGameplayInputSuppressed = isDevConsoleVisible;
+            var isShotCameraActive = ShotCameraGameplayState.IsActive;
+            var isGameplayInputSuppressed = isDevConsoleVisible || isShotCameraActive;
 
             MoveInput = !isGameplayInputSuppressed && _moveAction != null
                 ? _moveAction.ReadValue<Vector2>()
                 : Vector2.zero;
 
-            LookInput = !isGameplayInputSuppressed && _lookAction != null
+            LookInput = !isDevConsoleVisible && _lookAction != null
                 ? _lookAction.ReadValue<Vector2>()
                 : Vector2.zero;
 
@@ -162,6 +163,10 @@ namespace Reloader.Player
                 AimHeld = false;
                 AimToggleQueued = false;
             }
+            else if (isShotCameraActive)
+            {
+                AimToggleQueued = false;
+            }
             else if (_aimAction != null && _aimAction.WasPressedThisFrame())
             {
                 AimHeld = !AimHeld;
@@ -207,7 +212,7 @@ namespace Reloader.Player
             {
                 // Escape is handled directly by open UI/controllers as a close-only action.
             }
-            else if (isDevConsoleVisible)
+            else if (isDevConsoleVisible || isShotCameraActive)
             {
                 MenuToggleQueued = false;
             }

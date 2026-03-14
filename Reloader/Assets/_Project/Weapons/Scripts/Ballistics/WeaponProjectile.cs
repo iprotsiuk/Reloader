@@ -7,9 +7,25 @@ using UnityEngine;
 
 namespace Reloader.Weapons.Ballistics
 {
+    public readonly struct ProjectileLifecycleEndInfo
+    {
+        public ProjectileLifecycleEndInfo(bool didHit, bool hitNpc, Vector3 terminalPoint)
+        {
+            DidHit = didHit;
+            HitNpc = hitNpc;
+            TerminalPoint = terminalPoint;
+        }
+
+        public bool DidHit { get; }
+        public bool HitNpc { get; }
+        public Vector3 TerminalPoint { get; }
+    }
+
     public sealed class WeaponProjectile : MonoBehaviour
     {
-        public event Action<WeaponProjectile, bool> LifecycleEnded;
+        public event Action<WeaponProjectile, ProjectileLifecycleEndInfo> LifecycleEnded;
+
+        private const string NpcAgentTypeName = "Reloader.NPCs.Runtime.NpcAgent, Reloader.NPCs";
 
         public interface IPathObserver
         {
@@ -44,8 +60,11 @@ namespace Reloader.Weapons.Ballistics
         private bool _pathCompleted;
         private bool _isShotCameraPresentationActive;
         private bool _lifecycleEndedNotified;
+        private static Type s_npcAgentType;
+        private static bool s_attemptedNpcAgentTypeResolution;
         public float InitialSpeedMetersPerSecond { get; private set; }
         public float CurrentSpeedMetersPerSecond => _velocity.magnitude;
+        public Vector3 CurrentDirection => _velocity.sqrMagnitude > 0.0001f ? _velocity.normalized : transform.forward;
         public bool IsShotCameraPresentationActive => _isShotCameraPresentationActive;
 
         private void Awake()
@@ -59,7 +78,7 @@ namespace Reloader.Weapons.Ballistics
         private void OnDestroy()
         {
             CompleteObservedPath(transform.position, didHit: false);
-            NotifyLifecycleEnded(didHit: false);
+            NotifyLifecycleEnded(new ProjectileLifecycleEndInfo(didHit: false, hitNpc: false, transform.position));
 
             if (_runtimeVisualMaterial != null)
             {
@@ -94,7 +113,10 @@ namespace Reloader.Weapons.Ballistics
                 _impactAudioRouter?.EmitImpact(hit.point, hit.collider);
                 ResolveWeaponEvents()?.RaiseProjectileHit(_itemId, hit.point, _damage);
                 CompleteObservedPath(hit.point, didHit: true);
-                NotifyLifecycleEnded(didHit: true);
+                NotifyLifecycleEnded(new ProjectileLifecycleEndInfo(
+                    didHit: true,
+                    hitNpc: IsNpcHit(hit.collider),
+                    terminalPoint: hit.point));
                 Destroy(gameObject);
                 return;
             }
@@ -109,7 +131,7 @@ namespace Reloader.Weapons.Ballistics
             if (transform.position.y < _despawnBelowWorldY)
             {
                 CompleteObservedPath(transform.position, didHit: false);
-                NotifyLifecycleEnded(didHit: false);
+                NotifyLifecycleEnded(new ProjectileLifecycleEndInfo(didHit: false, hitNpc: false, transform.position));
                 Destroy(gameObject);
             }
         }
@@ -445,7 +467,7 @@ namespace Reloader.Weapons.Ballistics
             }
         }
 
-        private void NotifyLifecycleEnded(bool didHit)
+        private void NotifyLifecycleEnded(ProjectileLifecycleEndInfo lifecycleEndInfo)
         {
             if (_lifecycleEndedNotified)
             {
@@ -453,7 +475,23 @@ namespace Reloader.Weapons.Ballistics
             }
 
             _lifecycleEndedNotified = true;
-            LifecycleEnded?.Invoke(this, didHit);
+            LifecycleEnded?.Invoke(this, lifecycleEndInfo);
+        }
+
+        private static bool IsNpcHit(Collider collider)
+        {
+            if (collider == null)
+            {
+                return false;
+            }
+
+            if (!s_attemptedNpcAgentTypeResolution)
+            {
+                s_attemptedNpcAgentTypeResolution = true;
+                s_npcAgentType = Type.GetType(NpcAgentTypeName, throwOnError: false);
+            }
+
+            return s_npcAgentType != null && collider.GetComponentInParent(s_npcAgentType) != null;
         }
     }
 }
