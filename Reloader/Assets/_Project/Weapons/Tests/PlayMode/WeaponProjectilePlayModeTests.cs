@@ -201,6 +201,41 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Projectile_ForwardsImpactDirectionAndEnergyDrivingMetadata_IntoHitPayload()
+        {
+            var projectileGo = new GameObject("Projectile");
+            projectileGo.transform.position = new Vector3(0f, 1000f, 0f);
+            projectileGo.transform.forward = Vector3.forward;
+            var projectile = projectileGo.AddComponent<WeaponProjectile>();
+
+            var target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            target.transform.position = new Vector3(0f, 1000f, 5f);
+            target.transform.localScale = new Vector3(1f, 1f, 1f);
+            var receiver = target.AddComponent<TestDamageable>();
+
+            projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 120f, gravityMultiplier: 0f, damage: 33f);
+
+            var elapsed = 0f;
+            while (receiver.HitCount == 0 && elapsed < 0.5f)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            Assert.That(receiver.HitCount, Is.EqualTo(1));
+            Assert.That(receiver.LastPayload.HasValue, Is.True);
+
+            var payload = receiver.LastPayload.Value;
+            Assert.That(Vector3.Dot(payload.Direction.normalized, Vector3.forward), Is.GreaterThan(0.999f));
+            Assert.That(payload.ImpactSpeedMetersPerSecond, Is.GreaterThan(0f));
+            Assert.That(payload.ProjectileMassGrains, Is.GreaterThan(0f));
+            Assert.That(payload.DeliveredEnergyJoules, Is.GreaterThan(0f));
+
+            Object.Destroy(projectileGo);
+            Object.Destroy(target);
+        }
+
+        [UnityTest]
         public IEnumerator Projectile_MovesAndDrops_WithGravity()
         {
             var projectileGo = new GameObject("Projectile");
@@ -609,11 +644,13 @@ namespace Reloader.Weapons.Tests.PlayMode
         {
             public int HitCount { get; private set; }
             public float LastDamage { get; private set; }
+            public ProjectileImpactPayload? LastPayload { get; private set; }
 
             public void ApplyDamage(ProjectileImpactPayload payload)
             {
                 HitCount++;
                 LastDamage = payload.Damage;
+                LastPayload = payload;
             }
         }
 
