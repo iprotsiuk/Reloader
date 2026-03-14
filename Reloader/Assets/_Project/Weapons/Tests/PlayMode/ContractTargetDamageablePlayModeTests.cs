@@ -78,58 +78,78 @@ namespace Reloader.Weapons.Tests.PlayMode
         [UnityTest]
         public IEnumerator SharedHumanoidReceiver_LethalHeadHit_ReportsEliminationSinkThroughContractBridge()
         {
-            var sinkGo = new GameObject("ContractSink");
-            var sink = sinkGo.AddComponent<ContractTargetSinkProbe>();
-            var targetGo = new GameObject("ContractTarget");
-            var target = targetGo.AddComponent<ContractTargetDamageable>();
-            targetGo.AddComponent<BoxCollider>();
+            GameObject sinkGo = null;
+            GameObject targetGo = null;
+            GameObject headZoneGo = null;
 
-            var sharedReceiverType = ResolveType("Reloader.NPCs.Combat.HumanoidDamageReceiver", "Reloader.NPCs");
-            var bodyZoneHitboxType = ResolveType("Reloader.NPCs.Combat.BodyZoneHitbox", "Reloader.NPCs");
-            var bodyZoneType = ResolveType("Reloader.NPCs.Combat.HumanoidBodyZone", "Reloader.NPCs");
+            try
+            {
+                sinkGo = new GameObject("ContractSink");
+                var sink = sinkGo.AddComponent<ContractTargetSinkProbe>();
+                targetGo = new GameObject("ContractTarget");
+                var target = targetGo.AddComponent<ContractTargetDamageable>();
+                targetGo.AddComponent<BoxCollider>();
 
-            Assert.That(sharedReceiverType, Is.Not.Null, "Expected shared humanoid receiver to exist.");
-            Assert.That(bodyZoneHitboxType, Is.Not.Null, "Expected body-zone hitbox component to exist.");
-            Assert.That(bodyZoneType, Is.Not.Null, "Expected HumanoidBodyZone enum to exist.");
+                var sharedReceiverType = ResolveType("Reloader.NPCs.Combat.HumanoidDamageReceiver", "Reloader.NPCs");
+                var bodyZoneHitboxType = ResolveType("Reloader.NPCs.Combat.BodyZoneHitbox", "Reloader.NPCs");
+                var bodyZoneType = ResolveType("Reloader.NPCs.Combat.HumanoidBodyZone", "Reloader.NPCs");
 
-            SetPrivateField(target, "_eliminationSinkBehaviour", sink);
-            SetPrivateField(target, "_targetId", "target.alpha");
-            SetPrivateField(target, "_displayName", "Victor Hale");
-            SetPrivateField(target, "_maxHealth", 1000f);
+                Assert.That(sharedReceiverType, Is.Not.Null, "Expected shared humanoid receiver to exist.");
+                Assert.That(bodyZoneHitboxType, Is.Not.Null, "Expected body-zone hitbox component to exist.");
+                Assert.That(bodyZoneType, Is.Not.Null, "Expected HumanoidBodyZone enum to exist.");
 
-            var sharedReceiver = targetGo.AddComponent(sharedReceiverType!);
-            var headZoneGo = new GameObject("HeadZone");
-            headZoneGo.transform.SetParent(targetGo.transform, false);
-            headZoneGo.transform.localPosition = new Vector3(0f, 0f, -0.4f);
-            headZoneGo.AddComponent<SphereCollider>().radius = 0.2f;
-            var hitbox = headZoneGo.AddComponent(bodyZoneHitboxType!);
-            ConfigureBodyZoneHitbox(hitbox, bodyZoneType!, "Head");
+                SetPrivateField(target, "_eliminationSinkBehaviour", sink);
+                SetPrivateField(target, "_targetId", "target.alpha");
+                SetPrivateField(target, "_displayName", "Victor Hale");
+                SetPrivateField(target, "_maxHealth", 1000f);
 
-            yield return null;
+                var sharedReceiver = targetGo.AddComponent(sharedReceiverType!);
+                headZoneGo = new GameObject("HeadZone");
+                headZoneGo.transform.SetParent(targetGo.transform, false);
+                headZoneGo.transform.localPosition = new Vector3(0f, 0f, -0.4f);
+                headZoneGo.AddComponent<SphereCollider>().radius = 0.2f;
+                var hitbox = headZoneGo.AddComponent(bodyZoneHitboxType!);
+                ConfigureBodyZoneHitbox(hitbox, bodyZoneType!, "Head");
 
-            InvokeApplyDamage(sharedReceiver, new ProjectileImpactPayload(
-                itemId: "weapon-kar98k",
-                point: headZoneGo.transform.position,
-                normal: Vector3.back,
-                damage: 1f,
-                hitObject: headZoneGo,
-                sourcePoint: targetGo.transform.position + (Vector3.back * 25f),
-                direction: Vector3.forward,
-                impactSpeedMetersPerSecond: 240f,
-                projectileMassGrains: 175f,
-                deliveredEnergyJoules: 900f));
+                yield return null;
 
-            var lastZone = ReadReceiverProperty(sharedReceiver, "LastZone");
-            Assert.That(lastZone?.ToString(), Is.EqualTo("Head"));
-            Assert.That(ReadLastResultIsLethal(sharedReceiver), Is.True);
+                InvokeApplyDamage(sharedReceiver, new ProjectileImpactPayload(
+                    itemId: "weapon-kar98k",
+                    point: headZoneGo.transform.position,
+                    normal: Vector3.back,
+                    damage: 1f,
+                    hitObject: headZoneGo,
+                    sourcePoint: targetGo.transform.position + (Vector3.back * 25f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 240f,
+                    projectileMassGrains: 175f,
+                    deliveredEnergyJoules: 900f));
 
-            Assert.That(sink.TargetId, Is.EqualTo("target.alpha"));
-            Assert.That(sink.WasExposed, Is.True);
-            Assert.That(targetGo.activeSelf, Is.False);
+                var lastZone = ReadReceiverProperty(sharedReceiver, "LastZone");
+                Assert.That(lastZone?.ToString(), Is.EqualTo("Head"));
+                Assert.That(ReadLastResultIsLethal(sharedReceiver), Is.True);
 
-            UnityEngine.Object.Destroy(headZoneGo);
-            UnityEngine.Object.Destroy(sinkGo);
-            UnityEngine.Object.Destroy(targetGo);
+                Assert.That(sink.TargetId, Is.EqualTo("target.alpha"));
+                Assert.That(sink.WasExposed, Is.True);
+                Assert.That(targetGo.activeSelf, Is.False);
+            }
+            finally
+            {
+                if (headZoneGo != null)
+                {
+                    UnityEngine.Object.Destroy(headZoneGo);
+                }
+
+                if (sinkGo != null)
+                {
+                    UnityEngine.Object.Destroy(sinkGo);
+                }
+
+                if (targetGo != null)
+                {
+                    UnityEngine.Object.Destroy(targetGo);
+                }
+            }
         }
 
         private static void SetPrivateField(object target, string fieldName, object value)
