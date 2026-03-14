@@ -161,6 +161,19 @@ namespace Reloader.NPCs.Combat
             }
         }
 
+        internal void UnregisterHitbox(BodyZoneHitbox hitbox, HumanoidBodyZone zone)
+        {
+            if (hitbox == null)
+            {
+                return;
+            }
+
+            if (_hitboxByZone.TryGetValue(zone, out var registered) && ReferenceEquals(registered, hitbox))
+            {
+                _hitboxByZone.Remove(zone);
+            }
+        }
+
         private int ResolveBoneCount()
         {
             var count = 0;

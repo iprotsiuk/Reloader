@@ -28,6 +28,7 @@ namespace Reloader.Weapons.World
         private System.Reflection.EventInfo _sharedReceiverLethalEvent;
         private System.Reflection.MethodInfo _sharedReceiverApplyDamageMethod;
         private Action _sharedReceiverLethalHandler;
+        private float _currentHealth;
         private bool _isEliminated;
 
         public string TargetId => string.IsNullOrWhiteSpace(_targetId) ? gameObject.name : _targetId;
@@ -43,7 +44,7 @@ namespace Reloader.Weapons.World
 
         private void OnEnable()
         {
-            if (_isEliminated)
+            if (_isEliminated || _currentHealth <= 0f)
             {
                 ResetRuntime();
             }
@@ -92,8 +93,6 @@ namespace Reloader.Weapons.World
                 return;
             }
 
-            PlayerDeviceController.ActiveInstance?.IngestImpact(payload.Point, payload.HitObject, payload.SourcePoint);
-
             if (ForwardDamageToSharedReceiver(payload))
             {
                 if (ReadSharedReceiverDeadState())
@@ -104,11 +103,13 @@ namespace Reloader.Weapons.World
                 return;
             }
 
-            EliminateTarget();
+            PlayerDeviceController.ActiveInstance?.IngestImpact(payload.Point, payload.HitObject, payload.SourcePoint);
+            ApplyFallbackHealthDamage(payload);
         }
 
         public void ResetRuntime()
         {
+            _currentHealth = Mathf.Max(0.01f, _maxHealth);
             _isEliminated = false;
         }
 
@@ -217,6 +218,17 @@ namespace Reloader.Weapons.World
 
             _sharedReceiverApplyDamageMethod.Invoke(_sharedReceiver, new object[] { payload });
             return true;
+        }
+
+        private void ApplyFallbackHealthDamage(ProjectileImpactPayload payload)
+        {
+            _currentHealth -= Mathf.Max(0f, payload.Damage);
+            if (_currentHealth > 0f)
+            {
+                return;
+            }
+
+            EliminateTarget();
         }
 
         private bool ReadSharedReceiverDeadState()

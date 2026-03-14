@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using Reloader.Weapons.Ballistics;
 using UnityEngine;
 
@@ -7,8 +8,14 @@ namespace Reloader.NPCs.Combat
     [DisallowMultipleComponent]
     public sealed class HumanoidDamageReceiver : MonoBehaviour, IDamageable
     {
+        private const string PlayerDeviceControllerTypeName = "Reloader.PlayerDevice.World.PlayerDeviceController, Reloader.PlayerDevice";
+
         [SerializeField] private HumanoidHitboxRig _hitboxRig;
         [SerializeField] private HumanoidBodyZone _defaultZone = HumanoidBodyZone.Torso;
+
+        private static bool s_playerDeviceLookupAttempted;
+        private static PropertyInfo s_playerDeviceActiveInstanceProperty;
+        private static MethodInfo s_playerDeviceIngestImpactMethod;
 
         private bool _isDead;
 
@@ -56,6 +63,7 @@ namespace Reloader.NPCs.Combat
         public void ApplyDamage(ProjectileImpactPayload payload)
         {
             ResolveRig();
+            TryIngestImpact(payload);
 
             var zone = ResolveHitZone(payload.HitObject);
             var deliveredEnergyJoules = ResolveDeliveredEnergy(payload);
@@ -130,6 +138,50 @@ namespace Reloader.NPCs.Combat
             {
                 _hitboxRig = GetComponent<HumanoidHitboxRig>();
             }
+        }
+
+        private static void TryIngestImpact(ProjectileImpactPayload payload)
+        {
+            EnsurePlayerDeviceReflectionCache();
+            if (s_playerDeviceActiveInstanceProperty == null || s_playerDeviceIngestImpactMethod == null)
+            {
+                return;
+            }
+
+            var activeInstance = s_playerDeviceActiveInstanceProperty.GetValue(null);
+            if (activeInstance == null)
+            {
+                return;
+            }
+
+            s_playerDeviceIngestImpactMethod.Invoke(
+                activeInstance,
+                new object[] { payload.Point, payload.HitObject, payload.SourcePoint });
+        }
+
+        private static void EnsurePlayerDeviceReflectionCache()
+        {
+            if (s_playerDeviceLookupAttempted)
+            {
+                return;
+            }
+
+            s_playerDeviceLookupAttempted = true;
+            var playerDeviceType = Type.GetType(PlayerDeviceControllerTypeName, throwOnError: false);
+            if (playerDeviceType == null)
+            {
+                return;
+            }
+
+            s_playerDeviceActiveInstanceProperty = playerDeviceType.GetProperty(
+                "ActiveInstance",
+                BindingFlags.Public | BindingFlags.Static);
+            s_playerDeviceIngestImpactMethod = playerDeviceType.GetMethod(
+                "IngestImpact",
+                BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: new[] { typeof(Vector3), typeof(GameObject), typeof(Vector3?) },
+                modifiers: null);
         }
     }
 }

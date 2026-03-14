@@ -35,14 +35,21 @@ namespace Reloader.NPCs.Combat
 
         public void Configure(HumanoidBodyZone bodyZone)
         {
+            var previousRig = _ownerRig;
+            var previousZone = _bodyZone;
             _bodyZone = bodyZone;
             ResolveOwnerRig();
+            RebindRegistration(previousRig, previousZone);
         }
 
         public void Configure(HumanoidHitboxRig ownerRig, HumanoidBodyZone bodyZone)
         {
+            var previousRig = _ownerRig;
+            var previousZone = _bodyZone;
             _ownerRig = ownerRig;
             _bodyZone = bodyZone;
+            ResolveOwnerRig();
+            RebindRegistration(previousRig, previousZone);
         }
 
         public void ApplyDamage(ProjectileImpactPayload payload)
@@ -95,6 +102,21 @@ namespace Reloader.NPCs.Combat
                     return;
                 }
             }
+        }
+
+        private void RebindRegistration(HumanoidHitboxRig previousRig, HumanoidBodyZone previousZone)
+        {
+            if (!isActiveAndEnabled)
+            {
+                return;
+            }
+
+            if (previousRig != null)
+            {
+                previousRig.UnregisterHitbox(this, previousZone);
+            }
+
+            _ownerRig?.RegisterHitbox(this);
         }
     }
 }

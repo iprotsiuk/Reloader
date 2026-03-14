@@ -100,6 +100,55 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void BodyZoneHitbox_ConfigureAfterEnable_RebindsRigZoneLookup()
+        {
+            var hitboxRigType = ResolveType("Reloader.NPCs.Combat.HumanoidHitboxRig", "Reloader.NPCs");
+            var bodyZoneHitboxType = ResolveType("Reloader.NPCs.Combat.BodyZoneHitbox", "Reloader.NPCs");
+            var bodyZoneType = ResolveType("Reloader.NPCs.Combat.HumanoidBodyZone", "Reloader.NPCs");
+            Assert.That(hitboxRigType, Is.Not.Null, "Expected HumanoidHitboxRig type.");
+            Assert.That(bodyZoneHitboxType, Is.Not.Null, "Expected BodyZoneHitbox type.");
+            Assert.That(bodyZoneType, Is.Not.Null, "Expected HumanoidBodyZone enum type.");
+
+            GameObject root = null;
+            GameObject zone = null;
+            try
+            {
+                root = new GameObject("RigRoot");
+                var rig = root.AddComponent(hitboxRigType!);
+
+                zone = new GameObject("Zone");
+                zone.transform.SetParent(root.transform, false);
+                var hitbox = zone.AddComponent(bodyZoneHitboxType!);
+
+                ConfigureBodyZoneHitbox(hitbox, bodyZoneType!, "Head");
+
+                var headZone = Enum.Parse(bodyZoneType!, "Head");
+                var torsoZone = Enum.Parse(bodyZoneType!, "Torso");
+                Assert.That(TryGetRegisteredHitbox(rig, headZone, out var registeredHead), Is.True);
+                Assert.That(registeredHead, Is.SameAs(hitbox));
+
+                ConfigureBodyZoneHitbox(hitbox, bodyZoneType!, "Torso");
+
+                Assert.That(TryGetRegisteredHitbox(rig, headZone, out _), Is.False,
+                    "Expected previous zone registration to be removed after Configure changes body zone.");
+                Assert.That(TryGetRegisteredHitbox(rig, torsoZone, out var registeredTorso), Is.True);
+                Assert.That(registeredTorso, Is.SameAs(hitbox));
+            }
+            finally
+            {
+                if (zone != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(zone);
+                }
+
+                if (root != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
         private static Type ResolveType(string fullName, string assemblyName)
         {
             var type = Type.GetType($"{fullName}, {assemblyName}", throwOnError: false);
@@ -179,6 +228,25 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
 
             return false;
+        }
+
+        private static bool TryGetRegisteredHitbox(Component rig, object zoneValue, out object registeredHitbox)
+        {
+            registeredHitbox = null;
+            var bodyZoneHitboxType = ResolveType("Reloader.NPCs.Combat.BodyZoneHitbox", "Reloader.NPCs");
+            Assert.That(bodyZoneHitboxType, Is.Not.Null, "Expected BodyZoneHitbox type.");
+            var method = rig.GetType().GetMethod(
+                "TryGetHitbox",
+                BindingFlags.Instance | BindingFlags.Public,
+                binder: null,
+                types: new[] { zoneValue.GetType(), bodyZoneHitboxType!.MakeByRefType() },
+                modifiers: null);
+            Assert.That(method, Is.Not.Null, "Expected TryGetHitbox(HumanoidBodyZone, out BodyZoneHitbox).");
+
+            var args = new object[] { zoneValue, null };
+            var found = (bool)method!.Invoke(rig, args);
+            registeredHitbox = args[1];
+            return found;
         }
 
         private static void InitializeProjectile(
