@@ -102,7 +102,7 @@ namespace Reloader.Weapons.World
             {
                 if (ReadSharedReceiverDeadState())
                 {
-                    EliminateTarget();
+                    EliminateTarget(CanUseSharedReceiverDeathPresentation());
                 }
 
                 return;
@@ -194,7 +194,7 @@ namespace Reloader.Weapons.World
 
             if (ReadSharedReceiverDeadState())
             {
-                EliminateTarget();
+                EliminateTarget(CanUseSharedReceiverDeathPresentation());
             }
 
             return _sharedReceiverApplyDamageMethod != null;
@@ -261,7 +261,7 @@ namespace Reloader.Weapons.World
                 return;
             }
 
-            EliminateTarget();
+            EliminateTarget(preserveGameObjectForDeathPresentation: false);
         }
 
         private bool ReadSharedReceiverDeadState()
@@ -285,10 +285,10 @@ namespace Reloader.Weapons.World
 
         private void HandleSharedReceiverLethal()
         {
-            EliminateTarget();
+            EliminateTarget(CanUseSharedReceiverDeathPresentation());
         }
 
-        private void EliminateTarget()
+        private void EliminateTarget(bool preserveGameObjectForDeathPresentation)
         {
             if (_isEliminated)
             {
@@ -297,10 +297,15 @@ namespace Reloader.Weapons.World
 
             _isEliminated = true;
             ResolveEliminationSink()?.ReportContractTargetEliminated(TargetId, _reportAsExposed);
-            if (_disableGameObjectOnElimination && !HasRagdollDeathPresentation())
+            if (_disableGameObjectOnElimination && !preserveGameObjectForDeathPresentation)
             {
                 gameObject.SetActive(false);
             }
+        }
+
+        private bool CanUseSharedReceiverDeathPresentation()
+        {
+            return IsReferenceAlive(_sharedReceiver) && HasRagdollDeathPresentation();
         }
 
         private bool HasRagdollDeathPresentation()

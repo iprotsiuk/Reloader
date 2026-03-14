@@ -174,6 +174,43 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ApplyDamage_WithRagdollControllerButNoSharedReceiver_StillDisablesTarget()
+        {
+            var ragdollControllerType = ResolveType("Reloader.NPCs.Combat.HumanoidRagdollController", "Reloader.NPCs");
+            Assert.That(ragdollControllerType, Is.Not.Null, "Expected HumanoidRagdollController type.");
+
+            var sinkGo = new GameObject("ContractSink");
+            var sink = sinkGo.AddComponent<ContractTargetSinkProbe>();
+            var targetGo = new GameObject("ContractTarget");
+            var target = targetGo.AddComponent<ContractTargetDamageable>();
+            targetGo.AddComponent<BoxCollider>();
+            targetGo.AddComponent(ragdollControllerType!);
+
+            SetPrivateField(target, "_eliminationSinkBehaviour", sink);
+            SetPrivateField(target, "_targetId", "target.alpha");
+            SetPrivateField(target, "_displayName", "Victor Hale");
+            SetPrivateField(target, "_maxHealth", 10f);
+            target.ResetRuntime();
+
+            yield return null;
+
+            target.ApplyDamage(new ProjectileImpactPayload(
+                itemId: "weapon-kar98k",
+                point: Vector3.zero,
+                normal: Vector3.up,
+                damage: 25f,
+                hitObject: targetGo,
+                sourcePoint: Vector3.back * 50f));
+
+            Assert.That(sink.TargetId, Is.EqualTo("target.alpha"));
+            Assert.That(targetGo.activeSelf, Is.False,
+                "Expected fallback eliminations without a shared humanoid receiver to keep the old hide-on-death behavior even if a ragdoll controller component is present.");
+
+            UnityEngine.Object.Destroy(sinkGo);
+            UnityEngine.Object.Destroy(targetGo);
+        }
+
+        [UnityTest]
         public IEnumerator SharedHumanoidReceiver_LethalHeadHit_ReportsEliminationSinkThroughContractBridge()
         {
             GameObject sinkGo = null;
