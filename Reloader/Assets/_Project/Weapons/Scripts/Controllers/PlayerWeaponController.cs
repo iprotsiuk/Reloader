@@ -953,8 +953,9 @@ namespace Reloader.Weapons.Controllers
                 ballisticSpec.MuzzleVelocityFps * FeetToMeters,
                 _equippedDefinition.ProjectileGravityMultiplier,
                 _equippedDefinition.BaseDamage,
-                ballisticSpec.BallisticCoefficientG1,
-                transform);
+                ballisticCoefficientG1: ballisticSpec.BallisticCoefficientG1,
+                projectileMassGrains: ballisticSpec.ProjectileMassGrains,
+                shooterRoot: transform);
             if (hasQualifiedShotCameraPrediction)
             {
                 TryRegisterQualifiedShotCamera(projectile, predictedImpactPoint, predictedDistanceMeters);

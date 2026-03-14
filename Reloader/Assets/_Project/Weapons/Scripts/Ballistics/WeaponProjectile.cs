@@ -3,6 +3,7 @@ using System;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Audio;
+using Reloader.Weapons.Runtime;
 using UnityEngine;
 
 namespace Reloader.Weapons.Ballistics
@@ -26,6 +27,7 @@ namespace Reloader.Weapons.Ballistics
         public event Action<WeaponProjectile, ProjectileLifecycleEndInfo> LifecycleEnded;
 
         private const string NpcAgentTypeName = "Reloader.NPCs.Runtime.NpcAgent, Reloader.NPCs";
+        private const float GrainsToKilograms = 0.00006479891f;
 
         public interface IPathObserver
         {
@@ -38,6 +40,7 @@ namespace Reloader.Weapons.Ballistics
         [SerializeField] private float _damage = 20f;
         [SerializeField] private float _despawnBelowWorldY = -500f;
         [SerializeField] private float _ballisticCoefficientG1 = 0.45f;
+        [SerializeField] private float _projectileMassGrains = WeaponAmmoDefaults.DefaultProjectileMassGrains;
         [SerializeField] private float _dragCoefficient = 0.00012f;
         [SerializeField] private LayerMask _hitMask = ~0;
         [SerializeField] private bool _spawnImpactVfx = true;
@@ -65,6 +68,7 @@ namespace Reloader.Weapons.Ballistics
         public float InitialSpeedMetersPerSecond { get; private set; }
         public float CurrentSpeedMetersPerSecond => _velocity.magnitude;
         public Vector3 CurrentDirection => _velocity.sqrMagnitude > 0.0001f ? _velocity.normalized : transform.forward;
+        public float ProjectileMassGrains => _projectileMassGrains;
         public bool IsShotCameraPresentationActive => _isShotCameraPresentationActive;
 
         private void Awake()
@@ -106,7 +110,20 @@ namespace Reloader.Weapons.Ballistics
             {
                 RecordObservedSegment(start, hit.point);
                 transform.position = hit.point;
-                var payload = new ProjectileImpactPayload(_itemId, hit.point, hit.normal, _damage, hit.collider.gameObject, _sourcePoint);
+                var impactSpeedMetersPerSecond = _velocity.magnitude;
+                var impactDirection = impactSpeedMetersPerSecond > 0.0001f ? _velocity / impactSpeedMetersPerSecond : transform.forward;
+                var deliveredEnergyJoules = ComputeDeliveredEnergyJoules(impactSpeedMetersPerSecond, _projectileMassGrains);
+                var payload = new ProjectileImpactPayload(
+                    _itemId,
+                    hit.point,
+                    hit.normal,
+                    _damage,
+                    hit.collider.gameObject,
+                    _sourcePoint,
+                    impactDirection,
+                    impactSpeedMetersPerSecond,
+                    _projectileMassGrains,
+                    deliveredEnergyJoules);
                 var damageable = hit.collider.GetComponentInParent<IDamageable>();
                 damageable?.ApplyDamage(payload);
                 SpawnImpactVfx(hit.point, hit.normal);
@@ -136,13 +153,22 @@ namespace Reloader.Weapons.Ballistics
             }
         }
 
-        public void Initialize(string itemId, Vector3 direction, float speed, float gravityMultiplier, float damage, float ballisticCoefficientG1 = 0.45f, Transform shooterRoot = null)
+        public void Initialize(
+            string itemId,
+            Vector3 direction,
+            float speed,
+            float gravityMultiplier,
+            float damage,
+            float ballisticCoefficientG1 = 0.45f,
+            float projectileMassGrains = WeaponAmmoDefaults.DefaultProjectileMassGrains,
+            Transform shooterRoot = null)
         {
             _itemId = itemId;
             _speed = speed;
             _gravityMultiplier = gravityMultiplier;
             _damage = damage;
             _ballisticCoefficientG1 = ballisticCoefficientG1;
+            _projectileMassGrains = Mathf.Max(1f, projectileMassGrains);
             _velocity = direction.normalized * speed;
             _sourcePoint = transform.position;
             InitialSpeedMetersPerSecond = speed;
@@ -153,6 +179,14 @@ namespace Reloader.Weapons.Ballistics
             {
                 transform.forward = _velocity.normalized;
             }
+        }
+
+        private static float ComputeDeliveredEnergyJoules(float impactSpeedMetersPerSecond, float projectileMassGrains)
+        {
+            var safeSpeed = Mathf.Max(0f, impactSpeedMetersPerSecond);
+            var safeMassGrains = Mathf.Max(0f, projectileMassGrains);
+            var projectileMassKilograms = safeMassGrains * GrainsToKilograms;
+            return 0.5f * projectileMassKilograms * safeSpeed * safeSpeed;
         }
 
         public void Configure(IWeaponEvents weaponEvents = null)
