@@ -220,6 +220,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             target.transform.position = new Vector3(0f, 995.7f, 75f);
             target.transform.localScale = new Vector3(2f, 12f, 2f);
             var receiver = target.AddComponent<TestDamageable>();
+            receiver.BindProjectile(projectile);
 
             projectile.Initialize(
                 "weapon-kar98k",
@@ -694,10 +695,16 @@ namespace Reloader.Weapons.Tests.PlayMode
             private static readonly FieldInfo ProjectileVelocityField =
                 typeof(WeaponProjectile).GetField("_velocity", BindingFlags.Instance | BindingFlags.NonPublic);
 
+            private WeaponProjectile _boundProjectile;
             public int HitCount { get; private set; }
             public float LastDamage { get; private set; }
             public ProjectileImpactPayload? LastPayload { get; private set; }
             public Vector3? LastProjectileVelocityAtImpact { get; private set; }
+
+            public void BindProjectile(WeaponProjectile projectile)
+            {
+                _boundProjectile = projectile;
+            }
 
             public void ApplyDamage(ProjectileImpactPayload payload)
             {
@@ -707,27 +714,22 @@ namespace Reloader.Weapons.Tests.PlayMode
                 LastProjectileVelocityAtImpact = CaptureProjectileVelocityAtImpact();
             }
 
-            private static Vector3? CaptureProjectileVelocityAtImpact()
+            private Vector3? CaptureProjectileVelocityAtImpact()
             {
                 if (ProjectileVelocityField == null)
                 {
                     return null;
                 }
 
-                var projectiles = Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None);
-                for (var i = 0; i < projectiles.Length; i++)
+                if (_boundProjectile == null || _boundProjectile.Equals(null))
                 {
-                    var projectile = projectiles[i];
-                    if (projectile == null)
-                    {
-                        continue;
-                    }
+                    return null;
+                }
 
-                    var value = ProjectileVelocityField.GetValue(projectile);
-                    if (value is Vector3 velocity)
-                    {
-                        return velocity;
-                    }
+                var value = ProjectileVelocityField.GetValue(_boundProjectile);
+                if (value is Vector3 velocity)
+                {
+                    return velocity;
                 }
 
                 return null;
