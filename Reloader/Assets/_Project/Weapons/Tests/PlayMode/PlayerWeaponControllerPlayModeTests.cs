@@ -517,9 +517,18 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 var projectile = Object.FindFirstObjectByType<WeaponProjectile>();
                 var cinematicCamera = FindFirstCinemachineCamera();
+                var shotRenderCamera = FindShotRenderCamera();
+                var originalWorldCameraPosition = worldCamera.transform.position;
+                var originalWorldCameraRotation = worldCamera.transform.rotation;
                 Assert.That(projectile, Is.Not.Null);
-                Assert.That(worldCamera.GetComponent<CinemachineBrain>(), Is.Not.Null, "Expected shot cam to ensure the live render camera has a CinemachineBrain.");
                 Assert.That(cinematicCamera, Is.Not.Null, "Expected shot cam to create a temporary Cinemachine projectile-follow camera.");
+                Assert.That(shotRenderCamera, Is.Not.Null, "Expected shot cam to create a dedicated temporary render camera instead of reusing the gameplay MainCamera.");
+                Assert.That(shotRenderCamera, Is.Not.SameAs(worldCamera), "Expected shot cam render camera ownership to be separate from the gameplay MainCamera.");
+                Assert.That(worldCamera.GetComponent<CinemachineBrain>(), Is.Null, "Expected shot cam not to attach a CinemachineBrain to the gameplay MainCamera.");
+                Assert.That(Vector3.Distance(worldCamera.transform.position, originalWorldCameraPosition), Is.LessThan(0.001f),
+                    "Expected the gameplay MainCamera transform to remain parked on the player rig during shot-cam.");
+                Assert.That(Quaternion.Angle(worldCamera.transform.rotation, originalWorldCameraRotation), Is.LessThan(0.01f),
+                    "Expected the gameplay MainCamera rotation to remain unchanged during shot-cam.");
                 Assert.That(shotCameraRuntime.IsShotActive, Is.True);
                 Assert.That(shotCameraRuntime.HasActiveCinematicCamera, Is.True);
                 Assert.That(projectile!.IsShotCameraPresentationActive, Is.True);
@@ -1296,13 +1305,20 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 var playerRotationBeforeOrbit = root.transform.rotation;
                 var cameraPositionBeforeOrbit = worldCamera.transform.position;
+                var shotRenderCamera = FindShotRenderCamera();
+                Assert.That(shotRenderCamera, Is.Not.Null, "Expected shot cam orbit to drive the temporary render camera, not the gameplay MainCamera.");
+                var cinematicPositionBeforeOrbit = shotRenderCamera.transform.position;
                 input.LookInputValue = new Vector2(12f, -4f);
                 yield return null;
                 input.LookInputValue = Vector2.zero;
                 yield return null;
+                yield return null;
 
                 Assert.That(root.transform.rotation, Is.EqualTo(playerRotationBeforeOrbit).Using(QuaternionEqualityComparer.Instance), "Expected shot cam orbit input to avoid rotating the player body.");
-                Assert.That(Vector3.Distance(worldCamera.transform.position, cameraPositionBeforeOrbit), Is.GreaterThan(0.05f), "Expected shot cam look input to orbit the cinematic camera around the projectile.");
+                Assert.That(Vector3.Distance(worldCamera.transform.position, cameraPositionBeforeOrbit), Is.LessThan(0.001f),
+                    "Expected the gameplay MainCamera to stay fixed while shot-cam orbit updates the temporary render camera.");
+                Assert.That(Vector3.Distance(shotRenderCamera.transform.position, cinematicPositionBeforeOrbit), Is.GreaterThan(0.05f),
+                    "Expected shot cam look input to orbit the cinematic camera around the projectile.");
             }
             finally
             {
@@ -1651,16 +1667,25 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 var baselinePosition = worldCamera.transform.position;
                 var baselineRotation = worldCamera.transform.rotation;
+                var shotRenderCamera = FindShotRenderCamera();
+                Assert.That(shotRenderCamera, Is.Not.Null, "Expected shot cam registration to create a temporary render camera.");
+                var cinematicBaselinePosition = shotRenderCamera.transform.position;
+                var cinematicBaselineRotation = shotRenderCamera.transform.rotation;
 
                 input.LookInputValue = new Vector2(25f, -10f);
                 yield return null;
                 input.LookInputValue = Vector2.zero;
                 yield return null;
+                yield return null;
 
-                Assert.That(Vector3.Distance(worldCamera.transform.position, baselinePosition), Is.GreaterThan(0.05f),
+                Assert.That(Vector3.Distance(worldCamera.transform.position, baselinePosition), Is.LessThan(0.001f),
+                    "Expected shot cam look input not to move the gameplay MainCamera.");
+                Assert.That(Quaternion.Angle(worldCamera.transform.rotation, baselineRotation), Is.LessThan(0.01f),
+                    "Expected shot cam look input not to rotate the gameplay MainCamera.");
+                Assert.That(Vector3.Distance(shotRenderCamera.transform.position, cinematicBaselinePosition), Is.GreaterThan(0.05f),
                     "Expected shot cam look input to orbit the render camera around the projectile.");
-                Assert.That(Quaternion.Angle(worldCamera.transform.rotation, baselineRotation), Is.GreaterThan(0.5f),
-                    "Expected shot cam look input to update the render camera orientation.");
+                Assert.That(Quaternion.Angle(shotRenderCamera.transform.rotation, cinematicBaselineRotation), Is.GreaterThan(0.5f),
+                    "Expected shot cam look input to update the temporary render camera orientation.");
             }
             finally
             {
@@ -8559,6 +8584,19 @@ namespace Reloader.Weapons.Tests.PlayMode
         {
             var allCameras = FindAllCinemachineCameras();
             return allCameras.Count > 0 ? allCameras[0] : null;
+        }
+
+        private static Camera FindShotRenderCamera()
+        {
+            foreach (var camera in Object.FindObjectsByType<Camera>(FindObjectsSortMode.None))
+            {
+                if (camera != null && camera.name == "ShotCameraRuntime_Camera")
+                {
+                    return camera;
+                }
+            }
+
+            return null;
         }
 
         private static void CreateRuntimeHudDocument(string screenId, Transform parent)

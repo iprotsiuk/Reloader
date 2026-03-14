@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Reloader.Player;
 using Reloader.Weapons.Ballistics;
@@ -41,9 +42,13 @@ namespace Reloader.Weapons.Cinematics
         private float _orbitPitchDegrees = DefaultOrbitPitchDegrees;
         private Vector3 _focusPoint;
         private Vector3 _focusDirection = Vector3.forward;
-        private Camera _renderCamera;
+        private Camera _gameplayRenderCamera;
         private PlayerWeaponController _weaponController;
+        private Camera _cinematicRenderCamera;
         private CinemachineCamera _cinematicCamera;
+        private CinemachineBrain _cinematicBrain;
+        private CinemachineBrain _suspendedGameplayBrain;
+        private bool _suspendedGameplayBrainWasEnabled;
         private Transform _cameraFollowTarget;
         private Transform _cameraLookTarget;
         private readonly List<SuppressedHudState> _suppressedHudScreens = new();
@@ -205,7 +210,7 @@ namespace Reloader.Weapons.Cinematics
 
         private void EnsureCinematicCamera()
         {
-            _renderCamera = EnsureRenderCameraBrain();
+            _gameplayRenderCamera = ResolveRenderCamera();
 
             if (_cameraFollowTarget == null)
             {
@@ -221,9 +226,22 @@ namespace Reloader.Weapons.Cinematics
                 _cameraLookTarget = lookTargetGo.transform;
             }
 
+            if (_cinematicRenderCamera == null)
+            {
+                var renderCameraGo = new GameObject(CinematicCameraName);
+                renderCameraGo.transform.SetParent(transform, worldPositionStays: false);
+                _cinematicRenderCamera = renderCameraGo.AddComponent<Camera>();
+                _cinematicBrain = renderCameraGo.AddComponent<CinemachineBrain>();
+                _cinematicBrain.UpdateMethod = CinemachineBrain.UpdateMethods.LateUpdate;
+                _cinematicBrain.BlendUpdateMethod = CinemachineBrain.BrainUpdateMethods.LateUpdate;
+            }
+
+            ConfigureCinematicRenderCamera();
+            SuspendGameplayBrain();
+
             if (_cinematicCamera == null)
             {
-                var cameraGo = new GameObject(CinematicCameraName);
+                var cameraGo = new GameObject($"{CinematicCameraName}_Virtual");
                 cameraGo.transform.SetParent(transform, worldPositionStays: false);
                 _cinematicCamera = cameraGo.AddComponent<CinemachineCamera>();
                 _cinematicCamera.Priority = CinematicCameraPriority;
@@ -243,23 +261,43 @@ namespace Reloader.Weapons.Cinematics
             _cinematicCamera.LookAt = _cameraLookTarget;
         }
 
-        private Camera EnsureRenderCameraBrain()
+        private void ConfigureCinematicRenderCamera()
         {
-            var renderCamera = ResolveRenderCamera();
-            if (renderCamera == null)
+            if (_cinematicRenderCamera == null)
             {
-                return null;
+                return;
             }
 
-            var brain = renderCamera.GetComponent<CinemachineBrain>();
-            if (brain == null)
+            if (_gameplayRenderCamera != null)
             {
-                brain = renderCamera.gameObject.AddComponent<CinemachineBrain>();
+                _cinematicRenderCamera.CopyFrom(_gameplayRenderCamera);
+                _cinematicRenderCamera.cullingMask = ExcludeViewmodelLayer(_gameplayRenderCamera.cullingMask);
+                _cinematicRenderCamera.depth = Mathf.Max(_gameplayRenderCamera.depth + 10f, _gameplayRenderCamera.depth + 1f);
+                _cinematicRenderCamera.rect = _gameplayRenderCamera.rect;
+                _cinematicRenderCamera.targetDisplay = _gameplayRenderCamera.targetDisplay;
+                _cinematicRenderCamera.allowHDR = _gameplayRenderCamera.allowHDR;
+                _cinematicRenderCamera.allowMSAA = _gameplayRenderCamera.allowMSAA;
+                _cinematicRenderCamera.useOcclusionCulling = _gameplayRenderCamera.useOcclusionCulling;
+                _cinematicRenderCamera.depthTextureMode = _gameplayRenderCamera.depthTextureMode;
             }
 
-            brain.UpdateMethod = CinemachineBrain.UpdateMethods.LateUpdate;
-            brain.BlendUpdateMethod = CinemachineBrain.BrainUpdateMethods.LateUpdate;
-            return renderCamera;
+            _cinematicRenderCamera.targetTexture = null;
+            _cinematicRenderCamera.stereoTargetEye = StereoTargetEyeMask.None;
+            _cinematicRenderCamera.enabled = true;
+            EnsureUniversalRenderPipelineBaseCamera(_cinematicRenderCamera);
+
+            if (_cinematicBrain == null)
+            {
+                _cinematicBrain = _cinematicRenderCamera.GetComponent<CinemachineBrain>();
+            }
+
+            if (_cinematicBrain == null)
+            {
+                _cinematicBrain = _cinematicRenderCamera.gameObject.AddComponent<CinemachineBrain>();
+            }
+
+            _cinematicBrain.UpdateMethod = CinemachineBrain.UpdateMethods.LateUpdate;
+            _cinematicBrain.BlendUpdateMethod = CinemachineBrain.BrainUpdateMethods.LateUpdate;
         }
 
         private Camera ResolveRenderCamera()
@@ -271,6 +309,34 @@ namespace Reloader.Weapons.Cinematics
             }
 
             return Camera.main;
+        }
+
+        private void SuspendGameplayBrain()
+        {
+            if (_gameplayRenderCamera == null || _suspendedGameplayBrain != null)
+            {
+                return;
+            }
+
+            _suspendedGameplayBrain = _gameplayRenderCamera.GetComponent<CinemachineBrain>();
+            if (_suspendedGameplayBrain == null)
+            {
+                return;
+            }
+
+            _suspendedGameplayBrainWasEnabled = _suspendedGameplayBrain.enabled;
+            _suspendedGameplayBrain.enabled = false;
+        }
+
+        private void RestoreGameplayBrain()
+        {
+            if (_suspendedGameplayBrain != null)
+            {
+                _suspendedGameplayBrain.enabled = _suspendedGameplayBrainWasEnabled;
+            }
+
+            _suspendedGameplayBrain = null;
+            _suspendedGameplayBrainWasEnabled = false;
         }
 
         private void UpdateCinematicCameraTarget()
@@ -290,6 +356,12 @@ namespace Reloader.Weapons.Cinematics
 
             _cameraFollowTarget.SetPositionAndRotation(cameraPosition, cameraRotation);
             _cameraLookTarget.SetPositionAndRotation(_focusPoint, Quaternion.LookRotation(forward, Vector3.up));
+            if (_cinematicRenderCamera != null)
+            {
+                _cinematicRenderCamera.transform.SetPositionAndRotation(cameraPosition, cameraRotation);
+                _cinematicRenderCamera.fieldOfView = _cinematicCamera != null ? _cinematicCamera.Lens.FieldOfView : 30f;
+            }
+
             if (_cinematicCamera != null)
             {
                 _cinematicCamera.Follow = _cameraFollowTarget;
@@ -311,7 +383,6 @@ namespace Reloader.Weapons.Cinematics
         private void EndShotCamera()
         {
             var shouldRestoreGlobalTime = _isShotActive;
-            var cameraDefaults = GetComponent<PlayerCameraDefaults>();
 
             if (_activeProjectile != null)
             {
@@ -319,9 +390,8 @@ namespace Reloader.Weapons.Cinematics
                 _activeProjectile.SetShotCameraPresentationActive(false);
             }
 
-            RestorePresentationState();
             DestroyCinematicCamera();
-            cameraDefaults?.RestoreGameplayView();
+            RestorePresentationState();
             _activeProjectile = null;
             _isLingeringAtImpact = false;
             _lingerRemainingSeconds = 0f;
@@ -458,6 +528,17 @@ namespace Reloader.Weapons.Cinematics
                 _cinematicCamera = null;
             }
 
+            if (_cinematicRenderCamera != null)
+            {
+                _cinematicRenderCamera.gameObject.SetActive(false);
+                Destroy(_cinematicRenderCamera.gameObject);
+                _cinematicRenderCamera = null;
+            }
+
+            _cinematicBrain = null;
+            RestoreGameplayBrain();
+            _gameplayRenderCamera = null;
+
             if (_cameraFollowTarget != null)
             {
                 _cameraFollowTarget.gameObject.SetActive(false);
@@ -518,6 +599,70 @@ namespace Reloader.Weapons.Cinematics
             {
                 cinemachineCamera.gameObject.AddComponent<CinemachineHardLookAt>();
             }
+        }
+
+        private static int ExcludeViewmodelLayer(int cullingMask)
+        {
+            var viewmodelLayer = LayerMask.NameToLayer("Viewmodel");
+            if (viewmodelLayer < 0)
+            {
+                return cullingMask;
+            }
+
+            return cullingMask & ~(1 << viewmodelLayer);
+        }
+
+        private static void EnsureUniversalRenderPipelineBaseCamera(Camera camera)
+        {
+            if (camera == null)
+            {
+                return;
+            }
+
+            var additionalCameraDataType = ResolveTypeByName("UnityEngine.Rendering.Universal.UniversalAdditionalCameraData");
+            if (additionalCameraDataType == null)
+            {
+                return;
+            }
+
+            var additionalCameraData = camera.GetComponent(additionalCameraDataType)
+                ?? camera.gameObject.AddComponent(additionalCameraDataType);
+            var renderTypeProperty = additionalCameraDataType.GetProperty("renderType");
+            if (renderTypeProperty?.CanWrite == true)
+            {
+                renderTypeProperty.SetValue(additionalCameraData, Enum.Parse(renderTypeProperty.PropertyType, "Base"));
+            }
+
+            var cameraStackProperty = additionalCameraDataType.GetProperty("cameraStack");
+            var stack = cameraStackProperty?.GetValue(additionalCameraData);
+            var clearMethod = stack?.GetType().GetMethod("Clear");
+            clearMethod?.Invoke(stack, null);
+        }
+
+        private static Type ResolveTypeByName(string fullName)
+        {
+            if (string.IsNullOrWhiteSpace(fullName))
+            {
+                return null;
+            }
+
+            var resolvedType = Type.GetType(fullName, throwOnError: false);
+            if (resolvedType != null)
+            {
+                return resolvedType;
+            }
+
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            for (var i = 0; i < assemblies.Length; i++)
+            {
+                resolvedType = assemblies[i].GetType(fullName, throwOnError: false);
+                if (resolvedType != null)
+                {
+                    return resolvedType;
+                }
+            }
+
+            return null;
         }
 
         private readonly struct SuppressedHudState
