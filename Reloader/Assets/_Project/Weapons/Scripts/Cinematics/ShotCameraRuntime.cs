@@ -311,6 +311,8 @@ namespace Reloader.Weapons.Cinematics
 
         private void EndShotCamera()
         {
+            var shouldRestoreGlobalTime = _isShotActive;
+
             if (_activeProjectile != null)
             {
                 UnbindActiveProjectile();
@@ -328,8 +330,11 @@ namespace Reloader.Weapons.Cinematics
             _focusPoint = Vector3.zero;
             _orbitYawDegrees = 0f;
             _orbitPitchDegrees = DefaultOrbitPitchDegrees;
-            Time.timeScale = 1f;
-            Time.fixedDeltaTime = _baselineFixedDeltaTime > 0f ? _baselineFixedDeltaTime : DefaultFixedDeltaTime;
+            if (shouldRestoreGlobalTime)
+            {
+                Time.timeScale = 1f;
+                Time.fixedDeltaTime = _baselineFixedDeltaTime > 0f ? _baselineFixedDeltaTime : DefaultFixedDeltaTime;
+            }
         }
 
         private void BindActiveProjectile()

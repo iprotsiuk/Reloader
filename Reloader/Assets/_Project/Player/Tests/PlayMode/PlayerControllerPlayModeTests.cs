@@ -656,6 +656,42 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerInputReader_Update_AllowsShotCameraSpeedUpWhileShotCameraIsActive()
+        {
+            var previousEvents = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var keyboard = InputSystem.AddDevice<Keyboard>();
+            var actionsAsset = CreatePlayerKeyboardGameplayActionsAsset();
+            var go = new GameObject("InputReader");
+            var reader = go.AddComponent<PlayerInputReader>();
+            reader.SetActionsAsset(actionsAsset);
+
+            try
+            {
+                ShotCameraGameplayState.PushActive();
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Space));
+                InputSystem.Update();
+
+                reader.SendMessage("Update");
+
+                Assert.That(reader.MoveInput, Is.EqualTo(Vector2.zero));
+                Assert.That(reader.ConsumeJumpPressed(), Is.False);
+                Assert.That(reader.ShotCameraSpeedUpHeld, Is.True,
+                    "Expected PlayerInputReader to preserve hold-to-speed-up input while shot cam is active.");
+            }
+            finally
+            {
+                ShotCameraGameplayState.Reset();
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(actionsAsset);
+                InputSystem.RemoveDevice(keyboard);
+                RuntimeKernelBootstrapper.Events = previousEvents;
+            }
+        }
+
+        [Test]
         public void PlayerInputReader_Update_NormalizesScrollWheelActionDeltaIntoZoomSteps()
         {
             Assert.That(ZoomInputNormalization.NormalizeScrollDelta(120f), Is.EqualTo(1f).Within(0.001f));

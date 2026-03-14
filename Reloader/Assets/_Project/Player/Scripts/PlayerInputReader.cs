@@ -153,7 +153,8 @@ namespace Reloader.Player
             }
 
             var isAnyMenuOpen = PlayerCursorLockController.IsAnyMenuOpen || uiStateEvents?.IsAnyMenuOpen == true;
-            ShotCameraSpeedUpHeld = !isGameplayInputSuppressed
+            ShotCameraSpeedUpHeld = isShotCameraActive
+                && !isDevConsoleVisible
                 && !isAnyMenuOpen
                 && keyboard != null
                 && keyboard.spaceKey.isPressed;

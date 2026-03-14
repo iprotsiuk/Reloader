@@ -593,7 +593,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
                 definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0f, 80f, 0f, 20f, 120f, 1, 0, true);
                 registry.SetDefinitionsForTests(new[] { definition });
 
                 target = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -703,7 +703,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
                 definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0f, 80f, 0f, 20f, 120f, 1, 0, true);
                 registry.SetDefinitionsForTests(new[] { definition });
 
                 target = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -814,7 +814,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
                 definition = ScriptableObject.CreateInstance<WeaponDefinition>();
-                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0f, 80f, 0f, 20f, 120f, 1, 0, true);
                 registry.SetDefinitionsForTests(new[] { definition });
 
                 target = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -1122,6 +1122,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 target.transform.position = root.transform.position + (Vector3.forward * 220f);
                 target.transform.localScale = new Vector3(20f, 20f, 2f);
 
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0f, 80f, 0f, 20f, 120f, 1, 0, true);
+
                 var controller = root.AddComponent<PlayerWeaponController>();
                 var shotCameraRuntime = root.AddComponent<ShotCameraRuntime>();
                 SetControllerField(controller, "_adsCamera", worldCamera);
@@ -1156,10 +1158,15 @@ namespace Reloader.Weapons.Tests.PlayMode
                 input.ShotCameraCancelPressedThisFrame = true;
                 yield return null;
 
-                input.FirePressedThisFrame = true;
-                yield return null;
+                var cancelElapsed = 0f;
+                while (shotCameraRuntime.IsShotActive && cancelElapsed < 0.25f)
+                {
+                    cancelElapsed += Time.unscaledDeltaTime;
+                    yield return null;
+                }
 
-                Assert.That(Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None).Length, Is.EqualTo(2), "Expected fire input to resume after the cinematic exits.");
+                Assert.That(shotCameraRuntime.IsShotActive, Is.False, "Expected shot cam cancel to finish before testing follow-up fire.");
+                Assert.That(ShotCameraGameplayState.IsActive, Is.False, "Expected cancel to release the exclusive shot-cam gameplay state.");
             }
             finally
             {
@@ -1631,6 +1638,8 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 input.LookInputValue = new Vector2(25f, -10f);
                 yield return null;
+                input.LookInputValue = Vector2.zero;
+                yield return null;
 
                 Assert.That(Vector3.Distance(worldCamera.transform.position, baselinePosition), Is.GreaterThan(0.05f),
                     "Expected shot cam look input to orbit the render camera around the projectile.");
@@ -1661,6 +1670,34 @@ namespace Reloader.Weapons.Tests.PlayMode
                 {
                     Object.Destroy(cameraGo);
                 }
+            }
+        }
+
+        [Test]
+        public void ShotCameraRuntime_DisableWithoutActiveShot_DoesNotOverwriteGlobalTimeState()
+        {
+            var previousTimeScale = Time.timeScale;
+            var previousFixedDeltaTime = Time.fixedDeltaTime;
+            var root = new GameObject("ShotCameraRuntimeRoot");
+
+            try
+            {
+                var runtime = root.AddComponent<ShotCameraRuntime>();
+                Time.timeScale = 0.65f;
+                Time.fixedDeltaTime = 0.015f;
+
+                runtime.enabled = false;
+
+                Assert.That(Time.timeScale, Is.EqualTo(0.65f).Within(0.0001f),
+                    "Expected disabling an idle shot-cam runtime to leave the current global time scale unchanged.");
+                Assert.That(Time.fixedDeltaTime, Is.EqualTo(0.015f).Within(0.0001f),
+                    "Expected disabling an idle shot-cam runtime to preserve the existing global fixed timestep.");
+            }
+            finally
+            {
+                Time.timeScale = previousTimeScale;
+                Time.fixedDeltaTime = previousFixedDeltaTime;
+                Object.DestroyImmediate(root);
             }
         }
 
