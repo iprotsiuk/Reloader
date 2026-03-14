@@ -1717,6 +1717,36 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void ShotCameraRuntime_DisablingIdleRuntime_DoesNotClearAnotherActiveShotCameraState()
+        {
+            var activeRoot = new GameObject("ActiveShotCameraRuntimeRoot");
+            var idleRoot = new GameObject("IdleShotCameraRuntimeRoot");
+
+            try
+            {
+                var activeRuntime = activeRoot.AddComponent<ShotCameraRuntime>();
+                var idleRuntime = idleRoot.AddComponent<ShotCameraRuntime>();
+
+                ShotCameraGameplayState.PushActive();
+                Assert.That(ShotCameraGameplayState.IsActive, Is.True);
+
+                idleRuntime.enabled = false;
+
+                Assert.That(ShotCameraGameplayState.IsActive, Is.True,
+                    "Expected disabling an idle shot-cam runtime to preserve the shared gameplay-state lock owned by another active runtime.");
+
+                ShotCameraGameplayState.PopActive();
+                Assert.That(ShotCameraGameplayState.IsActive, Is.False);
+            }
+            finally
+            {
+                ShotCameraGameplayState.Reset();
+                Object.DestroyImmediate(activeRoot);
+                Object.DestroyImmediate(idleRoot);
+            }
+        }
+
         [UnityTest]
         public IEnumerator ShotCameraRuntime_Cancel_RestoresRenderCameraToPlayerViewWithoutDefaultGameplayCinemachine()
         {

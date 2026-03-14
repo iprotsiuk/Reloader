@@ -60,7 +60,6 @@ namespace Reloader.Weapons.Cinematics
         private void OnDisable()
         {
             EndShotCamera();
-            ShotCameraGameplayState.Reset();
         }
 
         public void Configure(IShotCameraInputSource inputSource, ShotCameraSettings settings)
