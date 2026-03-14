@@ -4,6 +4,7 @@ using Reloader.Contracts.Runtime;
 using Reloader.Core.Runtime;
 using Reloader.Core.Save;
 using Reloader.Core.Save.Modules;
+using Reloader.NPCs.Combat;
 using Reloader.NPCs.Generation;
 using Reloader.NPCs.Runtime.Capabilities;
 using Reloader.Weapons.World;
@@ -565,6 +566,16 @@ namespace Reloader.NPCs.Runtime
             if (civilian.GetComponent<DialogueCapability>() == null)
             {
                 civilian.AddComponent<DialogueCapability>();
+            }
+
+            if (civilian.GetComponent<HumanoidHitboxRig>() == null)
+            {
+                civilian.AddComponent<HumanoidHitboxRig>();
+            }
+
+            if (civilian.GetComponent<HumanoidDamageReceiver>() == null)
+            {
+                civilian.AddComponent<HumanoidDamageReceiver>();
             }
 
             var metadata = civilian.GetComponent<MainTownPopulationSpawnedCivilian>();

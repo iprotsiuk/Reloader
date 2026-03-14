@@ -1,3 +1,4 @@
+using System;
 using Reloader.Contracts.Runtime;
 using Reloader.PlayerDevice.Runtime;
 using Reloader.PlayerDevice.World;
@@ -8,16 +9,25 @@ namespace Reloader.Weapons.World
 {
     public sealed class ContractTargetDamageable : MonoBehaviour, IDamageable, IRangeTargetMetrics
     {
+        private const string SharedReceiverTypeName = "Reloader.NPCs.Combat.HumanoidDamageReceiver, Reloader.NPCs";
+        private const string SharedReceiverLethalEventName = "LethalResolved";
+        private const string SharedReceiverDeathEventName = "Died";
+        private const string SharedReceiverIsDeadPropertyName = "IsDead";
+
         [SerializeField] private MonoBehaviour _eliminationSinkBehaviour;
         [SerializeField] private string _targetId = string.Empty;
         [SerializeField] private string _displayName = string.Empty;
         [SerializeField] private float _authoritativeDistanceMeters = 100f;
+        // Legacy field kept for serialized scene compatibility while shared-receiver routing owns lethality.
         [SerializeField] private float _maxHealth = 1f;
         [SerializeField] private bool _reportAsExposed = true;
         [SerializeField] private bool _disableGameObjectOnElimination = true;
 
         private IContractTargetEliminationSink _eliminationSink;
-        private float _currentHealth;
+        private object _sharedReceiver;
+        private System.Reflection.EventInfo _sharedReceiverLethalEvent;
+        private System.Reflection.MethodInfo _sharedReceiverApplyDamageMethod;
+        private Action _sharedReceiverLethalHandler;
         private bool _isEliminated;
 
         public string TargetId => string.IsNullOrWhiteSpace(_targetId) ? gameObject.name : _targetId;
@@ -28,16 +38,28 @@ namespace Reloader.Weapons.World
         {
             ResetRuntime();
             ResolveEliminationSink();
+            BindSharedReceiver();
         }
 
         private void OnEnable()
         {
-            if (_currentHealth <= 0f || _isEliminated)
+            if (_isEliminated)
             {
                 ResetRuntime();
             }
 
             ResolveEliminationSink();
+            BindSharedReceiver();
+        }
+
+        private void Start()
+        {
+            BindSharedReceiver();
+        }
+
+        private void OnDisable()
+        {
+            UnbindSharedReceiver();
         }
 
         public void Configure(
@@ -54,11 +76,13 @@ namespace Reloader.Weapons.World
             _targetId = targetId ?? string.Empty;
             _displayName = displayName ?? string.Empty;
             _authoritativeDistanceMeters = Mathf.Max(0f, authoritativeDistanceMeters);
+            // Preserve serialized inspector contracts while shared-receiver routing controls lethality.
             _maxHealth = Mathf.Max(0.01f, maxHealth);
             _reportAsExposed = reportAsExposed;
             _disableGameObjectOnElimination = disableGameObjectOnElimination;
             ResetRuntime();
             ResolveEliminationSink();
+            BindSharedReceiver();
         }
 
         public void ApplyDamage(ProjectileImpactPayload payload)
@@ -70,23 +94,21 @@ namespace Reloader.Weapons.World
 
             PlayerDeviceController.ActiveInstance?.IngestImpact(payload.Point, payload.HitObject, payload.SourcePoint);
 
-            _currentHealth -= Mathf.Max(0f, payload.Damage);
-            if (_currentHealth > 0f)
+            if (ForwardDamageToSharedReceiver(payload))
             {
+                if (ReadSharedReceiverDeadState())
+                {
+                    EliminateTarget();
+                }
+
                 return;
             }
 
-            _isEliminated = true;
-            ResolveEliminationSink()?.ReportContractTargetEliminated(TargetId, _reportAsExposed);
-            if (_disableGameObjectOnElimination)
-            {
-                gameObject.SetActive(false);
-            }
+            EliminateTarget();
         }
 
         public void ResetRuntime()
         {
-            _currentHealth = Mathf.Max(0.01f, _maxHealth);
             _isEliminated = false;
         }
 
@@ -119,6 +141,121 @@ namespace Reloader.Weapons.World
             }
 
             return null;
+        }
+
+        private bool BindSharedReceiver()
+        {
+            if (!IsReferenceAlive(_sharedReceiver))
+            {
+                _sharedReceiver = null;
+                _sharedReceiverLethalEvent = null;
+                _sharedReceiverApplyDamageMethod = null;
+            }
+
+            var sharedReceiverType = System.Type.GetType(SharedReceiverTypeName, throwOnError: false);
+            if (sharedReceiverType == null)
+            {
+                UnbindSharedReceiver();
+                return false;
+            }
+
+            var receiver = GetComponent(sharedReceiverType);
+            if (receiver == null)
+            {
+                UnbindSharedReceiver();
+                return false;
+            }
+
+            if (!ReferenceEquals(receiver, _sharedReceiver))
+            {
+                UnbindSharedReceiver();
+                _sharedReceiver = receiver;
+                _sharedReceiverApplyDamageMethod = sharedReceiverType.GetMethod(
+                    "ApplyDamage",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public,
+                    binder: null,
+                    types: new[] { typeof(ProjectileImpactPayload) },
+                    modifiers: null);
+                _sharedReceiverLethalEvent = sharedReceiverType.GetEvent(SharedReceiverLethalEventName)
+                    ?? sharedReceiverType.GetEvent(SharedReceiverDeathEventName);
+
+                if (_sharedReceiverLethalEvent != null && _sharedReceiverLethalEvent.EventHandlerType == typeof(Action))
+                {
+                    _sharedReceiverLethalHandler ??= HandleSharedReceiverLethal;
+                    _sharedReceiverLethalEvent.AddEventHandler(_sharedReceiver, _sharedReceiverLethalHandler);
+                }
+            }
+
+            if (ReadSharedReceiverDeadState())
+            {
+                EliminateTarget();
+            }
+
+            return _sharedReceiverApplyDamageMethod != null;
+        }
+
+        private void UnbindSharedReceiver()
+        {
+            if (_sharedReceiver != null &&
+                _sharedReceiverLethalEvent != null &&
+                _sharedReceiverLethalHandler != null)
+            {
+                _sharedReceiverLethalEvent.RemoveEventHandler(_sharedReceiver, _sharedReceiverLethalHandler);
+            }
+
+            _sharedReceiver = null;
+            _sharedReceiverLethalEvent = null;
+            _sharedReceiverApplyDamageMethod = null;
+        }
+
+        private bool ForwardDamageToSharedReceiver(ProjectileImpactPayload payload)
+        {
+            if (!BindSharedReceiver() || _sharedReceiverApplyDamageMethod == null || _sharedReceiver == null)
+            {
+                return false;
+            }
+
+            _sharedReceiverApplyDamageMethod.Invoke(_sharedReceiver, new object[] { payload });
+            return true;
+        }
+
+        private bool ReadSharedReceiverDeadState()
+        {
+            if (_sharedReceiver == null)
+            {
+                return false;
+            }
+
+            var property = _sharedReceiver.GetType().GetProperty(
+                SharedReceiverIsDeadPropertyName,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+            if (property == null || property.PropertyType != typeof(bool))
+            {
+                return false;
+            }
+
+            var value = property.GetValue(_sharedReceiver);
+            return value is bool isDead && isDead;
+        }
+
+        private void HandleSharedReceiverLethal()
+        {
+            EliminateTarget();
+        }
+
+        private void EliminateTarget()
+        {
+            if (_isEliminated)
+            {
+                return;
+            }
+
+            _isEliminated = true;
+            ResolveEliminationSink()?.ReportContractTargetEliminated(TargetId, _reportAsExposed);
+            if (_disableGameObjectOnElimination)
+            {
+                gameObject.SetActive(false);
+            }
         }
 
         private static bool IsReferenceAlive(object instance)
