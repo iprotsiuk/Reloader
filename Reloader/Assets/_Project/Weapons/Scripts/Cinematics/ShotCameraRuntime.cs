@@ -132,6 +132,8 @@ namespace Reloader.Weapons.Cinematics
 
         private void EnsureCinematicCamera()
         {
+            EnsureRenderCameraBrain();
+
             if (_cameraFollowTarget == null)
             {
                 var followTargetGo = new GameObject(FollowTargetName);
@@ -159,6 +161,35 @@ namespace Reloader.Weapons.Cinematics
 
             _cinematicCamera.Follow = _cameraFollowTarget;
             _cinematicCamera.LookAt = _activeProjectile != null ? _activeProjectile.transform : null;
+        }
+
+        private void EnsureRenderCameraBrain()
+        {
+            var renderCamera = ResolveRenderCamera();
+            if (renderCamera == null)
+            {
+                return;
+            }
+
+            var brain = renderCamera.GetComponent<CinemachineBrain>();
+            if (brain == null)
+            {
+                brain = renderCamera.gameObject.AddComponent<CinemachineBrain>();
+            }
+
+            brain.UpdateMethod = CinemachineBrain.UpdateMethods.LateUpdate;
+            brain.BlendUpdateMethod = CinemachineBrain.BrainUpdateMethods.LateUpdate;
+        }
+
+        private Camera ResolveRenderCamera()
+        {
+            var cameraDefaults = GetComponent<PlayerCameraDefaults>();
+            if (cameraDefaults != null && cameraDefaults.TryGetMainCamera(out var configuredCamera))
+            {
+                return configuredCamera;
+            }
+
+            return Camera.main;
         }
 
         private void UpdateCinematicCameraTarget()

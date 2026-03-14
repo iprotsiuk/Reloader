@@ -1251,6 +1251,35 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerCameraDefaults_ApplyDefaults_AddsMissingBrainToMainCamera()
+        {
+            var root = new GameObject("CameraDefaultsRoot");
+            var camera = root.AddComponent<Camera>();
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+            var brainType = System.Type.GetType("Unity.Cinemachine.CinemachineBrain, Unity.Cinemachine");
+            Assert.That(brainType, Is.Not.Null, "Expected Cinemachine package type resolution for CinemachineBrain.");
+
+            defaults.GetType()
+                .GetField("_mainCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, camera);
+
+            Assert.That(camera.GetComponent(brainType), Is.Null);
+
+            defaults.ApplyDefaults();
+
+            var brain = camera.GetComponent(brainType);
+            Assert.That(brain, Is.Not.Null, "Expected PlayerCameraDefaults to self-heal a missing CinemachineBrain on the main camera.");
+            Assert.That(
+                brainType.GetProperty("UpdateMethod")?.GetValue(brain)?.ToString(),
+                Is.EqualTo("LateUpdate"));
+            Assert.That(
+                brainType.GetProperty("BlendUpdateMethod")?.GetValue(brain)?.ToString(),
+                Is.EqualTo("LateUpdate"));
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void ViewmodelAnimationAdapter_MapsWeaponEventsToRuntimeState()
         {
             var originalHub = RuntimeKernelBootstrapper.Events;

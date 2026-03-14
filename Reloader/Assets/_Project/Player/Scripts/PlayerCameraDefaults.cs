@@ -27,6 +27,15 @@ namespace Reloader.Player
         [ContextMenu("Apply Camera Defaults")]
         public void ApplyDefaults()
         {
+            if (_mainCamera != null && _brain == null)
+            {
+                _brain = _mainCamera.GetComponent<CinemachineBrain>();
+                if (_brain == null)
+                {
+                    _brain = _mainCamera.gameObject.AddComponent<CinemachineBrain>();
+                }
+            }
+
             if (_enableVSync)
             {
                 QualitySettings.vSyncCount = 1;
@@ -62,6 +71,12 @@ namespace Reloader.Player
                     viewmodelCamera.farClipPlane = Mathf.Max(viewmodelCamera.nearClipPlane + 0.01f, 10f);
                 }
             }
+        }
+
+        public bool TryGetMainCamera(out Camera mainCamera)
+        {
+            mainCamera = _mainCamera != null ? _mainCamera : Camera.main;
+            return mainCamera != null;
         }
 
         public bool TryGetEffectiveFieldOfView(out float fieldOfView)

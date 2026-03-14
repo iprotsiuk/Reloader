@@ -13,6 +13,7 @@ using Reloader.Weapons.Cinematics;
 using Reloader.Weapons.Controllers;
 using Reloader.Weapons.Data;
 using Reloader.Weapons.Runtime;
+using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -478,6 +479,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 cameraGo = new GameObject("WorldCamera");
                 var worldCamera = cameraGo.AddComponent<Camera>();
                 worldCamera.transform.SetPositionAndRotation(root.transform.position, Quaternion.identity);
+                worldCamera.tag = "MainCamera";
 
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
@@ -515,6 +517,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var projectile = Object.FindFirstObjectByType<WeaponProjectile>();
                 var cinematicCamera = FindFirstCinemachineCamera();
                 Assert.That(projectile, Is.Not.Null);
+                Assert.That(worldCamera.GetComponent<CinemachineBrain>(), Is.Not.Null, "Expected shot cam to ensure the live render camera has a CinemachineBrain.");
                 Assert.That(cinematicCamera, Is.Not.Null, "Expected shot cam to create a temporary Cinemachine projectile-follow camera.");
                 Assert.That(shotCameraRuntime.IsShotActive, Is.True);
                 Assert.That(shotCameraRuntime.HasActiveCinematicCamera, Is.True);
