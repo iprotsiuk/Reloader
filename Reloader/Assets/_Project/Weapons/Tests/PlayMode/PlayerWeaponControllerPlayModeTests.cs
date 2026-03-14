@@ -3152,7 +3152,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator Fire_UsesAmmoSnapshotVelocityFps_NotWeaponProjectileSpeed()
+        public IEnumerator Fire_UsesAmmoSnapshotVelocityAndProjectileMass_NotWeaponDefaults()
         {
             var root = new GameObject("PlayerRoot");
             var input = root.AddComponent<TestInputSource>();
@@ -3183,6 +3183,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var projectile = Object.FindFirstObjectByType<WeaponProjectile>();
             Assert.That(projectile, Is.Not.Null);
             Assert.That(projectile.InitialSpeedMetersPerSecond, Is.EqualTo(914.4f).Within(1f));
+            Assert.That(projectile.ProjectileMassGrains, Is.EqualTo(168f).Within(0.001f));
 
             if (projectile != null)
             {

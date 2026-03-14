@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System;
-using System.Reflection;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Audio;
@@ -28,7 +27,6 @@ namespace Reloader.Weapons.Ballistics
         public event Action<WeaponProjectile, ProjectileLifecycleEndInfo> LifecycleEnded;
 
         private const string NpcAgentTypeName = "Reloader.NPCs.Runtime.NpcAgent, Reloader.NPCs";
-        private const string ImpactResolutionTypeName = "Reloader.NPCs.Combat.HumanoidImpactResolution, Reloader.NPCs";
 
         public interface IPathObserver
         {
@@ -66,8 +64,6 @@ namespace Reloader.Weapons.Ballistics
         private bool _lifecycleEndedNotified;
         private static Type s_npcAgentType;
         private static bool s_attemptedNpcAgentTypeResolution;
-        private static MethodInfo s_computeDeliveredEnergyJoulesMethod;
-        private static bool s_attemptedDeliveredEnergyResolverResolution;
         public float InitialSpeedMetersPerSecond { get; private set; }
         public float CurrentSpeedMetersPerSecond => _velocity.magnitude;
         public Vector3 CurrentDirection => _velocity.sqrMagnitude > 0.0001f ? _velocity.normalized : transform.forward;
@@ -115,7 +111,7 @@ namespace Reloader.Weapons.Ballistics
                 transform.position = hit.point;
                 var impactSpeedMetersPerSecond = _velocity.magnitude;
                 var impactDirection = impactSpeedMetersPerSecond > 0.0001f ? _velocity / impactSpeedMetersPerSecond : transform.forward;
-                var deliveredEnergyJoules = ResolveDeliveredEnergyJoules(impactSpeedMetersPerSecond, _projectileMassGrains);
+                var deliveredEnergyJoules = ImpactEnergyMath.ComputeDeliveredEnergyJoules(impactSpeedMetersPerSecond, _projectileMassGrains);
                 var payload = new ProjectileImpactPayload(
                     _itemId,
                     hit.point,
@@ -182,29 +178,6 @@ namespace Reloader.Weapons.Ballistics
             {
                 transform.forward = _velocity.normalized;
             }
-        }
-
-        private static float ResolveDeliveredEnergyJoules(float impactSpeedMetersPerSecond, float projectileMassGrains)
-        {
-            if (s_computeDeliveredEnergyJoulesMethod == null && !s_attemptedDeliveredEnergyResolverResolution)
-            {
-                s_attemptedDeliveredEnergyResolverResolution = true;
-                var impactResolutionType = Type.GetType(ImpactResolutionTypeName);
-                s_computeDeliveredEnergyJoulesMethod = impactResolutionType?.GetMethod(
-                    "ComputeDeliveredEnergyJoules",
-                    BindingFlags.Public | BindingFlags.Static,
-                    binder: null,
-                    types: new[] { typeof(float), typeof(float) },
-                    modifiers: null);
-            }
-
-            if (s_computeDeliveredEnergyJoulesMethod == null)
-            {
-                return 0f;
-            }
-
-            var resolved = s_computeDeliveredEnergyJoulesMethod.Invoke(null, new object[] { impactSpeedMetersPerSecond, projectileMassGrains });
-            return resolved is float joules ? joules : 0f;
         }
 
         public void Configure(IWeaponEvents weaponEvents = null)

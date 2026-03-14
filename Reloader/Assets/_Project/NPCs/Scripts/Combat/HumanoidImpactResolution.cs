@@ -1,9 +1,9 @@
+using Reloader.Core.Runtime;
+
 namespace Reloader.NPCs.Combat
 {
     public static class HumanoidImpactResolution
     {
-        private const float GrainsToKilograms = 0.00006479891f;
-
         private const float CriticalEnergyThresholdJoules = 450f;
         private const float LethalEnergyThresholdJoules = 650f;
 
@@ -25,11 +25,7 @@ namespace Reloader.NPCs.Combat
 
         public static float ComputeDeliveredEnergyJoules(float impactSpeedMetersPerSecond, float projectileMassGrains)
         {
-            var safeSpeed = Clamp(impactSpeedMetersPerSecond, 0f, float.MaxValue);
-            var safeMassGrains = Clamp(projectileMassGrains, 0f, float.MaxValue);
-            var projectileMassKilograms = safeMassGrains * GrainsToKilograms;
-
-            return 0.5f * projectileMassKilograms * safeSpeed * safeSpeed;
+            return ImpactEnergyMath.ComputeDeliveredEnergyJoules(impactSpeedMetersPerSecond, projectileMassGrains);
         }
 
         private static HumanoidImpactSeverity ResolveSeverity(float effectiveEnergyJoules, bool isLethal)
