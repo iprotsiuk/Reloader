@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Runtime;
 using Reloader.Player;
@@ -204,7 +205,9 @@ namespace Reloader.Weapons.Tests.PlayMode
         [UnityTest]
         public IEnumerator Projectile_ForwardsImpactDirectionAndEnergyDrivingMetadata_IntoHitPayload()
         {
-            const float expectedImpactSpeedMetersPerSecond = 120f;
+            const float launchSpeedMetersPerSecond = 180f;
+            const float gravityMultiplier = 4f;
+            const float ballisticCoefficientG1 = 0.2f;
             var expectedProjectileMassGrains = WeaponAmmoDefaults.DefaultProjectileMassGrains;
             const float grainsToKilograms = 0.00006479891f;
 
@@ -214,27 +217,34 @@ namespace Reloader.Weapons.Tests.PlayMode
             var projectile = projectileGo.AddComponent<WeaponProjectile>();
 
             var target = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            target.transform.position = new Vector3(0f, 1000f, 2f);
-            target.transform.localScale = new Vector3(1f, 1f, 1f);
+            target.transform.position = new Vector3(0f, 995.7f, 75f);
+            target.transform.localScale = new Vector3(2f, 12f, 2f);
             var receiver = target.AddComponent<TestDamageable>();
 
             projectile.Initialize(
                 "weapon-kar98k",
                 Vector3.forward,
-                speed: expectedImpactSpeedMetersPerSecond,
-                gravityMultiplier: 0f,
+                speed: launchSpeedMetersPerSecond,
+                gravityMultiplier: gravityMultiplier,
                 damage: 33f,
-                ballisticCoefficientG1: 1000000f);
+                ballisticCoefficientG1: ballisticCoefficientG1);
 
             var elapsed = 0f;
-            while (receiver.HitCount == 0 && elapsed < 0.5f)
+            while (receiver.HitCount == 0 && elapsed < 1f)
             {
                 elapsed += Time.deltaTime;
                 yield return null;
             }
 
             Assert.That(receiver.HitCount, Is.EqualTo(1));
+            Assert.That(receiver.LastProjectileVelocityAtImpact.HasValue, Is.True, "Expected to capture projectile velocity at impact time.");
             Assert.That(receiver.LastPayload.HasValue, Is.True);
+
+            var expectedImpactVelocity = receiver.LastProjectileVelocityAtImpact!.Value;
+            var expectedImpactDirection = expectedImpactVelocity.normalized;
+            var expectedImpactSpeedMetersPerSecond = expectedImpactVelocity.magnitude;
+            Assert.That(Vector3.Dot(expectedImpactDirection, Vector3.forward), Is.LessThan(0.9999f), "Impact direction should differ from launch direction in this setup.");
+            Assert.That(expectedImpactSpeedMetersPerSecond, Is.LessThan(launchSpeedMetersPerSecond - 0.5f), "Impact speed should differ from launch speed in this setup.");
 
             var payload = receiver.LastPayload.Value;
             var payloadDirection = ReadPayloadVector3Property(payload, "Direction");
@@ -243,11 +253,11 @@ namespace Reloader.Weapons.Tests.PlayMode
             var payloadDeliveredEnergyJoules = ReadPayloadFloatProperty(payload, "DeliveredEnergyJoules");
             var expectedDeliveredEnergyJoules = 0.5f
                 * (expectedProjectileMassGrains * grainsToKilograms)
-                * expectedImpactSpeedMetersPerSecond
-                * expectedImpactSpeedMetersPerSecond;
+                * expectedImpactVelocity.magnitude
+                * expectedImpactVelocity.magnitude;
 
             Assert.That(payloadDirection.sqrMagnitude, Is.EqualTo(1f).Within(0.0001f));
-            Assert.That(Vector3.Dot(payloadDirection, Vector3.forward), Is.GreaterThan(0.99999f));
+            Assert.That(Vector3.Dot(payloadDirection, expectedImpactDirection), Is.GreaterThan(0.9999f));
             Assert.That(payloadImpactSpeedMetersPerSecond, Is.EqualTo(expectedImpactSpeedMetersPerSecond).Within(0.01f));
             Assert.That(payloadProjectileMassGrains, Is.EqualTo(expectedProjectileMassGrains).Within(0.001f));
             Assert.That(payloadDeliveredEnergyJoules, Is.EqualTo(expectedDeliveredEnergyJoules).Within(0.1f));
@@ -681,15 +691,46 @@ namespace Reloader.Weapons.Tests.PlayMode
 
         private sealed class TestDamageable : MonoBehaviour, IDamageable
         {
+            private static readonly FieldInfo ProjectileVelocityField =
+                typeof(WeaponProjectile).GetField("_velocity", BindingFlags.Instance | BindingFlags.NonPublic);
+
             public int HitCount { get; private set; }
             public float LastDamage { get; private set; }
             public ProjectileImpactPayload? LastPayload { get; private set; }
+            public Vector3? LastProjectileVelocityAtImpact { get; private set; }
 
             public void ApplyDamage(ProjectileImpactPayload payload)
             {
                 HitCount++;
                 LastDamage = payload.Damage;
                 LastPayload = payload;
+                LastProjectileVelocityAtImpact = CaptureProjectileVelocityAtImpact();
+            }
+
+            private static Vector3? CaptureProjectileVelocityAtImpact()
+            {
+                if (ProjectileVelocityField == null)
+                {
+                    return null;
+                }
+
+                var projectiles = Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None);
+                for (var i = 0; i < projectiles.Length; i++)
+                {
+                    var projectile = projectiles[i];
+                    if (projectile == null)
+                    {
+                        continue;
+                    }
+
+                    var value = ProjectileVelocityField.GetValue(projectile);
+                    if (value is Vector3 velocity)
+                    {
+                        return velocity;
+                    }
+                }
+
+                return null;
             }
         }
 
