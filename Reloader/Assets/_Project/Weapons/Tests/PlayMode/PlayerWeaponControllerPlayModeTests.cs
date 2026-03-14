@@ -1167,6 +1167,22 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 Assert.That(shotCameraRuntime.IsShotActive, Is.False, "Expected shot cam cancel to finish before testing follow-up fire.");
                 Assert.That(ShotCameraGameplayState.IsActive, Is.False, "Expected cancel to release the exclusive shot-cam gameplay state.");
+                Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var stateAfterCancel), Is.True);
+
+                var fireReadyElapsed = 0f;
+                while (!stateAfterCancel.CanFire(Time.time) && fireReadyElapsed < 0.25f)
+                {
+                    fireReadyElapsed += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+
+                Assert.That(stateAfterCancel.CanFire(Time.time), Is.True, "Expected the weapon fire interval cooldown to clear before validating post-shot-cam refire.");
+
+                input.FirePressedThisFrame = true;
+                yield return null;
+
+                Assert.That(Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None).Length, Is.EqualTo(2),
+                    "Expected firing to resume once the cinematic has fully exited.");
             }
             finally
             {
