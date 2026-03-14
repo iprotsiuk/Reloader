@@ -4,6 +4,7 @@ using Reloader.Core.Runtime;
 using Reloader.Player;
 using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.Cinematics;
+using Reloader.Weapons.Runtime;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -203,17 +204,31 @@ namespace Reloader.Weapons.Tests.PlayMode
         [UnityTest]
         public IEnumerator Projectile_ForwardsImpactDirectionAndEnergyDrivingMetadata_IntoHitPayload()
         {
+            const float expectedImpactSpeedMetersPerSecond = 120f;
+            const float grainsToKilograms = 0.00006479891f;
+            var expectedProjectileMassGrains = WeaponAmmoDefaults.DefaultProjectileMassGrains;
+            var expectedDeliveredEnergyJoules = 0.5f
+                * (expectedProjectileMassGrains * grainsToKilograms)
+                * expectedImpactSpeedMetersPerSecond
+                * expectedImpactSpeedMetersPerSecond;
+
             var projectileGo = new GameObject("Projectile");
             projectileGo.transform.position = new Vector3(0f, 1000f, 0f);
             projectileGo.transform.forward = Vector3.forward;
             var projectile = projectileGo.AddComponent<WeaponProjectile>();
 
             var target = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            target.transform.position = new Vector3(0f, 1000f, 5f);
+            target.transform.position = new Vector3(0f, 1000f, 2f);
             target.transform.localScale = new Vector3(1f, 1f, 1f);
             var receiver = target.AddComponent<TestDamageable>();
 
-            projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 120f, gravityMultiplier: 0f, damage: 33f);
+            projectile.Initialize(
+                "weapon-kar98k",
+                Vector3.forward,
+                speed: expectedImpactSpeedMetersPerSecond,
+                gravityMultiplier: 0f,
+                damage: 33f,
+                ballisticCoefficientG1: 1000000f);
 
             var elapsed = 0f;
             while (receiver.HitCount == 0 && elapsed < 0.5f)
@@ -226,10 +241,11 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(receiver.LastPayload.HasValue, Is.True);
 
             var payload = receiver.LastPayload.Value;
-            Assert.That(Vector3.Dot(payload.Direction.normalized, Vector3.forward), Is.GreaterThan(0.999f));
-            Assert.That(payload.ImpactSpeedMetersPerSecond, Is.GreaterThan(0f));
-            Assert.That(payload.ProjectileMassGrains, Is.GreaterThan(0f));
-            Assert.That(payload.DeliveredEnergyJoules, Is.GreaterThan(0f));
+            Assert.That(payload.Direction.sqrMagnitude, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(Vector3.Dot(payload.Direction, Vector3.forward), Is.GreaterThan(0.99999f));
+            Assert.That(payload.ImpactSpeedMetersPerSecond, Is.EqualTo(expectedImpactSpeedMetersPerSecond).Within(0.01f));
+            Assert.That(payload.ProjectileMassGrains, Is.EqualTo(expectedProjectileMassGrains).Within(0.001f));
+            Assert.That(payload.DeliveredEnergyJoules, Is.EqualTo(expectedDeliveredEnergyJoules).Within(0.1f));
 
             Object.Destroy(projectileGo);
             Object.Destroy(target);
