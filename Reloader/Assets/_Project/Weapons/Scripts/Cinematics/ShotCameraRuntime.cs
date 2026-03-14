@@ -5,6 +5,7 @@ using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.Controllers;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UIElements;
 
 namespace Reloader.Weapons.Cinematics
 {
@@ -26,6 +27,13 @@ namespace Reloader.Weapons.Cinematics
         private const string UiRuntimeRootName = "UiToolkitRuntimeRoot";
 
         private static readonly Vector2 OrbitPitchClamp = new(-25f, 35f);
+        private static readonly HashSet<string> SuppressedHudScreenIds = new(StringComparer.Ordinal)
+        {
+            "belt-hud",
+            "compass-hud",
+            "ammo-hud",
+            "interaction-hint"
+        };
 
         private IShotCameraInputSource _inputSource;
         private IPlayerInputSource _playerInputSource;
@@ -386,10 +394,18 @@ namespace Reloader.Weapons.Cinematics
                     continue;
                 }
 
-                state.Screen.SetActive(state.WasActive);
-                if (state.Document != null)
+                if (state.Root != null)
                 {
-                    state.Document.enabled = state.WasDocumentEnabled;
+                    state.Root.visible = state.WasRootVisible;
+                    state.Root.pickingMode = state.WasPickingMode;
+                }
+                else
+                {
+                    state.Screen.SetActive(state.WasActive);
+                    if (state.Document != null)
+                    {
+                        state.Document.enabled = state.WasDocumentEnabled;
+                    }
                 }
             }
 
@@ -415,34 +431,50 @@ namespace Reloader.Weapons.Cinematics
                     continue;
                 }
 
+                if (!SuppressedHudScreenIds.Contains(screen.name))
+                {
+                    continue;
+                }
+
                 var document = ResolveDocumentBehaviour(screen);
-                _suppressedHudScreens.Add(new SuppressedHudState(screen, screen.activeSelf, document, document != null && document.enabled));
+                var root = ResolveDocumentRoot(document);
+                if (root != null)
+                {
+                    _suppressedHudScreens.Add(new SuppressedHudState(
+                        screen,
+                        screen.activeSelf,
+                        document,
+                        document != null && document.enabled,
+                        root,
+                        root.visible,
+                        root.pickingMode));
+                    root.visible = false;
+                    root.pickingMode = PickingMode.Ignore;
+                    continue;
+                }
+
+                _suppressedHudScreens.Add(new SuppressedHudState(screen, screen.activeSelf, document, document != null && document.enabled, null, false, PickingMode.Position));
                 if (document != null)
                 {
                     document.enabled = false;
                 }
-
                 screen.SetActive(false);
             }
         }
 
-        private static Behaviour ResolveDocumentBehaviour(GameObject screen)
+        private static UIDocument ResolveDocumentBehaviour(GameObject screen)
         {
             if (screen == null)
             {
                 return null;
             }
 
-            var behaviours = screen.GetComponents<Behaviour>();
-            for (var i = 0; i < behaviours.Length; i++)
-            {
-                if (behaviours[i] != null && behaviours[i].GetType().Name == "UIDocument")
-                {
-                    return behaviours[i];
-                }
-            }
+            return screen.GetComponent<UIDocument>();
+        }
 
-            return null;
+        private static VisualElement ResolveDocumentRoot(UIDocument document)
+        {
+            return document != null && document.enabled ? document.rootVisualElement : null;
         }
 
         private void DestroyCinematicCamera()
@@ -570,18 +602,31 @@ namespace Reloader.Weapons.Cinematics
 
         private readonly struct SuppressedHudState
         {
-            public SuppressedHudState(GameObject screen, bool wasActive, Behaviour document, bool wasDocumentEnabled)
+            public SuppressedHudState(
+                GameObject screen,
+                bool wasActive,
+                UIDocument document,
+                bool wasDocumentEnabled,
+                VisualElement root,
+                bool wasRootVisible,
+                PickingMode wasPickingMode)
             {
                 Screen = screen;
                 WasActive = wasActive;
                 Document = document;
                 WasDocumentEnabled = wasDocumentEnabled;
+                Root = root;
+                WasRootVisible = wasRootVisible;
+                WasPickingMode = wasPickingMode;
             }
 
             public GameObject Screen { get; }
             public bool WasActive { get; }
-            public Behaviour Document { get; }
+            public UIDocument Document { get; }
             public bool WasDocumentEnabled { get; }
+            public VisualElement Root { get; }
+            public bool WasRootVisible { get; }
+            public PickingMode WasPickingMode { get; }
         }
     }
 }

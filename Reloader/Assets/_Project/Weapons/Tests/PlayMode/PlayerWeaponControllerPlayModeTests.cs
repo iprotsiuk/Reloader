@@ -515,6 +515,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 input.AimHeldValue = true;
                 input.FirePressedThisFrame = true;
                 yield return null;
+                yield return null;
 
                 var projectile = Object.FindFirstObjectByType<WeaponProjectile>();
                 var shotRenderCamera = FindShotRenderCamera();
@@ -746,6 +747,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(projectile, Is.Not.Null);
 
                 input.ShotCameraCancelPressedThisFrame = true;
+                yield return null;
                 yield return null;
 
                 Assert.That(shotCameraRuntime.IsShotActive, Is.False);
@@ -1075,6 +1077,130 @@ namespace Reloader.Weapons.Tests.PlayMode
                 if (uiRootGo != null)
                 {
                     Object.Destroy(uiRootGo);
+                }
+
+                if (cameraGo != null)
+                {
+                    Object.Destroy(cameraGo);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Fire_WithShotCameraRuntime_DoesNotToggleHiddenMenuDocuments()
+        {
+            GameObject root = null;
+            GameObject cameraGo = null;
+            GameObject registryGo = null;
+            GameObject target = null;
+            GameObject uiRootGo = null;
+            WeaponDefinition definition = null;
+            var previousTimeScale = Time.timeScale;
+            var previousFixedDeltaTime = Time.fixedDeltaTime;
+
+            try
+            {
+                Time.timeScale = 1f;
+                root = new GameObject("PlayerRoot");
+                root.transform.position = new Vector3(0f, 1000f, 0f);
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                cameraGo = new GameObject("WorldCamera");
+                var worldCamera = cameraGo.AddComponent<Camera>();
+                worldCamera.transform.SetPositionAndRotation(root.transform.position, Quaternion.identity);
+                worldCamera.tag = "MainCamera";
+
+                uiRootGo = new GameObject("UiToolkitRuntimeRoot");
+                CreateRuntimeHudDocument("belt-hud", uiRootGo.transform);
+                var hiddenMenuDocument = CreateRuntimeHudDocument("trade-ui", uiRootGo.transform);
+                yield return null;
+
+                hiddenMenuDocument.rootVisualElement.visible = false;
+                hiddenMenuDocument.rootVisualElement.pickingMode = PickingMode.Ignore;
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0f, 80f, 0f, 20f, 120f, 1, 0, true);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                target.transform.position = root.transform.position + (Vector3.forward * 180f);
+                target.transform.localScale = new Vector3(20f, 20f, 2f);
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                var shotCameraRuntime = root.AddComponent<ShotCameraRuntime>();
+                SetControllerField(controller, "_adsCamera", worldCamera);
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraRuntime);
+                SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+                yield return null;
+
+                var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
+                var magazineRounds = new[]
+                {
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj")
+                };
+                Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 4, 0, true), Is.True);
+                Assert.That(controller.ApplyRuntimeBallistics("weapon-kar98k", chamberRound, magazineRounds), Is.True);
+
+                input.AimHeldValue = true;
+                input.FirePressedThisFrame = true;
+                yield return null;
+
+                Assert.That(hiddenMenuDocument.enabled, Is.True, "Expected hidden menu documents to stay enabled so their controller state is preserved.");
+                Assert.That(hiddenMenuDocument.gameObject.activeSelf, Is.True, "Expected hidden menu documents not to be toggled off during shot cam.");
+                Assert.That(hiddenMenuDocument.rootVisualElement.visible, Is.False, "Expected hidden menus to remain hidden during shot cam.");
+
+                input.ShotCameraCancelPressedThisFrame = true;
+                yield return null;
+
+                Assert.That(hiddenMenuDocument.enabled, Is.True, "Expected hidden menu documents to remain enabled after shot cam exits.");
+                Assert.That(hiddenMenuDocument.gameObject.activeSelf, Is.True, "Expected hidden menu documents not to be reactivated on shot cam exit because they were never toggled.");
+                Assert.That(hiddenMenuDocument.rootVisualElement.visible, Is.False, "Expected hidden menus to remain hidden after shot cam exits.");
+            }
+            finally
+            {
+                Time.timeScale = previousTimeScale;
+                Time.fixedDeltaTime = previousFixedDeltaTime;
+
+                if (target != null)
+                {
+                    Object.Destroy(target);
+                }
+
+                foreach (var projectile in Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(projectile.gameObject);
+                }
+
+                if (uiRootGo != null)
+                {
+                    Object.Destroy(uiRootGo);
+                }
+
+                if (root != null)
+                {
+                    Object.Destroy(root);
                 }
 
                 if (cameraGo != null)
@@ -1529,10 +1655,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 viewmodelCamera.enabled = true;
 
                 uiRootGo = new GameObject("UiToolkitRuntimeRoot");
-                CreateRuntimeHudDocument("belt-hud", uiRootGo.transform);
-                CreateRuntimeHudDocument("compass-hud", uiRootGo.transform);
-                CreateRuntimeHudDocument("ammo-hud", uiRootGo.transform);
-                CreateRuntimeHudDocument("interaction-hint", uiRootGo.transform);
+                var beltHudDocument = CreateRuntimeHudDocument("belt-hud", uiRootGo.transform);
+                var compassHudDocument = CreateRuntimeHudDocument("compass-hud", uiRootGo.transform);
+                var ammoHudDocument = CreateRuntimeHudDocument("ammo-hud", uiRootGo.transform);
+                var interactionHintDocument = CreateRuntimeHudDocument("interaction-hint", uiRootGo.transform);
 
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
@@ -1566,12 +1692,13 @@ namespace Reloader.Weapons.Tests.PlayMode
                 input.AimHeldValue = true;
                 input.FirePressedThisFrame = true;
                 yield return null;
+                yield return null;
 
                 Assert.That(viewmodelCamera.enabled, Is.False, "Expected shot cam to suppress the viewmodel camera for a clean cinematic frame.");
-                Assert.That(IsRuntimeHudVisible("belt-hud"), Is.False, "Expected belt HUD to hide during shot cam.");
-                Assert.That(IsRuntimeHudVisible("compass-hud"), Is.False, "Expected compass HUD to hide during shot cam.");
-                Assert.That(IsRuntimeHudVisible("ammo-hud"), Is.False, "Expected ammo HUD to hide during shot cam.");
-                Assert.That(IsRuntimeHudVisible("interaction-hint"), Is.False, "Expected interaction hints to hide during shot cam.");
+                Assert.That(IsDocumentVisible(beltHudDocument), Is.False, "Expected shot cam to hide HUD documents for a clean screen.");
+                Assert.That(IsDocumentVisible(compassHudDocument), Is.False, "Expected shot cam to hide HUD documents for a clean screen.");
+                Assert.That(IsDocumentVisible(ammoHudDocument), Is.False, "Expected shot cam to hide HUD documents for a clean screen.");
+                Assert.That(IsDocumentVisible(interactionHintDocument), Is.False, "Expected shot cam to hide HUD documents for a clean screen.");
 
                 input.FirePressedThisFrame = true;
                 yield return null;
@@ -1581,12 +1708,13 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 input.ShotCameraCancelPressedThisFrame = true;
                 yield return null;
+                yield return null;
 
                 Assert.That(viewmodelCamera.enabled, Is.True, "Expected the viewmodel camera to restore after canceling shot cam.");
-                Assert.That(IsRuntimeHudVisible("belt-hud"), Is.True, "Expected belt HUD to restore after shot cam ends.");
-                Assert.That(IsRuntimeHudVisible("compass-hud"), Is.True, "Expected compass HUD to restore after shot cam ends.");
-                Assert.That(IsRuntimeHudVisible("ammo-hud"), Is.True, "Expected ammo HUD to restore after shot cam ends.");
-                Assert.That(IsRuntimeHudVisible("interaction-hint"), Is.True, "Expected interaction hints to restore after shot cam ends.");
+                Assert.That(IsDocumentVisible(beltHudDocument), Is.True, "Expected belt HUD to restore after shot cam ends.");
+                Assert.That(IsDocumentVisible(compassHudDocument), Is.True, "Expected compass HUD to restore after shot cam ends.");
+                Assert.That(IsDocumentVisible(ammoHudDocument), Is.True, "Expected ammo HUD to restore after shot cam ends.");
+                Assert.That(IsDocumentVisible(interactionHintDocument), Is.True, "Expected interaction hints to restore after shot cam ends.");
             }
             finally
             {
@@ -8619,24 +8747,22 @@ namespace Reloader.Weapons.Tests.PlayMode
             return null;
         }
 
-        private static void CreateRuntimeHudDocument(string screenId, Transform parent)
+        private static UIDocument CreateRuntimeHudDocument(string screenId, Transform parent)
         {
             var screenGo = new GameObject(screenId);
             screenGo.transform.SetParent(parent, false);
-            screenGo.AddComponent<UIDocument>();
-            screenGo.SetActive(true);
+            return screenGo.AddComponent<UIDocument>();
         }
 
-        private static bool IsRuntimeHudVisible(string screenId)
+        private static bool IsDocumentVisible(UIDocument document)
         {
-            var runtimeRoot = GameObject.Find("UiToolkitRuntimeRoot");
-            if (runtimeRoot == null)
+            if (document == null || !document.enabled)
             {
                 return false;
             }
 
-            var screen = runtimeRoot.transform.Find(screenId);
-            return screen != null && screen.gameObject.activeSelf;
+            var root = document.rootVisualElement;
+            return root != null && root.visible;
         }
 
         private static List<MonoBehaviour> FindAllCinemachineCameras()
