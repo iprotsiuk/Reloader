@@ -6,7 +6,8 @@
     "Reloader.Audio",
     "Reloader.Core",
     "Reloader.Inventory",
-    "Reloader.Player"
+    "Reloader.Player",
+    "Unity.Cinemachine"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

@@ -2,6 +2,7 @@ using System.Collections;
 using NUnit.Framework;
 using Reloader.Core.Runtime;
 using Reloader.Weapons.Ballistics;
+using Reloader.Weapons.Cinematics;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -245,6 +246,76 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ShotCameraRuntime_ProjectileDespawn_RestoresRealtimeAndClearsCinematicCamera()
+        {
+            GameObject runtimeRoot = null;
+            GameObject projectileGo = null;
+            var previousTimeScale = Time.timeScale;
+            var previousFixedDeltaTime = Time.fixedDeltaTime;
+
+            try
+            {
+                Time.timeScale = 1f;
+                runtimeRoot = new GameObject("ShotCameraRuntimeRoot");
+                var runtime = runtimeRoot.AddComponent<ShotCameraRuntime>();
+                var settings = new ShotCameraSettings(true, 100f, 0.1f, 0.25f);
+                runtime.Configure(null, settings);
+
+                projectileGo = new GameObject("Projectile");
+                projectileGo.transform.position = new Vector3(0f, -499.8f, 0f);
+                projectileGo.transform.forward = Vector3.down;
+                var projectile = projectileGo.AddComponent<WeaponProjectile>();
+                projectile.Initialize("weapon-kar98k", Vector3.down, speed: 30f, gravityMultiplier: 0f, damage: 1f);
+
+                var request = new ShotCameraRequest(
+                    projectile,
+                    projectileGo.transform.position,
+                    projectileGo.transform.position + (Vector3.down * 120f),
+                    120f,
+                    settings);
+                Assert.That(runtime.TryRegisterShot(request), Is.True);
+                Assert.That(FindFirstCinemachineCamera(), Is.Not.Null, "Expected shot cam registration to create a temporary cinematic camera.");
+
+                var elapsed = 0f;
+                while (runtime.IsShotActive && elapsed < 2f)
+                {
+                    elapsed += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+
+                Assert.That(runtime.IsShotActive, Is.False, "Expected projectile despawn termination to end shot cam automatically.");
+                Assert.That(runtime.HasActiveCinematicCamera, Is.False, "Expected projectile despawn termination to clear the temporary cinematic camera.");
+                Assert.That(Time.timeScale, Is.EqualTo(1f).Within(0.001f));
+                Assert.That(FindFirstCinemachineCamera(), Is.Null, "Expected the temporary shot camera to be removed after projectile despawn.");
+            }
+            finally
+            {
+                Time.timeScale = previousTimeScale;
+                Time.fixedDeltaTime = previousFixedDeltaTime;
+
+                foreach (var projectile in Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(projectile.gameObject);
+                }
+
+                foreach (var cinematicCamera in FindAllCinemachineCameras())
+                {
+                    Object.Destroy(cinematicCamera.gameObject);
+                }
+
+                if (projectileGo != null)
+                {
+                    Object.Destroy(projectileGo);
+                }
+
+                if (runtimeRoot != null)
+                {
+                    Object.Destroy(runtimeRoot);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator Projectile_PathObserverReportsExactCurvedSegments()
         {
             var projectileGo = new GameObject("Projectile");
@@ -483,6 +554,26 @@ namespace Reloader.Weapons.Tests.PlayMode
                 TerminalPoint = terminalPoint;
                 TerminalDidHit = didHit;
             }
+        }
+
+        private static MonoBehaviour FindFirstCinemachineCamera()
+        {
+            var allCameras = FindAllCinemachineCameras();
+            return allCameras.Count > 0 ? allCameras[0] : null;
+        }
+
+        private static System.Collections.Generic.List<MonoBehaviour> FindAllCinemachineCameras()
+        {
+            var matches = new System.Collections.Generic.List<MonoBehaviour>();
+            foreach (var behaviour in Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+            {
+                if (behaviour != null && behaviour.GetType().FullName == "Unity.Cinemachine.CinemachineCamera")
+                {
+                    matches.Add(behaviour);
+                }
+            }
+
+            return matches;
         }
 
         private sealed class Vector3EqualityComparer : System.Collections.IEqualityComparer
