@@ -417,49 +417,68 @@ namespace Reloader.Weapons.Cinematics
         private void SuppressHudScreens()
         {
             _suppressedHudScreens.Clear();
-            var runtimeRoot = GameObject.Find(UiRuntimeRootName);
-            if (runtimeRoot == null)
+            var runtimeRoots = FindRuntimeUiRoots();
+            if (runtimeRoots.Count == 0)
             {
                 return;
             }
 
-            for (var i = 0; i < runtimeRoot.transform.childCount; i++)
+            for (var rootIndex = 0; rootIndex < runtimeRoots.Count; rootIndex++)
             {
-                var screen = runtimeRoot.transform.GetChild(i).gameObject;
-                if (screen == null)
+                var runtimeRoot = runtimeRoots[rootIndex];
+                for (var i = 0; i < runtimeRoot.transform.childCount; i++)
                 {
-                    continue;
-                }
+                    var screen = runtimeRoot.transform.GetChild(i).gameObject;
+                    if (screen == null)
+                    {
+                        continue;
+                    }
 
-                if (!SuppressedHudScreenIds.Contains(screen.name))
-                {
-                    continue;
-                }
+                    if (!SuppressedHudScreenIds.Contains(screen.name))
+                    {
+                        continue;
+                    }
 
-                var document = ResolveDocumentBehaviour(screen);
-                var root = ResolveDocumentRoot(document);
-                if (root != null)
-                {
-                    _suppressedHudScreens.Add(new SuppressedHudState(
-                        screen,
-                        screen.activeSelf,
-                        document,
-                        document != null && document.enabled,
-                        root,
-                        root.visible,
-                        root.pickingMode));
-                    root.visible = false;
-                    root.pickingMode = PickingMode.Ignore;
-                    continue;
-                }
+                    var document = ResolveDocumentBehaviour(screen);
+                    var root = ResolveDocumentRoot(document);
+                    if (root != null)
+                    {
+                        _suppressedHudScreens.Add(new SuppressedHudState(
+                            screen,
+                            screen.activeSelf,
+                            document,
+                            document != null && document.enabled,
+                            root,
+                            root.visible,
+                            root.pickingMode));
+                        root.visible = false;
+                        root.pickingMode = PickingMode.Ignore;
+                        continue;
+                    }
 
-                _suppressedHudScreens.Add(new SuppressedHudState(screen, screen.activeSelf, document, document != null && document.enabled, null, false, PickingMode.Position));
-                if (document != null)
-                {
-                    document.enabled = false;
+                    _suppressedHudScreens.Add(new SuppressedHudState(screen, screen.activeSelf, document, document != null && document.enabled, null, false, PickingMode.Position));
+                    if (document != null)
+                    {
+                        document.enabled = false;
+                    }
+
+                    screen.SetActive(false);
                 }
-                screen.SetActive(false);
             }
+        }
+
+        private static List<GameObject> FindRuntimeUiRoots()
+        {
+            var matches = new List<GameObject>();
+            foreach (var candidate in FindObjectsByType<Transform>(FindObjectsSortMode.None))
+            {
+                if (candidate != null && candidate.name == UiRuntimeRootName)
+                {
+                    matches.Add(candidate.gameObject);
+                }
+            }
+
+            return matches;
         }
 
         private static UIDocument ResolveDocumentBehaviour(GameObject screen)

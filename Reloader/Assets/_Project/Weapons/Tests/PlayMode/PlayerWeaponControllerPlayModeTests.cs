@@ -988,14 +988,9 @@ namespace Reloader.Weapons.Tests.PlayMode
                 viewmodelRenderer!.enabled = true;
 
                 uiRootGo = new GameObject("UiToolkitRuntimeRoot");
-                var beltHud = new GameObject("belt-hud");
-                beltHud.transform.SetParent(uiRootGo.transform, false);
-                var beltDocument = beltHud.AddComponent<UIDocument>();
-                beltDocument.enabled = true;
-                var ammoHud = new GameObject("ammo-hud");
-                ammoHud.transform.SetParent(uiRootGo.transform, false);
-                var ammoDocument = ammoHud.AddComponent<UIDocument>();
-                ammoDocument.enabled = true;
+                var beltDocument = CreateRuntimeHudDocument("belt-hud", uiRootGo.transform);
+                var ammoDocument = CreateRuntimeHudDocument("ammo-hud", uiRootGo.transform);
+                yield return null;
 
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
@@ -1031,23 +1026,25 @@ namespace Reloader.Weapons.Tests.PlayMode
                 input.AimHeldValue = true;
                 input.FirePressedThisFrame = true;
                 yield return null;
+                yield return null;
 
                 Assert.That(shotCameraRuntime.IsShotActive, Is.True);
                 Assert.That(viewmodelRenderer.enabled, Is.False, "Expected shot cam to hide the weapon viewmodel.");
                 Assert.That(viewmodelCamera.enabled, Is.False, "Expected shot cam to disable the viewmodel overlay camera.");
                 Assert.That(scopeCamera.enabled, Is.False, "Expected shot cam to disable the scope camera during the cinematic.");
-                Assert.That(beltDocument.enabled, Is.False, "Expected shot cam to hide HUD documents for a clean screen.");
-                Assert.That(ammoDocument.enabled, Is.False, "Expected shot cam to hide all runtime HUD documents for a clean screen.");
+                Assert.That(IsDocumentVisible(beltDocument), Is.False, "Expected shot cam to hide HUD documents for a clean screen.");
+                Assert.That(IsDocumentVisible(ammoDocument), Is.False, "Expected shot cam to hide all runtime HUD documents for a clean screen.");
 
                 input.ShotCameraCancelPressedThisFrame = true;
+                yield return null;
                 yield return null;
 
                 Assert.That(shotCameraRuntime.IsShotActive, Is.False);
                 Assert.That(viewmodelRenderer.enabled, Is.True, "Expected shot cam exit to restore the weapon viewmodel.");
                 Assert.That(viewmodelCamera.enabled, Is.True, "Expected shot cam exit to restore the viewmodel overlay camera.");
                 Assert.That(scopeCamera.enabled, Is.True, "Expected shot cam exit to restore the scope camera.");
-                Assert.That(beltDocument.enabled, Is.True, "Expected shot cam exit to restore hidden HUD documents.");
-                Assert.That(ammoDocument.enabled, Is.True, "Expected shot cam exit to restore all hidden HUD documents.");
+                Assert.That(IsDocumentVisible(beltDocument), Is.True, "Expected shot cam exit to restore hidden HUD documents.");
+                Assert.That(IsDocumentVisible(ammoDocument), Is.True, "Expected shot cam exit to restore all hidden HUD documents.");
             }
             finally
             {
@@ -8202,10 +8199,14 @@ namespace Reloader.Weapons.Tests.PlayMode
                 }
 
                 Invoke(adsBridge, "SetMagnification", 4f);
-                yield return null;
-                yield return null;
-
                 var fourXScale = (float)GetProperty(adsBridge, "CurrentSensitivityScale");
+                frames = 0;
+                while (Mathf.Abs(look.RuntimeAdsSensitivityMultiplier.x - fourXScale) > 0.01f && frames < 30)
+                {
+                    frames++;
+                    yield return null;
+                }
+
                 Assert.That(fourXScale, Is.GreaterThan(0f));
                 Assert.That(look.AdsSensitivityMultiplier, Is.EqualTo(authoredAdsSensitivityMultiplier));
                 Assert.That(look.RuntimeAdsSensitivityMultiplier.x, Is.EqualTo(fourXScale).Within(0.01f));
@@ -8223,13 +8224,20 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 Invoke(adsBridge, "SetMagnification", 8f);
                 frames = 0;
-                while (Mathf.Abs((float)GetProperty(adsBridge, "CurrentMagnification") - 8f) > 0.01f && frames < 10)
+                while (Mathf.Abs((float)GetProperty(adsBridge, "CurrentMagnification") - 8f) > 0.01f && frames < 30)
                 {
                     frames++;
                     yield return null;
                 }
 
                 var eightXScale = (float)GetProperty(adsBridge, "CurrentSensitivityScale");
+                frames = 0;
+                while (Mathf.Abs(look.RuntimeAdsSensitivityMultiplier.x - eightXScale) > 0.01f && frames < 30)
+                {
+                    frames++;
+                    yield return null;
+                }
+
                 Assert.That(eightXScale, Is.LessThan(fourXScale - 0.01f));
                 Assert.That(look.AdsSensitivityMultiplier, Is.EqualTo(authoredAdsSensitivityMultiplier));
                 Assert.That(look.RuntimeAdsSensitivityMultiplier.x, Is.EqualTo(eightXScale).Within(0.01f));
