@@ -116,6 +116,22 @@ namespace Reloader.Player
             return false;
         }
 
+        public void RestoreGameplayView()
+        {
+            if (_mainCamera == null || _cameraFollowTarget == null)
+            {
+                return;
+            }
+
+            var lookTarget = _cameraLookTarget != null ? _cameraLookTarget : _cameraFollowTarget;
+            var lookDirection = lookTarget.position - _cameraFollowTarget.position;
+            var rotation = lookDirection.sqrMagnitude > 0.0001f
+                ? Quaternion.LookRotation(lookDirection.normalized, Vector3.up)
+                : _cameraFollowTarget.rotation;
+
+            _mainCamera.transform.SetPositionAndRotation(_cameraFollowTarget.position, rotation);
+        }
+
         private static void EnsurePipelineComponents(CinemachineCamera cinemachineCamera)
         {
             var body = cinemachineCamera.GetCinemachineComponent(CinemachineCore.Stage.Body);

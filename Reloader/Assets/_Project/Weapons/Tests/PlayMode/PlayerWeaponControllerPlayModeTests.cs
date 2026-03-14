@@ -1718,6 +1718,236 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ShotCameraRuntime_Cancel_RestoresRenderCameraToPlayerViewWithoutDefaultGameplayCinemachine()
+        {
+            GameObject root = null;
+            GameObject pivotGo = null;
+            GameObject lookTargetGo = null;
+            GameObject cameraGo = null;
+            GameObject projectileGo = null;
+            var previousTimeScale = Time.timeScale;
+            var previousFixedDeltaTime = Time.fixedDeltaTime;
+
+            try
+            {
+                Time.timeScale = 1f;
+                root = new GameObject("ShotCameraRuntimeRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var runtime = root.AddComponent<ShotCameraRuntime>();
+                var defaults = root.AddComponent<PlayerCameraDefaults>();
+
+                pivotGo = new GameObject("CameraPivot");
+                pivotGo.transform.SetParent(root.transform, false);
+                pivotGo.transform.localPosition = new Vector3(0f, 1.8f, 0f);
+
+                lookTargetGo = new GameObject("CameraLookTarget");
+                lookTargetGo.transform.SetParent(pivotGo.transform, false);
+                lookTargetGo.transform.localPosition = Vector3.forward * 10f;
+
+                cameraGo = new GameObject("WorldCamera");
+                cameraGo.transform.SetParent(pivotGo.transform, false);
+                var worldCamera = cameraGo.AddComponent<Camera>();
+                worldCamera.tag = "MainCamera";
+
+                SetField(typeof(PlayerCameraDefaults), defaults, "_mainCamera", worldCamera);
+                SetField(typeof(PlayerCameraDefaults), defaults, "_cameraFollowTarget", pivotGo.transform);
+                SetField(typeof(PlayerCameraDefaults), defaults, "_cameraLookTarget", lookTargetGo.transform);
+                defaults.ApplyDefaults();
+
+                runtime.Configure(input, new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+
+                projectileGo = new GameObject("Projectile");
+                projectileGo.transform.position = new Vector3(0f, 1000f, 0f);
+                projectileGo.transform.forward = Vector3.forward;
+                var projectile = projectileGo.AddComponent<WeaponProjectile>();
+                projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 0f, gravityMultiplier: 0f, damage: 10f);
+
+                var request = new ShotCameraRequest(
+                    projectile,
+                    projectileGo.transform.position,
+                    projectileGo.transform.position + (Vector3.forward * 180f),
+                    180f,
+                    new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+                Assert.That(runtime.TryRegisterShot(request), Is.True);
+                yield return null;
+
+                input.ShotCameraCancelPressedThisFrame = true;
+                yield return null;
+                yield return null;
+
+                Assert.That(Vector3.Distance(worldCamera.transform.position, pivotGo.transform.position), Is.LessThan(0.05f),
+                    "Expected shot-cam exit to restore the render camera to the player's camera pivot instead of leaving it at the impact view.");
+                Assert.That(Quaternion.Angle(worldCamera.transform.rotation, pivotGo.transform.rotation), Is.LessThan(0.5f),
+                    "Expected shot-cam exit to restore the render camera orientation back to the player view.");
+            }
+            finally
+            {
+                Time.timeScale = previousTimeScale;
+                Time.fixedDeltaTime = previousFixedDeltaTime;
+
+                foreach (var cinematicCamera in FindAllCinemachineCameras())
+                {
+                    Object.Destroy(cinematicCamera.gameObject);
+                }
+
+                if (projectileGo != null)
+                {
+                    Object.Destroy(projectileGo);
+                }
+
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (cameraGo != null)
+                {
+                    Object.Destroy(cameraGo);
+                }
+
+                if (pivotGo != null)
+                {
+                    Object.Destroy(pivotGo);
+                }
+
+                if (lookTargetGo != null)
+                {
+                    Object.Destroy(lookTargetGo);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ShotCameraRuntime_ImpactExit_RestoresRenderCameraToPlayerView()
+        {
+            GameObject root = null;
+            GameObject cameraGo = null;
+            GameObject registryGo = null;
+            GameObject target = null;
+            WeaponDefinition definition = null;
+            var previousTimeScale = Time.timeScale;
+            var previousFixedDeltaTime = Time.fixedDeltaTime;
+
+            try
+            {
+                Time.timeScale = 1f;
+                root = new GameObject("PlayerRoot");
+                root.transform.position = new Vector3(0f, 1000f, 0f);
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                var pivotGo = new GameObject("CameraPivot");
+                pivotGo.transform.SetParent(root.transform, false);
+                pivotGo.transform.localPosition = new Vector3(0f, 1.8f, 0f);
+                var lookTargetGo = new GameObject("CameraLookTarget");
+                lookTargetGo.transform.SetParent(pivotGo.transform, false);
+                lookTargetGo.transform.localPosition = Vector3.forward * 10f;
+
+                cameraGo = new GameObject("WorldCamera");
+                cameraGo.transform.SetParent(pivotGo.transform, false);
+                var worldCamera = cameraGo.AddComponent<Camera>();
+                worldCamera.tag = "MainCamera";
+
+                var cameraDefaults = root.AddComponent<PlayerCameraDefaults>();
+                SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_mainCamera", worldCamera);
+                SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_cameraFollowTarget", pivotGo.transform);
+                SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_cameraLookTarget", lookTargetGo.transform);
+                cameraDefaults.ApplyDefaults();
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0f, 80f, 0f, 20f, 120f, 1, 0, true);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                target.transform.position = root.transform.position + (Vector3.forward * 180f);
+                target.transform.localScale = new Vector3(20f, 20f, 2f);
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                var shotCameraRuntime = root.AddComponent<ShotCameraRuntime>();
+                SetControllerField(controller, "_cameraDefaults", cameraDefaults);
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraRuntime);
+                SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+                yield return null;
+
+                var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
+                var magazineRounds = new[]
+                {
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj")
+                };
+                Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 4, 0, true), Is.True);
+                Assert.That(controller.ApplyRuntimeBallistics("weapon-kar98k", chamberRound, magazineRounds), Is.True);
+
+                input.AimHeldValue = true;
+                input.FirePressedThisFrame = true;
+                yield return null;
+
+                var exitElapsed = 0f;
+                while (shotCameraRuntime.IsShotActive && exitElapsed < 5f)
+                {
+                    exitElapsed += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+
+                Assert.That(shotCameraRuntime.IsShotActive, Is.False, "Expected shot cam to auto-exit after projectile impact and linger.");
+                Assert.That(Vector3.Distance(worldCamera.transform.position, pivotGo.transform.position), Is.LessThan(0.05f),
+                    "Expected shot-cam impact exit to return the render camera to the player camera pivot.");
+                Assert.That(Quaternion.Angle(worldCamera.transform.rotation, pivotGo.transform.rotation), Is.LessThan(0.5f),
+                    "Expected shot-cam impact exit to restore the render camera orientation to the player view.");
+            }
+            finally
+            {
+                Time.timeScale = previousTimeScale;
+                Time.fixedDeltaTime = previousFixedDeltaTime;
+
+                if (target != null)
+                {
+                    Object.Destroy(target);
+                }
+
+                foreach (var projectile in Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(projectile.gameObject);
+                }
+
+                foreach (var cinematicCamera in FindAllCinemachineCameras())
+                {
+                    Object.Destroy(cinematicCamera.gameObject);
+                }
+
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (cameraGo != null)
+                {
+                    Object.Destroy(cameraGo);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ShotCameraRuntime_ProjectileImpactOnNpc_LingersBeforeRestore()
         {
             GameObject root = null;

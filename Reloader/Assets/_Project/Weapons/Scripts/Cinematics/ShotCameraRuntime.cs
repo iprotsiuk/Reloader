@@ -312,6 +312,7 @@ namespace Reloader.Weapons.Cinematics
         private void EndShotCamera()
         {
             var shouldRestoreGlobalTime = _isShotActive;
+            var cameraDefaults = GetComponent<PlayerCameraDefaults>();
 
             if (_activeProjectile != null)
             {
@@ -321,6 +322,7 @@ namespace Reloader.Weapons.Cinematics
 
             RestorePresentationState();
             DestroyCinematicCamera();
+            cameraDefaults?.RestoreGameplayView();
             _activeProjectile = null;
             _isLingeringAtImpact = false;
             _lingerRemainingSeconds = 0f;
