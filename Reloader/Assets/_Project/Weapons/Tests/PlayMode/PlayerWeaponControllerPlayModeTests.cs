@@ -479,6 +479,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 cameraGo = new GameObject("WorldCamera");
                 var worldCamera = cameraGo.AddComponent<Camera>();
+                var gameplayBrain = cameraGo.AddComponent<CinemachineBrain>();
                 worldCamera.transform.SetPositionAndRotation(root.transform.position, Quaternion.identity);
                 worldCamera.tag = "MainCamera";
 
@@ -516,21 +517,20 @@ namespace Reloader.Weapons.Tests.PlayMode
                 yield return null;
 
                 var projectile = Object.FindFirstObjectByType<WeaponProjectile>();
-                var cinematicCamera = FindFirstCinemachineCamera();
                 var shotRenderCamera = FindShotRenderCamera();
                 var originalWorldCameraPosition = worldCamera.transform.position;
                 var originalWorldCameraRotation = worldCamera.transform.rotation;
                 Assert.That(projectile, Is.Not.Null);
-                Assert.That(cinematicCamera, Is.Not.Null, "Expected shot cam to create a temporary Cinemachine projectile-follow camera.");
                 Assert.That(shotRenderCamera, Is.Not.Null, "Expected shot cam to create a dedicated temporary render camera instead of reusing the gameplay MainCamera.");
                 Assert.That(shotRenderCamera, Is.Not.SameAs(worldCamera), "Expected shot cam render camera ownership to be separate from the gameplay MainCamera.");
-                Assert.That(worldCamera.GetComponent<CinemachineBrain>(), Is.Null, "Expected shot cam not to attach a CinemachineBrain to the gameplay MainCamera.");
+                Assert.That(gameplayBrain.enabled, Is.True, "Expected the pre-existing gameplay CinemachineBrain to remain enabled while the isolated shot camera renders the cinematic.");
                 Assert.That(Vector3.Distance(worldCamera.transform.position, originalWorldCameraPosition), Is.LessThan(0.001f),
                     "Expected the gameplay MainCamera transform to remain parked on the player rig during shot-cam.");
                 Assert.That(Quaternion.Angle(worldCamera.transform.rotation, originalWorldCameraRotation), Is.LessThan(0.01f),
                     "Expected the gameplay MainCamera rotation to remain unchanged during shot-cam.");
                 Assert.That(shotCameraRuntime.IsShotActive, Is.True);
                 Assert.That(shotCameraRuntime.HasActiveCinematicCamera, Is.True);
+                Assert.That(ShotCameraGameplayState.PresentationCamera, Is.SameAs(shotRenderCamera), "Expected shot cam to publish the temporary render camera as the current presentation camera.");
                 Assert.That(projectile!.IsShotCameraPresentationActive, Is.True);
                 Assert.That(Time.timeScale, Is.EqualTo(0.1f).Within(0.001f));
             }
@@ -751,6 +751,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(shotCameraRuntime.IsShotActive, Is.False);
                 Assert.That(shotCameraRuntime.HasActiveCinematicCamera, Is.False);
                 Assert.That(Time.timeScale, Is.EqualTo(1f).Within(0.001f));
+                Assert.That(ShotCameraGameplayState.PresentationCamera, Is.Null, "Expected shot cam cancel to clear the current presentation camera.");
                 Assert.That(projectile, Is.Not.Null);
                 Assert.That(projectile.gameObject, Is.Not.Null);
                 Assert.That(projectile.IsShotCameraPresentationActive, Is.False);
@@ -863,7 +864,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 input.FirePressedThisFrame = true;
                 yield return null;
 
-                Assert.That(FindFirstCinemachineCamera(), Is.Not.Null);
+                Assert.That(FindShotRenderCamera(), Is.Not.Null);
                 Assert.That(shotCameraRuntime.IsShotActive, Is.True);
 
                 var lingerStartTime = Time.unscaledTime;
@@ -878,7 +879,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(shotCameraRuntime.HasActiveCinematicCamera, Is.False, "Expected projectile impact to clear the temporary cinematic camera.");
                 Assert.That(Time.unscaledTime - lingerStartTime, Is.GreaterThanOrEqualTo(0.9f), "Expected non-NPC impact to linger at the impact location before restoring the player camera.");
                 Assert.That(Time.timeScale, Is.EqualTo(1f).Within(0.001f));
-                Assert.That(FindFirstCinemachineCamera(), Is.Null, "Expected the temporary shot camera to be removed after impact.");
+                Assert.That(FindShotRenderCamera(), Is.Null, "Expected the temporary shot camera to be removed after impact.");
+                Assert.That(ShotCameraGameplayState.PresentationCamera, Is.Null, "Expected shot-cam impact exit to clear the current presentation camera.");
             }
             finally
             {
@@ -1808,6 +1810,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetField(typeof(PlayerCameraDefaults), defaults, "_cameraFollowTarget", pivotGo.transform);
                 SetField(typeof(PlayerCameraDefaults), defaults, "_cameraLookTarget", lookTargetGo.transform);
                 defaults.ApplyDefaults();
+                var gameplayBrain = worldCamera.GetComponent<CinemachineBrain>();
+                Assert.That(gameplayBrain, Is.Not.Null);
 
                 runtime.Configure(input, new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
 
@@ -1825,6 +1829,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                     new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
                 Assert.That(runtime.TryRegisterShot(request), Is.True);
                 yield return null;
+                Assert.That(defaults.TryGetPresentationCamera(out var activePresentationCamera), Is.True);
+                Assert.That(activePresentationCamera, Is.SameAs(FindShotRenderCamera()), "Expected the player camera defaults contract to surface the temporary shot-camera render view while the cinematic is active.");
 
                 input.ShotCameraCancelPressedThisFrame = true;
                 yield return null;
@@ -1834,6 +1840,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                     "Expected shot-cam exit to restore the render camera to the player's camera pivot instead of leaving it at the impact view.");
                 Assert.That(Quaternion.Angle(worldCamera.transform.rotation, pivotGo.transform.rotation), Is.LessThan(0.5f),
                     "Expected shot-cam exit to restore the render camera orientation back to the player view.");
+                Assert.That(gameplayBrain.enabled, Is.True, "Expected the gameplay CinemachineBrain to remain enabled after shot-cam cancel.");
+                Assert.That(FindShotRenderCamera(), Is.Null, "Expected shot-cam cancel to remove the temporary render camera.");
+                Assert.That(ShotCameraGameplayState.PresentationCamera, Is.Null, "Expected shot-cam cancel to clear the current presentation camera.");
+                Assert.That(defaults.TryGetPresentationCamera(out var restoredPresentationCamera), Is.True);
+                Assert.That(restoredPresentationCamera, Is.SameAs(worldCamera), "Expected the player camera defaults contract to fall back to the gameplay camera after shot-cam ends.");
             }
             finally
             {
@@ -1913,6 +1924,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_cameraFollowTarget", pivotGo.transform);
                 SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_cameraLookTarget", lookTargetGo.transform);
                 cameraDefaults.ApplyDefaults();
+                var gameplayBrain = worldCamera.GetComponent<CinemachineBrain>();
+                Assert.That(gameplayBrain, Is.Not.Null);
 
                 registryGo = new GameObject("Registry");
                 var registry = registryGo.AddComponent<WeaponRegistry>();
@@ -1946,6 +1959,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 input.AimHeldValue = true;
                 input.FirePressedThisFrame = true;
                 yield return null;
+                Assert.That(cameraDefaults.TryGetPresentationCamera(out var activePresentationCamera), Is.True);
+                Assert.That(activePresentationCamera, Is.SameAs(FindShotRenderCamera()), "Expected the player camera defaults contract to surface the temporary shot-camera render view while the cinematic is active.");
 
                 var exitElapsed = 0f;
                 while (shotCameraRuntime.IsShotActive && exitElapsed < 5f)
@@ -1959,6 +1974,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                     "Expected shot-cam impact exit to return the render camera to the player camera pivot.");
                 Assert.That(Quaternion.Angle(worldCamera.transform.rotation, pivotGo.transform.rotation), Is.LessThan(0.5f),
                     "Expected shot-cam impact exit to restore the render camera orientation to the player view.");
+                Assert.That(gameplayBrain.enabled, Is.True, "Expected the gameplay CinemachineBrain to remain enabled after shot-cam impact exit.");
+                Assert.That(FindShotRenderCamera(), Is.Null, "Expected shot-cam impact exit to remove the temporary render camera.");
+                Assert.That(ShotCameraGameplayState.PresentationCamera, Is.Null, "Expected shot-cam impact exit to clear the current presentation camera.");
+                Assert.That(cameraDefaults.TryGetPresentationCamera(out var restoredPresentationCamera), Is.True);
+                Assert.That(restoredPresentationCamera, Is.SameAs(worldCamera), "Expected the player camera defaults contract to fall back to the gameplay camera after shot-cam impact exit.");
             }
             finally
             {

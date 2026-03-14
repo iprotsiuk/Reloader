@@ -79,6 +79,17 @@ namespace Reloader.Player
             return mainCamera != null;
         }
 
+        public bool TryGetPresentationCamera(out Camera presentationCamera)
+        {
+            presentationCamera = ShotCameraGameplayState.PresentationCamera;
+            if (presentationCamera != null)
+            {
+                return true;
+            }
+
+            return TryGetMainCamera(out presentationCamera);
+        }
+
         public bool TryGetEffectiveFieldOfView(out float fieldOfView)
         {
             if (_cinemachineCamera != null)

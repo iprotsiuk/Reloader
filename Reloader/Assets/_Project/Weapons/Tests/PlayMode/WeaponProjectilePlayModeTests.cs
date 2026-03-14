@@ -1,6 +1,7 @@
 using System.Collections;
 using NUnit.Framework;
 using Reloader.Core.Runtime;
+using Reloader.Player;
 using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.Cinematics;
 using UnityEngine;
@@ -274,7 +275,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                     120f,
                     settings);
                 Assert.That(runtime.TryRegisterShot(request), Is.True);
-                Assert.That(FindFirstCinemachineCamera(), Is.Not.Null, "Expected shot cam registration to create a temporary cinematic camera.");
+                Assert.That(FindShotRenderCamera(), Is.Not.Null, "Expected shot cam registration to create a temporary render camera.");
+                Assert.That(ShotCameraGameplayState.PresentationCamera, Is.SameAs(FindShotRenderCamera()), "Expected projectile shot cam to publish the temporary render camera as the current presentation camera.");
 
                 var lingerStartTime = Time.unscaledTime;
                 var elapsed = 0f;
@@ -288,7 +290,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(runtime.HasActiveCinematicCamera, Is.False, "Expected projectile despawn termination to clear the temporary cinematic camera.");
                 Assert.That(Time.unscaledTime - lingerStartTime, Is.GreaterThanOrEqualTo(0.9f), "Expected miss/despawn termination to linger at the terminal point before restoring the player camera.");
                 Assert.That(Time.timeScale, Is.EqualTo(1f).Within(0.001f));
-                Assert.That(FindFirstCinemachineCamera(), Is.Null, "Expected the temporary shot camera to be removed after projectile despawn.");
+                Assert.That(FindShotRenderCamera(), Is.Null, "Expected the temporary shot camera to be removed after projectile despawn.");
+                Assert.That(ShotCameraGameplayState.PresentationCamera, Is.Null, "Expected shot-cam teardown to clear the current presentation camera.");
             }
             finally
             {
@@ -632,10 +635,17 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
-        private static MonoBehaviour FindFirstCinemachineCamera()
+        private static Camera FindShotRenderCamera()
         {
-            var allCameras = FindAllCinemachineCameras();
-            return allCameras.Count > 0 ? allCameras[0] : null;
+            foreach (var camera in Object.FindObjectsByType<Camera>(FindObjectsSortMode.None))
+            {
+                if (camera != null && camera.name == "ShotCameraRuntime_Camera")
+                {
+                    return camera;
+                }
+            }
+
+            return null;
         }
 
         private static System.Collections.Generic.List<MonoBehaviour> FindAllCinemachineCameras()
