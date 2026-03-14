@@ -1,48 +1,69 @@
 using NUnit.Framework;
-using Reloader.NPCs.Combat;
+using System;
+using System.Reflection;
 
 namespace Reloader.NPCs.Tests.EditMode
 {
     public sealed class HumanoidImpactResolutionEditModeTests
     {
-        [Test]
-        public void Resolve_WhenHeadHitCarriesRifleEnergy_ReturnsLethal()
+        [TestCase("Head", 900f, true)]
+        [TestCase("Neck", 900f, true)]
+        [TestCase("ArmL", 900f, false)]
+        [TestCase("Torso", 80f, false)]
+        public void Resolve_WithExpectedZoneAndEnergyContract_ProducesExpectedLethality(string bodyZoneName, float deliveredEnergyJoules, bool expectedIsLethal)
         {
-            var result = HumanoidImpactResolution.Resolve(
-                bodyZone: HumanoidBodyZone.Head,
-                deliveredEnergyJoules: 900f);
-
-            Assert.That(result.IsLethal, Is.True);
+            var isLethal = ResolveIsLethal(bodyZoneName, deliveredEnergyJoules);
+            Assert.That(isLethal, Is.EqualTo(expectedIsLethal));
         }
 
-        [Test]
-        public void Resolve_WhenNeckHitCarriesRifleEnergy_ReturnsLethal()
+        private static bool ResolveIsLethal(string bodyZoneName, float deliveredEnergyJoules)
         {
-            var result = HumanoidImpactResolution.Resolve(
-                bodyZone: HumanoidBodyZone.Neck,
-                deliveredEnergyJoules: 900f);
+            var bodyZoneType = ResolveType("Reloader.NPCs.Combat.HumanoidBodyZone");
+            var resolverType = ResolveType("Reloader.NPCs.Combat.HumanoidImpactResolution");
 
-            Assert.That(result.IsLethal, Is.True);
+            var resolveMethod = resolverType.GetMethod(
+                "Resolve",
+                BindingFlags.Public | BindingFlags.Static,
+                binder: null,
+                types: new[] { bodyZoneType, typeof(float) },
+                modifiers: null);
+            Assert.That(resolveMethod, Is.Not.Null, "Expected static Resolve(HumanoidBodyZone, float) on HumanoidImpactResolution.");
+
+            var bodyZoneValue = Enum.Parse(bodyZoneType, bodyZoneName);
+            var result = resolveMethod!.Invoke(null, new object[] { bodyZoneValue, deliveredEnergyJoules });
+            Assert.That(result, Is.Not.Null, "Expected HumanoidImpactResolution.Resolve to return a result object.");
+
+            var isLethalProperty = result!.GetType().GetProperty("IsLethal", BindingFlags.Public | BindingFlags.Instance);
+            Assert.That(isLethalProperty, Is.Not.Null, "Expected resolver result to expose IsLethal.");
+
+            return (bool)isLethalProperty!.GetValue(result);
         }
 
-        [Test]
-        public void Resolve_WhenArmLHitCarriesRifleEnergy_ReturnsNonLethal()
+        private static Type ResolveType(string fullTypeName)
         {
-            var result = HumanoidImpactResolution.Resolve(
-                bodyZone: HumanoidBodyZone.ArmL,
-                deliveredEnergyJoules: 900f);
+            var type = Type.GetType($"{fullTypeName}, Reloader.NPCs", throwOnError: false);
+            if (type != null)
+            {
+                return type;
+            }
 
-            Assert.That(result.IsLethal, Is.False);
-        }
+            type = Type.GetType(fullTypeName, throwOnError: false);
+            if (type != null)
+            {
+                return type;
+            }
 
-        [Test]
-        public void Resolve_WhenTorsoHitCarriesLowEnergy_ReturnsNonLethal()
-        {
-            var result = HumanoidImpactResolution.Resolve(
-                bodyZone: HumanoidBodyZone.Torso,
-                deliveredEnergyJoules: 80f);
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                type = assembly.GetType(fullTypeName, throwOnError: false);
+                if (type != null)
+                {
+                    return type;
+                }
+            }
 
-            Assert.That(result.IsLethal, Is.False);
+            Assert.Fail($"Expected type {fullTypeName} to exist.");
+            return null;
         }
     }
 }

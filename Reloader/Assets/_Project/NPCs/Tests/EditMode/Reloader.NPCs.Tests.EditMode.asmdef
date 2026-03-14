@@ -4,8 +4,7 @@
   "references": [
     "Reloader.NPCs",
     "Reloader.Core",
-    "Reloader.Player",
-    "Reloader.Weapons"
+    "Reloader.Player"
   ],
   "includePlatforms": [
     "Editor"

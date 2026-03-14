@@ -5,8 +5,7 @@
     "Reloader.NPCs",
     "Reloader.Core",
     "Reloader.Player",
-    "Reloader.Inventory",
-    "Reloader.Weapons"
+    "Reloader.Inventory"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

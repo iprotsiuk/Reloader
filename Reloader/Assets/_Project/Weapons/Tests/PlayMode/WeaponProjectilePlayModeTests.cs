@@ -1,10 +1,10 @@
 using System.Collections;
+using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Runtime;
 using Reloader.Player;
 using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.Cinematics;
-using Reloader.Weapons.Runtime;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -205,8 +205,8 @@ namespace Reloader.Weapons.Tests.PlayMode
         public IEnumerator Projectile_ForwardsImpactDirectionAndEnergyDrivingMetadata_IntoHitPayload()
         {
             const float expectedImpactSpeedMetersPerSecond = 120f;
+            const float expectedProjectileMassGrains = 182f;
             const float grainsToKilograms = 0.00006479891f;
-            var expectedProjectileMassGrains = WeaponAmmoDefaults.DefaultProjectileMassGrains;
             var expectedDeliveredEnergyJoules = 0.5f
                 * (expectedProjectileMassGrains * grainsToKilograms)
                 * expectedImpactSpeedMetersPerSecond
@@ -222,13 +222,12 @@ namespace Reloader.Weapons.Tests.PlayMode
             target.transform.localScale = new Vector3(1f, 1f, 1f);
             var receiver = target.AddComponent<TestDamageable>();
 
-            projectile.Initialize(
-                "weapon-kar98k",
-                Vector3.forward,
-                speed: expectedImpactSpeedMetersPerSecond,
-                gravityMultiplier: 0f,
-                damage: 33f,
-                ballisticCoefficientG1: 1000000f);
+            var initializeMethod = ResolveInitializeWithProjectileMassMethod();
+            InvokeInitializeWithMass(
+                initializeMethod,
+                projectile,
+                expectedImpactSpeedMetersPerSecond,
+                expectedProjectileMassGrains);
 
             var elapsed = 0f;
             while (receiver.HitCount == 0 && elapsed < 0.5f)
@@ -241,14 +240,144 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(receiver.LastPayload.HasValue, Is.True);
 
             var payload = receiver.LastPayload.Value;
-            Assert.That(payload.Direction.sqrMagnitude, Is.EqualTo(1f).Within(0.0001f));
-            Assert.That(Vector3.Dot(payload.Direction, Vector3.forward), Is.GreaterThan(0.99999f));
-            Assert.That(payload.ImpactSpeedMetersPerSecond, Is.EqualTo(expectedImpactSpeedMetersPerSecond).Within(0.01f));
-            Assert.That(payload.ProjectileMassGrains, Is.EqualTo(expectedProjectileMassGrains).Within(0.001f));
-            Assert.That(payload.DeliveredEnergyJoules, Is.EqualTo(expectedDeliveredEnergyJoules).Within(0.1f));
+            var payloadDirection = ReadPayloadVector3Property(payload, "Direction");
+            var payloadImpactSpeedMetersPerSecond = ReadPayloadFloatProperty(payload, "ImpactSpeedMetersPerSecond");
+            var payloadProjectileMassGrains = ReadPayloadFloatProperty(payload, "ProjectileMassGrains");
+            var payloadDeliveredEnergyJoules = ReadPayloadFloatProperty(payload, "DeliveredEnergyJoules");
+
+            Assert.That(payloadDirection.sqrMagnitude, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(Vector3.Dot(payloadDirection, Vector3.forward), Is.GreaterThan(0.99999f));
+            Assert.That(payloadImpactSpeedMetersPerSecond, Is.EqualTo(expectedImpactSpeedMetersPerSecond).Within(0.01f));
+            Assert.That(payloadProjectileMassGrains, Is.EqualTo(expectedProjectileMassGrains).Within(0.001f));
+            Assert.That(payloadDeliveredEnergyJoules, Is.EqualTo(expectedDeliveredEnergyJoules).Within(0.1f));
 
             Object.Destroy(projectileGo);
             Object.Destroy(target);
+        }
+
+        private static MethodInfo ResolveInitializeWithProjectileMassMethod()
+        {
+            var candidates = typeof(WeaponProjectile).GetMethods(BindingFlags.Instance | BindingFlags.Public);
+            for (var i = 0; i < candidates.Length; i++)
+            {
+                var method = candidates[i];
+                if (!string.Equals(method.Name, "Initialize", System.StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var parameters = method.GetParameters();
+                if (parameters.Length < 7)
+                {
+                    continue;
+                }
+
+                if (parameters[0].ParameterType != typeof(string) || parameters[1].ParameterType != typeof(Vector3))
+                {
+                    continue;
+                }
+
+                for (var parameterIndex = 0; parameterIndex < parameters.Length; parameterIndex++)
+                {
+                    var parameter = parameters[parameterIndex];
+                    if (parameter.ParameterType == typeof(float)
+                        && parameter.Name != null
+                        && parameter.Name.IndexOf("projectilemass", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        return method;
+                    }
+                }
+            }
+
+            Assert.Fail("Expected WeaponProjectile.Initialize to expose a caller-supplied projectile mass parameter.");
+            return null;
+        }
+
+        private static void InvokeInitializeWithMass(
+            MethodInfo initializeMethod,
+            WeaponProjectile projectile,
+            float expectedImpactSpeedMetersPerSecond,
+            float expectedProjectileMassGrains)
+        {
+            Assert.That(initializeMethod, Is.Not.Null);
+
+            var parameters = initializeMethod!.GetParameters();
+            var args = new object[parameters.Length];
+            var assignedProjectileMass = false;
+
+            for (var i = 0; i < parameters.Length; i++)
+            {
+                var parameter = parameters[i];
+                var parameterName = parameter.Name ?? string.Empty;
+
+                if (parameter.ParameterType == typeof(string))
+                {
+                    args[i] = "weapon-kar98k";
+                    continue;
+                }
+
+                if (parameter.ParameterType == typeof(Vector3))
+                {
+                    args[i] = Vector3.forward;
+                    continue;
+                }
+
+                if (parameter.ParameterType == typeof(float))
+                {
+                    if (parameterName.IndexOf("projectilemass", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        args[i] = expectedProjectileMassGrains;
+                        assignedProjectileMass = true;
+                    }
+                    else if (parameterName.IndexOf("speed", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        args[i] = expectedImpactSpeedMetersPerSecond;
+                    }
+                    else if (parameterName.IndexOf("gravity", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        args[i] = 0f;
+                    }
+                    else if (parameterName.IndexOf("damage", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        args[i] = 33f;
+                    }
+                    else if (parameterName.IndexOf("ballisticcoefficient", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        args[i] = 1000000f;
+                    }
+                    else
+                    {
+                        args[i] = parameter.HasDefaultValue ? System.Convert.ToSingle(parameter.DefaultValue) : 0f;
+                    }
+
+                    continue;
+                }
+
+                args[i] = parameter.ParameterType == typeof(Transform)
+                    ? null
+                    : (parameter.HasDefaultValue ? parameter.DefaultValue : null);
+            }
+
+            Assert.That(assignedProjectileMass, Is.True, "Expected Initialize invocation to include caller-supplied projectile mass.");
+            initializeMethod.Invoke(projectile, args);
+        }
+
+        private static float ReadPayloadFloatProperty(object payload, string propertyName)
+        {
+            var property = payload.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(property, Is.Not.Null, $"Expected ProjectileImpactPayload.{propertyName}.");
+            var value = property!.GetValue(payload);
+            Assert.That(value, Is.Not.Null, $"Expected ProjectileImpactPayload.{propertyName} to produce a value.");
+            return (float)value!;
+        }
+
+        private static Vector3 ReadPayloadVector3Property(object payload, string propertyName)
+        {
+            var property = payload.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(property, Is.Not.Null, $"Expected ProjectileImpactPayload.{propertyName}.");
+            var value = property!.GetValue(payload);
+            Assert.That(value, Is.Not.Null, $"Expected ProjectileImpactPayload.{propertyName} to produce a value.");
+            return (Vector3)value!;
         }
 
         [UnityTest]
