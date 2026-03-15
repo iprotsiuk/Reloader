@@ -5,10 +5,10 @@ alwaysApply: true
 
 # Design Doc Routing
 
-Design docs are modular, split by domain under `docs/design/`. See `docs/design/README.md` for the full routing table.
+Design docs are modular under `docs/design/`. Start with `docs/design/README.md` to pick only the docs you need.
 
-**Always read first:** `docs/design/core-architecture.md` (~300 lines) — shared patterns, SO system, event bus.
+Do NOT auto-load `docs/design/core-architecture.md` for runtime-local or test-local work.
 
-**Then read your domain doc.** Use only the modular docs under `docs/design/` for active work.
+Load `docs/design/core-architecture.md` only for new features, cross-domain changes, save/events/persistence changes, or when local intent is unclear.
 
 **Coding standards:** `.agent/skills/unity-project-conventions/SKILL.md`
