@@ -452,6 +452,358 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Fire_WithShotCameraRuntime_SetsDefaultSlowMotionScale()
+        {
+            GameObject root = null;
+            GameObject cameraGo = null;
+            GameObject registryGo = null;
+            GameObject target = null;
+            WeaponDefinition definition = null;
+            var previousTimeScale = Time.timeScale;
+            var previousFixedDeltaTime = Time.fixedDeltaTime;
+
+            try
+            {
+                Time.timeScale = 1f;
+                root = new GameObject("PlayerRoot");
+                root.transform.position = new Vector3(0f, 1000f, 0f);
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                cameraGo = new GameObject("WorldCamera");
+                var worldCamera = cameraGo.AddComponent<Camera>();
+                worldCamera.transform.SetPositionAndRotation(root.transform.position, Quaternion.identity);
+                worldCamera.tag = "MainCamera";
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0f, 80f, 0f, 20f, 120f, 1, 0, true);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                target.transform.position = root.transform.position + (Vector3.forward * 180f);
+                target.transform.localScale = new Vector3(20f, 20f, 2f);
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                var shotCameraRuntime = root.AddComponent<ShotCameraRuntime>();
+                SetControllerField(controller, "_adsCamera", worldCamera);
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraRuntime);
+                SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+                yield return null;
+
+                var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
+                var magazineRounds = new[]
+                {
+                    chamberRound,
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj")
+                };
+                Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 4, 0, true), Is.True);
+                Assert.That(controller.ApplyRuntimeBallistics("weapon-kar98k", chamberRound, magazineRounds), Is.True);
+
+                input.AimHeldValue = true;
+                input.FirePressedThisFrame = true;
+                yield return null;
+                yield return null;
+
+                var projectile = Object.FindFirstObjectByType<WeaponProjectile>();
+                Assert.That(projectile, Is.Not.Null);
+                Assert.That(shotCameraRuntime.IsShotActive, Is.True);
+                Assert.That(shotCameraRuntime.HasActiveCinematicCamera, Is.True);
+                Assert.That(ShotCameraGameplayState.PresentationCamera, Is.Not.Null);
+                Assert.That(ShotCameraGameplayState.PresentationCamera, Is.Not.SameAs(worldCamera),
+                    "Expected shot cam to own a dedicated presentation camera instead of reusing the gameplay camera.");
+                Assert.That(projectile!.IsShotCameraPresentationActive, Is.True);
+                Assert.That(Time.timeScale, Is.EqualTo(0.1f).Within(0.001f));
+            }
+            finally
+            {
+                Time.timeScale = previousTimeScale;
+                Time.fixedDeltaTime = previousFixedDeltaTime;
+
+                if (target != null)
+                {
+                    Object.Destroy(target);
+                }
+
+                foreach (var projectile in Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(projectile.gameObject);
+                }
+
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (cameraGo != null)
+                {
+                    Object.Destroy(cameraGo);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ShotCameraRuntime_HoldingSpeedUpInput_RaisesTimeScaleUntilReleased()
+        {
+            GameObject root = null;
+            GameObject cameraGo = null;
+            GameObject registryGo = null;
+            GameObject target = null;
+            WeaponDefinition definition = null;
+            var previousTimeScale = Time.timeScale;
+            var previousFixedDeltaTime = Time.fixedDeltaTime;
+
+            try
+            {
+                Time.timeScale = 1f;
+                root = new GameObject("PlayerRoot");
+                root.transform.position = new Vector3(0f, 1000f, 0f);
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                cameraGo = new GameObject("WorldCamera");
+                var worldCamera = cameraGo.AddComponent<Camera>();
+                worldCamera.transform.SetPositionAndRotation(root.transform.position, Quaternion.identity);
+                worldCamera.tag = "MainCamera";
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0f, 80f, 0f, 20f, 120f, 1, 0, true);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                target.transform.position = root.transform.position + (Vector3.forward * 180f);
+                target.transform.localScale = new Vector3(20f, 20f, 2f);
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                var shotCameraRuntime = root.AddComponent<ShotCameraRuntime>();
+                SetControllerField(controller, "_adsCamera", worldCamera);
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraRuntime);
+                SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+                yield return null;
+
+                var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
+                var magazineRounds = new[]
+                {
+                    chamberRound,
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj")
+                };
+                Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 4, 0, true), Is.True);
+                Assert.That(controller.ApplyRuntimeBallistics("weapon-kar98k", chamberRound, magazineRounds), Is.True);
+
+                input.AimHeldValue = true;
+                input.FirePressedThisFrame = true;
+                yield return null;
+
+                Assert.That(Object.FindFirstObjectByType<WeaponProjectile>(), Is.Not.Null);
+
+                input.ShotCameraSpeedUpHeldValue = true;
+                yield return null;
+                Assert.That(Time.timeScale, Is.EqualTo(0.25f).Within(0.001f));
+
+                input.ShotCameraSpeedUpHeldValue = false;
+                yield return null;
+                Assert.That(Time.timeScale, Is.EqualTo(0.1f).Within(0.001f));
+            }
+            finally
+            {
+                Time.timeScale = previousTimeScale;
+                Time.fixedDeltaTime = previousFixedDeltaTime;
+
+                if (target != null)
+                {
+                    Object.Destroy(target);
+                }
+
+                foreach (var projectile in Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(projectile.gameObject);
+                }
+
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (cameraGo != null)
+                {
+                    Object.Destroy(cameraGo);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ShotCameraRuntime_ActiveShot_BlocksFollowUpFireUntilShotEnds()
+        {
+            GameObject root = null;
+            GameObject cameraGo = null;
+            GameObject registryGo = null;
+            GameObject target = null;
+            WeaponDefinition definition = null;
+            var previousTimeScale = Time.timeScale;
+            var previousFixedDeltaTime = Time.fixedDeltaTime;
+
+            try
+            {
+                Time.timeScale = 1f;
+                root = new GameObject("PlayerRoot");
+                root.transform.position = new Vector3(0f, 1000f, 0f);
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                cameraGo = new GameObject("WorldCamera");
+                var worldCamera = cameraGo.AddComponent<Camera>();
+                worldCamera.transform.SetPositionAndRotation(root.transform.position, Quaternion.identity);
+                worldCamera.tag = "MainCamera";
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0f, 80f, 0f, 20f, 120f, 1, 0, true);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                target.transform.position = root.transform.position + (Vector3.forward * 220f);
+                target.transform.localScale = new Vector3(20f, 20f, 2f);
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                var shotCameraRuntime = root.AddComponent<ShotCameraRuntime>();
+                SetControllerField(controller, "_adsCamera", worldCamera);
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraRuntime);
+                SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+                yield return null;
+
+                var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
+                var magazineRounds = new[]
+                {
+                    chamberRound,
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj")
+                };
+                Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 4, 0, true), Is.True);
+                Assert.That(controller.ApplyRuntimeBallistics("weapon-kar98k", chamberRound, magazineRounds), Is.True);
+
+                input.AimHeldValue = true;
+                input.FirePressedThisFrame = true;
+                yield return null;
+
+                Assert.That(shotCameraRuntime.IsShotActive, Is.True);
+                Assert.That(Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None).Length, Is.EqualTo(1));
+
+                input.FirePressedThisFrame = true;
+                yield return null;
+                Assert.That(Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None).Length, Is.EqualTo(1),
+                    "Expected shot cam to block follow-up fire while the cinematic is active.");
+
+                input.ShotCameraCancelPressedThisFrame = true;
+                yield return null;
+
+                var cancelElapsed = 0f;
+                while (shotCameraRuntime.IsShotActive && cancelElapsed < 0.25f)
+                {
+                    cancelElapsed += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+
+                Assert.That(shotCameraRuntime.IsShotActive, Is.False);
+                Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var stateAfterCancel), Is.True);
+
+                var fireReadyElapsed = 0f;
+                while (!stateAfterCancel.CanFire(Time.time) && fireReadyElapsed < 0.25f)
+                {
+                    fireReadyElapsed += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+
+                Assert.That(stateAfterCancel.CanFire(Time.time), Is.True);
+                input.FirePressedThisFrame = true;
+                yield return null;
+                Assert.That(Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None).Length, Is.EqualTo(2),
+                    "Expected firing to resume once the cinematic has fully exited.");
+            }
+            finally
+            {
+                Time.timeScale = previousTimeScale;
+                Time.fixedDeltaTime = previousFixedDeltaTime;
+
+                if (target != null)
+                {
+                    Object.Destroy(target);
+                }
+
+                foreach (var projectile in Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(projectile.gameObject);
+                }
+
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (cameraGo != null)
+                {
+                    Object.Destroy(cameraGo);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator TrySwapEquippedWeaponAttachment_RejectsUnknownIncompatibleAndUnownedAttachment()
         {
             var root = new GameObject("PlayerRoot");
