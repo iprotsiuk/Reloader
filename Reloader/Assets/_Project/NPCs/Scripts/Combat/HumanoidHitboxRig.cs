@@ -237,10 +237,10 @@ namespace Reloader.NPCs.Combat
             _neck ??= FindByNameTokens(allTransforms, "neck");
             _torso ??= FindByNameTokens(allTransforms, "chest", "spine", "torso");
             _pelvis ??= FindByNameTokens(allTransforms, "hips", "pelvis");
-            _armL ??= FindByNameTokens(allTransforms, "leftarm", "l_upperarm", "upperarm_l", "arm_l");
-            _armR ??= FindByNameTokens(allTransforms, "rightarm", "r_upperarm", "upperarm_r", "arm_r");
-            _legL ??= FindByNameTokens(allTransforms, "leftleg", "l_thigh", "upleg_l", "leg_l");
-            _legR ??= FindByNameTokens(allTransforms, "rightleg", "r_thigh", "upleg_r", "leg_r");
+            _armL ??= FindByNameTokens(allTransforms, "leftarm", "leftupperarm", "l_upperarm", "upperarm_l", "arm_l");
+            _armR ??= FindByNameTokens(allTransforms, "rightarm", "rightupperarm", "r_upperarm", "upperarm_r", "arm_r");
+            _legL ??= FindByNameTokens(allTransforms, "leftleg", "leftupperleg", "l_thigh", "upleg_l", "leg_l");
+            _legR ??= FindByNameTokens(allTransforms, "rightleg", "rightupperleg", "r_thigh", "upleg_r", "leg_r");
 
             if (_neck == null && _head != null)
             {

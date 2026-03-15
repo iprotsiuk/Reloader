@@ -212,6 +212,64 @@ namespace Reloader.NPCs.Tests.PlayMode
         }
 
         [Test]
+        public void ResolveBones_WithoutAnimator_ResolvesStandardLeftRightUpperLimbNames()
+        {
+            var hitboxRigType = ResolveType("Reloader.NPCs.Combat.HumanoidHitboxRig", "Reloader.NPCs");
+            var bodyZoneType = ResolveType("Reloader.NPCs.Combat.HumanoidBodyZone", "Reloader.NPCs");
+            Assert.That(hitboxRigType, Is.Not.Null, "Expected HumanoidHitboxRig type.");
+            Assert.That(bodyZoneType, Is.Not.Null, "Expected HumanoidBodyZone enum type.");
+
+            GameObject root = null;
+            try
+            {
+                root = new GameObject("RigRoot");
+                var pelvis = new GameObject("Pelvis");
+                pelvis.transform.SetParent(root.transform, false);
+
+                var spine = new GameObject("Spine");
+                spine.transform.SetParent(pelvis.transform, false);
+
+                var neck = new GameObject("Neck");
+                neck.transform.SetParent(spine.transform, false);
+
+                var head = new GameObject("Head");
+                head.transform.SetParent(neck.transform, false);
+
+                var armL = new GameObject("LeftUpperArm");
+                armL.transform.SetParent(spine.transform, false);
+
+                var armR = new GameObject("RightUpperArm");
+                armR.transform.SetParent(spine.transform, false);
+
+                var legL = new GameObject("LeftUpperLeg");
+                legL.transform.SetParent(pelvis.transform, false);
+
+                var legR = new GameObject("RightUpperLeg");
+                legR.transform.SetParent(pelvis.transform, false);
+
+                var rig = root.AddComponent(hitboxRigType!);
+                var resolveBonesMethod = hitboxRigType!.GetMethod("ResolveBones", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(resolveBonesMethod, Is.Not.Null, "Expected ResolveBones() on HumanoidHitboxRig.");
+
+                var resolved = resolveBonesMethod!.Invoke(rig, Array.Empty<object>());
+                Assert.That(resolved, Is.EqualTo(true),
+                    "Expected fallback bone-name resolution to handle standard Left/RightUpperArm and Left/RightUpperLeg names when no humanoid Animator mapping is available.");
+
+                AssertResolvedBone(rig, bodyZoneType!, "ArmL", armL.transform);
+                AssertResolvedBone(rig, bodyZoneType!, "ArmR", armR.transform);
+                AssertResolvedBone(rig, bodyZoneType!, "LegL", legL.transform);
+                AssertResolvedBone(rig, bodyZoneType!, "LegR", legR.transform);
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void SharedReceiver_WhenExplicitLowEnergyIsProvided_DoesNotEscalateFromLegacyDamageFallback()
         {
             var sharedReceiverType = ResolveType("Reloader.NPCs.Combat.HumanoidDamageReceiver", "Reloader.NPCs");
