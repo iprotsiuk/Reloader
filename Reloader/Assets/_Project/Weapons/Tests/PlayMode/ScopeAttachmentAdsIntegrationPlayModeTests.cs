@@ -800,6 +800,205 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ScopeLensDisplay_ProxySurface_LeavesVisibleEyepieceMargin()
+        {
+            var scopeLensDisplayType = ResolveType("Reloader.Game.Weapons.ScopeLensDisplay");
+            Assert.That(scopeLensDisplayType, Is.Not.Null);
+
+            var root = CreateProxyOffsetFixture(scopeLensDisplayType, Vector3.zero, 1f, out var lensDisplay, out var scopeTexture);
+
+            try
+            {
+                lensDisplay.transform.localScale = Vector3.one * 0.2f;
+
+                yield return null;
+
+                Assert.That((bool)Invoke(lensDisplay, "TrySetTexture", new object[] { scopeTexture }), Is.True);
+
+                var proxySurface = root.transform.Find("ScopeDisplayProxy");
+                Assert.That(proxySurface, Is.Not.Null);
+
+                var proxyRenderer = proxySurface.GetComponent<Renderer>();
+                var rootRenderer = root.GetComponent<Renderer>();
+                Assert.That(proxyRenderer, Is.Not.Null);
+                Assert.That(rootRenderer, Is.Not.Null);
+
+                Assert.That(proxyRenderer.bounds.size.x, Is.LessThan(rootRenderer.bounds.size.x * 0.98f),
+                    $"Proxy PiP should leave a visible horizontal eyepiece frame margin. Proxy width={proxyRenderer.bounds.size.x:0.0000}, body width={rootRenderer.bounds.size.x:0.0000}.");
+                Assert.That(proxyRenderer.bounds.size.y, Is.LessThan(rootRenderer.bounds.size.y * 0.98f),
+                    $"Proxy PiP should leave a visible vertical eyepiece frame margin. Proxy height={proxyRenderer.bounds.size.y:0.0000}, body height={rootRenderer.bounds.size.y:0.0000}.");
+            }
+            finally
+            {
+                Cleanup(root, scopeTexture);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ScopedReticle_FfpScalesWithMagnification()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            var reticleControllerType = ResolveType("Reloader.Game.Weapons.ScopeReticleController");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+            Assert.That(reticleControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedAdsRoot");
+            ScriptableObject scopedOptic = null;
+            ScriptableObject reticleDefinition = null;
+            GameObject opticPrefab = null;
+            GameObject worldCamGo = null;
+            GameObject viewmodelCamGo = null;
+            GameObject scopeCameraGo = null;
+
+            try
+            {
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                worldCamGo = new GameObject("WorldCam");
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+                viewmodelCamGo = new GameObject("ViewmodelCam");
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+                scopeCameraGo = new GameObject("ScopeCam");
+                var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+                SetField(scopeController, "_scopeCamera", scopeCamera);
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_worldCamera", worldCamera);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_renderTextureScopeController", scopeController);
+                SetField(ads, "_useLegacyInput", false);
+                SetField(ads, "_magnificationLerpSpeed", 1000f);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-ffp", 4f, 12f, true, "RenderTexturePiP");
+                opticPrefab = new GameObject("Optic_scope-pip-ffp");
+                new GameObject("SightAnchor").transform.SetParent(opticPrefab.transform, false);
+                var reticleGo = new GameObject("Reticle");
+                reticleGo.transform.SetParent(opticPrefab.transform, false);
+                reticleGo.AddComponent(reticleControllerType);
+                reticleDefinition = CreateReticleDefinition("Ffp", 4f);
+                SetField(scopedOptic, "_scopeReticleDefinition", reticleDefinition);
+                SetField(scopedOptic, "_opticPrefab", opticPrefab);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+                Invoke(ads, "SetAdsHeld", true);
+                Invoke(ads, "SetMagnification", 4f);
+                yield return WaitUntil(
+                    () => Mathf.Abs((float)GetProperty(scopeController, "CurrentCompositeReticleScale") - 1f) <= 0.01f,
+                    20,
+                    "FFP reticle did not settle to 1x scale at reference magnification.");
+                var firstScale = (float)GetProperty(scopeController, "CurrentCompositeReticleScale");
+
+                Invoke(ads, "SetMagnification", 8f);
+                yield return WaitUntil(
+                    () => Mathf.Abs((float)GetProperty(scopeController, "CurrentCompositeReticleScale") - 2f) <= 0.05f,
+                    20,
+                    "FFP reticle did not scale with magnification.");
+                var secondScale = (float)GetProperty(scopeController, "CurrentCompositeReticleScale");
+
+                Assert.That(firstScale, Is.EqualTo(1f).Within(0.01f));
+                Assert.That(secondScale, Is.EqualTo(2f).Within(0.05f));
+            }
+            finally
+            {
+                Cleanup(root, scopedOptic, reticleDefinition, opticPrefab, worldCamGo, viewmodelCamGo, scopeCameraGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ScopedReticle_SfpRemainsStableAcrossMagnification()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            var reticleControllerType = ResolveType("Reloader.Game.Weapons.ScopeReticleController");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+            Assert.That(reticleControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedAdsRoot");
+            ScriptableObject scopedOptic = null;
+            ScriptableObject reticleDefinition = null;
+            GameObject opticPrefab = null;
+            GameObject worldCamGo = null;
+            GameObject viewmodelCamGo = null;
+            GameObject scopeCameraGo = null;
+
+            try
+            {
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                worldCamGo = new GameObject("WorldCam");
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+                viewmodelCamGo = new GameObject("ViewmodelCam");
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+                scopeCameraGo = new GameObject("ScopeCam");
+                var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+                SetField(scopeController, "_scopeCamera", scopeCamera);
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_worldCamera", worldCamera);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_renderTextureScopeController", scopeController);
+                SetField(ads, "_useLegacyInput", false);
+                SetField(ads, "_magnificationLerpSpeed", 1000f);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-sfp", 4f, 12f, true, "RenderTexturePiP");
+                opticPrefab = new GameObject("Optic_scope-pip-sfp");
+                new GameObject("SightAnchor").transform.SetParent(opticPrefab.transform, false);
+                var reticleGo = new GameObject("Reticle");
+                reticleGo.transform.SetParent(opticPrefab.transform, false);
+                reticleGo.AddComponent(reticleControllerType);
+                reticleDefinition = CreateReticleDefinition("Sfp", 4f);
+                SetField(scopedOptic, "_scopeReticleDefinition", reticleDefinition);
+                SetField(scopedOptic, "_opticPrefab", opticPrefab);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+                Invoke(ads, "SetAdsHeld", true);
+                Invoke(ads, "SetMagnification", 4f);
+                yield return WaitUntil(
+                    () => Mathf.Abs((float)GetProperty(scopeController, "CurrentCompositeReticleScale") - 1f) <= 0.01f,
+                    20,
+                    "SFP reticle did not settle to its authored scale.");
+                var firstScale = (float)GetProperty(scopeController, "CurrentCompositeReticleScale");
+
+                Invoke(ads, "SetMagnification", 8f);
+                yield return null;
+                yield return null;
+                var secondScale = (float)GetProperty(scopeController, "CurrentCompositeReticleScale");
+
+                Assert.That(firstScale, Is.EqualTo(1f).Within(0.01f));
+                Assert.That(secondScale, Is.EqualTo(1f).Within(0.01f), "SFP reticle scale should remain stable across magnification changes.");
+            }
+            finally
+            {
+                Cleanup(root, scopedOptic, reticleDefinition, opticPrefab, worldCamGo, viewmodelCamGo, scopeCameraGo);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ScopedPipOptic_PreservesMainCameraFovDuringAds()
         {
             var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");

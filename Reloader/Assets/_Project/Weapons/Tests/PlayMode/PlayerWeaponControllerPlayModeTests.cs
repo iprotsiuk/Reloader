@@ -7,6 +7,7 @@ using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.Weapons.Ballistics;
+using Reloader.Weapons.Cinematics;
 using Reloader.Weapons.Controllers;
 using Reloader.Weapons.Data;
 using Reloader.Weapons.Runtime;
@@ -15,6 +16,9 @@ using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Reloader.Weapons.Tests.PlayMode
 {
@@ -226,6 +230,215 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(firedRaised, Is.EqualTo(1), "Fire should resume once the menu has closed.");
 
             RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
+        public IEnumerator Fire_RealStarterRifleContent_ReachesLongRangeTarget()
+        {
+#if UNITY_EDITOR
+            GameObject root = null;
+            GameObject registryGo = null;
+            GameObject target = null;
+
+            try
+            {
+                var definition = AssetDatabase.LoadAssetAtPath<WeaponDefinition>(
+                    "Assets/_Project/Weapons/Data/Weapons/StarterRifle.asset");
+                Assert.That(definition, Is.Not.Null, "Expected the real StarterRifle weapon definition asset.");
+
+                root = new GameObject("PlayerRoot");
+                root.transform.position = new Vector3(0f, 1000f, 0f);
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                target.transform.position = new Vector3(0f, 1000f, 300f);
+                target.transform.localScale = new Vector3(60f, 120f, 1f);
+                var receiver = target.AddComponent<TestDamageable>();
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                yield return null;
+
+                var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
+                var magazineRounds = new[]
+                {
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj")
+                };
+                Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 4, 0, true), Is.True);
+                Assert.That(controller.ApplyRuntimeBallistics("weapon-kar98k", chamberRound, magazineRounds), Is.True);
+
+                Random.InitState(1337);
+                input.FirePressedThisFrame = true;
+                yield return null;
+
+                var elapsed = 0f;
+                while (receiver.HitCount == 0 && elapsed < 2f)
+                {
+                    elapsed += Time.deltaTime;
+                    yield return null;
+                }
+
+                Assert.That(
+                    receiver.HitCount,
+                    Is.EqualTo(1),
+                    "The real Kar98k content should keep the projectile alive past the old 220m cutoff instead of despawning mid-flight.");
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (target != null)
+                {
+                    Object.Destroy(target);
+                }
+            }
+#else
+            Assert.Ignore("Requires UnityEditor AssetDatabase.");
+            yield break;
+#endif
+        }
+
+        [UnityTest]
+        public IEnumerator Fire_AimingAtPredictedHitBeyond100Meters_RequestsShotCameraImmediately()
+        {
+            var root = new GameObject("PlayerRoot");
+            root.transform.position = new Vector3(0f, 1000f, 0f);
+            var input = root.AddComponent<TestInputSource>();
+            input.AimHeldValue = true;
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+            runtime.SelectBeltSlot(0);
+
+            var worldCameraGo = new GameObject("WorldCamera");
+            worldCameraGo.transform.SetPositionAndRotation(root.transform.position, Quaternion.identity);
+            var worldCamera = worldCameraGo.AddComponent<Camera>();
+            worldCamera.tag = "MainCamera";
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var farTarget = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            farTarget.transform.position = root.transform.position + (Vector3.forward * 150f);
+            farTarget.transform.localScale = new Vector3(20f, 20f, 2f);
+
+            var shotCameraSpy = root.AddComponent<ShotCameraRegistrationSpy>();
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_adsCamera", worldCamera);
+            SetControllerField(controller, "_weaponRegistry", registry);
+            SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraSpy);
+            SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+            yield return null;
+
+            var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
+            var magazineRounds = new[]
+            {
+                WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj")
+            };
+            Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 4, 0, true), Is.True);
+            Assert.That(controller.ApplyRuntimeBallistics("weapon-kar98k", chamberRound, magazineRounds), Is.True);
+
+            input.FirePressedThisFrame = true;
+            yield return null;
+
+            Assert.That(shotCameraSpy.RequestCount, Is.EqualTo(1), "Expected long ADS shots to request shot cam on the same fired frame.");
+            Assert.That(shotCameraSpy.LastProjectile, Is.Not.Null, "Expected the shot-cam request to carry the live projectile instance.");
+
+            Object.Destroy(farTarget);
+            Object.Destroy(worldCameraGo);
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
+        public IEnumerator Fire_AimingAtPredictedHitAtOrBelow100Meters_DoesNotRequestShotCamera()
+        {
+            var root = new GameObject("PlayerRoot");
+            root.transform.position = new Vector3(0f, 1000f, 0f);
+            var input = root.AddComponent<TestInputSource>();
+            input.AimHeldValue = true;
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+            runtime.SelectBeltSlot(0);
+
+            var worldCameraGo = new GameObject("WorldCamera");
+            worldCameraGo.transform.SetPositionAndRotation(root.transform.position, Quaternion.identity);
+            var worldCamera = worldCameraGo.AddComponent<Camera>();
+            worldCamera.tag = "MainCamera";
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var nearTarget = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            nearTarget.transform.position = root.transform.position + (Vector3.forward * 100f);
+            nearTarget.transform.localScale = new Vector3(20f, 20f, 2f);
+
+            var shotCameraSpy = root.AddComponent<ShotCameraRegistrationSpy>();
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_adsCamera", worldCamera);
+            SetControllerField(controller, "_weaponRegistry", registry);
+            SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraSpy);
+            SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+            yield return null;
+
+            var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
+            var magazineRounds = new[]
+            {
+                WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj")
+            };
+            Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 4, 0, true), Is.True);
+            Assert.That(controller.ApplyRuntimeBallistics("weapon-kar98k", chamberRound, magazineRounds), Is.True);
+
+            input.FirePressedThisFrame = true;
+            yield return null;
+
+            Assert.That(shotCameraSpy.RequestCount, Is.EqualTo(0), "Expected the shot-cam threshold to stay exclusive to impacts beyond 100 meters.");
+
+            Object.Destroy(nearTarget);
+            Object.Destroy(worldCameraGo);
             Object.Destroy(root);
             Object.Destroy(registryGo);
             Object.Destroy(definition);
@@ -903,6 +1116,28 @@ namespace Reloader.Weapons.Tests.PlayMode
             {
                 target = null;
                 return false;
+            }
+        }
+
+        private sealed class TestDamageable : MonoBehaviour, IDamageable
+        {
+            public int HitCount { get; private set; }
+
+            public void ApplyDamage(ProjectileImpactPayload payload)
+            {
+                HitCount++;
+            }
+        }
+
+        private sealed class ShotCameraRegistrationSpy : MonoBehaviour
+        {
+            public int RequestCount { get; private set; }
+            public WeaponProjectile LastProjectile { get; private set; }
+
+            public void RegisterShotCameraRequest(WeaponProjectile projectile)
+            {
+                RequestCount++;
+                LastProjectile = projectile;
             }
         }
 
