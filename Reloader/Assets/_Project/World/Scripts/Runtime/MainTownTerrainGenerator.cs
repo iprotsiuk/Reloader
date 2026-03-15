@@ -631,7 +631,7 @@ namespace Reloader.World
             var centerZ = (((startRow + endRow + 1) * 0.5f) * cellDepth) - (terrainDepthMeters * 0.5f);
             var length = Mathf.Max(cellDepth, (endRow - startRow + 1) * cellDepth);
             var groundHeight = SampleTerrainHeightMeters(terrainData, x, centerZ);
-            var boundaryHeight = 5f;
+            var boundaryHeight = 15f;
             var centerY = groundHeight + (boundaryHeight * 0.5f);
             return new BoundarySegment(
                 new Vector3(x, centerY, centerZ),
@@ -644,7 +644,7 @@ namespace Reloader.World
             var centerX = (((startColumn + endColumn + 1) * 0.5f) * cellWidth) - (terrainWidthMeters * 0.5f);
             var length = Mathf.Max(cellWidth, (endColumn - startColumn + 1) * cellWidth);
             var groundHeight = SampleTerrainHeightMeters(terrainData, centerX, z);
-            var boundaryHeight = 5f;
+            var boundaryHeight = 15f;
             var centerY = groundHeight + (boundaryHeight * 0.5f);
             return new BoundarySegment(
                 new Vector3(centerX, centerY, z),

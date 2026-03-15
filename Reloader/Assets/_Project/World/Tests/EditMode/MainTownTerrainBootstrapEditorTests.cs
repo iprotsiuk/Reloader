@@ -224,7 +224,7 @@ namespace Reloader.World.Tests.EditMode
                     lowestShoreGround = Mathf.Min(lowestShoreGround, shoreGround);
                     highestShoreGround = Mathf.Max(highestShoreGround, shoreGround);
                     Assert.That(collider.bounds.min.y, Is.EqualTo(shoreGround).Within(1.25f), "Expected shoreline blocker bottoms to start on the local shoreline ground.");
-                    Assert.That(collider.bounds.max.y, Is.EqualTo(shoreGround + 5f).Within(0.75f), "Expected shoreline blockers to rise only about five meters above the shoreline ground.");
+                    Assert.That(collider.bounds.max.y, Is.EqualTo(shoreGround + 15f).Within(0.75f), "Expected shoreline blockers to rise about fifteen meters above the shoreline ground.");
                 }
 
                 var waterLevel = GetPrivateField<float>(generator!, "waterLevelMeters");
