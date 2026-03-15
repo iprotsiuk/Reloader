@@ -2,9 +2,20 @@
 
 > **For agents:** Use this index to find the right docs for your task. Load ONLY what you need.
 
-## Always Read First
+## Default Routing
 
-**[core-architecture.md](core-architecture.md)** (~300 lines) — shared patterns, project structure, SO system, event bus, design principles. Every agent reads this regardless of task.
+For local refactor, bugfix, and test-cleanup tasks:
+
+- Start from touched code/tests and the matching local skill.
+- Load design docs only if the task crosses domains, changes save/events/persistence contracts, or local intent is unclear.
+- Do not auto-load [core-architecture.md](core-architecture.md) for local refactor/test-only work.
+
+Load [core-architecture.md](core-architecture.md) first when:
+
+- implementing a new feature
+- changing cross-domain wiring or shared runtime contracts
+- changing save, events, or persistence behavior
+- local code intent is unclear
 
 ## Implementation Status Contract
 
@@ -26,6 +37,7 @@ Live status source-of-truth:
 
 | Working on... | Read these docs | Related skills |
 |---------------|----------------|----------------|
+| **Local refactor, bugfix, or test cleanup inside one runtime cluster** | Start with touched code/tests and the relevant local skill; load [core-architecture.md](core-architecture.md) only if the work crosses domains, changes save/events/persistence contracts, or local intent is unclear | `refactoring-and-test-hygiene` or matching domain skill |
 | **Reloading bench, press interactions, ammo assembly** | [reloading-system.md](reloading-system.md) | `reloading-domain-knowledge` (accuracy calc, real-world reference), `adding-game-content` (creating SO assets) |
 | **Weapons, ballistics, shooting, accuracy model** | [weapons-and-ballistics.md](weapons-and-ballistics.md) | `reloading-domain-knowledge` (accuracy calc, ballistics reference), `adding-game-content` (creating weapon/part assets) |
 | **FPS ADS, optics, scope mask/PiP, viewmodel alignment** | [ads-optics-framework.md](ads-optics-framework.md), [weapons-and-ballistics.md](weapons-and-ballistics.md) | `adding-game-content`, `unity-project-conventions` |
@@ -54,6 +66,7 @@ If your change touches runtime state (item ownership/location, transforms, inven
 
 | Skill | When to use | Location |
 |-------|------------|----------|
+| `refactoring-and-test-hygiene` | Runtime-local cleanup, test splitting, LOC reduction, and context-hygiene refactors | `.agent/skills/refactoring-and-test-hygiene/SKILL.md` |
 | `adding-game-content` | Creating new SO data assets (weapons, ammo, equipment, etc.) | `.agent/skills/adding-game-content/SKILL.md` |
 | `reloading-domain-knowledge` | Implementing reloading mechanics, ballistics, accuracy model | `.agent/skills/reloading-domain-knowledge/SKILL.md` |
 | `unity-project-conventions` | Writing any C# code, creating scripts/prefabs/scenes | `.agent/skills/unity-project-conventions/SKILL.md` |
