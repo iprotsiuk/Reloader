@@ -28,7 +28,6 @@ namespace Reloader.NPCs.Runtime
 
         private readonly CivilianPopulationRuntimeState _runtime = new CivilianPopulationRuntimeState();
         private readonly CivilianAppearanceGenerator _generator = new CivilianAppearanceGenerator();
-        private StaticContractRuntimeProvider _contractRuntimeProvider;
         private CoreWorldController _coreWorldController;
         private CoreWorldController _subscribedCoreWorldController;
         private AssassinationContractDefinition _proceduralAvailableContract;
@@ -41,32 +40,6 @@ namespace Reloader.NPCs.Runtime
         {
             _coreWorldController = controller;
             SubscribeToCoreWorldController(_coreWorldController);
-        }
-
-        internal void ConfigureForTests(
-            CivilianAppearanceLibrary appearanceLibrary,
-            int initialPopulationCount,
-            string civilianIdPrefix,
-            string[] spawnAnchorIds,
-            GameObject npcActorPrefab = null,
-            StaticContractRuntimeProvider contractRuntimeProvider = null)
-        {
-            _appearanceLibrary = appearanceLibrary;
-            _initialPopulationCount = initialPopulationCount;
-            _civilianIdPrefix = !string.IsNullOrWhiteSpace(civilianIdPrefix) ? civilianIdPrefix : "citizen.mainTown";
-            _spawnAnchorIds = spawnAnchorIds ?? Array.Empty<string>();
-            _npcActorPrefab = npcActorPrefab != null ? npcActorPrefab : _npcActorPrefab;
-            _contractRuntimeProvider = contractRuntimeProvider ?? _contractRuntimeProvider;
-        }
-
-        internal void DestroyProceduralContractForTests()
-        {
-            var definition = _proceduralAvailableContract;
-            _proceduralAvailableContract = null;
-            if (definition != null)
-            {
-                DestroyImmediate(definition);
-            }
         }
 
         private void Start()
@@ -235,7 +208,7 @@ namespace Reloader.NPCs.Runtime
             var retiredAtDay = snapshot?.DayCount ?? 0;
             TryRetireCivilian(targetId, retiredAtDay);
 
-            var provider = ResolveContractRuntimeProvider();
+            var provider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
             if (provider != null)
             {
                 provider.ReportContractTargetEliminated(targetId, wasExposed);
@@ -714,7 +687,7 @@ namespace Reloader.NPCs.Runtime
 
         private void RefreshProceduralContractOffer()
         {
-            var provider = ResolveContractRuntimeProvider();
+            var provider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
             if (provider == null)
             {
                 return;
@@ -762,9 +735,9 @@ namespace Reloader.NPCs.Runtime
             provider.SetAvailableContract(_proceduralAvailableContract);
         }
 
-        private string ResolveTrackedContractTargetId()
+        private static string ResolveTrackedContractTargetId()
         {
-            var provider = ResolveContractRuntimeProvider();
+            var provider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
             if (provider == null || !provider.TryGetContractSnapshot(out var snapshot))
             {
                 return string.Empty;
@@ -1335,16 +1308,6 @@ namespace Reloader.NPCs.Runtime
             }
 
             return null;
-        }
-
-        private StaticContractRuntimeProvider ResolveContractRuntimeProvider()
-        {
-            if (_contractRuntimeProvider == null)
-            {
-                _contractRuntimeProvider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
-            }
-
-            return _contractRuntimeProvider;
         }
 
         private CoreWorldController ResolveCoreWorldController()
