@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.Audio;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Inventory;
