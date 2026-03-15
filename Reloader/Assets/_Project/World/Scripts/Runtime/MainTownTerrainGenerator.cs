@@ -620,7 +620,7 @@ namespace Reloader.World
                     var edge = leftLand != rightLand;
                     if (edge)
                     {
-                        segments.Add(CreateVerticalBoundarySegment(x, z, z, cellWidth, cellDepth, leftLand && !rightLand ? 1f : -1f));
+                        segments.Add(CreateVerticalBoundarySegment(terrainData, x, z, z, cellWidth, cellDepth, leftLand && !rightLand ? 1f : -1f));
                     }
                 }
             }
@@ -634,7 +634,7 @@ namespace Reloader.World
                     var edge = bottomLand != topLand;
                     if (edge)
                     {
-                        segments.Add(CreateHorizontalBoundarySegment(z, x, x, cellWidth, cellDepth, bottomLand && !topLand ? 1f : -1f));
+                        segments.Add(CreateHorizontalBoundarySegment(terrainData, z, x, x, cellWidth, cellDepth, bottomLand && !topLand ? 1f : -1f));
                     }
                 }
             }
@@ -642,7 +642,7 @@ namespace Reloader.World
             return segments;
         }
 
-        private BoundarySegment CreateVerticalBoundarySegment(int column, int startRow, int endRow, float cellWidth, float cellDepth, float outwardDirection)
+        private BoundarySegment CreateVerticalBoundarySegment(TerrainData terrainData, int column, int startRow, int endRow, float cellWidth, float cellDepth, float outwardDirection)
         {
             var x = ((column * cellWidth) - (terrainWidthMeters * 0.5f)) + (outwardDirection * BoundaryOffshoreOffsetMeters);
             var centerZ = (((startRow + endRow + 1) * 0.5f) * cellDepth) - (terrainDepthMeters * 0.5f);
@@ -657,7 +657,7 @@ namespace Reloader.World
                 new Vector3(BoundaryThicknessMeters, boundaryHeight, length + BoundaryThicknessMeters));
         }
 
-        private BoundarySegment CreateHorizontalBoundarySegment(int row, int startColumn, int endColumn, float cellWidth, float cellDepth, float outwardDirection)
+        private BoundarySegment CreateHorizontalBoundarySegment(TerrainData terrainData, int row, int startColumn, int endColumn, float cellWidth, float cellDepth, float outwardDirection)
         {
             var z = ((row * cellDepth) - (terrainDepthMeters * 0.5f)) + (outwardDirection * BoundaryOffshoreOffsetMeters);
             var centerX = (((startColumn + endColumn + 1) * 0.5f) * cellWidth) - (terrainWidthMeters * 0.5f);
