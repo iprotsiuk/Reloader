@@ -1,6 +1,8 @@
 using NUnit.Framework;
 using Reloader.World.Editor;
 using System.Reflection;
+using System;
+using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -113,6 +115,263 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
+        [Test]
+        public void MainTownScene_ContainsTerrainGeneratorComponent_OnWorldShell()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                Assert.That(worldShell, Is.Not.Null, "Expected MainTownWorldShell in MainTown.");
+
+                var generatorType = Type.GetType("Reloader.World.MainTownTerrainGenerator, Reloader.World");
+                Assert.That(generatorType, Is.Not.Null, "Expected a MainTownTerrainGenerator type in the world runtime assembly.");
+
+                var generator = worldShell!.GetComponent(generatorType!);
+                Assert.That(generator, Is.Not.Null, "Expected MainTownWorldShell to host the scene terrain generator component.");
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void MainTownTerrainGenerator_RegenerateInEditor_RecreatesMainTownTerrainAndCollider()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                Assert.That(worldShell, Is.Not.Null, "Expected MainTownWorldShell in MainTown.");
+
+                var generator = worldShell!.GetComponent<MainTownTerrainGenerator>();
+                Assert.That(generator, Is.Not.Null, "Expected MainTownWorldShell to host MainTownTerrainGenerator.");
+
+                var existingTerrainRoot = FindChild(worldShell.transform, "MainTownTerrain");
+                if (existingTerrainRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(existingTerrainRoot.gameObject);
+                }
+
+                var regenerateMethod = typeof(MainTownTerrainGenerator).GetMethod(
+                    "RegenerateInEditor",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                Assert.That(regenerateMethod, Is.Not.Null, "Expected the generator to expose RegenerateInEditor for in-scene authoring.");
+
+                regenerateMethod!.Invoke(generator, null);
+
+                var terrainRoot = FindChild(worldShell.transform, "MainTownTerrain");
+                Assert.That(terrainRoot, Is.Not.Null, "Expected generator to recreate MainTownTerrain.");
+
+                var terrain = terrainRoot!.GetComponent<Terrain>();
+                var terrainCollider = terrainRoot.GetComponent<TerrainCollider>();
+                Assert.That(terrain, Is.Not.Null, "Expected Terrain component after regeneration.");
+                Assert.That(terrainCollider, Is.Not.Null, "Expected TerrainCollider after regeneration.");
+                Assert.That(terrainCollider!.terrainData, Is.SameAs(terrain!.terrainData), "Expected collider to share the generated terrain data.");
+
+                var terrainData = AssetDatabase.LoadAssetAtPath<TerrainData>("Assets/_Project/World/Terrain/MainTown/MainTownTerrainData.asset");
+                Assert.That(terrainData, Is.Not.Null, "Expected regenerated MainTownTerrainData asset at the MainTown terrain path.");
+
+                MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void MainTownTerrainGenerator_RegenerateInEditor_BuildsFiveKilometerSplitIslandTerrain()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                Assert.That(worldShell, Is.Not.Null, "Expected MainTownWorldShell in MainTown.");
+
+                var generator = worldShell!.GetComponent<MainTownTerrainGenerator>();
+                Assert.That(generator, Is.Not.Null, "Expected MainTownWorldShell to host MainTownTerrainGenerator.");
+
+                generator!.RegenerateInEditor();
+
+                var terrainRoot = FindChild(worldShell.transform, "MainTownTerrain");
+                Assert.That(terrainRoot, Is.Not.Null, "Expected generator to leave MainTownTerrain in the scene.");
+
+                var terrain = terrainRoot!.GetComponent<Terrain>();
+                Assert.That(terrain, Is.Not.Null, "Expected Terrain on MainTownTerrain.");
+
+                var terrainData = terrain!.terrainData;
+                Assert.That(terrainData.size.x, Is.EqualTo(5000f).Within(0.01f), "Expected 5km terrain width.");
+                Assert.That(terrainData.size.z, Is.EqualTo(5000f).Within(0.01f), "Expected 5km terrain depth.");
+                Assert.That(terrainData.size.y, Is.GreaterThanOrEqualTo(900f), "Expected a taller vertical range so generated mountains are not capped too low.");
+
+                var layerNames = Array.ConvertAll(terrainData.terrainLayers, layer => layer != null ? layer.name : string.Empty);
+                CollectionAssert.Contains(layerNames, "MainTown_Sand", "Expected a dedicated beach sand terrain layer.");
+                CollectionAssert.Contains(layerNames, "MainTown_Grass", "Expected a grass terrain layer.");
+                CollectionAssert.Contains(layerNames, "MainTown_Stone", "Expected a rock terrain layer.");
+
+                Assert.That(SampleTerrainHeight(terrain, new Vector3(-1350f, 0f, -950f)), Is.GreaterThan(45f), "Expected northwest island above water.");
+                Assert.That(SampleTerrainHeight(terrain, new Vector3(1450f, 0f, -950f)), Is.GreaterThan(35f), "Expected northeast island above water.");
+                Assert.That(SampleTerrainHeight(terrain, new Vector3(0f, 0f, 1250f)), Is.GreaterThan(45f), "Expected the southern island above water.");
+                Assert.That(SampleTerrainHeight(terrain, new Vector3(0f, 0f, 0f)), Is.LessThan(24f), "Expected the main cross-island river channel to sit near water level.");
+                Assert.That(SampleTerrainHeight(terrain, new Vector3(900f, 0f, 1100f)), Is.LessThan(24f), "Expected the south branch of the T channel to sit near water level.");
+                Assert.That(SampleTerrainHeight(terrain, new Vector3(900f, 0f, -1100f)), Is.GreaterThan(35f), "Expected the branch channel not to continue north and create a fourth island.");
+                Assert.That(GetTerrainHeightRange(terrain), Is.GreaterThan(240f), "Expected significant relief for mountains and cliffs.");
+
+                MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void MainTownTerrainGenerator_HasCustomEditorInspector()
+        {
+            var editorType = Type.GetType("Reloader.World.Editor.MainTownTerrainGeneratorEditor, Reloader.World.Editor");
+            Assert.That(editorType, Is.Not.Null, "Expected a custom editor for the terrain generator so regeneration is clickable in the Inspector.");
+            Assert.That(typeof(UnityEditor.Editor).IsAssignableFrom(editorType), Is.True, "Expected the terrain generator editor to derive from UnityEditor.Editor.");
+        }
+
+        [Test]
+        public void MainTownTerrainGenerator_RegenerateInEditor_RerollsSeedAndChangesTerrain()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                Assert.That(worldShell, Is.Not.Null, "Expected MainTownWorldShell in MainTown.");
+
+                var generator = worldShell!.GetComponent<MainTownTerrainGenerator>();
+                Assert.That(generator, Is.Not.Null, "Expected MainTownWorldShell to host MainTownTerrainGenerator.");
+
+                var initialSeed = GetPrivateField<int>(generator!, "seed");
+                generator.RegenerateInEditor();
+
+                var terrain = FindChild(worldShell.transform, "MainTownTerrain")!.GetComponent<Terrain>();
+                Assert.That(terrain, Is.Not.Null, "Expected terrain after first regeneration.");
+                var firstHeight = SampleTerrainHeight(terrain!, new Vector3(620f, 0f, -1220f));
+
+                generator.RegenerateInEditor();
+
+                var rerolledSeed = GetPrivateField<int>(generator!, "seed");
+                var secondHeight = SampleTerrainHeight(terrain!, new Vector3(620f, 0f, -1220f));
+
+                Assert.That(rerolledSeed, Is.Not.EqualTo(initialSeed), "Expected regenerate to reroll the seed by default.");
+                Assert.That(Mathf.Abs(secondHeight - firstHeight), Is.GreaterThan(5f), "Expected a reroll to materially change the terrain shape.");
+
+                MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain!);
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void MainTownTerrainGenerator_RegenerateInEditor_BuildsDistinctAndBroadMountainProfiles()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                Assert.That(worldShell, Is.Not.Null, "Expected MainTownWorldShell in MainTown.");
+
+                var generator = worldShell!.GetComponent<MainTownTerrainGenerator>();
+                Assert.That(generator, Is.Not.Null, "Expected MainTownWorldShell to host MainTownTerrainGenerator.");
+
+                generator!.RegenerateInEditor();
+
+                var terrain = FindChild(worldShell.transform, "MainTownTerrain")!.GetComponent<Terrain>();
+                Assert.That(terrain, Is.Not.Null, "Expected terrain after regeneration.");
+
+                var northWestProfile = SampleHeightProfile(terrain!, new Vector3(-1750f, 0f, -900f), new Vector3(-850f, 0f, -900f), 24);
+                var northEastProfile = SampleHeightProfile(terrain!, new Vector3(850f, 0f, -900f), new Vector3(1750f, 0f, -900f), 24);
+
+                var northWestRoughness = CalculateAverageSecondDifference(northWestProfile);
+                var northEastRoughness = CalculateAverageSecondDifference(northEastProfile);
+                var profileDifference = CalculateAverageNormalizedProfileDifference(northWestProfile, northEastProfile);
+
+                Assert.That(northWestRoughness, Is.LessThan(18f), $"Expected northwest mountain profile to be broad rather than serrated, but roughness was {northWestRoughness:F2}.");
+                Assert.That(northEastRoughness, Is.LessThan(18f), $"Expected northeast mountain profile to be broad rather than serrated, but roughness was {northEastRoughness:F2}.");
+                Assert.That(profileDifference, Is.GreaterThan(0.12f), $"Expected the north island mountain profiles to differ materially, but normalized difference was only {profileDifference:F2}.");
+
+                MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain!);
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void MainTownTerrainGenerator_RegenerateInEditor_PreservesInspectorTuningValues()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                Assert.That(worldShell, Is.Not.Null, "Expected MainTownWorldShell in MainTown.");
+
+                var generator = worldShell!.GetComponent<MainTownTerrainGenerator>();
+                Assert.That(generator, Is.Not.Null, "Expected MainTownWorldShell to host MainTownTerrainGenerator.");
+
+                SetPrivateField(generator!, "terrainWidthMeters", 4321f);
+                SetPrivateField(generator!, "terrainHeightMeters", 777f);
+                SetPrivateField(generator!, "mountainAmplitudeMeters", 222f);
+                SetPrivateField(generator!, "mainRiverHalfWidthMeters", 123f);
+
+                generator.RegenerateInEditor();
+
+                Assert.That(GetPrivateField<float>(generator!, "terrainWidthMeters"), Is.EqualTo(4321f).Within(0.01f), "Expected regenerate to preserve tuned terrain width.");
+                Assert.That(GetPrivateField<float>(generator!, "terrainHeightMeters"), Is.EqualTo(777f).Within(0.01f), "Expected regenerate to preserve tuned terrain height.");
+                Assert.That(GetPrivateField<float>(generator!, "mountainAmplitudeMeters"), Is.EqualTo(222f).Within(0.01f), "Expected regenerate to preserve tuned mountain amplitude.");
+                Assert.That(GetPrivateField<float>(generator!, "mainRiverHalfWidthMeters"), Is.EqualTo(123f).Within(0.01f), "Expected regenerate to preserve tuned river width.");
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
         private static GameObject FindRoot(Scene scene, string rootName)
         {
             foreach (var root in scene.GetRootGameObjects())
@@ -206,6 +465,77 @@ namespace Reloader.World.Tests.EditMode
             {
                 Assert.That(material.GetColor("_Color").a, Is.GreaterThanOrEqualTo(0.99f), "Expected ocean color alpha to stay opaque.");
             }
+        }
+
+        private static T GetPrivateField<T>(object target, string fieldName)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {target.GetType().Name}.");
+            return (T)field!.GetValue(target);
+        }
+
+        private static void SetPrivateField(object target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {target.GetType().Name}.");
+            field!.SetValue(target, value);
+        }
+
+        private static float[] SampleHeightProfile(Terrain terrain, Vector3 worldStart, Vector3 worldEnd, int sampleCount)
+        {
+            var profile = new float[sampleCount];
+            for (var index = 0; index < sampleCount; index++)
+            {
+                var t = sampleCount == 1 ? 0f : index / (float)(sampleCount - 1);
+                var worldPoint = Vector3.Lerp(worldStart, worldEnd, t);
+                profile[index] = SampleTerrainHeight(terrain, worldPoint);
+            }
+
+            return profile;
+        }
+
+        private static float CalculateAverageSecondDifference(float[] values)
+        {
+            var total = 0f;
+            for (var index = 1; index < values.Length - 1; index++)
+            {
+                total += Mathf.Abs(values[index + 1] - (2f * values[index]) + values[index - 1]);
+            }
+
+            return total / Mathf.Max(1, values.Length - 2);
+        }
+
+        private static float CalculateAverageNormalizedProfileDifference(float[] a, float[] b)
+        {
+            var normalizedA = NormalizeProfile(a);
+            var normalizedB = NormalizeProfile(b);
+            var total = 0f;
+            for (var index = 0; index < normalizedA.Length; index++)
+            {
+                total += Mathf.Abs(normalizedA[index] - normalizedB[index]);
+            }
+
+            return total / normalizedA.Length;
+        }
+
+        private static float[] NormalizeProfile(float[] values)
+        {
+            var min = float.MaxValue;
+            var max = float.MinValue;
+            foreach (var value in values)
+            {
+                min = Mathf.Min(min, value);
+                max = Mathf.Max(max, value);
+            }
+
+            var range = Mathf.Max(1f, max - min);
+            var normalized = new float[values.Length];
+            for (var index = 0; index < values.Length; index++)
+            {
+                normalized[index] = (values[index] - min) / range;
+            }
+
+            return normalized;
         }
 
         private static float GetTerrainHeightRange(Terrain terrain)

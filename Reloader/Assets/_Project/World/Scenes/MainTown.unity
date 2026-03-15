@@ -486,7 +486,7 @@ Transform:
   m_GameObject: {fileID: 165333226}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1500, y: 0, z: -1500}
+  m_LocalPosition: {x: -2500, y: 0, z: -2500}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -529,7 +529,7 @@ Terrain:
   m_DetailObjectDistance: 80
   m_DetailObjectDensity: 1
   m_HeightmapPixelError: 5
-  m_SplatMapDistance: 1000
+  m_SplatMapDistance: 2000
   m_HeightmapMinimumLODSimplification: 0
   m_HeightmapMaximumLOD: 0
   m_ShadowCastingMode: 2
@@ -1625,7 +1625,7 @@ Transform:
   m_GameObject: {fileID: 573788834}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
-  m_LocalPosition: {x: -8, y: 47.75641, z: 1.2}
+  m_LocalPosition: {x: 1540, y: 99.2, z: 542.9}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3230,6 +3230,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1465636540}
+  - component: {fileID: 1465636541}
   m_Layer: 0
   m_Name: MainTownWorldShell
   m_TagString: Untagged
@@ -3256,6 +3257,39 @@ Transform:
   - {fileID: 1451038613}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1465636541
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1465636539}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 19779a440ee7c425381975ea9a4229c6, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Reloader.World::Reloader.World.MainTownTerrainGenerator
+  seed: 1009063463
+  rerollSeedOnRegenerate: 1
+  waterLevelMeters: 20
+  terrainWidthMeters: 5000
+  terrainDepthMeters: 5000
+  terrainHeightMeters: 1100
+  heightmapResolution: 1025
+  alphamapResolution: 1024
+  baseMapResolution: 1024
+  detailResolution: 1024
+  detailResolutionPerPatch: 16
+  shorelineRadiusMeters: 2050
+  shorelineFalloffMeters: 520
+  hillsAmplitudeMeters: 90
+  mountainAmplitudeMeters: 430
+  cliffSharpening: 1.45
+  mainRiverHalfWidthMeters: 210
+  mainRiverDepthMeters: 140
+  secondaryRiverHalfWidthMeters: 165
+  secondaryRiverDepthMeters: 120
+  beachBlendMeters: 10
 --- !u!1001 &1639096732
 PrefabInstance:
   m_ObjectHideFlags: 0
