@@ -314,6 +314,50 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator RealKar98kOpticAsset_ScopeAdjustmentController_UsesSixtyClickTravel()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var scopeAdjustmentControllerType = ResolveType("Reloader.Game.Weapons.ScopeAdjustmentController");
+            var opticDefinition = ResolveOpticDefinitionById("att-kar98k-scope-remote-a");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(scopeAdjustmentControllerType, Is.Not.Null);
+            Assert.That(opticDefinition, Is.Not.Null);
+
+            var root = new GameObject("Kar98kScopeAdjustmentRangeRoot");
+            try
+            {
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", opticDefinition), Is.True);
+                var adjustmentController = GetProperty(manager, "ActiveScopeAdjustmentController");
+                Assert.That(adjustmentController, Is.Not.Null);
+                Assert.That(adjustmentController.GetType(), Is.EqualTo(scopeAdjustmentControllerType));
+
+                Invoke(adjustmentController, "ApplyWindageClicks", 999);
+                Invoke(adjustmentController, "ApplyElevationClicks", 999);
+                Assert.That((int)GetProperty(adjustmentController, "CurrentWindageClicks"), Is.EqualTo(60));
+                Assert.That((int)GetProperty(adjustmentController, "CurrentElevationClicks"), Is.EqualTo(60));
+
+                Invoke(adjustmentController, "ApplyWindageClicks", -1998);
+                Invoke(adjustmentController, "ApplyElevationClicks", -1998);
+                Assert.That((int)GetProperty(adjustmentController, "CurrentWindageClicks"), Is.EqualTo(-60));
+                Assert.That((int)GetProperty(adjustmentController, "CurrentElevationClicks"), Is.EqualTo(-60));
+            }
+            finally
+            {
+                Cleanup(root);
+            }
+
+            yield return null;
+        }
+
+        [UnityTest]
         public IEnumerator ScopedPipOptic_InspectorCalibrationOverrides_ApplyLiveDuringAds()
         {
             var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
@@ -995,6 +1039,76 @@ namespace Reloader.Weapons.Tests.PlayMode
             finally
             {
                 Cleanup(root, scopedOptic, reticleDefinition, opticPrefab, worldCamGo, viewmodelCamGo, scopeCameraGo);
+            }
+        }
+
+        [Test]
+        public void ScopeAdjustmentController_ClampsWindageAndElevationToMechanicalLimits()
+        {
+            var scopeAdjustmentControllerType = ResolveType("Reloader.Game.Weapons.ScopeAdjustmentController");
+            Assert.That(scopeAdjustmentControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopeAdjustmentRoot");
+            try
+            {
+                var controller = root.AddComponent(scopeAdjustmentControllerType);
+                SetField(controller, "_minWindageClicks", -2);
+                SetField(controller, "_maxWindageClicks", 2);
+                SetField(controller, "_minElevationClicks", -3);
+                SetField(controller, "_maxElevationClicks", 3);
+
+                Invoke(controller, "AdjustWindageClicks", 100);
+                Invoke(controller, "AdjustElevationClicks", -100);
+
+                Assert.That((int)GetProperty(controller, "CurrentWindageClicks"), Is.EqualTo(2));
+                Assert.That((int)GetProperty(controller, "CurrentElevationClicks"), Is.EqualTo(-3));
+            }
+            finally
+            {
+                Cleanup(root);
+            }
+        }
+
+        [Test]
+        public void EquipOptic_ScopeAdjustmentController_RestoresStateAcrossReequip()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var scopeAdjustmentControllerType = ResolveType("Reloader.Game.Weapons.ScopeAdjustmentController");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(scopeAdjustmentControllerType, Is.Not.Null);
+
+            var root = new GameObject("AttachmentRoot");
+            var opticDefinition = CreateOpticDefinition("scope-adjust-persist", 4f, 12f, true, "RenderTexturePiP");
+
+            try
+            {
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                var opticPrefab = GetProperty(opticDefinition, "OpticPrefab") as GameObject;
+                Assert.That(opticPrefab, Is.Not.Null);
+                opticPrefab.AddComponent(scopeAdjustmentControllerType);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", opticDefinition), Is.True);
+                var firstController = GetComponentInChildren(GetProperty(manager, "ActiveOpticInstance") as GameObject, scopeAdjustmentControllerType);
+                Invoke(firstController, "AdjustWindageClicks", 2);
+                Invoke(firstController, "AdjustElevationClicks", -1);
+
+                Invoke(manager, "UnequipOptic");
+                Assert.That((bool)Invoke(manager, "EquipOptic", opticDefinition), Is.True);
+
+                var secondController = GetComponentInChildren(GetProperty(manager, "ActiveOpticInstance") as GameObject, scopeAdjustmentControllerType);
+                Assert.That((int)GetProperty(secondController, "CurrentWindageClicks"), Is.EqualTo(2));
+                Assert.That((int)GetProperty(secondController, "CurrentElevationClicks"), Is.EqualTo(-1));
+            }
+            finally
+            {
+                Cleanup(root, opticDefinition);
             }
         }
 
