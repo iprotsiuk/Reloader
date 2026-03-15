@@ -25,7 +25,6 @@ This file is the canonical local guidance entrypoint for agents working in this 
 - `.agent/skills/*/SKILL.md` files are the project skill sources.
 - Use the skill that matches the active task domain before making changes.
 - Use each skill's referenced `resources/` and `scripts/` files as supporting material.
-- For cleanup, refactoring, LOC reduction, oversized test splitting, or context-hygiene work, use `.agent/skills/refactoring-and-test-hygiene/SKILL.md` first.
 - For weapon view prefab, attachment mounting, optic/muzzle runtime, or first-person weapon pose work, use `.agent/skills/weapon-view-attachment-framework/SKILL.md` before changing code/assets.
 - For architecture/docs/rules/skills audits, use `.agent/skills/reviewing-design-docs/SKILL.md` first.
 - For writing/updating architecture or design docs, use `.agent/skills/writing-agent-docs/SKILL.md` first.
@@ -45,18 +44,14 @@ This file is the canonical local guidance entrypoint for agents working in this 
 - Current delivery phase is `v0.1` demo implementation + hardening.
 - Treat `docs/design/v0.1-demo-status-and-milestones.md` as the canonical implemented-vs-planned source of truth.
 - Treat `docs/design/prototype-scope.md` as version target scope, not runtime completion truth.
-- Unless the user explicitly requests runtime implementation, default to docs/rules/skills/plan updates for non-runtime tasks.
-- Runtime-local refactor and test-cleanup tasks are runtime implementation tasks. Do not default them to docs/rules/skills work.
+- Unless the user explicitly requests runtime implementation, default to docs/rules/skills/plan updates.
 - Do not infer game-feature coding work from architecture/design requests alone.
 
 ## Working Rules
 
-- For runtime-local refactor/test-cleanup tasks, start from touched code/tests and the matching local skill. Load docs only if the task crosses domains, changes save/events/persistence behavior, or local intent is unclear.
-- Load `docs/design/core-architecture.md` before domain docs for new features, cross-domain wiring, save/events/persistence changes, or when local intent is unclear.
+- Follow `docs/design/core-architecture.md` as the shared contract before domain docs.
 - Keep changes data-driven and consistent with ScriptableObject + runtime-instance patterns.
 - Keep docs and skills synchronized when contracts or naming conventions change.
-- For runtime-local cleanup work, keep tests in scope and verify with filtered runs first: method/class, then local subsystem, then broader smoke only if needed.
-- Do not use unfiltered full EditMode/PlayMode suite runs in the inner loop.
 - MCP endpoints (Codex runtime defaults):
   - Unity MCP server is configured in `~/.codex/config.toml` under `[mcp_servers.unityMCP]`.
   - Blender MCP server is configured in `~/.codex/config.toml` under `[mcp_servers.blender]` and is expected at `localhost:9876` by default.
