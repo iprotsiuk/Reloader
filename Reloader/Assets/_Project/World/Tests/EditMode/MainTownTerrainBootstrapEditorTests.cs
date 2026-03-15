@@ -209,6 +209,8 @@ namespace Reloader.World.Tests.EditMode
                 SetPrivateField(generator!, "seed", 123456789);
 
                 generator.RegenerateInEditor();
+                var terrain = FindChild(worldShell.transform, "MainTownTerrain")!.GetComponent<Terrain>();
+                Assert.That(terrain, Is.Not.Null, "Expected terrain after regeneration.");
                 var boundaryRoot = FindChild(worldShell.transform, "Water_OceanBoundary");
                 Assert.That(boundaryRoot, Is.Not.Null, "Expected regenerate to create a shoreline containment root.");
                 Assert.That(boundaryRoot!.gameObject.layer, Is.EqualTo(LayerMask.NameToLayer("Ignore Raycast")), "Expected shoreline containment root to use Ignore Raycast so projectile raycasts pass through it.");
@@ -222,10 +224,11 @@ namespace Reloader.World.Tests.EditMode
                 {
                     Assert.That(collider.gameObject.layer, Is.EqualTo(LayerMask.NameToLayer("Ignore Raycast")), "Expected shoreline blockers to live on Ignore Raycast so projectiles ignore them.");
                     Assert.That(collider.isTrigger, Is.False, "Expected shoreline blockers to use solid colliders so the player cannot walk through them.");
+                    var adjacentLandHeight = EstimateAdjacentCoastalHeight(terrain!, collider);
                     lowestBoundaryBottom = Mathf.Min(lowestBoundaryBottom, collider.bounds.min.y);
                     highestBoundaryBottom = Mathf.Max(highestBoundaryBottom, collider.bounds.min.y);
-                    Assert.That(collider.bounds.size.y, Is.EqualTo(15f).Within(0.25f), "Expected shoreline blockers to stay about fifteen meters tall.");
-                    Assert.That(collider.bounds.max.y, Is.EqualTo(collider.bounds.min.y + 15f).Within(0.25f), "Expected shoreline blockers to rise about fifteen meters from their shoreline base.");
+                    Assert.That(collider.bounds.size.y, Is.GreaterThanOrEqualTo(15f - 0.25f), "Expected shoreline blockers to stay at least about fifteen meters tall.");
+                    Assert.That(collider.bounds.max.y, Is.GreaterThanOrEqualTo(adjacentLandHeight + 0.5f), "Expected shoreline blockers to clear the adjacent coastal terrain instead of ending under steep land.");
                 }
 
                 var waterLevel = GetPrivateField<float>(generator!, "waterLevelMeters");
@@ -1016,6 +1019,33 @@ namespace Reloader.World.Tests.EditMode
             }
 
             return furthest;
+        }
+
+        private static float EstimateAdjacentCoastalHeight(Terrain terrain, BoxCollider collider)
+        {
+            var bounds = collider.bounds;
+            var center = bounds.center;
+            var inwardProbeDistance = 8f;
+            var alongOffset = (bounds.size.x >= bounds.size.z ? bounds.extents.x : bounds.extents.z) * 0.35f;
+
+            if (bounds.size.x >= bounds.size.z)
+            {
+                return Mathf.Max(
+                    SampleTerrainHeight(terrain, center + new Vector3(0f, 0f, inwardProbeDistance)),
+                    SampleTerrainHeight(terrain, center - new Vector3(0f, 0f, inwardProbeDistance)),
+                    SampleTerrainHeight(terrain, center + new Vector3(alongOffset, 0f, inwardProbeDistance)),
+                    SampleTerrainHeight(terrain, center - new Vector3(alongOffset, 0f, inwardProbeDistance)),
+                    SampleTerrainHeight(terrain, center + new Vector3(alongOffset, 0f, -inwardProbeDistance)),
+                    SampleTerrainHeight(terrain, center - new Vector3(alongOffset, 0f, -inwardProbeDistance)));
+            }
+
+            return Mathf.Max(
+                SampleTerrainHeight(terrain, center + new Vector3(inwardProbeDistance, 0f, 0f)),
+                SampleTerrainHeight(terrain, center - new Vector3(inwardProbeDistance, 0f, 0f)),
+                SampleTerrainHeight(terrain, center + new Vector3(inwardProbeDistance, 0f, alongOffset)),
+                SampleTerrainHeight(terrain, center - new Vector3(inwardProbeDistance, 0f, alongOffset)),
+                SampleTerrainHeight(terrain, center + new Vector3(-inwardProbeDistance, 0f, alongOffset)),
+                SampleTerrainHeight(terrain, center - new Vector3(-inwardProbeDistance, 0f, alongOffset)));
         }
 
         private static void RaiseTerrainPatchAboveWater(Terrain terrain, float normalizedX, float normalizedZ, float normalizedRadius, float targetHeightMeters)

@@ -25,6 +25,7 @@ namespace Reloader.World
         private const float BoundaryContourBelowWaterMeters = 1f;
         private const float BoundaryOffshoreOffsetMeters = 1f;
         private const float BoundaryHeightMeters = 15f;
+        private const float BoundaryLandClearanceMeters = 1f;
         private const int BoundaryLayer = 2; // Ignore Raycast
 
         [SerializeField] private int seed = 1337;
@@ -647,7 +648,9 @@ namespace Reloader.World
             var centerZ = (((startRow + endRow + 1) * 0.5f) * cellDepth) - (terrainDepthMeters * 0.5f);
             var length = Mathf.Max(cellDepth, (endRow - startRow + 1) * cellDepth);
             var groundHeight = waterLevelMeters - BoundaryContourBelowWaterMeters;
-            var boundaryHeight = BoundaryHeightMeters;
+            var adjacentLandHeight = SampleAdjacentLandHeightMeters(terrainData, x, centerZ, spanMeters: length, sampleAlongX: false, inwardDirection: -outwardDirection, lateralStepMeters: Mathf.Max(cellWidth * 0.5f, BoundaryOffshoreOffsetMeters + 1f));
+            var boundaryTop = Mathf.Max(groundHeight + BoundaryHeightMeters, adjacentLandHeight + BoundaryLandClearanceMeters);
+            var boundaryHeight = boundaryTop - groundHeight;
             var centerY = groundHeight + (boundaryHeight * 0.5f);
             return new BoundarySegment(
                 new Vector3(x, centerY, centerZ),
@@ -660,11 +663,50 @@ namespace Reloader.World
             var centerX = (((startColumn + endColumn + 1) * 0.5f) * cellWidth) - (terrainWidthMeters * 0.5f);
             var length = Mathf.Max(cellWidth, (endColumn - startColumn + 1) * cellWidth);
             var groundHeight = waterLevelMeters - BoundaryContourBelowWaterMeters;
-            var boundaryHeight = BoundaryHeightMeters;
+            var adjacentLandHeight = SampleAdjacentLandHeightMeters(terrainData, centerX, z, spanMeters: length, sampleAlongX: true, inwardDirection: -outwardDirection, lateralStepMeters: Mathf.Max(cellDepth * 0.5f, BoundaryOffshoreOffsetMeters + 1f));
+            var boundaryTop = Mathf.Max(groundHeight + BoundaryHeightMeters, adjacentLandHeight + BoundaryLandClearanceMeters);
+            var boundaryHeight = boundaryTop - groundHeight;
             var centerY = groundHeight + (boundaryHeight * 0.5f);
             return new BoundarySegment(
                 new Vector3(centerX, centerY, z),
                 new Vector3(length + BoundaryThicknessMeters, boundaryHeight, BoundaryThicknessMeters));
+        }
+
+        private float SampleAdjacentLandHeightMeters(TerrainData terrainData, float localX, float localZ, float spanMeters, bool sampleAlongX, float inwardDirection, float lateralStepMeters)
+        {
+            var sampleCenterX = localX + (!sampleAlongX ? inwardDirection * lateralStepMeters : 0f);
+            var sampleCenterZ = localZ + (sampleAlongX ? inwardDirection * lateralStepMeters : 0f);
+            var adjacentHeight = SampleTerrainHeightMetersAtSpan(terrainData, sampleCenterX, sampleCenterZ, spanMeters, sampleAlongX);
+
+            var secondaryOffset = lateralStepMeters * 0.5f;
+            var secondaryX = sampleCenterX + (!sampleAlongX ? inwardDirection * secondaryOffset : 0f);
+            var secondaryZ = sampleCenterZ + (sampleAlongX ? inwardDirection * secondaryOffset : 0f);
+            adjacentHeight = Mathf.Max(adjacentHeight, SampleTerrainHeightMetersAtSpan(terrainData, secondaryX, secondaryZ, spanMeters, sampleAlongX));
+
+            return adjacentHeight;
+        }
+
+        private float SampleTerrainHeightMetersAtSpan(TerrainData terrainData, float localX, float localZ, float spanMeters, bool sampleAlongX)
+        {
+            var height = SampleTerrainHeightMeters(terrainData, localX, localZ);
+            if (spanMeters <= BoundarySampleSpacingMeters)
+            {
+                return height;
+            }
+
+            var spanOffset = spanMeters * 0.4f;
+            if (sampleAlongX)
+            {
+                height = Mathf.Max(height, SampleTerrainHeightMeters(terrainData, localX - spanOffset, localZ));
+                height = Mathf.Max(height, SampleTerrainHeightMeters(terrainData, localX + spanOffset, localZ));
+            }
+            else
+            {
+                height = Mathf.Max(height, SampleTerrainHeightMeters(terrainData, localX, localZ - spanOffset));
+                height = Mathf.Max(height, SampleTerrainHeightMeters(terrainData, localX, localZ + spanOffset));
+            }
+
+            return height;
         }
 
         private float SampleTerrainHeightMeters(TerrainData terrainData, float localX, float localZ)
