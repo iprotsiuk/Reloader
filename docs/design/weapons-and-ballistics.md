@@ -175,7 +175,7 @@ Implemented FPS ADS/optics framework lives under `Reloader/Assets/Game/Weapons/*
   - `delta = Camera_world * inverse(SightAnchor_world)`
   - apply delta to `AdsPivot` with position/rotation smoothing.
 - `ScopeMaskController` handles mask + reticle UI for high-magnification ADS.
-- `RenderTextureScopeController` is a lightweight PiP stub path for opt-in scope rendering.
+- `ScopeReticleController` and `RenderTextureScopeController` provide the shipped PiP scope path, including reticle mode handling, lens rendering, and projection shifts from mechanical zero plus windage/elevation clicks.
 
 Visual policy (`AdsVisualMode.Auto`):
 - magnification `<= 2x` -> no mask

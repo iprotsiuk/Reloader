@@ -79,7 +79,7 @@ For PiP optics also author:
 - `ViewmodelCamera` -> viewmodel camera
 - `AttachmentManager` -> same object reference
 - `ScopeMaskController` -> HUD scope mask controller
-- `RenderTextureScopeController` -> optional stub for PiP mode
+- `RenderTextureScopeController` -> PiP runtime owner when the weapon supports scoped optics
 - `WeaponDefinition` -> currently equipped weapon definition
 
 `WeaponAimAligner`
@@ -93,7 +93,7 @@ For PiP optics also author:
 - `ScopeCamera` -> dedicated scope camera
 - active optic must expose `ScopeLensDisplay`
 - PiP optics should bind explicit reticle data when present
-- pipeline should stay compatible with future persistent optic windage/elevation adjustments
+- current runtime already applies mechanical-zero plus windage/elevation projection shifts and relies on `AttachmentManager` snapshot restore for per-optic adjustment state
 
 ## 5. Scope Mask UI Setup
 
@@ -175,7 +175,7 @@ Expected:
 - `magnificationStep`: `0.5`
 - `visualModePolicy`: `Auto`
 - `eyeReliefBackOffset`: `0.025`
-- `ScopeRenderProfile` optional for PiP migration
+- `ScopeRenderProfile` optional for fixed-FOV/resolution calibration
 
 Expected:
 - PiP lens rendering activates in ADS when configured for `RenderTexturePiP`.
@@ -210,9 +210,10 @@ Use one test scene with player, arms, and both cameras.
 - optic body does not black out PiP view
 - eye relief remains stable
 
-Future extensibility note:
-- user scope zeroing (windage/elevation) should persist on the configured optic and must not depend on ad hoc scene tuning or per-session camera hacks
-- persistence should serialize optic adjustment snapshots (`zoom`, `zero`, `windage`, `elevation`) as optic runtime state rather than mutating `AdsPivot`, `SightAnchor`, or scope-camera transforms
+Current adjustment-state note:
+- the shipped PiP path already restores per-optic windage/elevation snapshots across re-equip and distinct optic state keys
+- `ScopeAdjustmentController` and `_Project/Weapons` `WeaponScopeRuntimeState` both carry zero-step state, but the live player PiP bridge currently exposes only windage/elevation clicks
+- keep adjustment persistence in optic runtime state rather than mutating `AdsPivot`, `SightAnchor`, or scope-camera transforms
 
 6. Confirm debug alignment output.
 - `WeaponAimAligner` gizmos show camera axis, sight axis, and error line.

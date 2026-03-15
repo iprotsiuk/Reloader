@@ -96,7 +96,7 @@ Rules:
 - Long-range success must feel earned through preparation, not scripted scope magic.
 - Specialty ammo should matter because it changes the solution space, not because it adds spreadsheet noise.
 
-This is why the scoped PiP runtime, real zeroing, and load-quality systems remain first-order priorities after the fantasy pivot.
+This is why the shipped scoped PiP runtime is part of the current contract foundation, while live zero-step wiring/persistence and load-quality systems remain first-order priorities after the fantasy pivot.
 
 ---
 

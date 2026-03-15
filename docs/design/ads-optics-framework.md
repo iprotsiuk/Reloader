@@ -59,14 +59,22 @@ Fields:
 - `magnificationStep`
 - `visualModePolicy` (`AdsVisualMode`)
 - `eyeReliefBackOffset`
-- optional reticle sprite
+- `scopeReticleDefinition` (`ScopeReticleDefinition`)
+- `mradPerClick`
+- `minWindageClicks` / `maxWindageClicks`
+- `minElevationClicks` / `maxElevationClicks`
+- `mechanicalZeroOffsetMrad`
+- `projectionCalibrationMultiplier`
+- `compositeReticleScale`
+- `compositeReticleOffset`
 - optional `ScopeRenderProfile` (`renderTextureResolution`, `scopeCameraFov`)
 
 Contract notes:
 - `eyeReliefBackOffset` is part of the production scoped-ADS contract and is applied by `WeaponAimAligner` after anchor alignment.
 - `RenderTexturePiP` optics must provide explicit prefab authoring for `SightAnchor` and `ScopeLensDisplay`.
-- scoped optics must remain future-proof for persistent user zeroing (`windage` / `elevation`) so optic state can be saved per configured optic after player adjustment
-- persistent optic adjustment state must live in runtime optic/scope state snapshots (`zoom`, `zero`, `windage`, `elevation`), not in authored pose offsets or scope-camera transforms
+- `ScopeReticleDefinition.Mode` supports both `Ffp` and `Sfp`; current PiP runtime scales FFP reticles with magnification and keeps SFP reticles visually stable.
+- `AttachmentManager` persists `ScopeAdjustmentSnapshot` data per optic/state key during runtime re-equip flows.
+- The live PiP bridge currently applies windage/elevation clicks during scoped ADS. Zero-step state exists on `ScopeAdjustmentController` and `_Project/Weapons` `WeaponScopeRuntimeState`, but live zero-step input/save wiring is still narrower than the shipped windage/elevation path.
 
 Enums:
 - `AdsVisualMode`: `Auto`, `Mask`, `RenderTexturePiP`
@@ -81,16 +89,18 @@ Enums:
   - `ActiveOpticChanged` event for hot-swap listeners
   - `EquipMuzzle(MuzzleAttachmentDefinition)` / `UnequipMuzzle()`
   - exposes `ActiveOpticDefinition` and `ActiveMuzzleDefinition`
+  - restores per-optic `ScopeAdjustmentSnapshot` values keyed by optic state
   - uses `IronSightAnchor` only when no optic is equipped
   - must not synthesize anchors for misconfigured optics
 
 - `AdsStateController`
   - tracks ADS state + `AdsT`
-  - handles variable zoom (1x-40x clamp)
+  - handles fixed-power and variable zoom optics (`MagnificationMin` for fixed optics, authored range clamp for variable optics)
   - reacts to optic hot-swap via `AttachmentManager.ActiveOpticChanged`
   - clamps/normalizes magnification state on optic swap without controller reset
   - applies world FOV mapping
   - computes sensitivity/sway scales
+  - applies live windage/elevation adjustments only while scoped PiP ADS is active
   - drives scope mask / PiP state
 
 - `WeaponAimAligner`
@@ -106,8 +116,9 @@ Enums:
 - `RenderTextureScopeController`
   - PiP scope-image owner
   - drives lens render-texture binding and reticle application
+  - applies projection offsets from mechanical zero plus live windage/elevation clicks
+  - composites authored reticles and respects FFP/SFP scaling rules
   - scope camera must exclude `Viewmodel` content
-  - must remain compatible with future persistent optic zeroing so reticle/optic adjustment state can shift point of aim without reworking the scope pipeline
 
 ## Visual Mode Policy [v0.1]
 
@@ -175,11 +186,12 @@ Strict development rule:
   2. authored `eyeReliefBackOffset`
   3. scope camera exclusion of `Viewmodel`
   4. coarse pose tuning
-- future zeroing support must be implemented as persistent optic state, not as scene-only pose offsets or hardcoded camera fudges
+- keep adjustment persistence in optic runtime state, not scene-only pose offsets or hardcoded camera fudges; current repo already restores runtime windage/elevation snapshots while live zero-step exposure is still partial
 - Missing anchors, missing lens displays, or scope cameras rendering `Viewmodel` are development bugs, not acceptable degraded behavior.
 
 ## Integration Notes [v0.1]
 
 - This ADS/optics framework is implemented under `Assets/Game/Weapons`.
 - Existing `_Project/Weapons` runtime can coexist while migration continues.
+- Current repo evidence includes `ScopeAttachmentAdsIntegrationPlayModeTests` (`RealKar98kOpticAsset_PipReticle_CompositesIntoScopeRenderPath`, `ScopedReticle_FfpScalesWithMagnification`, `ScopedReticle_SfpRemainsStableAcrossMagnification`, `EquipOptic_ScopeAdjustmentController_UsesPendingStateKeyForDistinctScopeInstances`) and `WeaponScopeRuntimeStatePlayModeTests` (`ApplyZeroSteps_UsesConfiguredStepSize`, `AdjustmentSnapshot_RestoresZoomZeroWindageAndElevation`).
 - For FPS aiming/scope behavior work, prefer this implemented framework contract.

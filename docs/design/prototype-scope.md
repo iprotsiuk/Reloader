@@ -23,7 +23,7 @@ The minimum viable prototype that demonstrates the new core loop:
 - [ ] Single-stage press interaction (resize, prime, charge, seat)
 - [ ] One caliber (.308 Winchester)
 - [ ] One rifle (bolt-action)
-- [ ] One production magnified scope path for premium long-range work
+- [x] One production magnified PiP scope path for premium long-range work (see `v0.1-demo-status-and-milestones.md` for live evidence and the remaining zero-step caveat)
 - [ ] Basic ballistics (drop, no wind yet)
 - [ ] Optional setup-validation flow at the range or another safe test space before a contract
 - [ ] One procedurally generated assassination contract loop
