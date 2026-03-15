@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6b66a5d15a654c4a9f556bf6211b27a0, type: 3}
+  m_Name: MainTownTerrainPreset_KauaiLike
+  m_EditorClassIdentifier: Reloader.World::Reloader.World.MainTownTerrainGeneratorPreset
+  seed: 1391034753
+  rerollSeedOnRegenerate: 1
+  waterLevelMeters: 20
+  terrainWidthMeters: 4333
+  terrainDepthMeters: 5111
+  terrainHeightMeters: 1100
+  heightmapResolution: 1025
+  alphamapResolution: 1024
+  baseMapResolution: 1024
+  detailResolution: 1024
+  detailResolutionPerPatch: 16
+  landFootprintMeters: 3333
+  shorelineFalloffMeters: 340
+  landCoverage: 0.82
+  coastlineBreakupStrength: 0.45
+  satelliteChance: 0.35
+  satelliteSizeRatio: 0.28
+  hillsAmplitudeMeters: 90
+  mountainAmplitudeMeters: 666
+  cliffSharpening: 2
+  riverCount: 1
+  riverHalfWidthMeters: 95
+  riverDepthMeters: 115
+  riverMeanderMeters: 220
+  beachBlendMeters: 10
+  detailAmplitudeMeters: 18
+  detailNoiseFrequency: 0.0032
+  pitAmplitudeMeters: 10
+  pitNoiseFrequency: 0.0044
+  cliffDetailStrengthMeters: 34
+  cliffDetailFrequency: 0.0038
+  autoRepaintLayersOnHeightChange: 1
+  sandBandOffsetMeters: 4
+  sandBandWidthMeters: 16
+  sandMaxSlopeDegrees: 26
+  rockSlopeStartDegrees: 34
+  rockSlopeFullDegrees: 55
+  rockHeightStartMeters: 125
+  rockHeightFullMeters: 240
