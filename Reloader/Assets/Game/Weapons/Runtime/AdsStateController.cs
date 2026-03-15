@@ -120,52 +120,8 @@ namespace Reloader.Game.Weapons
         private void OnDisable()
         {
             UnsubscribeAttachmentManagerEvents();
-            _isAdsHeld = false;
-            AdsT = 0f;
-            _targetMagnification = 1f;
-            CurrentMagnification = 1f;
-            CurrentSensitivityScale = 1f;
-            CurrentSwayScale = 1f;
-            _maskLatch = false;
-            _externalAdsControlActive = false;
-            _externalZoomControlActive = false;
-            _externalAdsSetFrame = -1;
-            _externalMagnificationSetFrame = -1;
-            _hasLegacyAdsSample = false;
-            _lastLegacyAdsHeld = false;
-            _lastMaskOpticDefinition = null;
-            _lastMaskPolicy = AdsVisualMode.Auto;
-            _capturedRuntimeCameraDefaults = false;
-
-            if (_worldCamera != null)
-            {
-                _worldCamera.fieldOfView = _baseWorldFov;
-            }
-
-            if (_viewmodelCamera != null)
-            {
-                _viewmodelCamera.fieldOfView = _baseViewmodelFov;
-            }
-
-            if (_scopeMaskController != null)
-            {
-                _scopeMaskController.SetState(false, 1f, 0f);
-            }
-
-            if (_renderTextureScopeController != null)
-            {
-                _renderTextureScopeController.SetScopeActive(false, null, null, _baseWorldFov, 1f, 0, 0);
-            }
-
-            if (_peripheralScopeEffects != null)
-            {
-                _peripheralScopeEffects.SetState(false, 0f);
-            }
-
-            if (_scopeAdjustmentTooltipOverlay != null)
-            {
-                _scopeAdjustmentTooltipOverlay.SetState(false, 0, 0);
-            }
+            ResetRuntimeState();
+            ApplyDisabledVisualState();
         }
 
         private void OnDestroy()
@@ -207,15 +163,49 @@ namespace Reloader.Game.Weapons
             }
         }
 
+        public void SetLegacyInputEnabled(bool enabled)
+        {
+            _useLegacyInput = enabled;
+        }
+
+        public void BindRuntimeReferences(
+            Camera worldCamera,
+            Camera viewmodelCamera,
+            AttachmentManager attachmentManager,
+            RenderTextureScopeController renderTextureScopeController = null,
+            ScopeMaskController scopeMaskController = null,
+            ScopeAdjustmentTooltipOverlay scopeAdjustmentTooltipOverlay = null,
+            PeripheralScopeEffects peripheralScopeEffects = null)
+        {
+            _worldCamera = worldCamera;
+            _viewmodelCamera = viewmodelCamera;
+            _attachmentManager = attachmentManager;
+            _renderTextureScopeController = renderTextureScopeController;
+            _scopeMaskController = scopeMaskController;
+            _scopeAdjustmentTooltipOverlay = scopeAdjustmentTooltipOverlay;
+            _peripheralScopeEffects = peripheralScopeEffects;
+            _capturedRuntimeCameraDefaults = false;
+
+            EnsureAttachmentManagerSubscription();
+            EnsureRuntimeCameraDefaults();
+        }
+
+        public void RefreshRuntimeBindings()
+        {
+            EnsureAttachmentManagerSubscription();
+            EnsureRuntimeCameraDefaults();
+            TickVisualMode();
+        }
+
         public bool ApplyScopeAdjustmentInput(int windageClicks, int elevationClicks)
         {
-            var optic = _attachmentManager != null ? _attachmentManager.ActiveOpticDefinition : null;
+            var optic = ResolveActiveOptic();
             if (!_isAdsHeld || !UsesScopedPip(optic))
             {
                 return false;
             }
 
-            var controller = _attachmentManager != null ? _attachmentManager.ActiveScopeAdjustmentController : null;
+            var controller = ResolveActiveScopeAdjustmentController();
             if (controller == null)
             {
                 return false;
@@ -225,6 +215,59 @@ namespace Reloader.Game.Weapons
             controller.AdjustElevationClicks(elevationClicks);
             UpdateScopeAdjustmentTooltip(true, controller);
             return true;
+        }
+
+        private void ResetRuntimeState()
+        {
+            _isAdsHeld = false;
+            AdsT = 0f;
+            _targetMagnification = 1f;
+            CurrentMagnification = 1f;
+            CurrentSensitivityScale = 1f;
+            CurrentSwayScale = 1f;
+            _maskLatch = false;
+            _externalAdsControlActive = false;
+            _externalZoomControlActive = false;
+            _externalAdsSetFrame = -1;
+            _externalMagnificationSetFrame = -1;
+            _hasLegacyAdsSample = false;
+            _lastLegacyAdsHeld = false;
+            _lastMaskOpticDefinition = null;
+            _lastMaskPolicy = AdsVisualMode.Auto;
+            _capturedRuntimeCameraDefaults = false;
+        }
+
+        private void ApplyDisabledVisualState()
+        {
+            if (_worldCamera != null)
+            {
+                _worldCamera.fieldOfView = _baseWorldFov;
+            }
+
+            if (_viewmodelCamera != null)
+            {
+                _viewmodelCamera.fieldOfView = _baseViewmodelFov;
+            }
+
+            if (_scopeMaskController != null)
+            {
+                _scopeMaskController.SetState(false, 1f, 0f);
+            }
+
+            if (_renderTextureScopeController != null)
+            {
+                _renderTextureScopeController.SetScopeActive(false, null, null, _baseWorldFov, 1f, 0, 0);
+            }
+
+            if (_peripheralScopeEffects != null)
+            {
+                _peripheralScopeEffects.SetState(false, 0f);
+            }
+
+            if (_scopeAdjustmentTooltipOverlay != null)
+            {
+                _scopeAdjustmentTooltipOverlay.SetState(false, 0, 0);
+            }
         }
 
         private void TickInput()
@@ -278,7 +321,7 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
-            var optic = _attachmentManager != null ? _attachmentManager.ActiveOpticDefinition : null;
+            var optic = ResolveActiveOptic();
             var step = _fallbackZoomStep;
             if (optic != null && optic.IsVariableZoom)
             {
@@ -300,21 +343,8 @@ namespace Reloader.Game.Weapons
 
         private void TickMagnification()
         {
-            var optic = _attachmentManager != null ? _attachmentManager.ActiveOpticDefinition : null;
-            if (optic == null)
-            {
-                _targetMagnification = 1f;
-            }
-            else if (!optic.IsVariableZoom)
-            {
-                _targetMagnification = optic.MagnificationMin;
-            }
-            else
-            {
-                _targetMagnification = optic.SnapMagnification(_targetMagnification);
-            }
-
-            _targetMagnification = ResolveClampedMagnification(_targetMagnification);
+            var optic = ResolveActiveOptic();
+            _targetMagnification = ResolveClampedMagnification(ResolveRequestedMagnification(optic, _targetMagnification));
 
             var t = 1f - Mathf.Exp(-Mathf.Max(0.01f, _magnificationLerpSpeed) * Time.deltaTime);
             CurrentMagnification = Mathf.Lerp(CurrentMagnification, _targetMagnification, t);
@@ -327,7 +357,7 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
-            var optic = _attachmentManager != null ? _attachmentManager.ActiveOpticDefinition : null;
+            var optic = ResolveActiveOptic();
             var usesScopedPip = UsesScopedPip(optic);
             var adsFov = usesScopedPip
                 ? _baseWorldFov
@@ -365,13 +395,11 @@ namespace Reloader.Game.Weapons
 
         private void TickVisualMode()
         {
-            var optic = _attachmentManager != null ? _attachmentManager.ActiveOpticDefinition : null;
-            var policy = optic != null ? optic.VisualModePolicy : AdsVisualMode.Auto;
+            var optic = ResolveActiveOptic();
+            var policy = ResolveVisualModePolicy(optic);
             if (!ReferenceEquals(_lastMaskOpticDefinition, optic) || _lastMaskPolicy != policy)
             {
-                ResetMaskLatchForContext(policy, CurrentMagnification);
-                _lastMaskOpticDefinition = optic;
-                _lastMaskPolicy = policy;
+                UpdateMaskContext(optic, policy, CurrentMagnification);
             }
 
             var useMask = ResolveMaskMode(policy, CurrentMagnification);
@@ -389,7 +417,7 @@ namespace Reloader.Game.Weapons
                 var scopeReferenceFov = _baseWorldFov;
                 var scopeMagnification = Mathf.Max(MinMagnification, CurrentMagnification);
                 var activeOpticInstance = _attachmentManager != null ? _attachmentManager.ActiveOpticInstance : null;
-                var activeAdjustmentController = _attachmentManager != null ? _attachmentManager.ActiveScopeAdjustmentController : null;
+                var activeAdjustmentController = ResolveActiveScopeAdjustmentController();
                 var windageClicks = activeAdjustmentController != null ? activeAdjustmentController.CurrentWindageClicks : 0;
                 var elevationClicks = activeAdjustmentController != null ? activeAdjustmentController.CurrentElevationClicks : 0;
                 _renderTextureScopeController.SetScopeActive(
@@ -409,7 +437,7 @@ namespace Reloader.Game.Weapons
 
             UpdateScopeAdjustmentTooltip(
                 _isAdsHeld && policy == AdsVisualMode.RenderTexturePiP,
-                _attachmentManager != null ? _attachmentManager.ActiveScopeAdjustmentController : null);
+                ResolveActiveScopeAdjustmentController());
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (_logDebugState && Time.unscaledTime >= _nextDebugLogTime)
@@ -456,26 +484,10 @@ namespace Reloader.Game.Weapons
 
         private void HandleActiveOpticChanged(OpticDefinition optic)
         {
-            if (optic == null)
-            {
-                _targetMagnification = 1f;
-            }
-            else if (!optic.IsVariableZoom)
-            {
-                _targetMagnification = optic.MagnificationMin;
-            }
-            else
-            {
-                _targetMagnification = optic.ClampMagnification(_targetMagnification);
-            }
-
+            _targetMagnification = ResolveRequestedMagnification(optic, _targetMagnification);
             CurrentMagnification = ResolveClampedMagnification(CurrentMagnification);
             _targetMagnification = ResolveClampedMagnification(_targetMagnification);
-
-            var policy = optic != null ? optic.VisualModePolicy : AdsVisualMode.Auto;
-            ResetMaskLatchForContext(policy, CurrentMagnification);
-            _lastMaskOpticDefinition = optic;
-            _lastMaskPolicy = policy;
+            UpdateMaskContext(optic, ResolveVisualModePolicy(optic), CurrentMagnification);
 
             if (_scopeMaskController != null)
             {
@@ -545,7 +557,44 @@ namespace Reloader.Game.Weapons
             return _maskLatch;
         }
 
-        private bool UsesScopedPip(OpticDefinition optic)
+        private OpticDefinition ResolveActiveOptic()
+        {
+            return _attachmentManager != null ? _attachmentManager.ActiveOpticDefinition : null;
+        }
+
+        private ScopeAdjustmentController ResolveActiveScopeAdjustmentController()
+        {
+            return _attachmentManager != null ? _attachmentManager.ActiveScopeAdjustmentController : null;
+        }
+
+        private static AdsVisualMode ResolveVisualModePolicy(OpticDefinition optic)
+        {
+            return optic != null ? optic.VisualModePolicy : AdsVisualMode.Auto;
+        }
+
+        private static float ResolveRequestedMagnification(OpticDefinition optic, float requestedMagnification)
+        {
+            if (optic == null)
+            {
+                return 1f;
+            }
+
+            if (!optic.IsVariableZoom)
+            {
+                return optic.MagnificationMin;
+            }
+
+            return optic.SnapMagnification(requestedMagnification);
+        }
+
+        private void UpdateMaskContext(OpticDefinition optic, AdsVisualMode policy, float magnification)
+        {
+            ResetMaskLatchForContext(policy, magnification);
+            _lastMaskOpticDefinition = optic;
+            _lastMaskPolicy = policy;
+        }
+
+        private static bool UsesScopedPip(OpticDefinition optic)
         {
             return optic != null && optic.VisualModePolicy == AdsVisualMode.RenderTexturePiP;
         }
@@ -641,7 +690,7 @@ namespace Reloader.Game.Weapons
 
         private float ResolveDefaultMagnification()
         {
-            var optic = _attachmentManager != null ? _attachmentManager.ActiveOpticDefinition : null;
+            var optic = ResolveActiveOptic();
             if (optic == null)
             {
                 return 1f;
@@ -652,7 +701,7 @@ namespace Reloader.Game.Weapons
 
         private float ResolveClampedMagnification(float requested)
         {
-            var optic = _attachmentManager != null ? _attachmentManager.ActiveOpticDefinition : null;
+            var optic = ResolveActiveOptic();
             if (optic == null)
             {
                 return Mathf.Clamp(requested, 1f, 1f);
