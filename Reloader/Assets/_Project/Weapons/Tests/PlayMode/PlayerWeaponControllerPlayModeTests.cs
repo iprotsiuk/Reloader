@@ -804,6 +804,97 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Fire_WithoutSerializedCombatEmitter_AutoResolvesRuntimeEmitter()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_weaponRegistry", registry);
+            SetControllerField(controller, "_combatAudioEmitter", null);
+
+            yield return null;
+
+            input.FirePressedThisFrame = true;
+            yield return null;
+
+            var emitterField = typeof(PlayerWeaponController).GetField("_combatAudioEmitter", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(emitterField, Is.Not.Null);
+            var resolvedEmitter = emitterField.GetValue(controller) as WeaponCombatAudioEmitter;
+            Assert.That(resolvedEmitter, Is.Not.Null);
+            Assert.That(root.GetComponentInChildren<WeaponCombatAudioEmitter>(true), Is.SameAs(resolvedEmitter));
+            var catalogField = typeof(WeaponCombatAudioEmitter).GetField("_catalog", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(catalogField, Is.Not.Null);
+            Assert.That(catalogField.GetValue(resolvedEmitter), Is.Not.Null, "Auto-resolved emitter should bind a default combat audio catalog.");
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
+        public IEnumerator Fire_DiscoveredEmitterWithCustomCatalog_PreservesConfiguredCatalog()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var customCatalog = ScriptableObject.CreateInstance<CombatAudioCatalog>();
+            var emitterHost = new GameObject("EmitterHost");
+            emitterHost.transform.SetParent(root.transform, false);
+            var emitter = emitterHost.AddComponent<WeaponCombatAudioEmitter>();
+            emitter.SetCatalog(customCatalog);
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_weaponRegistry", registry);
+            SetControllerField(controller, "_combatAudioEmitter", null);
+
+            yield return null;
+
+            input.FirePressedThisFrame = true;
+            yield return null;
+
+            var emitterField = typeof(PlayerWeaponController).GetField("_combatAudioEmitter", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(emitterField, Is.Not.Null);
+            var resolvedEmitter = emitterField.GetValue(controller) as WeaponCombatAudioEmitter;
+            Assert.That(resolvedEmitter, Is.SameAs(emitter));
+
+            var catalogField = typeof(WeaponCombatAudioEmitter).GetField("_catalog", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(catalogField, Is.Not.Null);
+            Assert.That(catalogField.GetValue(resolvedEmitter), Is.SameAs(customCatalog));
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+            Object.Destroy(customCatalog);
+        }
+
+        [UnityTest]
         public IEnumerator TrySwapEquippedWeaponAttachment_RejectsUnknownIncompatibleAndUnownedAttachment()
         {
             var root = new GameObject("PlayerRoot");
