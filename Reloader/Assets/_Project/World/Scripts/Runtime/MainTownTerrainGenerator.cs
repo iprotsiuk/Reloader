@@ -22,9 +22,7 @@ namespace Reloader.World
         private const string RockTexturePath = "Assets/ThirdParty/Polygon-Mega Survival Forest/Textures/TerrainTextures/Stones.PNG";
         private const float BoundarySampleSpacingMeters = 24f;
         private const float BoundaryThicknessMeters = 6f;
-        private const float BoundaryBottomMeters = -1f;
-        private const float BoundaryTopOffsetMeters = 4f;
-        private const float BoundaryWaterlineOffsetMeters = 6f;
+        private const float BoundaryContourBelowWaterMeters = 1f;
 
         [SerializeField] private int seed = 1337;
         [SerializeField] private MainTownTerrainGeneratorPreset presetAsset;
@@ -590,7 +588,7 @@ namespace Reloader.World
                 {
                     var normalizedX = (x + 0.5f) / columnCount;
                     var height = terrainData.GetInterpolatedHeight(normalizedX, normalizedZ);
-                    land[x, z] = height > waterLevelMeters + BoundaryWaterlineOffsetMeters;
+                    land[x, z] = height > waterLevelMeters - BoundaryContourBelowWaterMeters;
                 }
             }
 
@@ -598,7 +596,6 @@ namespace Reloader.World
 
             for (var x = 0; x <= columnCount; x++)
             {
-                var runStart = -1;
                 for (var z = 0; z < rowCount; z++)
                 {
                     var leftLand = x > 0 && land[x - 1, z];
@@ -606,27 +603,13 @@ namespace Reloader.World
                     var edge = leftLand != rightLand;
                     if (edge)
                     {
-                        if (runStart < 0)
-                        {
-                            runStart = z;
-                        }
+                        segments.Add(CreateVerticalBoundarySegment(terrainData, x, z, z, cellWidth, cellDepth));
                     }
-                    else if (runStart >= 0)
-                    {
-                        segments.Add(CreateVerticalBoundarySegment(x, runStart, z - 1, cellWidth, cellDepth));
-                        runStart = -1;
-                    }
-                }
-
-                if (runStart >= 0)
-                {
-                    segments.Add(CreateVerticalBoundarySegment(x, runStart, rowCount - 1, cellWidth, cellDepth));
                 }
             }
 
             for (var z = 0; z <= rowCount; z++)
             {
-                var runStart = -1;
                 for (var x = 0; x < columnCount; x++)
                 {
                     var bottomLand = z > 0 && land[x, z - 1];
@@ -634,49 +617,45 @@ namespace Reloader.World
                     var edge = bottomLand != topLand;
                     if (edge)
                     {
-                        if (runStart < 0)
-                        {
-                            runStart = x;
-                        }
+                        segments.Add(CreateHorizontalBoundarySegment(terrainData, z, x, x, cellWidth, cellDepth));
                     }
-                    else if (runStart >= 0)
-                    {
-                        segments.Add(CreateHorizontalBoundarySegment(z, runStart, x - 1, cellWidth, cellDepth));
-                        runStart = -1;
-                    }
-                }
-
-                if (runStart >= 0)
-                {
-                    segments.Add(CreateHorizontalBoundarySegment(z, runStart, columnCount - 1, cellWidth, cellDepth));
                 }
             }
 
             return segments;
         }
 
-        private BoundarySegment CreateVerticalBoundarySegment(int column, int startRow, int endRow, float cellWidth, float cellDepth)
+        private BoundarySegment CreateVerticalBoundarySegment(TerrainData terrainData, int column, int startRow, int endRow, float cellWidth, float cellDepth)
         {
             var x = (column * cellWidth) - (terrainWidthMeters * 0.5f);
             var centerZ = (((startRow + endRow + 1) * 0.5f) * cellDepth) - (terrainDepthMeters * 0.5f);
             var length = Mathf.Max(cellDepth, (endRow - startRow + 1) * cellDepth);
-            var boundaryHeight = (waterLevelMeters + BoundaryTopOffsetMeters) - BoundaryBottomMeters;
-            var centerY = BoundaryBottomMeters + (boundaryHeight * 0.5f);
+            var groundHeight = SampleTerrainHeightMeters(terrainData, x, centerZ);
+            var boundaryHeight = 5f;
+            var centerY = groundHeight + (boundaryHeight * 0.5f);
             return new BoundarySegment(
                 new Vector3(x, centerY, centerZ),
                 new Vector3(BoundaryThicknessMeters, boundaryHeight, length + BoundaryThicknessMeters));
         }
 
-        private BoundarySegment CreateHorizontalBoundarySegment(int row, int startColumn, int endColumn, float cellWidth, float cellDepth)
+        private BoundarySegment CreateHorizontalBoundarySegment(TerrainData terrainData, int row, int startColumn, int endColumn, float cellWidth, float cellDepth)
         {
             var z = (row * cellDepth) - (terrainDepthMeters * 0.5f);
             var centerX = (((startColumn + endColumn + 1) * 0.5f) * cellWidth) - (terrainWidthMeters * 0.5f);
             var length = Mathf.Max(cellWidth, (endColumn - startColumn + 1) * cellWidth);
-            var boundaryHeight = (waterLevelMeters + BoundaryTopOffsetMeters) - BoundaryBottomMeters;
-            var centerY = BoundaryBottomMeters + (boundaryHeight * 0.5f);
+            var groundHeight = SampleTerrainHeightMeters(terrainData, centerX, z);
+            var boundaryHeight = 5f;
+            var centerY = groundHeight + (boundaryHeight * 0.5f);
             return new BoundarySegment(
                 new Vector3(centerX, centerY, z),
                 new Vector3(length + BoundaryThicknessMeters, boundaryHeight, BoundaryThicknessMeters));
+        }
+
+        private float SampleTerrainHeightMeters(TerrainData terrainData, float localX, float localZ)
+        {
+            var normalizedX = Mathf.Clamp01((localX + (terrainWidthMeters * 0.5f)) / terrainWidthMeters);
+            var normalizedZ = Mathf.Clamp01((localZ + (terrainDepthMeters * 0.5f)) / terrainDepthMeters);
+            return terrainData.GetInterpolatedHeight(normalizedX, normalizedZ);
         }
 
         private Material EnsureOceanMaterial()

@@ -216,17 +216,20 @@ namespace Reloader.World.Tests.EditMode
                 Assert.That(boundaryColliders.Length, Is.GreaterThan(0), "Expected shoreline containment to include blocker colliders.");
                 Assert.That(boundaryRoot.GetComponentsInChildren<Renderer>(true), Is.Empty, "Expected shoreline containment to stay invisible.");
 
-                var lowestBoundaryBottom = float.PositiveInfinity;
-                var highestBoundaryTop = float.NegativeInfinity;
+                var lowestShoreGround = float.PositiveInfinity;
+                var highestShoreGround = float.NegativeInfinity;
                 foreach (var collider in boundaryColliders)
                 {
-                    lowestBoundaryBottom = Mathf.Min(lowestBoundaryBottom, collider.bounds.min.y);
-                    highestBoundaryTop = Mathf.Max(highestBoundaryTop, collider.bounds.max.y);
+                    var shoreGround = SampleTerrainHeight(terrainRoot!.GetComponent<Terrain>()!, collider.bounds.center);
+                    lowestShoreGround = Mathf.Min(lowestShoreGround, shoreGround);
+                    highestShoreGround = Mathf.Max(highestShoreGround, shoreGround);
+                    Assert.That(collider.bounds.min.y, Is.EqualTo(shoreGround).Within(1.25f), "Expected shoreline blocker bottoms to start on the local shoreline ground.");
+                    Assert.That(collider.bounds.max.y, Is.EqualTo(shoreGround + 5f).Within(0.75f), "Expected shoreline blockers to rise only about five meters above the shoreline ground.");
                 }
 
                 var waterLevel = GetPrivateField<float>(generator!, "waterLevelMeters");
-                Assert.That(lowestBoundaryBottom, Is.LessThanOrEqualTo(-0.5f), "Expected shoreline blockers to start below the water plane so the player can touch shallow water.");
-                Assert.That(highestBoundaryTop, Is.LessThanOrEqualTo(waterLevel + 4.5f), "Expected shoreline blockers to stop near the waterline instead of standing high above the ocean.");
+                Assert.That(lowestShoreGround, Is.GreaterThanOrEqualTo(waterLevel - 3f), "Expected shoreline blockers to stay close to the submerged shoreline contour instead of deep underwater.");
+                Assert.That(highestShoreGround, Is.LessThanOrEqualTo(waterLevel + 1f), "Expected shoreline blockers to hug terrain that sits only slightly below the waterline.");
             }
             finally
             {
