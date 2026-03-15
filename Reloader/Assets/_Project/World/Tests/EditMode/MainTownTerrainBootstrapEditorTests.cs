@@ -194,7 +194,7 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void MainTownTerrainGenerator_RegenerateInEditor_BuildsFiveKilometerSplitIslandTerrain()
+        public void MainTownTerrainGenerator_RegenerateInEditor_OnRectangularCanvas_LeavesOceanMarginsAroundContainedLandmass()
         {
             var originalScene = SceneManager.GetActiveScene();
             var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
@@ -207,6 +207,15 @@ namespace Reloader.World.Tests.EditMode
                 var generator = worldShell!.GetComponent<MainTownTerrainGenerator>();
                 Assert.That(generator, Is.Not.Null, "Expected MainTownWorldShell to host MainTownTerrainGenerator.");
 
+                SetPrivateField(generator!, "rerollSeedOnRegenerate", false);
+                SetPrivateField(generator!, "seed", 24681357);
+                SetPrivateField(generator!, "terrainWidthMeters", 3000f);
+                SetPrivateField(generator!, "terrainDepthMeters", 4000f);
+                SetPrivateField(generator!, "terrainHeightMeters", 1100f);
+                SetPrivateField(generator!, "landFootprintMeters", 2200f);
+                SetPrivateField(generator!, "satelliteChance", 0f);
+                SetPrivateField(generator!, "riverCount", 1);
+
                 generator!.RegenerateInEditor();
 
                 var terrainRoot = FindChild(worldShell.transform, "MainTownTerrain");
@@ -216,21 +225,25 @@ namespace Reloader.World.Tests.EditMode
                 Assert.That(terrain, Is.Not.Null, "Expected Terrain on MainTownTerrain.");
 
                 var terrainData = terrain!.terrainData;
-                Assert.That(terrainData.size.x, Is.EqualTo(5000f).Within(0.01f), "Expected 5km terrain width.");
-                Assert.That(terrainData.size.z, Is.EqualTo(5000f).Within(0.01f), "Expected 5km terrain depth.");
-                Assert.That(terrainData.size.y, Is.GreaterThanOrEqualTo(900f), "Expected a taller vertical range so generated mountains are not capped too low.");
+                var waterLevel = GetPrivateField<float>(generator!, "waterLevelMeters");
+                Assert.That(terrainData.size.x, Is.EqualTo(3000f).Within(0.01f), "Expected regeneration to respect a tuned rectangular terrain width.");
+                Assert.That(terrainData.size.z, Is.EqualTo(4000f).Within(0.01f), "Expected regeneration to respect a tuned rectangular terrain depth.");
+                Assert.That(terrainData.size.y, Is.GreaterThanOrEqualTo(900f), "Expected enough vertical range for the volcanic island relief.");
 
                 var layerNames = Array.ConvertAll(terrainData.terrainLayers, layer => layer != null ? layer.name : string.Empty);
                 CollectionAssert.Contains(layerNames, "MainTown_Sand", "Expected a dedicated beach sand terrain layer.");
                 CollectionAssert.Contains(layerNames, "MainTown_Grass", "Expected a grass terrain layer.");
                 CollectionAssert.Contains(layerNames, "MainTown_Stone", "Expected a rock terrain layer.");
 
-                Assert.That(SampleTerrainHeight(terrain, new Vector3(-1350f, 0f, -950f)), Is.GreaterThan(45f), "Expected northwest island above water.");
-                Assert.That(SampleTerrainHeight(terrain, new Vector3(1450f, 0f, -950f)), Is.GreaterThan(35f), "Expected northeast island above water.");
-                Assert.That(SampleTerrainHeight(terrain, new Vector3(0f, 0f, 1250f)), Is.GreaterThan(45f), "Expected the southern island above water.");
-                Assert.That(SampleTerrainHeight(terrain, new Vector3(0f, 0f, 0f)), Is.LessThan(24f), "Expected the main cross-island river channel to sit near water level.");
-                Assert.That(SampleTerrainHeight(terrain, new Vector3(900f, 0f, 1100f)), Is.LessThan(24f), "Expected the south branch of the T channel to sit near water level.");
-                Assert.That(SampleTerrainHeight(terrain, new Vector3(900f, 0f, -1100f)), Is.GreaterThan(35f), "Expected the branch channel not to continue north and create a fourth island.");
+                var edgeHeight = AverageTerrainHeight(terrain, GetPerimeterSamplePoints(terrain));
+                var landCoverage = CalculateLandCoverage(terrain, waterLevel + 8f, 28);
+                var peakPoint = FindPeakWorldPoint(terrain);
+
+                Assert.That(edgeHeight, Is.LessThan(waterLevel + 6f), "Expected the outer perimeter to remain ocean so the island does not clip against the terrain bounds.");
+                Assert.That(landCoverage, Is.InRange(0.08f, 0.42f), $"Expected a bounded land footprint rather than filling the full rectangular canvas, but coverage was {landCoverage:F2}.");
+                Assert.That(Mathf.Abs(peakPoint.x), Is.LessThan(terrainData.size.x * 0.5f - 260f), "Expected the highest relief to sit comfortably inside the terrain bounds.");
+                Assert.That(Mathf.Abs(peakPoint.z), Is.LessThan(terrainData.size.z * 0.5f - 260f), "Expected the highest relief to sit comfortably inside the terrain bounds.");
+                Assert.That(peakPoint.y, Is.GreaterThan(waterLevel + 180f), "Expected a dominant volcanic landmass rather than a mostly flat planning shell.");
                 Assert.That(GetTerrainHeightRange(terrain), Is.GreaterThan(240f), "Expected significant relief for mountains and cliffs.");
 
                 MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
@@ -295,7 +308,7 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void MainTownTerrainGenerator_RegenerateInEditor_BuildsDistinctAndBroadMountainProfiles()
+        public void MainTownTerrainGenerator_RegenerateInEditor_BuildsBroadNonSerratedVolcanicProfiles()
         {
             var originalScene = SceneManager.GetActiveScene();
             var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
@@ -308,21 +321,32 @@ namespace Reloader.World.Tests.EditMode
                 var generator = worldShell!.GetComponent<MainTownTerrainGenerator>();
                 Assert.That(generator, Is.Not.Null, "Expected MainTownWorldShell to host MainTownTerrainGenerator.");
 
+                SetPrivateField(generator!, "rerollSeedOnRegenerate", false);
+                SetPrivateField(generator!, "seed", 1357911);
+                SetPrivateField(generator!, "terrainWidthMeters", 3200f);
+                SetPrivateField(generator!, "terrainDepthMeters", 4000f);
+                SetPrivateField(generator!, "landFootprintMeters", 2400f);
+                SetPrivateField(generator!, "satelliteChance", 0f);
+                SetPrivateField(generator!, "riverCount", 0);
+
                 generator!.RegenerateInEditor();
 
                 var terrain = FindChild(worldShell.transform, "MainTownTerrain")!.GetComponent<Terrain>();
                 Assert.That(terrain, Is.Not.Null, "Expected terrain after regeneration.");
 
-                var northWestProfile = SampleHeightProfile(terrain!, new Vector3(-1750f, 0f, -900f), new Vector3(-850f, 0f, -900f), 24);
-                var northEastProfile = SampleHeightProfile(terrain!, new Vector3(850f, 0f, -900f), new Vector3(1750f, 0f, -900f), 24);
+                var peakPoint = FindPeakWorldPoint(terrain!);
+                var eastWestProfile = SampleHeightProfile(terrain!, peakPoint + new Vector3(-420f, 0f, 0f), peakPoint + new Vector3(420f, 0f, 0f), 28);
+                var northSouthProfile = SampleHeightProfile(terrain!, peakPoint + new Vector3(0f, 0f, -420f), peakPoint + new Vector3(0f, 0f, 420f), 28);
 
-                var northWestRoughness = CalculateAverageSecondDifference(northWestProfile);
-                var northEastRoughness = CalculateAverageSecondDifference(northEastProfile);
-                var profileDifference = CalculateAverageNormalizedProfileDifference(northWestProfile, northEastProfile);
+                var eastWestRoughness = CalculateAverageSecondDifference(eastWestProfile);
+                var northSouthRoughness = CalculateAverageSecondDifference(northSouthProfile);
+                var eastWestRange = CalculateProfileRange(eastWestProfile);
+                var northSouthRange = CalculateProfileRange(northSouthProfile);
 
-                Assert.That(northWestRoughness, Is.LessThan(18f), $"Expected northwest mountain profile to be broad rather than serrated, but roughness was {northWestRoughness:F2}.");
-                Assert.That(northEastRoughness, Is.LessThan(18f), $"Expected northeast mountain profile to be broad rather than serrated, but roughness was {northEastRoughness:F2}.");
-                Assert.That(profileDifference, Is.GreaterThan(0.12f), $"Expected the north island mountain profiles to differ materially, but normalized difference was only {profileDifference:F2}.");
+                Assert.That(eastWestRange, Is.GreaterThan(150f), $"Expected the dominant island to contain substantial east-west volcanic relief, but range was only {eastWestRange:F2}.");
+                Assert.That(northSouthRange, Is.GreaterThan(150f), $"Expected the dominant island to contain substantial north-south volcanic relief, but range was only {northSouthRange:F2}.");
+                Assert.That(eastWestRoughness, Is.LessThan(16f), $"Expected the east-west mountain profile to stay broad rather than serrated, but roughness was {eastWestRoughness:F2}.");
+                Assert.That(northSouthRoughness, Is.LessThan(16f), $"Expected the north-south mountain profile to stay broad rather than serrated, but roughness was {northSouthRoughness:F2}.");
 
                 MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain!);
             }
@@ -351,16 +375,22 @@ namespace Reloader.World.Tests.EditMode
                 Assert.That(generator, Is.Not.Null, "Expected MainTownWorldShell to host MainTownTerrainGenerator.");
 
                 SetPrivateField(generator!, "terrainWidthMeters", 4321f);
+                SetPrivateField(generator!, "terrainDepthMeters", 3456f);
                 SetPrivateField(generator!, "terrainHeightMeters", 777f);
+                SetPrivateField(generator!, "landFootprintMeters", 2100f);
                 SetPrivateField(generator!, "mountainAmplitudeMeters", 222f);
-                SetPrivateField(generator!, "mainRiverHalfWidthMeters", 123f);
+                SetPrivateField(generator!, "satelliteChance", 0.2f);
+                SetPrivateField(generator!, "riverCount", 2);
 
                 generator.RegenerateInEditor();
 
                 Assert.That(GetPrivateField<float>(generator!, "terrainWidthMeters"), Is.EqualTo(4321f).Within(0.01f), "Expected regenerate to preserve tuned terrain width.");
+                Assert.That(GetPrivateField<float>(generator!, "terrainDepthMeters"), Is.EqualTo(3456f).Within(0.01f), "Expected regenerate to preserve tuned terrain depth.");
                 Assert.That(GetPrivateField<float>(generator!, "terrainHeightMeters"), Is.EqualTo(777f).Within(0.01f), "Expected regenerate to preserve tuned terrain height.");
+                Assert.That(GetPrivateField<float>(generator!, "landFootprintMeters"), Is.EqualTo(2100f).Within(0.01f), "Expected regenerate to preserve tuned land footprint.");
                 Assert.That(GetPrivateField<float>(generator!, "mountainAmplitudeMeters"), Is.EqualTo(222f).Within(0.01f), "Expected regenerate to preserve tuned mountain amplitude.");
-                Assert.That(GetPrivateField<float>(generator!, "mainRiverHalfWidthMeters"), Is.EqualTo(123f).Within(0.01f), "Expected regenerate to preserve tuned river width.");
+                Assert.That(GetPrivateField<float>(generator!, "satelliteChance"), Is.EqualTo(0.2f).Within(0.001f), "Expected regenerate to preserve tuned satellite chance.");
+                Assert.That(GetPrivateField<int>(generator!, "riverCount"), Is.EqualTo(2), "Expected regenerate to preserve tuned river count.");
             }
             finally
             {
@@ -516,6 +546,73 @@ namespace Reloader.World.Tests.EditMode
             }
 
             return total / normalizedA.Length;
+        }
+
+        private static float CalculateProfileRange(float[] values)
+        {
+            var min = float.MaxValue;
+            var max = float.MinValue;
+            foreach (var value in values)
+            {
+                min = Mathf.Min(min, value);
+                max = Mathf.Max(max, value);
+            }
+
+            return max - min;
+        }
+
+        private static float CalculateLandCoverage(Terrain terrain, float landHeightThreshold, int sampleResolution)
+        {
+            var landSamples = 0;
+            var totalSamples = 0;
+
+            for (var z = 0; z < sampleResolution; z++)
+            {
+                var normalizedZ = z / (float)(sampleResolution - 1);
+                for (var x = 0; x < sampleResolution; x++)
+                {
+                    var normalizedX = x / (float)(sampleResolution - 1);
+                    if (terrain.terrainData.GetInterpolatedHeight(normalizedX, normalizedZ) > landHeightThreshold)
+                    {
+                        landSamples++;
+                    }
+
+                    totalSamples++;
+                }
+            }
+
+            return landSamples / (float)totalSamples;
+        }
+
+        private static Vector3 FindPeakWorldPoint(Terrain terrain)
+        {
+            var heights = terrain.terrainData.GetHeights(0, 0, terrain.terrainData.heightmapResolution, terrain.terrainData.heightmapResolution);
+            var maxHeight = float.MinValue;
+            var maxX = 0;
+            var maxZ = 0;
+
+            for (var z = 0; z < heights.GetLength(0); z++)
+            {
+                for (var x = 0; x < heights.GetLength(1); x++)
+                {
+                    var height = heights[z, x] * terrain.terrainData.size.y;
+                    if (height <= maxHeight)
+                    {
+                        continue;
+                    }
+
+                    maxHeight = height;
+                    maxX = x;
+                    maxZ = z;
+                }
+            }
+
+            var normalizedX = maxX / (float)(terrain.terrainData.heightmapResolution - 1);
+            var normalizedZ = maxZ / (float)(terrain.terrainData.heightmapResolution - 1);
+            return new Vector3(
+                terrain.transform.position.x + normalizedX * terrain.terrainData.size.x,
+                maxHeight,
+                terrain.transform.position.z + normalizedZ * terrain.terrainData.size.z);
         }
 
         private static float[] NormalizeProfile(float[] values)

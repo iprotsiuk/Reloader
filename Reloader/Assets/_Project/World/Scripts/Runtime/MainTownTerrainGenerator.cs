@@ -19,24 +19,84 @@ namespace Reloader.World
         [SerializeField] private int seed = 1337;
         [SerializeField] private bool rerollSeedOnRegenerate = true;
         [SerializeField] private float waterLevelMeters = 20f;
-        [SerializeField] private float terrainWidthMeters = 5000f;
-        [SerializeField] private float terrainDepthMeters = 5000f;
+        [SerializeField] private float terrainWidthMeters = 3000f;
+        [SerializeField] private float terrainDepthMeters = 4000f;
         [SerializeField] private float terrainHeightMeters = 1100f;
         [SerializeField] private int heightmapResolution = 1025;
         [SerializeField] private int alphamapResolution = 1024;
         [SerializeField] private int baseMapResolution = 1024;
         [SerializeField] private int detailResolution = 1024;
         [SerializeField] private int detailResolutionPerPatch = 16;
-        [SerializeField] private float shorelineRadiusMeters = 2050f;
-        [SerializeField] private float shorelineFalloffMeters = 520f;
+        [SerializeField] private float landFootprintMeters = 2350f;
+        [SerializeField] private float shorelineFalloffMeters = 340f;
+        [SerializeField] [Range(0.4f, 1f)] private float landCoverage = 0.82f;
+        [SerializeField] [Range(0f, 1f)] private float coastlineBreakupStrength = 0.45f;
+        [SerializeField] [Range(0f, 1f)] private float satelliteChance = 0.35f;
+        [SerializeField] [Range(0.1f, 0.6f)] private float satelliteSizeRatio = 0.28f;
         [SerializeField] private float hillsAmplitudeMeters = 90f;
         [SerializeField] private float mountainAmplitudeMeters = 430f;
         [SerializeField] private float cliffSharpening = 1.45f;
-        [SerializeField] private float mainRiverHalfWidthMeters = 210f;
-        [SerializeField] private float mainRiverDepthMeters = 140f;
-        [SerializeField] private float secondaryRiverHalfWidthMeters = 165f;
-        [SerializeField] private float secondaryRiverDepthMeters = 120f;
+        [SerializeField] [Range(0, 3)] private int riverCount = 1;
+        [SerializeField] private float riverHalfWidthMeters = 95f;
+        [SerializeField] private float riverDepthMeters = 115f;
+        [SerializeField] private float riverMeanderMeters = 220f;
         [SerializeField] private float beachBlendMeters = 10f;
+
+        private readonly struct IslandLayout
+        {
+            public readonly Vector2 MainCenter;
+            public readonly Vector2 MainRadii;
+            public readonly float MainAngleRadians;
+            public readonly Vector2 PeakCenter;
+            public readonly float RidgeAngleRadians;
+            public readonly bool HasSatellite;
+            public readonly Vector2 SatelliteCenter;
+            public readonly Vector2 SatelliteRadii;
+            public readonly float SatelliteAngleRadians;
+            public readonly RiverLayout[] Rivers;
+
+            public IslandLayout(
+                Vector2 mainCenter,
+                Vector2 mainRadii,
+                float mainAngleRadians,
+                Vector2 peakCenter,
+                float ridgeAngleRadians,
+                bool hasSatellite,
+                Vector2 satelliteCenter,
+                Vector2 satelliteRadii,
+                float satelliteAngleRadians,
+                RiverLayout[] rivers)
+            {
+                MainCenter = mainCenter;
+                MainRadii = mainRadii;
+                MainAngleRadians = mainAngleRadians;
+                PeakCenter = peakCenter;
+                RidgeAngleRadians = ridgeAngleRadians;
+                HasSatellite = hasSatellite;
+                SatelliteCenter = satelliteCenter;
+                SatelliteRadii = satelliteRadii;
+                SatelliteAngleRadians = satelliteAngleRadians;
+                Rivers = rivers;
+            }
+        }
+
+        private readonly struct RiverLayout
+        {
+            public readonly Vector2 Start;
+            public readonly Vector2 Mid;
+            public readonly Vector2 End;
+            public readonly float WidthMeters;
+            public readonly float DepthMeters;
+
+            public RiverLayout(Vector2 start, Vector2 mid, Vector2 end, float widthMeters, float depthMeters)
+            {
+                Start = start;
+                Mid = mid;
+                End = end;
+                WidthMeters = widthMeters;
+                DepthMeters = depthMeters;
+            }
+        }
 
         [ContextMenu("Regenerate Terrain")]
         private void RegenerateTerrainContextMenu()
@@ -167,6 +227,7 @@ namespace Reloader.World
             var terrainData = terrain.terrainData;
             var resolution = terrainData.heightmapResolution;
             var heights = new float[resolution, resolution];
+            var layout = BuildLayout();
 
             for (var z = 0; z < resolution; z++)
             {
@@ -177,7 +238,7 @@ namespace Reloader.World
                 {
                     var normalizedX = x / (float)(resolution - 1);
                     var worldX = normalizedX * terrainWidthMeters - terrainWidthMeters * 0.5f;
-                    var heightMeters = CalculateTerrainHeightMeters(worldX, worldZ);
+                    var heightMeters = CalculateTerrainHeightMeters(worldX, worldZ, layout);
                     heights[z, x] = Mathf.Clamp01(heightMeters / terrainHeightMeters);
                 }
             }
@@ -216,63 +277,122 @@ namespace Reloader.World
             terrainData.SetAlphamaps(0, 0, alphamaps);
         }
 
-        private float CalculateTerrainHeightMeters(float worldX, float worldZ)
+        private IslandLayout BuildLayout()
+        {
+            var halfWidth = terrainWidthMeters * 0.5f;
+            var halfDepth = terrainDepthMeters * 0.5f;
+            var clampedFootprint = Mathf.Clamp(landFootprintMeters, 900f, Mathf.Min(terrainWidthMeters, terrainDepthMeters) - 320f);
+            var mainBaseRadius = clampedFootprint * 0.5f;
+            var mainRadiusX = Mathf.Clamp(mainBaseRadius * Mathf.Lerp(0.92f, 1.2f, Hash01(11f)), 420f, halfWidth - 180f);
+            var mainRadiusZ = Mathf.Clamp(mainBaseRadius * Mathf.Lerp(0.74f, 1.08f, Hash01(13f)), 420f, halfDepth - 180f);
+            var mainAngle = HashSigned01(17f) * 0.95f;
+            var oceanMargin = Mathf.Max(180f, shorelineFalloffMeters * 0.45f + 40f);
+            var mainCenter = new Vector2(
+                ChooseCenterCoordinate(halfWidth, mainRadiusX, oceanMargin, 19f),
+                ChooseCenterCoordinate(halfDepth, mainRadiusZ, oceanMargin, 23f));
+
+            var peakOffset = Rotate(
+                new Vector2(HashSigned01(29f) * mainRadiusX * 0.22f, HashSigned01(31f) * mainRadiusZ * 0.18f),
+                mainAngle);
+            var peakCenter = mainCenter + peakOffset;
+            var ridgeAngle = mainAngle + HashSigned01(37f) * 0.75f;
+
+            var hasSatellite = Hash01(41f) < satelliteChance;
+            var satelliteCenter = Vector2.zero;
+            var satelliteRadii = Vector2.zero;
+            var satelliteAngle = 0f;
+
+            if (hasSatellite)
+            {
+                var satelliteBaseRadius = mainBaseRadius * satelliteSizeRatio * Mathf.Lerp(0.82f, 1.18f, Hash01(43f));
+                satelliteRadii = new Vector2(
+                    Mathf.Clamp(satelliteBaseRadius * Mathf.Lerp(1.05f, 1.22f, Hash01(47f)), 140f, halfWidth - oceanMargin - 40f),
+                    Mathf.Clamp(satelliteBaseRadius * Mathf.Lerp(0.8f, 1.08f, Hash01(53f)), 120f, halfDepth - oceanMargin - 40f));
+                satelliteAngle = HashSigned01(59f) * 1.3f;
+
+                var offsetAngle = Hash01(61f) * Mathf.PI * 2f;
+                var offsetDirection = new Vector2(Mathf.Cos(offsetAngle), Mathf.Sin(offsetAngle));
+                var separation = Mathf.Max(mainRadiusX, mainRadiusZ) + Mathf.Max(satelliteRadii.x, satelliteRadii.y) + Mathf.Lerp(180f, 420f, Hash01(67f));
+                satelliteCenter = ClampInsideCanvas(mainCenter + offsetDirection * separation, satelliteRadii, oceanMargin);
+            }
+
+            var rivers = new RiverLayout[Mathf.Clamp(riverCount, 0, 3)];
+            for (var index = 0; index < rivers.Length; index++)
+            {
+                var directionAngle = Hash01(83f + index * 19f) * Mathf.PI * 2f;
+                var direction = new Vector2(Mathf.Cos(directionAngle), Mathf.Sin(directionAngle));
+                var start = peakCenter + direction * Mathf.Lerp(40f, 110f, Hash01(89f + index * 7f));
+                var reach = Mathf.Max(mainRadiusX, mainRadiusZ) + Mathf.Lerp(120f, 260f, Hash01(97f + index * 13f));
+                var end = ClampInsideCanvas(mainCenter + direction * reach, new Vector2(40f, 40f), oceanMargin * 0.6f);
+                var mid = Vector2.Lerp(start, end, 0.52f)
+                    + Rotate(direction, Mathf.PI * 0.5f) * HashSigned01(101f + index * 17f) * riverMeanderMeters;
+                var width = riverHalfWidthMeters * Mathf.Lerp(0.85f, 1.18f, Hash01(109f + index * 11f));
+                var depth = riverDepthMeters * Mathf.Lerp(0.82f, 1.14f, Hash01(113f + index * 11f));
+                rivers[index] = new RiverLayout(start, mid, end, width, depth);
+            }
+
+            return new IslandLayout(
+                mainCenter,
+                new Vector2(mainRadiusX, mainRadiusZ),
+                mainAngle,
+                peakCenter,
+                ridgeAngle,
+                hasSatellite,
+                satelliteCenter,
+                satelliteRadii,
+                satelliteAngle,
+                rivers);
+        }
+
+        private float CalculateTerrainHeightMeters(float worldX, float worldZ, IslandLayout layout)
         {
             var warpX = worldX
-                + 420f * (SampleNoise(worldX, worldZ, 0.00038f, 11f) - 0.5f)
-                + 150f * (SampleNoise(worldX, worldZ, 0.00095f, 29f) - 0.5f);
+                + 240f * coastlineBreakupStrength * (SampleNoise(worldX, worldZ, 0.00055f, 11f) - 0.5f)
+                + 90f * coastlineBreakupStrength * (SampleNoise(worldX, worldZ, 0.0013f, 29f) - 0.5f);
             var warpZ = worldZ
-                + 420f * (SampleNoise(worldX, worldZ, 0.00038f, 47f) - 0.5f)
-                + 150f * (SampleNoise(worldX, worldZ, 0.00095f, 61f) - 0.5f);
+                + 240f * coastlineBreakupStrength * (SampleNoise(worldX, worldZ, 0.00055f, 47f) - 0.5f)
+                + 90f * coastlineBreakupStrength * (SampleNoise(worldX, worldZ, 0.0013f, 61f) - 0.5f);
 
-            var radialDistance = Mathf.Sqrt(warpX * warpX + warpZ * warpZ);
-            var shorelineNoise = 320f * (SampleNoise(warpX, warpZ, 0.00055f, 83f) - 0.5f);
-            var islandMask = 1f - SmoothRange01(shorelineRadiusMeters + shorelineNoise, shorelineRadiusMeters + shorelineFalloffMeters + shorelineNoise, radialDistance);
+            var mainMask = EvaluateIslandMask(warpX, warpZ, layout.MainCenter, layout.MainRadii, layout.MainAngleRadians, 71f);
+            var satelliteMask = layout.HasSatellite
+                ? EvaluateIslandMask(warpX, warpZ, layout.SatelliteCenter, layout.SatelliteRadii, layout.SatelliteAngleRadians, 79f)
+                : 0f;
+            var landMask = Mathf.Max(mainMask, satelliteMask);
 
-            var continental = (SampleFractalNoise(warpX, warpZ, 0.00045f, 5, 2f, 0.52f) - 0.5f) * 55f * islandMask;
-            var rolling = (SampleFractalNoise(warpX + 620f, warpZ - 430f, 0.00105f, 4, 2f, 0.58f) - 0.5f) * hillsAmplitudeMeters * islandMask;
-            var baseHeight = Mathf.Lerp(waterLevelMeters - 30f, waterLevelMeters + 30f, islandMask) + continental + rolling;
+            var oceanShelf = waterLevelMeters - 38f + (SampleFractalNoise(warpX - 280f, warpZ + 360f, 0.0007f, 3, 2f, 0.58f) - 0.5f) * 14f;
+            var continental = Mathf.Lerp(oceanShelf, waterLevelMeters + 24f, landMask);
+            var hills = (SampleFractalNoise(warpX + 620f, warpZ - 430f, 0.0009f, 4, 2f, 0.58f) - 0.48f) * hillsAmplitudeMeters * landMask;
 
-            var northWestMask = Gaussian(worldX, worldZ, -1325f, -920f, 980f, 760f);
-            var northEastMask = Gaussian(worldX, worldZ, 1380f, -900f, 980f, 760f);
-            var southMask = Gaussian(worldX, worldZ, 120f, 1180f, 1550f, 980f);
+            var mainPeakMask = EvaluateGaussian(worldX, worldZ, layout.PeakCenter, new Vector2(layout.MainRadii.x * 0.33f, layout.MainRadii.y * 0.29f), layout.RidgeAngleRadians - 0.2f);
+            var ridgeMask = EvaluateGaussian(worldX, worldZ, layout.MainCenter, new Vector2(layout.MainRadii.x * 0.72f, layout.MainRadii.y * 0.18f), layout.RidgeAngleRadians);
+            var mountainNoise = 0.7f + 0.55f * SmoothRange01(0.42f, 0.88f, SampleFractalNoise(warpX - 540f, warpZ + 170f, 0.00085f, 4, 2.05f, 0.56f));
+            var mountains = mainMask * mountainNoise * ((mainPeakMask * mountainAmplitudeMeters * 0.72f) + (ridgeMask * mountainAmplitudeMeters * 0.42f));
 
-            var northWestShape = SmoothRange01(0.46f, 0.76f, SampleFractalNoise(warpX - 860f, warpZ + 210f, 0.00092f, 4, 2.1f, 0.55f));
-            var northEastShape = SmoothRange01(0.5f, 0.8f, SampleFractalNoise(warpX + 1180f, warpZ + 510f, 0.00088f, 4, 2.1f, 0.55f));
-            var southShape = SmoothRange01(0.48f, 0.78f, SampleFractalNoise(warpX - 260f, warpZ - 980f, 0.00082f, 4, 2.05f, 0.57f));
+            var satellitePeak = layout.HasSatellite
+                ? EvaluateGaussian(worldX, worldZ, layout.SatelliteCenter, layout.SatelliteRadii * 0.42f, layout.SatelliteAngleRadians) * satelliteMask * mountainAmplitudeMeters * 0.26f
+                : 0f;
 
-            var broadMountains =
-                northWestMask * northWestShape * (mountainAmplitudeMeters * 0.72f) +
-                northEastMask * northEastShape * (mountainAmplitudeMeters * 0.58f) +
-                southMask * southShape * mountainAmplitudeMeters;
+            var cliffNoise = SmoothRange01(0.62f, 0.9f, SampleRidgedNoise(warpX + 210f, warpZ - 160f, 0.00125f, 3, 2f, 0.55f));
+            var cliffRegions = Mathf.Max(mainPeakMask * 0.75f, ridgeMask * 0.68f);
+            var cliffAccents = cliffRegions * cliffNoise * (52f * cliffSharpening);
 
-            var northWestCliffs = northWestMask * SmoothRange01(0.76f, 0.92f, SampleRidgedNoise(warpX - 420f, warpZ + 180f, 0.00092f, 3, 2f, 0.55f)) * (96f * cliffSharpening);
-            var northEastCliffs = northEastMask * SmoothRange01(0.8f, 0.94f, SampleRidgedNoise(warpX + 510f, warpZ + 90f, 0.0009f, 3, 2f, 0.55f)) * (72f * cliffSharpening);
-            var southCliffs = southMask * SmoothRange01(0.78f, 0.93f, SampleRidgedNoise(warpX - 180f, warpZ - 520f, 0.00086f, 3, 2f, 0.57f)) * (84f * cliffSharpening);
-            var cliffAccents = (northWestCliffs + northEastCliffs + southCliffs) * SmoothRange01(waterLevelMeters + 90f, waterLevelMeters + 240f, baseHeight + broadMountains);
+            var height = continental + hills + mountains + satellitePeak + cliffAccents;
 
-            var mainRiverCenterZ = 40f * Mathf.Sin(worldX * 0.0032f);
-            var mainRiverDistance = Mathf.Abs(worldZ - mainRiverCenterZ);
-            var mainRiverMask = Gaussian1D(mainRiverDistance, mainRiverHalfWidthMeters);
+            for (var index = 0; index < layout.Rivers.Length; index++)
+            {
+                var river = layout.Rivers[index];
+                var distance = DistanceToPolyline(new Vector2(worldX, worldZ), river.Start, river.Mid, river.End);
+                var riverMask = Gaussian1D(distance, river.WidthMeters) * mainMask;
+                height -= riverMask * river.DepthMeters;
+                height = Mathf.Lerp(height, waterLevelMeters + 4f, riverMask * 0.45f);
+            }
 
-            var secondaryRiverCenterX = 900f + 60f * Mathf.Sin(worldZ * 0.0027f);
-            var secondaryRiverDistance = Mathf.Abs(worldX - secondaryRiverCenterX);
-            var southBranchGate = SmoothRange01(mainRiverCenterZ + 120f, mainRiverCenterZ + 360f, worldZ);
-            var secondaryRiverMask = Gaussian1D(secondaryRiverDistance, secondaryRiverHalfWidthMeters) * southBranchGate;
-
-            var riverMask = Mathf.Max(mainRiverMask, secondaryRiverMask);
-
-            var height = baseHeight + broadMountains + cliffAccents;
-            height -= mainRiverMask * mainRiverDepthMeters;
-            height -= secondaryRiverMask * secondaryRiverDepthMeters;
-            height = Mathf.Lerp(height, waterLevelMeters + 2f, riverMask * 0.72f);
-
-            var smoothingTarget = baseHeight + broadMountains * 0.88f + (SampleFractalNoise(warpX + 340f, warpZ - 140f, 0.0007f, 3, 2f, 0.6f) - 0.5f) * 18f;
+            var smoothingTarget = continental + hills * 0.72f + mountains * 0.92f + satellitePeak * 0.9f;
             height = Mathf.Lerp(height, smoothingTarget, 0.18f);
 
             var beachTarget = waterLevelMeters + 5f;
             var beachMask = Mathf.Clamp01(1f - Mathf.Abs(height - beachTarget) / beachBlendMeters);
-            height = Mathf.Lerp(height, beachTarget + (SampleNoise(worldX, worldZ, 0.005f, 123f) - 0.5f) * 1.5f, beachMask * 0.35f);
+            height = Mathf.Lerp(height, beachTarget + (SampleNoise(worldX, worldZ, 0.0048f, 123f) - 0.5f) * 1.5f, beachMask * 0.32f);
 
             return Mathf.Clamp(height, 0f, terrainHeightMeters - 5f);
         }
@@ -400,16 +520,84 @@ namespace Reloader.World
             return total / Mathf.Max(totalAmplitude, Mathf.Epsilon);
         }
 
+        private float EvaluateIslandMask(float worldX, float worldZ, Vector2 center, Vector2 radii, float angleRadians, float noiseOffset)
+        {
+            var localPoint = Rotate(new Vector2(worldX, worldZ) - center, -angleRadians);
+            var breakupMeters = 180f * coastlineBreakupStrength;
+            localPoint.x += (SampleNoise(worldX + center.x, worldZ + center.y, 0.0011f, noiseOffset) - 0.5f) * breakupMeters;
+            localPoint.y += (SampleNoise(worldX - center.x, worldZ - center.y, 0.0011f, noiseOffset + 13f) - 0.5f) * breakupMeters;
+
+            var coverageScale = Mathf.Lerp(0.62f, 0.94f, landCoverage);
+            var normalizedX = localPoint.x / Mathf.Max(1f, radii.x * coverageScale);
+            var normalizedZ = localPoint.y / Mathf.Max(1f, radii.y * coverageScale);
+            var distance = Mathf.Sqrt((normalizedX * normalizedX) + (normalizedZ * normalizedZ));
+            var shorelineNoise = (SampleFractalNoise(worldX, worldZ, 0.00115f, 3, 2f, 0.55f) - 0.5f) * coastlineBreakupStrength * 0.34f;
+            var falloff = Mathf.Max(0.08f, shorelineFalloffMeters / Mathf.Max(120f, Mathf.Min(radii.x, radii.y)));
+            return 1f - SmoothRange01(1f + shorelineNoise, 1f + falloff + shorelineNoise, distance);
+        }
+
+        private static float EvaluateGaussian(float worldX, float worldZ, Vector2 center, Vector2 radii, float angleRadians)
+        {
+            var localPoint = Rotate(new Vector2(worldX, worldZ) - center, -angleRadians);
+            var normalizedX = localPoint.x / Mathf.Max(1f, radii.x);
+            var normalizedZ = localPoint.y / Mathf.Max(1f, radii.y);
+            return Mathf.Exp(-((normalizedX * normalizedX) + (normalizedZ * normalizedZ)));
+        }
+
+        private float ChooseCenterCoordinate(float halfExtent, float radius, float oceanMargin, float salt)
+        {
+            var usableRange = Mathf.Max(0f, halfExtent - radius - oceanMargin);
+            return HashSigned01(salt) * usableRange * 0.92f;
+        }
+
+        private Vector2 ClampInsideCanvas(Vector2 point, Vector2 radii, float oceanMargin)
+        {
+            var maxX = Mathf.Max(0f, terrainWidthMeters * 0.5f - radii.x - oceanMargin);
+            var maxZ = Mathf.Max(0f, terrainDepthMeters * 0.5f - radii.y - oceanMargin);
+            return new Vector2(Mathf.Clamp(point.x, -maxX, maxX), Mathf.Clamp(point.y, -maxZ, maxZ));
+        }
+
+        private float Hash01(float salt)
+        {
+            var hashed = Mathf.Sin((seed * 0.01371f) + salt * 127.1f) * 43758.5453f;
+            return hashed - Mathf.Floor(hashed);
+        }
+
+        private float HashSigned01(float salt)
+        {
+            return (Hash01(salt) * 2f) - 1f;
+        }
+
+        private static Vector2 Rotate(Vector2 point, float radians)
+        {
+            var cosine = Mathf.Cos(radians);
+            var sine = Mathf.Sin(radians);
+            return new Vector2(
+                (point.x * cosine) - (point.y * sine),
+                (point.x * sine) + (point.y * cosine));
+        }
+
+        private static float DistanceToPolyline(Vector2 point, Vector2 start, Vector2 mid, Vector2 end)
+        {
+            return Mathf.Min(DistanceToSegment(point, start, mid), DistanceToSegment(point, mid, end));
+        }
+
+        private static float DistanceToSegment(Vector2 point, Vector2 start, Vector2 end)
+        {
+            var segment = end - start;
+            var lengthSquared = segment.sqrMagnitude;
+            if (lengthSquared <= Mathf.Epsilon)
+            {
+                return Vector2.Distance(point, start);
+            }
+
+            var t = Mathf.Clamp01(Vector2.Dot(point - start, segment) / lengthSquared);
+            return Vector2.Distance(point, start + (segment * t));
+        }
+
         private static float SmoothRange01(float min, float max, float value)
         {
             return Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(min, max, value));
-        }
-
-        private static float Gaussian(float x, float z, float centerX, float centerZ, float radiusX, float radiusZ)
-        {
-            var normalizedX = (x - centerX) / radiusX;
-            var normalizedZ = (z - centerZ) / radiusZ;
-            return Mathf.Exp(-(normalizedX * normalizedX + normalizedZ * normalizedZ));
         }
 
         private static float Gaussian1D(float distance, float radius)
