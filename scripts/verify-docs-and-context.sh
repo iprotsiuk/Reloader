@@ -55,7 +55,7 @@ if ! rg -n "local guidance wins|takes precedence" .cursor/agents.md >/dev/null 2
   fail "Missing explicit local-over-global precedence rule in .cursor/agents.md."
 fi
 
-if ! rg -n "runtime-local|runtime-cross-domain|scene/prefab/editor-state|data-content|docs/rules/skills" .cursor/agents.md >/dev/null 2>&1; then
+if ! rg -n "runtime-local|test-local|runtime-cross-domain|scene/prefab/editor-state|data-content|docs/rules/skills" .cursor/agents.md >/dev/null 2>&1; then
   fail "Missing explicit task classification guidance in .cursor/agents.md."
 fi
 
@@ -96,10 +96,15 @@ if [[ -f .cursor/rules/gameplay-systems-context.mdc ]]; then
 fi
 
 for rule in \
+  .cursor/rules/contracts-law-runtime-local-context.mdc \
   .cursor/rules/inventory-economy-context.mdc \
+  .cursor/rules/inventory-economy-runtime-local-context.mdc \
   .cursor/rules/hunting-competitions-context.mdc \
   .cursor/rules/npcs-quests-context.mdc \
-  .cursor/rules/law-enforcement-context.mdc
+  .cursor/rules/npcs-quests-runtime-local-context.mdc \
+  .cursor/rules/law-enforcement-context.mdc \
+  .cursor/rules/player-ui-audio-runtime-local-context.mdc \
+  .cursor/rules/world-vehicles-runtime-local-context.mdc
 do
   if [[ ! -f "$rule" ]]; then
     fail "Missing focused gameplay router: $rule"
@@ -114,8 +119,8 @@ if [[ ! -f .cursor/rules/weapons-runtime-local-context.mdc ]]; then
   fail "Missing focused local weapons runtime router: .cursor/rules/weapons-runtime-local-context.mdc"
 fi
 
-if ! rg -n "Reloader/Assets/_Project/Weapons/Scripts/\\*\\*/\\*\\.cs,Reloader/Assets/_Project/Weapons/Tests/\\*\\*/\\*\\.cs,Reloader/Assets/Game/Weapons/\\*\\*/\\*\\.cs" .cursor/rules/weapons-runtime-local-context.mdc >/dev/null 2>&1; then
-  fail "weapons-runtime-local-context.mdc globs do not match the focused weapons runtime/test roots."
+if ! rg -n "Reloader/Assets/_Project/Weapons/Scripts/Controllers/\\*\\*/\\*\\.cs|Reloader/Assets/Game/Weapons/Runtime/\\*\\*/\\*\\.cs|Reloader/Assets/_Project/Weapons/Tests/\\*\\*/\\*\\.cs" .cursor/rules/weapons-runtime-local-context.mdc >/dev/null 2>&1; then
+  fail "weapons-runtime-local-context.mdc globs do not match the focused weapons runtime/view/controller/test roots."
 fi
 
 if ! rg -n "Reloader/Assets/_Project/Core/Scripts/Events/\\*\\*" .cursor/rules/core-events-context.mdc >/dev/null 2>&1; then

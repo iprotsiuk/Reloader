@@ -1,0 +1,21 @@
+---
+description: Context for agents doing local world or vehicle runtime and test cleanup
+globs: Reloader/Assets/_Project/World/Scripts/**/*.cs,Reloader/Assets/_Project/World/Tests/**/*.cs,Reloader/Assets/_Project/Vehicles/Scripts/**/*.cs,Reloader/Assets/_Project/Vehicles/Tests/**/*.cs
+alwaysApply: false
+---
+
+# World & Vehicles Local Runtime Context
+
+You are working in a local world or vehicle runtime/test hotspot.
+
+Start from touched code/tests in these roots first. Do NOT auto-load `docs/design/core-architecture.md` for local travel, persistent-player-root, or world-runtime cleanup.
+
+Read `docs/design/README.md` only to decide whether a domain doc is needed. Load docs only as needed:
+
+1. `docs/design/world-and-vehicles.md` and `docs/design/world-and-scenes.md` when local world semantics are unclear
+2. `docs/design/world-scene-contracts.md` only when the touched seam changes scene wiring, travel contracts, or scene-level validation behavior
+3. `docs/design/extensible-development-contracts.md` only for scene/checkpoint/interactable/NPC/save integration changes
+4. `docs/design/core-architecture.md` only if the change crosses events, save, persistence, or another domain, or if local intent is unclear
+5. `.agent/skills/refactoring-and-test-hygiene/SKILL.md` for local runtime refactor/test cleanup
+
+If the task becomes scene, terrain, prefab, editor-state, or broader world-integration work, switch to `.cursor/rules/world-vehicles-context.mdc`.

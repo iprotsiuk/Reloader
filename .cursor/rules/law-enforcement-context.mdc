@@ -1,12 +1,12 @@
 ---
-description: Context for agents working on legal rules, policing, offenses, or black market systems
-globs: Reloader/Assets/_Project/LawEnforcement/**
+description: Context for agents working on law-enforcement content, prefabs, or legal-system integration
+globs: Reloader/Assets/_Project/LawEnforcement/Data/**,Reloader/Assets/_Project/LawEnforcement/Prefabs/**
 alwaysApply: false
 ---
 
 # Law Enforcement Context
 
-You are working on law-enforcement/legal systems. Read these docs:
+You are working on law-enforcement content, prefabs, or legal-system integration. Read these docs:
 
 1. `docs/design/core-architecture.md` — shared cross-system contracts
 2. `docs/design/law-enforcement.md` — legal model, offense taxonomy, consequences
@@ -15,5 +15,7 @@ If your task touches contract exposure, target elimination, or escape geography,
 
 3. `docs/design/assassination-contracts.md`
 4. `docs/design/world-and-vehicles.md`
+
+For local contract/law/player-device runtime or test cleanup, use `.cursor/rules/contracts-law-runtime-local-context.mdc` instead.
 
 Do NOT load unrelated deep domain docs unless the task explicitly crosses boundaries.

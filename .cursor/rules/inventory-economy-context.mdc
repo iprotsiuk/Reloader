@@ -1,12 +1,12 @@
 ---
-description: Context for agents working on inventory, storage, item ownership, economy, or shops
-globs: Reloader/Assets/_Project/Inventory/**,Reloader/Assets/_Project/Economy/**
+description: Context for agents working on inventory/economy content, prefabs, or cross-domain integration
+globs: Reloader/Assets/_Project/Inventory/Data/**,Reloader/Assets/_Project/Inventory/Prefabs/**,Reloader/Assets/_Project/Inventory/UI/**,Reloader/Assets/_Project/Economy/Data/**,Reloader/Assets/_Project/Economy/Prefabs/**,Reloader/Assets/_Project/Economy/UI/**,Reloader/Assets/_Project/Economy/Editor/**/*.cs,Reloader/Assets/_Project/Economy/Scripts/Data/**/*.cs
 alwaysApply: false
 ---
 
 # Inventory & Economy Context
 
-You are working on inventory/economy systems. Read these docs:
+You are working on inventory/economy content, prefabs, or cross-domain integration surfaces. Read these docs:
 
 1. `docs/design/core-architecture.md` — shared patterns and event contracts
 2. `docs/design/inventory-and-economy.md` — inventory ownership, storage, economy, shops
@@ -16,5 +16,7 @@ If your change touches persisted runtime ownership/location state, also load:
 
 4. `docs/design/save-contract-quick-reference.md`
 5. `docs/design/save-and-progression.md`
+
+For local inventory/economy runtime or test cleanup, use `.cursor/rules/inventory-economy-runtime-local-context.mdc` instead.
 
 Do NOT load unrelated deep domain docs unless the task explicitly crosses boundaries.

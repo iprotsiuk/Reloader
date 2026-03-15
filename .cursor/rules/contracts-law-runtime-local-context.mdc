@@ -1,0 +1,22 @@
+---
+description: Context for agents doing local contracts, player-device, or law-enforcement runtime and test cleanup
+globs: Reloader/Assets/_Project/Contracts/Scripts/**/*.cs,Reloader/Assets/_Project/LawEnforcement/Scripts/**/*.cs,Reloader/Assets/_Project/LawEnforcement/Tests/**/*.cs,Reloader/Assets/_Project/PlayerDevice/Scripts/Runtime/**/*.cs,Reloader/Assets/_Project/PlayerDevice/Tests/**/*.cs
+alwaysApply: false
+---
+
+# Contracts & Law Local Runtime Context
+
+You are working in a local contracts, player-device, or law-enforcement runtime/test hotspot.
+
+Start from touched code/tests in these roots first. Do NOT auto-load `docs/design/core-architecture.md` for local contract-state, police-heat, player-device, or target-selection cleanup.
+
+Read `docs/design/README.md` only to decide whether a domain doc is needed. Load docs only as needed:
+
+1. `docs/design/assassination-contracts.md` for contract semantics
+2. `docs/design/law-enforcement.md` for policing/offense semantics
+3. `docs/design/world-and-vehicles.md` only when the touched seam changes escape geography or travel-facing behavior
+4. `docs/design/weapons-and-ballistics.md` and `docs/design/reloading-system.md` only for optics, hit evaluation, or ammo-quality semantics
+5. `docs/design/core-architecture.md` only if the change crosses events, save, persistence, or another domain, or if local intent is unclear
+6. `.agent/skills/refactoring-and-test-hygiene/SKILL.md` for local runtime refactor/test cleanup
+
+If the task becomes contract/law data-content, world-target wiring, or cross-domain integration work, switch to `.cursor/rules/assassination-contracts-context.mdc` or `.cursor/rules/law-enforcement-context.mdc`.

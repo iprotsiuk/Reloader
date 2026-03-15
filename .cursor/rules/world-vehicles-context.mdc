@@ -1,6 +1,6 @@
 ---
-description: Context for agents working on world layout, vehicles, or driving
-globs: Reloader/Assets/_Project/World/**,Reloader/Assets/_Project/Vehicles/**,Reloader/Assets/_Project/World/Scenes/**,Reloader/Assets/Scenes/Bootstrap*,Reloader/Assets/Scenes/MainWorld*
+description: Context for agents working on world layout, vehicles, scenes, terrain, or world integration workflows
+globs: Reloader/Assets/_Project/World/Data/**,Reloader/Assets/_Project/World/Editor/**/*.cs,Reloader/Assets/_Project/World/Prefabs/**,Reloader/Assets/_Project/World/Scenes/**,Reloader/Assets/_Project/World/Terrain/**,Reloader/Assets/_Project/Vehicles/Data/**,Reloader/Assets/_Project/Vehicles/Prefabs/**,Reloader/Assets/Scenes/Bootstrap*,Reloader/Assets/Scenes/MainWorld*
 alwaysApply: false
 ---
 
@@ -9,11 +9,10 @@ alwaysApply: false
 You are working on the world/scene layout or driving system. Read these docs:
 
 1. `docs/design/core-architecture.md` — shared patterns
-2. `docs/design/v0.1-demo-status-and-milestones.md` — canonical implemented vs planned status
-3. `docs/design/world-and-vehicles.md` — world layout, instanced scenes, vehicles, driving
-4. `docs/design/world-and-scenes.md` — scene topology and migration contract
-5. `docs/design/world-scene-contracts.md` — required world-scene wiring/validation guardrails
-6. `docs/design/extensible-development-contracts.md` — integration workflows (scene/checkpoint/interactable/NPC/save touchpoints)
+2. `docs/design/world-and-vehicles.md` — world layout, instanced scenes, vehicles, driving
+3. `docs/design/world-and-scenes.md` — scene topology and migration contract
+4. `docs/design/world-scene-contracts.md` — required world-scene wiring/validation guardrails
+5. `docs/design/extensible-development-contracts.md` — integration workflows (scene/checkpoint/interactable/NPC/save touchpoints)
 
 If your scene task also modifies gameplay/UI systems in the same change, load the corresponding domain docs for those systems.
 
@@ -21,5 +20,7 @@ For scene/component wiring changes:
 - use deterministic wiring tools where available
 - perform MCP read-back verification for changed scene objects/components
 - run targeted world scene contract tests before claiming completion
+
+For local world/vehicle runtime or test cleanup, use `.cursor/rules/world-vehicles-runtime-local-context.mdc` instead.
 
 Do NOT load reloading-domain-knowledge, accuracy calculations, or other unrelated deep domain docs unless the task explicitly crosses into them.

@@ -1,0 +1,21 @@
+---
+description: Context for agents doing local NPC, dialogue, quest, or NPC-test cleanup
+globs: Reloader/Assets/_Project/NPCs/Scripts/Combat/**/*.cs,Reloader/Assets/_Project/NPCs/Scripts/Generation/**/*.cs,Reloader/Assets/_Project/NPCs/Scripts/Runtime/**/*.cs,Reloader/Assets/_Project/NPCs/Scripts/World/**/*.cs,Reloader/Assets/_Project/NPCs/Tests/**/*.cs,Reloader/Assets/_Project/Quests/Scripts/**/*.cs
+alwaysApply: false
+---
+
+# NPCs & Quests Local Runtime Context
+
+You are working in a local NPC, dialogue, quest, or NPC-test hotspot.
+
+Start from touched code/tests in these roots first. Do NOT auto-load `docs/design/core-architecture.md` for local dialogue, capability, patrol, combat, or quest-runtime cleanup.
+
+Read `docs/design/README.md` only to decide whether a domain doc is needed. Load docs only as needed:
+
+1. `docs/design/npcs-and-quests.md` when NPC or quest semantics are unclear
+2. `docs/design/law-enforcement.md` only when the touched seam crosses enforcement outcomes
+3. `docs/design/extensible-development-contracts.md` only for NPC/world/interactable integration changes
+4. `docs/design/core-architecture.md` only if the change crosses events, save, persistence, or another domain, or if local intent is unclear
+5. `.agent/skills/refactoring-and-test-hygiene/SKILL.md` for local runtime refactor/test cleanup
+
+If the task becomes NPC/quest data-content, prefab authoring, or cross-domain integration work, switch to `.cursor/rules/npcs-quests-context.mdc`.

@@ -21,11 +21,18 @@ This file is the canonical local guidance entrypoint for agents working in this 
 - Weapons runtime routing is intentionally split:
   - `reloading-context.mdc` → reloading systems, weapon data definitions, and ballistics-content work
   - `weapons-runtime-local-context.mdc` → local weapons runtime/controller/ADS/test cleanup under weapons script/test roots
+- Other high-churn domains are split the same way:
+  - `player-ui-audio-runtime-local-context.mdc` → local player/UI/audio runtime/test cleanup
+  - `inventory-economy-runtime-local-context.mdc` → local inventory/economy runtime/test cleanup
+  - `npcs-quests-runtime-local-context.mdc` → local NPC/quest runtime/test cleanup
+  - `contracts-law-runtime-local-context.mdc` → local contracts/player-device/law runtime/test cleanup
+  - `world-vehicles-runtime-local-context.mdc` → local world/vehicle runtime/test cleanup
 - Prefer modular docs and avoid the superseded monolithic design plan.
 
 ## Task Classification
 
 - `runtime-local` → one subsystem or hotspot cluster; start from touched code/tests only and keep verification filtered.
+- `test-local` → one test file or one adjacent runtime/test seam; start from touched tests and nearest implementation only.
 - `runtime-cross-domain` → shared runtime contracts, save/events/persistence boundaries, or changes that clearly span multiple systems; load shared docs and guardrails.
 - `scene/prefab/editor-state` → Unity-authored state, scene wiring, prefabs, components, or editor workflows; verify via Unity-aware tooling/state checks.
 - `data-content` → ScriptableObject assets, authored content, balancing data, or data-definition work.
