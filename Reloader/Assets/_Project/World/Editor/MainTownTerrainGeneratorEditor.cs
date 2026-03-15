@@ -27,6 +27,12 @@ namespace Reloader.World.Editor
                     generator.RepaintTerrainLayersInEditor();
                 }
 
+                if (GUILayout.Button("Rebuild Water Boundaries"))
+                {
+                    Undo.RegisterFullObjectHierarchyUndo(generator.gameObject, "Rebuild MainTown Water Boundaries");
+                    generator.RebuildWaterBoundariesInEditor();
+                }
+
                 EditorGUILayout.Space();
 
                 var presetProperty = serializedObject.FindProperty("presetAsset");

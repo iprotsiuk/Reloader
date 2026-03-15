@@ -56,7 +56,7 @@ namespace Reloader.World
         [SerializeField] private float pitNoiseFrequency = 0.0044f;
         [SerializeField] private float cliffDetailStrengthMeters = 34f;
         [SerializeField] private float cliffDetailFrequency = 0.0038f;
-        [SerializeField] private bool autoRepaintLayersOnHeightChange = true;
+        [SerializeField] private bool autoRepaintLayersOnHeightChange = false;
         [SerializeField] private float sandBandOffsetMeters = 4f;
         [SerializeField] private float sandBandWidthMeters = 16f;
         [SerializeField] private float sandMaxSlopeDegrees = 26f;
@@ -138,8 +138,6 @@ namespace Reloader.World
 
         private void OnEnable()
         {
-            TerrainCallbacks.heightmapChanged += HandleTerrainHeightmapChanged;
-
             if (!Application.isPlaying && TryGetOwnedTerrain(out var terrain))
             {
                 RefreshWaterlineBoundary(terrain);
@@ -148,7 +146,6 @@ namespace Reloader.World
 
         private void OnDisable()
         {
-            TerrainCallbacks.heightmapChanged -= HandleTerrainHeightmapChanged;
         }
 
         public void RegenerateInEditor()
@@ -201,6 +198,18 @@ namespace Reloader.World
 
             PaintTerrainLayers(terrain);
             UnityEditor.EditorUtility.SetDirty(terrain.terrainData);
+            UnityEditor.EditorUtility.SetDirty(terrain);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+
+        public void RebuildWaterBoundariesInEditor()
+        {
+            if (!TryGetOwnedTerrain(out var terrain))
+            {
+                return;
+            }
+
+            RefreshWaterlineBoundary(terrain);
             UnityEditor.EditorUtility.SetDirty(terrain);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }
@@ -829,24 +838,7 @@ namespace Reloader.World
 
         private void HandleTerrainHeightmapChanged(Terrain terrain, RectInt heightRegion, bool synched)
         {
-            if (isUpdatingTerrain || terrain == null)
-            {
-                return;
-            }
-
-            if (!TryGetOwnedTerrain(out var ownedTerrain) || ownedTerrain != terrain)
-            {
-                return;
-            }
-
-            if (autoRepaintLayersOnHeightChange && !isRepaintingLayers)
-            {
-                RepaintTerrainLayersInEditor();
-            }
-
-            RefreshWaterlineBoundary(terrain);
-            UnityEditor.EditorUtility.SetDirty(terrain);
-            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+            // Automatic repaint/rebuild is intentionally disabled for manual sculpting workflows.
         }
 
         private float SampleNoise(float worldX, float worldZ, float frequency, float offset)
