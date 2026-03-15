@@ -1,6 +1,6 @@
 ---
 description: Context for agents doing local weapons runtime, ADS, controller, or test cleanup
-globs: Reloader/Assets/_Project/Weapons/Scripts/**/*.cs,Reloader/Assets/_Project/Weapons/Tests/**/*.cs,Reloader/Assets/Game/Weapons/**/*.cs
+globs: Reloader/Assets/_Project/Weapons/Scripts/Animations/**/*.cs,Reloader/Assets/_Project/Weapons/Scripts/Cinematics/**/*.cs,Reloader/Assets/_Project/Weapons/Scripts/Controllers/**/*.cs,Reloader/Assets/_Project/Weapons/Scripts/Runtime/**/*.cs,Reloader/Assets/_Project/Weapons/Scripts/World/**/*.cs,Reloader/Assets/_Project/Weapons/Tests/**/*.cs,Reloader/Assets/Game/Weapons/Runtime/**/*.cs,Reloader/Assets/Game/Weapons/UI/**/*.cs,Reloader/Assets/Game/Weapons/Common/**/*.cs
 alwaysApply: false
 ---
 

@@ -1,18 +1,18 @@
 ---
-description: Context for agents working on player controls/input/camera, shared UI, or audio systems
-globs: Reloader/Assets/_Project/Player/**,Reloader/Assets/_Project/UI/**,Reloader/Assets/_Project/Audio/**
+description: Context for agents working on cross-domain player, shared UI, or audio integration and content surfaces
+globs: Reloader/Assets/_Project/Player/Data/**,Reloader/Assets/_Project/Player/Prefabs/**,Reloader/Assets/_Project/Player/UI/**,Reloader/Assets/_Project/Player/Scripts/Editor/**/*.cs,Reloader/Assets/_Project/UI/Data/**,Reloader/Assets/_Project/UI/Editor/**/*.cs,Reloader/Assets/_Project/UI/Prefabs/**,Reloader/Assets/_Project/UI/Fonts/**,Reloader/Assets/_Project/UI/Resources/**,Reloader/Assets/_Project/UI/Sprites/**,Reloader/Assets/_Project/UI/Scripts/Toolkit/Runtime/**/*.cs,Reloader/Assets/_Project/UI/Scripts/Toolkit/Contracts/**/*.cs,Reloader/Assets/_Project/Audio/Data/**,Reloader/Assets/_Project/Audio/Resources/**,Reloader/Assets/_Project/Audio/SFX/**,Reloader/Assets/_Project/Audio/Music/**,Reloader/Assets/_Project/Audio/Ambient/**
 alwaysApply: false
 ---
 
 # Player, UI & Audio Context
 
-You are working on player, shared UI, or audio systems. Read these docs:
+You are working on player/UI/audio integration, content, prefab, or editor-state surfaces. Read these docs:
 
 1. `docs/design/core-architecture.md` — shared patterns, project structure, event bus contracts
-2. `docs/design/v0.1-demo-status-and-milestones.md` — canonical implemented vs planned status
-3. `docs/design/prototype-scope.md` — version targets (scope by milestone)
-4. `docs/design/extensible-development-contracts.md` — UI runtime bridge and interaction workflow guardrails
-5. Domain doc(s) affected by your change (for example contracts, world, inventory/economy)
-6. `.agent/skills/unity-project-conventions/SKILL.md` — project conventions for scripts/assets
+2. `docs/design/extensible-development-contracts.md` — UI runtime bridge and interaction workflow guardrails
+3. Domain doc(s) affected by your change (for example contracts, world, inventory/economy)
+4. `.agent/skills/unity-project-conventions/SKILL.md` — project conventions for scripts/assets
+
+For local player/UI/audio runtime or test cleanup, use `.cursor/rules/player-ui-audio-runtime-local-context.mdc` instead.
 
 Do NOT load unrelated deep domain docs unless the change explicitly crosses that boundary.

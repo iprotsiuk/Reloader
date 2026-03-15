@@ -1,0 +1,20 @@
+---
+description: Context for agents doing local player, UI, or audio runtime and test cleanup
+globs: Reloader/Assets/_Project/Player/Scripts/**/*.cs,Reloader/Assets/_Project/Player/Tests/**/*.cs,Reloader/Assets/_Project/UI/Scripts/**/*.cs,Reloader/Assets/_Project/UI/Tests/**/*.cs,Reloader/Assets/_Project/UI/Toolkit/**/*.uxml,Reloader/Assets/_Project/UI/Toolkit/**/*.uss,Reloader/Assets/_Project/Audio/Scripts/**/*.cs,Reloader/Assets/_Project/Audio/Tests/**/*.cs
+alwaysApply: false
+---
+
+# Player, UI & Audio Local Runtime Context
+
+You are working in a local player, UI, or audio runtime/test hotspot.
+
+Start from touched code/tests in these roots first. Do NOT auto-load `docs/design/core-architecture.md` for local controller, binder, HUD, input, or audio cleanup.
+
+Read `docs/design/README.md` only to decide whether a domain doc is needed. Load docs only as needed:
+
+1. `docs/design/prototype-scope.md` only when scoping a new player/UI/audio feature rather than fixing a local seam
+2. `docs/design/extensible-development-contracts.md` only for UI runtime bridge, interaction workflow, or other cross-domain integration changes
+3. `docs/design/core-architecture.md` only if the change crosses events, save, persistence, or another domain, or if local intent is unclear
+4. `.agent/skills/refactoring-and-test-hygiene/SKILL.md` for local runtime refactor/test cleanup
+
+If the task becomes player/UI/audio content authoring, runtime composition integration, or editor-state work, switch to `.cursor/rules/player-ui-audio-context.mdc`.

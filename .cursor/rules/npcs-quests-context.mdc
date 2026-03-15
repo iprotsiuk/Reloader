@@ -1,12 +1,12 @@
 ---
-description: Context for agents working on NPC behavior, dialogue, relationships, or quest systems
-globs: Reloader/Assets/_Project/NPCs/**,Reloader/Assets/_Project/Quests/**
+description: Context for agents working on NPC/quest content, prefabs, or cross-domain NPC integration
+globs: Reloader/Assets/_Project/NPCs/Data/**,Reloader/Assets/_Project/NPCs/Editor/**/*.cs,Reloader/Assets/_Project/NPCs/Prefabs/**,Reloader/Assets/_Project/NPCs/UI/**,Reloader/Assets/_Project/Quests/Data/**,Reloader/Assets/_Project/Quests/UI/**
 alwaysApply: false
 ---
 
 # NPCs & Quests Context
 
-You are working on NPC or quest systems. Read these docs:
+You are working on NPC or quest content, prefabs, or cross-domain integration surfaces. Read these docs:
 
 1. `docs/design/core-architecture.md` — shared runtime patterns and event bus contracts
 2. `docs/design/npcs-and-quests.md` — NPC types, quest models, relationship design
@@ -15,5 +15,7 @@ You are working on NPC or quest systems. Read these docs:
 If your task crosses into legal outcomes or enforcement hooks, also load:
 
 4. `docs/design/law-enforcement.md`
+
+For local NPC/quest runtime or test cleanup, use `.cursor/rules/npcs-quests-runtime-local-context.mdc` instead.
 
 Do NOT load unrelated deep domain docs unless the task explicitly crosses boundaries.

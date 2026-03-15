@@ -1,0 +1,21 @@
+---
+description: Context for agents doing local inventory or economy runtime and test cleanup
+globs: Reloader/Assets/_Project/Inventory/Scripts/**/*.cs,Reloader/Assets/_Project/Inventory/Tests/**/*.cs,Reloader/Assets/_Project/Inventory/UI/**/*.cs,Reloader/Assets/_Project/Economy/Scripts/Runtime/**/*.cs,Reloader/Assets/_Project/Economy/Scripts/UI/**/*.cs,Reloader/Assets/_Project/Economy/Tests/**/*.cs,Reloader/Assets/_Project/Economy/UI/**/*.cs
+alwaysApply: false
+---
+
+# Inventory & Economy Local Runtime Context
+
+You are working in a local inventory or economy runtime/test hotspot.
+
+Start from touched code/tests in these roots first. Do NOT auto-load `docs/design/core-architecture.md` for local inventory transfer, storage, checkout, or shop-flow cleanup.
+
+Read `docs/design/README.md` only to decide whether a domain doc is needed. Load docs only as needed:
+
+1. `docs/design/inventory-and-economy.md` when local semantics are unclear
+2. `docs/design/save-contract-quick-reference.md` and `docs/design/save-and-progression.md` only if the touched seam changes persisted ownership, location, or restore behavior
+3. `docs/design/extensible-development-contracts.md` only for cross-domain interaction or UI bridge changes
+4. `docs/design/core-architecture.md` only if the change crosses events, save, persistence, or another domain, or if local intent is unclear
+5. `.agent/skills/refactoring-and-test-hygiene/SKILL.md` for local runtime refactor/test cleanup
+
+If the task becomes inventory/economy data-content, prefab authoring, or cross-domain integration work, switch to `.cursor/rules/inventory-economy-context.mdc`.
