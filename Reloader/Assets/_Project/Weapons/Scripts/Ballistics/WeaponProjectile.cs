@@ -99,8 +99,9 @@ namespace Reloader.Weapons.Ballistics
             }
 
             var stepDt = dt;
+            var stepStartVelocity = _velocity;
             _velocity += Physics.gravity * (_gravityMultiplier * stepDt);
-            ApplyDrag(stepDt);
+            _velocity = ApplyDragToVelocity(_velocity, stepDt);
             var start = transform.position;
             var next = start + (_velocity * stepDt);
             var delta = next - start;
@@ -109,8 +110,9 @@ namespace Reloader.Weapons.Ballistics
             {
                 RecordObservedSegment(start, hit.point);
                 transform.position = hit.point;
-                var impactSpeedMetersPerSecond = _velocity.magnitude;
-                var impactDirection = impactSpeedMetersPerSecond > 0.0001f ? _velocity / impactSpeedMetersPerSecond : transform.forward;
+                var impactVelocity = ResolveImpactVelocity(stepStartVelocity, stepDt, delta, hit.distance);
+                var impactSpeedMetersPerSecond = impactVelocity.magnitude;
+                var impactDirection = impactSpeedMetersPerSecond > 0.0001f ? impactVelocity / impactSpeedMetersPerSecond : transform.forward;
                 var deliveredEnergyJoules = ImpactEnergyMath.ComputeDeliveredEnergyJoules(impactSpeedMetersPerSecond, _projectileMassGrains);
                 var payload = new ProjectileImpactPayload(
                     _itemId,
@@ -207,12 +209,26 @@ namespace Reloader.Weapons.Ballistics
             return _useRuntimeKernelWeaponEvents ? RuntimeKernelBootstrapper.WeaponEvents : _weaponEvents;
         }
 
-        private void ApplyDrag(float dt)
+        private Vector3 ResolveImpactVelocity(Vector3 stepStartVelocity, float stepDt, Vector3 delta, float hitDistance)
         {
-            var speed = _velocity.magnitude;
+            var deltaMagnitude = delta.magnitude;
+            if (stepDt <= 0f || deltaMagnitude <= 0.0001f)
+            {
+                return stepStartVelocity;
+            }
+
+            var hitFraction = Mathf.Clamp01(hitDistance / deltaMagnitude);
+            var impactDt = stepDt * hitFraction;
+            var impactVelocity = stepStartVelocity + (Physics.gravity * (_gravityMultiplier * impactDt));
+            return ApplyDragToVelocity(impactVelocity, impactDt);
+        }
+
+        private Vector3 ApplyDragToVelocity(Vector3 velocity, float dt)
+        {
+            var speed = velocity.magnitude;
             if (speed <= 0.0001f)
             {
-                return;
+                return velocity;
             }
 
             var bc = Mathf.Max(0.01f, _ballisticCoefficientG1);
@@ -221,11 +237,10 @@ namespace Reloader.Weapons.Ballistics
             var nextSpeed = Mathf.Max(0f, speed - speedDelta);
             if (nextSpeed <= 0f)
             {
-                _velocity = Vector3.zero;
-                return;
+                return Vector3.zero;
             }
 
-            _velocity = _velocity.normalized * nextSpeed;
+            return velocity.normalized * nextSpeed;
         }
 
         private bool TryResolveHit(Vector3 start, Vector3 delta, out RaycastHit hit)

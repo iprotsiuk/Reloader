@@ -267,6 +267,72 @@ namespace Reloader.Weapons.Tests.PlayMode
             Object.Destroy(target);
         }
 
+        [Test]
+        public void Projectile_UsesHitFractionToReportImpactMetadataAtContactPoint()
+        {
+            const float launchSpeedMetersPerSecond = 500f;
+            const float gravityMultiplier = 0f;
+            const float ballisticCoefficientG1 = 0.05f;
+            const float projectileMassGrains = 175f;
+            const float dragCoefficient = 0.00012f;
+            const float hitDistanceMeters = 2.1f;
+            const float stepDt = 0.016f;
+
+            var projectileGo = new GameObject("Projectile");
+            try
+            {
+                projectileGo.transform.forward = Vector3.forward;
+                var projectile = projectileGo.AddComponent<WeaponProjectile>();
+                projectile.Initialize(
+                    "weapon-kar98k",
+                    Vector3.forward,
+                    speed: launchSpeedMetersPerSecond,
+                    gravityMultiplier: gravityMultiplier,
+                    damage: 33f,
+                    ballisticCoefficientG1: ballisticCoefficientG1,
+                    projectileMassGrains: projectileMassGrains);
+
+                var resolveImpactVelocityMethod = typeof(WeaponProjectile).GetMethod(
+                    "ResolveImpactVelocity",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveImpactVelocityMethod, Is.Not.Null,
+                    "Expected contact-point impact metadata helper to exist.");
+
+                var dragFactor = dragCoefficient / ballisticCoefficientG1;
+                var stepStartVelocity = Vector3.forward * launchSpeedMetersPerSecond;
+                var frameEndSpeedMetersPerSecond = launchSpeedMetersPerSecond
+                    - (dragFactor * launchSpeedMetersPerSecond * launchSpeedMetersPerSecond * stepDt);
+                var frameEndVelocity = Vector3.forward * frameEndSpeedMetersPerSecond;
+                var delta = frameEndVelocity * stepDt;
+
+                var impactVelocity = (Vector3)resolveImpactVelocityMethod!.Invoke(
+                    projectile,
+                    new object[] { stepStartVelocity, stepDt, delta, hitDistanceMeters })!;
+
+                var payloadImpactSpeedMetersPerSecond = impactVelocity.magnitude;
+                var payloadDeliveredEnergyJoules = ImpactEnergyMath.ComputeDeliveredEnergyJoules(
+                    payloadImpactSpeedMetersPerSecond,
+                    projectileMassGrains);
+                var contactDt = stepDt * (hitDistanceMeters / delta.magnitude);
+                var expectedImpactSpeedMetersPerSecond = launchSpeedMetersPerSecond
+                    - (dragFactor * launchSpeedMetersPerSecond * launchSpeedMetersPerSecond * contactDt);
+                var expectedDeliveredEnergyJoules = ImpactEnergyMath.ComputeDeliveredEnergyJoules(
+                    expectedImpactSpeedMetersPerSecond,
+                    projectileMassGrains);
+
+                Assert.That(payloadImpactSpeedMetersPerSecond, Is.GreaterThan(frameEndSpeedMetersPerSecond + 0.05f),
+                    "Expected contact-point metadata to preserve more speed than the fully integrated end-of-frame velocity.");
+                Assert.That(payloadImpactSpeedMetersPerSecond,
+                    Is.EqualTo(expectedImpactSpeedMetersPerSecond).Within(0.001f));
+                Assert.That(payloadDeliveredEnergyJoules,
+                    Is.EqualTo(expectedDeliveredEnergyJoules).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(projectileGo);
+            }
+        }
+
         private static float ReadPayloadFloatProperty(object payload, string propertyName)
         {
             var property = payload.GetType().GetProperty(propertyName);

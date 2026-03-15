@@ -16,6 +16,7 @@ namespace Reloader.Weapons.World
         private const string SharedReceiverResetRuntimeMethodName = "ResetRuntime";
         private const string RagdollControllerTypeName = "Reloader.NPCs.Combat.HumanoidRagdollController, Reloader.NPCs";
         private const string RagdollControllerCanPresentDeathStatePropertyName = "CanPresentDeathState";
+        private const string RagdollControllerResetRuntimeMethodName = "ResetRuntime";
 
         [SerializeField] private MonoBehaviour _eliminationSinkBehaviour;
         [SerializeField] private string _targetId = string.Empty;
@@ -54,6 +55,7 @@ namespace Reloader.Weapons.World
 
             ResolveEliminationSink();
             ResetSharedReceiverRuntime();
+            ResetRagdollRuntime();
             BindSharedReceiver();
         }
 
@@ -88,6 +90,7 @@ namespace Reloader.Weapons.World
             ResetRuntime();
             ResolveEliminationSink();
             ResetSharedReceiverRuntime();
+            ResetRagdollRuntime();
             BindSharedReceiver();
         }
 
@@ -251,6 +254,34 @@ namespace Reloader.Weapons.World
             }
 
             resetMethod.Invoke(receiver, null);
+        }
+
+        private void ResetRagdollRuntime()
+        {
+            var ragdollControllerType = System.Type.GetType(RagdollControllerTypeName, throwOnError: false);
+            if (ragdollControllerType == null)
+            {
+                return;
+            }
+
+            var ragdollController = GetComponent(ragdollControllerType);
+            if (ragdollController == null)
+            {
+                return;
+            }
+
+            var resetMethod = ragdollControllerType.GetMethod(
+                RagdollControllerResetRuntimeMethodName,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public,
+                binder: null,
+                types: System.Type.EmptyTypes,
+                modifiers: null);
+            if (resetMethod == null)
+            {
+                return;
+            }
+
+            resetMethod.Invoke(ragdollController, null);
         }
 
         private void ApplyFallbackHealthDamage(ProjectileImpactPayload payload)
