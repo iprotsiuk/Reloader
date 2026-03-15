@@ -844,6 +844,53 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator RealKar98kOpticAsset_ProxySurface_LeavesVisibleEyepieceMargin()
+        {
+            var scopeLensDisplayType = ResolveType("Reloader.Game.Weapons.ScopeLensDisplay");
+            var opticDefinition = ResolveOpticDefinitionById("att-kar98k-scope-remote-a");
+            Assert.That(scopeLensDisplayType, Is.Not.Null);
+            Assert.That(opticDefinition, Is.Not.Null, "Expected the real Kar98k optic definition asset to be loaded.");
+
+            var opticPrefab = GetProperty(opticDefinition, "OpticPrefab") as GameObject;
+            Assert.That(opticPrefab, Is.Not.Null, "Real Kar98k optic should expose an authored optic prefab.");
+
+            var opticInstance = UnityEngine.Object.Instantiate(opticPrefab);
+            var scopeTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+
+            try
+            {
+                scopeTexture.SetPixel(0, 0, Color.white);
+                scopeTexture.SetPixel(1, 0, Color.black);
+                scopeTexture.SetPixel(0, 1, Color.black);
+                scopeTexture.SetPixel(1, 1, Color.white);
+                scopeTexture.Apply(false, true);
+
+                yield return null;
+
+                var lensDisplay = GetComponentInChildren(opticInstance, scopeLensDisplayType);
+                Assert.That(lensDisplay, Is.Not.Null, "Real Kar98k optic should expose a ScopeLensDisplay.");
+                Assert.That((bool)Invoke(lensDisplay, "TrySetTexture", new object[] { scopeTexture }), Is.True);
+
+                var proxySurface = opticInstance.transform.Find("ScopeDisplayProxy");
+                Assert.That(proxySurface, Is.Not.Null, "Expected the real Kar98k optic prefab to expose the proxy display surface.");
+
+                var proxyRenderer = proxySurface.GetComponent<Renderer>();
+                var opticRenderer = opticInstance.GetComponent<Renderer>();
+                Assert.That(proxyRenderer, Is.Not.Null);
+                Assert.That(opticRenderer, Is.Not.Null);
+
+                Assert.That(proxyRenderer.bounds.size.x, Is.LessThan(opticRenderer.bounds.size.x * 0.98f),
+                    $"Real Kar98k proxy PiP should leave a visible horizontal eyepiece frame margin. Proxy width={proxyRenderer.bounds.size.x:0.0000}, body width={opticRenderer.bounds.size.x:0.0000}.");
+                Assert.That(proxyRenderer.bounds.size.y, Is.LessThan(opticRenderer.bounds.size.y * 0.98f),
+                    $"Real Kar98k proxy PiP should leave a visible vertical eyepiece frame margin. Proxy height={proxyRenderer.bounds.size.y:0.0000}, body height={opticRenderer.bounds.size.y:0.0000}.");
+            }
+            finally
+            {
+                Cleanup(opticInstance, scopeTexture);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ScopeLensDisplay_ProxySurface_LeavesVisibleEyepieceMargin()
         {
             var scopeLensDisplayType = ResolveType("Reloader.Game.Weapons.ScopeLensDisplay");

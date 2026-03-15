@@ -418,7 +418,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             registry.SetDefinitionsForTests(new[] { definition });
 
             var nearTarget = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            nearTarget.transform.position = root.transform.position + (Vector3.forward * 100f);
+            nearTarget.transform.position = root.transform.position + (Vector3.forward * 101f);
             nearTarget.transform.localScale = new Vector3(20f, 20f, 2f);
 
             var shotCameraSpy = root.AddComponent<ShotCameraRegistrationSpy>();
