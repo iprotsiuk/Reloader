@@ -150,6 +150,68 @@ namespace Reloader.NPCs.Tests.PlayMode
         }
 
         [Test]
+        public void ResolveBones_WithoutAnimator_NormalizesFallbackTokensForSeparatorNamedBones()
+        {
+            var hitboxRigType = ResolveType("Reloader.NPCs.Combat.HumanoidHitboxRig", "Reloader.NPCs");
+            var bodyZoneType = ResolveType("Reloader.NPCs.Combat.HumanoidBodyZone", "Reloader.NPCs");
+            Assert.That(hitboxRigType, Is.Not.Null, "Expected HumanoidHitboxRig type.");
+            Assert.That(bodyZoneType, Is.Not.Null, "Expected HumanoidBodyZone enum type.");
+
+            GameObject root = null;
+            try
+            {
+                root = new GameObject("RigRoot");
+                var pelvis = new GameObject("Pelvis");
+                pelvis.transform.SetParent(root.transform, false);
+
+                var spine = new GameObject("Spine");
+                spine.transform.SetParent(pelvis.transform, false);
+
+                var neck = new GameObject("Neck");
+                neck.transform.SetParent(spine.transform, false);
+
+                var head = new GameObject("Head");
+                head.transform.SetParent(neck.transform, false);
+
+                var armL = new GameObject("UpperArm_L");
+                armL.transform.SetParent(spine.transform, false);
+
+                var armR = new GameObject("UpperArm-R");
+                armR.transform.SetParent(spine.transform, false);
+
+                var legL = new GameObject("UpLeg_L");
+                legL.transform.SetParent(pelvis.transform, false);
+
+                var legR = new GameObject("UpLeg-R");
+                legR.transform.SetParent(pelvis.transform, false);
+
+                var rig = root.AddComponent(hitboxRigType!);
+                var resolveBonesMethod = hitboxRigType!.GetMethod("ResolveBones", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(resolveBonesMethod, Is.Not.Null, "Expected ResolveBones() on HumanoidHitboxRig.");
+
+                var resolved = resolveBonesMethod!.Invoke(rig, Array.Empty<object>());
+                Assert.That(resolved, Is.EqualTo(true),
+                    "Expected fallback bone-name resolution to handle underscore/hyphen variants when no humanoid Animator mapping is available.");
+
+                Assert.That((bool)hitboxRigType.GetProperty("HasAllStandardBones", BindingFlags.Instance | BindingFlags.Public)!.GetValue(rig),
+                    Is.True,
+                    "Expected separator-named fallback bones to count toward a fully resolved rig.");
+
+                AssertResolvedBone(rig, bodyZoneType!, "ArmL", armL.transform);
+                AssertResolvedBone(rig, bodyZoneType!, "ArmR", armR.transform);
+                AssertResolvedBone(rig, bodyZoneType!, "LegL", legL.transform);
+                AssertResolvedBone(rig, bodyZoneType!, "LegR", legR.transform);
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(root);
+                }
+            }
+        }
+
+        [Test]
         public void SharedReceiver_WhenExplicitLowEnergyIsProvided_DoesNotEscalateFromLegacyDamageFallback()
         {
             var sharedReceiverType = ResolveType("Reloader.NPCs.Combat.HumanoidDamageReceiver", "Reloader.NPCs");
@@ -307,6 +369,23 @@ namespace Reloader.NPCs.Tests.PlayMode
             var found = (bool)method!.Invoke(rig, args);
             registeredHitbox = args[1];
             return found;
+        }
+
+        private static void AssertResolvedBone(Component rig, Type bodyZoneType, string zoneName, Transform expectedBone)
+        {
+            var zone = Enum.Parse(bodyZoneType, zoneName);
+            var method = rig.GetType().GetMethod(
+                "TryResolveBone",
+                BindingFlags.Instance | BindingFlags.Public,
+                binder: null,
+                types: new[] { bodyZoneType, typeof(Transform).MakeByRefType() },
+                modifiers: null);
+            Assert.That(method, Is.Not.Null, "Expected TryResolveBone(HumanoidBodyZone, out Transform).");
+
+            var args = new object[] { zone, null };
+            var found = (bool)method!.Invoke(rig, args);
+            Assert.That(found, Is.True, $"Expected zone '{zoneName}' to resolve a fallback bone.");
+            Assert.That(args[1], Is.SameAs(expectedBone), $"Expected zone '{zoneName}' to bind the authored separator-named transform.");
         }
 
         private static void InitializeProjectile(

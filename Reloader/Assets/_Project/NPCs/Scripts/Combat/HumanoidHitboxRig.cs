@@ -313,7 +313,7 @@ namespace Reloader.NPCs.Combat
                         continue;
                     }
 
-                    if (normalizedName.Contains(token))
+                    if (normalizedName.Contains(NormalizeLookupToken(token)))
                     {
                         return candidate;
                     }
@@ -321,6 +321,13 @@ namespace Reloader.NPCs.Combat
             }
 
             return null;
+        }
+
+        private static string NormalizeLookupToken(string token)
+        {
+            return string.IsNullOrWhiteSpace(token)
+                ? string.Empty
+                : token.Replace("_", string.Empty).Replace("-", string.Empty).ToLowerInvariant();
         }
     }
 }
