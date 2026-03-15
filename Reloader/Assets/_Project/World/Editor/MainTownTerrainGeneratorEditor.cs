@@ -20,6 +20,12 @@ namespace Reloader.World.Editor
                     Undo.RegisterFullObjectHierarchyUndo(generator.gameObject, "Regenerate MainTown Terrain");
                     generator.RegenerateInEditor();
                 }
+
+                if (GUILayout.Button("Repaint Terrain Layers"))
+                {
+                    Undo.RegisterFullObjectHierarchyUndo(generator.gameObject, "Repaint MainTown Terrain Layers");
+                    generator.RepaintTerrainLayersInEditor();
+                }
             }
         }
     }

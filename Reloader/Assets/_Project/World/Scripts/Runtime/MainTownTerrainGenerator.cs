@@ -3,6 +3,7 @@ using UnityEngine;
 
 namespace Reloader.World
 {
+    [ExecuteAlways]
     public sealed class MainTownTerrainGenerator : MonoBehaviour
     {
 #if UNITY_EDITOR
@@ -41,6 +42,22 @@ namespace Reloader.World
         [SerializeField] private float riverDepthMeters = 115f;
         [SerializeField] private float riverMeanderMeters = 220f;
         [SerializeField] private float beachBlendMeters = 10f;
+        [SerializeField] private float detailAmplitudeMeters = 18f;
+        [SerializeField] private float detailNoiseFrequency = 0.0032f;
+        [SerializeField] private float pitAmplitudeMeters = 10f;
+        [SerializeField] private float pitNoiseFrequency = 0.0044f;
+        [SerializeField] private float cliffDetailStrengthMeters = 34f;
+        [SerializeField] private float cliffDetailFrequency = 0.0038f;
+        [SerializeField] private bool autoRepaintLayersOnHeightChange = true;
+        [SerializeField] private float sandBandOffsetMeters = 4f;
+        [SerializeField] private float sandBandWidthMeters = 16f;
+        [SerializeField] private float sandMaxSlopeDegrees = 26f;
+        [SerializeField] private float rockSlopeStartDegrees = 34f;
+        [SerializeField] private float rockSlopeFullDegrees = 55f;
+        [SerializeField] private float rockHeightStartMeters = 125f;
+        [SerializeField] private float rockHeightFullMeters = 240f;
+
+        private bool isRepaintingLayers;
 
         private readonly struct IslandLayout
         {
@@ -104,6 +121,22 @@ namespace Reloader.World
             RegenerateInEditor();
         }
 
+        [ContextMenu("Repaint Terrain Layers")]
+        private void RepaintTerrainLayersContextMenu()
+        {
+            RepaintTerrainLayersInEditor();
+        }
+
+        private void OnEnable()
+        {
+            TerrainCallbacks.heightmapChanged += HandleTerrainHeightmapChanged;
+        }
+
+        private void OnDisable()
+        {
+            TerrainCallbacks.heightmapChanged -= HandleTerrainHeightmapChanged;
+        }
+
         public void RegenerateInEditor()
         {
             if (rerollSeedOnRegenerate)
@@ -133,6 +166,19 @@ namespace Reloader.World
             UnityEditor.EditorUtility.SetDirty(terrainData);
             UnityEditor.EditorUtility.SetDirty(terrain);
             UnityEditor.EditorUtility.SetDirty(terrainCollider);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+
+        public void RepaintTerrainLayersInEditor()
+        {
+            if (!TryGetOwnedTerrain(out var terrain))
+            {
+                return;
+            }
+
+            PaintTerrainLayers(terrain);
+            UnityEditor.EditorUtility.SetDirty(terrain.terrainData);
+            UnityEditor.EditorUtility.SetDirty(terrain);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }
 
@@ -248,33 +294,43 @@ namespace Reloader.World
 
         private void PaintTerrainLayers(Terrain terrain)
         {
+            isRepaintingLayers = true;
+
             var terrainData = terrain.terrainData;
             var resolution = terrainData.alphamapResolution;
             var alphamaps = new float[resolution, resolution, terrainData.terrainLayers.Length];
 
-            for (var z = 0; z < resolution; z++)
+            try
             {
-                var normalizedZ = z / (float)(resolution - 1);
-                for (var x = 0; x < resolution; x++)
+                for (var z = 0; z < resolution; z++)
                 {
-                    var normalizedX = x / (float)(resolution - 1);
-                    var height = terrainData.GetInterpolatedHeight(normalizedX, normalizedZ);
-                    var steepness = terrainData.GetSteepness(normalizedX, normalizedZ);
+                    var normalizedZ = z / (float)(resolution - 1);
+                    for (var x = 0; x < resolution; x++)
+                    {
+                        var normalizedX = x / (float)(resolution - 1);
+                        var height = terrainData.GetInterpolatedHeight(normalizedX, normalizedZ);
+                        var steepness = terrainData.GetSteepness(normalizedX, normalizedZ);
 
-                    var sandWeight = Mathf.Clamp01(1f - Mathf.Abs(height - (waterLevelMeters + 4f)) / 16f) * Mathf.Clamp01(1f - steepness / 26f);
-                    var rockWeight = Mathf.Max(
-                        Mathf.InverseLerp(34f, 55f, steepness),
-                        Mathf.InverseLerp(waterLevelMeters + 125f, waterLevelMeters + 240f, height));
-                    var grassWeight = Mathf.Max(0.05f, 1f - Mathf.Max(sandWeight, rockWeight));
+                        var sandWeight = Mathf.Clamp01(1f - Mathf.Abs(height - (waterLevelMeters + sandBandOffsetMeters)) / sandBandWidthMeters)
+                            * Mathf.Clamp01(1f - (steepness / Mathf.Max(1f, sandMaxSlopeDegrees)));
+                        var rockWeight = Mathf.Max(
+                            Mathf.InverseLerp(rockSlopeStartDegrees, rockSlopeFullDegrees, steepness),
+                            Mathf.InverseLerp(waterLevelMeters + rockHeightStartMeters, waterLevelMeters + rockHeightFullMeters, height));
+                        var grassWeight = Mathf.Max(0.05f, 1f - Mathf.Max(sandWeight, rockWeight));
 
-                    var total = sandWeight + grassWeight + rockWeight;
-                    alphamaps[z, x, 0] = sandWeight / total;
-                    alphamaps[z, x, 1] = grassWeight / total;
-                    alphamaps[z, x, 2] = rockWeight / total;
+                        var total = sandWeight + grassWeight + rockWeight;
+                        alphamaps[z, x, 0] = sandWeight / total;
+                        alphamaps[z, x, 1] = grassWeight / total;
+                        alphamaps[z, x, 2] = rockWeight / total;
+                    }
                 }
-            }
 
-            terrainData.SetAlphamaps(0, 0, alphamaps);
+                terrainData.SetAlphamaps(0, 0, alphamaps);
+            }
+            finally
+            {
+                isRepaintingLayers = false;
+            }
         }
 
         private IslandLayout BuildLayout()
@@ -388,7 +444,25 @@ namespace Reloader.World
             }
 
             var smoothingTarget = continental + hills * 0.72f + mountains * 0.92f + satellitePeak * 0.9f;
-            height = Mathf.Lerp(height, smoothingTarget, 0.18f);
+            height = Mathf.Lerp(height, smoothingTarget, 0.12f);
+
+            var inlandMask = SmoothRange01(waterLevelMeters + 10f, waterLevelMeters + 75f, height) * landMask;
+            var detailNoise = (SampleFractalNoise(warpX - 180f, warpZ + 260f, detailNoiseFrequency, 4, 2.1f, 0.54f) - 0.5f) * 2f;
+            var billowNoise = (SampleBillowNoise(warpX + 410f, warpZ - 290f, detailNoiseFrequency * 1.35f, 3, 2f, 0.56f) - 0.5f) * 2f;
+            var terrainDetail = (detailNoise + (billowNoise * 0.65f)) * detailAmplitudeMeters * inlandMask;
+
+            var pitMask = SmoothRange01(0.58f, 0.9f, SampleRidgedNoise(warpX - 320f, warpZ + 520f, pitNoiseFrequency, 3, 2.15f, 0.52f));
+            var pits = pitMask * pitAmplitudeMeters * inlandMask * Mathf.Clamp01(1f - (cliffRegions * 0.45f));
+
+            var cliffHeightMask = SmoothRange01(waterLevelMeters + 70f, waterLevelMeters + 210f, height);
+            var cliffMask = cliffRegions * cliffHeightMask;
+            var cliffMicroNoise = SmoothRange01(0.44f, 0.88f, SampleRidgedNoise(warpX + 140f, warpZ - 190f, cliffDetailFrequency, 4, 2.05f, 0.54f));
+            var cliffBreakNoise = (SampleBillowNoise(warpX - 540f, warpZ + 90f, cliffDetailFrequency * 1.22f, 2, 2f, 0.58f) - 0.5f) * 2f;
+            var cliffMicroBreaks = ((cliffMicroNoise * 0.75f) + (cliffBreakNoise * 0.25f)) * cliffDetailStrengthMeters * cliffMask * cliffSharpening;
+
+            height += terrainDetail;
+            height -= pits;
+            height += cliffMicroBreaks;
 
             var beachTarget = waterLevelMeters + 5f;
             var beachMask = Mathf.Clamp01(1f - Mathf.Abs(height - beachTarget) / beachBlendMeters);
@@ -475,6 +549,38 @@ namespace Reloader.World
             return childObject;
         }
 
+        private bool TryGetOwnedTerrain(out Terrain terrain)
+        {
+            terrain = null;
+            foreach (Transform child in transform.GetComponentsInChildren<Transform>(true))
+            {
+                if (child.name != TerrainRootName)
+                {
+                    continue;
+                }
+
+                terrain = child.GetComponent<Terrain>();
+                return terrain != null;
+            }
+
+            return false;
+        }
+
+        private void HandleTerrainHeightmapChanged(Terrain terrain, RectInt heightRegion, bool synched)
+        {
+            if (!autoRepaintLayersOnHeightChange || isRepaintingLayers || terrain == null)
+            {
+                return;
+            }
+
+            if (!TryGetOwnedTerrain(out var ownedTerrain) || ownedTerrain != terrain)
+            {
+                return;
+            }
+
+            RepaintTerrainLayersInEditor();
+        }
+
         private float SampleNoise(float worldX, float worldZ, float frequency, float offset)
         {
             var seedOffsetX = HashToOffset(seed * 0.173f + offset * 13.1f);
@@ -512,6 +618,26 @@ namespace Reloader.World
                 var noise = SampleNoise(worldX, worldZ, frequency, octave * 53f);
                 var ridge = 1f - Mathf.Abs(noise * 2f - 1f);
                 total += ridge * ridge * amplitude;
+                totalAmplitude += amplitude;
+                amplitude *= persistence;
+                frequency *= lacunarity;
+            }
+
+            return total / Mathf.Max(totalAmplitude, Mathf.Epsilon);
+        }
+
+        private float SampleBillowNoise(float worldX, float worldZ, float baseFrequency, int octaves, float lacunarity, float persistence)
+        {
+            var amplitude = 1f;
+            var totalAmplitude = 0f;
+            var total = 0f;
+            var frequency = baseFrequency;
+
+            for (var octave = 0; octave < octaves; octave++)
+            {
+                var noise = SampleNoise(worldX, worldZ, frequency, octave * 71f);
+                var billow = Mathf.Abs((noise * 2f) - 1f);
+                total += billow * amplitude;
                 totalAmplitude += amplitude;
                 amplitude *= persistence;
                 frequency *= lacunarity;

@@ -101,9 +101,7 @@ namespace Reloader.World.Tests.EditMode
                 Assert.That(oceanRenderer, Is.Not.Null, "Expected OceanSurface renderer.");
                 AssertOceanMaterialIsOpaque(oceanRenderer!);
 
-                var oceanBoundary = FindChild(worldShell.transform, "Water_OceanBoundary");
-                Assert.That(oceanBoundary, Is.Not.Null, "Expected island pass to create invisible ocean blockers.");
-                Assert.That(oceanBoundary!.GetComponentsInChildren<BoxCollider>(true).Length, Is.GreaterThanOrEqualTo(8), "Expected enough blocker segments to keep the player out of the ocean.");
+                Assert.That(FindChild(worldShell.transform, "Water_OceanBoundary"), Is.Null, "Expected island pass to leave ocean blockers out of the planning scene.");
             }
             finally
             {
@@ -394,6 +392,131 @@ namespace Reloader.World.Tests.EditMode
             }
             finally
             {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                var terrain = worldShell != null
+                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
+                    : null;
+                if (worldShell != null && terrain != null)
+                {
+                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
+                }
+
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void MainTownTerrainGenerator_RepaintTerrainLayersInEditor_UsesWaterHeightAndSteepnessRules()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                Assert.That(worldShell, Is.Not.Null, "Expected MainTownWorldShell in MainTown.");
+
+                var generator = worldShell!.GetComponent<MainTownTerrainGenerator>();
+                Assert.That(generator, Is.Not.Null, "Expected MainTownWorldShell to host MainTownTerrainGenerator.");
+
+                SetPrivateField(generator!, "rerollSeedOnRegenerate", false);
+                SetPrivateField(generator!, "seed", 424242);
+                SetPrivateField(generator!, "terrainWidthMeters", 3000f);
+                SetPrivateField(generator!, "terrainDepthMeters", 4000f);
+                SetPrivateField(generator!, "terrainHeightMeters", 1100f);
+                generator.RegenerateInEditor();
+
+                var terrain = FindChild(worldShell.transform, "MainTownTerrain")!.GetComponent<Terrain>();
+                Assert.That(terrain, Is.Not.Null, "Expected terrain after regeneration.");
+
+                ApplyLayerClassificationFixture(terrain!);
+                generator.RepaintTerrainLayersInEditor();
+
+                Assert.That(GetDominantTerrainLayer(terrain!, 0.16f, 0.16f), Is.EqualTo(0), "Expected low flat shoreline terrain to paint as sand.");
+                Assert.That(GetDominantTerrainLayer(terrain!, 0.5f, 0.5f), Is.EqualTo(1), "Expected moderate inland terrain to paint as grass.");
+                Assert.That(GetDominantTerrainLayer(terrain!, 0.72f, 0.5f), Is.EqualTo(2), "Expected steep high terrain to paint as rock.");
+            }
+            finally
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                var terrain = worldShell != null
+                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
+                    : null;
+                if (worldShell != null && terrain != null)
+                {
+                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
+                }
+
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void MainTownTerrainGenerator_RegenerateInEditor_DetailPassAddsLocalMountainVariation()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                Assert.That(worldShell, Is.Not.Null, "Expected MainTownWorldShell in MainTown.");
+
+                var generator = worldShell!.GetComponent<MainTownTerrainGenerator>();
+                Assert.That(generator, Is.Not.Null, "Expected MainTownWorldShell to host MainTownTerrainGenerator.");
+
+                SetPrivateField(generator!, "rerollSeedOnRegenerate", false);
+                SetPrivateField(generator!, "seed", 556677);
+                SetPrivateField(generator!, "terrainWidthMeters", 3200f);
+                SetPrivateField(generator!, "terrainDepthMeters", 4000f);
+                SetPrivateField(generator!, "landFootprintMeters", 2400f);
+                SetPrivateField(generator!, "satelliteChance", 0f);
+                SetPrivateField(generator!, "riverCount", 0);
+                SetPrivateField(generator!, "detailAmplitudeMeters", 0f);
+                SetPrivateField(generator!, "pitAmplitudeMeters", 0f);
+                SetPrivateField(generator!, "cliffDetailStrengthMeters", 0f);
+
+                generator.RegenerateInEditor();
+
+                var terrain = FindChild(worldShell.transform, "MainTownTerrain")!.GetComponent<Terrain>();
+                Assert.That(terrain, Is.Not.Null, "Expected terrain after regeneration.");
+
+                var peakPoint = FindPeakWorldPoint(terrain!);
+                var flankStart = peakPoint + new Vector3(-260f, 0f, 80f);
+                var flankEnd = peakPoint + new Vector3(160f, 0f, 240f);
+                var baselineProfile = SampleHeightProfile(terrain!, flankStart, flankEnd, 64);
+                var baselineRoughness = CalculateAverageSecondDifference(baselineProfile);
+
+                SetPrivateField(generator!, "detailAmplitudeMeters", 24f);
+                SetPrivateField(generator!, "pitAmplitudeMeters", 12f);
+                SetPrivateField(generator!, "cliffDetailStrengthMeters", 42f);
+
+                generator.RegenerateInEditor();
+
+                var detailProfile = SampleHeightProfile(terrain!, flankStart, flankEnd, 64);
+                var detailRoughness = CalculateAverageSecondDifference(detailProfile);
+
+                Assert.That(detailRoughness, Is.GreaterThan(baselineRoughness + 1.2f), $"Expected detail pass to increase local mountain roughness, but roughness only moved from {baselineRoughness:F2} to {detailRoughness:F2}.");
+            }
+            finally
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                var terrain = worldShell != null
+                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
+                    : null;
+                if (worldShell != null && terrain != null)
+                {
+                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
+                }
+
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -659,6 +782,69 @@ namespace Reloader.World.Tests.EditMode
             }
 
             return max - min;
+        }
+
+        private static void ApplyLayerClassificationFixture(Terrain terrain)
+        {
+            var resolution = terrain.terrainData.heightmapResolution;
+            var heights = new float[resolution, resolution];
+            var shorelineHeight = 24f / terrain.terrainData.size.y;
+            var grassHeight = 90f / terrain.terrainData.size.y;
+            var rockHeight = 320f / terrain.terrainData.size.y;
+
+            for (var z = 0; z < resolution; z++)
+            {
+                for (var x = 0; x < resolution; x++)
+                {
+                    var normalizedX = x / (float)(resolution - 1);
+                    float height;
+                    if (normalizedX < 0.28f)
+                    {
+                        height = shorelineHeight;
+                    }
+                    else if (normalizedX < 0.64f)
+                    {
+                        height = grassHeight;
+                    }
+                    else if (normalizedX < 0.76f)
+                    {
+                        var t = Mathf.InverseLerp(0.64f, 0.76f, normalizedX);
+                        height = Mathf.Lerp(grassHeight, rockHeight, t);
+                    }
+                    else
+                    {
+                        height = rockHeight;
+                    }
+
+                    heights[z, x] = height;
+                }
+            }
+
+            terrain.terrainData.SetHeights(0, 0, heights);
+        }
+
+        private static int GetDominantTerrainLayer(Terrain terrain, float normalizedX, float normalizedZ)
+        {
+            var alphamapWidth = terrain.terrainData.alphamapWidth;
+            var alphamapHeight = terrain.terrainData.alphamapHeight;
+            var x = Mathf.Clamp(Mathf.RoundToInt(normalizedX * (alphamapWidth - 1)), 0, alphamapWidth - 1);
+            var z = Mathf.Clamp(Mathf.RoundToInt(normalizedZ * (alphamapHeight - 1)), 0, alphamapHeight - 1);
+            var weights = terrain.terrainData.GetAlphamaps(x, z, 1, 1);
+
+            var bestIndex = 0;
+            var bestWeight = weights[0, 0, 0];
+            for (var index = 1; index < weights.GetLength(2); index++)
+            {
+                if (weights[0, 0, index] <= bestWeight)
+                {
+                    continue;
+                }
+
+                bestWeight = weights[0, 0, index];
+                bestIndex = index;
+            }
+
+            return bestIndex;
         }
     }
 }

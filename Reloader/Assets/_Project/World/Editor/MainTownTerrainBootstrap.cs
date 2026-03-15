@@ -55,7 +55,6 @@ namespace Reloader.World.Editor
             "Water_RiverChannel",
             "Water_ReservoirBasin",
             "Water_OceanHorizon",
-            "Water_OceanBoundary",
         };
 
         private static readonly LayerSpec[] TerrainLayerSpecs =
@@ -423,7 +422,6 @@ namespace Reloader.World.Editor
             SculptIslandTerrain(terrain);
             RemoveWaterPresentation(worldShell);
             EnsureOceanHorizonPresentation(worldShell);
-            EnsureOceanBoundaryBlockers(worldShell);
             LiftSceneContentToTerrain(worldShell.gameObject.scene, worldShell, terrain);
             DisablePlanningFloor(worldShell);
 
@@ -848,19 +846,6 @@ namespace Reloader.World.Editor
                 0f);
         }
 
-        private static void EnsureOceanBoundaryBlockers(Transform worldShell)
-        {
-            var blockerRoot = EnsureChildRoot(worldShell, "Water_OceanBoundary", Vector3.zero);
-            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_North", new Vector3(0f, 60f, 1460f), new Vector3(2400f, 120f, 40f), 0f);
-            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_South", new Vector3(0f, 60f, -1460f), new Vector3(2400f, 120f, 40f), 0f);
-            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_East", new Vector3(1460f, 60f, 0f), new Vector3(40f, 120f, 2400f), 0f);
-            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_West", new Vector3(-1460f, 60f, 0f), new Vector3(40f, 120f, 2400f), 0f);
-            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_NorthEast", new Vector3(1140f, 60f, 1140f), new Vector3(1500f, 120f, 40f), 45f);
-            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_NorthWest", new Vector3(-1140f, 60f, 1140f), new Vector3(1500f, 120f, 40f), -45f);
-            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_SouthEast", new Vector3(1140f, 60f, -1140f), new Vector3(1500f, 120f, 40f), -45f);
-            EnsureOceanBlockerSegment(blockerRoot, "OceanBlocker_SouthWest", new Vector3(-1140f, 60f, -1140f), new Vector3(1500f, 120f, 40f), 45f);
-        }
-
         private static void LiftSceneContentToTerrain(Scene scene, Transform worldShell, Terrain terrain)
         {
             foreach (Transform child in worldShell)
@@ -1223,45 +1208,6 @@ namespace Reloader.World.Editor
             {
                 renderer.sharedMaterial = material;
                 renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            }
-        }
-
-        private static void EnsureOceanBlockerSegment(Transform parent, string name, Vector3 localPosition, Vector3 localScale, float yRotation)
-        {
-            var existing = parent.GetComponentsInChildren<Transform>(true).FirstOrDefault(child => child.name == name);
-            GameObject gameObject;
-            if (existing != null)
-            {
-                gameObject = existing.gameObject;
-            }
-            else
-            {
-                gameObject = new GameObject(name);
-                gameObject.transform.SetParent(parent, false);
-            }
-
-            gameObject.transform.localPosition = localPosition;
-            gameObject.transform.localRotation = Quaternion.Euler(0f, yRotation, 0f);
-            gameObject.transform.localScale = localScale;
-
-            var collider = gameObject.GetComponent<BoxCollider>();
-            if (collider == null)
-            {
-                collider = gameObject.AddComponent<BoxCollider>();
-            }
-
-            collider.isTrigger = false;
-
-            var meshRenderer = gameObject.GetComponent<MeshRenderer>();
-            if (meshRenderer != null)
-            {
-                meshRenderer.enabled = false;
-            }
-
-            var meshFilter = gameObject.GetComponent<MeshFilter>();
-            if (meshFilter != null)
-            {
-                UnityEngine.Object.DestroyImmediate(meshFilter);
             }
         }
 
