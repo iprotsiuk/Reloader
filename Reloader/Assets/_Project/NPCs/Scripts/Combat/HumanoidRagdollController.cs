@@ -8,18 +8,6 @@ namespace Reloader.NPCs.Combat
     [DisallowMultipleComponent]
     public sealed class HumanoidRagdollController : MonoBehaviour
     {
-        private struct RagdollBodyDormantState
-        {
-            public RagdollBodyDormantState(bool isKinematic, bool useGravity)
-            {
-                IsKinematic = isKinematic;
-                UseGravity = useGravity;
-            }
-
-            public bool IsKinematic { get; }
-            public bool UseGravity { get; }
-        }
-
         [SerializeField] private HumanoidDamageReceiver _damageReceiver;
         [SerializeField] private Animator _animator;
         [SerializeField] private Behaviour[] _disableBehavioursOnDeath = System.Array.Empty<Behaviour>();
@@ -31,8 +19,6 @@ namespace Reloader.NPCs.Combat
         private readonly List<Behaviour> _resolvedDisableBehaviours = new List<Behaviour>();
         private readonly Dictionary<Behaviour, bool> _initialBehaviourEnabledStates = new Dictionary<Behaviour, bool>();
         private readonly Dictionary<Collider, bool> _initialColliderEnabledStates = new Dictionary<Collider, bool>();
-        private readonly Dictionary<Rigidbody, RagdollBodyDormantState> _initialBodyDormantStates = new Dictionary<Rigidbody, RagdollBodyDormantState>();
-
         public bool HasTakenOver { get; private set; }
         public bool CanPresentDeathState
         {
@@ -172,16 +158,10 @@ namespace Reloader.NPCs.Combat
                     continue;
                 }
 
-                if (_initialBodyDormantStates.TryGetValue(body, out var dormantState))
-                {
-                    body.isKinematic = dormantState.IsKinematic;
-                    body.useGravity = dormantState.UseGravity;
-                }
-                else
-                {
-                    body.isKinematic = true;
-                    body.useGravity = false;
-                }
+                body.linearVelocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
+                body.isKinematic = true;
+                body.useGravity = false;
             }
         }
 
@@ -309,14 +289,6 @@ namespace Reloader.NPCs.Combat
                 }
             }
 
-            for (var i = 0; i < _ragdollBodies.Length; i++)
-            {
-                var body = _ragdollBodies[i];
-                if (body != null && !_initialBodyDormantStates.ContainsKey(body))
-                {
-                    _initialBodyDormantStates.Add(body, new RagdollBodyDormantState(body.isKinematic, body.useGravity));
-                }
-            }
         }
 
         private void RestoreDependencies()

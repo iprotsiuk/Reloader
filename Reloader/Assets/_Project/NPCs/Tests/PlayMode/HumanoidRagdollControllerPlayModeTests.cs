@@ -12,6 +12,54 @@ namespace Reloader.NPCs.Tests.PlayMode
     public class HumanoidRagdollControllerPlayModeTests
     {
         [UnityTest]
+        public IEnumerator Awake_WithAuthoredDynamicRagdollBody_ForcesDormantKinematicState()
+        {
+            GameObject npcRoot = null;
+            GameObject torsoZone = null;
+            try
+            {
+                npcRoot = new GameObject("NpcRoot");
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                npcRoot.AddComponent<HumanoidDamageReceiver>();
+
+                torsoZone = new GameObject("TorsoZone");
+                torsoZone.transform.SetParent(npcRoot.transform, false);
+                torsoZone.AddComponent<CapsuleCollider>().enabled = false;
+                var torsoBody = torsoZone.AddComponent<Rigidbody>();
+                torsoBody.isKinematic = false;
+                torsoBody.useGravity = true;
+                torsoBody.linearVelocity = new Vector3(0f, 0f, 4f);
+                torsoBody.angularVelocity = new Vector3(0f, 3f, 0f);
+                torsoZone.AddComponent<BodyZoneHitbox>().Configure(HumanoidBodyZone.Torso);
+
+                npcRoot.AddComponent<HumanoidRagdollController>();
+
+                yield return null;
+
+                Assert.That(torsoBody.isKinematic, Is.True,
+                    "Expected the controller to force ragdoll bodies into a dormant kinematic state even when the prefab is authored as dynamic.");
+                Assert.That(torsoBody.useGravity, Is.False,
+                    "Expected dormant ragdoll bodies to ignore authored gravity until lethal takeover.");
+                Assert.That(ReadLinearVelocity(torsoBody), Is.EqualTo(Vector3.zero),
+                    "Expected dormant ragdoll setup to clear carried-over linear velocity.");
+                Assert.That(torsoBody.angularVelocity, Is.EqualTo(Vector3.zero),
+                    "Expected dormant ragdoll setup to clear carried-over angular velocity.");
+            }
+            finally
+            {
+                if (torsoZone != null)
+                {
+                    UnityEngine.Object.Destroy(torsoZone);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.Destroy(npcRoot);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator LethalImpact_DisablesDependencies_EnablesRagdollBodies_AndPushesStruckBodyForward()
         {
             var controllerType = ResolveType("Reloader.NPCs.Combat.HumanoidRagdollController", "Reloader.NPCs");
