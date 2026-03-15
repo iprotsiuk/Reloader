@@ -209,27 +209,69 @@ namespace Reloader.World.Tests.EditMode
                 SetPrivateField(generator!, "seed", 123456789);
 
                 generator.RegenerateInEditor();
-
                 var boundaryRoot = FindChild(worldShell.transform, "Water_OceanBoundary");
                 Assert.That(boundaryRoot, Is.Not.Null, "Expected regenerate to create a shoreline containment root.");
                 var boundaryColliders = boundaryRoot!.GetComponentsInChildren<BoxCollider>(true);
                 Assert.That(boundaryColliders.Length, Is.GreaterThan(0), "Expected shoreline containment to include blocker colliders.");
                 Assert.That(boundaryRoot.GetComponentsInChildren<Renderer>(true), Is.Empty, "Expected shoreline containment to stay invisible.");
 
-                var lowestShoreGround = float.PositiveInfinity;
-                var highestShoreGround = float.NegativeInfinity;
+                var lowestBoundaryBottom = float.PositiveInfinity;
+                var highestBoundaryBottom = float.NegativeInfinity;
                 foreach (var collider in boundaryColliders)
                 {
-                    var shoreGround = EstimateBoundarySupportHeight(terrainRoot!.GetComponent<Terrain>()!, collider);
-                    lowestShoreGround = Mathf.Min(lowestShoreGround, shoreGround);
-                    highestShoreGround = Mathf.Max(highestShoreGround, shoreGround);
-                    Assert.That(collider.bounds.min.y, Is.EqualTo(shoreGround).Within(1f), "Expected shoreline blocker bottoms to start on the shoreline-supporting terrain.");
-                    Assert.That(collider.bounds.max.y, Is.EqualTo(shoreGround + 15f).Within(0.75f), "Expected shoreline blockers to rise about fifteen meters above the shoreline ground.");
+                    lowestBoundaryBottom = Mathf.Min(lowestBoundaryBottom, collider.bounds.min.y);
+                    highestBoundaryBottom = Mathf.Max(highestBoundaryBottom, collider.bounds.min.y);
+                    Assert.That(collider.bounds.size.y, Is.EqualTo(15f).Within(0.25f), "Expected shoreline blockers to stay about fifteen meters tall.");
+                    Assert.That(collider.bounds.max.y, Is.EqualTo(collider.bounds.min.y + 15f).Within(0.25f), "Expected shoreline blockers to rise about fifteen meters from their shoreline base.");
                 }
 
                 var waterLevel = GetPrivateField<float>(generator!, "waterLevelMeters");
-                Assert.That(lowestShoreGround, Is.GreaterThanOrEqualTo(waterLevel - 3f), "Expected shoreline blockers to stay close to the submerged shoreline contour instead of deep underwater.");
-                Assert.That(highestShoreGround, Is.LessThanOrEqualTo(waterLevel + 1f), "Expected shoreline blockers to hug terrain that sits only slightly below the waterline.");
+                Assert.That(lowestBoundaryBottom, Is.GreaterThanOrEqualTo(waterLevel - 1.5f), "Expected shoreline blockers to stay close to the waterline instead of sinking deep underwater.");
+                Assert.That(highestBoundaryBottom, Is.LessThanOrEqualTo(waterLevel + 2f), "Expected shoreline blockers to start near the shoreline instead of rising well above the waterline.");
+            }
+            finally
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                var terrain = worldShell != null
+                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
+                    : null;
+                if (worldShell != null && terrain != null)
+                {
+                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
+                }
+
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void MainTownTerrainGenerator_OnEnable_DoesNotAutoCreateWaterlineBoundary()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                Assert.That(worldShell, Is.Not.Null, "Expected MainTownWorldShell in MainTown.");
+
+                var generator = worldShell!.GetComponent<MainTownTerrainGenerator>();
+                Assert.That(generator, Is.Not.Null, "Expected MainTownWorldShell to host MainTownTerrainGenerator.");
+
+                var boundaryRoot = FindChild(worldShell.transform, "Water_OceanBoundary");
+                if (boundaryRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(boundaryRoot.gameObject);
+                }
+
+                generator!.enabled = false;
+                generator.enabled = true;
+
+                Assert.That(FindChild(worldShell.transform, "Water_OceanBoundary"), Is.Null, "Expected enabling the generator in edit mode to leave shoreline blockers alone until an explicit rebuild.");
             }
             finally
             {
@@ -524,11 +566,18 @@ namespace Reloader.World.Tests.EditMode
 
                 Assert.That(rerolledSeed, Is.Not.EqualTo(initialSeed), "Expected regenerate to reroll the seed by default.");
                 Assert.That(CalculateSignatureDelta(firstSignature, secondSignature), Is.GreaterThan(20f), "Expected a reroll to materially change the terrain shape.");
-
-                MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain!);
             }
             finally
             {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                var terrain = worldShell != null
+                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
+                    : null;
+                if (worldShell != null && terrain != null)
+                {
+                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
+                }
+
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -964,21 +1013,6 @@ namespace Reloader.World.Tests.EditMode
             }
 
             return furthest;
-        }
-
-        private static float EstimateBoundarySupportHeight(Terrain terrain, BoxCollider collider)
-        {
-            var bounds = collider.bounds;
-            var center = bounds.center;
-            var xOffset = bounds.extents.x * 0.45f;
-            var zOffset = bounds.extents.z * 0.45f;
-
-            return Mathf.Max(
-                SampleTerrainHeight(terrain, center),
-                SampleTerrainHeight(terrain, center + new Vector3(xOffset, 0f, 0f)),
-                SampleTerrainHeight(terrain, center - new Vector3(xOffset, 0f, 0f)),
-                SampleTerrainHeight(terrain, center + new Vector3(0f, 0f, zOffset)),
-                SampleTerrainHeight(terrain, center - new Vector3(0f, 0f, zOffset)));
         }
 
         private static void RaiseTerrainPatchAboveWater(Terrain terrain, float normalizedX, float normalizedZ, float normalizedRadius, float targetHeightMeters)

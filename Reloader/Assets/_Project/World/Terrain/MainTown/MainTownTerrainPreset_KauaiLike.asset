@@ -43,7 +43,7 @@ MonoBehaviour:
   pitNoiseFrequency: 0.0044
   cliffDetailStrengthMeters: 34
   cliffDetailFrequency: 0.0038
-  autoRepaintLayersOnHeightChange: 1
+  autoRepaintLayersOnHeightChange: 0
   sandBandOffsetMeters: 4
   sandBandWidthMeters: 16
   sandMaxSlopeDegrees: 26

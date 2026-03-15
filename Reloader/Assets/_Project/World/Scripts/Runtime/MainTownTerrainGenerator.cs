@@ -23,6 +23,8 @@ namespace Reloader.World
         private const float BoundarySampleSpacingMeters = 24f;
         private const float BoundaryThicknessMeters = 6f;
         private const float BoundaryContourBelowWaterMeters = 1f;
+        private const float BoundaryOffshoreOffsetMeters = 1f;
+        private const float BoundaryHeightMeters = 15f;
 
         [SerializeField] private int seed = 1337;
         [SerializeField] private MainTownTerrainGeneratorPreset presetAsset;
@@ -136,12 +138,14 @@ namespace Reloader.World
             RepaintTerrainLayersInEditor();
         }
 
+        [ContextMenu("Rebuild Water Boundaries")]
+        private void RebuildWaterBoundariesContextMenu()
+        {
+            RebuildWaterBoundariesInEditor();
+        }
+
         private void OnEnable()
         {
-            if (!Application.isPlaying && TryGetOwnedTerrain(out var terrain))
-            {
-                RefreshWaterlineBoundary(terrain);
-            }
         }
 
         private void OnDisable()
@@ -612,7 +616,7 @@ namespace Reloader.World
                     var edge = leftLand != rightLand;
                     if (edge)
                     {
-                        segments.Add(CreateVerticalBoundarySegment(terrainData, x, z, z, cellWidth, cellDepth));
+                        segments.Add(CreateVerticalBoundarySegment(x, z, z, cellWidth, cellDepth, leftLand && !rightLand ? 1f : -1f));
                     }
                 }
             }
@@ -626,7 +630,7 @@ namespace Reloader.World
                     var edge = bottomLand != topLand;
                     if (edge)
                     {
-                        segments.Add(CreateHorizontalBoundarySegment(terrainData, z, x, x, cellWidth, cellDepth));
+                        segments.Add(CreateHorizontalBoundarySegment(z, x, x, cellWidth, cellDepth, bottomLand && !topLand ? 1f : -1f));
                     }
                 }
             }
@@ -634,26 +638,26 @@ namespace Reloader.World
             return segments;
         }
 
-        private BoundarySegment CreateVerticalBoundarySegment(TerrainData terrainData, int column, int startRow, int endRow, float cellWidth, float cellDepth)
+        private BoundarySegment CreateVerticalBoundarySegment(int column, int startRow, int endRow, float cellWidth, float cellDepth, float outwardDirection)
         {
-            var x = (column * cellWidth) - (terrainWidthMeters * 0.5f);
+            var x = ((column * cellWidth) - (terrainWidthMeters * 0.5f)) + (outwardDirection * BoundaryOffshoreOffsetMeters);
             var centerZ = (((startRow + endRow + 1) * 0.5f) * cellDepth) - (terrainDepthMeters * 0.5f);
             var length = Mathf.Max(cellDepth, (endRow - startRow + 1) * cellDepth);
-            var groundHeight = SampleTerrainHeightMeters(terrainData, x, centerZ);
-            var boundaryHeight = 15f;
+            var groundHeight = waterLevelMeters - BoundaryContourBelowWaterMeters;
+            var boundaryHeight = BoundaryHeightMeters;
             var centerY = groundHeight + (boundaryHeight * 0.5f);
             return new BoundarySegment(
                 new Vector3(x, centerY, centerZ),
                 new Vector3(BoundaryThicknessMeters, boundaryHeight, length + BoundaryThicknessMeters));
         }
 
-        private BoundarySegment CreateHorizontalBoundarySegment(TerrainData terrainData, int row, int startColumn, int endColumn, float cellWidth, float cellDepth)
+        private BoundarySegment CreateHorizontalBoundarySegment(int row, int startColumn, int endColumn, float cellWidth, float cellDepth, float outwardDirection)
         {
-            var z = (row * cellDepth) - (terrainDepthMeters * 0.5f);
+            var z = ((row * cellDepth) - (terrainDepthMeters * 0.5f)) + (outwardDirection * BoundaryOffshoreOffsetMeters);
             var centerX = (((startColumn + endColumn + 1) * 0.5f) * cellWidth) - (terrainWidthMeters * 0.5f);
             var length = Mathf.Max(cellWidth, (endColumn - startColumn + 1) * cellWidth);
-            var groundHeight = SampleTerrainHeightMeters(terrainData, centerX, z);
-            var boundaryHeight = 15f;
+            var groundHeight = waterLevelMeters - BoundaryContourBelowWaterMeters;
+            var boundaryHeight = BoundaryHeightMeters;
             var centerY = groundHeight + (boundaryHeight * 0.5f);
             return new BoundarySegment(
                 new Vector3(centerX, centerY, z),

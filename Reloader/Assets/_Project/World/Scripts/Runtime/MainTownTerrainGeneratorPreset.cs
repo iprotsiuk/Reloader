@@ -36,7 +36,7 @@ namespace Reloader.World
         [SerializeField] private float pitNoiseFrequency = 0.0044f;
         [SerializeField] private float cliffDetailStrengthMeters = 34f;
         [SerializeField] private float cliffDetailFrequency = 0.0038f;
-        [SerializeField] private bool autoRepaintLayersOnHeightChange = true;
+        [SerializeField] private bool autoRepaintLayersOnHeightChange = false;
         [SerializeField] private float sandBandOffsetMeters = 4f;
         [SerializeField] private float sandBandWidthMeters = 16f;
         [SerializeField] private float sandMaxSlopeDegrees = 26f;
