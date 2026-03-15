@@ -44,12 +44,10 @@ namespace Reloader.World.Tests.EditMode
                 Assert.That(basinFloor, Is.Not.Null, "Expected BasinFloor planning shell object.");
                 Assert.That(basinFloor!.gameObject.activeSelf, Is.True, "Expected flatten command to re-enable BasinFloor.");
 
-                // Restore the shared terrain asset to the authored island state so later tests
-                // do not inherit the temporary flattened heightmap in memory.
-                MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain!);
             }
             finally
             {
+                RestoreGeneratorAuthoredTerrain(scene);
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -105,6 +103,7 @@ namespace Reloader.World.Tests.EditMode
             }
             finally
             {
+                RestoreGeneratorAuthoredTerrain(scene);
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -178,11 +177,10 @@ namespace Reloader.World.Tests.EditMode
 
                 var terrainData = AssetDatabase.LoadAssetAtPath<TerrainData>("Assets/_Project/World/Terrain/MainTown/MainTownTerrainData.asset");
                 Assert.That(terrainData, Is.Not.Null, "Expected regenerated MainTownTerrainData asset at the MainTown terrain path.");
-
-                MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
             }
             finally
             {
+                RestoreGeneratorAuthoredTerrain(scene);
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -237,15 +235,7 @@ namespace Reloader.World.Tests.EditMode
             }
             finally
             {
-                var worldShell = FindRoot(scene, "MainTownWorldShell");
-                var terrain = worldShell != null
-                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
-                    : null;
-                if (worldShell != null && terrain != null)
-                {
-                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
-                }
-
+                RestoreGeneratorAuthoredTerrain(scene);
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -281,15 +271,7 @@ namespace Reloader.World.Tests.EditMode
             }
             finally
             {
-                var worldShell = FindRoot(scene, "MainTownWorldShell");
-                var terrain = worldShell != null
-                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
-                    : null;
-                if (worldShell != null && terrain != null)
-                {
-                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
-                }
-
+                RestoreGeneratorAuthoredTerrain(scene);
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -337,15 +319,7 @@ namespace Reloader.World.Tests.EditMode
             }
             finally
             {
-                var worldShell = FindRoot(scene, "MainTownWorldShell");
-                var terrain = worldShell != null
-                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
-                    : null;
-                if (worldShell != null && terrain != null)
-                {
-                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
-                }
-
+                RestoreGeneratorAuthoredTerrain(scene);
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -394,15 +368,7 @@ namespace Reloader.World.Tests.EditMode
             }
             finally
             {
-                var worldShell = FindRoot(scene, "MainTownWorldShell");
-                var terrain = worldShell != null
-                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
-                    : null;
-                if (worldShell != null && terrain != null)
-                {
-                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
-                }
-
+                RestoreGeneratorAuthoredTerrain(scene);
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -442,15 +408,7 @@ namespace Reloader.World.Tests.EditMode
             }
             finally
             {
-                var worldShell = FindRoot(scene, "MainTownWorldShell");
-                var terrain = worldShell != null
-                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
-                    : null;
-                if (worldShell != null && terrain != null)
-                {
-                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
-                }
-
+                RestoreGeneratorAuthoredTerrain(scene);
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -511,11 +469,10 @@ namespace Reloader.World.Tests.EditMode
                 Assert.That(Mathf.Abs(peakPoint.z), Is.LessThan(terrainData.size.z * 0.5f - 260f), "Expected the highest relief to sit comfortably inside the terrain bounds.");
                 Assert.That(peakPoint.y, Is.GreaterThan(waterLevel + 180f), "Expected a dominant volcanic landmass rather than a mostly flat planning shell.");
                 Assert.That(GetTerrainHeightRange(terrain), Is.GreaterThan(240f), "Expected significant relief for mountains and cliffs.");
-
-                MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
             }
             finally
             {
+                RestoreGeneratorAuthoredTerrain(scene);
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -575,15 +532,7 @@ namespace Reloader.World.Tests.EditMode
             }
             finally
             {
-                var worldShell = FindRoot(scene, "MainTownWorldShell");
-                var terrain = worldShell != null
-                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
-                    : null;
-                if (worldShell != null && terrain != null)
-                {
-                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
-                }
-
+                RestoreGeneratorAuthoredTerrain(scene);
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -632,11 +581,10 @@ namespace Reloader.World.Tests.EditMode
                 Assert.That(northSouthRange, Is.GreaterThan(150f), $"Expected the dominant island to contain substantial north-south volcanic relief, but range was only {northSouthRange:F2}.");
                 Assert.That(eastWestRoughness, Is.LessThan(16f), $"Expected the east-west mountain profile to stay broad rather than serrated, but roughness was {eastWestRoughness:F2}.");
                 Assert.That(northSouthRoughness, Is.LessThan(16f), $"Expected the north-south mountain profile to stay broad rather than serrated, but roughness was {northSouthRoughness:F2}.");
-
-                MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain!);
             }
             finally
             {
+                RestoreGeneratorAuthoredTerrain(scene);
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -679,15 +627,7 @@ namespace Reloader.World.Tests.EditMode
             }
             finally
             {
-                var worldShell = FindRoot(scene, "MainTownWorldShell");
-                var terrain = worldShell != null
-                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
-                    : null;
-                if (worldShell != null && terrain != null)
-                {
-                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
-                }
-
+                RestoreGeneratorAuthoredTerrain(scene);
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -729,15 +669,7 @@ namespace Reloader.World.Tests.EditMode
             }
             finally
             {
-                var worldShell = FindRoot(scene, "MainTownWorldShell");
-                var terrain = worldShell != null
-                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
-                    : null;
-                if (worldShell != null && terrain != null)
-                {
-                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
-                }
-
+                RestoreGeneratorAuthoredTerrain(scene);
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -795,15 +727,7 @@ namespace Reloader.World.Tests.EditMode
             }
             finally
             {
-                var worldShell = FindRoot(scene, "MainTownWorldShell");
-                var terrain = worldShell != null
-                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
-                    : null;
-                if (worldShell != null && terrain != null)
-                {
-                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
-                }
-
+                RestoreGeneratorAuthoredTerrain(scene);
                 EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
@@ -902,6 +826,29 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(method, Is.Not.Null, "Expected MainTownTerrainBootstrap to expose ApplyLoadedMainTownIslandPass for one-off island authoring.");
 
             method!.Invoke(null, new object[] { worldShell, terrain });
+        }
+
+        private static void RestoreGeneratorAuthoredTerrain(Scene scene)
+        {
+            var worldShell = FindRoot(scene, "MainTownWorldShell");
+            if (worldShell == null)
+            {
+                return;
+            }
+
+            var generator = worldShell.GetComponent<MainTownTerrainGenerator>();
+            if (generator == null)
+            {
+                return;
+            }
+
+            var preset = GetPrivateField<MainTownTerrainGeneratorPreset>(generator, "presetAsset");
+            Assert.That(preset, Is.Not.Null, "Expected MainTown to serialize a terrain generator preset for restore-safe editor tests.");
+
+            generator.ApplyPresetInEditor(preset!);
+            SetPrivateField(generator, "rerollSeedOnRegenerate", false);
+            SetPrivateField(generator, "seed", GetPrivateField<int>(preset!, "seed"));
+            generator.RegenerateInEditor();
         }
 
         private static float AverageTerrainHeight(Terrain terrain, params Vector3[] worldPoints)
