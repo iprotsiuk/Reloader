@@ -671,6 +671,246 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ShotCameraRuntime_CancelInput_RestoresRealtimeAndKeepsProjectileAlive()
+        {
+            GameObject root = null;
+            GameObject cameraGo = null;
+            GameObject registryGo = null;
+            GameObject target = null;
+            WeaponDefinition definition = null;
+            var previousTimeScale = Time.timeScale;
+            var previousFixedDeltaTime = Time.fixedDeltaTime;
+
+            try
+            {
+                Time.timeScale = 1f;
+                root = new GameObject("PlayerRoot");
+                root.transform.position = new Vector3(0f, 1000f, 0f);
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                cameraGo = new GameObject("WorldCamera");
+                var worldCamera = cameraGo.AddComponent<Camera>();
+                worldCamera.transform.SetPositionAndRotation(root.transform.position, Quaternion.identity);
+                worldCamera.tag = "MainCamera";
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0f, 80f, 0f, 20f, 120f, 1, 0, true);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                target.transform.position = root.transform.position + (Vector3.forward * 300f);
+                target.transform.localScale = new Vector3(20f, 20f, 2f);
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                var shotCameraRuntime = root.AddComponent<ShotCameraRuntime>();
+                SetControllerField(controller, "_adsCamera", worldCamera);
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraRuntime);
+                SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+                yield return null;
+
+                var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
+                var magazineRounds = new[]
+                {
+                    chamberRound,
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                    WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj")
+                };
+                Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 4, 0, true), Is.True);
+                Assert.That(controller.ApplyRuntimeBallistics("weapon-kar98k", chamberRound, magazineRounds), Is.True);
+
+                input.AimHeldValue = true;
+                input.FirePressedThisFrame = true;
+                yield return null;
+
+                var projectile = Object.FindFirstObjectByType<WeaponProjectile>();
+                Assert.That(projectile, Is.Not.Null);
+
+                input.ShotCameraCancelPressedThisFrame = true;
+                yield return null;
+                yield return null;
+
+                Assert.That(shotCameraRuntime.IsShotActive, Is.False);
+                Assert.That(shotCameraRuntime.HasActiveCinematicCamera, Is.False);
+                Assert.That(Time.timeScale, Is.EqualTo(1f).Within(0.001f));
+                Assert.That(ShotCameraGameplayState.PresentationCamera, Is.Null, "Expected shot cam cancel to clear the current presentation camera.");
+                Assert.That(projectile, Is.Not.Null);
+                Assert.That(projectile.gameObject, Is.Not.Null);
+                Assert.That(projectile.IsShotCameraPresentationActive, Is.False);
+            }
+            finally
+            {
+                Time.timeScale = previousTimeScale;
+                Time.fixedDeltaTime = previousFixedDeltaTime;
+
+                if (target != null)
+                {
+                    Object.Destroy(target);
+                }
+
+                foreach (var projectile in Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(projectile.gameObject);
+                }
+
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (cameraGo != null)
+                {
+                    Object.Destroy(cameraGo);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ShotCameraRuntime_ProjectileImpact_RestoresRealtimeAndClearsCinematicCamera()
+        {
+            GameObject root = null;
+            GameObject cameraGo = null;
+            GameObject registryGo = null;
+            GameObject target = null;
+            WeaponDefinition definition = null;
+            var previousTimeScale = Time.timeScale;
+            var previousFixedDeltaTime = Time.fixedDeltaTime;
+
+            try
+            {
+                Time.timeScale = 1f;
+                root = new GameObject("PlayerRoot");
+                root.transform.position = new Vector3(0f, 1000f, 0f);
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                cameraGo = new GameObject("WorldCamera");
+                var worldCamera = cameraGo.AddComponent<Camera>();
+                worldCamera.transform.SetPositionAndRotation(root.transform.position, Quaternion.identity);
+                worldCamera.tag = "MainCamera";
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0f, 80f, 0f, 20f, 120f, 1, 0, true);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                target.transform.position = root.transform.position + (Vector3.forward * 110f);
+                target.transform.localScale = new Vector3(20f, 20f, 2f);
+                target.AddComponent<TestDamageable>();
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                var shotCameraRuntime = root.AddComponent<ShotCameraRuntime>();
+                SetControllerField(controller, "_adsCamera", worldCamera);
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraRuntime);
+                SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+                yield return null;
+
+                var chamberRound = new AmmoBallisticSnapshot(
+                    AmmoSourceType.Factory,
+                    muzzleVelocityFps: 10000f,
+                    velocityStdDevFps: 0f,
+                    projectileMassGrains: 147f,
+                    ballisticCoefficientG1: 0.45f,
+                    dispersionMoa: 0f,
+                    displayName: "ShotCamTestRound",
+                    cartridgeId: "shotcam-test-round",
+                    ammoItemId: "ammo-factory-308-147-fmj");
+                var magazineRounds = new[]
+                {
+                    chamberRound,
+                    chamberRound,
+                    chamberRound,
+                    chamberRound
+                };
+                Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 4, 0, true), Is.True);
+                Assert.That(controller.ApplyRuntimeBallistics("weapon-kar98k", chamberRound, magazineRounds), Is.True);
+
+                input.AimHeldValue = true;
+                input.FirePressedThisFrame = true;
+                yield return null;
+
+                Assert.That(ShotCameraGameplayState.PresentationCamera, Is.Not.Null);
+                Assert.That(shotCameraRuntime.IsShotActive, Is.True);
+
+                var lingerStartTime = Time.unscaledTime;
+                var elapsed = 0f;
+                while (shotCameraRuntime.IsShotActive && elapsed < 4f)
+                {
+                    elapsed += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+
+                Assert.That(shotCameraRuntime.IsShotActive, Is.False, "Expected projectile impact to end shot cam automatically.");
+                Assert.That(shotCameraRuntime.HasActiveCinematicCamera, Is.False, "Expected projectile impact to clear the temporary cinematic camera.");
+                Assert.That(Time.unscaledTime - lingerStartTime, Is.GreaterThanOrEqualTo(0.9f), "Expected non-NPC impact to linger at the impact location before restoring the player camera.");
+                Assert.That(Time.timeScale, Is.EqualTo(1f).Within(0.001f));
+                Assert.That(ShotCameraGameplayState.PresentationCamera, Is.Null, "Expected shot-cam impact exit to clear the current presentation camera.");
+            }
+            finally
+            {
+                Time.timeScale = previousTimeScale;
+                Time.fixedDeltaTime = previousFixedDeltaTime;
+
+                if (target != null)
+                {
+                    Object.Destroy(target);
+                }
+
+                foreach (var projectile in Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(projectile.gameObject);
+                }
+
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (cameraGo != null)
+                {
+                    Object.Destroy(cameraGo);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ShotCameraRuntime_ActiveShot_BlocksFollowUpFireUntilShotEnds()
         {
             GameObject root = null;
@@ -801,6 +1041,191 @@ namespace Reloader.Weapons.Tests.PlayMode
                     Object.Destroy(definition);
                 }
             }
+        }
+
+        [UnityTest]
+        public IEnumerator Aiming_LerpsFieldOfViewToPackAdsFovAndBack()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests(
+                "weapon-kar98k",
+                "Scoped Rifle",
+                5,
+                0.1f,
+                80f,
+                0f,
+                20f,
+                120f,
+                1,
+                10,
+                true,
+                0.7f,
+                WeaponScopeConfiguration.Create(true, 4f, 20f, 8f, "ebr-7c", 100, 25));
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var adsCameraGo = new GameObject("AdsCamera");
+            var adsCamera = adsCameraGo.AddComponent<Camera>();
+            const float baseFieldOfView = 60f;
+            adsCamera.fieldOfView = baseFieldOfView;
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_weaponRegistry", registry);
+            SetControllerField(controller, "_adsCamera", adsCamera);
+            yield return null;
+
+            const float expectedAdsFieldOfView = 45f;
+            input.AimHeldValue = true;
+            yield return null;
+            yield return new WaitForSeconds(0.45f);
+
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(expectedAdsFieldOfView).Within(0.6f));
+
+            input.AimHeldValue = false;
+            yield return null;
+            yield return new WaitForSeconds(0.45f);
+
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(baseFieldOfView).Within(0.6f));
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+            Object.Destroy(adsCameraGo);
+        }
+
+        [UnityTest]
+        public IEnumerator UnequipWhileAiming_RestoresBaselineFieldOfView()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+            runtime.BeltSlotItemIds[1] = null;
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests(
+                "weapon-kar98k",
+                "Scoped Rifle",
+                5,
+                0.1f,
+                80f,
+                0f,
+                20f,
+                120f,
+                1,
+                10,
+                true,
+                0.7f,
+                WeaponScopeConfiguration.Create(true, 4f, 20f, 8f, "ebr-7c", 100, 25));
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var adsCameraGo = new GameObject("AdsCamera");
+            var adsCamera = adsCameraGo.AddComponent<Camera>();
+            const float baseFieldOfView = 60f;
+            adsCamera.fieldOfView = baseFieldOfView;
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_weaponRegistry", registry);
+            SetControllerField(controller, "_adsCamera", adsCamera);
+            yield return null;
+
+            input.AimHeldValue = true;
+            yield return null;
+            yield return new WaitForSeconds(0.25f);
+            Assert.That(adsCamera.fieldOfView, Is.LessThan(baseFieldOfView - 1f), "Expected ADS to lower FOV before unequip.");
+
+            runtime.SelectBeltSlot(1);
+            yield return null;
+            yield return new WaitForSeconds(0.15f);
+
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(baseFieldOfView).Within(0.6f), "Unequipping while ADS should restore baseline FOV.");
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+            Object.Destroy(adsCameraGo);
+        }
+
+        [UnityTest]
+        public IEnumerator UnarmedState_PreservesExternalFieldOfViewChanges()
+        {
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+            runtime.BeltSlotItemIds[1] = null;
+            runtime.SelectBeltSlot(0);
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests(
+                "weapon-kar98k",
+                "Scoped Rifle",
+                5,
+                0.1f,
+                80f,
+                0f,
+                20f,
+                120f,
+                1,
+                10,
+                true,
+                0.7f,
+                WeaponScopeConfiguration.Create(true, 4f, 20f, 8f, "ebr-7c", 100, 25));
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var adsCameraGo = new GameObject("AdsCamera");
+            var adsCamera = adsCameraGo.AddComponent<Camera>();
+            const float baseFieldOfView = 60f;
+            adsCamera.fieldOfView = baseFieldOfView;
+
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_weaponRegistry", registry);
+            SetControllerField(controller, "_adsCamera", adsCamera);
+            yield return null;
+
+            input.AimHeldValue = true;
+            yield return null;
+            yield return new WaitForSeconds(0.25f);
+
+            runtime.SelectBeltSlot(1);
+            yield return null;
+            yield return new WaitForSeconds(0.15f);
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(baseFieldOfView).Within(0.6f));
+
+            const float externalFov = 72f;
+            adsCamera.fieldOfView = externalFov;
+            yield return null;
+            yield return null;
+
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(externalFov).Within(0.2f), "Unarmed flow should not overwrite externally applied FOV.");
+
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+            Object.Destroy(adsCameraGo);
         }
 
         [UnityTest]
