@@ -1,5 +1,8 @@
 using System;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Reloader.World
 {
@@ -12,12 +15,18 @@ namespace Reloader.World
         private const string TerrainDataPath = TerrainFolderPath + "/MainTownTerrainData.asset";
         private const string OceanRootName = "Water_OceanHorizon";
         private const string OceanSurfaceName = "OceanSurface";
+        private const string OceanBoundaryRootName = "Water_OceanBoundary";
         private const string OceanMaterialPath = TerrainFolderPath + "/MainTown_Ocean.mat";
         private const string SandTexturePath = "Assets/ThirdParty/Polygon-Mega Survival Forest/Textures/TerrainTextures/Sand.PNG";
         private const string GrassTexturePath = "Assets/ThirdParty/Polygon-Mega Survival Forest/Textures/TerrainTextures/Grass.PNG";
         private const string RockTexturePath = "Assets/ThirdParty/Polygon-Mega Survival Forest/Textures/TerrainTextures/Stones.PNG";
+        private const float BoundarySampleSpacingMeters = 24f;
+        private const float BoundaryThicknessMeters = 6f;
+        private const float BoundaryHeightMeters = 80f;
+        private const float BoundaryWaterlineOffsetMeters = 6f;
 
         [SerializeField] private int seed = 1337;
+        [SerializeField] private MainTownTerrainGeneratorPreset presetAsset;
         [SerializeField] private bool rerollSeedOnRegenerate = true;
         [SerializeField] private float waterLevelMeters = 20f;
         [SerializeField] private float terrainWidthMeters = 3000f;
@@ -58,6 +67,7 @@ namespace Reloader.World
         [SerializeField] private float rockHeightFullMeters = 240f;
 
         private bool isRepaintingLayers;
+        private bool isUpdatingTerrain;
 
         private readonly struct IslandLayout
         {
@@ -130,6 +140,11 @@ namespace Reloader.World
         private void OnEnable()
         {
             TerrainCallbacks.heightmapChanged += HandleTerrainHeightmapChanged;
+
+            if (!Application.isPlaying && TryGetOwnedTerrain(out var terrain))
+            {
+                RefreshWaterlineBoundary(terrain);
+            }
         }
 
         private void OnDisable()
@@ -159,9 +174,18 @@ namespace Reloader.World
             terrain.basemapDistance = 2000f;
             terrainCollider.terrainData = terrainData;
 
-            SculptTerrain(terrain);
-            PaintTerrainLayers(terrain);
-            EnsureOceanSurface();
+            isUpdatingTerrain = true;
+            try
+            {
+                SculptTerrain(terrain);
+                PaintTerrainLayers(terrain);
+                EnsureOceanSurface();
+                RefreshWaterlineBoundary(terrain);
+            }
+            finally
+            {
+                isUpdatingTerrain = false;
+            }
 
             UnityEditor.EditorUtility.SetDirty(terrainData);
             UnityEditor.EditorUtility.SetDirty(terrain);
@@ -179,6 +203,30 @@ namespace Reloader.World
             PaintTerrainLayers(terrain);
             UnityEditor.EditorUtility.SetDirty(terrain.terrainData);
             UnityEditor.EditorUtility.SetDirty(terrain);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+
+        public void CapturePresetInEditor(MainTownTerrainGeneratorPreset preset)
+        {
+            if (preset == null)
+            {
+                return;
+            }
+
+            CopyPresetFields(this, preset);
+            EditorUtility.SetDirty(preset);
+            AssetDatabase.SaveAssets();
+        }
+
+        public void ApplyPresetInEditor(MainTownTerrainGeneratorPreset preset)
+        {
+            if (preset == null)
+            {
+                return;
+            }
+
+            CopyPresetFields(preset, this);
+            EditorUtility.SetDirty(this);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }
 
@@ -491,6 +539,135 @@ namespace Reloader.World
             }
         }
 
+        private void RefreshWaterlineBoundary(Terrain terrain)
+        {
+            var boundaryRoot = FindOrCreateChild(OceanBoundaryRootName);
+            boundaryRoot.gameObject.SetActive(true);
+
+            foreach (Transform child in boundaryRoot)
+            {
+                if (child != null)
+                {
+                    DestroyImmediate(child.gameObject);
+                }
+            }
+
+            var segments = BuildBoundarySegments(terrain);
+            for (var index = 0; index < segments.Count; index++)
+            {
+                var segment = segments[index];
+                var segmentObject = new GameObject($"ShorelineBlocker_{index:000}");
+                segmentObject.transform.SetParent(boundaryRoot, false);
+                segmentObject.transform.localPosition = segment.Center;
+                segmentObject.transform.localRotation = Quaternion.identity;
+                segmentObject.transform.localScale = segment.Size;
+                var collider = segmentObject.AddComponent<BoxCollider>();
+                collider.size = Vector3.one;
+                collider.isTrigger = false;
+            }
+        }
+
+        private System.Collections.Generic.List<BoundarySegment> BuildBoundarySegments(Terrain terrain)
+        {
+            var terrainData = terrain.terrainData;
+            var columnCount = Mathf.Max(2, Mathf.CeilToInt(terrainData.size.x / BoundarySampleSpacingMeters));
+            var rowCount = Mathf.Max(2, Mathf.CeilToInt(terrainData.size.z / BoundarySampleSpacingMeters));
+            var cellWidth = terrainData.size.x / columnCount;
+            var cellDepth = terrainData.size.z / rowCount;
+            var land = new bool[columnCount, rowCount];
+
+            for (var z = 0; z < rowCount; z++)
+            {
+                var normalizedZ = (z + 0.5f) / rowCount;
+                for (var x = 0; x < columnCount; x++)
+                {
+                    var normalizedX = (x + 0.5f) / columnCount;
+                    var height = terrainData.GetInterpolatedHeight(normalizedX, normalizedZ);
+                    land[x, z] = height > waterLevelMeters + BoundaryWaterlineOffsetMeters;
+                }
+            }
+
+            var segments = new System.Collections.Generic.List<BoundarySegment>();
+
+            for (var x = 0; x <= columnCount; x++)
+            {
+                var runStart = -1;
+                for (var z = 0; z < rowCount; z++)
+                {
+                    var leftLand = x > 0 && land[x - 1, z];
+                    var rightLand = x < columnCount && land[x, z];
+                    var edge = leftLand != rightLand;
+                    if (edge)
+                    {
+                        if (runStart < 0)
+                        {
+                            runStart = z;
+                        }
+                    }
+                    else if (runStart >= 0)
+                    {
+                        segments.Add(CreateVerticalBoundarySegment(x, runStart, z - 1, cellWidth, cellDepth));
+                        runStart = -1;
+                    }
+                }
+
+                if (runStart >= 0)
+                {
+                    segments.Add(CreateVerticalBoundarySegment(x, runStart, rowCount - 1, cellWidth, cellDepth));
+                }
+            }
+
+            for (var z = 0; z <= rowCount; z++)
+            {
+                var runStart = -1;
+                for (var x = 0; x < columnCount; x++)
+                {
+                    var bottomLand = z > 0 && land[x, z - 1];
+                    var topLand = z < rowCount && land[x, z];
+                    var edge = bottomLand != topLand;
+                    if (edge)
+                    {
+                        if (runStart < 0)
+                        {
+                            runStart = x;
+                        }
+                    }
+                    else if (runStart >= 0)
+                    {
+                        segments.Add(CreateHorizontalBoundarySegment(z, runStart, x - 1, cellWidth, cellDepth));
+                        runStart = -1;
+                    }
+                }
+
+                if (runStart >= 0)
+                {
+                    segments.Add(CreateHorizontalBoundarySegment(z, runStart, columnCount - 1, cellWidth, cellDepth));
+                }
+            }
+
+            return segments;
+        }
+
+        private BoundarySegment CreateVerticalBoundarySegment(int column, int startRow, int endRow, float cellWidth, float cellDepth)
+        {
+            var x = (column * cellWidth) - (terrainWidthMeters * 0.5f);
+            var centerZ = (((startRow + endRow + 1) * 0.5f) * cellDepth) - (terrainDepthMeters * 0.5f);
+            var length = Mathf.Max(cellDepth, (endRow - startRow + 1) * cellDepth);
+            return new BoundarySegment(
+                new Vector3(x, waterLevelMeters + (BoundaryHeightMeters * 0.5f), centerZ),
+                new Vector3(BoundaryThicknessMeters, BoundaryHeightMeters, length + BoundaryThicknessMeters));
+        }
+
+        private BoundarySegment CreateHorizontalBoundarySegment(int row, int startColumn, int endColumn, float cellWidth, float cellDepth)
+        {
+            var z = (row * cellDepth) - (terrainDepthMeters * 0.5f);
+            var centerX = (((startColumn + endColumn + 1) * 0.5f) * cellWidth) - (terrainWidthMeters * 0.5f);
+            var length = Mathf.Max(cellWidth, (endColumn - startColumn + 1) * cellWidth);
+            return new BoundarySegment(
+                new Vector3(centerX, waterLevelMeters + (BoundaryHeightMeters * 0.5f), z),
+                new Vector3(length + BoundaryThicknessMeters, BoundaryHeightMeters, BoundaryThicknessMeters));
+        }
+
         private Material EnsureOceanMaterial()
         {
             var material = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>(OceanMaterialPath);
@@ -566,9 +743,103 @@ namespace Reloader.World
             return false;
         }
 
+        private static void CopyPresetFields(UnityEngine.Object source, UnityEngine.Object destination)
+        {
+            var sourceObject = new SerializedObject(source);
+            var destinationObject = new SerializedObject(destination);
+
+            foreach (var fieldName in PresetFieldNames)
+            {
+                var sourceProperty = sourceObject.FindProperty(fieldName);
+                var destinationProperty = destinationObject.FindProperty(fieldName);
+                if (sourceProperty == null || destinationProperty == null)
+                {
+                    continue;
+                }
+
+                CopySerializedPropertyValue(sourceProperty, destinationProperty);
+            }
+
+            destinationObject.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void CopySerializedPropertyValue(SerializedProperty source, SerializedProperty destination)
+        {
+            switch (source.propertyType)
+            {
+                case SerializedPropertyType.Integer:
+                    destination.intValue = source.intValue;
+                    break;
+                case SerializedPropertyType.Boolean:
+                    destination.boolValue = source.boolValue;
+                    break;
+                case SerializedPropertyType.Float:
+                    destination.floatValue = source.floatValue;
+                    break;
+                case SerializedPropertyType.ObjectReference:
+                    destination.objectReferenceValue = source.objectReferenceValue;
+                    break;
+            }
+        }
+
+        private static readonly string[] PresetFieldNames =
+        {
+            "seed",
+            "rerollSeedOnRegenerate",
+            "waterLevelMeters",
+            "terrainWidthMeters",
+            "terrainDepthMeters",
+            "terrainHeightMeters",
+            "heightmapResolution",
+            "alphamapResolution",
+            "baseMapResolution",
+            "detailResolution",
+            "detailResolutionPerPatch",
+            "landFootprintMeters",
+            "shorelineFalloffMeters",
+            "landCoverage",
+            "coastlineBreakupStrength",
+            "satelliteChance",
+            "satelliteSizeRatio",
+            "hillsAmplitudeMeters",
+            "mountainAmplitudeMeters",
+            "cliffSharpening",
+            "riverCount",
+            "riverHalfWidthMeters",
+            "riverDepthMeters",
+            "riverMeanderMeters",
+            "beachBlendMeters",
+            "detailAmplitudeMeters",
+            "detailNoiseFrequency",
+            "pitAmplitudeMeters",
+            "pitNoiseFrequency",
+            "cliffDetailStrengthMeters",
+            "cliffDetailFrequency",
+            "autoRepaintLayersOnHeightChange",
+            "sandBandOffsetMeters",
+            "sandBandWidthMeters",
+            "sandMaxSlopeDegrees",
+            "rockSlopeStartDegrees",
+            "rockSlopeFullDegrees",
+            "rockHeightStartMeters",
+            "rockHeightFullMeters",
+        };
+
+        private readonly struct BoundarySegment
+        {
+            public readonly Vector3 Center;
+            public readonly Vector3 Size;
+
+            public BoundarySegment(Vector3 center, Vector3 size)
+            {
+                Center = center;
+                Size = size;
+            }
+        }
+
         private void HandleTerrainHeightmapChanged(Terrain terrain, RectInt heightRegion, bool synched)
         {
-            if (!autoRepaintLayersOnHeightChange || isRepaintingLayers || terrain == null)
+            if (isUpdatingTerrain || terrain == null)
             {
                 return;
             }
@@ -578,7 +849,14 @@ namespace Reloader.World
                 return;
             }
 
-            RepaintTerrainLayersInEditor();
+            if (autoRepaintLayersOnHeightChange && !isRepaintingLayers)
+            {
+                RepaintTerrainLayersInEditor();
+            }
+
+            RefreshWaterlineBoundary(terrain);
+            UnityEditor.EditorUtility.SetDirty(terrain);
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }
 
         private float SampleNoise(float worldX, float worldZ, float frequency, float offset)

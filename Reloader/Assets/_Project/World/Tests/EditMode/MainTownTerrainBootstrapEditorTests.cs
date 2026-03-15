@@ -192,6 +192,112 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
+        public void MainTownTerrainGenerator_RegenerateInEditor_CreatesWaterlineBoundaryBlockers()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                Assert.That(worldShell, Is.Not.Null, "Expected MainTownWorldShell in MainTown.");
+
+                var generator = worldShell!.GetComponent<MainTownTerrainGenerator>();
+                Assert.That(generator, Is.Not.Null, "Expected MainTownWorldShell to host MainTownTerrainGenerator.");
+
+                SetPrivateField(generator!, "rerollSeedOnRegenerate", false);
+                SetPrivateField(generator!, "seed", 123456789);
+
+                generator.RegenerateInEditor();
+
+                var boundaryRoot = FindChild(worldShell.transform, "Water_OceanBoundary");
+                Assert.That(boundaryRoot, Is.Not.Null, "Expected regenerate to create a shoreline containment root.");
+                Assert.That(boundaryRoot!.GetComponentsInChildren<BoxCollider>(true).Length, Is.GreaterThan(0), "Expected shoreline containment to include blocker colliders.");
+                Assert.That(boundaryRoot.GetComponentsInChildren<Renderer>(true), Is.Empty, "Expected shoreline containment to stay invisible.");
+            }
+            finally
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                var terrain = worldShell != null
+                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
+                    : null;
+                if (worldShell != null && terrain != null)
+                {
+                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
+                }
+
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void MainTownTerrainGenerator_HandleTerrainHeightmapChanged_RebuildsWaterlineBoundaryAfterShorelineEdit()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                Assert.That(worldShell, Is.Not.Null, "Expected MainTownWorldShell in MainTown.");
+
+                var generator = worldShell!.GetComponent<MainTownTerrainGenerator>();
+                Assert.That(generator, Is.Not.Null, "Expected MainTownWorldShell to host MainTownTerrainGenerator.");
+
+                SetPrivateField(generator!, "rerollSeedOnRegenerate", false);
+                SetPrivateField(generator!, "seed", 123456789);
+                SetPrivateField(generator!, "terrainWidthMeters", 3000f);
+                SetPrivateField(generator!, "terrainDepthMeters", 4000f);
+                SetPrivateField(generator!, "landFootprintMeters", 2200f);
+
+                generator.RegenerateInEditor();
+
+                var terrain = FindChild(worldShell.transform, "MainTownTerrain")!.GetComponent<Terrain>();
+                Assert.That(terrain, Is.Not.Null, "Expected terrain after regeneration.");
+
+                var initialBoundaryRoot = FindChild(worldShell.transform, "Water_OceanBoundary");
+                Assert.That(initialBoundaryRoot, Is.Not.Null, "Expected initial shoreline boundary.");
+                var initialFurthestEast = GetFurthestBoundaryEdge(initialBoundaryRoot!, axis: Vector3.right);
+
+                RaiseTerrainPatchAboveWater(terrain!, 0.94f, 0.5f, 0.03f, GetPrivateField<float>(generator!, "waterLevelMeters") + 80f);
+
+                var heightmapChangedMethod = typeof(MainTownTerrainGenerator).GetMethod(
+                    "HandleTerrainHeightmapChanged",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(heightmapChangedMethod, Is.Not.Null, "Expected terrain generator to react to terrain heightmap edits.");
+
+                heightmapChangedMethod!.Invoke(generator, new object[] { terrain!, new RectInt(0, 0, 8, 8), true });
+
+                var refreshedBoundaryRoot = FindChild(worldShell.transform, "Water_OceanBoundary");
+                Assert.That(refreshedBoundaryRoot, Is.Not.Null, "Expected shoreline boundary after sculpting.");
+
+                var refreshedFurthestEast = GetFurthestBoundaryEdge(refreshedBoundaryRoot!, axis: Vector3.right);
+                Assert.That(refreshedFurthestEast, Is.GreaterThan(initialFurthestEast + 60f), "Expected shoreline containment to rebuild toward the new shoreline after a terrain edit.");
+            }
+            finally
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                var terrain = worldShell != null
+                    ? FindChild(worldShell.transform, "MainTownTerrain")?.GetComponent<Terrain>()
+                    : null;
+                if (worldShell != null && terrain != null)
+                {
+                    MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain);
+                }
+
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
         public void MainTownTerrainGenerator_RegenerateInEditor_OnRectangularCanvas_LeavesOceanMarginsAroundContainedLandmass()
         {
             var originalScene = SceneManager.GetActiveScene();
@@ -283,15 +389,27 @@ namespace Reloader.World.Tests.EditMode
 
                 var terrain = FindChild(worldShell.transform, "MainTownTerrain")!.GetComponent<Terrain>();
                 Assert.That(terrain, Is.Not.Null, "Expected terrain after first regeneration.");
-                var firstHeight = SampleTerrainHeight(terrain!, new Vector3(620f, 0f, -1220f));
+                var firstSignature = SampleTerrainSignature(
+                    terrain!,
+                    new Vector3(-640f, 0f, -980f),
+                    new Vector3(420f, 0f, -360f),
+                    new Vector3(160f, 0f, 120f),
+                    new Vector3(-320f, 0f, 640f),
+                    new Vector3(740f, 0f, 880f));
 
                 generator.RegenerateInEditor();
 
                 var rerolledSeed = GetPrivateField<int>(generator!, "seed");
-                var secondHeight = SampleTerrainHeight(terrain!, new Vector3(620f, 0f, -1220f));
+                var secondSignature = SampleTerrainSignature(
+                    terrain!,
+                    new Vector3(-640f, 0f, -980f),
+                    new Vector3(420f, 0f, -360f),
+                    new Vector3(160f, 0f, 120f),
+                    new Vector3(-320f, 0f, 640f),
+                    new Vector3(740f, 0f, 880f));
 
                 Assert.That(rerolledSeed, Is.Not.EqualTo(initialSeed), "Expected regenerate to reroll the seed by default.");
-                Assert.That(Mathf.Abs(secondHeight - firstHeight), Is.GreaterThan(5f), "Expected a reroll to materially change the terrain shape.");
+                Assert.That(CalculateSignatureDelta(firstSignature, secondSignature), Is.GreaterThan(20f), "Expected a reroll to materially change the terrain shape.");
 
                 MainTownTerrainBootstrap.ApplyLoadedMainTownIslandPass(worldShell.transform, terrain!);
             }
@@ -525,6 +643,57 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
+        [Test]
+        public void MainTownTerrainGenerator_CaptureAndApplyPreset_RoundTripsGeneratorSettings()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var worldShell = FindRoot(scene, "MainTownWorldShell");
+                Assert.That(worldShell, Is.Not.Null, "Expected MainTownWorldShell in MainTown.");
+
+                var generator = worldShell!.GetComponent<MainTownTerrainGenerator>();
+                Assert.That(generator, Is.Not.Null, "Expected MainTownWorldShell to host MainTownTerrainGenerator.");
+
+                var preset = ScriptableObject.CreateInstance<MainTownTerrainGeneratorPreset>();
+
+                SetPrivateField(generator!, "seed", 1391034753);
+                SetPrivateField(generator!, "terrainWidthMeters", 4333f);
+                SetPrivateField(generator!, "terrainDepthMeters", 5111f);
+                SetPrivateField(generator!, "landFootprintMeters", 3333f);
+                SetPrivateField(generator!, "mountainAmplitudeMeters", 666f);
+                SetPrivateField(generator!, "cliffSharpening", 2f);
+
+                generator.CapturePresetInEditor(preset);
+
+                SetPrivateField(generator!, "seed", 1);
+                SetPrivateField(generator!, "terrainWidthMeters", 2000f);
+                SetPrivateField(generator!, "terrainDepthMeters", 2000f);
+                SetPrivateField(generator!, "landFootprintMeters", 1200f);
+                SetPrivateField(generator!, "mountainAmplitudeMeters", 100f);
+                SetPrivateField(generator!, "cliffSharpening", 0.5f);
+
+                generator.ApplyPresetInEditor(preset);
+
+                Assert.That(GetPrivateField<int>(generator!, "seed"), Is.EqualTo(1391034753));
+                Assert.That(GetPrivateField<float>(generator!, "terrainWidthMeters"), Is.EqualTo(4333f).Within(0.01f));
+                Assert.That(GetPrivateField<float>(generator!, "terrainDepthMeters"), Is.EqualTo(5111f).Within(0.01f));
+                Assert.That(GetPrivateField<float>(generator!, "landFootprintMeters"), Is.EqualTo(3333f).Within(0.01f));
+                Assert.That(GetPrivateField<float>(generator!, "mountainAmplitudeMeters"), Is.EqualTo(666f).Within(0.01f));
+                Assert.That(GetPrivateField<float>(generator!, "cliffSharpening"), Is.EqualTo(2f).Within(0.001f));
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
         private static GameObject FindRoot(Scene scene, string rootName)
         {
             foreach (var root in scene.GetRootGameObjects())
@@ -586,6 +755,28 @@ namespace Reloader.World.Tests.EditMode
             return terrain.terrainData.GetInterpolatedHeight(normalizedX, normalizedZ);
         }
 
+        private static float[] SampleTerrainSignature(Terrain terrain, params Vector3[] worldPoints)
+        {
+            var samples = new float[worldPoints.Length];
+            for (var index = 0; index < worldPoints.Length; index++)
+            {
+                samples[index] = SampleTerrainHeight(terrain, worldPoints[index]);
+            }
+
+            return samples;
+        }
+
+        private static float CalculateSignatureDelta(float[] first, float[] second)
+        {
+            var total = 0f;
+            for (var index = 0; index < first.Length; index++)
+            {
+                total += Mathf.Abs(second[index] - first[index]);
+            }
+
+            return total;
+        }
+
         private static Vector3[] GetPerimeterSamplePoints(Terrain terrain)
         {
             var halfWidth = terrain.terrainData.size.x * 0.5f - 90f;
@@ -645,6 +836,50 @@ namespace Reloader.World.Tests.EditMode
             }
 
             return profile;
+        }
+
+        private static float GetFurthestBoundaryEdge(Transform boundaryRoot, Vector3 axis)
+        {
+            var furthest = float.NegativeInfinity;
+            foreach (var collider in boundaryRoot.GetComponentsInChildren<BoxCollider>(true))
+            {
+                var bounds = collider.bounds;
+                var extent = Vector3.Scale(bounds.extents, axis).magnitude;
+                var center = Vector3.Dot(bounds.center, axis);
+                furthest = Mathf.Max(furthest, center + extent);
+            }
+
+            return furthest;
+        }
+
+        private static void RaiseTerrainPatchAboveWater(Terrain terrain, float normalizedX, float normalizedZ, float normalizedRadius, float targetHeightMeters)
+        {
+            var terrainData = terrain.terrainData;
+            var resolution = terrainData.heightmapResolution;
+            var centerX = Mathf.RoundToInt(normalizedX * (resolution - 1));
+            var centerZ = Mathf.RoundToInt(normalizedZ * (resolution - 1));
+            var radius = Mathf.Max(2, Mathf.RoundToInt(normalizedRadius * resolution));
+
+            var startX = Mathf.Clamp(centerX - radius, 0, resolution - 1);
+            var startZ = Mathf.Clamp(centerZ - radius, 0, resolution - 1);
+            var patchWidth = Mathf.Clamp((radius * 2) + 1, 1, resolution - startX);
+            var patchHeight = Mathf.Clamp((radius * 2) + 1, 1, resolution - startZ);
+            var heights = terrainData.GetHeights(startX, startZ, patchWidth, patchHeight);
+            var normalizedHeight = Mathf.Clamp01(targetHeightMeters / terrainData.size.y);
+
+            for (var z = 0; z < patchHeight; z++)
+            {
+                for (var x = 0; x < patchWidth; x++)
+                {
+                    var dx = (x + startX - centerX) / (float)Mathf.Max(radius, 1);
+                    var dz = (z + startZ - centerZ) / (float)Mathf.Max(radius, 1);
+                    var distance = Mathf.Sqrt((dx * dx) + (dz * dz));
+                    var raiseMask = Mathf.Clamp01(1f - distance);
+                    heights[z, x] = Mathf.Lerp(heights[z, x], normalizedHeight, raiseMask);
+                }
+            }
+
+            terrainData.SetHeights(startX, startZ, heights);
         }
 
         private static float CalculateAverageSecondDifference(float[] values)

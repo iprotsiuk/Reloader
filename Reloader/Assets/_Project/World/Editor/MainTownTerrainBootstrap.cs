@@ -1100,7 +1100,14 @@ namespace Reloader.World.Editor
 
                 if (waterRoot != null)
                 {
-                    waterRoot.gameObject.SetActive(false);
+                    if (waterRootName == "Water_OceanBoundary")
+                    {
+                        UnityEngine.Object.DestroyImmediate(waterRoot.gameObject);
+                    }
+                    else
+                    {
+                        waterRoot.gameObject.SetActive(false);
+                    }
                 }
             }
         }
