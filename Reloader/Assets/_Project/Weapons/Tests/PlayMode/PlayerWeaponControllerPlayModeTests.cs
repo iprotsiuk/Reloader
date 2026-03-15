@@ -453,6 +453,66 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Fire_HipFireLongPredictedHit_DoesNotRequestShotCamera()
+        {
+            var root = new GameObject("PlayerRoot");
+            root.transform.position = new Vector3(0f, 1000f, 0f);
+            var input = root.AddComponent<TestInputSource>();
+            input.AimHeldValue = false;
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+            runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+            runtime.SelectBeltSlot(0);
+
+            var worldCameraGo = new GameObject("WorldCamera");
+            worldCameraGo.transform.SetPositionAndRotation(root.transform.position, Quaternion.identity);
+            var worldCamera = worldCameraGo.AddComponent<Camera>();
+            worldCamera.tag = "MainCamera";
+
+            var registryGo = new GameObject("Registry");
+            var registry = registryGo.AddComponent<WeaponRegistry>();
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+            definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+            registry.SetDefinitionsForTests(new[] { definition });
+
+            var farTarget = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            farTarget.transform.position = root.transform.position + (Vector3.forward * 150f);
+            farTarget.transform.localScale = new Vector3(20f, 20f, 2f);
+
+            var shotCameraSpy = root.AddComponent<ShotCameraRegistrationSpy>();
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetControllerField(controller, "_adsCamera", worldCamera);
+            SetControllerField(controller, "_weaponRegistry", registry);
+            SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraSpy);
+            SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+            yield return null;
+
+            var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
+            var magazineRounds = new[]
+            {
+                WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj"),
+                WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj")
+            };
+            Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 4, 0, true), Is.True);
+            Assert.That(controller.ApplyRuntimeBallistics("weapon-kar98k", chamberRound, magazineRounds), Is.True);
+
+            input.FirePressedThisFrame = true;
+            yield return null;
+
+            Assert.That(shotCameraSpy.RequestCount, Is.EqualTo(0), "Expected hip-fire to bypass shot cam even for long predicted hits.");
+
+            Object.Destroy(farTarget);
+            Object.Destroy(worldCameraGo);
+            Object.Destroy(root);
+            Object.Destroy(registryGo);
+            Object.Destroy(definition);
+        }
+
+        [UnityTest]
         public IEnumerator Fire_WithShotCameraRuntime_SetsDefaultSlowMotionScale()
         {
             GameObject root = null;
