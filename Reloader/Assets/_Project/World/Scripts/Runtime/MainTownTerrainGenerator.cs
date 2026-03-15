@@ -25,6 +25,7 @@ namespace Reloader.World
         private const float BoundaryContourBelowWaterMeters = 1f;
         private const float BoundaryOffshoreOffsetMeters = 1f;
         private const float BoundaryHeightMeters = 15f;
+        private const int BoundaryLayer = 2; // Ignore Raycast
 
         [SerializeField] private int seed = 1337;
         [SerializeField] private MainTownTerrainGeneratorPreset presetAsset;
@@ -555,6 +556,7 @@ namespace Reloader.World
         {
             var boundaryRoot = FindOrCreateChild(OceanBoundaryRootName);
             boundaryRoot.gameObject.SetActive(true);
+            boundaryRoot.gameObject.layer = BoundaryLayer;
 
             var existingChildren = new Transform[boundaryRoot.childCount];
             for (var index = 0; index < boundaryRoot.childCount; index++)
@@ -579,6 +581,7 @@ namespace Reloader.World
                 segmentObject.transform.localPosition = segment.Center;
                 segmentObject.transform.localRotation = Quaternion.identity;
                 segmentObject.transform.localScale = segment.Size;
+                segmentObject.layer = BoundaryLayer;
                 var collider = segmentObject.AddComponent<BoxCollider>();
                 collider.size = Vector3.one;
                 collider.isTrigger = false;

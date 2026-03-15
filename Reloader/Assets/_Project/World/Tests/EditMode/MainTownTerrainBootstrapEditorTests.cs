@@ -211,6 +211,7 @@ namespace Reloader.World.Tests.EditMode
                 generator.RegenerateInEditor();
                 var boundaryRoot = FindChild(worldShell.transform, "Water_OceanBoundary");
                 Assert.That(boundaryRoot, Is.Not.Null, "Expected regenerate to create a shoreline containment root.");
+                Assert.That(boundaryRoot!.gameObject.layer, Is.EqualTo(LayerMask.NameToLayer("Ignore Raycast")), "Expected shoreline containment root to use Ignore Raycast so projectile raycasts pass through it.");
                 var boundaryColliders = boundaryRoot!.GetComponentsInChildren<BoxCollider>(true);
                 Assert.That(boundaryColliders.Length, Is.GreaterThan(0), "Expected shoreline containment to include blocker colliders.");
                 Assert.That(boundaryRoot.GetComponentsInChildren<Renderer>(true), Is.Empty, "Expected shoreline containment to stay invisible.");
@@ -219,6 +220,8 @@ namespace Reloader.World.Tests.EditMode
                 var highestBoundaryBottom = float.NegativeInfinity;
                 foreach (var collider in boundaryColliders)
                 {
+                    Assert.That(collider.gameObject.layer, Is.EqualTo(LayerMask.NameToLayer("Ignore Raycast")), "Expected shoreline blockers to live on Ignore Raycast so projectiles ignore them.");
+                    Assert.That(collider.isTrigger, Is.False, "Expected shoreline blockers to use solid colliders so the player cannot walk through them.");
                     lowestBoundaryBottom = Mathf.Min(lowestBoundaryBottom, collider.bounds.min.y);
                     highestBoundaryBottom = Mathf.Max(highestBoundaryBottom, collider.bounds.min.y);
                     Assert.That(collider.bounds.size.y, Is.EqualTo(15f).Within(0.25f), "Expected shoreline blockers to stay about fifteen meters tall.");
