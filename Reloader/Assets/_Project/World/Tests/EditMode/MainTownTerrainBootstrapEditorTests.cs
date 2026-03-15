@@ -212,8 +212,21 @@ namespace Reloader.World.Tests.EditMode
 
                 var boundaryRoot = FindChild(worldShell.transform, "Water_OceanBoundary");
                 Assert.That(boundaryRoot, Is.Not.Null, "Expected regenerate to create a shoreline containment root.");
-                Assert.That(boundaryRoot!.GetComponentsInChildren<BoxCollider>(true).Length, Is.GreaterThan(0), "Expected shoreline containment to include blocker colliders.");
+                var boundaryColliders = boundaryRoot!.GetComponentsInChildren<BoxCollider>(true);
+                Assert.That(boundaryColliders.Length, Is.GreaterThan(0), "Expected shoreline containment to include blocker colliders.");
                 Assert.That(boundaryRoot.GetComponentsInChildren<Renderer>(true), Is.Empty, "Expected shoreline containment to stay invisible.");
+
+                var lowestBoundaryBottom = float.PositiveInfinity;
+                var highestBoundaryTop = float.NegativeInfinity;
+                foreach (var collider in boundaryColliders)
+                {
+                    lowestBoundaryBottom = Mathf.Min(lowestBoundaryBottom, collider.bounds.min.y);
+                    highestBoundaryTop = Mathf.Max(highestBoundaryTop, collider.bounds.max.y);
+                }
+
+                var waterLevel = GetPrivateField<float>(generator!, "waterLevelMeters");
+                Assert.That(lowestBoundaryBottom, Is.LessThanOrEqualTo(-0.5f), "Expected shoreline blockers to start below the water plane so the player can touch shallow water.");
+                Assert.That(highestBoundaryTop, Is.LessThanOrEqualTo(waterLevel + 4.5f), "Expected shoreline blockers to stop near the waterline instead of standing high above the ocean.");
             }
             finally
             {

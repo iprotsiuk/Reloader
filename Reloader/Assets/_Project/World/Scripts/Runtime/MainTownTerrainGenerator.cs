@@ -22,7 +22,8 @@ namespace Reloader.World
         private const string RockTexturePath = "Assets/ThirdParty/Polygon-Mega Survival Forest/Textures/TerrainTextures/Stones.PNG";
         private const float BoundarySampleSpacingMeters = 24f;
         private const float BoundaryThicknessMeters = 6f;
-        private const float BoundaryHeightMeters = 80f;
+        private const float BoundaryBottomMeters = -1f;
+        private const float BoundaryTopOffsetMeters = 4f;
         private const float BoundaryWaterlineOffsetMeters = 6f;
 
         [SerializeField] private int seed = 1337;
@@ -544,7 +545,13 @@ namespace Reloader.World
             var boundaryRoot = FindOrCreateChild(OceanBoundaryRootName);
             boundaryRoot.gameObject.SetActive(true);
 
-            foreach (Transform child in boundaryRoot)
+            var existingChildren = new Transform[boundaryRoot.childCount];
+            for (var index = 0; index < boundaryRoot.childCount; index++)
+            {
+                existingChildren[index] = boundaryRoot.GetChild(index);
+            }
+
+            foreach (var child in existingChildren)
             {
                 if (child != null)
                 {
@@ -653,9 +660,11 @@ namespace Reloader.World
             var x = (column * cellWidth) - (terrainWidthMeters * 0.5f);
             var centerZ = (((startRow + endRow + 1) * 0.5f) * cellDepth) - (terrainDepthMeters * 0.5f);
             var length = Mathf.Max(cellDepth, (endRow - startRow + 1) * cellDepth);
+            var boundaryHeight = (waterLevelMeters + BoundaryTopOffsetMeters) - BoundaryBottomMeters;
+            var centerY = BoundaryBottomMeters + (boundaryHeight * 0.5f);
             return new BoundarySegment(
-                new Vector3(x, waterLevelMeters + (BoundaryHeightMeters * 0.5f), centerZ),
-                new Vector3(BoundaryThicknessMeters, BoundaryHeightMeters, length + BoundaryThicknessMeters));
+                new Vector3(x, centerY, centerZ),
+                new Vector3(BoundaryThicknessMeters, boundaryHeight, length + BoundaryThicknessMeters));
         }
 
         private BoundarySegment CreateHorizontalBoundarySegment(int row, int startColumn, int endColumn, float cellWidth, float cellDepth)
@@ -663,9 +672,11 @@ namespace Reloader.World
             var z = (row * cellDepth) - (terrainDepthMeters * 0.5f);
             var centerX = (((startColumn + endColumn + 1) * 0.5f) * cellWidth) - (terrainWidthMeters * 0.5f);
             var length = Mathf.Max(cellWidth, (endColumn - startColumn + 1) * cellWidth);
+            var boundaryHeight = (waterLevelMeters + BoundaryTopOffsetMeters) - BoundaryBottomMeters;
+            var centerY = BoundaryBottomMeters + (boundaryHeight * 0.5f);
             return new BoundarySegment(
-                new Vector3(centerX, waterLevelMeters + (BoundaryHeightMeters * 0.5f), z),
-                new Vector3(length + BoundaryThicknessMeters, BoundaryHeightMeters, BoundaryThicknessMeters));
+                new Vector3(centerX, centerY, z),
+                new Vector3(length + BoundaryThicknessMeters, boundaryHeight, BoundaryThicknessMeters));
         }
 
         private Material EnsureOceanMaterial()
