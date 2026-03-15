@@ -55,6 +55,26 @@ if ! rg -n "local guidance wins|takes precedence" .cursor/agents.md >/dev/null 2
   fail "Missing explicit local-over-global precedence rule in .cursor/agents.md."
 fi
 
+if ! rg -n "runtime-local|runtime-cross-domain|scene/prefab/editor-state|data-content|docs/rules/skills" .cursor/agents.md >/dev/null 2>&1; then
+  fail "Missing explicit task classification guidance in .cursor/agents.md."
+fi
+
+if ! rg -n "refactoring-and-test-hygiene" .cursor/agents.md >/dev/null 2>&1; then
+  fail "Missing refactoring-and-test-hygiene skill routing in .cursor/agents.md."
+fi
+
+if ! rg -n "filtered test-first ladder|run the touched test file or smallest relevant filter first" .cursor/agents.md >/dev/null 2>&1; then
+  fail "Missing filtered test-first rule in .cursor/agents.md."
+fi
+
+if rg -n "Reloader/Assets/_Project docs \\.cursor \\.agent" .cursor/agents.md >/dev/null 2>&1; then
+  fail "Runtime-local discovery in .cursor/agents.md still uses the old broad docs/.cursor/.agent first-pass search."
+fi
+
+if ! rg -n "Reloader/Assets/_Project/Weapons/Scripts.*Reloader/Assets/_Project/Weapons/Tests.*Reloader/Assets/Game/Weapons" .cursor/agents.md >/dev/null 2>&1; then
+  fail "Missing domain-local runtime discovery example for weapons in .cursor/agents.md."
+fi
+
 if ! rg -n "design/planning/doc-framework phase|design/planning/doc framework phase" .cursor/agents.md >/dev/null 2>&1; then
   fail "Missing explicit planning-phase contract in .cursor/agents.md."
 fi
@@ -88,6 +108,14 @@ done
 
 if [[ ! -f .cursor/rules/core-events-context.mdc ]]; then
   fail "Missing focused Core events router: .cursor/rules/core-events-context.mdc"
+fi
+
+if [[ ! -f .cursor/rules/weapons-runtime-local-context.mdc ]]; then
+  fail "Missing focused local weapons runtime router: .cursor/rules/weapons-runtime-local-context.mdc"
+fi
+
+if ! rg -n "Reloader/Assets/_Project/Weapons/Scripts/\\*\\*/\\*\\.cs,Reloader/Assets/_Project/Weapons/Tests/\\*\\*/\\*\\.cs,Reloader/Assets/Game/Weapons/\\*\\*/\\*\\.cs" .cursor/rules/weapons-runtime-local-context.mdc >/dev/null 2>&1; then
+  fail "weapons-runtime-local-context.mdc globs do not match the focused weapons runtime/test roots."
 fi
 
 if ! rg -n "Reloader/Assets/_Project/Core/Scripts/Events/\\*\\*" .cursor/rules/core-events-context.mdc >/dev/null 2>&1; then
@@ -143,13 +171,51 @@ if rg -n "Reloader/Assets/_Project/\\*\\*(,|$)" .cursor/rules/*.mdc >/dev/null 2
   fail "Found overly broad _Project/** context glob. Split routers by domain."
 fi
 
+if rg -n "Every agent reads this regardless of task|Always read first:.*core-architecture\\.md" \
+  .cursor/rules/game-design-docs.mdc \
+  docs/design/README.md >/dev/null 2>&1; then
+  fail "Local routing still forces every task through core-architecture.md."
+fi
+
+if ! rg -n "docs/design/README.md" .cursor/rules/game-design-docs.mdc >/dev/null 2>&1; then
+  fail "game-design-docs.mdc must route agents to docs/design/README.md."
+fi
+
+if ! rg -n "Do NOT auto-load .*core-architecture\\.md.*runtime-local or test-local work" .cursor/rules/game-design-docs.mdc >/dev/null 2>&1; then
+  fail "game-design-docs.mdc must explicitly exempt runtime-local/test-local work from auto-loading core-architecture.md."
+fi
+
+if ! rg -n "new features, cross-domain changes, save/events/persistence changes, or when local intent is unclear" .cursor/rules/game-design-docs.mdc >/dev/null 2>&1; then
+  fail "game-design-docs.mdc must describe the limited cases that require core-architecture.md."
+fi
+
+if ! rg -n "Runtime-local and test-local tasks start from touched code/tests" docs/design/README.md >/dev/null 2>&1; then
+  fail "docs/design/README.md must describe the local-task routing path."
+fi
+
+if ! rg -n "new features or new subsystem work|cross-domain runtime changes|save, event-port, or persistence work|unclear local intent" docs/design/README.md >/dev/null 2>&1; then
+  fail "docs/design/README.md must restrict core-architecture.md to cross-domain/new-feature/shared-contract work."
+fi
+
 for rule in .cursor/rules/*.mdc; do
   if ! rg -n "docs/design/" "$rule" >/dev/null 2>&1; then
     fail "Context router is missing docs/design references: $rule"
   fi
 
-  if [[ "$rule" != ".cursor/rules/game-design-docs.mdc" ]] && ! rg -n "docs/design/core-architecture.md" "$rule" >/dev/null 2>&1; then
-    fail "Context router must reference core-architecture.md: $rule"
+  if [[ "$rule" == ".cursor/rules/game-design-docs.mdc" ]]; then
+    continue
+  fi
+
+  if rg -n "docs/design/core-architecture.md" "$rule" >/dev/null 2>&1; then
+    continue
+  fi
+
+  if ! rg -n "Start from touched code/tests|start from touched code/tests" "$rule" >/dev/null 2>&1; then
+    fail "Local context router without core-architecture.md must explicitly start from touched code/tests: $rule"
+  fi
+
+  if ! rg -n "Load docs only as needed|load docs only if needed|only if the change crosses|only if local intent is unclear" "$rule" >/dev/null 2>&1; then
+    fail "Local context router without core-architecture.md must explain the docs-on-demand path: $rule"
   fi
 done
 
@@ -269,6 +335,10 @@ fi
 
 if ! rg -n "only when creating/editing ScriptableObject data assets" .cursor/rules/reloading-context.mdc >/dev/null 2>&1; then
   fail "reloading-context is missing conditional routing for adding-game-content skill."
+fi
+
+if rg -n "Reloader/Assets/_Project/Weapons/\\*\\*" .cursor/rules/reloading-context.mdc >/dev/null 2>&1; then
+  fail "reloading-context still owns all _Project/Weapons/** work. Keep it limited to reloading, weapon data, and ballistics content paths."
 fi
 
 if [[ ! -f .cursorignore || ! -f .codexignore || ! -f .ignore ]]; then

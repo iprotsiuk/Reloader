@@ -1,0 +1,21 @@
+---
+description: Context for agents doing local weapons runtime, ADS, controller, or test cleanup
+globs: Reloader/Assets/_Project/Weapons/Scripts/**/*.cs,Reloader/Assets/_Project/Weapons/Tests/**/*.cs,Reloader/Assets/Game/Weapons/**/*.cs
+alwaysApply: false
+---
+
+# Weapons Local Runtime Context
+
+You are working in a local weapons runtime or test hotspot.
+
+Start from touched code/tests in these roots first. Do NOT auto-load `docs/design/core-architecture.md` for local controller, ADS, optics, runtime, or test cleanup.
+
+Read `docs/design/README.md` only to decide whether a domain doc is needed. Load docs only as needed:
+
+1. `docs/design/ads-optics-framework.md` for ADS, optics, reticles, or scope runtime behavior
+2. `docs/design/weapons-and-ballistics.md` for projectile, weapon runtime, or shooting semantics
+3. `docs/design/weapon-view-attachment-runtime.md` when touching weapon-view attachment/runtime contracts
+4. `docs/design/core-architecture.md` only if the change crosses save, events, persistence, or another domain, or if local intent is unclear
+5. `.agent/skills/refactoring-and-test-hygiene/SKILL.md` for local runtime refactor/test cleanup
+
+If the task becomes weapon data/content authoring or reloading/ballistics content work, switch to `.cursor/rules/reloading-context.mdc`.

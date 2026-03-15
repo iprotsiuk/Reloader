@@ -2,9 +2,20 @@
 
 > **For agents:** Use this index to find the right docs for your task. Load ONLY what you need.
 
-## Always Read First
+## Start Here
 
-**[core-architecture.md](core-architecture.md)** (~300 lines) — shared patterns, project structure, SO system, event bus, design principles. Every agent reads this regardless of task.
+- Runtime-local and test-local tasks start from touched code/tests plus the matching local router or skill.
+- Do NOT auto-load [core-architecture.md](core-architecture.md) for runtime-local or test-local work.
+- Use this file as the routing index to decide whether you need design docs at all.
+
+## Load Core Architecture Only When Needed
+
+**[core-architecture.md](core-architecture.md)** stays mandatory for:
+
+- new features or new subsystem work
+- cross-domain runtime changes
+- save, event-port, or persistence work
+- unclear local intent where the shared contract boundary is not obvious
 
 ## Implementation Status Contract
 
@@ -29,6 +40,7 @@ Live status source-of-truth:
 | **Reloading bench, press interactions, ammo assembly** | [reloading-system.md](reloading-system.md) | `reloading-domain-knowledge` (accuracy calc, real-world reference), `adding-game-content` (creating SO assets) |
 | **Weapons, ballistics, shooting, accuracy model** | [weapons-and-ballistics.md](weapons-and-ballistics.md) | `reloading-domain-knowledge` (accuracy calc, ballistics reference), `adding-game-content` (creating weapon/part assets) |
 | **FPS ADS, optics, scope mask/PiP, viewmodel alignment** | [ads-optics-framework.md](ads-optics-framework.md), [weapons-and-ballistics.md](weapons-and-ballistics.md) | `adding-game-content`, `unity-project-conventions` |
+| **Local runtime refactor/test cleanup in one subsystem** | Start from touched code/tests and the matching local router/skill; load a design doc only if the touched seam crosses a shared contract | `refactoring-and-test-hygiene` |
 | **Assassination contracts, targets, long-range job design** | [assassination-contracts.md](assassination-contracts.md), [law-enforcement.md](law-enforcement.md) | — |
 | **Driving, world layout, vehicles, scene transitions** | [world-and-vehicles.md](world-and-vehicles.md), [world-and-scenes.md](world-and-scenes.md), [world-scene-contracts.md](world-scene-contracts.md) | — |
 | **Player controls/input/camera, shared UI shell, shared audio** | [core-architecture.md](core-architecture.md), [prototype-scope.md](prototype-scope.md), plus affected domain doc | `unity-project-conventions` |
@@ -41,7 +53,7 @@ Live status source-of-truth:
 | **Cross-domain extension guardrails (events, wiring, UI bridge, persistence, world integration)** | [extensible-development-contracts.md](extensible-development-contracts.md) | `writing-agent-docs`, `reviewing-design-docs` |
 | **Scoping work, prioritizing features** | [prototype-scope.md](prototype-scope.md), [v0.1-demo-status-and-milestones.md](v0.1-demo-status-and-milestones.md) | — |
 | **Adding new data assets (weapons, ammo, equipment)** | Depends on asset type — check skill | `adding-game-content`, `unity-project-conventions` |
-| **Any new C# script or Unity feature** | [core-architecture.md](core-architecture.md) | `unity-project-conventions` |
+| **Any new C# feature, subsystem, or cross-domain Unity change** | [core-architecture.md](core-architecture.md) | `unity-project-conventions` |
 
 ## Cross-Domain Work
 
@@ -55,6 +67,7 @@ If your change touches runtime state (item ownership/location, transforms, inven
 | Skill | When to use | Location |
 |-------|------------|----------|
 | `adding-game-content` | Creating new SO data assets (weapons, ammo, equipment, etc.) | `.agent/skills/adding-game-content/SKILL.md` |
+| `refactoring-and-test-hygiene` | Local runtime refactor/test cleanup inside one hotspot cluster | `.agent/skills/refactoring-and-test-hygiene/SKILL.md` |
 | `reloading-domain-knowledge` | Implementing reloading mechanics, ballistics, accuracy model | `.agent/skills/reloading-domain-knowledge/SKILL.md` |
 | `unity-project-conventions` | Writing any C# code, creating scripts/prefabs/scenes | `.agent/skills/unity-project-conventions/SKILL.md` |
 
