@@ -1029,7 +1029,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
-        
+
         [UnityTest]
         public IEnumerator ScopedPipOptic_ActivatesPeripheralEffectsOnlyWhileAds()
         {
