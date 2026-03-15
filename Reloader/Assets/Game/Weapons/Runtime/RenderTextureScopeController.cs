@@ -54,6 +54,18 @@ namespace Reloader.Game.Weapons
         public float CurrentMradPerClick => _currentMradPerClick;
         public Vector2 CurrentMechanicalZeroOffsetMrad => _currentMechanicalZeroOffsetMrad;
 
+        public void BindRuntimeReferences(Camera scopeCamera, Behaviour[] expensiveScopeBehaviours = null)
+        {
+            _scopeCamera = scopeCamera;
+            if (expensiveScopeBehaviours != null)
+            {
+                _expensiveScopeBehaviours = expensiveScopeBehaviours;
+            }
+
+            _defaultScopeCameraFov = _scopeCamera != null ? _scopeCamera.fieldOfView : 20f;
+            ApplyState(false, _defaultScopeCameraFov, Vector2.zero, 1f, 0.1f, Vector2.zero);
+        }
+
         private void Awake()
         {
             if (_scopeCamera != null)
