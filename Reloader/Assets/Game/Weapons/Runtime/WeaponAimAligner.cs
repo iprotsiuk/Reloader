@@ -131,11 +131,20 @@ namespace Reloader.Game.Weapons
                 targetLocalRotation = targetWorldRotation;
             }
 
-            // Scoped ADS timing already comes from AdsStateController.AdsT.
-            // Apply the solved pivot pose directly from that blend so the optic
-            // is fully aligned when ADS completes instead of continuing to settle.
-            _adsPivot.localPosition = Vector3.Lerp(_restLocalPosition, targetLocalPosition, adsT);
-            _adsPivot.localRotation = Quaternion.Slerp(_restLocalRotation, targetLocalRotation, adsT);
+            _adsPivot.localPosition = ResolveNextPivotLocalPosition(
+                _adsPivot.localPosition,
+                _restLocalPosition,
+                targetLocalPosition,
+                adsT,
+                _positionLerpSpeed,
+                Time.deltaTime);
+            _adsPivot.localRotation = ResolveNextPivotLocalRotation(
+                _adsPivot.localRotation,
+                _restLocalRotation,
+                targetLocalRotation,
+                adsT,
+                _rotationLerpSpeed,
+                Time.deltaTime);
 
             DebugAlignmentErrorDistance = Vector3.Distance(sightAnchor.position, cameraTx.position);
             DebugAlignmentErrorAngleDegrees = Quaternion.Angle(sightAnchor.rotation, cameraTx.rotation);
@@ -147,6 +156,32 @@ namespace Reloader.Game.Weapons
             var rotationStep = 1f - Mathf.Exp(-Mathf.Max(0.001f, _rotationLerpSpeed) * Time.deltaTime);
             _adsPivot.localPosition = Vector3.Lerp(_adsPivot.localPosition, _restLocalPosition, positionStep);
             _adsPivot.localRotation = Quaternion.Slerp(_adsPivot.localRotation, _restLocalRotation, rotationStep);
+        }
+
+        private static Vector3 ResolveNextPivotLocalPosition(
+            Vector3 currentLocalPosition,
+            Vector3 restLocalPosition,
+            Vector3 targetLocalPosition,
+            float adsT,
+            float positionLerpSpeed,
+            float deltaTime)
+        {
+            var blendedLocalPosition = Vector3.Lerp(restLocalPosition, targetLocalPosition, Mathf.Clamp01(adsT));
+            var positionStep = 1f - Mathf.Exp(-Mathf.Max(0.001f, positionLerpSpeed) * Mathf.Max(0f, deltaTime));
+            return Vector3.Lerp(currentLocalPosition, blendedLocalPosition, positionStep);
+        }
+
+        private static Quaternion ResolveNextPivotLocalRotation(
+            Quaternion currentLocalRotation,
+            Quaternion restLocalRotation,
+            Quaternion targetLocalRotation,
+            float adsT,
+            float rotationLerpSpeed,
+            float deltaTime)
+        {
+            var blendedLocalRotation = Quaternion.Slerp(restLocalRotation, targetLocalRotation, Mathf.Clamp01(adsT));
+            var rotationStep = 1f - Mathf.Exp(-Mathf.Max(0.001f, rotationLerpSpeed) * Mathf.Max(0f, deltaTime));
+            return Quaternion.Slerp(currentLocalRotation, blendedLocalRotation, rotationStep);
         }
 
         private Transform ResolveCameraTransform()

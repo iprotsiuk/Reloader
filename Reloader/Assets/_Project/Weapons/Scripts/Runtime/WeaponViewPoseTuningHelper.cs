@@ -150,17 +150,9 @@ namespace Reloader.Weapons.Runtime
                 ? $"AttachmentOverride[{overrideIndex}]"
                 : "Base";
 
-            var useDirectScopedBlend = ShouldUseDirectScopedBlend();
             var targetT = ResolveTargetAdsBlendT();
-            if (useDirectScopedBlend)
-            {
-                _blendT = targetT;
-            }
-            else
-            {
-                var step = 1f - Mathf.Exp(-Mathf.Max(1f, pose.BlendSpeed) * Time.deltaTime);
-                _blendT = Mathf.Lerp(_blendT, targetT, step);
-            }
+            var step = 1f - Mathf.Exp(-Mathf.Max(1f, pose.BlendSpeed) * Time.deltaTime);
+            _blendT = Mathf.Lerp(_blendT, targetT, step);
 
             var targetPosition = Vector3.Lerp(pose.HipLocalPosition, pose.AdsLocalPosition, _blendT);
             var hipRot = Quaternion.Euler(pose.HipLocalEuler);

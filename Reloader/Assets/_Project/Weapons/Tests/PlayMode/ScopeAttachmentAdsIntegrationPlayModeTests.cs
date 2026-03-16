@@ -110,7 +110,12 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That((Vector2)GetProperty(opticDefinition, "MechanicalZeroOffsetMrad"), Is.EqualTo(Vector2.zero));
             Assert.That((float)GetProperty(opticDefinition, "ProjectionCalibrationMultiplier"), Is.EqualTo(6.3f).Within(0.0001f));
             Assert.That((float)GetProperty(opticDefinition, "CompositeReticleScale"), Is.EqualTo(1.2f).Within(0.0001f));
-            Assert.That((Vector2)GetProperty(opticDefinition, "CompositeReticleOffset"), Is.EqualTo(Vector2.zero));
+            var compositeReticleOffset = (Vector2)GetProperty(opticDefinition, "CompositeReticleOffset");
+            Assert.That(compositeReticleOffset.x, Is.EqualTo(0.00243f).Within(0.00001f));
+            Assert.That(
+                compositeReticleOffset.y,
+                Is.EqualTo(0.00108f).Within(0.00001f),
+                "Expected Kar98k PiP reticle calibration to compensate for the authored reticle artwork being slightly left/low in the source PNG.");
         }
 
         [Test]
