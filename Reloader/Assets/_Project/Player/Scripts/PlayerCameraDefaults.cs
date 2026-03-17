@@ -15,6 +15,7 @@ namespace Reloader.Player
         [SerializeField] private Transform _cameraLookTarget;
         [SerializeField] private float _nearClipPlane = 0.001f;
         [SerializeField] private float _farClipPlane = 2828f;
+        private Camera _viewmodelCamera;
 
         private void Awake()
         {
@@ -22,6 +23,11 @@ namespace Reloader.Player
             {
                 ApplyDefaults();
             }
+        }
+
+        private void LateUpdate()
+        {
+            SyncViewmodelCameraLens();
         }
 
         [ContextMenu("Apply Camera Defaults")]
@@ -63,13 +69,8 @@ namespace Reloader.Player
                 var cameraData = _mainCamera.GetUniversalAdditionalCameraData();
                 cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
                 cameraData.antialiasingQuality = AntialiasingQuality.High;
-
-                var viewmodelCamera = _mainCamera.transform.Find("ViewmodelCamera")?.GetComponent<Camera>();
-                if (viewmodelCamera != null)
-                {
-                    viewmodelCamera.nearClipPlane = _mainCamera.nearClipPlane;
-                    viewmodelCamera.farClipPlane = Mathf.Max(viewmodelCamera.nearClipPlane + 0.01f, 10f);
-                }
+                _viewmodelCamera = ConfigureViewmodelCamera(_mainCamera, cameraData);
+                SyncViewmodelCameraLens();
             }
         }
 
@@ -115,12 +116,14 @@ namespace Reloader.Player
                 var lens = _cinemachineCamera.Lens;
                 lens.FieldOfView = fieldOfView;
                 _cinemachineCamera.Lens = lens;
+                SyncViewmodelCameraLens();
                 return true;
             }
 
             if (_mainCamera != null)
             {
                 _mainCamera.fieldOfView = fieldOfView;
+                SyncViewmodelCameraLens();
                 return true;
             }
 
@@ -156,6 +159,76 @@ namespace Reloader.Player
             {
                 cinemachineCamera.gameObject.AddComponent<CinemachineHardLookAt>();
             }
+        }
+
+        private void SyncViewmodelCameraLens()
+        {
+            if (_mainCamera == null)
+            {
+                return;
+            }
+
+            _viewmodelCamera ??= _mainCamera.transform.Find("ViewmodelCamera")?.GetComponent<Camera>();
+            if (_viewmodelCamera == null || !TryGetEffectiveFieldOfView(out var fieldOfView))
+            {
+                return;
+            }
+
+            _viewmodelCamera.nearClipPlane = _mainCamera.nearClipPlane;
+            _viewmodelCamera.farClipPlane = Mathf.Max(_viewmodelCamera.nearClipPlane + 0.01f, 10f);
+            _viewmodelCamera.depth = _mainCamera.depth + 1f;
+            _viewmodelCamera.fieldOfView = fieldOfView;
+            _viewmodelCamera.allowHDR = _mainCamera.allowHDR;
+            _viewmodelCamera.allowMSAA = _mainCamera.allowMSAA;
+        }
+
+        private static Camera ConfigureViewmodelCamera(Camera mainCamera, UniversalAdditionalCameraData mainCameraData)
+        {
+            var viewmodelLayer = LayerMask.NameToLayer("Viewmodel");
+            if (mainCamera == null || viewmodelLayer < 0)
+            {
+                return null;
+            }
+
+            var viewmodelCamera = mainCamera.transform.Find("ViewmodelCamera")?.GetComponent<Camera>();
+            if (viewmodelCamera == null)
+            {
+                var viewmodelCameraGo = new GameObject("ViewmodelCamera");
+                viewmodelCameraGo.transform.SetParent(mainCamera.transform, false);
+                viewmodelCamera = viewmodelCameraGo.AddComponent<Camera>();
+            }
+
+            var viewmodelMask = 1 << viewmodelLayer;
+            viewmodelCamera.transform.localPosition = Vector3.zero;
+            viewmodelCamera.transform.localRotation = Quaternion.identity;
+            viewmodelCamera.transform.localScale = Vector3.one;
+            viewmodelCamera.clearFlags = CameraClearFlags.Depth;
+            viewmodelCamera.cullingMask = viewmodelMask;
+            viewmodelCamera.nearClipPlane = mainCamera.nearClipPlane;
+            viewmodelCamera.farClipPlane = Mathf.Max(viewmodelCamera.nearClipPlane + 0.01f, 10f);
+            viewmodelCamera.depth = mainCamera.depth + 1f;
+            viewmodelCamera.fieldOfView = mainCamera.fieldOfView;
+            viewmodelCamera.allowHDR = mainCamera.allowHDR;
+            viewmodelCamera.allowMSAA = mainCamera.allowMSAA;
+
+            var audioListener = viewmodelCamera.GetComponent<AudioListener>();
+            if (audioListener != null)
+            {
+                Object.DestroyImmediate(audioListener);
+            }
+
+            mainCamera.cullingMask &= ~viewmodelMask;
+
+            var viewmodelCameraData = viewmodelCamera.GetUniversalAdditionalCameraData();
+            mainCameraData.renderType = CameraRenderType.Base;
+            viewmodelCameraData.renderType = CameraRenderType.Overlay;
+
+            if (!mainCameraData.cameraStack.Contains(viewmodelCamera))
+            {
+                mainCameraData.cameraStack.Add(viewmodelCamera);
+            }
+
+            return viewmodelCamera;
         }
     }
 }

@@ -292,8 +292,60 @@ namespace Reloader.Weapons.Editor
                 return null;
             }
 
-            var root = armsAnimator.transform;
-            return FindDescendantByName(root, "ik_hand_gun") ?? root;
+            var playerArmsRoot = ResolvePlayerArmsRoot(armsAnimator.transform);
+            if (playerArmsRoot == null)
+            {
+                return null;
+            }
+
+            var cameraPivot = playerArmsRoot.parent;
+            if (cameraPivot == null || !string.Equals(cameraPivot.name, "CameraPivot", System.StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            var viewmodelLayer = playerArmsRoot.gameObject.layer;
+
+            var existing = cameraPivot.Find("WeaponPresentationRoot");
+            if (existing != null)
+            {
+                SetLayerRecursively(existing.gameObject, viewmodelLayer);
+                return existing;
+            }
+
+            var weaponPresentationRoot = new GameObject("WeaponPresentationRoot");
+            Undo.RegisterCreatedObjectUndo(weaponPresentationRoot, "Create Weapon Presentation Root");
+            weaponPresentationRoot.transform.SetParent(cameraPivot, false);
+            weaponPresentationRoot.transform.localPosition = Vector3.zero;
+            weaponPresentationRoot.transform.localRotation = Quaternion.identity;
+            weaponPresentationRoot.transform.localScale = Vector3.one;
+            SetLayerRecursively(weaponPresentationRoot, viewmodelLayer);
+            return weaponPresentationRoot.transform;
+        }
+
+        private static void SetLayerRecursively(GameObject root, int layer)
+        {
+            root.layer = layer;
+            foreach (Transform child in root.transform)
+            {
+                SetLayerRecursively(child.gameObject, layer);
+            }
+        }
+
+        private static Transform ResolvePlayerArmsRoot(Transform animatorTransform)
+        {
+            var current = animatorTransform;
+            while (current != null)
+            {
+                if (string.Equals(current.name, "PlayerArms", System.StringComparison.Ordinal))
+                {
+                    return current;
+                }
+
+                current = current.parent;
+            }
+
+            return null;
         }
 
         private static Transform FindDescendantByName(Transform root, string targetName)

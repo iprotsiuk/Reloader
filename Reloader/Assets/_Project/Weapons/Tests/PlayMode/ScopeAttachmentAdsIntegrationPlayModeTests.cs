@@ -844,7 +844,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator RealKar98kOpticAsset_ProxySurface_LeavesVisibleEyepieceMargin()
+        public IEnumerator RealKar98kOpticAsset_UsesAuthoredPiPDisplaySurfaceWithoutProxy()
         {
             var scopeLensDisplayType = ResolveType("Reloader.Game.Weapons.ScopeLensDisplay");
             var opticDefinition = ResolveOpticDefinitionById("att-kar98k-scope-remote-a");
@@ -869,59 +869,18 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 var lensDisplay = GetComponentInChildren(opticInstance, scopeLensDisplayType);
                 Assert.That(lensDisplay, Is.Not.Null, "Real Kar98k optic should expose a ScopeLensDisplay.");
+                var targetRenderer = GetPrivateField(lensDisplay, "_targetRenderer") as Renderer;
+                Assert.That(targetRenderer, Is.Not.Null, "Real Kar98k optic should bind ScopeLensDisplay to an authored display surface.");
+                Assert.That(targetRenderer.name, Is.EqualTo("PiPDisplayRear"), "Real Kar98k optic should use the authored PiP display child, not the decorative lens mesh.");
                 Assert.That((bool)Invoke(lensDisplay, "TrySetTexture", new object[] { scopeTexture }), Is.True);
 
                 var proxySurface = opticInstance.transform.Find("ScopeDisplayProxy");
-                Assert.That(proxySurface, Is.Not.Null, "Expected the real Kar98k optic prefab to expose the proxy display surface.");
-
-                var proxyRenderer = proxySurface.GetComponent<Renderer>();
-                var opticRenderer = opticInstance.GetComponent<Renderer>();
-                Assert.That(proxyRenderer, Is.Not.Null);
-                Assert.That(opticRenderer, Is.Not.Null);
-
-                Assert.That(proxyRenderer.bounds.size.x, Is.LessThan(opticRenderer.bounds.size.x * 0.98f),
-                    $"Real Kar98k proxy PiP should leave a visible horizontal eyepiece frame margin. Proxy width={proxyRenderer.bounds.size.x:0.0000}, body width={opticRenderer.bounds.size.x:0.0000}.");
-                Assert.That(proxyRenderer.bounds.size.y, Is.LessThan(opticRenderer.bounds.size.y * 0.98f),
-                    $"Real Kar98k proxy PiP should leave a visible vertical eyepiece frame margin. Proxy height={proxyRenderer.bounds.size.y:0.0000}, body height={opticRenderer.bounds.size.y:0.0000}.");
+                Assert.That(proxySurface, Is.Null, "Authored Kar98k PiP surface should render directly without spawning ScopeDisplayProxy.");
+                Assert.That(GetProperty(lensDisplay, "IsUsingProxySurface"), Is.EqualTo(false), "Real Kar98k optic should stay on the authored PiP display surface.");
             }
             finally
             {
                 Cleanup(opticInstance, scopeTexture);
-            }
-        }
-
-        [UnityTest]
-        public IEnumerator ScopeLensDisplay_ProxySurface_LeavesVisibleEyepieceMargin()
-        {
-            var scopeLensDisplayType = ResolveType("Reloader.Game.Weapons.ScopeLensDisplay");
-            Assert.That(scopeLensDisplayType, Is.Not.Null);
-
-            var root = CreateProxyOffsetFixture(scopeLensDisplayType, Vector3.zero, 1f, out var lensDisplay, out var scopeTexture);
-
-            try
-            {
-                lensDisplay.transform.localScale = Vector3.one * 0.2f;
-
-                yield return null;
-
-                Assert.That((bool)Invoke(lensDisplay, "TrySetTexture", new object[] { scopeTexture }), Is.True);
-
-                var proxySurface = root.transform.Find("ScopeDisplayProxy");
-                Assert.That(proxySurface, Is.Not.Null);
-
-                var proxyRenderer = proxySurface.GetComponent<Renderer>();
-                var rootRenderer = root.GetComponent<Renderer>();
-                Assert.That(proxyRenderer, Is.Not.Null);
-                Assert.That(rootRenderer, Is.Not.Null);
-
-                Assert.That(proxyRenderer.bounds.size.x, Is.LessThan(rootRenderer.bounds.size.x * 0.98f),
-                    $"Proxy PiP should leave a visible horizontal eyepiece frame margin. Proxy width={proxyRenderer.bounds.size.x:0.0000}, body width={rootRenderer.bounds.size.x:0.0000}.");
-                Assert.That(proxyRenderer.bounds.size.y, Is.LessThan(rootRenderer.bounds.size.y * 0.98f),
-                    $"Proxy PiP should leave a visible vertical eyepiece frame margin. Proxy height={proxyRenderer.bounds.size.y:0.0000}, body height={rootRenderer.bounds.size.y:0.0000}.");
-            }
-            finally
-            {
-                Cleanup(root, scopeTexture);
             }
         }
 
@@ -1303,6 +1262,94 @@ namespace Reloader.Weapons.Tests.PlayMode
             finally
             {
                 Cleanup(root, scopedOptic, worldCamGo, viewmodelCamGo, scopeCameraGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ScopedPipOptic_AlignsScopeCameraToActiveSightAnchor()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedAdsRoot");
+            ScriptableObject scopedOptic = null;
+            GameObject opticPrefab = null;
+            GameObject worldCamGo = null;
+            GameObject viewmodelCamGo = null;
+            GameObject scopeCameraGo = null;
+
+            try
+            {
+                root.transform.position = new Vector3(3f, 1.25f, -2f);
+                root.transform.rotation = Quaternion.Euler(0f, 27f, 0f);
+
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                scopeSlot.localPosition = new Vector3(0.08f, -0.04f, 0.36f);
+                scopeSlot.localRotation = Quaternion.Euler(2f, -3f, 1f);
+
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                worldCamGo = new GameObject("WorldCam");
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+                worldCamera.fieldOfView = 72f;
+                worldCamera.transform.position = new Vector3(10f, 4f, -6f);
+                worldCamera.transform.rotation = Quaternion.Euler(11f, 32f, 0f);
+
+                viewmodelCamGo = new GameObject("ViewmodelCam");
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+
+                scopeCameraGo = new GameObject("ScopeCam");
+                scopeCameraGo.transform.SetParent(worldCamera.transform, false);
+                var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+                scopeCamera.fieldOfView = 20f;
+
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+                SetField(scopeController, "_scopeCamera", scopeCamera);
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_worldCamera", worldCamera);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_renderTextureScopeController", scopeController);
+                SetField(ads, "_useLegacyInput", false);
+                SetField(ads, "_magnificationLerpSpeed", 1000f);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-camera-align", 4f, 8f, true, "RenderTexturePiP");
+                opticPrefab = GetProperty(scopedOptic, "OpticPrefab") as GameObject;
+                Assert.That(opticPrefab, Is.Not.Null);
+
+                var prefabSightAnchor = opticPrefab.transform.Find("SightAnchor");
+                Assert.That(prefabSightAnchor, Is.Not.Null);
+                prefabSightAnchor.localPosition = new Vector3(0.013f, -0.009f, -0.041f);
+                prefabSightAnchor.localRotation = Quaternion.Euler(4f, -6f, 1.5f);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+                Invoke(ads, "SetAdsHeld", true);
+                Invoke(ads, "SetMagnification", 6f);
+
+                yield return null;
+                yield return null;
+
+                var activeOpticInstance = GetProperty(manager, "ActiveOpticInstance") as GameObject;
+                Assert.That(activeOpticInstance, Is.Not.Null);
+                var activeSightAnchor = activeOpticInstance.transform.Find("SightAnchor");
+                Assert.That(activeSightAnchor, Is.Not.Null);
+
+                Assert.That(Vector3.Distance(scopeCamera.transform.position, activeSightAnchor.position), Is.LessThan(0.0001f));
+                Assert.That(Quaternion.Angle(scopeCamera.transform.rotation, activeSightAnchor.rotation), Is.LessThan(0.01f));
+            }
+            finally
+            {
+                Cleanup(root, scopedOptic, opticPrefab, worldCamGo, viewmodelCamGo, scopeCameraGo);
             }
         }
 
@@ -1981,51 +2028,6 @@ namespace Reloader.Weapons.Tests.PlayMode
             return Rect.MinMaxRect(minX, minY, maxX, maxY);
         }
 
-        private static GameObject CreateProxyOffsetFixture(Type scopeLensDisplayType, Vector3 proxyOffset, float proxyScaleMultiplier, out Component lensDisplay, out Texture2D scopeTexture)
-        {
-            Assert.That(scopeLensDisplayType, Is.Not.Null);
-
-            var root = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            root.name = "ProxyOffsetRoot";
-
-            var sightAnchor = new GameObject("SightAnchor");
-            sightAnchor.transform.SetParent(root.transform, false);
-            sightAnchor.transform.localPosition = new Vector3(0f, 0.02f, -0.03f);
-
-            var lensDisplayGo = new GameObject("LensDisplay");
-            lensDisplayGo.transform.SetParent(root.transform, false);
-            lensDisplayGo.transform.localPosition = new Vector3(0f, 0.008f, -0.006f);
-
-            var meshFilter = lensDisplayGo.AddComponent<MeshFilter>();
-            var meshRenderer = lensDisplayGo.AddComponent<MeshRenderer>();
-            var primitive = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            var sourceMesh = UnityEngine.Object.Instantiate(primitive.GetComponent<MeshFilter>().sharedMesh);
-            sourceMesh.name = "CollapsedUvQuad";
-            var uv = sourceMesh.uv;
-            for (var i = 0; i < uv.Length; i++)
-            {
-                uv[i] = new Vector2(0.5f, 0.5f);
-            }
-
-            sourceMesh.uv = uv;
-            meshFilter.sharedMesh = sourceMesh;
-            meshRenderer.sharedMaterial = new Material(Shader.Find("Standard"));
-            UnityEngine.Object.DestroyImmediate(primitive);
-
-            lensDisplay = lensDisplayGo.AddComponent(scopeLensDisplayType);
-            SetField(lensDisplay, "_targetRenderer", meshRenderer);
-            SetField(lensDisplay, "_proxyDisplayLocalOffset", proxyOffset);
-            SetField(lensDisplay, "_proxyDisplayScaleMultiplier", proxyScaleMultiplier);
-
-            scopeTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-            scopeTexture.SetPixel(0, 0, Color.red);
-            scopeTexture.SetPixel(1, 0, Color.green);
-            scopeTexture.SetPixel(0, 1, Color.blue);
-            scopeTexture.SetPixel(1, 1, Color.white);
-            scopeTexture.Apply(false, true);
-
-            return root;
-        }
 
         private static void Cleanup(params UnityEngine.Object[] objects)
         {
