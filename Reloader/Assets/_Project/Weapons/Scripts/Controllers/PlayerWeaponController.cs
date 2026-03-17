@@ -739,6 +739,16 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
+            if (ShouldRepairScopedRuntimePresentation(
+                    !string.IsNullOrWhiteSpace(state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope)),
+                    _adsStateRuntimeBridge != null,
+                    _adsAttachmentManagerRuntimeBridge != null,
+                    _weaponAimAlignerRuntimeBridge != null,
+                    HasActiveScopedAdsAlignment))
+            {
+                _appliedScopeAttachmentItemId = string.Empty;
+            }
+
             ApplyEquippedAttachmentStateToViewRuntime(state);
         }
 
@@ -1383,6 +1393,20 @@ namespace Reloader.Weapons.Controllers
                 : ScopedPresentationEnterAdsBlendT;
 
             return adsBlendT >= threshold;
+        }
+
+        private static bool ShouldRepairScopedRuntimePresentation(
+            bool hasEquippedScopedAttachment,
+            bool hasScopedAdsStateBridge,
+            bool hasScopedAttachmentManagerBridge,
+            bool hasWeaponAimAlignerBridge,
+            bool hasScopedAdsAlignment)
+        {
+            return hasEquippedScopedAttachment
+                && (!hasScopedAdsStateBridge
+                    || !hasScopedAttachmentManagerBridge
+                    || !hasWeaponAimAlignerBridge
+                    || !hasScopedAdsAlignment);
         }
 
         private bool HasScopedAdsBridgeActive()

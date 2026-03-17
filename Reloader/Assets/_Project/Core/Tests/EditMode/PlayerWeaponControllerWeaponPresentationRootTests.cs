@@ -75,6 +75,38 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(equippedView.transform.localScale, Is.EqualTo(Vector3.one));
         }
 
+        [TestCase(true, true, true, true, true, false)]
+        [TestCase(true, false, true, true, true, true)]
+        [TestCase(true, true, false, true, true, true)]
+        [TestCase(true, true, true, false, true, true)]
+        [TestCase(true, true, true, true, false, true)]
+        [TestCase(false, false, false, false, false, false)]
+        public void ShouldRepairScopedRuntimePresentation_OnlyRepairsScopedViewsWithBrokenBridges(
+            bool hasEquippedScopedAttachment,
+            bool hasScopedAdsStateBridge,
+            bool hasScopedAttachmentManagerBridge,
+            bool hasWeaponAimAlignerBridge,
+            bool hasScopedAdsAlignment,
+            bool expected)
+        {
+            var method = typeof(PlayerWeaponController).GetMethod(
+                "ShouldRepairScopedRuntimePresentation",
+                BindingFlags.Static | BindingFlags.NonPublic);
+
+            Assert.That(method, Is.Not.Null, "Expected private scoped-runtime repair helper to exist.");
+
+            var actual = (bool)method!.Invoke(null, new object[]
+            {
+                hasEquippedScopedAttachment,
+                hasScopedAdsStateBridge,
+                hasScopedAttachmentManagerBridge,
+                hasWeaponAimAlignerBridge,
+                hasScopedAdsAlignment
+            });
+
+            Assert.That(actual, Is.EqualTo(expected));
+        }
+
         private static TestRig CreateRigWithLegacyHandHierarchy()
         {
             var playerRoot = new GameObject("PlayerRoot");
