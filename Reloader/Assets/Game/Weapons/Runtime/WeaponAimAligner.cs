@@ -236,7 +236,7 @@ namespace Reloader.Game.Weapons
 
             if (activeOptic == null)
             {
-                return isCurrentlyHoldingScopedAdsPose;
+                return false;
             }
 
             return activeOptic.MagnificationMin > 1.01f || activeOptic.MagnificationMax > 1.01f;

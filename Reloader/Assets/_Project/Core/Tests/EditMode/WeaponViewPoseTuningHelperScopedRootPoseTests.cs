@@ -28,4 +28,28 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(actual, Is.EqualTo(expected));
         }
     }
+
+    public sealed class WeaponAimAlignerScopedPoseHoldTests
+    {
+        [TestCase(false, 0.999f, false)]
+        [TestCase(true, 1.0f, false)]
+        [TestCase(true, 0.95f, false)]
+        public void ShouldHoldScopedAdsPose_ReleasesImmediatelyWhenActiveOpticIsMissing(
+            bool isCurrentlyHoldingScopedAdsPose,
+            float adsBlendT,
+            bool expected)
+        {
+            var alignerType = System.Type.GetType("Reloader.Game.Weapons.WeaponAimAligner, Assembly-CSharp");
+            Assert.That(alignerType, Is.Not.Null, "WeaponAimAligner type should exist.");
+
+            var method = alignerType!.GetMethod(
+                "ShouldHoldScopedAdsPose",
+                BindingFlags.Static | BindingFlags.NonPublic);
+
+            Assert.That(method, Is.Not.Null, "Expected private scoped-pose hold helper to exist.");
+
+            var actual = (bool)method!.Invoke(null, new object[] { isCurrentlyHoldingScopedAdsPose, null, adsBlendT });
+            Assert.That(actual, Is.EqualTo(expected));
+        }
+    }
 }
