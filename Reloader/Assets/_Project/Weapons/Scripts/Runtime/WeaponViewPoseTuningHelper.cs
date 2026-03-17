@@ -98,6 +98,7 @@ namespace Reloader.Weapons.Runtime
         [SerializeField] private string _activeAttachmentItemId = string.Empty;
 
         private float _blendT;
+        private bool _isHoldingScopedAdsRootPose;
 
         public string TargetWeaponItemId => _targetWeaponItemId;
 
@@ -126,6 +127,7 @@ namespace Reloader.Weapons.Runtime
                 _activePoseSource = "Inactive";
                 _activeAttachmentItemId = string.Empty;
                 _blendT = 0f;
+                _isHoldingScopedAdsRootPose = false;
                 return;
             }
         }
@@ -167,6 +169,21 @@ namespace Reloader.Weapons.Runtime
             var adsRot = Quaternion.Euler(pose.AdsLocalEuler);
             var targetRotation = Quaternion.Slerp(hipRot, adsRot, _blendT) * Quaternion.Euler(pose.RifleLocalEulerOffset);
 
+            var shouldHoldScopedAdsRootPose = ShouldHoldScopedAdsRootPose(_isHoldingScopedAdsRootPose, useDirectScopedBlend, targetT);
+            if (shouldHoldScopedAdsRootPose)
+            {
+                if (!_isHoldingScopedAdsRootPose)
+                {
+                    equippedView.localPosition = pose.AdsLocalPosition;
+                    equippedView.localRotation = adsRot * Quaternion.Euler(pose.RifleLocalEulerOffset);
+                    _isHoldingScopedAdsRootPose = true;
+                }
+
+                return;
+            }
+
+            _isHoldingScopedAdsRootPose = false;
+
             equippedView.localPosition = targetPosition;
             equippedView.localRotation = targetRotation;
         }
@@ -206,8 +223,18 @@ namespace Reloader.Weapons.Runtime
         private bool ShouldUseDirectScopedBlend()
         {
             return _weaponController != null
-                && _weaponController.HasActiveScopedAdsAlignment
-                && _weaponController.HasMagnifiedOpticEquipped();
+                && _weaponController.HasStableScopedAdsAlignment;
+        }
+
+        private static bool ShouldHoldScopedAdsRootPose(bool isCurrentlyHoldingScopedAdsRootPose, bool useDirectScopedBlend, float targetAdsBlendT)
+        {
+            if (!useDirectScopedBlend)
+            {
+                return false;
+            }
+
+            var threshold = isCurrentlyHoldingScopedAdsRootPose ? 0.95f : 0.999f;
+            return targetAdsBlendT >= threshold;
         }
 
         private PoseData ResolveActivePose(out int overrideIndex, out string matchedAttachmentItemId)
@@ -413,9 +440,7 @@ namespace Reloader.Weapons.Runtime
             }
 
             context.AdsBlendT = _blendT;
-            context.UsesMagnifiedScopedAlignment = _weaponController.HasActiveScopedAdsAlignment
-                && _weaponController.TryGetActiveOpticMagnification(out var minMagnification, out var maxMagnification)
-                && (minMagnification > 1.01f || maxMagnification > 1.01f);
+            context.UsesMagnifiedScopedAlignment = _weaponController.HasStableScopedAdsAlignment;
 
             if (TryGetActiveAttachmentPoseOverride(out var slotType, out var attachmentItemId, out var values))
             {

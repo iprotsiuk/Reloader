@@ -22,6 +22,12 @@ namespace Reloader.Player
         private int _runningHash;
         private float _current;
 
+        public bool LockViewmodelRootPose
+        {
+            get => _lockViewmodelRootPose;
+            set => _lockViewmodelRootPose = value;
+        }
+
         private void Awake()
         {
             CacheParameter();

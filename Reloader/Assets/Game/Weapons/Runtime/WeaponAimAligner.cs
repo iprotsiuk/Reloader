@@ -33,6 +33,7 @@ namespace Reloader.Game.Weapons
         private float _nextMainCameraRefreshTime;
         private bool _loggedMissingPivot;
         private bool _loggedMissingAnchorSource;
+        private bool _isHoldingScopedAdsPose;
         private float _runtimeEyeReliefBackOffset;
 
         public float DebugAlignmentErrorDistance { get; private set; }
@@ -85,6 +86,7 @@ namespace Reloader.Game.Weapons
             var sightAnchor = _attachmentManager != null ? _attachmentManager.GetActiveSightAnchor() : null;
             if (cameraTx == null || sightAnchor == null)
             {
+                _isHoldingScopedAdsPose = false;
                 if (!_loggedMissingAnchorSource && _logMissingReferenceWarnings)
                 {
                     _loggedMissingAnchorSource = true;
@@ -106,12 +108,8 @@ namespace Reloader.Game.Weapons
             var targetWorldPosition = (Vector3)targetPivotMatrix.GetColumn(3);
             var targetWorldRotation = targetPivotMatrix.rotation;
 
-            var opticEyeRelief = 0f;
             var activeOptic = _attachmentManager != null ? _attachmentManager.ActiveOpticDefinition : null;
-            if (activeOptic != null)
-            {
-                opticEyeRelief = activeOptic.EyeReliefBackOffset;
-            }
+            var opticEyeRelief = ResolveOpticEyeReliefBackOffset(activeOptic);
 
             // Final scoped distance comes from authored optic eye relief plus the
             // active weapon-presentation offset. Do not stack ad hoc scene offsets here.
@@ -130,6 +128,23 @@ namespace Reloader.Game.Weapons
                 targetLocalPosition = targetWorldPosition;
                 targetLocalRotation = targetWorldRotation;
             }
+
+            var shouldHoldScopedAdsPose = ShouldHoldScopedAdsPose(_isHoldingScopedAdsPose, activeOptic, adsT);
+            if (shouldHoldScopedAdsPose)
+            {
+                if (!_isHoldingScopedAdsPose)
+                {
+                    _adsPivot.localPosition = targetLocalPosition;
+                    _adsPivot.localRotation = targetLocalRotation;
+                    _isHoldingScopedAdsPose = true;
+                }
+
+                DebugAlignmentErrorDistance = Vector3.Distance(sightAnchor.position, cameraTx.position);
+                DebugAlignmentErrorAngleDegrees = Quaternion.Angle(sightAnchor.rotation, cameraTx.rotation);
+                return;
+            }
+
+            _isHoldingScopedAdsPose = false;
 
             // Scoped ADS timing already comes from AdsStateController.AdsT.
             // Apply the solved pivot pose directly from that blend so the optic
@@ -209,6 +224,40 @@ namespace Reloader.Game.Weapons
         private static bool ShouldPreserveCurrentRestPose(AdsStateController adsStateController)
         {
             return adsStateController != null && adsStateController.AdsT > 0.001f;
+        }
+
+        private static bool ShouldHoldScopedAdsPose(bool isCurrentlyHoldingScopedAdsPose, OpticDefinition activeOptic, float adsT)
+        {
+            var threshold = isCurrentlyHoldingScopedAdsPose ? 0.95f : 0.999f;
+            if (adsT < threshold)
+            {
+                return false;
+            }
+
+            if (activeOptic == null)
+            {
+                return isCurrentlyHoldingScopedAdsPose;
+            }
+
+            return activeOptic.MagnificationMin > 1.01f || activeOptic.MagnificationMax > 1.01f;
+        }
+
+        private static float ResolveOpticEyeReliefBackOffset(OpticDefinition activeOptic)
+        {
+            if (activeOptic == null)
+            {
+                return 0f;
+            }
+
+            // PiP optics already render on an authored ocular display surface.
+            // Keeping an additional camera-vs-sight anchor offset here causes
+            // the image to drift relative to the scope body while turning.
+            if (activeOptic.VisualModePolicy == AdsVisualMode.RenderTexturePiP)
+            {
+                return 0f;
+            }
+
+            return activeOptic.EyeReliefBackOffset;
         }
 
 #if UNITY_EDITOR
