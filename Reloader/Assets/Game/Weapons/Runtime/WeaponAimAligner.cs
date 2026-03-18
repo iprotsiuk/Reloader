@@ -114,7 +114,7 @@ namespace Reloader.Game.Weapons
             // Final scoped distance comes from authored optic eye relief plus the
             // active weapon-presentation offset. Do not stack ad hoc scene offsets here.
             var totalEyeRelief = opticEyeRelief + _runtimeEyeReliefBackOffset;
-            targetWorldPosition += (-sightAnchor.forward) * totalEyeRelief;
+            targetWorldPosition = ApplyEyeReliefOffset(targetWorldPosition, cameraTx.forward, totalEyeRelief);
 
             Vector3 targetLocalPosition;
             Quaternion targetLocalRotation;
@@ -258,6 +258,11 @@ namespace Reloader.Game.Weapons
             }
 
             return activeOptic.EyeReliefBackOffset;
+        }
+
+        private static Vector3 ApplyEyeReliefOffset(Vector3 targetWorldPosition, Vector3 alignedForward, float totalEyeRelief)
+        {
+            return targetWorldPosition + (-alignedForward * totalEyeRelief);
         }
 
 #if UNITY_EDITOR

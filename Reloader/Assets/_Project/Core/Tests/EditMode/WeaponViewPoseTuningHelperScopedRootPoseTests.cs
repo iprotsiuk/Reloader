@@ -51,5 +51,24 @@ namespace Reloader.Core.Tests.EditMode
             var actual = (bool)method!.Invoke(null, new object[] { isCurrentlyHoldingScopedAdsPose, null, adsBlendT });
             Assert.That(actual, Is.EqualTo(expected));
         }
+
+        [Test]
+        public void ApplyEyeReliefOffset_UsesCameraForwardAxis()
+        {
+            var alignerType = System.Type.GetType("Reloader.Game.Weapons.WeaponAimAligner, Assembly-CSharp");
+            Assert.That(alignerType, Is.Not.Null, "WeaponAimAligner type should exist.");
+
+            var method = alignerType!.GetMethod(
+                "ApplyEyeReliefOffset",
+                BindingFlags.Static | BindingFlags.NonPublic);
+
+            Assert.That(method, Is.Not.Null, "Expected private eye-relief offset helper to exist.");
+
+            var start = new UnityEngine.Vector3(10f, 20f, 30f);
+            var cameraForward = UnityEngine.Vector3.right;
+            var actual = (UnityEngine.Vector3)method!.Invoke(null, new object[] { start, cameraForward, 2f });
+
+            Assert.That(actual, Is.EqualTo(new UnityEngine.Vector3(8f, 20f, 30f)));
+        }
     }
 }
