@@ -12,7 +12,7 @@ namespace Reloader.NPCs.Editor
         private const string BloodVfxFolderPath = BloodContentFolderPath + "/Blood";
         private const string BloodVfxCatalogPath = BloodVfxFolderPath + "/BloodVfxCatalog_Default.asset";
         private const string BloodImpactPrefabPath = "Assets/HIVEMIND/RealisticBloodVFX/URP/RealisticBlood/Particle Systems/PS_Blood.prefab";
-        private const string BloodDeathPuddleMaterialPath = "Assets/HIVEMIND/RealisticBloodVFX/URP/RealisticBlood/Decals/Materials/M_DecalMesh_Lit.mat";
+        private const string BloodDeathPuddleMaterialPath = "Assets/_Project/NPCs/Content/Blood/Materials/M_BloodPuddle_URP_Unlit.mat";
 
         private static readonly BoneRecipe[] Recipes =
         {

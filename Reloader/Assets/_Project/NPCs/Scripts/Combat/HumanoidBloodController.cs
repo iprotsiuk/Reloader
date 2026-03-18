@@ -10,7 +10,7 @@ namespace Reloader.NPCs.Combat
         private const float MinimumTransientEffectLifetimeSeconds = 0.5f;
         private const float TransientEffectLifetimePaddingSeconds = 0.25f;
         private const float DefaultDeathPuddleLifetimeSeconds = 45f;
-        private const float DefaultDeathPuddleScale = 0.65f;
+        private const float DefaultDeathPuddleScale = 0.35f;
         private const float DeathPuddleSurfaceProbeHeight = 1.5f;
         private const float DeathPuddleSurfaceProbeDistance = 4f;
 
@@ -273,22 +273,39 @@ namespace Reloader.NPCs.Combat
             Destroy(puddle, DefaultDeathPuddleLifetimeSeconds);
         }
 
-        private static void ResolveDeathPuddlePose(Vector3 origin, out Vector3 position, out Quaternion rotation)
+        private void ResolveDeathPuddlePose(Vector3 origin, out Vector3 position, out Quaternion rotation)
         {
             var spawnPosition = origin + (Vector3.up * 0.02f);
             var surfaceNormal = Vector3.up;
 
             var probeOrigin = origin + (Vector3.up * DeathPuddleSurfaceProbeHeight);
-            if (Physics.Raycast(probeOrigin, Vector3.down, out var hit, DeathPuddleSurfaceProbeDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            var hits = Physics.RaycastAll(probeOrigin, Vector3.down, DeathPuddleSurfaceProbeDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            if (hits != null && hits.Length > 0)
             {
-                spawnPosition = hit.point + (hit.normal * 0.02f);
-                surfaceNormal = hit.normal.sqrMagnitude > 0.0001f ? hit.normal.normalized : Vector3.up;
+                Array.Sort(hits, static (left, right) => left.distance.CompareTo(right.distance));
+                for (var i = 0; i < hits.Length; i++)
+                {
+                    var hit = hits[i];
+                    if (hit.collider == null || hit.collider.isTrigger || IsIgnoredDeathPuddleCollider(hit.collider.transform))
+                    {
+                        continue;
+                    }
+
+                    spawnPosition = hit.point + (hit.normal * 0.02f);
+                    surfaceNormal = hit.normal.sqrMagnitude > 0.0001f ? hit.normal.normalized : Vector3.up;
+                    break;
+                }
             }
 
             var baseRotation = Quaternion.LookRotation(-surfaceNormal);
             var randomTwist = Quaternion.AngleAxis(UnityEngine.Random.Range(0f, 360f), surfaceNormal);
             position = spawnPosition;
             rotation = randomTwist * baseRotation;
+        }
+
+        private bool IsIgnoredDeathPuddleCollider(Transform hitTransform)
+        {
+            return hitTransform != null && (hitTransform == transform || hitTransform.IsChildOf(transform));
         }
 
         private static BloodEffectKind ResolveImpactEffectKind(HumanoidBodyZone zone)

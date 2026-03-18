@@ -429,6 +429,7 @@ namespace Reloader.NPCs.Tests.PlayMode
             Assert.That(projectileImpactPayloadType, Is.Not.Null, "Expected ProjectileImpactPayload to exist.");
 
             GameObject npcRoot = null;
+            GameObject bodyRoot = null;
             GameObject headZone = null;
             GameObject ground = null;
             BloodVfxCatalog catalog = null;
@@ -439,6 +440,12 @@ namespace Reloader.NPCs.Tests.PlayMode
                 npcRoot.AddComponent<HumanoidHitboxRig>();
                 var receiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
                 var controller = npcRoot.AddComponent<HumanoidBloodController>();
+
+                bodyRoot = new GameObject("Body");
+                bodyRoot.transform.SetParent(npcRoot.transform, false);
+                bodyRoot.transform.localPosition = new Vector3(0f, 0.95f, 0f);
+                var bodyCollider = bodyRoot.AddComponent<BoxCollider>();
+                bodyCollider.size = new Vector3(0.6f, 0.4f, 0.6f);
 
                 headZone = new GameObject("HeadZone");
                 headZone.transform.SetParent(npcRoot.transform, false);
@@ -484,6 +491,8 @@ namespace Reloader.NPCs.Tests.PlayMode
                     "Expected blood puddle fallback to use the configured death puddle material.");
                 Assert.That(puddle.transform.position.y, Is.EqualTo(0.02f).Within(0.05f),
                     "Expected blood puddle fallback to project onto the ground surface instead of staying at the standing NPC root height.");
+                Assert.That(puddle.transform.position.y, Is.LessThan(bodyCollider.bounds.min.y - 0.01f),
+                    "Expected blood puddle fallback to resolve below the corpse volume rather than on top of the body collider.");
             }
             finally
             {
@@ -506,6 +515,11 @@ namespace Reloader.NPCs.Tests.PlayMode
                 if (headZone != null)
                 {
                     UnityEngine.Object.DestroyImmediate(headZone);
+                }
+
+                if (bodyRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(bodyRoot);
                 }
 
                 if (ground != null)

@@ -263,7 +263,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Combat.HumanoidBloodController
   _damageReceiver: {fileID: 6487305346668697562}
   _catalog: {fileID: 11400000, guid: 8cfe6154738b4ce1b657b1692c50b982, type: 2}
-  _deathPuddleMaterial: {fileID: 2100000, guid: a6315337db837c44185c568510d4d08a, type: 2}
+  _deathPuddleMaterial: {fileID: 2100000, guid: 387002aa83d624a57949473ff828371d, type: 2}
 --- !u!1 &3709071183204920593
 GameObject:
   m_ObjectHideFlags: 0

@@ -8,6 +8,7 @@ namespace Reloader.NPCs.Tests.EditMode
     public sealed class NpcFoundationPrefabEditModeTests
     {
         private const string NpcFoundationPrefabPath = "Assets/_Project/NPCs/Prefabs/NpcFoundation.prefab";
+        private const string ExpectedDeathPuddleMaterialPath = "Assets/_Project/NPCs/Content/Blood/Materials/M_BloodPuddle_URP_Unlit.mat";
 
         [Test]
         public void NpcFoundationPrefab_HasAuthoredRagdollBodiesCollidersAndJoints()
@@ -96,7 +97,9 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That(catalog!.objectReferenceValue, Is.Not.Null,
                     "Expected HumanoidBloodController to target the default authored blood VFX catalog.");
                 Assert.That(deathPuddleMaterial!.objectReferenceValue, Is.Not.Null,
-                    "Expected HumanoidBloodController to target the vendor-authored death puddle material fallback.");
+                    "Expected HumanoidBloodController to target the authored local URP death puddle material fallback.");
+                Assert.That(AssetDatabase.GetAssetPath(deathPuddleMaterial.objectReferenceValue), Is.EqualTo(ExpectedDeathPuddleMaterialPath),
+                    "Expected NpcFoundation blood controller to point at the local URP-safe death puddle material.");
             }
             finally
             {
