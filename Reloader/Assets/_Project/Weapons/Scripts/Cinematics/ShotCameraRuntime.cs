@@ -5,6 +5,7 @@ using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.Controllers;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 
 namespace Reloader.Weapons.Cinematics
@@ -260,7 +261,11 @@ namespace Reloader.Weapons.Cinematics
             }
 
             _cinematicRenderCamera.targetTexture = null;
-            _cinematicRenderCamera.stereoTargetEye = StereoTargetEyeMask.None;
+            if (CanDisableStereoTargetEye())
+            {
+                _cinematicRenderCamera.stereoTargetEye = StereoTargetEyeMask.None;
+            }
+
             _cinematicRenderCamera.enabled = true;
             EnsureUniversalRenderPipelineBaseCamera(_cinematicRenderCamera);
 
@@ -564,6 +569,11 @@ namespace Reloader.Weapons.Cinematics
             }
 
             return cullingMask & ~(1 << viewmodelLayer);
+        }
+
+        private static bool CanDisableStereoTargetEye()
+        {
+            return GraphicsSettings.currentRenderPipeline == null;
         }
 
         private static void EnsureUniversalRenderPipelineBaseCamera(Camera camera)

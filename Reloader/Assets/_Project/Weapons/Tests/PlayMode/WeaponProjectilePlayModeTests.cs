@@ -397,6 +397,21 @@ namespace Reloader.Weapons.Tests.PlayMode
             Object.Destroy(projectileGo);
         }
 
+        [Test]
+        public void ShotCameraRuntime_CanDisableStereoTargetEye_ReturnsFalse_WhenScriptableRenderPipelineIsActive()
+        {
+            var method = typeof(ShotCameraRuntime).GetMethod(
+                "CanDisableStereoTargetEye",
+                BindingFlags.Static | BindingFlags.NonPublic);
+
+            Assert.That(method, Is.Not.Null,
+                "Shot camera runtime should explicitly gate stereoTargetEye usage when render pipeline support changes.");
+
+            var result = method!.Invoke(null, null);
+            Assert.That(result, Is.False,
+                "Expected SRP projects to skip Camera.stereoTargetEye writes.");
+        }
+
         [UnityTest]
         public IEnumerator ShotCameraRuntime_ProjectileDespawn_RestoresRealtimeAndClearsCinematicCamera()
         {
