@@ -8,6 +8,11 @@ namespace Reloader.NPCs.Editor
     public static class NpcFoundationRagdollAuthoringUtility
     {
         private const string NpcFoundationPrefabPath = "Assets/_Project/NPCs/Prefabs/NpcFoundation.prefab";
+        private const string BloodContentFolderPath = "Assets/_Project/NPCs/Content";
+        private const string BloodVfxFolderPath = BloodContentFolderPath + "/Blood";
+        private const string BloodVfxCatalogPath = BloodVfxFolderPath + "/BloodVfxCatalog_Default.asset";
+        private const string BloodImpactPrefabPath = "Assets/HIVEMIND/RealisticBloodVFX/URP/RealisticBlood/Particle Systems/PS_Blood.prefab";
+        private const string BloodDeathPuddlePrefabPath = "Assets/HIVEMIND/RealisticBloodVFX/URP/RealisticBlood/Decals/Prefabs/Mesh-Driven Decal/BloodDecalMesh_Quad.prefab";
 
         private static readonly BoneRecipe[] Recipes =
         {
@@ -166,7 +171,14 @@ namespace Reloader.NPCs.Editor
                 prefabRoot.AddComponent<HumanoidCorpseLootController>();
             }
 
+            var bloodController = prefabRoot.GetComponent<HumanoidBloodController>();
+            if (bloodController == null)
+            {
+                bloodController = prefabRoot.AddComponent<HumanoidBloodController>();
+            }
+
             var bodyCollider = prefabRoot.transform.Find("Body")?.GetComponent<Collider>();
+            var bloodCatalog = EnsureBloodVfxCatalogAsset();
 
             var serializedDamageReceiver = new SerializedObject(damageReceiver);
             serializedDamageReceiver.FindProperty("_hitboxRig")!.objectReferenceValue = hitboxRig;
@@ -180,6 +192,81 @@ namespace Reloader.NPCs.Editor
                 serializedController.FindProperty("_collidersToDisableOnDeath"),
                 bodyCollider != null ? new[] { bodyCollider } : System.Array.Empty<Collider>());
             serializedController.ApplyModifiedPropertiesWithoutUndo();
+
+            var serializedBloodController = new SerializedObject(bloodController);
+            serializedBloodController.FindProperty("_damageReceiver")!.objectReferenceValue = damageReceiver;
+            serializedBloodController.FindProperty("_catalog")!.objectReferenceValue = bloodCatalog;
+            serializedBloodController.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static BloodVfxCatalog EnsureBloodVfxCatalogAsset()
+        {
+            EnsureFolderExists(BloodContentFolderPath);
+            EnsureFolderExists(BloodVfxFolderPath);
+
+            var catalog = AssetDatabase.LoadAssetAtPath<BloodVfxCatalog>(BloodVfxCatalogPath);
+            if (catalog == null)
+            {
+                catalog = ScriptableObject.CreateInstance<BloodVfxCatalog>();
+                AssetDatabase.CreateAsset(catalog, BloodVfxCatalogPath);
+            }
+
+            var impactPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BloodImpactPrefabPath);
+            var deathPuddlePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BloodDeathPuddlePrefabPath);
+            if (impactPrefab == null || deathPuddlePrefab == null)
+            {
+                return catalog;
+            }
+
+            var serializedCatalog = new SerializedObject(catalog);
+            var entries = serializedCatalog.FindProperty("_effectEntries");
+            if (entries == null)
+            {
+                return catalog;
+            }
+
+            entries.arraySize = 6;
+            SetBloodEffectEntry(entries.GetArrayElementAtIndex(0), BloodEffectKind.HeadImpact, impactPrefab);
+            SetBloodEffectEntry(entries.GetArrayElementAtIndex(1), BloodEffectKind.NeckImpact, impactPrefab);
+            SetBloodEffectEntry(entries.GetArrayElementAtIndex(2), BloodEffectKind.TorsoImpact, impactPrefab);
+            SetBloodEffectEntry(entries.GetArrayElementAtIndex(3), BloodEffectKind.ArmImpact, impactPrefab);
+            SetBloodEffectEntry(entries.GetArrayElementAtIndex(4), BloodEffectKind.LegImpact, impactPrefab);
+            SetBloodEffectEntry(entries.GetArrayElementAtIndex(5), BloodEffectKind.DeathPuddle, deathPuddlePrefab);
+            serializedCatalog.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(catalog);
+            return catalog;
+        }
+
+        private static void SetBloodEffectEntry(SerializedProperty entryProperty, BloodEffectKind kind, GameObject prefab)
+        {
+            if (entryProperty == null)
+            {
+                return;
+            }
+
+            entryProperty.FindPropertyRelative("Kind")!.enumValueIndex = (int)kind;
+            entryProperty.FindPropertyRelative("Prefab")!.objectReferenceValue = prefab;
+        }
+
+        private static void EnsureFolderExists(string folderPath)
+        {
+            if (AssetDatabase.IsValidFolder(folderPath))
+            {
+                return;
+            }
+
+            var parentPath = System.IO.Path.GetDirectoryName(folderPath)?.Replace("\\", "/");
+            var folderName = System.IO.Path.GetFileName(folderPath);
+            if (string.IsNullOrWhiteSpace(parentPath) || string.IsNullOrWhiteSpace(folderName))
+            {
+                return;
+            }
+
+            EnsureFolderExists(parentPath);
+            if (!AssetDatabase.IsValidFolder(folderPath))
+            {
+                AssetDatabase.CreateFolder(parentPath, folderName);
+            }
         }
 
         private static void ConfigureRigidbody(Rigidbody body, float mass)

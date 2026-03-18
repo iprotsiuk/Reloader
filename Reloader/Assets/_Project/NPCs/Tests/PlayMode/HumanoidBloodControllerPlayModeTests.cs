@@ -143,6 +143,90 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator ImpactResolution_WithCatalogPrefab_InstantiatesConfiguredBloodPrefab()
+        {
+            var projectileImpactPayloadType = ResolveType("Reloader.Weapons.Ballistics.ProjectileImpactPayload", "Reloader.Weapons");
+            Assert.That(projectileImpactPayloadType, Is.Not.Null, "Expected ProjectileImpactPayload to exist.");
+
+            GameObject npcRoot = null;
+            GameObject torsoZone = null;
+            GameObject markerPrefab = null;
+            BloodVfxCatalog catalog = null;
+            try
+            {
+                npcRoot = new GameObject("NpcRoot");
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                var receiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
+                var controller = npcRoot.AddComponent<HumanoidBloodController>();
+
+                markerPrefab = new GameObject("BloodMarkerTemplate");
+                markerPrefab.transform.position = new Vector3(99f, 99f, 99f);
+                var prefabMarker = markerPrefab.AddComponent<BloodPrefabMarker>();
+
+                catalog = ScriptableObject.CreateInstance<BloodVfxCatalog>();
+                ConfigureCatalogEntry(catalog, BloodEffectKind.TorsoImpact, markerPrefab);
+                SetPrivateField(controller, "_catalog", catalog);
+
+                torsoZone = new GameObject("TorsoZone");
+                torsoZone.transform.SetParent(npcRoot.transform, false);
+                torsoZone.AddComponent<BoxCollider>();
+                torsoZone.AddComponent<BodyZoneHitbox>().Configure(HumanoidBodyZone.Torso);
+
+                yield return null;
+
+                InvokeApplyDamage(receiver, CreateImpactPayload(
+                    projectileImpactPayloadType!,
+                    itemId: "weapon-kar98k",
+                    point: torsoZone.transform.position,
+                    normal: Vector3.up,
+                    damage: 1f,
+                    hitObject: torsoZone,
+                    sourcePoint: torsoZone.transform.position + (Vector3.back * 10f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 120f,
+                    projectileMassGrains: 175f,
+                    deliveredEnergyJoules: 100f));
+
+                yield return null;
+
+                var instantiatedMarker = FindInstantiatedMarker(prefabMarker, torsoZone.transform.position);
+                Assert.That(instantiatedMarker, Is.Not.Null, "Expected HumanoidBloodController to instantiate the configured blood prefab.");
+                Assert.That(instantiatedMarker!.gameObject.name, Is.EqualTo("BloodMarkerTemplate(Clone)"),
+                    "Expected the instantiated blood object to be a clone of the configured prefab.");
+                Assert.That(instantiatedMarker.transform.position, Is.EqualTo(torsoZone.transform.position).Using(Vector3EqualityComparer.Instance),
+                    "Expected instantiated blood prefab to spawn at the impact point.");
+
+                var requestedEffects = ReadRequestedEffectNames(controller);
+                Assert.That(requestedEffects, Is.EquivalentTo(new[] { "TorsoImpact" }),
+                    "Expected torso impact to still record the semantic effect request while spawning the prefab.");
+            }
+            finally
+            {
+                CleanupInstantiatedMarkers();
+
+                if (markerPrefab != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(markerPrefab);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+
+                if (torsoZone != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(torsoZone);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(npcRoot);
+                }
+            }
+        }
+
         private static IReadOnlyList<string> ReadRequestedEffectNames(Component controller)
         {
             var requestsProperty = controller.GetType().GetProperty("RequestedEffects", BindingFlags.Instance | BindingFlags.Public);
@@ -247,6 +331,67 @@ namespace Reloader.NPCs.Tests.PlayMode
             return null;
         }
 
+        private static void ConfigureCatalogEntry(BloodVfxCatalog catalog, BloodEffectKind effectKind, GameObject prefab)
+        {
+            Assert.That(catalog, Is.Not.Null);
+
+            var entryType = typeof(BloodVfxCatalog).GetNestedType("BloodEffectEntry", BindingFlags.NonPublic);
+            Assert.That(entryType, Is.Not.Null, "Expected BloodVfxCatalog to declare a private BloodEffectEntry type.");
+
+            var entries = Array.CreateInstance(entryType!, 1);
+            var entry = Activator.CreateInstance(entryType!);
+
+            var kindField = entryType!.GetField("Kind", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var prefabField = entryType.GetField("Prefab", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(kindField, Is.Not.Null, "Expected BloodEffectEntry.Kind field.");
+            Assert.That(prefabField, Is.Not.Null, "Expected BloodEffectEntry.Prefab field.");
+
+            kindField!.SetValue(entry, effectKind);
+            prefabField!.SetValue(entry, prefab);
+            entries.SetValue(entry, 0);
+
+            SetPrivateField(catalog, "_effectEntries", entries);
+        }
+
+        private static BloodPrefabMarker FindInstantiatedMarker(BloodPrefabMarker prefabMarker, Vector3 expectedPosition)
+        {
+            var markers = UnityEngine.Object.FindObjectsByType<BloodPrefabMarker>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < markers.Length; i++)
+            {
+                var marker = markers[i];
+                if (marker == null || marker == prefabMarker)
+                {
+                    continue;
+                }
+
+                if ((marker.transform.position - expectedPosition).sqrMagnitude <= 0.0001f)
+                {
+                    return marker;
+                }
+            }
+
+            return null;
+        }
+
+        private static void CleanupInstantiatedMarkers()
+        {
+            var markers = UnityEngine.Object.FindObjectsByType<BloodPrefabMarker>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < markers.Length; i++)
+            {
+                if (markers[i] != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(markers[i].gameObject);
+                }
+            }
+        }
+
+        private static void SetPrivateField(object target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {target.GetType().Name}.");
+            field!.SetValue(target, value);
+        }
+
         private readonly struct ZoneEffectExpectation
         {
             public ZoneEffectExpectation(HumanoidBodyZone zone, string expectedEffectKindName)
@@ -272,6 +417,10 @@ namespace Reloader.NPCs.Tests.PlayMode
             {
                 return obj.GetHashCode();
             }
+        }
+
+        private sealed class BloodPrefabMarker : MonoBehaviour
+        {
         }
     }
 }

@@ -70,5 +70,34 @@ namespace Reloader.NPCs.Tests.EditMode
                 PrefabUtility.UnloadPrefabContents(prefabRoot);
             }
         }
+
+        [Test]
+        public void NpcFoundationPrefab_HumanoidBloodController_ReferencesDamageReceiverAndDefaultCatalog()
+        {
+            var prefabRoot = PrefabUtility.LoadPrefabContents(NpcFoundationPrefabPath);
+
+            try
+            {
+                Assert.That(prefabRoot, Is.Not.Null, "Expected NpcFoundation prefab to load.");
+
+                var controller = prefabRoot.GetComponentInChildren<HumanoidBloodController>(true);
+                Assert.That(controller, Is.Not.Null, "Expected NpcFoundation to author HumanoidBloodController for hit VFX.");
+
+                var serializedController = new SerializedObject(controller);
+                var damageReceiver = serializedController.FindProperty("_damageReceiver");
+                var catalog = serializedController.FindProperty("_catalog");
+
+                Assert.That(damageReceiver, Is.Not.Null, "Expected HumanoidBloodController to serialize its damage receiver reference.");
+                Assert.That(catalog, Is.Not.Null, "Expected HumanoidBloodController to serialize its blood VFX catalog reference.");
+                Assert.That(damageReceiver!.objectReferenceValue, Is.Not.Null,
+                    "Expected HumanoidBloodController to target the authored HumanoidDamageReceiver on NpcFoundation.");
+                Assert.That(catalog!.objectReferenceValue, Is.Not.Null,
+                    "Expected HumanoidBloodController to target the default authored blood VFX catalog.");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(prefabRoot);
+            }
+        }
     }
 }
