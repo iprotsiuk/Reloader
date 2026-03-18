@@ -8,16 +8,18 @@ namespace Reloader.NPCs.Combat
     public sealed class HumanoidBloodController : MonoBehaviour
     {
         private const float MinimumTransientEffectLifetimeSeconds = 0.5f;
-        private const float TransientEffectLifetimePaddingSeconds = 0.25f;
+        private const float TransientEffectLifetimePaddingSeconds = 0.6f;
         private const float DefaultDeathPuddleLifetimeSeconds = 45f;
         private const float DefaultDeathPuddleScale = 0.35f;
         private const float DeathPuddleSurfaceProbeHeight = 1.5f;
         private const float DeathPuddleSurfaceProbeDistance = 4f;
+        private static readonly Vector3 WarmupSpawnPosition = new Vector3(0f, -1000f, 0f);
 
         [SerializeField] private HumanoidDamageReceiver _damageReceiver;
         [SerializeField] private BloodVfxCatalog _catalog;
         [SerializeField] private Material _deathPuddleMaterial;
 
+        private static bool s_effectAssetsWarmed;
         private readonly List<BloodEffectKind> _requestedEffects = new List<BloodEffectKind>();
         private readonly List<Vector3> _requestedEffectPositions = new List<Vector3>();
 
@@ -32,6 +34,7 @@ namespace Reloader.NPCs.Combat
         private void Awake()
         {
             ResolveReceiver();
+            WarmEffectAssetsIfNeeded();
         }
 
         private void OnEnable()
@@ -122,6 +125,12 @@ namespace Reloader.NPCs.Combat
             if (!keepAlive)
             {
                 PrepareTransientEffect(instance);
+                return;
+            }
+
+            if (effectKind == BloodEffectKind.DeathPuddle)
+            {
+                Destroy(instance, DefaultDeathPuddleLifetimeSeconds);
             }
         }
 
@@ -208,6 +217,103 @@ namespace Reloader.NPCs.Combat
             }
 
             return peak * multiplier;
+        }
+
+        private void WarmEffectAssetsIfNeeded()
+        {
+            if (!Application.isPlaying || s_effectAssetsWarmed)
+            {
+                return;
+            }
+
+            s_effectAssetsWarmed = true;
+            WarmImpactPrefabs();
+            WarmDeathPuddleMaterial();
+        }
+
+        private void WarmImpactPrefabs()
+        {
+            if (_catalog == null)
+            {
+                return;
+            }
+
+            var warmedPrefabs = new HashSet<GameObject>();
+            for (var effectIndex = 0; effectIndex < (int)BloodEffectKind.DeathPuddle; effectIndex++)
+            {
+                if (!_catalog.TryGetPrefab((BloodEffectKind)effectIndex, out var prefab) || prefab == null || !warmedPrefabs.Add(prefab))
+                {
+                    continue;
+                }
+
+                var instance = Instantiate(prefab, WarmupSpawnPosition, Quaternion.identity);
+                instance.hideFlags = HideFlags.HideAndDontSave;
+                instance.SetActive(false);
+
+                var renderers = instance.GetComponentsInChildren<Renderer>(true);
+                for (var i = 0; i < renderers.Length; i++)
+                {
+                    var renderer = renderers[i];
+                    if (renderer == null)
+                    {
+                        continue;
+                    }
+
+                    var materials = renderer.sharedMaterials;
+                    for (var materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                    {
+                        var material = materials[materialIndex];
+                        if (material == null)
+                        {
+                            continue;
+                        }
+
+                        _ = material.shader;
+                    }
+                }
+
+                var particleSystems = instance.GetComponentsInChildren<ParticleSystem>(true);
+                for (var i = 0; i < particleSystems.Length; i++)
+                {
+                    var system = particleSystems[i];
+                    if (system == null)
+                    {
+                        continue;
+                    }
+
+                    system.Simulate(0.05f, withChildren: false, restart: true, fixedTimeStep: false);
+                    system.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                }
+
+                Destroy(instance);
+            }
+        }
+
+        private void WarmDeathPuddleMaterial()
+        {
+            if (_deathPuddleMaterial == null)
+            {
+                return;
+            }
+
+            var puddle = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            puddle.hideFlags = HideFlags.HideAndDontSave;
+            puddle.transform.position = WarmupSpawnPosition;
+            var collider = puddle.GetComponent<Collider>();
+            if (collider != null)
+            {
+                Destroy(collider);
+            }
+
+            var renderer = puddle.GetComponent<MeshRenderer>();
+            if (renderer != null)
+            {
+                renderer.enabled = false;
+                renderer.sharedMaterial = _deathPuddleMaterial;
+                _ = renderer.sharedMaterial;
+            }
+
+            Destroy(puddle);
         }
 
         private Transform ResolveImpactAnchorTransform()
