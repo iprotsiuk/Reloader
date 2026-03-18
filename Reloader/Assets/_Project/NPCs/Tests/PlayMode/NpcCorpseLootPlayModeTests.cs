@@ -233,7 +233,11 @@ namespace Reloader.NPCs.Tests.PlayMode
                 Assert.That(animator.enabled, Is.False);
                 Assert.That(aiController.enabled, Is.False);
                 Assert.That(patrolMotion.enabled, Is.False);
-                Assert.That(npcRoot.GetComponent<WorldStorageContainer>(), Is.Not.Null);
+                var corpseContainer = npcRoot.GetComponent<WorldStorageContainer>();
+                Assert.That(corpseContainer, Is.Not.Null);
+                var corpseContainerId = corpseContainer!.ContainerId;
+                Assert.That(StorageRuntimeBridge.Registry.TryGet(corpseContainerId, out _), Is.True,
+                    "Expected the corpse container to be registered before reset.");
 
                 corpseController.ResetRuntime();
 
@@ -242,6 +246,8 @@ namespace Reloader.NPCs.Tests.PlayMode
                 Assert.That(patrolMotion.enabled, Is.True, "Expected ResetRuntime to re-enable patrol motion.");
                 Assert.That(npcRoot.GetComponent<WorldStorageContainer>(), Is.Null,
                     "Expected ResetRuntime to remove the runtime corpse storage container.");
+                Assert.That(StorageRuntimeBridge.Registry.TryGet(corpseContainerId, out _), Is.False,
+                    "Expected ResetRuntime to remove the corpse container runtime from the shared storage registry.");
             }
             finally
             {

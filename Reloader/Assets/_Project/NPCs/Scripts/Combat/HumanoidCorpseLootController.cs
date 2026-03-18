@@ -193,6 +193,7 @@ namespace Reloader.NPCs.Combat
                 return;
             }
 
+            StorageRuntimeBridge.Registry.Remove(containerId);
             DestroyImmediate(container);
         }
 

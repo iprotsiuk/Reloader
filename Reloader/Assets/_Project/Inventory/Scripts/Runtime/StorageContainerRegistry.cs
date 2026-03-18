@@ -28,5 +28,15 @@ namespace Reloader.Inventory
 
             return _byId.TryGetValue(containerId, out container);
         }
+
+        public bool Remove(string containerId)
+        {
+            if (string.IsNullOrWhiteSpace(containerId))
+            {
+                return false;
+            }
+
+            return _byId.Remove(containerId);
+        }
     }
 }
