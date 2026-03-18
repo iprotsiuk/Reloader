@@ -4,6 +4,7 @@ using System.Reflection;
 using NUnit.Framework;
 using Reloader.Inventory;
 using Reloader.NPCs.Combat;
+using Reloader.NPCs.Runtime;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -177,6 +178,76 @@ namespace Reloader.NPCs.Tests.PlayMode
                 if (firstRoot != null)
                 {
                     UnityEngine.Object.Destroy(firstRoot);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ResetRuntime_RestoresDisabledBehaviours_AndRemovesCorpseContainer()
+        {
+            var payloadType = ResolveType("Reloader.Weapons.Ballistics.ProjectileImpactPayload", "Reloader.Weapons");
+            Assert.That(payloadType, Is.Not.Null, "Expected ProjectileImpactPayload type.");
+
+            GameObject npcRoot = null;
+            GameObject torsoZone = null;
+            try
+            {
+                npcRoot = new GameObject("NpcCorpseReset");
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                var receiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
+                var animator = npcRoot.AddComponent<Animator>();
+                var aiController = npcRoot.AddComponent<NpcAiController>();
+                var patrolMotion = npcRoot.AddComponent<ContractTargetPatrolMotion>();
+                var corpseController = npcRoot.AddComponent<HumanoidCorpseLootController>();
+
+                torsoZone = new GameObject("TorsoZone");
+                torsoZone.transform.SetParent(npcRoot.transform, false);
+                torsoZone.AddComponent<CapsuleCollider>().enabled = false;
+                var torsoBody = torsoZone.AddComponent<Rigidbody>();
+                torsoBody.isKinematic = true;
+                torsoBody.useGravity = false;
+                torsoZone.AddComponent<BodyZoneHitbox>().Configure(HumanoidBodyZone.Torso);
+
+                yield return null;
+
+                InvokeApplyDamage(receiver, CreateImpactPayload(
+                    payloadType!,
+                    itemId: "weapon-kar98k",
+                    point: torsoZone.transform.position,
+                    normal: Vector3.back,
+                    damage: 1f,
+                    hitObject: torsoZone,
+                    sourcePoint: torsoZone.transform.position + (Vector3.back * 25f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 240f,
+                    projectileMassGrains: 175f,
+                    deliveredEnergyJoules: 900f));
+
+                yield return new WaitForFixedUpdate();
+
+                Assert.That(animator.enabled, Is.False);
+                Assert.That(aiController.enabled, Is.False);
+                Assert.That(patrolMotion.enabled, Is.False);
+                Assert.That(npcRoot.GetComponent<WorldStorageContainer>(), Is.Not.Null);
+
+                corpseController.ResetRuntime();
+
+                Assert.That(animator.enabled, Is.True, "Expected ResetRuntime to re-enable the animator.");
+                Assert.That(aiController.enabled, Is.True, "Expected ResetRuntime to re-enable AI.");
+                Assert.That(patrolMotion.enabled, Is.True, "Expected ResetRuntime to re-enable patrol motion.");
+                Assert.That(npcRoot.GetComponent<WorldStorageContainer>(), Is.Null,
+                    "Expected ResetRuntime to remove the runtime corpse storage container.");
+            }
+            finally
+            {
+                if (torsoZone != null)
+                {
+                    UnityEngine.Object.Destroy(torsoZone);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.Destroy(npcRoot);
                 }
             }
         }

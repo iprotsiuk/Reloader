@@ -98,17 +98,22 @@ namespace Reloader.NPCs.Combat
             _damageReceiver ??= GetComponent<HumanoidDamageReceiver>();
             _animator ??= GetComponentInChildren<Animator>(includeInactive: true);
 
-            var discoveredBodies = GetComponentsInChildren<Rigidbody>(includeInactive: true);
-            if (discoveredBodies == null || discoveredBodies.Length == 0)
+            if (!HasAnyComponent(_ragdollBodies))
             {
-                EnsureRootFallbackBody();
-                discoveredBodies = GetComponentsInChildren<Rigidbody>(includeInactive: true);
+                var discoveredBodies = GetComponentsInChildren<Rigidbody>(includeInactive: true);
+                if (discoveredBodies == null || discoveredBodies.Length == 0)
+                {
+                    EnsureRootFallbackBody();
+                    discoveredBodies = GetComponentsInChildren<Rigidbody>(includeInactive: true);
+                }
+
+                _ragdollBodies = discoveredBodies ?? System.Array.Empty<Rigidbody>();
             }
 
-            _ragdollBodies = MergeUnique(_ragdollBodies, discoveredBodies);
-
-            var discoveredColliders = GetComponentsInChildren<Collider>(includeInactive: true);
-            _ragdollColliders = MergeUnique(_ragdollColliders, discoveredColliders);
+            if (!HasAnyComponent(_ragdollColliders))
+            {
+                _ragdollColliders = GetComponentsInChildren<Collider>(includeInactive: true) ?? System.Array.Empty<Collider>();
+            }
 
             _torsoFallbackBody = ResolveTorsoFallbackBody();
 
@@ -286,41 +291,23 @@ namespace Reloader.NPCs.Combat
             _resolvedDisableBehaviours.Add(behaviour);
         }
 
-        private static T[] MergeUnique<T>(T[] existing, T[] discovered)
+        private static bool HasAnyComponent<T>(T[] components)
             where T : Component
         {
-            var existingCount = existing?.Length ?? 0;
-            var discoveredCount = discovered?.Length ?? 0;
-            if (existingCount == 0)
+            if (components == null)
             {
-                return discoveredCount > 0 ? discovered : System.Array.Empty<T>();
+                return false;
             }
 
-            if (discoveredCount == 0)
+            for (var i = 0; i < components.Length; i++)
             {
-                return existing;
-            }
-
-            var merged = new List<T>(existingCount + discoveredCount);
-            for (var i = 0; i < existingCount; i++)
-            {
-                var component = existing[i];
-                if (component != null && !merged.Contains(component))
+                if (components[i] != null)
                 {
-                    merged.Add(component);
+                    return true;
                 }
             }
 
-            for (var i = 0; i < discoveredCount; i++)
-            {
-                var component = discovered[i];
-                if (component != null && !merged.Contains(component))
-                {
-                    merged.Add(component);
-                }
-            }
-
-            return merged.ToArray();
+            return false;
         }
 
         private void CaptureInitialState()

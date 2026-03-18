@@ -60,6 +60,68 @@ namespace Reloader.NPCs.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Awake_WithCuratedRagdollOverrides_DoesNotForceUnlistedPhysicsIntoDormantState()
+        {
+            GameObject npcRoot = null;
+            GameObject torsoZone = null;
+            GameObject propZone = null;
+            try
+            {
+                npcRoot = new GameObject("NpcRoot");
+                npcRoot.SetActive(false);
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                npcRoot.AddComponent<HumanoidDamageReceiver>();
+
+                torsoZone = new GameObject("TorsoZone");
+                torsoZone.transform.SetParent(npcRoot.transform, false);
+                var torsoCollider = torsoZone.AddComponent<CapsuleCollider>();
+                torsoCollider.enabled = false;
+                var torsoBody = torsoZone.AddComponent<Rigidbody>();
+                torsoBody.isKinematic = false;
+                torsoBody.useGravity = true;
+                torsoZone.AddComponent<BodyZoneHitbox>().Configure(HumanoidBodyZone.Torso);
+
+                propZone = new GameObject("PropZone");
+                propZone.transform.SetParent(npcRoot.transform, false);
+                var propCollider = propZone.AddComponent<BoxCollider>();
+                propCollider.enabled = true;
+                var propBody = propZone.AddComponent<Rigidbody>();
+                propBody.isKinematic = false;
+                propBody.useGravity = true;
+
+                var controller = npcRoot.AddComponent<HumanoidRagdollController>();
+                SetPrivateField(controller, "_ragdollBodies", new[] { torsoBody });
+                SetPrivateField(controller, "_ragdollColliders", new Collider[] { torsoCollider });
+
+                npcRoot.SetActive(true);
+                yield return null;
+
+                Assert.That(torsoBody.isKinematic, Is.True, "Expected curated ragdoll body to be driven into dormant state.");
+                Assert.That(torsoCollider.enabled, Is.False, "Expected curated ragdoll collider to preserve its dormant state.");
+                Assert.That(propBody.isKinematic, Is.False, "Expected unlisted helper rigidbody to stay untouched.");
+                Assert.That(propBody.useGravity, Is.True, "Expected unlisted helper rigidbody gravity to stay untouched.");
+                Assert.That(propCollider.enabled, Is.True, "Expected unlisted helper collider to stay untouched.");
+            }
+            finally
+            {
+                if (propZone != null)
+                {
+                    UnityEngine.Object.Destroy(propZone);
+                }
+
+                if (torsoZone != null)
+                {
+                    UnityEngine.Object.Destroy(torsoZone);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.Destroy(npcRoot);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator LethalImpact_DisablesDependencies_EnablesRagdollBodies_AndPushesStruckBodyForward()
         {
             var controllerType = ResolveType("Reloader.NPCs.Combat.HumanoidRagdollController", "Reloader.NPCs");
@@ -394,15 +456,16 @@ namespace Reloader.NPCs.Tests.PlayMode
             method!.Invoke(controller, null);
         }
 
+        private static void SetPrivateField(Component component, string fieldName, object value)
+        {
+            var field = component.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected private field '{fieldName}' on {component.GetType().Name}.");
+            field!.SetValue(component, value);
+        }
+
         private static Vector3 ReadLinearVelocity(Rigidbody rigidbody)
         {
-            var linearVelocityProperty = typeof(Rigidbody).GetProperty("linearVelocity", BindingFlags.Instance | BindingFlags.Public);
-            if (linearVelocityProperty != null && linearVelocityProperty.PropertyType == typeof(Vector3))
-            {
-                return (Vector3)linearVelocityProperty.GetValue(rigidbody);
-            }
-
-            return rigidbody.velocity;
+            return rigidbody.linearVelocity;
         }
     }
 }

@@ -17,6 +17,7 @@ namespace Reloader.NPCs.Combat
         [SerializeField] private string _displayNamePrefix = "Corpse of ";
 
         private readonly List<Behaviour> _resolvedDisableBehaviours = new List<Behaviour>();
+        private readonly Dictionary<Behaviour, bool> _initialBehaviourEnabledStates = new Dictionary<Behaviour, bool>();
         private bool _hasTakenOver;
 
         public bool CanPresentDeathState
@@ -52,7 +53,9 @@ namespace Reloader.NPCs.Combat
 
         public void ResetRuntime()
         {
+            ResolveDependencies();
             _hasTakenOver = false;
+            RestoreDependencies();
             CleanupCorpseStorageContainer();
         }
 
@@ -85,6 +88,8 @@ namespace Reloader.NPCs.Combat
                     AddDisableBehaviour(_disableBehavioursOnDeath[i]);
                 }
             }
+
+            CaptureInitialState();
         }
 
         private void Subscribe()
@@ -116,6 +121,29 @@ namespace Reloader.NPCs.Combat
                 if (behaviour != null)
                 {
                     behaviour.enabled = false;
+                }
+            }
+        }
+
+        private void CaptureInitialState()
+        {
+            for (var i = 0; i < _resolvedDisableBehaviours.Count; i++)
+            {
+                var behaviour = _resolvedDisableBehaviours[i];
+                if (behaviour != null && !_initialBehaviourEnabledStates.ContainsKey(behaviour))
+                {
+                    _initialBehaviourEnabledStates.Add(behaviour, behaviour.enabled);
+                }
+            }
+        }
+
+        private void RestoreDependencies()
+        {
+            foreach (var pair in _initialBehaviourEnabledStates)
+            {
+                if (pair.Key != null)
+                {
+                    pair.Key.enabled = pair.Value;
                 }
             }
         }
