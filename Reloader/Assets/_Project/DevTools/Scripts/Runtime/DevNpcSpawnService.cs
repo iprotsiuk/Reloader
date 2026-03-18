@@ -41,6 +41,27 @@ namespace Reloader.DevTools.Runtime
             return TrySpawn(entry, out instance, out resultMessage);
         }
 
+        public bool TrySpawnRandom(out GameObject instance, out string resultMessage)
+        {
+            if (_catalog == null)
+            {
+                instance = null;
+                resultMessage = "NPC spawn catalog is unavailable.";
+                return false;
+            }
+
+            var entries = _catalog.GetSuggestions(string.Empty);
+            if (entries == null || entries.Count == 0)
+            {
+                instance = null;
+                resultMessage = "NPC spawn catalog does not contain any spawnable entries.";
+                return false;
+            }
+
+            var entry = entries[Random.Range(0, entries.Count)];
+            return TrySpawn(entry, out instance, out resultMessage);
+        }
+
         public bool TrySpawn(DevNpcSpawnCatalog.Entry entry, out GameObject instance, out string resultMessage)
         {
             if (entry == null || entry.Prefab == null)
@@ -50,10 +71,9 @@ namespace Reloader.DevTools.Runtime
                 return false;
             }
 
-            if (!TryResolveSpawnPose(out var spawnPosition, out var spawnRotation))
+            if (!TryResolveSpawnPose(out var spawnPosition, out var spawnRotation, out resultMessage))
             {
                 instance = null;
-                resultMessage = "Unable to resolve a camera for npc spawning.";
                 return false;
             }
 
@@ -69,13 +89,14 @@ namespace Reloader.DevTools.Runtime
             _spawnCamera = camera;
         }
 
-        private bool TryResolveSpawnPose(out Vector3 spawnPosition, out Quaternion spawnRotation)
+        public bool TryResolveSpawnPose(out Vector3 spawnPosition, out Quaternion spawnRotation, out string resultMessage)
         {
             var camera = ResolveSpawnCamera();
             if (camera == null)
             {
                 spawnPosition = default;
                 spawnRotation = Quaternion.identity;
+                resultMessage = "Unable to resolve a camera for npc spawning.";
                 return false;
             }
 
@@ -93,10 +114,12 @@ namespace Reloader.DevTools.Runtime
             if (Physics.Raycast(ray, out var hit, _maxSpawnDistanceMeters, ~0, QueryTriggerInteraction.Ignore))
             {
                 spawnPosition = hit.point;
+                resultMessage = string.Empty;
                 return true;
             }
 
             spawnPosition = camera.transform.position + camera.transform.forward * _fallbackDistanceMeters;
+            resultMessage = string.Empty;
             return true;
         }
 

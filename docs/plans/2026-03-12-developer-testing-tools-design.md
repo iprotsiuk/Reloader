@@ -15,6 +15,8 @@
   - `give item <item-id-or-name> [quantity]`
   - `traces persistent on|off`
   - `spawn npc <spawn-id>`
+  - `spawn npc random`
+  - `spawn npc randomContract`
 
 ## Non-Goals (First Slice)
 
@@ -98,6 +100,7 @@ Examples:
 - after `give item`: suggest item definitions
 - after `traces persistent`: suggest `on`, `off`, `toggle`
 - after `spawn npc`: suggest configured spawnable NPC ids
+- after `spawn npc `: also suggest `random` and `randomContract`
 
 Suggestion rows should display both the stable token and the friendly label:
 
@@ -155,12 +158,16 @@ Persistent traces should be runtime-visible in Game view and standalone builds. 
 
 - `spawn npc npc.police`
 - `spawn npc npc.front-desk-clerk`
+- `spawn npc random`
+- `spawn npc randomContract`
 
 The first slice should not try to spawn arbitrary authored NPC assets by filesystem discovery. Instead, use a small runtime spawn catalog asset that explicitly lists spawnable prefabs and stable spawn ids for the console.
 
 Default placement:
 
 - spawn a short distance in front of the player or at the crosshair hit point when valid
+- keep bare `spawn npc` suggest-only rather than executing
+- resolve `random` through the same spawn catalog and `randomContract` through the live civilian runtime bridge
 
 ## Editor Surface
 
@@ -193,6 +200,8 @@ The editor window must call the same command backend used by the runtime console
 - `give item` grants the resolved authored item definition
 - `traces persistent on` produces visible runtime trace objects after weapon fire
 - `spawn npc` instantiates a configured NPC prefab near the player
+- `spawn npc random` resolves a catalog entry and uses the same crosshair/fallback pose
+- `spawn npc randomContract` instantiates a contract-eligible civilian through the shared runtime bridge
 
 ## Initial File Touchpoints
 
@@ -220,4 +229,5 @@ The first approved slice is successful when:
 - noclip and noclip speed work without corrupting normal player movement tuning
 - persistent traces can be toggled on and remain visible in runtime
 - configured NPC prefabs can be spawned from a stable runtime catalog
+- `spawn npc` suggestions expose viable ids plus `random` and `randomContract`
 - the editor window can drive the same commands without a separate execution path

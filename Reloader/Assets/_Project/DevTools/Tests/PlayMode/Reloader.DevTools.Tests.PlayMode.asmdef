@@ -5,6 +5,7 @@
     "Reloader.DevTools",
     "Reloader.Core",
     "Reloader.Inventory",
+    "Reloader.NPCs",
     "Reloader.Player",
     "Reloader.Weapons"
   ],

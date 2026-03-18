@@ -6,6 +6,19 @@ Add a shared humanoid combat feedback stack for all NPCs that supports body-zone
 
 This slice should make NPC gunplay feel physically readable and satisfying without yet taking on penetration, exit wounds, wound-state AI reactions, or blood trails.
 
+## Shipped Follow-On Update (2026-03-17)
+
+The original ragdoll slice is now extended for contract-capable civilians and dev-spawned contract targets:
+
+- lethal contract-capable humanoids keep the body active instead of despawning
+- `HumanoidCorpseLootController` adds a unique per-instance `WorldStorageContainer` after death
+- corpse containers start empty and reuse the existing storage interaction/runtime path
+- `HumanoidRagdollController` now has a root-body fallback so thin placeholder civilians still ragdoll and receive the final impulse even when authored ragdoll rigidbodies are missing
+
+This is a death-presentation and corpse-loot extension. Full corpse persistence/save integration is still out of scope.
+
+> **Plan update (2026-03-17, current runtime slice):** The shared lethal-hit path now also has to preserve contract civilians as lootable corpses in-world. Blood semantics remain on the broader plan, but disappearance is no longer an acceptable fallback for killable humanoids in the shipped contract-target slice.
+
 ---
 
 ## Scope Decisions
@@ -154,6 +167,7 @@ On lethal hits:
 - scale force from delivered energy
 - clamp force into tuned gameplay-friendly bounds so hits feel punchy but not comical
 - apply force at the impact point or closest struck ragdoll rigidbody
+- if authored ragdoll rigidbodies are absent, fall back to a root rigidbody so thin debug/contract NPCs still react physically
 
 This is required to preserve the visual payoff of accurate rifle hits.
 
@@ -198,6 +212,7 @@ Dependency shutdown rule:
 
 - AI, patrol motion, interaction controllers, and other authored NPC runtime components should be registered as dependencies to disable on lethal ragdoll takeover
 - lethal transition must be deterministic and not leave locomotion or dialogue runtime fighting physics
+- corpse-loot presentation may layer on this same lethal transition, but it must not introduce a second death-authority path
 
 ---
 

@@ -8,6 +8,8 @@ namespace Reloader.NPCs.Combat
     [DisallowMultipleComponent]
     public sealed class HumanoidRagdollController : MonoBehaviour
     {
+        private const string RootRagdollBodyName = "RootRagdollBody";
+
         [SerializeField] private HumanoidDamageReceiver _damageReceiver;
         [SerializeField] private Animator _animator;
         [SerializeField] private Behaviour[] _disableBehavioursOnDeath = System.Array.Empty<Behaviour>();
@@ -96,20 +98,19 @@ namespace Reloader.NPCs.Combat
             _damageReceiver ??= GetComponent<HumanoidDamageReceiver>();
             _animator ??= GetComponentInChildren<Animator>(includeInactive: true);
 
-            if (_ragdollBodies == null || _ragdollBodies.Length == 0)
+            var discoveredBodies = GetComponentsInChildren<Rigidbody>(includeInactive: true);
+            if (discoveredBodies == null || discoveredBodies.Length == 0)
             {
-                _ragdollBodies = GetComponentsInChildren<Rigidbody>(includeInactive: true);
+                EnsureRootFallbackBody();
+                discoveredBodies = GetComponentsInChildren<Rigidbody>(includeInactive: true);
             }
 
-            if (_ragdollColliders == null || _ragdollColliders.Length == 0)
-            {
-                _ragdollColliders = GetComponentsInChildren<Collider>(includeInactive: true);
-            }
+            _ragdollBodies = MergeUnique(_ragdollBodies, discoveredBodies);
 
-            if (_torsoFallbackBody == null)
-            {
-                _torsoFallbackBody = ResolveTorsoFallbackBody();
-            }
+            var discoveredColliders = GetComponentsInChildren<Collider>(includeInactive: true);
+            _ragdollColliders = MergeUnique(_ragdollColliders, discoveredColliders);
+
+            _torsoFallbackBody = ResolveTorsoFallbackBody();
 
             _resolvedDisableBehaviours.Clear();
             AddDisableBehaviour(_animator);
@@ -125,6 +126,22 @@ namespace Reloader.NPCs.Combat
             }
 
             CaptureInitialState();
+        }
+
+        private void EnsureRootFallbackBody()
+        {
+            var rootBody = GetComponent<Rigidbody>();
+            if (rootBody == null)
+            {
+                rootBody = gameObject.AddComponent<Rigidbody>();
+                rootBody.mass = 70f;
+                rootBody.interpolation = RigidbodyInterpolation.Interpolate;
+            }
+
+            if (string.IsNullOrWhiteSpace(rootBody.gameObject.name))
+            {
+                rootBody.gameObject.name = RootRagdollBodyName;
+            }
         }
 
         private void Subscribe()
@@ -267,6 +284,43 @@ namespace Reloader.NPCs.Combat
             }
 
             _resolvedDisableBehaviours.Add(behaviour);
+        }
+
+        private static T[] MergeUnique<T>(T[] existing, T[] discovered)
+            where T : Component
+        {
+            var existingCount = existing?.Length ?? 0;
+            var discoveredCount = discovered?.Length ?? 0;
+            if (existingCount == 0)
+            {
+                return discoveredCount > 0 ? discovered : System.Array.Empty<T>();
+            }
+
+            if (discoveredCount == 0)
+            {
+                return existing;
+            }
+
+            var merged = new List<T>(existingCount + discoveredCount);
+            for (var i = 0; i < existingCount; i++)
+            {
+                var component = existing[i];
+                if (component != null && !merged.Contains(component))
+                {
+                    merged.Add(component);
+                }
+            }
+
+            for (var i = 0; i < discoveredCount; i++)
+            {
+                var component = discovered[i];
+                if (component != null && !merged.Contains(component))
+                {
+                    merged.Add(component);
+                }
+            }
+
+            return merged.ToArray();
         }
 
         private void CaptureInitialState()

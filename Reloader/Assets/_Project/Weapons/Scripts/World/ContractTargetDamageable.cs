@@ -17,6 +17,9 @@ namespace Reloader.Weapons.World
         private const string RagdollControllerTypeName = "Reloader.NPCs.Combat.HumanoidRagdollController, Reloader.NPCs";
         private const string RagdollControllerCanPresentDeathStatePropertyName = "CanPresentDeathState";
         private const string RagdollControllerResetRuntimeMethodName = "ResetRuntime";
+        private const string CorpseLootControllerTypeName = "Reloader.NPCs.Combat.HumanoidCorpseLootController, Reloader.NPCs";
+        private const string CorpseLootControllerCanPresentDeathStatePropertyName = "CanPresentDeathState";
+        private const string CorpseLootControllerResetRuntimeMethodName = "ResetRuntime";
 
         [SerializeField] private MonoBehaviour _eliminationSinkBehaviour;
         [SerializeField] private string _targetId = string.Empty;
@@ -56,6 +59,7 @@ namespace Reloader.Weapons.World
             ResolveEliminationSink();
             ResetSharedReceiverRuntime();
             ResetRagdollRuntime();
+            ResetCorpseLootRuntime();
             BindSharedReceiver();
         }
 
@@ -91,6 +95,7 @@ namespace Reloader.Weapons.World
             ResolveEliminationSink();
             ResetSharedReceiverRuntime();
             ResetRagdollRuntime();
+            ResetCorpseLootRuntime();
             BindSharedReceiver();
         }
 
@@ -284,6 +289,34 @@ namespace Reloader.Weapons.World
             resetMethod.Invoke(ragdollController, null);
         }
 
+        private void ResetCorpseLootRuntime()
+        {
+            var corpseLootControllerType = System.Type.GetType(CorpseLootControllerTypeName, throwOnError: false);
+            if (corpseLootControllerType == null)
+            {
+                return;
+            }
+
+            var corpseLootController = GetComponent(corpseLootControllerType);
+            if (corpseLootController == null)
+            {
+                return;
+            }
+
+            var resetMethod = corpseLootControllerType.GetMethod(
+                CorpseLootControllerResetRuntimeMethodName,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public,
+                binder: null,
+                types: System.Type.EmptyTypes,
+                modifiers: null);
+            if (resetMethod == null)
+            {
+                return;
+            }
+
+            resetMethod.Invoke(corpseLootController, null);
+        }
+
         private void ApplyFallbackHealthDamage(ProjectileImpactPayload payload)
         {
             _currentHealth -= Mathf.Max(0f, payload.Damage);
@@ -336,7 +369,8 @@ namespace Reloader.Weapons.World
 
         private bool CanUseSharedReceiverDeathPresentation()
         {
-            return IsReferenceAlive(_sharedReceiver) && HasRagdollDeathPresentation();
+            return IsReferenceAlive(_sharedReceiver) &&
+                   (HasRagdollDeathPresentation() || HasCorpseLootDeathPresentation());
         }
 
         private bool HasRagdollDeathPresentation()
@@ -362,6 +396,32 @@ namespace Reloader.Weapons.World
             }
 
             var value = canPresentProperty.GetValue(ragdollController);
+            return value is bool canPresentDeathState && canPresentDeathState;
+        }
+
+        private bool HasCorpseLootDeathPresentation()
+        {
+            var corpseLootControllerType = System.Type.GetType(CorpseLootControllerTypeName, throwOnError: false);
+            if (corpseLootControllerType == null)
+            {
+                return false;
+            }
+
+            var corpseLootController = GetComponent(corpseLootControllerType);
+            if (corpseLootController == null)
+            {
+                return false;
+            }
+
+            var canPresentProperty = corpseLootControllerType.GetProperty(
+                CorpseLootControllerCanPresentDeathStatePropertyName,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+            if (canPresentProperty == null || canPresentProperty.PropertyType != typeof(bool))
+            {
+                return false;
+            }
+
+            var value = canPresentProperty.GetValue(corpseLootController);
             return value is bool canPresentDeathState && canPresentDeathState;
         }
 

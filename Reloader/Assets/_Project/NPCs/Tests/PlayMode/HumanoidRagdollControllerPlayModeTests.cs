@@ -271,6 +271,60 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator Awake_WithoutAuthoredRagdollBody_AddsRootFallbackAndAppliesLethalImpulse()
+        {
+            GameObject npcRoot = null;
+            try
+            {
+                var projectileImpactPayloadType = ResolveType("Reloader.Weapons.Ballistics.ProjectileImpactPayload", "Reloader.Weapons");
+                Assert.That(projectileImpactPayloadType, Is.Not.Null, "Expected ProjectileImpactPayload to exist.");
+
+                npcRoot = new GameObject("NpcRoot");
+                var rootCollider = npcRoot.AddComponent<CapsuleCollider>();
+                rootCollider.center = new Vector3(0f, 0.9f, 0f);
+                rootCollider.height = 1.8f;
+                rootCollider.radius = 0.35f;
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                var receiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
+                npcRoot.AddComponent<HumanoidRagdollController>();
+
+                yield return null;
+
+                var rootBody = npcRoot.GetComponent<Rigidbody>();
+                Assert.That(rootBody, Is.Not.Null, "Expected thin NPC roots to receive a fallback ragdoll rigidbody.");
+                Assert.That(rootBody!.isKinematic, Is.True, "Expected fallback ragdoll body to stay dormant while alive.");
+                Assert.That(rootBody.useGravity, Is.False, "Expected fallback ragdoll body to ignore gravity while alive.");
+
+                InvokeApplyDamage(receiver, CreateImpactPayload(
+                    projectileImpactPayloadType!,
+                    itemId: "weapon-kar98k",
+                    point: npcRoot.transform.position + Vector3.up,
+                    normal: Vector3.back,
+                    damage: 1f,
+                    hitObject: npcRoot,
+                    sourcePoint: npcRoot.transform.position + (Vector3.back * 25f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 240f,
+                    projectileMassGrains: 175f,
+                    deliveredEnergyJoules: 900f));
+
+                yield return new WaitForFixedUpdate();
+
+                Assert.That(rootBody.isKinematic, Is.False, "Expected fallback ragdoll body to become dynamic on lethal impact.");
+                Assert.That(rootBody.useGravity, Is.True, "Expected fallback ragdoll body to enable gravity on lethal impact.");
+                Assert.That(ReadLinearVelocity(rootBody).z, Is.GreaterThan(0f),
+                    "Expected fallback ragdoll body to receive the final impulse when no authored limb bodies exist.");
+            }
+            finally
+            {
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.Destroy(npcRoot);
+                }
+            }
+        }
+
         private static Type ResolveType(string fullName, string assemblyName)
         {
             var type = Type.GetType($"{fullName}, {assemblyName}", throwOnError: false);

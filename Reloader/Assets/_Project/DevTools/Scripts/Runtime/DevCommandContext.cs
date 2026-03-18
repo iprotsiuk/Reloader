@@ -1,5 +1,6 @@
 using Reloader.DevTools.Data;
 using Reloader.Inventory;
+using Reloader.NPCs.Runtime;
 using System;
 using UnityEngine;
 
@@ -11,6 +12,7 @@ namespace Reloader.DevTools.Runtime
         public MonoBehaviour WeaponController { get; set; }
         public DevNpcSpawnCatalog NpcSpawnCatalog { get; set; }
         public DevNpcSpawnService NpcSpawnService { get; set; }
+        public CivilianPopulationRuntimeBridge CivilianPopulationRuntimeBridge { get; set; }
         public Camera SpawnCamera { get; set; }
 
         public PlayerInventoryController ResolveInventoryController()
@@ -93,6 +95,17 @@ namespace Reloader.DevTools.Runtime
             }
 
             return NpcSpawnService;
+        }
+
+        public CivilianPopulationRuntimeBridge ResolveCivilianPopulationRuntimeBridge()
+        {
+            if (CivilianPopulationRuntimeBridge != null)
+            {
+                return CivilianPopulationRuntimeBridge;
+            }
+
+            CivilianPopulationRuntimeBridge = UnityEngine.Object.FindFirstObjectByType<CivilianPopulationRuntimeBridge>(FindObjectsInactive.Include);
+            return CivilianPopulationRuntimeBridge;
         }
 
         private static Type ResolveRuntimeType(string fullName)

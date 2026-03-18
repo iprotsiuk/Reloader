@@ -7,6 +7,7 @@ using Reloader.Core.Runtime;
 using Reloader.Core.Save;
 using Reloader.Core.Save.IO;
 using Reloader.Core.Save.Modules;
+using Reloader.NPCs.Combat;
 using Reloader.NPCs.Generation;
 using Reloader.NPCs.Runtime;
 using Reloader.NPCs.Runtime.Capabilities;
@@ -459,6 +460,10 @@ namespace Reloader.NPCs.Tests.EditMode
                 var actions = spawned[0].GetComponent<NpcAgent>()!.CollectActions();
                 Assert.That(actions.Any(action => action.ActionId == DialogueCapability.ActionKey), Is.True,
                     "Expected spawned civilians to publish the Talk action after runtime dialogue binding.");
+                Assert.That(spawned.All(component => component.GetComponent<HumanoidRagdollController>() != null), Is.True,
+                    "Expected spawned civilians to expose the shared humanoid ragdoll controller.");
+                Assert.That(spawned.All(component => component.GetComponent<HumanoidCorpseLootController>() != null), Is.True,
+                    "Expected spawned civilians to expose the corpse loot controller so dead bodies can become lootable storages.");
             }
             finally
             {
@@ -542,6 +547,10 @@ namespace Reloader.NPCs.Tests.EditMode
                 Assert.That((string)displayNameProperty!.GetValue(offeredDamageable)!, Is.EqualTo("Derek Mullen"));
 
                 Assert.That(nonOfferedSpawn.GetComponent(damageableType!), Is.Null, "Expected non-offered civilians to stay outside the contract target path while idle.");
+                Assert.That(spawned.All(component => component.GetComponent<HumanoidRagdollController>() != null), Is.True,
+                    "Expected every spawned civilian to carry the shared ragdoll takeover controller.");
+                Assert.That(spawned.All(component => component.GetComponent<HumanoidCorpseLootController>() != null), Is.True,
+                    "Expected every spawned civilian to carry the corpse loot controller even before death.");
             }
             finally
             {
