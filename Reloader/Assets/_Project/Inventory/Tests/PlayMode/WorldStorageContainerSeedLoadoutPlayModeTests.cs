@@ -1,9 +1,11 @@
 using System;
+using System.Collections;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Items;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Reloader.Inventory.Tests.PlayMode
 {
@@ -19,6 +21,28 @@ namespace Reloader.Inventory.Tests.PlayMode
         public void TearDown()
         {
             StorageRuntimeBridge.ResetForTests();
+        }
+
+        [UnityTest]
+        public IEnumerator Start_AutoRegistersConfiguredContainerRuntime()
+        {
+            var host = new GameObject("StorageChest");
+            var container = host.AddComponent<WorldStorageContainer>();
+
+            try
+            {
+                ConfigureContainer(container, "storage.qa.auto", "QA Storage", 8, StorageContainerPolicy.Persistent);
+
+                yield return null;
+
+                Assert.That(StorageRuntimeBridge.Registry.TryGet("storage.qa.auto", out var runtime), Is.True);
+                Assert.That(runtime, Is.Not.Null);
+                Assert.That(runtime!.SlotCount, Is.EqualTo(8));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(host);
+            }
         }
 
         [Test]
@@ -123,6 +147,21 @@ namespace Reloader.Inventory.Tests.PlayMode
             var method = seederType.GetMethod("EnsureSeeded", BindingFlags.Instance | BindingFlags.Public);
             Assert.That(method, Is.Not.Null, "Expected public EnsureSeeded method.");
             method!.Invoke(seeder, null);
+        }
+
+        private static void ConfigureContainer(
+            WorldStorageContainer container,
+            string containerId,
+            string displayName,
+            int slotCapacity,
+            StorageContainerPolicy policy)
+        {
+            var serializedObject = new SerializedObject(container);
+            serializedObject.FindProperty("_containerId").stringValue = containerId;
+            serializedObject.FindProperty("_displayName").stringValue = displayName;
+            serializedObject.FindProperty("_slotCapacity").intValue = slotCapacity;
+            serializedObject.FindProperty("_policy").enumValueIndex = (int)policy;
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
         }
     }
 }

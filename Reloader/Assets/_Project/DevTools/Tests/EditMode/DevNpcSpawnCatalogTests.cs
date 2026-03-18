@@ -58,5 +58,59 @@ namespace Reloader.DevTools.Tests.EditMode
             Object.DestroyImmediate(policePrefab);
             Object.DestroyImmediate(clerkPrefab);
         }
+
+        [Test]
+        public void SpawnCommand_SuggestionsForTrailingSpaceIncludeViableTokens()
+        {
+            var catalog = ScriptableObject.CreateInstance<DevNpcSpawnCatalog>();
+            var policePrefab = new GameObject("NpcPolicePrefab");
+            policePrefab.SetActive(false);
+            var clerkPrefab = new GameObject("NpcClerkPrefab");
+            clerkPrefab.SetActive(false);
+            catalog.SetEntriesForTests(new[]
+            {
+                new DevNpcSpawnCatalog.Entry("npc.police", "Police Officer", policePrefab),
+                new DevNpcSpawnCatalog.Entry("npc.front-desk-clerk", "Front Desk Clerk", clerkPrefab)
+            });
+
+            var command = new DevSpawnNpcCommand(new DevNpcSpawnService(catalog), catalog);
+
+            var suggestions = command
+                .GetSuggestions("spawn npc ", DevCommandLineParser.Parse("spawn npc "))
+                .ToArray();
+
+            Assert.That(suggestions.Select(static suggestion => suggestion.Token), Does.Contain("npc.police"));
+            Assert.That(suggestions.Select(static suggestion => suggestion.Token), Does.Contain("npc.front-desk-clerk"));
+            Assert.That(suggestions.Select(static suggestion => suggestion.Token), Does.Contain("random"));
+            Assert.That(suggestions.Select(static suggestion => suggestion.Token), Does.Contain("randomContract"));
+            Assert.That(suggestions.First(suggestion => suggestion.Token == "random").ApplyText, Is.EqualTo("spawn npc random"));
+            Assert.That(suggestions.First(suggestion => suggestion.Token == "randomContract").ApplyText, Is.EqualTo("spawn npc randomContract"));
+
+            Object.DestroyImmediate(catalog);
+            Object.DestroyImmediate(policePrefab);
+            Object.DestroyImmediate(clerkPrefab);
+        }
+
+        [Test]
+        public void SpawnCommand_RandomContract_RequiresCivilianRuntimeBridge()
+        {
+            var catalog = ScriptableObject.CreateInstance<DevNpcSpawnCatalog>();
+            var policePrefab = new GameObject("NpcPolicePrefab");
+            policePrefab.SetActive(false);
+            catalog.SetEntriesForTests(new[]
+            {
+                new DevNpcSpawnCatalog.Entry("npc.police", "Police Officer", policePrefab)
+            });
+
+            var command = new DevSpawnNpcCommand(new DevNpcSpawnService(catalog), catalog);
+
+            var executed = command.TryExecute(DevCommandLineParser.Parse("spawn npc randomContract"), out var resultMessage);
+
+            Assert.That(executed, Is.False);
+            Assert.That(resultMessage, Is.EqualTo("No civilian population runtime is available for randomContract spawning."));
+
+            Object.DestroyImmediate(catalog);
+            Object.DestroyImmediate(policePrefab);
+        }
     }
 }

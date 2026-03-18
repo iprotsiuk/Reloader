@@ -529,10 +529,56 @@ namespace Reloader.NPCs.Runtime
         {
             var civilian = CreateCivilianActor(record.CivilianId);
             civilian.transform.SetPositionAndRotation(anchor.position, anchor.rotation);
-            EnsureCivilianActorComponents(civilian).Initialize(record);
+            InitializeSpawnedCivilian(civilian, record);
 
             var agent = civilian.GetComponent<NpcAgent>();
             agent?.InitializeCapabilities();
+        }
+
+        public bool TrySpawnDebugContractCivilian(
+            Vector3 position,
+            Quaternion rotation,
+            out GameObject civilian,
+            out string resultMessage)
+        {
+            civilian = null;
+            resultMessage = string.Empty;
+
+            if (_npcActorPrefab == null)
+            {
+                resultMessage = "Civilian population runtime is missing the NPC actor prefab.";
+                return false;
+            }
+
+            if (_appearanceLibrary == null)
+            {
+                resultMessage = "Civilian population runtime is missing the appearance library.";
+                return false;
+            }
+
+            var civilianId = CreateDebugCivilianId();
+            var seed = CreateOfferRotationSeed();
+            var record = _generator.GenerateRecord(
+                _appearanceLibrary,
+                civilianId,
+                createdAtDay: 0,
+                spawnAnchorId: "debug.contract",
+                seed: seed,
+                isContractEligible: true,
+                populationSlotId: "debug.contract",
+                poolId: "debug.contract",
+                areaTag: "debug",
+                isProtectedFromContracts: false);
+
+            civilian = CreateCivilianActor(record.CivilianId);
+            civilian.transform.SetPositionAndRotation(position, rotation);
+            InitializeSpawnedCivilian(civilian, record);
+
+            var agent = civilian.GetComponent<NpcAgent>();
+            agent?.InitializeCapabilities();
+
+            resultMessage = $"Spawned contract-eligible npc '{record.CivilianId}'.";
+            return true;
         }
 
         private GameObject CreateCivilianActor(string civilianId)
@@ -543,7 +589,14 @@ namespace Reloader.NPCs.Runtime
 
             civilian.name = $"Civilian_{civilianId}";
             civilian.transform.SetParent(transform, false);
+            civilian.SetActive(true);
             return civilian;
+        }
+
+        private static void InitializeSpawnedCivilian(GameObject civilian, CivilianPopulationRecord record)
+        {
+            EnsureCivilianActorComponents(civilian).Initialize(record);
+            ConfigureContractTargetIfEligible(civilian, record);
         }
 
         private static MainTownPopulationSpawnedCivilian EnsureCivilianActorComponents(GameObject civilian)
@@ -576,6 +629,16 @@ namespace Reloader.NPCs.Runtime
             if (civilian.GetComponent<HumanoidDamageReceiver>() == null)
             {
                 civilian.AddComponent<HumanoidDamageReceiver>();
+            }
+
+            if (civilian.GetComponent<HumanoidRagdollController>() == null)
+            {
+                civilian.AddComponent<HumanoidRagdollController>();
+            }
+
+            if (civilian.GetComponent<HumanoidCorpseLootController>() == null)
+            {
+                civilian.AddComponent<HumanoidCorpseLootController>();
             }
 
             var metadata = civilian.GetComponent<MainTownPopulationSpawnedCivilian>();
@@ -1543,6 +1606,12 @@ namespace Reloader.NPCs.Runtime
             }
 
             return $"{idPrefix}.{nextIndex:0000}";
+        }
+
+        private string CreateDebugCivilianId()
+        {
+            var idPrefix = string.IsNullOrWhiteSpace(_civilianIdPrefix) ? "citizen.mainTown" : _civilianIdPrefix.Trim();
+            return $"{idPrefix}.debug.{Guid.NewGuid():N}";
         }
 
         private int ExtractCivilianNumericSuffix(string civilianId)

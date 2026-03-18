@@ -8,6 +8,16 @@
 
 **Tech Stack:** Unity 6.3 C#, NUnit EditMode and PlayMode tests, prefab authoring under `Reloader/Assets/_Project/NPCs/**`, ballistic runtime under `Reloader/Assets/_Project/Weapons/**`, existing `scripts/run-unity-tests.sh` verification flow
 
+## Follow-On Status Update [2026-03-17]
+
+The shared ragdoll/death stack from this plan is now extended by the dedicated follow-on slice in `docs/plans/2026-03-17-npc-spawn-ragdoll-loot-design.md` and `docs/plans/2026-03-17-npc-spawn-ragdoll-loot-implementation-plan.md`.
+
+Current shipped follow-on behavior:
+
+- contract-capable civilians keep the body active on lethal death instead of despawning
+- corpses become lootable through `HumanoidCorpseLootController` + `WorldStorageContainer`
+- thin placeholder humanoids use a runtime root-body fallback when authored ragdoll rigidbodies are missing
+
 ---
 
 ### Task 1: Add Red Tests For Impact Metadata And Energy Resolution

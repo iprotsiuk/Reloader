@@ -14,9 +14,21 @@ namespace Reloader.Inventory
         public int SlotCapacity => _slotCapacity;
         public StorageContainerPolicy Policy => _policy;
 
-        private void Awake()
+        private void Start()
         {
             EnsureRegistered();
+        }
+
+        public void ConfigureRuntimeIdentity(
+            string containerId,
+            string displayName,
+            int slotCapacity,
+            StorageContainerPolicy policy)
+        {
+            _containerId = containerId ?? string.Empty;
+            _displayName = displayName ?? string.Empty;
+            _slotCapacity = Mathf.Max(1, slotCapacity);
+            _policy = policy;
         }
 
         public StorageContainerRuntime EnsureRegistered()
