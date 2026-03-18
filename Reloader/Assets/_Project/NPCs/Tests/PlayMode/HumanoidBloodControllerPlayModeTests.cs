@@ -126,8 +126,9 @@ namespace Reloader.NPCs.Tests.PlayMode
                 var requestedPositions = ReadRequestedEffectPositions(controller);
                 Assert.That(requestedPositions.Count, Is.EqualTo(requestedEffects.Count),
                     "Expected blood controller to record a position for each semantic request.");
-                Assert.That(requestedPositions[requestedPositions.Count - 1], Is.EqualTo(headZone.transform.position).Using(Vector3EqualityComparer.Instance),
-                    "Expected death puddle request to use the lethal impact point so puddles land near the blood fountain, not the NPC root.");
+                var expectedDeathPuddleRequestPosition = headZone.transform.position + (Vector3.back * 0.6f);
+                Assert.That(requestedPositions[requestedPositions.Count - 1], Is.EqualTo(expectedDeathPuddleRequestPosition).Using(Vector3EqualityComparer.Instance),
+                    "Expected death puddle request to offset from the lethal hit point toward the visible blood spray landing area.");
             }
             finally
             {
@@ -468,11 +469,12 @@ namespace Reloader.NPCs.Tests.PlayMode
 
                 yield return null;
 
+                var impactNormal = Vector3.right;
                 InvokeApplyDamage(receiver, CreateImpactPayload(
                     projectileImpactPayloadType!,
                     itemId: "weapon-kar98k",
                     point: headZone.transform.position,
-                    normal: Vector3.up,
+                    normal: impactNormal,
                     damage: 1f,
                     hitObject: headZone,
                     sourcePoint: headZone.transform.position + (Vector3.back * 25f),
@@ -582,7 +584,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                     projectileImpactPayloadType!,
                     itemId: "weapon-kar98k",
                     point: headZone.transform.position,
-                    normal: Vector3.up,
+                    normal: Vector3.right,
                     damage: 1f,
                     hitObject: headZone,
                     sourcePoint: headZone.transform.position + (Vector3.back * 25f),
@@ -593,10 +595,13 @@ namespace Reloader.NPCs.Tests.PlayMode
 
                 yield return null;
 
-                var expectedGroundPuddlePosition = new Vector3(headZone.transform.position.x, 0.02f, headZone.transform.position.z);
+                var expectedGroundPuddlePosition = new Vector3(
+                    headZone.transform.position.x + 0.6f,
+                    0.02f,
+                    headZone.transform.position.z);
                 var instantiatedPuddle = FindInstantiatedMarker(puddleMarker, expectedGroundPuddlePosition, tolerance: 0.08f);
                 Assert.That(instantiatedPuddle, Is.Not.Null,
-                    "Expected lethal impact with an authored death puddle prefab to project that prefab onto the ground near the lethal impact point.");
+                    "Expected lethal impact with an authored death puddle prefab to project that prefab onto the ground near where the blood fountain would land, not straight under the body.");
             }
             finally
             {
@@ -799,6 +804,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                 }
             }
         }
+
 
         private static void SetPrivateField(object target, string fieldName, object value)
         {

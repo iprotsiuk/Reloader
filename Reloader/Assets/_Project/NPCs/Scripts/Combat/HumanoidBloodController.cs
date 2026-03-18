@@ -11,6 +11,7 @@ namespace Reloader.NPCs.Combat
         private const float TransientEffectLifetimePaddingSeconds = 0.6f;
         private const float DefaultDeathPuddleLifetimeSeconds = 45f;
         private const float DefaultDeathPuddleScale = 0.8f;
+        private const float DeathPuddleLandingOffset = 0.6f;
         private const float DeathPuddleSurfaceProbeHeight = 1.5f;
         private const float DeathPuddleSurfaceProbeDistance = 4f;
         private static readonly Vector3 WarmupSpawnPosition = new Vector3(0f, -1000f, 0f);
@@ -69,7 +70,7 @@ namespace Reloader.NPCs.Combat
         private void HandleDied()
         {
             var deathPuddleOrigin = (_damageReceiver != null && _damageReceiver.HasLastResult)
-                ? _damageReceiver.LastPayload.Point
+                ? ResolveDeathPuddleOrigin(_damageReceiver.LastPayload)
                 : transform.position;
             RequestEffect(BloodEffectKind.DeathPuddle, deathPuddleOrigin, Vector3.up, true, null);
         }
@@ -508,6 +509,23 @@ namespace Reloader.NPCs.Combat
             var randomTwist = Quaternion.AngleAxis(UnityEngine.Random.Range(0f, 360f), surfaceNormal);
             position = spawnPosition;
             rotation = randomTwist * baseRotation;
+        }
+
+        private static Vector3 ResolveDeathPuddleOrigin(Reloader.Weapons.Ballistics.ProjectileImpactPayload payload)
+        {
+            var origin = payload.Point;
+            var horizontalSprayDirection = Vector3.ProjectOnPlane(payload.Normal, Vector3.up);
+            if (horizontalSprayDirection.sqrMagnitude <= 0.0001f)
+            {
+                horizontalSprayDirection = Vector3.ProjectOnPlane(-payload.Direction, Vector3.up);
+            }
+
+            if (horizontalSprayDirection.sqrMagnitude <= 0.0001f)
+            {
+                return origin;
+            }
+
+            return origin + (horizontalSprayDirection.normalized * DeathPuddleLandingOffset);
         }
 
         private bool IsIgnoredDeathPuddleCollider(Transform hitTransform)
