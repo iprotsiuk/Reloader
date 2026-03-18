@@ -70,7 +70,6 @@ GameObject:
   - component: {fileID: 6487305346668697562}
   - component: {fileID: 6278442191277675292}
   - component: {fileID: 8016753439919890482}
-  - component: {fileID: 5994971322821369187}
   m_Layer: 0
   m_Name: NpcFoundation
   m_TagString: Untagged
@@ -249,21 +248,6 @@ MonoBehaviour:
   _corpsePolicy: 1
   _containerIdPrefix: corpse
   _displayNamePrefix: 'Corpse of '
---- !u!114 &5994971322821369187
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1583374129755188914}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 319d56f6c35464adaaa5244e804b1cb8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Combat.HumanoidBloodController
-  _damageReceiver: {fileID: 6487305346668697562}
-  _catalog: {fileID: 11400000, guid: 8cfe6154738b4ce1b657b1692c50b982, type: 2}
-  _deathPuddleMaterial: {fileID: 2100000, guid: 387002aa83d624a57949473ff828371d, type: 2}
 --- !u!1 &3709071183204920593
 GameObject:
   m_ObjectHideFlags: 0
