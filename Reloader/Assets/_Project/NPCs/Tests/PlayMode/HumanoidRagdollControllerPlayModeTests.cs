@@ -402,6 +402,85 @@ namespace Reloader.NPCs.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator PostDeathImpact_OnStruckRagdollBody_AddsFreshImpulse()
+        {
+            GameObject npcRoot = null;
+            GameObject torsoZone = null;
+            try
+            {
+                var projectileImpactPayloadType = ResolveType("Reloader.Weapons.Ballistics.ProjectileImpactPayload", "Reloader.Weapons");
+                Assert.That(projectileImpactPayloadType, Is.Not.Null, "Expected ProjectileImpactPayload to exist.");
+
+                npcRoot = new GameObject("NpcRoot");
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                var receiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
+                npcRoot.AddComponent<HumanoidRagdollController>();
+
+                torsoZone = new GameObject("TorsoZone");
+                torsoZone.transform.SetParent(npcRoot.transform, false);
+                var torsoCollider = torsoZone.AddComponent<CapsuleCollider>();
+                torsoCollider.enabled = false;
+                var torsoBody = torsoZone.AddComponent<Rigidbody>();
+                torsoBody.isKinematic = true;
+                torsoBody.useGravity = false;
+                torsoZone.AddComponent<BodyZoneHitbox>().Configure(HumanoidBodyZone.Torso);
+
+                yield return null;
+
+                InvokeApplyDamage(receiver, CreateImpactPayload(
+                    projectileImpactPayloadType!,
+                    itemId: "weapon-kar98k",
+                    point: torsoZone.transform.position,
+                    normal: Vector3.back,
+                    damage: 1f,
+                    hitObject: torsoZone,
+                    sourcePoint: torsoZone.transform.position + (Vector3.back * 25f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 240f,
+                    projectileMassGrains: 175f,
+                    deliveredEnergyJoules: 900f));
+
+                yield return new WaitForFixedUpdate();
+
+                Assert.That(receiver.IsDead, Is.True, "Expected the first lethal hit to kill the NPC before corpse re-hit validation.");
+
+                torsoBody.linearVelocity = Vector3.zero;
+                torsoBody.angularVelocity = Vector3.zero;
+                yield return new WaitForFixedUpdate();
+
+                InvokeApplyDamage(receiver, CreateImpactPayload(
+                    projectileImpactPayloadType!,
+                    itemId: "weapon-kar98k",
+                    point: torsoZone.transform.position,
+                    normal: Vector3.left,
+                    damage: 1f,
+                    hitObject: torsoZone,
+                    sourcePoint: torsoZone.transform.position + (Vector3.left * 25f),
+                    direction: Vector3.right,
+                    impactSpeedMetersPerSecond: 240f,
+                    projectileMassGrains: 175f,
+                    deliveredEnergyJoules: 900f));
+
+                yield return new WaitForFixedUpdate();
+
+                Assert.That(ReadLinearVelocity(torsoBody).x, Is.GreaterThan(0.1f),
+                    "Expected a post-death hit to push the already-dead ragdoll body in the new shot direction.");
+            }
+            finally
+            {
+                if (torsoZone != null)
+                {
+                    UnityEngine.Object.Destroy(torsoZone);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.Destroy(npcRoot);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator Awake_WithoutAuthoredRagdollBody_AddsRootFallbackAndAppliesLethalImpulse()
         {
             GameObject npcRoot = null;

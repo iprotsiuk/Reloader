@@ -9,6 +9,7 @@ namespace Reloader.NPCs.Combat
     public sealed class HumanoidRagdollController : MonoBehaviour
     {
         private const string RootRagdollBodyName = "RootRagdollBody";
+        private const float TestImpulseMultiplier = 100f;
 
         [SerializeField] private HumanoidDamageReceiver _damageReceiver;
         [SerializeField] private Animator _animator;
@@ -95,7 +96,7 @@ namespace Reloader.NPCs.Combat
             DisableDependencies();
             DisableLiveColliders();
             EnableRagdollBodies();
-            ApplyLethalImpulse(_damageReceiver.LastPayload, _damageReceiver.LastResult);
+            ApplyImpactImpulse(_damageReceiver.LastPayload, _damageReceiver.LastResult);
         }
 
         private void ResolveDependencies()
@@ -184,6 +185,7 @@ namespace Reloader.NPCs.Combat
             }
 
             Unsubscribe();
+            _damageReceiver.ResultResolved += HandleImpactResolved;
             _damageReceiver.Died += HandleDied;
         }
 
@@ -194,7 +196,18 @@ namespace Reloader.NPCs.Combat
                 return;
             }
 
+            _damageReceiver.ResultResolved -= HandleImpactResolved;
             _damageReceiver.Died -= HandleDied;
+        }
+
+        private void HandleImpactResolved()
+        {
+            if (_damageReceiver == null || !_damageReceiver.HasLastResult || !HasTakenOver)
+            {
+                return;
+            }
+
+            ApplyImpactImpulse(_damageReceiver.LastPayload, _damageReceiver.LastResult);
         }
 
         private void EnsureDormantRagdollState()
@@ -267,7 +280,7 @@ namespace Reloader.NPCs.Combat
             }
         }
 
-        private void ApplyLethalImpulse(ProjectileImpactPayload payload, HumanoidImpactResolutionResult result)
+        private void ApplyImpactImpulse(ProjectileImpactPayload payload, HumanoidImpactResolutionResult result)
         {
             var targetBody = ResolveImpulseTarget(payload.HitObject) ?? _torsoFallbackBody;
             if (targetBody == null)
@@ -276,7 +289,7 @@ namespace Reloader.NPCs.Combat
             }
 
             var direction = payload.Direction.sqrMagnitude > 0.0001f ? payload.Direction.normalized : transform.forward;
-            var impulseMagnitude = Mathf.Max(0.2f, result.RecommendedRagdollImpulseScalar);
+            var impulseMagnitude = Mathf.Max(0.2f, result.RecommendedRagdollImpulseScalar) * TestImpulseMultiplier;
             targetBody.AddForceAtPosition(direction * impulseMagnitude, payload.Point, _impulseForceMode);
         }
 
