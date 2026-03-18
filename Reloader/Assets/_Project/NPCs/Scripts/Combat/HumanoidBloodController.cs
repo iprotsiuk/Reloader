@@ -9,9 +9,14 @@ namespace Reloader.NPCs.Combat
     {
         private const float MinimumTransientEffectLifetimeSeconds = 0.5f;
         private const float TransientEffectLifetimePaddingSeconds = 0.25f;
+        private const float DefaultDeathPuddleLifetimeSeconds = 45f;
+        private const float DefaultDeathPuddleScale = 0.65f;
+        private const float DeathPuddleSurfaceProbeHeight = 1.5f;
+        private const float DeathPuddleSurfaceProbeDistance = 4f;
 
         [SerializeField] private HumanoidDamageReceiver _damageReceiver;
         [SerializeField] private BloodVfxCatalog _catalog;
+        [SerializeField] private Material _deathPuddleMaterial;
 
         private readonly List<BloodEffectKind> _requestedEffects = new List<BloodEffectKind>();
         private readonly List<Vector3> _requestedEffectPositions = new List<Vector3>();
@@ -54,9 +59,7 @@ namespace Reloader.NPCs.Combat
             }
 
             var effectKind = ResolveImpactEffectKind(_damageReceiver.LastZone);
-            var hitTransform = _damageReceiver.LastPayload.HitObject != null
-                ? _damageReceiver.LastPayload.HitObject.transform
-                : null;
+            var hitTransform = ResolveImpactAnchorTransform();
             RequestEffect(effectKind, _damageReceiver.LastPayload.Point, _damageReceiver.LastPayload.Normal, false, hitTransform);
         }
 
@@ -97,8 +100,15 @@ namespace Reloader.NPCs.Combat
         {
             _requestedEffects.Add(effectKind);
             _requestedEffectPositions.Add(position);
-            if (_catalog == null || !_catalog.TryGetPrefab(effectKind, out var prefab) || prefab == null)
+            GameObject prefab = null;
+            var hasPrefab = _catalog != null && _catalog.TryGetPrefab(effectKind, out prefab) && prefab != null;
+            if (!hasPrefab)
             {
+                if (effectKind == BloodEffectKind.DeathPuddle)
+                {
+                    SpawnDeathPuddle(position);
+                }
+
                 return;
             }
 
@@ -149,6 +159,7 @@ namespace Reloader.NPCs.Combat
 
                 var main = system.main;
                 main.loop = false;
+                main.simulationSpace = ParticleSystemSimulationSpace.Local;
                 destroyDelay = Mathf.Max(destroyDelay, ResolveAutoDestroyDelay(main));
                 system.Play(withChildren: true);
             }
@@ -197,6 +208,87 @@ namespace Reloader.NPCs.Combat
             }
 
             return peak * multiplier;
+        }
+
+        private Transform ResolveImpactAnchorTransform()
+        {
+            if (_damageReceiver == null)
+            {
+                return null;
+            }
+
+            var hitboxRig = _damageReceiver.HitboxRig;
+            if (hitboxRig != null && hitboxRig.TryResolveBone(_damageReceiver.LastZone, out var zoneBone) && zoneBone != null)
+            {
+                return zoneBone;
+            }
+
+            var hitObject = _damageReceiver.LastPayload.HitObject;
+            if (hitObject == null)
+            {
+                return null;
+            }
+
+            if (hitObject.TryGetComponent<Rigidbody>(out var attachedBody) && attachedBody != null)
+            {
+                return attachedBody.transform;
+            }
+
+            var parentBody = hitObject.GetComponentInParent<Rigidbody>();
+            if (parentBody != null)
+            {
+                return parentBody.transform;
+            }
+
+            return hitObject.transform;
+        }
+
+        private void SpawnDeathPuddle(Vector3 position)
+        {
+            if (_deathPuddleMaterial == null)
+            {
+                return;
+            }
+
+            var puddle = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            puddle.name = "BloodPuddle";
+            ResolveDeathPuddlePose(position, out var puddlePosition, out var puddleRotation);
+            puddle.transform.SetPositionAndRotation(puddlePosition, puddleRotation);
+            puddle.transform.localScale = Vector3.one * DefaultDeathPuddleScale;
+
+            var collider = puddle.GetComponent<Collider>();
+            if (collider != null)
+            {
+                Destroy(collider);
+            }
+
+            var renderer = puddle.GetComponent<MeshRenderer>();
+            if (renderer != null)
+            {
+                renderer.sharedMaterial = _deathPuddleMaterial;
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+            }
+
+            Destroy(puddle, DefaultDeathPuddleLifetimeSeconds);
+        }
+
+        private static void ResolveDeathPuddlePose(Vector3 origin, out Vector3 position, out Quaternion rotation)
+        {
+            var spawnPosition = origin + (Vector3.up * 0.02f);
+            var surfaceNormal = Vector3.up;
+
+            var probeOrigin = origin + (Vector3.up * DeathPuddleSurfaceProbeHeight);
+            if (Physics.Raycast(probeOrigin, Vector3.down, out var hit, DeathPuddleSurfaceProbeDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            {
+                spawnPosition = hit.point + (hit.normal * 0.02f);
+                surfaceNormal = hit.normal.sqrMagnitude > 0.0001f ? hit.normal.normalized : Vector3.up;
+            }
+
+            var baseRotation = Quaternion.LookRotation(-surfaceNormal);
+            var randomTwist = Quaternion.AngleAxis(UnityEngine.Random.Range(0f, 360f), surfaceNormal);
+            position = spawnPosition;
+            rotation = randomTwist * baseRotation;
         }
 
         private static BloodEffectKind ResolveImpactEffectKind(HumanoidBodyZone zone)

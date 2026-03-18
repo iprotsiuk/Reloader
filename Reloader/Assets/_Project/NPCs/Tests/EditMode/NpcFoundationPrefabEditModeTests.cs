@@ -72,7 +72,7 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
-        public void NpcFoundationPrefab_HumanoidBloodController_ReferencesDamageReceiverAndDefaultCatalog()
+        public void NpcFoundationPrefab_HumanoidBloodController_ReferencesDamageReceiverDefaultCatalogAndDeathPuddleMaterial()
         {
             var prefabRoot = PrefabUtility.LoadPrefabContents(NpcFoundationPrefabPath);
 
@@ -86,13 +86,17 @@ namespace Reloader.NPCs.Tests.EditMode
                 var serializedController = new SerializedObject(controller);
                 var damageReceiver = serializedController.FindProperty("_damageReceiver");
                 var catalog = serializedController.FindProperty("_catalog");
+                var deathPuddleMaterial = serializedController.FindProperty("_deathPuddleMaterial");
 
                 Assert.That(damageReceiver, Is.Not.Null, "Expected HumanoidBloodController to serialize its damage receiver reference.");
                 Assert.That(catalog, Is.Not.Null, "Expected HumanoidBloodController to serialize its blood VFX catalog reference.");
+                Assert.That(deathPuddleMaterial, Is.Not.Null, "Expected HumanoidBloodController to serialize its death puddle material reference.");
                 Assert.That(damageReceiver!.objectReferenceValue, Is.Not.Null,
                     "Expected HumanoidBloodController to target the authored HumanoidDamageReceiver on NpcFoundation.");
                 Assert.That(catalog!.objectReferenceValue, Is.Not.Null,
                     "Expected HumanoidBloodController to target the default authored blood VFX catalog.");
+                Assert.That(deathPuddleMaterial!.objectReferenceValue, Is.Not.Null,
+                    "Expected HumanoidBloodController to target the vendor-authored death puddle material fallback.");
             }
             finally
             {

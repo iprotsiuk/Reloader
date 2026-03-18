@@ -12,6 +12,7 @@ namespace Reloader.NPCs.Editor
         private const string BloodVfxFolderPath = BloodContentFolderPath + "/Blood";
         private const string BloodVfxCatalogPath = BloodVfxFolderPath + "/BloodVfxCatalog_Default.asset";
         private const string BloodImpactPrefabPath = "Assets/HIVEMIND/RealisticBloodVFX/URP/RealisticBlood/Particle Systems/PS_Blood.prefab";
+        private const string BloodDeathPuddleMaterialPath = "Assets/HIVEMIND/RealisticBloodVFX/URP/RealisticBlood/Decals/Materials/M_DecalMesh_Lit.mat";
 
         private static readonly BoneRecipe[] Recipes =
         {
@@ -178,6 +179,7 @@ namespace Reloader.NPCs.Editor
 
             var bodyCollider = prefabRoot.transform.Find("Body")?.GetComponent<Collider>();
             var bloodCatalog = EnsureBloodVfxCatalogAsset();
+            var deathPuddleMaterial = AssetDatabase.LoadAssetAtPath<Material>(BloodDeathPuddleMaterialPath);
 
             var serializedDamageReceiver = new SerializedObject(damageReceiver);
             serializedDamageReceiver.FindProperty("_hitboxRig")!.objectReferenceValue = hitboxRig;
@@ -195,6 +197,7 @@ namespace Reloader.NPCs.Editor
             var serializedBloodController = new SerializedObject(bloodController);
             serializedBloodController.FindProperty("_damageReceiver")!.objectReferenceValue = damageReceiver;
             serializedBloodController.FindProperty("_catalog")!.objectReferenceValue = bloodCatalog;
+            serializedBloodController.FindProperty("_deathPuddleMaterial")!.objectReferenceValue = deathPuddleMaterial;
             serializedBloodController.ApplyModifiedPropertiesWithoutUndo();
         }
 

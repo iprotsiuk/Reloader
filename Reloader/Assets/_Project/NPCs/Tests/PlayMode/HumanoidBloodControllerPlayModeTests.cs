@@ -275,7 +275,7 @@ namespace Reloader.NPCs.Tests.PlayMode
 
                 var instantiatedMarker = FindInstantiatedMarker(prefabMarker, torsoZone.transform.position);
                 Assert.That(instantiatedMarker, Is.Not.Null, "Expected HumanoidBloodController to instantiate the configured blood prefab.");
-                Assert.That(instantiatedMarker!.transform.parent, Is.EqualTo(torsoZone.transform),
+                Assert.That(instantiatedMarker!.transform.parent == torsoZone.transform, Is.True,
                     "Expected impact blood to stay attached to the struck hit object so it follows the body during ragdoll motion.");
 
                 torsoZone.transform.position += new Vector3(0.25f, -0.5f, 0.4f);
@@ -301,6 +301,216 @@ namespace Reloader.NPCs.Tests.PlayMode
                 if (torsoZone != null)
                 {
                     UnityEngine.Object.DestroyImmediate(torsoZone);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(npcRoot);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ImpactResolution_WithRootHitObject_AttachesEffectToResolvedZoneBone()
+        {
+            var projectileImpactPayloadType = ResolveType("Reloader.Weapons.Ballistics.ProjectileImpactPayload", "Reloader.Weapons");
+            Assert.That(projectileImpactPayloadType, Is.Not.Null, "Expected ProjectileImpactPayload to exist.");
+
+            GameObject npcRoot = null;
+            GameObject bodyRoot = null;
+            GameObject pelvisBone = null;
+            GameObject torsoBone = null;
+            GameObject markerPrefab = null;
+            BloodVfxCatalog catalog = null;
+            try
+            {
+                npcRoot = new GameObject("NpcRoot");
+                var hitboxRig = npcRoot.AddComponent<HumanoidHitboxRig>();
+                var receiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
+                var controller = npcRoot.AddComponent<HumanoidBloodController>();
+
+                bodyRoot = new GameObject("Body");
+                bodyRoot.transform.SetParent(npcRoot.transform, false);
+                bodyRoot.AddComponent<CapsuleCollider>();
+
+                pelvisBone = new GameObject("PelvisBone");
+                pelvisBone.transform.SetParent(npcRoot.transform, false);
+
+                torsoBone = new GameObject("TorsoBone");
+                torsoBone.transform.SetParent(pelvisBone.transform, false);
+                SetPrivateField(hitboxRig, "_pelvis", pelvisBone.transform);
+                SetPrivateField(hitboxRig, "_torso", torsoBone.transform);
+                hitboxRig.ResolveBones();
+
+                markerPrefab = new GameObject("BloodZoneAnchorMarkerTemplate");
+                var prefabMarker = markerPrefab.AddComponent<BloodPrefabMarker>();
+
+                catalog = ScriptableObject.CreateInstance<BloodVfxCatalog>();
+                ConfigureCatalogEntry(catalog, BloodEffectKind.TorsoImpact, markerPrefab);
+                SetPrivateField(controller, "_catalog", catalog);
+
+                yield return null;
+
+                InvokeApplyDamage(receiver, CreateImpactPayload(
+                    projectileImpactPayloadType!,
+                    itemId: "weapon-kar98k",
+                    point: bodyRoot.transform.position,
+                    normal: Vector3.up,
+                    damage: 1f,
+                    hitObject: bodyRoot,
+                    sourcePoint: bodyRoot.transform.position + (Vector3.back * 10f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 120f,
+                    projectileMassGrains: 175f,
+                    deliveredEnergyJoules: 100f));
+
+                Assert.That(hitboxRig.TryResolveBone(HumanoidBodyZone.Torso, out var resolvedTorsoBone), Is.True,
+                    "Expected HumanoidHitboxRig to resolve a torso bone for blood anchoring.");
+                Assert.That(resolvedTorsoBone == torsoBone.transform, Is.True,
+                    "Expected HumanoidHitboxRig to preserve the authored torso bone assignment for blood anchoring.");
+                Assert.That(receiver.HitboxRig, Is.Not.Null, "Expected HumanoidDamageReceiver to retain the authored HumanoidHitboxRig.");
+                var expectedAnchor = receiver.HitboxRig!.GetBoneOrNull(receiver.LastZone);
+                Assert.That(expectedAnchor, Is.Not.Null,
+                    "Expected root body collider hits to resolve to an authored humanoid zone bone for blood anchoring.");
+
+                var resolveAnchorMethod = typeof(HumanoidBloodController).GetMethod("ResolveImpactAnchorTransform", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveAnchorMethod, Is.Not.Null, "Expected HumanoidBloodController to define ResolveImpactAnchorTransform.");
+                var resolvedAnchor = resolveAnchorMethod!.Invoke(controller, Array.Empty<object>()) as Transform;
+                Assert.That(resolvedAnchor == expectedAnchor, Is.True,
+                    "Expected HumanoidBloodController to resolve the classified humanoid zone bone before spawning blood.");
+
+                yield return null;
+
+                var instantiatedMarker = FindInstantiatedMarker(prefabMarker, bodyRoot.transform.position);
+                Assert.That(instantiatedMarker, Is.Not.Null, "Expected HumanoidBloodController to instantiate the configured blood prefab.");
+                Assert.That(instantiatedMarker!.transform.parent == expectedAnchor, Is.True,
+                    "Expected impact blood to anchor to the resolved humanoid zone bone when the projectile hit the live root body collider.");
+            }
+            finally
+            {
+                CleanupInstantiatedMarkers();
+
+                if (markerPrefab != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(markerPrefab);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+
+                if (torsoBone != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(torsoBone);
+                }
+
+                if (pelvisBone != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(pelvisBone);
+                }
+
+                if (bodyRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(bodyRoot);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(npcRoot);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator LethalImpact_WithoutDeathPuddlePrefab_SpawnsMaterialBackedPuddle()
+        {
+            var projectileImpactPayloadType = ResolveType("Reloader.Weapons.Ballistics.ProjectileImpactPayload", "Reloader.Weapons");
+            Assert.That(projectileImpactPayloadType, Is.Not.Null, "Expected ProjectileImpactPayload to exist.");
+
+            GameObject npcRoot = null;
+            GameObject headZone = null;
+            GameObject ground = null;
+            BloodVfxCatalog catalog = null;
+            Material puddleMaterial = null;
+            try
+            {
+                npcRoot = new GameObject("NpcRoot");
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                var receiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
+                var controller = npcRoot.AddComponent<HumanoidBloodController>();
+
+                headZone = new GameObject("HeadZone");
+                headZone.transform.SetParent(npcRoot.transform, false);
+                headZone.transform.localPosition = Vector3.up;
+                headZone.AddComponent<SphereCollider>();
+                headZone.AddComponent<BodyZoneHitbox>().Configure(HumanoidBodyZone.Head);
+
+                ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
+                ground.name = "Ground";
+                ground.transform.position = Vector3.zero;
+
+                catalog = ScriptableObject.CreateInstance<BloodVfxCatalog>();
+                ConfigureCatalogEntry(catalog, BloodEffectKind.HeadImpact, headZone);
+                SetPrivateField(controller, "_catalog", catalog);
+
+                var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+                Assert.That(shader, Is.Not.Null, "Expected a test shader to create a temporary puddle material.");
+                puddleMaterial = new Material(shader) { color = Color.red };
+                SetPrivateField(controller, "_deathPuddleMaterial", puddleMaterial);
+
+                yield return null;
+
+                InvokeApplyDamage(receiver, CreateImpactPayload(
+                    projectileImpactPayloadType!,
+                    itemId: "weapon-kar98k",
+                    point: headZone.transform.position,
+                    normal: Vector3.up,
+                    damage: 1f,
+                    hitObject: headZone,
+                    sourcePoint: headZone.transform.position + (Vector3.back * 25f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 240f,
+                    projectileMassGrains: 175f,
+                    deliveredEnergyJoules: 900f));
+
+                yield return null;
+
+                var puddle = GameObject.Find("BloodPuddle");
+                Assert.That(puddle, Is.Not.Null, "Expected lethal hit without a death puddle prefab to create a material-backed puddle fallback.");
+                var renderer = puddle!.GetComponent<MeshRenderer>();
+                Assert.That(renderer, Is.Not.Null, "Expected blood puddle fallback to include a renderer.");
+                Assert.That(renderer!.sharedMaterial, Is.EqualTo(puddleMaterial),
+                    "Expected blood puddle fallback to use the configured death puddle material.");
+                Assert.That(puddle.transform.position.y, Is.EqualTo(0.02f).Within(0.05f),
+                    "Expected blood puddle fallback to project onto the ground surface instead of staying at the standing NPC root height.");
+            }
+            finally
+            {
+                var puddle = GameObject.Find("BloodPuddle");
+                if (puddle != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(puddle);
+                }
+
+                if (puddleMaterial != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(puddleMaterial);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+
+                if (headZone != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(headZone);
+                }
+
+                if (ground != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(ground);
                 }
 
                 if (npcRoot != null)
