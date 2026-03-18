@@ -8,6 +8,9 @@ namespace Reloader.NPCs.Tests.EditMode
     public sealed class NpcFoundationPrefabEditModeTests
     {
         private const string NpcFoundationPrefabPath = "Assets/_Project/NPCs/Prefabs/NpcFoundation.prefab";
+        private const string BloodVfxCatalogPath = "Assets/_Project/NPCs/Content/Blood/BloodVfxCatalog_Default.asset";
+        private const string ExpectedDeathPuddlePrefabPath = "Assets/HIVEMIND/RealisticBloodVFX/URP/RealisticBlood/Decals/Prefabs/Mesh-Driven Decal/BloodDecalMesh_Quad.prefab";
+        private const string BloodImpactPrefabPath = "Assets/HIVEMIND/RealisticBloodVFX/URP/RealisticBlood/Particle Systems/PS_Blood.prefab";
         private const string ExpectedDeathPuddleMaterialPath = "Assets/_Project/NPCs/Content/Blood/Materials/M_BloodPuddle_URP_Unlit.mat";
 
         [Test]
@@ -100,6 +103,75 @@ namespace Reloader.NPCs.Tests.EditMode
                     "Expected HumanoidBloodController to target the authored local URP death puddle material fallback.");
                 Assert.That(AssetDatabase.GetAssetPath(deathPuddleMaterial.objectReferenceValue), Is.EqualTo(ExpectedDeathPuddleMaterialPath),
                     "Expected NpcFoundation blood controller to point at the local URP-safe death puddle material.");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(prefabRoot);
+            }
+        }
+
+        [Test]
+        public void DefaultBloodCatalog_DeathPuddleEntry_ReferencesVendorPuddlePrefab()
+        {
+            var catalog = AssetDatabase.LoadAssetAtPath<BloodVfxCatalog>(BloodVfxCatalogPath);
+            Assert.That(catalog, Is.Not.Null, "Expected the default blood VFX catalog asset to exist.");
+
+            var serializedCatalog = new SerializedObject(catalog);
+            var entries = serializedCatalog.FindProperty("_effectEntries");
+            Assert.That(entries, Is.Not.Null, "Expected BloodVfxCatalog to serialize effect entries.");
+
+            Object puddlePrefab = null;
+            for (var i = 0; i < entries!.arraySize; i++)
+            {
+                var entry = entries.GetArrayElementAtIndex(i);
+                if (entry.FindPropertyRelative("Kind")!.enumValueIndex != (int)BloodEffectKind.DeathPuddle)
+                {
+                    continue;
+                }
+
+                puddlePrefab = entry.FindPropertyRelative("Prefab")!.objectReferenceValue;
+                break;
+            }
+
+            Assert.That(puddlePrefab, Is.Not.Null,
+                "Expected the default blood catalog to author a vendor puddle prefab instead of relying on the square runtime fallback.");
+            Assert.That(AssetDatabase.GetAssetPath(puddlePrefab), Is.EqualTo(ExpectedDeathPuddlePrefabPath),
+                "Expected the default blood catalog death puddle entry to point at the vendor puddle prefab path.");
+        }
+
+        [Test]
+        public void DeathPuddleMaterial_UsesMaskedBaseMapTexture()
+        {
+            var material = AssetDatabase.LoadAssetAtPath<Material>(ExpectedDeathPuddleMaterialPath);
+            Assert.That(material, Is.Not.Null, "Expected local death puddle material to exist.");
+            Assert.That(material!.HasProperty("_BaseMap"), Is.True, "Expected the puddle material shader to expose _BaseMap.");
+            Assert.That(material.GetTexture("_BaseMap"), Is.Not.Null,
+                "Expected the puddle material to use an authored mask texture so puddles are not square.");
+        }
+
+        [Test]
+        public void BloodImpactPrefab_UsesExtendedParticleLifetime()
+        {
+            var prefabRoot = PrefabUtility.LoadPrefabContents(BloodImpactPrefabPath);
+            try
+            {
+                Assert.That(prefabRoot, Is.Not.Null, "Expected PS_Blood prefab to load.");
+
+                var particleSystems = prefabRoot.GetComponentsInChildren<ParticleSystem>(true);
+                Assert.That(particleSystems.Length, Is.GreaterThanOrEqualTo(1),
+                    "Expected PS_Blood prefab to contain particle systems.");
+
+                var longestLifetimeSeconds = 0f;
+                for (var i = 0; i < particleSystems.Length; i++)
+                {
+                    var main = particleSystems[i].main;
+                    longestLifetimeSeconds = Mathf.Max(
+                        longestLifetimeSeconds,
+                        Mathf.Max(main.startLifetime.constantMin, main.startLifetime.constantMax));
+                }
+
+                Assert.That(longestLifetimeSeconds, Is.GreaterThanOrEqualTo(5f),
+                    "Expected PS_Blood particle lifetimes to be authored much longer than the short default burst.");
             }
             finally
             {

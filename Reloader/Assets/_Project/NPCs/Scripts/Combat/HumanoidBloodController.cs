@@ -10,7 +10,7 @@ namespace Reloader.NPCs.Combat
         private const float MinimumTransientEffectLifetimeSeconds = 0.5f;
         private const float TransientEffectLifetimePaddingSeconds = 0.6f;
         private const float DefaultDeathPuddleLifetimeSeconds = 45f;
-        private const float DefaultDeathPuddleScale = 0.35f;
+        private const float DefaultDeathPuddleScale = 0.8f;
         private const float DeathPuddleSurfaceProbeHeight = 1.5f;
         private const float DeathPuddleSurfaceProbeDistance = 4f;
         private static readonly Vector3 WarmupSpawnPosition = new Vector3(0f, -1000f, 0f);
@@ -105,13 +105,22 @@ namespace Reloader.NPCs.Combat
             _requestedEffectPositions.Add(position);
             GameObject prefab = null;
             var hasPrefab = _catalog != null && _catalog.TryGetPrefab(effectKind, out prefab) && prefab != null;
-            if (!hasPrefab)
+            if (effectKind == BloodEffectKind.DeathPuddle)
             {
-                if (effectKind == BloodEffectKind.DeathPuddle)
+                if (hasPrefab)
                 {
-                    SpawnDeathPuddle(position);
+                    SpawnDeathPuddlePrefab(prefab, position);
+                }
+                else
+                {
+                    SpawnDeathPuddleFallback(position);
                 }
 
+                return;
+            }
+
+            if (!hasPrefab)
+            {
                 return;
             }
 
@@ -126,11 +135,6 @@ namespace Reloader.NPCs.Combat
             {
                 PrepareTransientEffect(instance);
                 return;
-            }
-
-            if (effectKind == BloodEffectKind.DeathPuddle)
-            {
-                Destroy(instance, DefaultDeathPuddleLifetimeSeconds);
             }
         }
 
@@ -228,7 +232,7 @@ namespace Reloader.NPCs.Combat
 
             s_effectAssetsWarmed = true;
             WarmImpactPrefabs();
-            WarmDeathPuddleMaterial();
+            WarmDeathPuddleAsset();
         }
 
         private void WarmImpactPrefabs()
@@ -289,8 +293,18 @@ namespace Reloader.NPCs.Combat
             }
         }
 
-        private void WarmDeathPuddleMaterial()
+        private void WarmDeathPuddleAsset()
         {
+            if (_catalog != null && _catalog.TryGetPrefab(BloodEffectKind.DeathPuddle, out var prefab) && prefab != null)
+            {
+                var puddleInstance = Instantiate(prefab, WarmupSpawnPosition, Quaternion.identity);
+                puddleInstance.hideFlags = HideFlags.HideAndDontSave;
+                puddleInstance.SetActive(false);
+                ApplyDeathPuddlePresentation(puddleInstance, prefab);
+                Destroy(puddleInstance);
+                return;
+            }
+
             if (_deathPuddleMaterial == null)
             {
                 return;
@@ -349,7 +363,22 @@ namespace Reloader.NPCs.Combat
             return hitObject.transform;
         }
 
-        private void SpawnDeathPuddle(Vector3 position)
+        private void SpawnDeathPuddlePrefab(GameObject prefab, Vector3 origin)
+        {
+            if (prefab == null)
+            {
+                SpawnDeathPuddleFallback(origin);
+                return;
+            }
+
+            ResolveDeathPuddlePose(origin, out var puddlePosition, out var puddleRotation);
+            var puddle = Instantiate(prefab, puddlePosition, puddleRotation);
+            puddle.name = "BloodPuddle";
+            ApplyDeathPuddlePresentation(puddle, prefab);
+            Destroy(puddle, DefaultDeathPuddleLifetimeSeconds);
+        }
+
+        private void SpawnDeathPuddleFallback(Vector3 position)
         {
             if (_deathPuddleMaterial == null)
             {
@@ -377,6 +406,75 @@ namespace Reloader.NPCs.Combat
             }
 
             Destroy(puddle, DefaultDeathPuddleLifetimeSeconds);
+        }
+
+        private void ApplyDeathPuddlePresentation(GameObject puddle, GameObject sourcePrefab = null)
+        {
+            if (puddle == null)
+            {
+                return;
+            }
+
+            puddle.transform.localScale = Vector3.one * DefaultDeathPuddleScale;
+            var renderers = puddle.GetComponentsInChildren<Renderer>(true);
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                var renderer = renderers[i];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+                if (_deathPuddleMaterial == null)
+                {
+                    continue;
+                }
+
+                var materials = renderer.sharedMaterials;
+                if (materials == null || materials.Length == 0)
+                {
+                    renderer.sharedMaterial = _deathPuddleMaterial;
+                    continue;
+                }
+
+                for (var materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                {
+                    materials[materialIndex] = _deathPuddleMaterial;
+                }
+
+                renderer.sharedMaterials = materials;
+            }
+
+            Mesh sourceMesh = null;
+            if (sourcePrefab != null && sourcePrefab.TryGetComponent<MeshFilter>(out var sourceMeshFilter) && sourceMeshFilter != null)
+            {
+                sourceMesh = sourceMeshFilter.sharedMesh;
+            }
+
+            puddle.TryGetComponent<MeshFilter>(out var puddleMeshFilter);
+            if (sourceMesh != null && puddleMeshFilter != null)
+            {
+                puddleMeshFilter.sharedMesh = sourceMesh;
+            }
+
+            Component conformer = null;
+            var components = puddle.GetComponents<Component>();
+            for (var componentIndex = 0; componentIndex < components.Length; componentIndex++)
+            {
+                var component = components[componentIndex];
+                if (component != null && string.Equals(component.GetType().Name, "DecalConformReverse", StringComparison.Ordinal))
+                {
+                    conformer = component;
+                    break;
+                }
+            }
+
+            if (conformer != null)
+            {
+                conformer.GetType().GetMethod("Conform")?.Invoke(conformer, null);
+            }
         }
 
         private void ResolveDeathPuddlePose(Vector3 origin, out Vector3 position, out Quaternion rotation)

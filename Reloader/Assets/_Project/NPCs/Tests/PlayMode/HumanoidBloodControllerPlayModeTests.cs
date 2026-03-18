@@ -534,6 +534,105 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator LethalImpact_WithCatalogDeathPuddlePrefab_ProjectsPrefabOntoGround()
+        {
+            var projectileImpactPayloadType = ResolveType("Reloader.Weapons.Ballistics.ProjectileImpactPayload", "Reloader.Weapons");
+            Assert.That(projectileImpactPayloadType, Is.Not.Null, "Expected ProjectileImpactPayload to exist.");
+
+            GameObject npcRoot = null;
+            GameObject headZone = null;
+            GameObject ground = null;
+            GameObject impactPrefab = null;
+            GameObject deathPuddlePrefab = null;
+            BloodVfxCatalog catalog = null;
+            try
+            {
+                npcRoot = new GameObject("NpcRoot");
+                npcRoot.transform.position = Vector3.up;
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                var receiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
+                var controller = npcRoot.AddComponent<HumanoidBloodController>();
+
+                headZone = new GameObject("HeadZone");
+                headZone.transform.SetParent(npcRoot.transform, false);
+                headZone.transform.localPosition = Vector3.up;
+                headZone.AddComponent<SphereCollider>();
+                headZone.AddComponent<BodyZoneHitbox>().Configure(HumanoidBodyZone.Head);
+
+                ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
+                ground.name = "Ground";
+                ground.transform.position = Vector3.zero;
+
+                impactPrefab = new GameObject("ImpactMarkerTemplate");
+                impactPrefab.AddComponent<BloodPrefabMarker>();
+                deathPuddlePrefab = new GameObject("DeathPuddleMarkerTemplate");
+                var puddleMarker = deathPuddlePrefab.AddComponent<BloodPrefabMarker>();
+
+                catalog = ScriptableObject.CreateInstance<BloodVfxCatalog>();
+                ConfigureCatalogEntries(
+                    catalog,
+                    (BloodEffectKind.HeadImpact, impactPrefab),
+                    (BloodEffectKind.DeathPuddle, deathPuddlePrefab));
+                SetPrivateField(controller, "_catalog", catalog);
+
+                yield return null;
+
+                InvokeApplyDamage(receiver, CreateImpactPayload(
+                    projectileImpactPayloadType!,
+                    itemId: "weapon-kar98k",
+                    point: headZone.transform.position,
+                    normal: Vector3.up,
+                    damage: 1f,
+                    hitObject: headZone,
+                    sourcePoint: headZone.transform.position + (Vector3.back * 25f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 240f,
+                    projectileMassGrains: 175f,
+                    deliveredEnergyJoules: 900f));
+
+                yield return null;
+
+                var instantiatedPuddle = FindInstantiatedMarker(puddleMarker, new Vector3(0f, 0.02f, 0f), tolerance: 0.08f);
+                Assert.That(instantiatedPuddle, Is.Not.Null,
+                    "Expected lethal impact with an authored death puddle prefab to project that prefab onto the ground.");
+            }
+            finally
+            {
+                CleanupInstantiatedMarkers();
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+
+                if (impactPrefab != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(impactPrefab);
+                }
+
+                if (deathPuddlePrefab != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(deathPuddlePrefab);
+                }
+
+                if (headZone != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(headZone);
+                }
+
+                if (ground != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(ground);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(npcRoot);
+                }
+            }
+        }
+
         private static IReadOnlyList<string> ReadRequestedEffectNames(Component controller)
         {
             var requestsProperty = controller.GetType().GetProperty("RequestedEffects", BindingFlags.Instance | BindingFlags.Public);
@@ -640,27 +739,35 @@ namespace Reloader.NPCs.Tests.PlayMode
 
         private static void ConfigureCatalogEntry(BloodVfxCatalog catalog, BloodEffectKind effectKind, GameObject prefab)
         {
+            ConfigureCatalogEntries(catalog, (effectKind, prefab));
+        }
+
+        private static void ConfigureCatalogEntries(BloodVfxCatalog catalog, params (BloodEffectKind Kind, GameObject Prefab)[] configuredEntries)
+        {
             Assert.That(catalog, Is.Not.Null);
+            Assert.That(configuredEntries, Is.Not.Null);
 
             var entryType = typeof(BloodVfxCatalog).GetNestedType("BloodEffectEntry", BindingFlags.NonPublic);
             Assert.That(entryType, Is.Not.Null, "Expected BloodVfxCatalog to declare a private BloodEffectEntry type.");
-
-            var entries = Array.CreateInstance(entryType!, 1);
-            var entry = Activator.CreateInstance(entryType!);
 
             var kindField = entryType!.GetField("Kind", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             var prefabField = entryType.GetField("Prefab", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             Assert.That(kindField, Is.Not.Null, "Expected BloodEffectEntry.Kind field.");
             Assert.That(prefabField, Is.Not.Null, "Expected BloodEffectEntry.Prefab field.");
 
-            kindField!.SetValue(entry, effectKind);
-            prefabField!.SetValue(entry, prefab);
-            entries.SetValue(entry, 0);
+            var entries = Array.CreateInstance(entryType!, configuredEntries.Length);
+            for (var i = 0; i < configuredEntries.Length; i++)
+            {
+                var entry = Activator.CreateInstance(entryType!);
+                kindField!.SetValue(entry, configuredEntries[i].Kind);
+                prefabField!.SetValue(entry, configuredEntries[i].Prefab);
+                entries.SetValue(entry, i);
+            }
 
             SetPrivateField(catalog, "_effectEntries", entries);
         }
 
-        private static BloodPrefabMarker FindInstantiatedMarker(BloodPrefabMarker prefabMarker, Vector3 expectedPosition)
+        private static BloodPrefabMarker FindInstantiatedMarker(BloodPrefabMarker prefabMarker, Vector3 expectedPosition, float tolerance = 0.0001f)
         {
             var markers = UnityEngine.Object.FindObjectsByType<BloodPrefabMarker>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             for (var i = 0; i < markers.Length; i++)
@@ -671,7 +778,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                     continue;
                 }
 
-                if ((marker.transform.position - expectedPosition).sqrMagnitude <= 0.0001f)
+                if ((marker.transform.position - expectedPosition).sqrMagnitude <= (tolerance * tolerance))
                 {
                     return marker;
                 }
