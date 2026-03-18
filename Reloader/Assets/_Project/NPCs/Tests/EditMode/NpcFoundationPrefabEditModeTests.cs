@@ -178,5 +178,25 @@ namespace Reloader.NPCs.Tests.EditMode
                 PrefabUtility.UnloadPrefabContents(prefabRoot);
             }
         }
+
+        [Test]
+        public void DeathPuddlePrefab_MeshIsReadableForVendorConformPass()
+        {
+            var prefabRoot = PrefabUtility.LoadPrefabContents(ExpectedDeathPuddlePrefabPath);
+            try
+            {
+                Assert.That(prefabRoot, Is.Not.Null, "Expected the vendor death puddle prefab to load.");
+
+                var meshFilter = prefabRoot.GetComponent<MeshFilter>();
+                Assert.That(meshFilter, Is.Not.Null, "Expected the vendor death puddle prefab to include a MeshFilter.");
+                Assert.That(meshFilter!.sharedMesh, Is.Not.Null, "Expected the vendor death puddle prefab to reference a mesh.");
+                Assert.That(meshFilter.sharedMesh.isReadable, Is.True,
+                    "Expected the vendor death puddle mesh to be readable so its conform script can reshape it at runtime.");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(prefabRoot);
+            }
+        }
     }
 }
