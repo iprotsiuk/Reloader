@@ -126,8 +126,8 @@ namespace Reloader.NPCs.Tests.PlayMode
                 var requestedPositions = ReadRequestedEffectPositions(controller);
                 Assert.That(requestedPositions.Count, Is.EqualTo(requestedEffects.Count),
                     "Expected blood controller to record a position for each semantic request.");
-                Assert.That(requestedPositions[requestedPositions.Count - 1], Is.EqualTo(npcRoot.transform.position).Using(Vector3EqualityComparer.Instance),
-                    "Expected death puddle request to use the NPC root position rather than the impact point.");
+                Assert.That(requestedPositions[requestedPositions.Count - 1], Is.EqualTo(headZone.transform.position).Using(Vector3EqualityComparer.Instance),
+                    "Expected death puddle request to use the lethal impact point so puddles land near the blood fountain, not the NPC root.");
             }
             finally
             {
@@ -549,14 +549,14 @@ namespace Reloader.NPCs.Tests.PlayMode
             try
             {
                 npcRoot = new GameObject("NpcRoot");
-                npcRoot.transform.position = Vector3.up;
+                npcRoot.transform.position = new Vector3(2f, 1f, -1f);
                 npcRoot.AddComponent<HumanoidHitboxRig>();
                 var receiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
                 var controller = npcRoot.AddComponent<HumanoidBloodController>();
 
                 headZone = new GameObject("HeadZone");
                 headZone.transform.SetParent(npcRoot.transform, false);
-                headZone.transform.localPosition = Vector3.up;
+                headZone.transform.localPosition = new Vector3(0.75f, 1f, 0.35f);
                 headZone.AddComponent<SphereCollider>();
                 headZone.AddComponent<BodyZoneHitbox>().Configure(HumanoidBodyZone.Head);
 
@@ -593,9 +593,10 @@ namespace Reloader.NPCs.Tests.PlayMode
 
                 yield return null;
 
-                var instantiatedPuddle = FindInstantiatedMarker(puddleMarker, new Vector3(0f, 0.02f, 0f), tolerance: 0.08f);
+                var expectedGroundPuddlePosition = new Vector3(headZone.transform.position.x, 0.02f, headZone.transform.position.z);
+                var instantiatedPuddle = FindInstantiatedMarker(puddleMarker, expectedGroundPuddlePosition, tolerance: 0.08f);
                 Assert.That(instantiatedPuddle, Is.Not.Null,
-                    "Expected lethal impact with an authored death puddle prefab to project that prefab onto the ground.");
+                    "Expected lethal impact with an authored death puddle prefab to project that prefab onto the ground near the lethal impact point.");
             }
             finally
             {

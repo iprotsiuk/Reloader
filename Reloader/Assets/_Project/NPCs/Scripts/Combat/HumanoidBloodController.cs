@@ -68,7 +68,10 @@ namespace Reloader.NPCs.Combat
 
         private void HandleDied()
         {
-            RequestEffect(BloodEffectKind.DeathPuddle, transform.position, Vector3.up, true, null);
+            var deathPuddleOrigin = (_damageReceiver != null && _damageReceiver.HasLastResult)
+                ? _damageReceiver.LastPayload.Point
+                : transform.position;
+            RequestEffect(BloodEffectKind.DeathPuddle, deathPuddleOrigin, Vector3.up, true, null);
         }
 
         private void ResolveReceiver()
