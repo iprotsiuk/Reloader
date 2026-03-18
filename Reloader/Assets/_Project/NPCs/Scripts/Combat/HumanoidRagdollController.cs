@@ -9,7 +9,6 @@ namespace Reloader.NPCs.Combat
     public sealed class HumanoidRagdollController : MonoBehaviour
     {
         private const string RootRagdollBodyName = "RootRagdollBody";
-        private const float TestImpulseMultiplier = 100f;
 
         [SerializeField] private HumanoidDamageReceiver _damageReceiver;
         [SerializeField] private Animator _animator;
@@ -18,6 +17,7 @@ namespace Reloader.NPCs.Combat
         [SerializeField] private Collider[] _ragdollColliders = System.Array.Empty<Collider>();
         [SerializeField] private Collider[] _collidersToDisableOnDeath = System.Array.Empty<Collider>();
         [SerializeField] private Rigidbody _torsoFallbackBody;
+        [SerializeField] private float _impactImpulseMultiplier = 100f;
         [SerializeField] private ForceMode _impulseForceMode = ForceMode.Impulse;
 
         private readonly List<Behaviour> _resolvedDisableBehaviours = new List<Behaviour>();
@@ -289,7 +289,7 @@ namespace Reloader.NPCs.Combat
             }
 
             var direction = payload.Direction.sqrMagnitude > 0.0001f ? payload.Direction.normalized : transform.forward;
-            var impulseMagnitude = Mathf.Max(0.2f, result.RecommendedRagdollImpulseScalar) * TestImpulseMultiplier;
+            var impulseMagnitude = Mathf.Max(0.2f, result.RecommendedRagdollImpulseScalar) * Mathf.Max(0f, _impactImpulseMultiplier);
             targetBody.AddForceAtPosition(direction * impulseMagnitude, payload.Point, _impulseForceMode);
         }
 
