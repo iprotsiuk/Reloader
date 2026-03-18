@@ -387,6 +387,40 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
+        [Test]
+        public void MainTownScene_DoesNotUseNegativeScaleBoxColliders()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                foreach (var root in scene.GetRootGameObjects())
+                {
+                    foreach (var collider in root.GetComponentsInChildren<BoxCollider>(true))
+                    {
+                        if (collider == null)
+                        {
+                            continue;
+                        }
+
+                        var lossyScale = collider.transform.lossyScale;
+                        Assert.That(lossyScale.x, Is.GreaterThanOrEqualTo(0f), $"Expected non-negative X scale for BoxCollider at '{GetHierarchyPath(collider.transform)}'.");
+                        Assert.That(lossyScale.y, Is.GreaterThanOrEqualTo(0f), $"Expected non-negative Y scale for BoxCollider at '{GetHierarchyPath(collider.transform)}'.");
+                        Assert.That(lossyScale.z, Is.GreaterThanOrEqualTo(0f), $"Expected non-negative Z scale for BoxCollider at '{GetHierarchyPath(collider.transform)}'.");
+                    }
+                }
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
         private static void AssertScaleYBetween(Transform parent, string childName, float min, float max)
         {
             var child = FindChild(parent, childName);
@@ -680,6 +714,24 @@ namespace Reloader.World.Tests.EditMode
             }
 
             return max - min;
+        }
+
+        private static string GetHierarchyPath(Transform transform)
+        {
+            if (transform == null)
+            {
+                return string.Empty;
+            }
+
+            var path = transform.name;
+            var current = transform.parent;
+            while (current != null)
+            {
+                path = $"{current.name}/{path}";
+                current = current.parent;
+            }
+
+            return path;
         }
     }
 }

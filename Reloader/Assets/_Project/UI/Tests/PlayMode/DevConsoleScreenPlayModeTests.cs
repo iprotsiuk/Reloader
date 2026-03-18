@@ -236,6 +236,24 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator CommandTextShortens_ClampsSelectionToValidRange()
+        {
+            var binder = BuildBinder();
+            var commandField = binder.Root.Q<TextField>("dev-console__command");
+            Assert.That(commandField, Is.Not.Null);
+
+            binder.SetCommandText("spawn npc randomContract");
+            SetTextFieldSelection(commandField!, 24, 24);
+            binder.SetCommandText("spawn");
+
+            yield return null;
+
+            var maxIndex = "spawn".Length;
+            Assert.That(GetTextFieldIntProperty(commandField!, "cursorIndex"), Is.InRange(0, maxIndex));
+            Assert.That(GetTextFieldIntProperty(commandField, "selectIndex"), Is.InRange(0, maxIndex));
+        }
+
+        [UnityTest]
         public IEnumerator OpenConsole_RendersReadableDarkTextAcrossConsoleSurface()
         {
             var runtimeEvents = new DefaultRuntimeEvents();
@@ -469,6 +487,21 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(property, Is.Not.Null, $"Expected TextField to expose '{propertyName}'.");
             Assert.That(property!.GetValue(field), Is.TypeOf<int>(), $"Expected '{propertyName}' to be an int.");
             return (int)property.GetValue(field);
+        }
+
+        private static void SetTextFieldSelection(TextField field, int cursorIndex, int selectIndex)
+        {
+            SetTextFieldIntProperty(field, "cursorIndex", cursorIndex);
+            SetTextFieldIntProperty(field, "selectIndex", selectIndex);
+        }
+
+        private static void SetTextFieldIntProperty(TextField field, string propertyName, int value)
+        {
+            var property = typeof(TextField).GetProperty(
+                propertyName,
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(property, Is.Not.Null, $"Expected TextField to expose '{propertyName}'.");
+            property!.SetValue(field, value);
         }
 
         private sealed class TestInputSource : IPlayerInputSource

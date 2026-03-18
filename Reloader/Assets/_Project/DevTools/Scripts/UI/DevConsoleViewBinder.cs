@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -7,6 +8,12 @@ namespace Reloader.UI.Toolkit.DevConsole
 {
     public sealed class DevConsoleViewBinder : IUiViewBinder
     {
+        private static readonly PropertyInfo CommandFieldCursorIndexProperty = typeof(TextField).GetProperty(
+            "cursorIndex",
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        private static readonly PropertyInfo CommandFieldSelectIndexProperty = typeof(TextField).GetProperty(
+            "selectIndex",
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         private static readonly StyleColor ConsoleTextColor = new(Color.black);
         private static readonly StyleColor ConsolePanelBackgroundColor = new(new Color(0.94f, 0.96f, 0.97f, 0.97f));
 
@@ -41,7 +48,7 @@ namespace Reloader.UI.Toolkit.DevConsole
 
         public void SetCommandText(string text)
         {
-            _commandField?.SetValueWithoutNotify(text ?? string.Empty);
+            SetCommandFieldValue(text ?? string.Empty);
         }
 
         public void Render(UiRenderState state)
@@ -60,7 +67,7 @@ namespace Reloader.UI.Toolkit.DevConsole
 
             if (_commandField != null)
             {
-                _commandField.SetValueWithoutNotify(consoleState.InputText);
+                SetCommandFieldValue(consoleState.InputText);
             }
 
             if (_statusLabel != null)
@@ -157,10 +164,54 @@ namespace Reloader.UI.Toolkit.DevConsole
                 return;
             }
 
-            _commandField?.SetValueWithoutNotify(string.Empty);
+            SetCommandFieldValue(string.Empty);
             keyDownEvent.StopPropagation();
             keyDownEvent.StopImmediatePropagation();
             keyDownEvent.PreventDefault();
+        }
+
+        private void SetCommandFieldValue(string text)
+        {
+            if (_commandField == null)
+            {
+                return;
+            }
+
+            _commandField.SetValueWithoutNotify(text);
+            ClampCommandFieldSelection(text.Length);
+        }
+
+        private void ClampCommandFieldSelection(int textLength)
+        {
+            if (_commandField == null)
+            {
+                return;
+            }
+
+            var clampedCursorIndex = Mathf.Clamp(GetTextFieldIntProperty(CommandFieldCursorIndexProperty, _commandField), 0, textLength);
+            var clampedSelectIndex = Mathf.Clamp(GetTextFieldIntProperty(CommandFieldSelectIndexProperty, _commandField), 0, textLength);
+            SetTextFieldIntProperty(CommandFieldCursorIndexProperty, _commandField, clampedCursorIndex);
+            SetTextFieldIntProperty(CommandFieldSelectIndexProperty, _commandField, clampedSelectIndex);
+        }
+
+        private static int GetTextFieldIntProperty(PropertyInfo property, TextField field)
+        {
+            if (property?.GetValue(field) is int value)
+            {
+                return value;
+            }
+
+            return 0;
+        }
+
+        private static void SetTextFieldIntProperty(PropertyInfo property, TextField field, int value)
+        {
+            if (property?.CanWrite != true || field == null)
+            {
+                return;
+            }
+
+            property.SetValue(field, value);
         }
     }
 }
