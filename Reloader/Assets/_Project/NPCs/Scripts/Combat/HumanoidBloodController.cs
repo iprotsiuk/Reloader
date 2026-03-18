@@ -54,12 +54,15 @@ namespace Reloader.NPCs.Combat
             }
 
             var effectKind = ResolveImpactEffectKind(_damageReceiver.LastZone);
-            RequestEffect(effectKind, _damageReceiver.LastPayload.Point, _damageReceiver.LastPayload.Normal, false);
+            var hitTransform = _damageReceiver.LastPayload.HitObject != null
+                ? _damageReceiver.LastPayload.HitObject.transform
+                : null;
+            RequestEffect(effectKind, _damageReceiver.LastPayload.Point, _damageReceiver.LastPayload.Normal, false, hitTransform);
         }
 
         private void HandleDied()
         {
-            RequestEffect(BloodEffectKind.DeathPuddle, transform.position, Vector3.up, true);
+            RequestEffect(BloodEffectKind.DeathPuddle, transform.position, Vector3.up, true, null);
         }
 
         private void ResolveReceiver()
@@ -90,7 +93,7 @@ namespace Reloader.NPCs.Combat
             _damageReceiver.Died -= HandleDied;
         }
 
-        private void RequestEffect(BloodEffectKind effectKind, Vector3 position, Vector3 normal, bool keepAlive)
+        private void RequestEffect(BloodEffectKind effectKind, Vector3 position, Vector3 normal, bool keepAlive, Transform attachTarget)
         {
             _requestedEffects.Add(effectKind);
             _requestedEffectPositions.Add(position);
@@ -101,6 +104,11 @@ namespace Reloader.NPCs.Combat
 
             var rotation = ResolveSpawnRotation(normal);
             var instance = Instantiate(prefab, position, rotation);
+            if (!keepAlive && attachTarget != null)
+            {
+                instance.transform.SetParent(attachTarget, true);
+            }
+
             if (!keepAlive)
             {
                 PrepareTransientEffect(instance);

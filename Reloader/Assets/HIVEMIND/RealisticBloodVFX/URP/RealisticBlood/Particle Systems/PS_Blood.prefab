@@ -11,8 +11,6 @@ GameObject:
   - component: {fileID: 9178909685439692630}
   - component: {fileID: 8569128361335723853}
   - component: {fileID: 244598089723273055}
-  - component: {fileID: 123699244877321930}
-  - component: {fileID: 7620269172734280496}
   m_Layer: 0
   m_Name: PS_Blood
   m_TagString: Untagged
@@ -4844,48 +4842,6 @@ ParticleSystemRenderer:
   m_MeshWeighting2: 1
   m_MeshWeighting3: 1
   m_MaskInteraction: 0
---- !u!114 &123699244877321930
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2857944170485836851}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 01cdb0d353d2c5549aa98ae526e7c46c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  decalPrefabs:
-  - {fileID: 7888467753953364592, guid: 59b8e242f03ba35499be4a31ee772040, type: 3}
-  vfxPrefab: {fileID: 2270809485204374958, guid: 296082db97046094b980c7331b50d628, type: 3}
-  isHDRP: 1
-  minScale: 0.5
-  maxScale: 1.5
-  minLifetime: 5
-  maxLifetime: 15
---- !u!114 &7620269172734280496
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2857944170485836851}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4449231cdb2ee8c41afcac5fbd19b86e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  bigDecalPrefab: {fileID: 60229524597006253, guid: 87b5c4be00d6ecd43acaab9dc32c7239, type: 3}
-  spawnOffset: 0.01
-  decalOffset: {x: 0, y: 0, z: 0}
-  gridSize: 1
-  timeThreshold: 2.5
-  respawnCooldown: 10
-  inactivityResetTime: 1.5
-  fadeInDuration: 0.5
-  visibleDuration: 6
-  fadeOutDuration: 1.5
 --- !u!1 &7657571475260862322
 GameObject:
   m_ObjectHideFlags: 0

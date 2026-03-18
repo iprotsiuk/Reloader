@@ -12,7 +12,6 @@ namespace Reloader.NPCs.Editor
         private const string BloodVfxFolderPath = BloodContentFolderPath + "/Blood";
         private const string BloodVfxCatalogPath = BloodVfxFolderPath + "/BloodVfxCatalog_Default.asset";
         private const string BloodImpactPrefabPath = "Assets/HIVEMIND/RealisticBloodVFX/URP/RealisticBlood/Particle Systems/PS_Blood.prefab";
-        private const string BloodDeathPuddlePrefabPath = "Assets/HIVEMIND/RealisticBloodVFX/URP/RealisticBlood/Decals/Prefabs/Mesh-Driven Decal/BloodDecalMesh_Quad.prefab";
 
         private static readonly BoneRecipe[] Recipes =
         {
@@ -212,8 +211,7 @@ namespace Reloader.NPCs.Editor
             }
 
             var impactPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BloodImpactPrefabPath);
-            var deathPuddlePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BloodDeathPuddlePrefabPath);
-            if (impactPrefab == null || deathPuddlePrefab == null)
+            if (impactPrefab == null)
             {
                 return catalog;
             }
@@ -231,7 +229,7 @@ namespace Reloader.NPCs.Editor
             SetBloodEffectEntry(entries.GetArrayElementAtIndex(2), BloodEffectKind.TorsoImpact, impactPrefab);
             SetBloodEffectEntry(entries.GetArrayElementAtIndex(3), BloodEffectKind.ArmImpact, impactPrefab);
             SetBloodEffectEntry(entries.GetArrayElementAtIndex(4), BloodEffectKind.LegImpact, impactPrefab);
-            SetBloodEffectEntry(entries.GetArrayElementAtIndex(5), BloodEffectKind.DeathPuddle, deathPuddlePrefab);
+            SetBloodEffectEntry(entries.GetArrayElementAtIndex(5), BloodEffectKind.DeathPuddle, null);
             serializedCatalog.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(catalog);
             return catalog;

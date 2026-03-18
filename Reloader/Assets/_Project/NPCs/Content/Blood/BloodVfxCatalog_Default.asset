@@ -24,4 +24,4 @@ MonoBehaviour:
   - Kind: 4
     Prefab: {fileID: 2857944170485836851, guid: 0d6f508ff48dbb84994040e0e004c21a, type: 3}
   - Kind: 5
-    Prefab: {fileID: 6258618725282993643, guid: 01788f78ef3a9d94fa62feaa73cd10dc, type: 3}
+    Prefab: {fileID: 0}

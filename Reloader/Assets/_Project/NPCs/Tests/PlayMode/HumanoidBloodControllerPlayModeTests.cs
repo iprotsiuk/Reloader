@@ -227,6 +227,89 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator ImpactResolution_WithCatalogPrefab_ParentsEffectToHitObjectForFollowMotion()
+        {
+            var projectileImpactPayloadType = ResolveType("Reloader.Weapons.Ballistics.ProjectileImpactPayload", "Reloader.Weapons");
+            Assert.That(projectileImpactPayloadType, Is.Not.Null, "Expected ProjectileImpactPayload to exist.");
+
+            GameObject npcRoot = null;
+            GameObject torsoZone = null;
+            GameObject markerPrefab = null;
+            BloodVfxCatalog catalog = null;
+            try
+            {
+                npcRoot = new GameObject("NpcRoot");
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                var receiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
+                npcRoot.AddComponent<HumanoidBloodController>();
+
+                torsoZone = new GameObject("TorsoZone");
+                torsoZone.transform.SetParent(npcRoot.transform, false);
+                torsoZone.AddComponent<BoxCollider>();
+                torsoZone.AddComponent<BodyZoneHitbox>().Configure(HumanoidBodyZone.Torso);
+
+                markerPrefab = new GameObject("BloodFollowMarkerTemplate");
+                var prefabMarker = markerPrefab.AddComponent<BloodPrefabMarker>();
+
+                catalog = ScriptableObject.CreateInstance<BloodVfxCatalog>();
+                ConfigureCatalogEntry(catalog, BloodEffectKind.TorsoImpact, markerPrefab);
+                SetPrivateField(npcRoot.GetComponent<HumanoidBloodController>(), "_catalog", catalog);
+
+                yield return null;
+
+                InvokeApplyDamage(receiver, CreateImpactPayload(
+                    projectileImpactPayloadType!,
+                    itemId: "weapon-kar98k",
+                    point: torsoZone.transform.position,
+                    normal: Vector3.up,
+                    damage: 1f,
+                    hitObject: torsoZone,
+                    sourcePoint: torsoZone.transform.position + (Vector3.back * 10f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 120f,
+                    projectileMassGrains: 175f,
+                    deliveredEnergyJoules: 100f));
+
+                yield return null;
+
+                var instantiatedMarker = FindInstantiatedMarker(prefabMarker, torsoZone.transform.position);
+                Assert.That(instantiatedMarker, Is.Not.Null, "Expected HumanoidBloodController to instantiate the configured blood prefab.");
+                Assert.That(instantiatedMarker!.transform.parent, Is.EqualTo(torsoZone.transform),
+                    "Expected impact blood to stay attached to the struck hit object so it follows the body during ragdoll motion.");
+
+                torsoZone.transform.position += new Vector3(0.25f, -0.5f, 0.4f);
+                yield return null;
+
+                Assert.That(instantiatedMarker.transform.position, Is.EqualTo(torsoZone.transform.position).Using(Vector3EqualityComparer.Instance),
+                    "Expected the spawned impact blood to move with the struck hit object after impact.");
+            }
+            finally
+            {
+                CleanupInstantiatedMarkers();
+
+                if (markerPrefab != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(markerPrefab);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+
+                if (torsoZone != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(torsoZone);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(npcRoot);
+                }
+            }
+        }
+
         private static IReadOnlyList<string> ReadRequestedEffectNames(Component controller)
         {
             var requestsProperty = controller.GetType().GetProperty("RequestedEffects", BindingFlags.Instance | BindingFlags.Public);
