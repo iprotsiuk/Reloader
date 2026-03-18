@@ -7,8 +7,10 @@ using UnityEngine;
 namespace Reloader.NPCs.Combat
 {
     [DisallowMultipleComponent]
-    public sealed class HumanoidCorpseLootController : MonoBehaviour
+    public sealed class HumanoidCorpseLootController : MonoBehaviour, IWorldStorageInteractionPresentationProvider
     {
+        private const string CorpseInteractionActionText = "Loot body";
+
         [SerializeField] private HumanoidDamageReceiver _damageReceiver;
         [SerializeField] private Behaviour[] _disableBehavioursOnDeath = Array.Empty<Behaviour>();
         [SerializeField] private int _corpseSlotCapacity = 12;
@@ -28,6 +30,9 @@ namespace Reloader.NPCs.Combat
                 return isActiveAndEnabled && _damageReceiver != null;
             }
         }
+
+        public string InteractionActionText => CorpseInteractionActionText;
+        public string InteractionSubjectText => BuildInteractionSubjectText();
 
         private void Reset()
         {
@@ -86,6 +91,15 @@ namespace Reloader.NPCs.Combat
                 for (var i = 0; i < _disableBehavioursOnDeath.Length; i++)
                 {
                     AddDisableBehaviour(_disableBehavioursOnDeath[i]);
+                }
+            }
+
+            var localBehaviours = GetComponents<MonoBehaviour>();
+            for (var i = 0; i < localBehaviours.Length; i++)
+            {
+                if (localBehaviours[i] is INpcCapability)
+                {
+                    AddDisableBehaviour(localBehaviours[i]);
                 }
             }
 
@@ -179,12 +193,6 @@ namespace Reloader.NPCs.Combat
                 return;
             }
 
-            if (Application.isPlaying)
-            {
-                Destroy(container);
-                return;
-            }
-
             DestroyImmediate(container);
         }
 
@@ -203,6 +211,12 @@ namespace Reloader.NPCs.Combat
             return string.IsNullOrWhiteSpace(sourceName)
                 ? "Corpse"
                 : string.Concat(_displayNamePrefix, sourceName);
+        }
+
+        private string BuildInteractionSubjectText()
+        {
+            var sourceName = ResolveDisplayName();
+            return string.IsNullOrWhiteSpace(sourceName) ? "Corpse" : sourceName;
         }
 
         private string ResolveSourceId()

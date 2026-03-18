@@ -8,6 +8,12 @@ using UnityEngine.InputSystem;
 
 namespace Reloader.Inventory
 {
+    public interface IWorldStorageInteractionPresentationProvider
+    {
+        string InteractionActionText { get; }
+        string InteractionSubjectText { get; }
+    }
+
     public sealed class PlayerStorageContainerController : MonoBehaviour, IPlayerInteractionCandidateProvider, IPlayerInteractionCoordinatorModeAware
     {
         private const string StorageHintContextId = "storage";
@@ -68,7 +74,7 @@ namespace Reloader.Inventory
                 }
                 else
                 {
-                    PublishInteractionHint(container.DisplayName);
+                    PublishInteractionHint(container);
                 }
             }
 
@@ -111,8 +117,8 @@ namespace Reloader.Inventory
             var stableTieBreaker = container.GetInstanceID().ToString();
             candidate = new PlayerInteractionCandidate(
                 StorageHintContextId,
-                StorageHintActionText,
-                container.DisplayName,
+                ResolveActionText(container),
+                ResolveSubjectText(container),
                 _interactionPriority,
                 stableTieBreaker,
                 PlayerInteractionActionKind.Pickup,
@@ -213,15 +219,53 @@ namespace Reloader.Inventory
             }
         }
 
-        private static void PublishInteractionHint(string subjectText)
+        private static void PublishInteractionHint(WorldStorageContainer container)
         {
             RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintShown(
-                new InteractionHintPayload(StorageHintContextId, StorageHintActionText, subjectText));
+                new InteractionHintPayload(StorageHintContextId, ResolveActionText(container), ResolveSubjectText(container)));
         }
 
         private static void ClearInteractionHint()
         {
             RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared(StorageHintContextId);
+        }
+
+        private static string ResolveActionText(WorldStorageContainer container)
+        {
+            var provider = ResolveInteractionPresentationProvider(container);
+            return provider != null && !string.IsNullOrWhiteSpace(provider.InteractionActionText)
+                ? provider.InteractionActionText.Trim()
+                : StorageHintActionText;
+        }
+
+        private static string ResolveSubjectText(WorldStorageContainer container)
+        {
+            var provider = ResolveInteractionPresentationProvider(container);
+            if (provider != null && !string.IsNullOrWhiteSpace(provider.InteractionSubjectText))
+            {
+                return provider.InteractionSubjectText.Trim();
+            }
+
+            return container != null ? container.DisplayName : string.Empty;
+        }
+
+        private static IWorldStorageInteractionPresentationProvider ResolveInteractionPresentationProvider(WorldStorageContainer container)
+        {
+            if (container == null)
+            {
+                return null;
+            }
+
+            var behaviours = container.GetComponents<MonoBehaviour>();
+            for (var i = 0; i < behaviours.Length; i++)
+            {
+                if (behaviours[i] is IWorldStorageInteractionPresentationProvider provider)
+                {
+                    return provider;
+                }
+            }
+
+            return null;
         }
     }
 }

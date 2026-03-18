@@ -67,6 +67,7 @@ namespace Reloader.NPCs.Editor
             CapabilityComponentBinding.Create(NpcCapabilityKind.EntryFeeInteraction, typeof(EntryFeeInteractionCapability))
         };
 
+
         [MenuItem("Reloader/NPCs/Rebuild Vendor Prefabs")]
         public static void RebuildAll()
         {
@@ -211,6 +212,7 @@ namespace Reloader.NPCs.Editor
             collider.radius = 0.35f;
 
             BuildStyleVisualRoot(root.transform);
+            NpcFoundationRagdollAuthoringUtility.ApplyAuthoredRagdoll(root);
             ApplySeededAppearance(root, rootName);
 
             return root;

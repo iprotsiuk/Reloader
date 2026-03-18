@@ -334,6 +334,74 @@ namespace Reloader.NPCs.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator LethalImpact_WithExplicitAliveColliderDisableList_DisablesAndRestoresRootCollider()
+        {
+            GameObject npcRoot = null;
+            GameObject torsoZone = null;
+            try
+            {
+                var projectileImpactPayloadType = ResolveType("Reloader.Weapons.Ballistics.ProjectileImpactPayload", "Reloader.Weapons");
+                Assert.That(projectileImpactPayloadType, Is.Not.Null, "Expected ProjectileImpactPayload to exist.");
+
+                npcRoot = new GameObject("NpcRoot");
+                var rootCollider = npcRoot.AddComponent<CapsuleCollider>();
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                var receiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
+                var controller = npcRoot.AddComponent<HumanoidRagdollController>();
+
+                torsoZone = new GameObject("TorsoZone");
+                torsoZone.transform.SetParent(npcRoot.transform, false);
+                var torsoCollider = torsoZone.AddComponent<CapsuleCollider>();
+                torsoCollider.enabled = false;
+                var torsoBody = torsoZone.AddComponent<Rigidbody>();
+                torsoBody.isKinematic = true;
+                torsoBody.useGravity = false;
+                torsoZone.AddComponent<BodyZoneHitbox>().Configure(HumanoidBodyZone.Torso);
+
+                SetPrivateField(controller, "_ragdollBodies", new[] { torsoBody });
+                SetPrivateField(controller, "_ragdollColliders", new Collider[] { torsoCollider });
+                SetPrivateField(controller, "_collidersToDisableOnDeath", new Collider[] { rootCollider });
+
+                yield return null;
+
+                InvokeApplyDamage(receiver, CreateImpactPayload(
+                    projectileImpactPayloadType!,
+                    itemId: "weapon-kar98k",
+                    point: torsoZone.transform.position,
+                    normal: Vector3.back,
+                    damage: 1f,
+                    hitObject: torsoZone,
+                    sourcePoint: torsoZone.transform.position + (Vector3.back * 25f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 240f,
+                    projectileMassGrains: 175f,
+                    deliveredEnergyJoules: 900f));
+
+                yield return new WaitForFixedUpdate();
+
+                Assert.That(rootCollider.enabled, Is.False,
+                    "Expected alive-state root collider to disable when authored ragdoll takeover begins.");
+
+                InvokeResetRuntime(controller);
+
+                Assert.That(rootCollider.enabled, Is.True,
+                    "Expected ResetRuntime to restore alive-state root collider after ragdoll cleanup.");
+            }
+            finally
+            {
+                if (torsoZone != null)
+                {
+                    UnityEngine.Object.Destroy(torsoZone);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.Destroy(npcRoot);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator Awake_WithoutAuthoredRagdollBody_AddsRootFallbackAndAppliesLethalImpulse()
         {
             GameObject npcRoot = null;
@@ -380,6 +448,108 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
             finally
             {
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.Destroy(npcRoot);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator LethalImpact_WithAuthoredJointedMultiBodyRagdoll_EnablesWholeChain_WithoutRootFallback()
+        {
+            var controllerType = ResolveType("Reloader.NPCs.Combat.HumanoidRagdollController", "Reloader.NPCs");
+            Assert.That(controllerType, Is.Not.Null, "Expected HumanoidRagdollController to exist.");
+
+            GameObject npcRoot = null;
+            GameObject bodyRoot = null;
+            GameObject pelvisZone = null;
+            GameObject chestZone = null;
+            GameObject headZone = null;
+            try
+            {
+                var projectileImpactPayloadType = ResolveType("Reloader.Weapons.Ballistics.ProjectileImpactPayload", "Reloader.Weapons");
+                Assert.That(projectileImpactPayloadType, Is.Not.Null, "Expected ProjectileImpactPayload to exist.");
+
+                npcRoot = new GameObject("NpcRoot");
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                var receiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
+
+                bodyRoot = new GameObject("Body");
+                bodyRoot.transform.SetParent(npcRoot.transform, false);
+                var aliveCollider = bodyRoot.AddComponent<CapsuleCollider>();
+                aliveCollider.enabled = true;
+
+                pelvisZone = CreateJointedRagdollBody(npcRoot.transform, "PelvisZone", HumanoidBodyZone.Torso, null, out var pelvisBody);
+                chestZone = CreateJointedRagdollBody(npcRoot.transform, "ChestZone", HumanoidBodyZone.Torso, pelvisBody, out var chestBody);
+                headZone = CreateJointedRagdollBody(npcRoot.transform, "HeadZone", HumanoidBodyZone.Head, chestBody, out var headBody);
+                npcRoot.AddComponent<HumanoidRagdollController>();
+
+                yield return null;
+
+                Assert.That(npcRoot.GetComponent<Rigidbody>(), Is.Null,
+                    "Expected authored ragdoll bodies to avoid the root fallback rigidbody.");
+                Assert.That(pelvisBody.isKinematic, Is.True, "Expected authored pelvis body to start dormant.");
+                Assert.That(chestBody.isKinematic, Is.True, "Expected authored chest body to start dormant.");
+                Assert.That(headBody.isKinematic, Is.True, "Expected authored head body to start dormant.");
+                Assert.That(pelvisBody.useGravity, Is.False, "Expected authored pelvis body to start gravity-disabled.");
+                Assert.That(chestBody.useGravity, Is.False, "Expected authored chest body to start gravity-disabled.");
+                Assert.That(headBody.useGravity, Is.False, "Expected authored head body to start gravity-disabled.");
+                Assert.That(aliveCollider.enabled, Is.True, "Expected the alive-state collider to remain active before lethal takeover.");
+
+                InvokeApplyDamage(receiver, CreateImpactPayload(
+                    projectileImpactPayloadType!,
+                    itemId: "weapon-kar98k",
+                    point: headZone.transform.position,
+                    normal: Vector3.back,
+                    damage: 1f,
+                    hitObject: headZone,
+                    sourcePoint: headZone.transform.position + (Vector3.back * 25f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 240f,
+                    projectileMassGrains: 175f,
+                    deliveredEnergyJoules: 900f));
+
+                yield return new WaitForFixedUpdate();
+
+                Assert.That(pelvisBody.isKinematic, Is.False, "Expected authored pelvis body to become dynamic on lethal takeover.");
+                Assert.That(chestBody.isKinematic, Is.False, "Expected authored chest body to become dynamic on lethal takeover.");
+                Assert.That(headBody.isKinematic, Is.False, "Expected authored head body to become dynamic on lethal takeover.");
+                Assert.That(pelvisBody.useGravity, Is.True, "Expected authored pelvis body to enable gravity on lethal takeover.");
+                Assert.That(chestBody.useGravity, Is.True, "Expected authored chest body to enable gravity on lethal takeover.");
+                Assert.That(headBody.useGravity, Is.True, "Expected authored head body to enable gravity on lethal takeover.");
+                Assert.That(aliveCollider.enabled, Is.False, "Expected lethal takeover to disable the alive-state collider.");
+                Assert.That(ReadLinearVelocity(headBody).z, Is.GreaterThan(0f),
+                    "Expected the struck authored body to receive the lethal impulse.");
+                Assert.That(pelvisZone.GetComponent<CharacterJoint>(), Is.Null,
+                    "Expected the pelvis to remain the ragdoll root.");
+                Assert.That(chestZone.GetComponent<CharacterJoint>()!.connectedBody, Is.SameAs(pelvisBody),
+                    "Expected the chest joint to stay connected to the authored pelvis body.");
+                Assert.That(headZone.GetComponent<CharacterJoint>()!.connectedBody, Is.SameAs(chestBody),
+                    "Expected the head joint to stay connected to the authored chest body.");
+            }
+            finally
+            {
+                if (bodyRoot != null)
+                {
+                    UnityEngine.Object.Destroy(bodyRoot);
+                }
+
+                if (headZone != null)
+                {
+                    UnityEngine.Object.Destroy(headZone);
+                }
+
+                if (chestZone != null)
+                {
+                    UnityEngine.Object.Destroy(chestZone);
+                }
+
+                if (pelvisZone != null)
+                {
+                    UnityEngine.Object.Destroy(pelvisZone);
+                }
+
                 if (npcRoot != null)
                 {
                     UnityEngine.Object.Destroy(npcRoot);
@@ -461,6 +631,35 @@ namespace Reloader.NPCs.Tests.PlayMode
             var field = component.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Expected private field '{fieldName}' on {component.GetType().Name}.");
             field!.SetValue(component, value);
+        }
+
+        private static GameObject CreateJointedRagdollBody(
+            Transform parent,
+            string name,
+            HumanoidBodyZone bodyZone,
+            Rigidbody connectedBody,
+            out Rigidbody body)
+        {
+            var zone = new GameObject(name);
+            zone.transform.SetParent(parent, false);
+
+            var collider = zone.AddComponent<CapsuleCollider>();
+            collider.enabled = false;
+
+            body = zone.AddComponent<Rigidbody>();
+            body.isKinematic = false;
+            body.useGravity = true;
+
+            var hitbox = zone.AddComponent<BodyZoneHitbox>();
+            hitbox.Configure(bodyZone);
+
+            if (connectedBody != null)
+            {
+                var joint = zone.AddComponent<CharacterJoint>();
+                joint.connectedBody = connectedBody;
+            }
+
+            return zone;
         }
 
         private static Vector3 ReadLinearVelocity(Rigidbody rigidbody)

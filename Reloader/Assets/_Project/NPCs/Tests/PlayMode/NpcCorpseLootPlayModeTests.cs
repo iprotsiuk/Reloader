@@ -1,11 +1,16 @@
 using System;
 using System.Collections;
+using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Inventory;
 using Reloader.NPCs.Combat;
+using Reloader.NPCs.Data;
 using Reloader.NPCs.Runtime;
+using Reloader.NPCs.Runtime.Capabilities;
+using Reloader.NPCs.Runtime.Dialogue;
 using UnityEngine;
+using Reloader.Player.Interaction;
 using UnityEngine.TestTools;
 
 namespace Reloader.NPCs.Tests.PlayMode
@@ -252,6 +257,97 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator LethalImpact_DisablesNpcDialogueActions_AndExposesLootBodyPrompt()
+        {
+            var payloadType = ResolveType("Reloader.Weapons.Ballistics.ProjectileImpactPayload", "Reloader.Weapons");
+            Assert.That(payloadType, Is.Not.Null, "Expected ProjectileImpactPayload type.");
+
+            GameObject playerRoot = null;
+            GameObject npcRoot = null;
+            GameObject torsoZone = null;
+            DialogueDefinition dialogueDefinition = null;
+            try
+            {
+                playerRoot = new GameObject("PlayerRoot");
+                var camera = playerRoot.AddComponent<Camera>();
+                camera.transform.position = new Vector3(0f, 0.5f, 0f);
+                camera.transform.forward = Vector3.forward;
+
+                var storageResolver = playerRoot.AddComponent<PlayerStorageContainerResolver>();
+                storageResolver.SetCameraForTests(camera);
+                var storageController = playerRoot.AddComponent<PlayerStorageContainerController>();
+
+                npcRoot = new GameObject("Yuri Antonov");
+                npcRoot.transform.position = new Vector3(0f, 0f, 2.5f);
+                npcRoot.AddComponent<SphereCollider>().radius = 0.45f;
+                var agent = npcRoot.AddComponent<NpcAgent>();
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                var receiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
+                var corpseController = npcRoot.AddComponent<HumanoidCorpseLootController>();
+                dialogueDefinition = AttachDialogueCapabilityWithDefinition(npcRoot);
+
+                torsoZone = new GameObject("TorsoZone");
+                torsoZone.transform.SetParent(npcRoot.transform, false);
+                torsoZone.AddComponent<CapsuleCollider>().enabled = false;
+                var torsoBody = torsoZone.AddComponent<Rigidbody>();
+                torsoBody.isKinematic = true;
+                torsoBody.useGravity = false;
+                torsoZone.AddComponent<BodyZoneHitbox>().Configure(HumanoidBodyZone.Torso);
+
+                yield return null;
+
+                Assert.That(agent.CollectActions().Any(action => action.ActionId == DialogueCapability.ActionKey), Is.True,
+                    "Expected living NPCs to expose Talk before the corpse takeover runs.");
+
+                InvokeApplyDamage(receiver, CreateImpactPayload(
+                    payloadType!,
+                    itemId: "weapon-kar98k",
+                    point: torsoZone.transform.position,
+                    normal: Vector3.back,
+                    damage: 1f,
+                    hitObject: torsoZone,
+                    sourcePoint: torsoZone.transform.position + (Vector3.back * 25f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 240f,
+                    projectileMassGrains: 175f,
+                    deliveredEnergyJoules: 900f));
+
+                yield return new WaitForFixedUpdate();
+
+                Assert.That(corpseController.CanPresentDeathState, Is.True, "Expected corpse controller to stay active after lethal takeover.");
+                Assert.That(agent.CollectActions().Any(action => action.ActionId == DialogueCapability.ActionKey), Is.False,
+                    "Dead NPCs should not continue exposing Talk actions.");
+
+                Assert.That(storageController.TryGetInteractionCandidate(out PlayerInteractionCandidate candidate), Is.True,
+                    "Expected corpse storage to become the active interaction candidate.");
+                Assert.That(candidate.ActionText, Is.EqualTo("Loot body"));
+                Assert.That(candidate.SubjectText, Is.EqualTo("Yuri Antonov"));
+            }
+            finally
+            {
+                if (dialogueDefinition != null)
+                {
+                    UnityEngine.Object.Destroy(dialogueDefinition);
+                }
+
+                if (torsoZone != null)
+                {
+                    UnityEngine.Object.Destroy(torsoZone);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.Destroy(npcRoot);
+                }
+
+                if (playerRoot != null)
+                {
+                    UnityEngine.Object.Destroy(playerRoot);
+                }
+            }
+        }
+
         private static GameObject CreateCorpseReadyNpc(string rootName, out GameObject torsoZone)
         {
             var root = new GameObject(rootName);
@@ -310,6 +406,39 @@ namespace Reloader.NPCs.Tests.PlayMode
                 modifiers: null);
             Assert.That(method, Is.Not.Null, "Expected HumanoidDamageReceiver.ApplyDamage to exist.");
             method!.Invoke(receiver, new[] { payload });
+        }
+
+        private static DialogueDefinition AttachDialogueCapabilityWithDefinition(GameObject npc)
+        {
+            var capability = npc.AddComponent<DialogueCapability>();
+            var definition = CreateDialogueDefinition(
+                "dialogue.test.corpse-loot",
+                "entry",
+                new DialogueNodeDefinition(
+                    "entry",
+                    "Need something?",
+                    new[]
+                    {
+                        new DialogueReplyDefinition("reply.ok", "Talk.", string.Empty, string.Empty, string.Empty)
+                    }));
+            SetField(capability, "_definition", definition);
+            return definition;
+        }
+
+        private static DialogueDefinition CreateDialogueDefinition(string dialogueId, string entryNodeId, params DialogueNodeDefinition[] nodes)
+        {
+            var definition = ScriptableObject.CreateInstance<DialogueDefinition>();
+            SetField(definition, "_dialogueId", dialogueId);
+            SetField(definition, "_entryNodeId", entryNodeId);
+            SetField(definition, "_nodes", nodes);
+            return definition;
+        }
+
+        private static void SetField(object target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {target.GetType().Name}.");
+            field!.SetValue(target, value);
         }
 
         private static Type ResolveType(string fullName, string assemblyName)
