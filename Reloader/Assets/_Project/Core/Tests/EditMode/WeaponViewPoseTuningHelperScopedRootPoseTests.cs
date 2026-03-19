@@ -115,6 +115,102 @@ namespace Reloader.Core.Tests.EditMode
     public sealed class RenderTextureScopeControllerReticleOffsetTests
     {
         [Test]
+        public void SetScopeActive_RenderTexturePipWithoutExplicitProfile_UsesAdaptiveResolutionByMagnification()
+        {
+            var controllerType = System.Type.GetType("Reloader.Game.Weapons.RenderTextureScopeController, Reloader.Game.Weapons");
+            var opticDefinitionType = System.Type.GetType("Reloader.Game.Weapons.OpticDefinition, Reloader.Game.Weapons");
+            var adsVisualModeType = System.Type.GetType("Reloader.Game.Weapons.AdsVisualMode, Reloader.Game.Weapons");
+            Assert.That(controllerType, Is.Not.Null);
+            Assert.That(opticDefinitionType, Is.Not.Null);
+            Assert.That(adsVisualModeType, Is.Not.Null);
+
+            var controllerGo = new GameObject("AdaptiveResolutionTest");
+            var scopeCameraGo = new GameObject("ScopeCamera");
+            var controller = controllerGo.AddComponent(controllerType!);
+            var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+            var opticDefinition = ScriptableObject.CreateInstance(opticDefinitionType!);
+
+            try
+            {
+                SetPrivateField(controller, "_scopeCamera", scopeCamera);
+                SetPrivateField(opticDefinition, "_visualModePolicy", System.Enum.Parse(adsVisualModeType!, "RenderTexturePiP"));
+                SetPrivateField(opticDefinition, "_isVariableZoom", true);
+                SetPrivateField(opticDefinition, "_magnificationMin", 5f);
+                SetPrivateField(opticDefinition, "_magnificationMax", 25f);
+                SetPrivateField(opticDefinition, "_magnificationStep", 1f);
+
+                var setScopeActiveMethod = controllerType!.GetMethod("SetScopeActive", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(setScopeActiveMethod, Is.Not.Null);
+
+                setScopeActiveMethod!.Invoke(controller, new object[] { true, opticDefinition, null, 60f, 5f, 0, 0 });
+                var lowMagnificationResolution = scopeCamera.targetTexture != null ? scopeCamera.targetTexture.width : 0;
+
+                setScopeActiveMethod.Invoke(controller, new object[] { true, opticDefinition, null, 60f, 25f, 0, 0 });
+                var highMagnificationResolution = scopeCamera.targetTexture != null ? scopeCamera.targetTexture.width : 0;
+
+                Assert.That(lowMagnificationResolution, Is.EqualTo(4096));
+                Assert.That(highMagnificationResolution, Is.EqualTo(2048));
+                Assert.That(lowMagnificationResolution, Is.GreaterThan(highMagnificationResolution));
+            }
+            finally
+            {
+                if (scopeCamera != null)
+                {
+                    scopeCamera.targetTexture = null;
+                }
+
+                Object.DestroyImmediate(opticDefinition);
+                Object.DestroyImmediate(controllerGo);
+                Object.DestroyImmediate(scopeCameraGo);
+            }
+        }
+
+        [Test]
+        public void SetScopeActive_ExplicitRenderProfile_PreservesAuthoredResolution()
+        {
+            var controllerType = System.Type.GetType("Reloader.Game.Weapons.RenderTextureScopeController, Reloader.Game.Weapons");
+            var opticDefinitionType = System.Type.GetType("Reloader.Game.Weapons.OpticDefinition, Reloader.Game.Weapons");
+            var adsVisualModeType = System.Type.GetType("Reloader.Game.Weapons.AdsVisualMode, Reloader.Game.Weapons");
+            Assert.That(controllerType, Is.Not.Null);
+            Assert.That(opticDefinitionType, Is.Not.Null);
+            Assert.That(adsVisualModeType, Is.Not.Null);
+
+            var controllerGo = new GameObject("ProfileResolutionTest");
+            var scopeCameraGo = new GameObject("ScopeCamera");
+            var controller = controllerGo.AddComponent(controllerType!);
+            var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+            var opticDefinition = ScriptableObject.CreateInstance(opticDefinitionType!);
+
+            try
+            {
+                SetPrivateField(controller, "_scopeCamera", scopeCamera);
+                SetPrivateField(opticDefinition, "_visualModePolicy", System.Enum.Parse(adsVisualModeType!, "RenderTexturePiP"));
+                SetPrivateField(opticDefinition, "_hasScopeRenderProfile", true);
+                SetPrivateField(opticDefinition, "_scopeRenderProfile", CreateScopeRenderProfile(opticDefinitionType!, 1536, 20f));
+
+                var setScopeActiveMethod = controllerType!.GetMethod("SetScopeActive", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(setScopeActiveMethod, Is.Not.Null);
+
+                setScopeActiveMethod!.Invoke(controller, new object[] { true, opticDefinition, null, 60f, 10f, 0, 0 });
+
+                Assert.That(scopeCamera.targetTexture, Is.Not.Null);
+                Assert.That(scopeCamera.targetTexture!.width, Is.EqualTo(1536));
+                Assert.That(scopeCamera.targetTexture.height, Is.EqualTo(1536));
+            }
+            finally
+            {
+                if (scopeCamera != null)
+                {
+                    scopeCamera.targetTexture = null;
+                }
+
+                Object.DestroyImmediate(opticDefinition);
+                Object.DestroyImmediate(controllerGo);
+                Object.DestroyImmediate(scopeCameraGo);
+            }
+        }
+
+        [Test]
         public void EnableCompositeReticle_FfpOffset_ScalesWithMagnification()
         {
             var controllerType = System.Type.GetType("Reloader.Game.Weapons.RenderTextureScopeController, Reloader.Game.Weapons");
@@ -197,6 +293,17 @@ namespace Reloader.Core.Tests.EditMode
             var field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found on {instance.GetType().Name}.");
             field!.SetValue(instance, value);
+        }
+
+        private static object CreateScopeRenderProfile(System.Type opticDefinitionType, int renderTextureResolution, float scopeCameraFov)
+        {
+            var renderProfileType = opticDefinitionType.GetNestedType("ScopeRenderProfile", BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(renderProfileType, Is.Not.Null);
+
+            var profile = System.Activator.CreateInstance(renderProfileType!);
+            SetPrivateField(profile!, "_renderTextureResolution", renderTextureResolution);
+            SetPrivateField(profile, "_scopeCameraFov", scopeCameraFov);
+            return profile;
         }
     }
 }

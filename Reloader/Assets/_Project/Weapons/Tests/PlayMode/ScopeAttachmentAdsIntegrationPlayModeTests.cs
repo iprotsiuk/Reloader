@@ -113,6 +113,44 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That((Vector2)GetProperty(opticDefinition, "CompositeReticleOffset"), Is.EqualTo(new Vector2(0.0022f, 0f)));
         }
 
+        [UnityTest]
+        public IEnumerator RealKar98kOpticAsset_AdaptivePipResolution_ScalesWithMagnification()
+        {
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+
+            var opticDefinition = ResolveOpticDefinitionById("att-kar98k-scope-remote-a");
+            Assert.That(opticDefinition, Is.Not.Null, "Expected the real Kar98k optic definition asset to be loaded.");
+
+            var root = new GameObject("RealKar98kResolutionRoot");
+            var scopeCameraGo = new GameObject("ScopeCamera");
+            var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+
+            try
+            {
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+                SetField(scopeController, "_scopeCamera", scopeCamera);
+
+                Invoke(scopeController, "SetScopeActive", true, opticDefinition, null, 60f, 5f, 0, 0);
+                yield return null;
+                Assert.That(scopeCamera.targetTexture, Is.Not.Null);
+                var lowMagnificationResolution = scopeCamera.targetTexture!.width;
+
+                Invoke(scopeController, "SetScopeActive", true, opticDefinition, null, 60f, 25f, 0, 0);
+                yield return null;
+                Assert.That(scopeCamera.targetTexture, Is.Not.Null);
+                var highMagnificationResolution = scopeCamera.targetTexture!.width;
+
+                Assert.That(lowMagnificationResolution, Is.EqualTo(4096));
+                Assert.That(highMagnificationResolution, Is.EqualTo(2048));
+                Assert.That(lowMagnificationResolution, Is.GreaterThan(highMagnificationResolution));
+            }
+            finally
+            {
+                Cleanup(root, scopeCameraGo);
+            }
+        }
+
         [Test]
         public void PlayerWeaponController_ScopedAdjustmentKeyMapping_UsesExpectedClickDirections()
         {

@@ -6,6 +6,10 @@ namespace Reloader.Game.Weapons
     public sealed class RenderTextureScopeController : MonoBehaviour
     {
         private const float MaxProjectionAxisOffset = 0.45f;
+        private const int DefaultScopeRenderTextureResolution = 1024;
+        private const int MinimumAdaptiveScopeRenderTextureResolution = 1024;
+        private const int MaximumAdaptiveScopeRenderTextureResolution = 4096;
+        private const float TargetAngularPrecisionMradPerPixel = 0.03f;
 
         [SerializeField] private Camera _scopeCamera;
         [SerializeField] private Behaviour[] _expensiveScopeBehaviours;
@@ -102,7 +106,7 @@ namespace Reloader.Game.Weapons
             int elevationClicks)
         {
             var requestedFov = ResolveRequestedFov(isActive, optic, referenceFieldOfView, magnification);
-            var requestedResolution = ResolveRequestedResolution(optic);
+            var requestedResolution = ResolveRequestedResolution(optic, requestedFov);
             var lensDisplay = ResolveLensDisplay(activeOpticInstance);
             var reticleController = ResolveReticleController(activeOpticInstance);
             var mradPerClick = ResolveMradPerClick(optic);
@@ -220,14 +224,19 @@ namespace Reloader.Game.Weapons
             return MagnificationToFieldOfView(referenceFieldOfView, magnification);
         }
 
-        private int ResolveRequestedResolution(OpticDefinition optic)
+        private int ResolveRequestedResolution(OpticDefinition optic, float requestedFov)
         {
             if (optic != null && optic.HasScopeRenderProfile)
             {
                 return optic.RenderProfile.RenderTextureResolution;
             }
 
-            return 1024;
+            if (optic == null || optic.VisualModePolicy != AdsVisualMode.RenderTexturePiP)
+            {
+                return DefaultScopeRenderTextureResolution;
+            }
+
+            return ResolveAdaptiveResolution(requestedFov);
         }
 
         private ScopeLensDisplay ResolveLensDisplay(GameObject activeOpticInstance)
@@ -288,6 +297,15 @@ namespace Reloader.Game.Weapons
             return _scopeCamera.enabled == isActive
                 && ReferenceEquals(_scopeCamera.targetTexture, expectedTargetTexture)
                 && Mathf.Approximately(_scopeCamera.fieldOfView, expectedFieldOfView);
+        }
+
+        private static int ResolveAdaptiveResolution(float requestedFov)
+        {
+            var safeFov = Mathf.Clamp(requestedFov, 1f, 179f);
+            var totalAngularSpanMrad = safeFov * Mathf.Deg2Rad * 1000f;
+            var requiredResolution = Mathf.CeilToInt(totalAngularSpanMrad / TargetAngularPrecisionMradPerPixel);
+            var boundedResolution = Mathf.Max(MinimumAdaptiveScopeRenderTextureResolution, requiredResolution);
+            return Mathf.Clamp(Mathf.NextPowerOfTwo(boundedResolution), MinimumAdaptiveScopeRenderTextureResolution, MaximumAdaptiveScopeRenderTextureResolution);
         }
 
         private void BindLensDisplay(bool isActive, ScopeLensDisplay lensDisplay)
@@ -361,12 +379,18 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
+            if (_scopeCamera != null && ReferenceEquals(_scopeCamera.targetTexture, _scopeRenderTexture))
+            {
+                _scopeCamera.enabled = false;
+                _scopeCamera.targetTexture = null;
+            }
+
             if (_scopeRenderTexture.IsCreated())
             {
                 _scopeRenderTexture.Release();
             }
 
-            Destroy(_scopeRenderTexture);
+            DestroyRuntimeObject(_scopeRenderTexture);
             _scopeRenderTexture = null;
         }
 
@@ -654,8 +678,24 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
-            Destroy(_compositeReticleMaterial);
+            DestroyRuntimeObject(_compositeReticleMaterial);
             _compositeReticleMaterial = null;
+        }
+
+        private static void DestroyRuntimeObject(Object runtimeObject)
+        {
+            if (runtimeObject == null)
+            {
+                return;
+            }
+
+            if (Application.isPlaying)
+            {
+                Destroy(runtimeObject);
+                return;
+            }
+
+            DestroyImmediate(runtimeObject);
         }
     }
 }
