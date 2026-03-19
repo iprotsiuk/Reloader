@@ -1,6 +1,7 @@
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Weapons.Runtime;
+using UnityEngine;
 
 namespace Reloader.Core.Tests.EditMode
 {
@@ -108,6 +109,94 @@ namespace Reloader.Core.Tests.EditMode
             {
                 UnityEngine.Object.DestroyImmediate(opticDefinition);
             }
+        }
+    }
+
+    public sealed class RenderTextureScopeControllerReticleOffsetTests
+    {
+        [Test]
+        public void EnableCompositeReticle_FfpOffset_ScalesWithMagnification()
+        {
+            var controllerType = System.Type.GetType("Reloader.Game.Weapons.RenderTextureScopeController, Reloader.Game.Weapons");
+            var reticleDefinitionType = System.Type.GetType("Reloader.Game.Weapons.ScopeReticleDefinition, Reloader.Game.Weapons");
+            var reticleModeType = System.Type.GetType("Reloader.Game.Weapons.ScopeReticleMode, Reloader.Game.Weapons");
+            Assert.That(controllerType, Is.Not.Null);
+            Assert.That(reticleDefinitionType, Is.Not.Null);
+            Assert.That(reticleModeType, Is.Not.Null);
+
+            var gameObject = new GameObject("ReticleOffsetTest");
+            var controller = gameObject.AddComponent(controllerType!);
+            var reticleDefinition = ScriptableObject.CreateInstance(reticleDefinitionType!);
+
+            try
+            {
+                SetPrivateField(reticleDefinition, "_mode", System.Enum.Parse(reticleModeType!, "Ffp"));
+                SetPrivateField(reticleDefinition, "_referenceMagnification", 4f);
+
+                var enableMethod = controllerType!.GetMethod(
+                    "EnableCompositeReticle",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(enableMethod, Is.Not.Null);
+
+                enableMethod!.Invoke(controller, new object[] { reticleDefinition, 8f, 1f, new Vector2(0.002f, 0f) });
+
+                var currentOffsetProperty = controllerType.GetProperty("CurrentCompositeReticleOffset", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(currentOffsetProperty, Is.Not.Null);
+                var actual = (Vector2)currentOffsetProperty!.GetValue(controller);
+                Assert.That(actual.x, Is.EqualTo(0.004f).Within(0.0001f));
+                Assert.That(actual.y, Is.EqualTo(0f).Within(0.0001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(reticleDefinition);
+                Object.DestroyImmediate(gameObject);
+            }
+        }
+
+        [Test]
+        public void EnableCompositeReticle_SfpOffset_RemainsConstantAcrossMagnification()
+        {
+            var controllerType = System.Type.GetType("Reloader.Game.Weapons.RenderTextureScopeController, Reloader.Game.Weapons");
+            var reticleDefinitionType = System.Type.GetType("Reloader.Game.Weapons.ScopeReticleDefinition, Reloader.Game.Weapons");
+            var reticleModeType = System.Type.GetType("Reloader.Game.Weapons.ScopeReticleMode, Reloader.Game.Weapons");
+            Assert.That(controllerType, Is.Not.Null);
+            Assert.That(reticleDefinitionType, Is.Not.Null);
+            Assert.That(reticleModeType, Is.Not.Null);
+
+            var gameObject = new GameObject("ReticleOffsetTest");
+            var controller = gameObject.AddComponent(controllerType!);
+            var reticleDefinition = ScriptableObject.CreateInstance(reticleDefinitionType!);
+
+            try
+            {
+                SetPrivateField(reticleDefinition, "_mode", System.Enum.Parse(reticleModeType!, "Sfp"));
+                SetPrivateField(reticleDefinition, "_referenceMagnification", 4f);
+
+                var enableMethod = controllerType!.GetMethod(
+                    "EnableCompositeReticle",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(enableMethod, Is.Not.Null);
+
+                enableMethod!.Invoke(controller, new object[] { reticleDefinition, 8f, 1f, new Vector2(0.002f, 0f) });
+
+                var currentOffsetProperty = controllerType.GetProperty("CurrentCompositeReticleOffset", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(currentOffsetProperty, Is.Not.Null);
+                var actual = (Vector2)currentOffsetProperty!.GetValue(controller);
+                Assert.That(actual.x, Is.EqualTo(0.002f).Within(0.0001f));
+                Assert.That(actual.y, Is.EqualTo(0f).Within(0.0001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(reticleDefinition);
+                Object.DestroyImmediate(gameObject);
+            }
+        }
+
+        private static void SetPrivateField(object instance, string fieldName, object value)
+        {
+            var field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found on {instance.GetType().Name}.");
+            field!.SetValue(instance, value);
         }
     }
 }

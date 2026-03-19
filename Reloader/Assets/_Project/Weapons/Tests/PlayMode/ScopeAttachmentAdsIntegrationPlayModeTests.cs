@@ -110,7 +110,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That((Vector2)GetProperty(opticDefinition, "MechanicalZeroOffsetMrad"), Is.EqualTo(Vector2.zero));
             Assert.That((float)GetProperty(opticDefinition, "ProjectionCalibrationMultiplier"), Is.EqualTo(6.3f).Within(0.0001f));
             Assert.That((float)GetProperty(opticDefinition, "CompositeReticleScale"), Is.EqualTo(1.2f).Within(0.0001f));
-            Assert.That((Vector2)GetProperty(opticDefinition, "CompositeReticleOffset"), Is.EqualTo(new Vector2(0.001f, 0f)));
+            Assert.That((Vector2)GetProperty(opticDefinition, "CompositeReticleOffset"), Is.EqualTo(new Vector2(0.0022f, 0f)));
         }
 
         [Test]

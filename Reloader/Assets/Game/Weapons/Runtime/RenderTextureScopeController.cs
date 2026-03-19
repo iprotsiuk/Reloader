@@ -466,7 +466,7 @@ namespace Reloader.Game.Weapons
         {
             _currentCompositeReticleSprite = reticleDefinition != null ? reticleDefinition.ReticleSprite : null;
             _currentCompositeReticleScale = compositeReticleScale * ResolveReticleScale(reticleDefinition, magnification);
-            _currentCompositeReticleOffset = compositeReticleOffset;
+            _currentCompositeReticleOffset = ResolveEffectiveCompositeReticleOffset(reticleDefinition, magnification, compositeReticleOffset);
             _currentCompositeReticleDrawScale = ResolveCompositeReticleDrawScale(_currentCompositeReticleSprite, _currentCompositeReticleScale);
             _isCompositeReticleActive = _currentCompositeReticleSprite != null;
         }
@@ -517,6 +517,19 @@ namespace Reloader.Game.Weapons
             }
 
             return new Vector2(safeScale * (width / height), safeScale);
+        }
+
+        private static Vector2 ResolveEffectiveCompositeReticleOffset(
+            ScopeReticleDefinition reticleDefinition,
+            float magnification,
+            Vector2 compositeReticleOffset)
+        {
+            if (reticleDefinition == null || reticleDefinition.Mode == ScopeReticleMode.Sfp)
+            {
+                return compositeReticleOffset;
+            }
+
+            return compositeReticleOffset * ResolveReticleScale(reticleDefinition, magnification);
         }
 
         private Material EnsureCompositeReticleMaterial()

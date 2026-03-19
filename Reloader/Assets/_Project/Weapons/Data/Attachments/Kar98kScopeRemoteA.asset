@@ -31,7 +31,7 @@ MonoBehaviour:
   _mechanicalZeroOffsetMrad: {x: 0, y: 0}
   _projectionCalibrationMultiplier: 6.3
   _compositeReticleScale: 1.2
-  _compositeReticleOffset: {x: 0.001, y: 0}
+  _compositeReticleOffset: {x: 0.0022, y: 0}
   _hasScopeRenderProfile: 0
   _scopeRenderProfile:
     _renderTextureResolution: 1024
