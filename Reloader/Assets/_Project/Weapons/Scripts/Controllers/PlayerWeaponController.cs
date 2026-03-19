@@ -229,6 +229,8 @@ namespace Reloader.Weapons.Controllers
             UpdateEquipFromSelection();
             EnsureEquippedViewMatchesRuntimeState();
             SyncEquippedReserveFromInventory();
+            UpdateStableMagnifiedScopedAdsState();
+            SyncScopedViewmodelStabilization();
             if (_inputSource == null)
             {
                 if (_allowSceneWideDependencyLookup)
@@ -243,7 +245,6 @@ namespace Reloader.Weapons.Controllers
             }
 
             TickPackPresentation();
-            SyncScopedViewmodelStabilization();
             TickReloadCancellation();
             TickReloadCompletion();
             TickFire();
@@ -1356,11 +1357,16 @@ namespace Reloader.Weapons.Controllers
 
         private void SyncScopedViewmodelStabilization()
         {
-            var shouldStabilize = HasStableScopedAdsAlignment;
+            var shouldStabilize = _isStableMagnifiedScopedAds;
 
             if (_viewmodelAnimatorDriver != null)
             {
                 _viewmodelAnimatorDriver.LockViewmodelRootPose = shouldStabilize;
+            }
+
+            if (_weaponAimAlignerRuntimeBridge != null)
+            {
+                _weaponAimAlignerRuntimeBridge.SetStableScopedPresentationActive(shouldStabilize);
             }
         }
 
@@ -1369,6 +1375,11 @@ namespace Reloader.Weapons.Controllers
             if (_viewmodelAnimatorDriver != null)
             {
                 _viewmodelAnimatorDriver.LockViewmodelRootPose = false;
+            }
+
+            if (_weaponAimAlignerRuntimeBridge != null)
+            {
+                _weaponAimAlignerRuntimeBridge.SetStableScopedPresentationActive(false);
             }
         }
 
@@ -1399,7 +1410,7 @@ namespace Reloader.Weapons.Controllers
         }
 
         public bool HasActiveScopedAdsAlignment => HasScopedAdsBridgeActive() && _weaponAimAlignerRuntimeBridge != null;
-        public bool HasStableScopedAdsAlignment => ResolveStableMagnifiedScopedAdsState();
+        public bool HasStableScopedAdsAlignment => _isStableMagnifiedScopedAds;
         public float ScopedAdsPresentationEyeReliefOffset => _scopedAdsPresentationEyeReliefOffset;
 
         public void SetScopedAdsPresentationEyeReliefOffset(float value)
@@ -1421,16 +1432,14 @@ namespace Reloader.Weapons.Controllers
                 : 0f;
         }
 
-        private bool ResolveStableMagnifiedScopedAdsState()
+        private void UpdateStableMagnifiedScopedAdsState()
         {
             _isStableMagnifiedScopedAds = ShouldStabilizeScopedViewmodelPresentation(
                 _isStableMagnifiedScopedAds,
                 _adsStateRuntimeBridge != null && _weaponAimAlignerRuntimeBridge != null,
                 HasMagnifiedOpticEquipped(),
-                CurrentAdsBlendT,
+                ResolveCurrentAdsBlendT(),
                 _equippedWeaponView != null);
-
-            return _isStableMagnifiedScopedAds;
         }
 
         private void ResetStableMagnifiedScopedAdsState()
@@ -2472,6 +2481,7 @@ namespace Reloader.Weapons.Controllers
 
             var cameraTransform = worldCamera != null ? worldCamera.transform : null;
             aligner.BindRuntimeReferences(adsPivot, cameraTransform, attachmentManager, _adsStateRuntimeBridge);
+            aligner.SetStableScopedPresentationActive(_isStableMagnifiedScopedAds);
             _weaponAimAlignerRuntimeBridge = aligner;
             ApplyScopedAdsPresentationEyeReliefOffset();
         }
@@ -2705,6 +2715,7 @@ namespace Reloader.Weapons.Controllers
         private void DestroyScopedAdsRuntimeBridgeComponents()
         {
             ResetStableMagnifiedScopedAdsState();
+            ResetScopedViewmodelStabilization();
             DestroyScopedBridgeComponent(_adsStateRuntimeBridge);
             DestroyScopedBridgeComponent(_weaponAimAlignerRuntimeBridge);
             DestroyScopedBridgeComponent(_renderTextureScopeRuntimeBridge);

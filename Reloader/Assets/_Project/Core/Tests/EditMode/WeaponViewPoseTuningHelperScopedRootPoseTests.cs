@@ -7,16 +7,10 @@ namespace Reloader.Core.Tests.EditMode
 {
     public sealed class WeaponViewPoseTuningHelperScopedRootPoseTests
     {
-        [TestCase(false, true, 0.95f, false)]
-        [TestCase(false, true, 0.999f, true)]
-        [TestCase(false, true, 1.0f, true)]
-        [TestCase(true, true, 0.95f, true)]
-        [TestCase(true, true, 0.949f, false)]
-        [TestCase(false, false, 1.0f, false)]
-        public void ShouldHoldScopedAdsRootPose_UsesOnlyStableMagnifiedScopedAds(
-            bool isCurrentlyHoldingScopedAdsRootPose,
-            bool useDirectScopedBlend,
-            float targetAdsBlendT,
+        [TestCase(true, true)]
+        [TestCase(false, false)]
+        public void ShouldHoldScopedAdsRootPose_UsesControllerScopedPresentationState(
+            bool stableScopedPresentationActive,
             bool expected)
         {
             var method = typeof(WeaponViewPoseTuningHelper).GetMethod(
@@ -25,19 +19,17 @@ namespace Reloader.Core.Tests.EditMode
 
             Assert.That(method, Is.Not.Null, "Expected private scoped-root hold helper to exist.");
 
-            var actual = (bool)method!.Invoke(null, new object[] { isCurrentlyHoldingScopedAdsRootPose, useDirectScopedBlend, targetAdsBlendT });
+            var actual = (bool)method!.Invoke(null, new object[] { stableScopedPresentationActive });
             Assert.That(actual, Is.EqualTo(expected));
         }
     }
 
     public sealed class WeaponAimAlignerScopedPoseHoldTests
     {
-        [TestCase(false, 0.999f, false)]
-        [TestCase(true, 1.0f, false)]
-        [TestCase(true, 0.95f, false)]
-        public void ShouldHoldScopedAdsPose_ReleasesImmediatelyWhenActiveOpticIsMissing(
-            bool isCurrentlyHoldingScopedAdsPose,
-            float adsBlendT,
+        [TestCase(true, true)]
+        [TestCase(false, false)]
+        public void ShouldHoldScopedAdsPose_UsesControllerScopedPresentationState(
+            bool stableScopedPresentationActive,
             bool expected)
         {
             var alignerType = System.Type.GetType("Reloader.Game.Weapons.WeaponAimAligner, Reloader.Game.Weapons");
@@ -49,7 +41,7 @@ namespace Reloader.Core.Tests.EditMode
 
             Assert.That(method, Is.Not.Null, "Expected private scoped-pose hold helper to exist.");
 
-            var actual = (bool)method!.Invoke(null, new object[] { isCurrentlyHoldingScopedAdsPose, null, adsBlendT });
+            var actual = (bool)method!.Invoke(null, new object[] { stableScopedPresentationActive });
             Assert.That(actual, Is.EqualTo(expected));
         }
 

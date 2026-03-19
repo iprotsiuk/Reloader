@@ -25,6 +25,18 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(actual, Is.EqualTo(0f));
         }
 
+        [Test]
+        public void HasStableScopedAdsAlignment_ReturnsCachedStateWithoutRecomputing()
+        {
+            var root = new GameObject("PlayerRoot");
+            var controller = root.AddComponent<PlayerWeaponController>();
+            SetField(controller, "_isStableMagnifiedScopedAds", true);
+
+            Assert.That(controller.HasStableScopedAdsAlignment, Is.True);
+            Assert.That(controller.HasStableScopedAdsAlignment, Is.True,
+                "Expected stable scoped ADS to be a cached per-frame state, not a mutating getter.");
+        }
+
         [TestCase(false, true, true, 0.999f, true, true)]
         [TestCase(false, true, true, 1.0f, true, true)]
         [TestCase(false, true, true, 0.998f, true, false)]

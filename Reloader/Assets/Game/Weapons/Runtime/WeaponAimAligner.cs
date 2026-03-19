@@ -34,6 +34,7 @@ namespace Reloader.Game.Weapons
         private bool _loggedMissingPivot;
         private bool _loggedMissingAnchorSource;
         private bool _isHoldingScopedAdsPose;
+        private bool _stableScopedPresentationActive;
         private float _runtimeEyeReliefBackOffset;
 
         public float DebugAlignmentErrorDistance { get; private set; }
@@ -67,6 +68,11 @@ namespace Reloader.Game.Weapons
         public void SetRuntimeEyeReliefBackOffset(float value)
         {
             _runtimeEyeReliefBackOffset = value;
+        }
+
+        public void SetStableScopedPresentationActive(bool value)
+        {
+            _stableScopedPresentationActive = value;
         }
 
         private void LateUpdate()
@@ -129,7 +135,7 @@ namespace Reloader.Game.Weapons
                 targetLocalRotation = targetWorldRotation;
             }
 
-            var shouldHoldScopedAdsPose = ShouldHoldScopedAdsPose(_isHoldingScopedAdsPose, activeOptic, adsT);
+            var shouldHoldScopedAdsPose = ShouldHoldScopedAdsPose(_stableScopedPresentationActive);
             if (shouldHoldScopedAdsPose)
             {
                 if (!_isHoldingScopedAdsPose)
@@ -226,20 +232,9 @@ namespace Reloader.Game.Weapons
             return adsStateController != null && adsStateController.AdsT > 0.001f;
         }
 
-        private static bool ShouldHoldScopedAdsPose(bool isCurrentlyHoldingScopedAdsPose, OpticDefinition activeOptic, float adsT)
+        private static bool ShouldHoldScopedAdsPose(bool stableScopedPresentationActive)
         {
-            var threshold = isCurrentlyHoldingScopedAdsPose ? 0.95f : 0.999f;
-            if (adsT < threshold)
-            {
-                return false;
-            }
-
-            if (activeOptic == null)
-            {
-                return false;
-            }
-
-            return activeOptic.MagnificationMin > 1.01f || activeOptic.MagnificationMax > 1.01f;
+            return stableScopedPresentationActive;
         }
 
         private static float ResolveOpticEyeReliefBackOffset(OpticDefinition activeOptic)

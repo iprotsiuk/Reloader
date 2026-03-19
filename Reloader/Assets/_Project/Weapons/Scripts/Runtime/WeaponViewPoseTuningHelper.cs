@@ -172,7 +172,7 @@ namespace Reloader.Weapons.Runtime
             var adsRot = Quaternion.Euler(pose.AdsLocalEuler);
             var targetRotation = Quaternion.Slerp(hipRot, adsRot, _blendT) * Quaternion.Euler(pose.RifleLocalEulerOffset);
 
-            var shouldHoldScopedAdsRootPose = ShouldHoldScopedAdsRootPose(_isHoldingScopedAdsRootPose, useDirectScopedBlend, targetT);
+            var shouldHoldScopedAdsRootPose = ShouldHoldScopedAdsRootPose(useDirectScopedBlend);
             if (shouldHoldScopedAdsRootPose)
             {
                 if (!_isHoldingScopedAdsRootPose)
@@ -235,15 +235,9 @@ namespace Reloader.Weapons.Runtime
                 && _weaponController.HasStableScopedAdsAlignment;
         }
 
-        private static bool ShouldHoldScopedAdsRootPose(bool isCurrentlyHoldingScopedAdsRootPose, bool useDirectScopedBlend, float targetAdsBlendT)
+        private static bool ShouldHoldScopedAdsRootPose(bool stableScopedPresentationActive)
         {
-            if (!useDirectScopedBlend)
-            {
-                return false;
-            }
-
-            var threshold = isCurrentlyHoldingScopedAdsRootPose ? 0.95f : 0.999f;
-            return targetAdsBlendT >= threshold;
+            return stableScopedPresentationActive;
         }
 
         private PoseData ResolveActivePose(out int overrideIndex, out string matchedAttachmentItemId)
