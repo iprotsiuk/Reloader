@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Runtime;
 using Reloader.Inventory;
@@ -239,6 +240,8 @@ namespace Reloader.UI.Tests.PlayMode
                 resolutionOptions: new[] { "1280x720", "1920x1080" },
                 selectedResolutionIndex: 1,
                 fov: 87f,
+                lookSensitivity: 1.2f,
+                adsSensitivity: 0.85f,
                 scopedPipResolutionPercent: 135,
                 peripheralBlurPercent: 65,
                 globalVolume: 0.8f,
@@ -301,6 +304,31 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(snapshot.GlobalVolume, Is.EqualTo(0.33f).Within(0.001f));
             Assert.That(snapshot.MusicVolume, Is.EqualTo(0.44f).Within(0.001f));
             Assert.That(snapshot.SoundsVolume, Is.EqualTo(0.55f).Within(0.001f));
+        }
+
+        [Test]
+        public void EscMenuSettingsStore_SensitivityChangesApplyImmediatelyAndPersist()
+        {
+            var runtime = new TestSettingsRuntime();
+            var prefsKeyPrefix = "esc-menu-tests-sensitivity";
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".look-sensitivity");
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".ads-sensitivity");
+
+            var store = new EscMenuSettingsStore(runtime, prefsKeyPrefix);
+            InvokeSingleFloatMethod(store, "SetLookSensitivity", 1.6f);
+            InvokeSingleFloatMethod(store, "SetAdsSensitivity", 0.7f);
+
+            Assert.That(GetSingleFloatProperty(runtime, "LastAppliedLookSensitivity"), Is.EqualTo(1.6f).Within(0.001f));
+            Assert.That(GetSingleFloatProperty(runtime, "LastAppliedAdsSensitivity"), Is.EqualTo(0.7f).Within(0.001f));
+
+            var snapshot = store.CreateSnapshot();
+            Assert.That(GetSingleFloatProperty(snapshot, "LookSensitivity"), Is.EqualTo(1.6f).Within(0.001f));
+            Assert.That(GetSingleFloatProperty(snapshot, "AdsSensitivity"), Is.EqualTo(0.7f).Within(0.001f));
+
+            var reloaded = new EscMenuSettingsStore(runtime, prefsKeyPrefix);
+            var reloadedSnapshot = reloaded.CreateSnapshot();
+            Assert.That(GetSingleFloatProperty(reloadedSnapshot, "LookSensitivity"), Is.EqualTo(1.6f).Within(0.001f));
+            Assert.That(GetSingleFloatProperty(reloadedSnapshot, "AdsSensitivity"), Is.EqualTo(0.7f).Within(0.001f));
         }
 
         [Test]
@@ -380,6 +408,66 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(peripheralBlurSlider.value, Is.EqualTo(72f).Within(0.001f));
 
             UnityEngine.Object.DestroyImmediate(go);
+        }
+
+        [Test]
+        public void EscMenuController_HandleIntent_GameSensitivityChangesUpdateRenderedSliders()
+        {
+            var go = new GameObject("esc-menu-controller-sensitivity");
+            var root = BuildEscRoot();
+            var binder = new EscMenuViewBinder();
+            binder.Initialize(root);
+
+            var controller = go.AddComponent<EscMenuController>();
+            controller.SetViewBinder(binder);
+
+            controller.HandleIntent(new UiIntent("esc.menu.settings"));
+            controller.HandleIntent(new UiIntent("esc.menu.settings.tab", "game"));
+            controller.HandleIntent(new UiIntent("esc.menu.settings.game.look-sensitivity.changed", 1.6f));
+            controller.HandleIntent(new UiIntent("esc.menu.settings.game.ads-sensitivity.changed", 0.7f));
+
+            var lookSensitivitySlider = root.Q<Slider>("esc-menu__look-sensitivity");
+            var adsSensitivitySlider = root.Q<Slider>("esc-menu__ads-sensitivity");
+
+            Assert.That(lookSensitivitySlider, Is.Not.Null);
+            Assert.That(adsSensitivitySlider, Is.Not.Null);
+            Assert.That(lookSensitivitySlider.value, Is.EqualTo(1.6f).Within(0.001f));
+            Assert.That(adsSensitivitySlider.value, Is.EqualTo(0.7f).Within(0.001f));
+
+            UnityEngine.Object.DestroyImmediate(go);
+        }
+
+        [Test]
+        public void EscMenuViewBinder_GameSensitivitySliders_RaiseExpectedIntents()
+        {
+            var root = BuildEscRoot();
+            var binder = new EscMenuViewBinder();
+            binder.Initialize(root);
+
+            UiIntent? lookIntent = null;
+            UiIntent? adsIntent = null;
+            binder.IntentRaised += intent =>
+            {
+                if (intent.Key == "esc.menu.settings.game.look-sensitivity.changed")
+                {
+                    lookIntent = intent;
+                }
+
+                if (intent.Key == "esc.menu.settings.game.ads-sensitivity.changed")
+                {
+                    adsIntent = intent;
+                }
+            };
+
+            var lookSensitivitySlider = root.Q<Slider>("esc-menu__look-sensitivity");
+            var adsSensitivitySlider = root.Q<Slider>("esc-menu__ads-sensitivity");
+            InvokePrivateChangeEventHandler(binder, "HandleLookSensitivityChanged", 0.1f, 1.6f);
+            InvokePrivateChangeEventHandler(binder, "HandleAdsSensitivityChanged", 1.6f, 0.7f);
+
+            Assert.That(lookIntent.HasValue, Is.True);
+            Assert.That(adsIntent.HasValue, Is.True);
+            Assert.That(Convert.ToSingle(lookIntent.Value.Payload), Is.EqualTo(1.6f).Within(0.001f));
+            Assert.That(Convert.ToSingle(adsIntent.Value.Payload), Is.EqualTo(0.7f).Within(0.001f));
         }
 
         [Test]
@@ -575,7 +663,10 @@ namespace Reloader.UI.Tests.PlayMode
             settingsScreen.Add(new Button { name = "esc-menu__tab-video" });
             settingsScreen.Add(new Button { name = "esc-menu__tab-audio" });
 
-            settingsScreen.Add(new VisualElement { name = "esc-menu__tab-panel-game" });
+            var gameTabPanel = new VisualElement { name = "esc-menu__tab-panel-game" };
+            gameTabPanel.Add(new Slider { name = "esc-menu__look-sensitivity", lowValue = 0.1f, highValue = 2f });
+            gameTabPanel.Add(new Slider { name = "esc-menu__ads-sensitivity", lowValue = 0.1f, highValue = 2f });
+            settingsScreen.Add(gameTabPanel);
             settingsScreen.Add(new VisualElement { name = "esc-menu__tab-panel-video" });
             settingsScreen.Add(new VisualElement { name = "esc-menu__tab-panel-audio" });
 
@@ -612,6 +703,29 @@ namespace Reloader.UI.Tests.PlayMode
                 System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null);
             field.SetValue(null, -1);
+        }
+
+        private static void InvokeSingleFloatMethod(object target, string methodName, float value)
+        {
+            var method = target.GetType().GetMethod(methodName);
+            Assert.That(method, Is.Not.Null, methodName);
+            method.Invoke(target, new object[] { value });
+        }
+
+        private static float GetSingleFloatProperty(object target, string propertyName)
+        {
+            var property = target.GetType().GetProperty(propertyName);
+            Assert.That(property, Is.Not.Null, propertyName);
+            return Convert.ToSingle(property.GetValue(target));
+        }
+
+        private static void InvokePrivateChangeEventHandler(object target, string methodName, float previousValue, float newValue)
+        {
+            var method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, methodName);
+
+            using var evt = ChangeEvent<float>.GetPooled(previousValue, newValue);
+            method.Invoke(target, new object[] { evt });
         }
 
         private sealed class TestEscKeySource : IEscMenuKeySource
@@ -696,6 +810,8 @@ namespace Reloader.UI.Tests.PlayMode
             public int LastResolutionIndex { get; private set; }
             public int CurrentResolutionIndex { get; set; }
             public float Fov { get; private set; } = 70f;
+            public float LastAppliedLookSensitivity { get; private set; } = 1f;
+            public float LastAppliedAdsSensitivity { get; private set; } = 1f;
             public float GlobalVolume { get; private set; } = 1f;
             public float MusicVolume { get; private set; } = 1f;
             public float SoundsVolume { get; private set; } = 1f;
@@ -703,6 +819,8 @@ namespace Reloader.UI.Tests.PlayMode
             public IReadOnlyList<EscMenuResolutionOption> GetAvailableResolutionOptions() => _resolutions;
             public EscMenuResolutionOption GetCurrentResolutionOption() => _resolutions[Mathf.Clamp(CurrentResolutionIndex, 0, _resolutions.Length - 1)];
             public float GetCurrentFov() => Fov;
+            public float GetCurrentUserLookSensitivityMultiplier() => LastAppliedLookSensitivity;
+            public float GetCurrentUserAdsSensitivityMultiplier() => LastAppliedAdsSensitivity;
             public float GetCurrentGlobalVolume() => GlobalVolume;
             public float GetCurrentMusicVolume() => MusicVolume;
             public float GetCurrentSoundsVolume() => SoundsVolume;
@@ -715,6 +833,16 @@ namespace Reloader.UI.Tests.PlayMode
             public void ApplyFov(float fov)
             {
                 Fov = fov;
+            }
+
+            public void ApplyUserLookSensitivityMultiplier(float multiplier)
+            {
+                LastAppliedLookSensitivity = multiplier;
+            }
+
+            public void ApplyUserAdsSensitivityMultiplier(float multiplier)
+            {
+                LastAppliedAdsSensitivity = multiplier;
             }
 
             public void ApplyGlobalVolume(float volume)
