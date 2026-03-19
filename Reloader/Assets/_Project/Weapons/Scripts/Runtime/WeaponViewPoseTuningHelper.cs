@@ -104,44 +104,47 @@ namespace Reloader.Weapons.Runtime
 
         private void Awake()
         {
-            if (_weaponController == null)
-            {
-                _weaponController = GetComponent<PlayerWeaponController>();
-                if (_weaponController == null)
-                {
-                    _weaponController = FindFirstObjectByType<PlayerWeaponController>();
-                }
-            }
+            ResolveWeaponController(forceRefresh: true);
+        }
+
+        private void OnEnable()
+        {
+            ResolveWeaponController(forceRefresh: true);
+        }
+
+        private void OnDisable()
+        {
+            ClearScopedAdsRuntimeTuning();
+            ResetRuntimeState();
         }
 
         private void Update()
         {
+            ResolveWeaponController();
             if (!_enabledInPlayMode || _weaponController == null)
             {
                 return;
             }
 
-            var equippedView = _weaponController.EquippedWeaponViewTransform;
-            if (!IsTuningTargetEquipped(equippedView))
+            if (!IsTuningTargetEquipped())
             {
-                _activePoseSource = "Inactive";
-                _activeAttachmentItemId = string.Empty;
-                _blendT = 0f;
-                _isHoldingScopedAdsRootPose = false;
+                ClearScopedAdsRuntimeTuning();
+                ResetRuntimeState();
                 return;
             }
         }
 
         private void LateUpdate()
         {
+            ResolveWeaponController();
             if (!_enabledInPlayMode || _weaponController == null)
             {
                 return;
             }
 
-            var equippedView = _weaponController.EquippedWeaponViewTransform;
-            if (!IsTuningTargetEquipped(equippedView))
+            if (!IsTuningTargetEquipped())
             {
+                ClearScopedAdsRuntimeTuning();
                 return;
             }
 
@@ -174,8 +177,8 @@ namespace Reloader.Weapons.Runtime
             {
                 if (!_isHoldingScopedAdsRootPose)
                 {
-                    equippedView.localPosition = pose.AdsLocalPosition;
-                    equippedView.localRotation = adsRot * Quaternion.Euler(pose.RifleLocalEulerOffset);
+                    transform.localPosition = pose.AdsLocalPosition;
+                    transform.localRotation = adsRot * Quaternion.Euler(pose.RifleLocalEulerOffset);
                     _isHoldingScopedAdsRootPose = true;
                 }
 
@@ -184,13 +187,19 @@ namespace Reloader.Weapons.Runtime
 
             _isHoldingScopedAdsRootPose = false;
 
-            equippedView.localPosition = targetPosition;
-            equippedView.localRotation = targetRotation;
+            transform.localPosition = targetPosition;
+            transform.localRotation = targetRotation;
         }
 
-        private bool IsTuningTargetEquipped(Transform equippedView)
+        private bool IsTuningTargetEquipped()
         {
-            if (equippedView == null || _weaponController == null)
+            if (_weaponController == null)
+            {
+                return false;
+            }
+
+            var equippedView = _weaponController.EquippedWeaponViewTransform;
+            if (equippedView == null || !ReferenceEquals(equippedView, transform))
             {
                 return false;
             }
@@ -455,7 +464,7 @@ namespace Reloader.Weapons.Runtime
             context.SlotType = default;
             context.AttachmentItemId = string.Empty;
             context.Values = GetBasePoseValues();
-            return IsTuningTargetEquipped(_weaponController.EquippedWeaponViewTransform);
+            return IsTuningTargetEquipped();
         }
 
         private void ApplyScopedAdsRuntimeTuning(int overrideIndex, string matchedAttachmentItemId, PoseData pose)
@@ -479,6 +488,40 @@ namespace Reloader.Weapons.Runtime
             }
 
             _weaponController.SetScopedAdsPresentationEyeReliefOffset(pose.ScopedAdsEyeReliefBackOffset);
+        }
+
+        private void ResolveWeaponController(bool forceRefresh = false)
+        {
+            if (!forceRefresh
+                && _weaponController != null
+                && _weaponController.transform != null
+                && transform.IsChildOf(_weaponController.transform))
+            {
+                return;
+            }
+
+            _weaponController = GetComponentInParent<PlayerWeaponController>();
+        }
+
+        private void ResetRuntimeState()
+        {
+            _activePoseSource = "Inactive";
+            _activeAttachmentItemId = string.Empty;
+            _blendT = 0f;
+            _isHoldingScopedAdsRootPose = false;
+        }
+
+        private void ClearScopedAdsRuntimeTuning()
+        {
+            if (_weaponController == null)
+            {
+                return;
+            }
+
+            if (ReferenceEquals(_weaponController.EquippedWeaponViewTransform, transform))
+            {
+                _weaponController.SetScopedAdsPresentationEyeReliefOffset(0f);
+            }
         }
     }
 }

@@ -13285,39 +13285,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Animations.PlayerWeaponAnimationBinder
   _animator: {fileID: 20147494}
   _animationProfile: {fileID: 11400000, guid: 052fe1896bea14619ab66cde169b093a, type: 2}
---- !u!114 &573788854
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 573788834}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e67b710205c249288d612a723f622e4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Runtime.WeaponViewPoseTuningHelper
-  _weaponController: {fileID: 573788848}
-  _targetWeaponItemId: weapon-kar98k
-  _enabledInPlayMode: 1
-  _hipLocalPosition: {x: 0.015, y: 0.15, z: 0.005}
-  _hipLocalEuler: {x: 0, y: 0, z: 0}
-  _adsLocalPosition: {x: 0, y: 0.2, z: 0.077}
-  _adsLocalEuler: {x: 0, y: 0, z: 0}
-  _blendSpeed: 24
-  _rifleLocalEulerOffset: {x: 90, y: 0, z: 0}
-  _attachmentPoseOverrides:
-  - _slotType: 0
-    _attachmentItemId: att-kar98k-scope-remote-a
-    _hipLocalPosition: {x: 0.015, y: 0.15, z: 0.005}
-    _hipLocalEuler: {x: 0, y: 0, z: 0}
-    _adsLocalPosition: {x: 0, y: 0.2, z: 0.05}
-    _adsLocalEuler: {x: 0, y: 0, z: 0}
-    _blendSpeed: 24
-    _rifleLocalEulerOffset: {x: 90, y: 0, z: 0}
-    _scopedAdsEyeReliefBackOffset: 0
-  _activePoseSource: Base
-  _activeAttachmentItemId: 
 --- !u!114 &573788857
 MonoBehaviour:
   m_ObjectHideFlags: 0

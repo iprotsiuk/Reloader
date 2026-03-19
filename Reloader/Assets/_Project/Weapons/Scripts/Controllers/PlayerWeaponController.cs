@@ -161,9 +161,7 @@ namespace Reloader.Weapons.Controllers
         private readonly HashSet<int> _shotCameraSuppressedRendererIds = new HashSet<int>();
         private readonly HashSet<int> _shotCameraSuppressedCameraIds = new HashSet<int>();
         private bool _isShotCameraPresentationSuppressed;
-        private bool _isScopedViewmodelAnimatorFrozen;
         private bool _isStableMagnifiedScopedAds;
-        private float _scopedViewmodelAnimatorPreviousSpeed = 1f;
         private string _appliedScopeAttachmentItemId = string.Empty;
         private string _appliedMuzzleAttachmentItemId = string.Empty;
         private static readonly Bounds ViewmodelSkinnedBounds = new Bounds(Vector3.zero, new Vector3(8f, 8f, 8f));
@@ -739,12 +737,9 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
-            if (ShouldRepairScopedRuntimePresentation(
-                    !string.IsNullOrWhiteSpace(state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope)),
-                    _adsStateRuntimeBridge != null,
-                    _adsAttachmentManagerRuntimeBridge != null,
-                    _weaponAimAlignerRuntimeBridge != null,
-                    HasActiveScopedAdsAlignment))
+            var expectedScopeAttachmentItemId = NormalizeAttachmentItemId(state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope));
+            var mountedScopeAttachmentItemId = ResolveMountedScopeAttachmentItemId();
+            if (!string.Equals(expectedScopeAttachmentItemId, mountedScopeAttachmentItemId, StringComparison.Ordinal))
             {
                 _appliedScopeAttachmentItemId = string.Empty;
             }
@@ -1334,29 +1329,6 @@ namespace Reloader.Weapons.Controllers
             {
                 _viewmodelAnimatorDriver.LockViewmodelRootPose = shouldStabilize;
             }
-
-            if (_packAnimator == null)
-            {
-                return;
-            }
-
-            if (shouldStabilize)
-            {
-                if (!_isScopedViewmodelAnimatorFrozen)
-                {
-                    _scopedViewmodelAnimatorPreviousSpeed = _packAnimator.speed;
-                    _isScopedViewmodelAnimatorFrozen = true;
-                }
-
-                if (!Mathf.Approximately(_packAnimator.speed, 0f))
-                {
-                    _packAnimator.speed = 0f;
-                }
-
-                return;
-            }
-
-            ResetScopedViewmodelStabilization();
         }
 
         private void ResetScopedViewmodelStabilization()
@@ -1365,15 +1337,6 @@ namespace Reloader.Weapons.Controllers
             {
                 _viewmodelAnimatorDriver.LockViewmodelRootPose = false;
             }
-
-            if (_packAnimator == null || !_isScopedViewmodelAnimatorFrozen)
-            {
-                _isScopedViewmodelAnimatorFrozen = false;
-                return;
-            }
-
-            _packAnimator.speed = _scopedViewmodelAnimatorPreviousSpeed;
-            _isScopedViewmodelAnimatorFrozen = false;
         }
 
         private static bool ShouldStabilizeScopedViewmodelPresentation(
@@ -1393,20 +1356,6 @@ namespace Reloader.Weapons.Controllers
                 : ScopedPresentationEnterAdsBlendT;
 
             return adsBlendT >= threshold;
-        }
-
-        private static bool ShouldRepairScopedRuntimePresentation(
-            bool hasEquippedScopedAttachment,
-            bool hasScopedAdsStateBridge,
-            bool hasScopedAttachmentManagerBridge,
-            bool hasWeaponAimAlignerBridge,
-            bool hasScopedAdsAlignment)
-        {
-            return hasEquippedScopedAttachment
-                && (!hasScopedAdsStateBridge
-                    || !hasScopedAttachmentManagerBridge
-                    || !hasWeaponAimAlignerBridge
-                    || !hasScopedAdsAlignment);
         }
 
         private bool HasScopedAdsBridgeActive()
@@ -1434,6 +1383,17 @@ namespace Reloader.Weapons.Controllers
         {
             _scopedAdsPresentationEyeReliefOffset = value;
             ApplyScopedAdsPresentationEyeReliefOffset();
+        }
+
+        private string ResolveMountedScopeAttachmentItemId()
+        {
+            if (_adsAttachmentManagerRuntimeBridge == null)
+            {
+                return string.Empty;
+            }
+
+            var activeOptic = ResolveActiveOpticDefinition();
+            return NormalizeAttachmentItemId(GetOpticDefinitionId(activeOptic));
         }
 
         private float ResolveCurrentAdsBlendT()
@@ -2433,9 +2393,7 @@ namespace Reloader.Weapons.Controllers
 
             if (string.IsNullOrWhiteSpace(attachmentItemId))
             {
-                var authoredOpticVisualName = ResolveOpticPrefabName(activeOpticProperty?.GetValue(manager) as UObject);
                 unequipMethod.Invoke(manager, null);
-                RemoveDetachedAuthoredAttachmentVisuals(_equippedWeaponView, authoredOpticVisualName);
                 EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
                 NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
                 return true;
@@ -2494,40 +2452,6 @@ namespace Reloader.Weapons.Controllers
 
             var opticIdProperty = opticDefinition.GetType().GetProperty("OpticId", BindingFlags.Instance | BindingFlags.Public);
             return opticIdProperty?.GetValue(opticDefinition) as string ?? string.Empty;
-        }
-
-        private static string ResolveOpticPrefabName(UObject opticDefinition)
-        {
-            if (opticDefinition == null)
-            {
-                return string.Empty;
-            }
-
-            var opticPrefabProperty = opticDefinition.GetType().GetProperty("OpticPrefab", BindingFlags.Instance | BindingFlags.Public);
-            return opticPrefabProperty?.GetValue(opticDefinition) is GameObject prefab ? prefab.name : string.Empty;
-        }
-
-        private static void RemoveDetachedAuthoredAttachmentVisuals(GameObject viewRoot, string visualRootName)
-        {
-            if (viewRoot == null || string.IsNullOrWhiteSpace(visualRootName))
-            {
-                return;
-            }
-
-            var transforms = viewRoot.GetComponentsInChildren<Transform>(true);
-            for (var i = 0; i < transforms.Length; i++)
-            {
-                var candidate = transforms[i];
-                if (candidate == null
-                    || candidate == viewRoot.transform
-                    || !string.Equals(candidate.name, visualRootName, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                candidate.SetParent(null, false);
-                Destroy(candidate.gameObject);
-            }
         }
 
         private bool ApplyMuzzleAttachmentToViewRuntime(string attachmentItemId)

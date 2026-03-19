@@ -13,7 +13,7 @@ namespace Reloader.Game.Weapons
         [SerializeField] private Transform _muzzleSlot;
         [SerializeField] private MuzzleAttachmentRuntime _muzzleRuntime;
 
-        [Header("Fallback")]
+        [Header("Iron Sight Anchor")]
         [SerializeField] private Transform _ironSightAnchor;
         [Header("Debug")]
         [SerializeField] private bool _verboseOpticLogs;
@@ -74,7 +74,7 @@ namespace Reloader.Game.Weapons
                 RefreshSightAnchor();
                 if (_verboseOpticLogs)
                 {
-                    Debug.Log("AttachmentManager: EquipOptic(null) -> unequipped optic, using fallback sight anchor.", this);
+                    Debug.Log("AttachmentManager: EquipOptic(null) -> unequipped optic, using iron sight anchor.", this);
                 }
                 return _activeSightAnchor != null;
             }

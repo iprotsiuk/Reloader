@@ -526,6 +526,8 @@ GameObject:
   m_Component:
   - component: {fileID: 6560500694826268764}
   - component: {fileID: 776500000000000005}
+  - component: {fileID: 776500000000000008}
+  - component: {fileID: 776500000000000011}
   m_Layer: 0
   m_Name: Kar98kView
   m_TagString: Untagged
@@ -590,7 +592,71 @@ Transform:
   - {fileID: 1651388948485202288}
   - {fileID: 776500000000000002}
   - {fileID: 776500000000000004}
+  - {fileID: 776500000000000009}
+  - {fileID: 776500000000000010}
   m_Father: {fileID: 6560500694826268764}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &776500000000000012
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 776500000000000009}
+  m_Layer: 0
+  m_Name: LeftHandGrip
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &776500000000000009
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 776500000000000012}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.055, y: 0.01, z: 0.305}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 776500000000000006}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &776500000000000013
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 776500000000000010}
+  m_Layer: 0
+  m_Name: RightHandGrip
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &776500000000000010
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 776500000000000013}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.02, y: -0.02, z: 0.14}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 776500000000000006}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8496454042236474113
 GameObject:
@@ -800,3 +866,49 @@ MonoBehaviour:
     _slotTransform: {fileID: 776500000000000002}
   - _slotType: 1
     _slotTransform: {fileID: 8932569725151510662}
+--- !u!114 &776500000000000008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5782696911360418534}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e67b710205c249288d612a723f622e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Runtime.WeaponViewPoseTuningHelper
+  _targetWeaponItemId: weapon-kar98k
+  _enabledInPlayMode: 1
+  _hipLocalPosition: {x: 0.015, y: 0.15, z: 0.005}
+  _hipLocalEuler: {x: 0, y: 0, z: 0}
+  _adsLocalPosition: {x: 0, y: 0.2, z: 0.077}
+  _adsLocalEuler: {x: 0, y: 0, z: 0}
+  _blendSpeed: 24
+  _rifleLocalEulerOffset: {x: 90, y: 0, z: 0}
+  _attachmentPoseOverrides:
+  - _slotType: 0
+    _attachmentItemId: att-kar98k-scope-remote-a
+    _hipLocalPosition: {x: 0.015, y: 0.15, z: 0.005}
+    _hipLocalEuler: {x: 0, y: 0, z: 0}
+    _adsLocalPosition: {x: 0, y: 0.2, z: 0.05}
+    _adsLocalEuler: {x: 0, y: 0, z: 0}
+    _blendSpeed: 24
+    _rifleLocalEulerOffset: {x: 90, y: 0, z: 0}
+    _scopedAdsEyeReliefBackOffset: 0
+  _activePoseSource: Base
+  _activeAttachmentItemId: 
+--- !u!114 &776500000000000011
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5782696911360418534}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 576a98bc6b95b44bbad72ec171fe3a76, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Runtime.WeaponViewHandAnchors
+  _leftHandGrip: {fileID: 776500000000000009}
+  _rightHandGrip: {fileID: 776500000000000010}

@@ -153,6 +153,13 @@ namespace Reloader.DevTools.Tests.PlayMode
             Assert.That(GetPropertyValue<bool>(weaponController, "HasActiveScopedAdsAlignment"), Is.True,
                 "give test should mount the scoped runtime view from state instead of only mutating the saved attachment snapshot.");
 
+            var equippedView = GetPropertyValue<Transform>(weaponController, "EquippedWeaponViewTransform");
+            Assert.That(equippedView, Is.Not.Null);
+            Assert.That(equippedView.GetComponent<WeaponViewPoseTuningHelper>(), Is.Not.Null,
+                "Kar98k pose tuning should live on the equipped rifle view prefab, not the player root.");
+            Assert.That(root.GetComponent<WeaponViewPoseTuningHelper>(), Is.Null,
+                "Player root should not own Kar98k pose tuning once the prefab owns the weapon pose.");
+
             inputSource.AimHeldValue = true;
             var adsBridge = GetPrivateFieldValue<Component>(weaponController, "_adsStateRuntimeBridge");
             Assert.That(adsBridge, Is.Not.Null);
@@ -174,7 +181,7 @@ namespace Reloader.DevTools.Tests.PlayMode
                 yield return new WaitForEndOfFrame();
             }
 
-            var equippedView = GetPropertyValue<Transform>(weaponController, "EquippedWeaponViewTransform");
+            equippedView = GetPropertyValue<Transform>(weaponController, "EquippedWeaponViewTransform");
             Assert.That(equippedView, Is.Not.Null);
             var attachmentManagerType = ResolveRequiredType("Reloader.Game.Weapons.AttachmentManager");
             var manager = equippedView.GetComponent(attachmentManagerType);
@@ -660,32 +667,6 @@ namespace Reloader.DevTools.Tests.PlayMode
             metadataArray.SetValue(metadata, 0);
             SetPrivateField(weaponController.GetType(), weaponController, "_attachmentItemMetadata", metadataArray);
             SetControllerWeaponViewBinding(weaponController, "weapon-kar98k", rifleViewPrefab);
-
-            var poseHelper = weaponController.gameObject.AddComponent<WeaponViewPoseTuningHelper>();
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_weaponController", weaponController);
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_targetWeaponItemId", "weapon-kar98k");
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_hipLocalPosition", new Vector3(0.015f, 0.15f, 0.005f));
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_adsLocalPosition", new Vector3(0f, 0.2f, 0.077f));
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_hipLocalEuler", Vector3.zero);
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_adsLocalEuler", Vector3.zero);
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_rifleLocalEulerOffset", new Vector3(90f, 0f, 0f));
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_blendSpeed", 24f);
-
-            var overrideType = typeof(WeaponViewPoseTuningHelper).GetNestedType("AttachmentPoseOverride", BindingFlags.NonPublic);
-            Assert.That(overrideType, Is.Not.Null);
-            var overrides = Array.CreateInstance(overrideType!, 1);
-            var entry = Activator.CreateInstance(overrideType!);
-            SetPrivateField(overrideType!, entry, "_slotType", scopeSlot);
-            SetPrivateField(overrideType!, entry, "_attachmentItemId", "att-kar98k-scope-remote-a");
-            SetPrivateField(overrideType!, entry, "_hipLocalPosition", new Vector3(0.015f, 0.15f, 0.005f));
-            SetPrivateField(overrideType!, entry, "_hipLocalEuler", Vector3.zero);
-            SetPrivateField(overrideType!, entry, "_adsLocalPosition", new Vector3(0f, 0.2f, 0.05f));
-            SetPrivateField(overrideType!, entry, "_adsLocalEuler", Vector3.zero);
-            SetPrivateField(overrideType!, entry, "_rifleLocalEulerOffset", new Vector3(90f, 0f, 0f));
-            SetPrivateField(overrideType!, entry, "_blendSpeed", 24f);
-            SetPrivateField(overrideType!, entry, "_scopedAdsEyeReliefBackOffset", 0f);
-            overrides.SetValue(entry, 0);
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_attachmentPoseOverrides", overrides);
 
             return worldCameraGo;
         }

@@ -4,6 +4,7 @@ using Reloader.Player.Viewmodel;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Inventory;
+using Reloader.Weapons.Runtime;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -1420,6 +1421,49 @@ namespace Reloader.Player.Tests.PlayMode
             }
             finally
             {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void WeaponHandRigController_SyncsHandTargetsFromEquippedWeaponViewAnchors()
+        {
+            var root = new GameObject("PlayerRoot");
+            var controller = root.AddComponent<WeaponHandRigController>();
+            var leftHandTarget = new GameObject("LeftHandTarget").transform;
+            var rightHandTarget = new GameObject("RightHandTarget").transform;
+            var weaponView = new GameObject("EquippedWeaponView");
+
+            try
+            {
+                controller.ConfigureTargets(leftHandTarget, rightHandTarget);
+
+                var anchors = weaponView.AddComponent<WeaponViewHandAnchors>();
+                var leftGrip = new GameObject("LeftGrip").transform;
+                leftGrip.SetParent(weaponView.transform, false);
+                leftGrip.localPosition = new Vector3(0.12f, 0.28f, 0.34f);
+                leftGrip.localRotation = Quaternion.Euler(12f, 34f, -8f);
+
+                var rightGrip = new GameObject("RightGrip").transform;
+                rightGrip.SetParent(weaponView.transform, false);
+                rightGrip.localPosition = new Vector3(-0.08f, 0.19f, 0.26f);
+                rightGrip.localRotation = Quaternion.Euler(-6f, 15f, 5f);
+
+                anchors.SetHandTargets(leftGrip, rightGrip);
+                controller.SetEquippedWeaponViewForTests(weaponView.transform);
+                controller.SyncHandTargets();
+
+                Assert.That(Vector3.Distance(leftHandTarget.position, leftGrip.position), Is.LessThan(0.0001f));
+                Assert.That(Quaternion.Angle(leftHandTarget.rotation, leftGrip.rotation), Is.LessThan(0.01f));
+                Assert.That(Vector3.Distance(rightHandTarget.position, rightGrip.position), Is.LessThan(0.0001f));
+                Assert.That(Quaternion.Angle(rightHandTarget.rotation, rightGrip.rotation), Is.LessThan(0.01f));
+                Assert.That(controller.HasResolvedWeaponAnchors, Is.True);
+            }
+            finally
+            {
+                Object.DestroyImmediate(weaponView);
+                Object.DestroyImmediate(leftHandTarget.gameObject);
+                Object.DestroyImmediate(rightHandTarget.gameObject);
                 Object.DestroyImmediate(root);
             }
         }
