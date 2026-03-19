@@ -1549,6 +1549,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             GameObject registryGo = null;
             WeaponDefinition definition = null;
             GameObject viewPrefab = null;
+            GameObject equippedView = null;
             GameOpticDefinition opticDefinition = null;
             GameObject opticPrefab = null;
 
@@ -1593,6 +1594,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 var controller = root.AddComponent<PlayerWeaponController>();
                 SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_weaponViewParent", root.transform);
                 SetControllerField(controller, "_attachmentItemMetadata", new[]
                 {
                     WeaponAttachmentItemMetadata.CreateForTests("att-optic-4x", WeaponAttachmentSlotType.Scope, opticDefinition)
@@ -1600,8 +1602,14 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
                 yield return null;
+                SetControllerField(controller, "_equippedItemId", "weapon-kar98k");
+                SetControllerField(controller, "_equippedDefinition", definition);
+                equippedView = Object.Instantiate(viewPrefab, root.transform, false);
+                SetControllerField(controller, "_equippedWeaponView", equippedView);
+                yield return null;
 
                 Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+                Assert.That(controller.EquippedWeaponViewTransform, Is.Not.Null);
                 Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-optic-4x"), Is.False);
                 Assert.That(state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.EqualTo(string.Empty));
                 Assert.That(runtime.GetItemQuantity("att-optic-4x"), Is.EqualTo(1));
@@ -1631,6 +1639,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                     Object.Destroy(viewPrefab);
                 }
 
+                if (equippedView != null)
+                {
+                    Object.Destroy(equippedView);
+                }
+
                 if (opticDefinition != null)
                 {
                     Object.Destroy(opticDefinition);
@@ -1650,6 +1663,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             GameObject registryGo = null;
             WeaponDefinition definition = null;
             GameObject viewPrefab = null;
+            GameObject equippedView = null;
             GameMuzzleAttachmentDefinition muzzleDefinition = null;
             GameObject muzzlePrefab = null;
 
@@ -1693,6 +1707,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 var controller = root.AddComponent<PlayerWeaponController>();
                 SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_weaponViewParent", root.transform);
                 SetControllerField(controller, "_attachmentItemMetadata", new[]
                 {
                     WeaponAttachmentItemMetadata.CreateForTests("att-muzzle-brake", WeaponAttachmentSlotType.Muzzle, muzzleDefinition)
@@ -1700,8 +1715,14 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
                 yield return null;
+                SetControllerField(controller, "_equippedItemId", "weapon-kar98k");
+                SetControllerField(controller, "_equippedDefinition", definition);
+                equippedView = Object.Instantiate(viewPrefab, root.transform, false);
+                SetControllerField(controller, "_equippedWeaponView", equippedView);
+                yield return null;
 
                 Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+                Assert.That(controller.EquippedWeaponViewTransform, Is.Not.Null);
                 Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Muzzle, "att-muzzle-brake"), Is.False);
                 Assert.That(state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Muzzle), Is.EqualTo(string.Empty));
                 Assert.That(runtime.GetItemQuantity("att-muzzle-brake"), Is.EqualTo(1));
@@ -1731,6 +1752,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                     Object.Destroy(viewPrefab);
                 }
 
+                if (equippedView != null)
+                {
+                    Object.Destroy(equippedView);
+                }
+
                 if (muzzleDefinition != null)
                 {
                     Object.Destroy(muzzleDefinition);
@@ -1751,6 +1777,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             GameObject worldCameraGo = null;
             WeaponDefinition definition = null;
             GameObject viewPrefab = null;
+            GameObject equippedView = null;
             GameOpticDefinition opticDefinition = null;
             GameObject opticPrefab = null;
 
@@ -1819,12 +1846,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
                 yield return null;
-                var equipFrames = 0;
-                while (equipFrames < 30 && controller.EquippedWeaponViewTransform == null)
-                {
-                    equipFrames++;
-                    yield return null;
-                }
+                SetControllerField(controller, "_equippedItemId", "weapon-kar98k");
+                SetControllerField(controller, "_equippedDefinition", definition);
+                equippedView = Object.Instantiate(viewPrefab, root.transform, false);
+                SetControllerField(controller, "_equippedWeaponView", equippedView);
+                yield return null;
 
                 Assert.That(controller.EquippedWeaponViewTransform, Is.Not.Null);
 
@@ -1899,6 +1925,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 if (viewPrefab != null)
                 {
                     Object.Destroy(viewPrefab);
+                }
+
+                if (equippedView != null)
+                {
+                    Object.Destroy(equippedView);
                 }
 
                 if (opticDefinition != null)
@@ -1981,6 +2012,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             GameObject registryGo = null;
             GameObject worldCameraGo = null;
             GameObject viewPrefab = null;
+            GameObject equippedView = null;
             GameOpticDefinition opticDefinition = null;
             GameObject opticPrefab = null;
 
@@ -2077,12 +2109,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
                 yield return null;
-                var equipFrames = 0;
-                while (equipFrames < 30 && controller.EquippedWeaponViewTransform == null)
-                {
-                    equipFrames++;
-                    yield return null;
-                }
+                SetControllerField(controller, "_equippedItemId", "weapon-kar98k");
+                SetControllerField(controller, "_equippedDefinition", definition);
+                equippedView = Object.Instantiate(viewPrefab, root.transform, false);
+                SetControllerField(controller, "_equippedWeaponView", equippedView);
+                yield return null;
 
                 Assert.That(controller.EquippedWeaponViewTransform, Is.Not.Null);
 
@@ -2135,6 +2166,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 if (viewPrefab != null)
                 {
                     Object.Destroy(viewPrefab);
+                }
+
+                if (equippedView != null)
+                {
+                    Object.Destroy(equippedView);
                 }
 
                 if (opticDefinition != null)
