@@ -1792,8 +1792,6 @@ namespace Reloader.Weapons.Controllers
                 mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Muzzle, out attachmentSlot);
             }
 
-            attachmentSlot ??= FindDescendantByName(viewRoot.transform, "MuzzleAttachmentSlot")
-                ?? viewMuzzle;
             runtimeComponent.ConfigureRuntimeReferences(viewMuzzle, attachmentSlot);
             runtimeComponent.Unequip();
         }
@@ -1806,14 +1804,10 @@ namespace Reloader.Weapons.Controllers
             }
 
             var runtimeComponent = viewRoot.GetComponent<GameDetachableMagazineRuntime>() ?? viewRoot.AddComponent<GameDetachableMagazineRuntime>();
-            var magazineSocket = mounts != null
-                ? mounts.MagazineSocket
-                : FindDescendantByName(viewRoot.transform, "MagazineSocket")
-                    ?? FindDescendantByName(viewRoot.transform, "SOCKET_Magazine")
-                    ?? FindDescendantByName(viewRoot.transform, "Muzzle");
+            var magazineSocket = mounts != null ? mounts.MagazineSocket : null;
             var dropSocket = mounts != null && mounts.MagazineDropSocket != null
                 ? mounts.MagazineDropSocket
-                : FindDescendantByName(viewRoot.transform, "MagazineDropSocket") ?? magazineSocket;
+                : magazineSocket;
             if (magazineSocket == null)
             {
                 return;
@@ -2118,9 +2112,7 @@ namespace Reloader.Weapons.Controllers
                 Debug.LogWarning($"PlayerWeaponController: View '{_equippedWeaponView.name}' is missing WeaponViewAttachmentMounts.", this);
             }
 
-            var viewMuzzle = mounts?.MuzzleTransform
-                ?? FindDescendantByName(_equippedWeaponView.transform, "Muzzle")
-                ?? FindDescendantByName(_equippedWeaponView.transform, "SOCKET_Muzzle");
+            var viewMuzzle = mounts != null ? mounts.MuzzleTransform : null;
             if (viewMuzzle != null)
             {
                 _muzzleTransform = viewMuzzle;
@@ -2372,14 +2364,15 @@ namespace Reloader.Weapons.Controllers
                 return null;
             }
 
-            var ironSightAnchor = mounts.IronSightAnchor != null ? mounts.IronSightAnchor : viewRoot.transform;
-            if (mounts.IronSightAnchor == null && scopeSlot != null)
+            if (scopeSlot != null && mounts.IronSightAnchor == null)
             {
                 Debug.LogWarning(
-                    $"PlayerWeaponController: View '{viewRoot.name}' is missing an authored IronSightAnchor. Falling back to the view root for attachment manager runtime.",
+                    $"PlayerWeaponController: View '{viewRoot.name}' is missing an authored IronSightAnchor required for scoped attachment runtime.",
                     this);
+                return null;
             }
 
+            var ironSightAnchor = mounts.IronSightAnchor;
             var muzzleRuntime = viewRoot.GetComponent<GameMuzzleAttachmentRuntime>();
             manager.ConfigureMounts(scopeSlot, ironSightAnchor, muzzleSlot, muzzleRuntime);
             return manager;
