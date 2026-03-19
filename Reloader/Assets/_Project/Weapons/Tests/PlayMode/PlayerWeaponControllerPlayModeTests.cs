@@ -6,6 +6,11 @@ using NUnit.Framework;
 using Reloader.Audio;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using GameAdsStateController = Reloader.Game.Weapons.AdsStateController;
+using GameAdsVisualMode = Reloader.Game.Weapons.AdsVisualMode;
+using GameAttachmentManager = Reloader.Game.Weapons.AttachmentManager;
+using GameOpticDefinition = Reloader.Game.Weapons.OpticDefinition;
+using GameWeaponAimAligner = Reloader.Game.Weapons.WeaponAimAligner;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.Player.Viewmodel;
@@ -1741,18 +1746,11 @@ namespace Reloader.Weapons.Tests.PlayMode
         [UnityTest]
         public IEnumerator ScopedAds_WithMagnifiedOptic_DoesNotFreezePackAnimator()
         {
-            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
-            var adsControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
-            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
-            Assert.That(attachmentManagerType, Is.Not.Null);
-            Assert.That(adsControllerType, Is.Not.Null);
-            Assert.That(opticDefinitionType, Is.Not.Null);
-
             GameObject root = null;
             GameObject registryGo = null;
             GameObject worldCameraGo = null;
             GameObject viewPrefab = null;
-            ScriptableObject opticDefinition = null;
+            GameOpticDefinition opticDefinition = null;
             GameObject opticPrefab = null;
 
             try
@@ -1822,19 +1820,19 @@ namespace Reloader.Weapons.Tests.PlayMode
                 iconPrefabField.SetValue(definition, viewPrefab);
                 registry.SetDefinitionsForTests(new[] { definition });
 
-                opticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+                opticDefinition = ScriptableObject.CreateInstance<GameOpticDefinition>();
                 opticPrefab = new GameObject("OpticPiPPrefab");
                 var sightAnchor = new GameObject("SightAnchor").transform;
                 sightAnchor.SetParent(opticPrefab.transform, false);
                 sightAnchor.localPosition = new Vector3(0f, 0f, -0.05f);
 
-                SetField(opticDefinitionType, opticDefinition, "_opticId", "att-optic-pip");
-                SetField(opticDefinitionType, opticDefinition, "_isVariableZoom", true);
-                SetField(opticDefinitionType, opticDefinition, "_magnificationMin", 4f);
-                SetField(opticDefinitionType, opticDefinition, "_magnificationMax", 8f);
-                SetField(opticDefinitionType, opticDefinition, "_magnificationStep", 1f);
-                SetField(opticDefinitionType, opticDefinition, "_visualModePolicy", Enum.Parse(ResolveType("Reloader.Game.Weapons.AdsVisualMode"), "RenderTexturePiP"));
-                SetField(opticDefinitionType, opticDefinition, "_opticPrefab", opticPrefab);
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_opticId", "att-optic-pip");
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_isVariableZoom", true);
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_magnificationMin", 4f);
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_magnificationMax", 8f);
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_magnificationStep", 1f);
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_visualModePolicy", GameAdsVisualMode.RenderTexturePiP);
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_opticPrefab", opticPrefab);
 
                 var controller = root.AddComponent<PlayerWeaponController>();
                 SetControllerField(controller, "_adsCamera", worldCamera);
@@ -1858,8 +1856,9 @@ namespace Reloader.Weapons.Tests.PlayMode
                 }
 
                 Assert.That(controller.HasStableScopedAdsAlignment, Is.True, "Expected magnified scoped ADS to become stable in the test harness.");
-                Assert.That(GetControllerField<Component>(controller, "_adsStateRuntimeBridge"), Is.Not.Null);
-                Assert.That(GetControllerField<Component>(controller, "_weaponAimAlignerRuntimeBridge"), Is.Not.Null);
+                Assert.That(root.GetComponent<GameAttachmentManager>(), Is.Not.Null);
+                Assert.That(root.GetComponent<GameAdsStateController>(), Is.Not.Null);
+                Assert.That(root.GetComponent<GameWeaponAimAligner>(), Is.Not.Null);
 
                 yield return null;
 
