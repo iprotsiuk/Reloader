@@ -39,6 +39,7 @@ Shader "Hidden/Reloader/PeripheralScopeBlurComposite"
             #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
 
             float _BlurStrength;
+            float _BlurSampleRadius;
 
             float4 SampleBlur(float2 uv, float2 axis)
             {
@@ -46,7 +47,7 @@ Shader "Hidden/Reloader/PeripheralScopeBlurComposite"
                 const float weight1 = 0.31621622;
                 const float weight2 = 0.07027027;
 
-                float radius = lerp(0.75, 3.5, saturate(_BlurStrength));
+                float radius = max(_BlurSampleRadius, 0.01);
                 float2 offset = axis * _BlitTexture_TexelSize.xy * radius;
 
                 float4 color = SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_LinearClamp, uv, 0) * weight0;
@@ -78,6 +79,7 @@ Shader "Hidden/Reloader/PeripheralScopeBlurComposite"
             #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
 
             float _BlurStrength;
+            float _BlurSampleRadius;
 
             float4 SampleBlur(float2 uv, float2 axis)
             {
@@ -85,7 +87,7 @@ Shader "Hidden/Reloader/PeripheralScopeBlurComposite"
                 const float weight1 = 0.31621622;
                 const float weight2 = 0.07027027;
 
-                float radius = lerp(0.75, 3.5, saturate(_BlurStrength));
+                float radius = max(_BlurSampleRadius, 0.01);
                 float2 offset = axis * _BlitTexture_TexelSize.xy * radius;
 
                 float4 color = SAMPLE_TEXTURE2D_X_LOD(_BlitTexture, sampler_LinearClamp, uv, 0) * weight0;

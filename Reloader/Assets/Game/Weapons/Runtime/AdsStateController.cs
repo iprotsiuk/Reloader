@@ -193,6 +193,8 @@ namespace Reloader.Game.Weapons
                 PeripheralScopeBlurRuntimeState.Reset();
             }
 
+            ScopedPeripheralWorldRenderScaleRuntime.Reset();
+
             if (_scopeAdjustmentTooltipOverlay != null)
             {
                 _scopeAdjustmentTooltipOverlay.SetState(false, 0, 0);
@@ -203,6 +205,7 @@ namespace Reloader.Game.Weapons
         {
             UnsubscribeAttachmentManagerEvents();
             PeripheralScopeBlurRuntimeState.Reset();
+            ScopedPeripheralWorldRenderScaleRuntime.Reset();
         }
 
         public void SetAdsHeld(bool held)
@@ -478,6 +481,8 @@ namespace Reloader.Game.Weapons
             {
                 PeripheralScopeBlurRuntimeState.Reset();
             }
+
+            ScopedPeripheralWorldRenderScaleRuntime.Apply(usePip, normalizedPeripheralBlur);
 
             if (_renderTextureScopeController != null)
             {

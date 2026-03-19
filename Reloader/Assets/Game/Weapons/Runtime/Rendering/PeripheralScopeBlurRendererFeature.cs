@@ -40,12 +40,7 @@ namespace Reloader.Game.Weapons.Rendering
                 return;
             }
 
-            if (cameraData.cameraType == CameraType.Preview || cameraData.cameraType == CameraType.Reflection)
-            {
-                return;
-            }
-
-            if (cameraData.cameraType != CameraType.Game || cameraData.renderType != CameraRenderType.Base)
+            if (!ShouldEnqueueForCamera(cameraData.camera, cameraData.cameraType, cameraData.renderType == CameraRenderType.Base))
             {
                 return;
             }
@@ -63,6 +58,7 @@ namespace Reloader.Game.Weapons.Rendering
         private sealed class PeripheralScopeBlurPass : ScriptableRenderPass
         {
             private static readonly int BlurStrengthId = Shader.PropertyToID("_BlurStrength");
+            private static readonly int BlurSampleRadiusId = Shader.PropertyToID("_BlurSampleRadius");
             private static readonly int BlendAlphaId = Shader.PropertyToID("_BlendAlpha");
             private static readonly int CenterSizeId = Shader.PropertyToID("_CenterSize");
             private static readonly int SoftEdgeId = Shader.PropertyToID("_SoftEdgeNormalized");
@@ -93,7 +89,7 @@ namespace Reloader.Game.Weapons.Rendering
                     return;
                 }
 
-                if (cameraData.cameraType != CameraType.Game || cameraData.renderType != CameraRenderType.Base)
+                if (!ShouldEnqueueForCamera(cameraData.camera, cameraData.cameraType, cameraData.renderType == CameraRenderType.Base))
                 {
                     return;
                 }
@@ -105,6 +101,7 @@ namespace Reloader.Game.Weapons.Rendering
                 }
 
                 _material.SetFloat(BlurStrengthId, blurAmount);
+                _material.SetFloat(BlurSampleRadiusId, ResolveBlurSampleRadius(blurAmount));
                 _material.SetFloat(BlendAlphaId, PeripheralScopeBlurRuntimeState.BlendAlpha);
                 _material.SetVector(
                     CenterSizeId,
@@ -125,24 +122,50 @@ namespace Reloader.Game.Weapons.Rendering
                 textureDesc.width = Mathf.Max(1, Mathf.RoundToInt(textureDesc.width / downsampleDivisor));
                 textureDesc.height = Mathf.Max(1, Mathf.RoundToInt(textureDesc.height / downsampleDivisor));
 
-                textureDesc.name = "_PeripheralScopeBlurA";
-                var blurA = renderGraph.CreateTexture(textureDesc);
-                textureDesc.name = "_PeripheralScopeBlurB";
-                var blurB = renderGraph.CreateTexture(textureDesc);
+                textureDesc.name = "_PeripheralScopeBlurLowRes";
+                var lowResPeripheral = renderGraph.CreateTexture(textureDesc);
+                textureDesc.name = "_PeripheralScopeBlurTemp";
+                var intermediateBlur = renderGraph.CreateTexture(textureDesc);
 
                 renderGraph.AddBlitPass(
-                    new RenderGraphUtils.BlitMaterialParameters(source, blurA, _material, 0),
+                    new RenderGraphUtils.BlitMaterialParameters(source, lowResPeripheral, _material, 0),
                     "PeripheralScopeBlur Downsample");
                 renderGraph.AddBlitPass(
-                    new RenderGraphUtils.BlitMaterialParameters(blurA, blurB, _material, 1),
+                    new RenderGraphUtils.BlitMaterialParameters(lowResPeripheral, intermediateBlur, _material, 1),
                     "PeripheralScopeBlur Horizontal");
                 renderGraph.AddBlitPass(
-                    new RenderGraphUtils.BlitMaterialParameters(blurB, blurA, _material, 2),
+                    new RenderGraphUtils.BlitMaterialParameters(intermediateBlur, lowResPeripheral, _material, 2),
                     "PeripheralScopeBlur Vertical");
                 renderGraph.AddBlitPass(
-                    new RenderGraphUtils.BlitMaterialParameters(blurA, resourceData.activeColorTexture, _material, 3),
+                    new RenderGraphUtils.BlitMaterialParameters(lowResPeripheral, resourceData.activeColorTexture, _material, 3),
                     "PeripheralScopeBlur Composite");
             }
+        }
+
+        private static float ResolveBlurSampleRadius(float blurAmount)
+        {
+            var clampedBlur = Mathf.Clamp01(blurAmount);
+            return Mathf.Lerp(0.35f, 1.05f, clampedBlur);
+        }
+
+        private static bool ShouldEnqueueForCamera(Camera camera, CameraType cameraType, bool isBaseCamera)
+        {
+            if (camera == null)
+            {
+                return false;
+            }
+
+            if (cameraType == CameraType.Preview || cameraType == CameraType.Reflection)
+            {
+                return false;
+            }
+
+            if (cameraType != CameraType.Game || !isBaseCamera)
+            {
+                return false;
+            }
+
+            return camera.targetTexture == null;
         }
     }
 }
