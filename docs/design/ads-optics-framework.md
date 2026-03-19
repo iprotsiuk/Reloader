@@ -70,7 +70,8 @@ Fields:
 - optional `ScopeRenderProfile` (`renderTextureResolution`, `scopeCameraFov`)
 
 Contract notes:
-- `eyeReliefBackOffset` is part of the production scoped-ADS contract and is applied by `WeaponAimAligner` after anchor alignment.
+- `eyeReliefBackOffset` is part of the production scoped-ADS contract and is applied by `WeaponAimAligner` after anchor alignment for all optic visual modes, including `RenderTexturePiP`.
+- weapon prefabs may add a per-weapon/per-attachment correction through `WeaponViewPoseTuningHelper.ScopedAdsEyeReliefBackOffset`; final scoped eye relief is `OpticDefinition.eyeReliefBackOffset + WeaponViewPoseTuningHelper` runtime offset.
 - `RenderTexturePiP` optics must provide explicit prefab authoring for `SightAnchor` and `ScopeLensDisplay`.
 - `ScopeReticleDefinition.Mode` supports both `Ffp` and `Sfp`; current PiP runtime scales FFP reticles with magnification and keeps SFP reticles visually stable.
 - `AttachmentManager` persists `ScopeAdjustmentSnapshot` data per optic/state key during runtime re-equip flows.
@@ -106,7 +107,8 @@ Enums:
 - `WeaponAimAligner`
   - `LateUpdate` alignment
   - camera-authoritative transform solve
-  - production eye-relief offset from `OpticDefinition.eyeReliefBackOffset`
+  - production eye-relief offset from authored `OpticDefinition.eyeReliefBackOffset`
+  - additive per-weapon presentation correction from `WeaponViewPoseTuningHelper.ScopedAdsEyeReliefBackOffset`
   - debug gizmos for camera/sight/error
 
 - `ScopeMaskController`
@@ -184,8 +186,9 @@ Strict development rule:
 - Correctness order for PiP scopes is:
   1. authored `SightAnchor`
   2. authored `eyeReliefBackOffset`
-  3. scope camera exclusion of `Viewmodel`
-  4. coarse pose tuning
+  3. authored weapon-view `ScopedAdsEyeReliefBackOffset` correction when a specific weapon/scope pairing needs a different eye box
+  4. scope camera exclusion of `Viewmodel`
+  5. coarse pose tuning
 - keep adjustment persistence in optic runtime state, not scene-only pose offsets or hardcoded camera fudges; current repo already restores runtime windage/elevation snapshots while live zero-step exposure is still partial
 - Missing anchors, missing lens displays, or scope cameras rendering `Viewmodel` are development bugs, not acceptable degraded behavior.
 

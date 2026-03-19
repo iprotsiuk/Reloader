@@ -75,6 +75,8 @@ Scoped ADS contract:
 - scoped optics must expose authored `SightAnchor`
 - `WeaponViewPoseTuningHelper` is coarse presentation tuning only
 - `WeaponAimAligner` owns final scoped eye alignment
+- `OpticDefinition.eyeReliefBackOffset` is the optic-wide authored baseline for scoped distance, including PiP optics
+- `WeaponViewPoseTuningHelper.ScopedAdsEyeReliefBackOffset` is the additive per-weapon/per-attachment correction layer
 - scope camera must exclude `Viewmodel`
 
 ## Agent Extension Workflow [v0.1]
@@ -87,8 +89,9 @@ Future agents extending weapons or attachments must follow this workflow:
 4. Add or update attachment definition assets so each attachment item id resolves to one explicit mount prefab.
 5. Extend slot-driven runtime ownership instead of adding new transform-name heuristics or fallback lookups.
 6. Add pose tuning through `WeaponViewPoseTuningHelper` base pose plus per-attachment overrides when ADS differs by optic/attachment.
-7. Ensure scoped weapons expose `AdsPivot` and are wired for `WeaponAimAligner` when PiP optics are used.
-8. Verify the in-hand spawned weapon, mount success path, mount failure path, and no-fallback behavior.
+7. Author optic eye relief globally on the optic definition first, then use the weapon-view scoped eye-relief override only as the final per-weapon correction.
+8. Ensure scoped weapons expose `AdsPivot` and are wired for `WeaponAimAligner` when PiP optics are used.
+9. Verify the in-hand spawned weapon, mount success path, mount failure path, and no-fallback behavior.
 
 This is mandatory for:
 

@@ -1354,6 +1354,106 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ScopedPipOptic_WithAuthoredEyeRelief_KeepsStableOffsetWhileTurning()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var weaponAimAlignerType = ResolveType("Reloader.Game.Weapons.WeaponAimAligner");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(weaponAimAlignerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedEyeReliefRoot");
+            ScriptableObject scopedOptic = null;
+            GameObject opticPrefab = null;
+            GameObject cameraPivotGo = null;
+            GameObject worldCamGo = null;
+            GameObject viewmodelCamGo = null;
+
+            try
+            {
+                var adsPivot = new GameObject("AdsPivot").transform;
+                adsPivot.SetParent(root.transform, false);
+
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(adsPivot, false);
+                scopeSlot.localPosition = new Vector3(0.08f, -0.04f, 0.36f);
+                scopeSlot.localRotation = Quaternion.Euler(2f, -3f, 1f);
+
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(adsPivot, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                cameraPivotGo = new GameObject("CameraPivot");
+                cameraPivotGo.transform.position = new Vector3(3f, 1.4f, -2f);
+                cameraPivotGo.transform.rotation = Quaternion.Euler(8f, 22f, 0f);
+                root.transform.SetParent(cameraPivotGo.transform, false);
+
+                worldCamGo = new GameObject("WorldCam");
+                worldCamGo.transform.SetParent(cameraPivotGo.transform, false);
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+
+                viewmodelCamGo = new GameObject("ViewmodelCam");
+                viewmodelCamGo.transform.SetParent(cameraPivotGo.transform, false);
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_worldCamera", worldCamera);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_useLegacyInput", false);
+                SetField(ads, "_fallbackAdsInTime", 0.01f);
+                SetField(ads, "_fallbackAdsOutTime", 0.01f);
+                SetField(ads, "_magnificationLerpSpeed", 1000f);
+
+                var aligner = root.AddComponent(weaponAimAlignerType);
+                Invoke(aligner, "BindRuntimeReferences", adsPivot, worldCamera.transform, manager, ads);
+
+                const float opticEyeRelief = 0.012f;
+                const float runtimeEyeRelief = 0.008f;
+                const float totalEyeRelief = opticEyeRelief + runtimeEyeRelief;
+
+                scopedOptic = CreateOpticDefinition("scope-pip-eye-relief", 4f, 8f, true, "RenderTexturePiP");
+                SetField(scopedOptic, "_eyeReliefBackOffset", opticEyeRelief);
+                opticPrefab = GetProperty(scopedOptic, "OpticPrefab") as GameObject;
+                Assert.That(opticPrefab, Is.Not.Null);
+
+                var prefabSightAnchor = opticPrefab.transform.Find("SightAnchor");
+                Assert.That(prefabSightAnchor, Is.Not.Null);
+                prefabSightAnchor.localPosition = new Vector3(0.013f, -0.009f, -0.041f);
+                prefabSightAnchor.localRotation = Quaternion.Euler(4f, -6f, 1.5f);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+                Invoke(aligner, "SetRuntimeEyeReliefBackOffset", runtimeEyeRelief);
+                Invoke(ads, "SetAdsHeld", true);
+                Invoke(ads, "SetMagnification", 6f);
+
+                yield return WaitUntil(
+                    () => (float)GetProperty(ads, "AdsT") >= 0.999f,
+                    20,
+                    "ADS blend did not reach full scoped state for the PiP eye-relief test.");
+
+                yield return WaitUntil(
+                    () => SightAnchorMatchesCameraEyeRelief(worldCamera.transform, Invoke(manager, "GetActiveSightAnchor") as Transform, totalEyeRelief),
+                    20,
+                    "Initial PiP eye relief offset did not hold the authored total distance.");
+
+                cameraPivotGo.transform.rotation = Quaternion.Euler(-3f, 71f, 0f);
+
+                yield return WaitUntil(
+                    () => SightAnchorMatchesCameraEyeRelief(worldCamera.transform, Invoke(manager, "GetActiveSightAnchor") as Transform, totalEyeRelief),
+                    20,
+                    "PiP eye relief offset drifted after rotating the camera.");
+            }
+            finally
+            {
+                Cleanup(root, scopedOptic, opticPrefab, cameraPivotGo, worldCamGo, viewmodelCamGo);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ScopedPipOptic_DoesNotAllocateRenderTextureWhileInactive()
         {
             var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
@@ -1891,6 +1991,18 @@ namespace Reloader.Weapons.Tests.PlayMode
             var referenceHalfAngle = safeReferenceFov * 0.5f * Mathf.Deg2Rad;
             var zoomedHalfAngle = Mathf.Atan(Mathf.Tan(referenceHalfAngle) / safeMagnification);
             return Mathf.Clamp(zoomedHalfAngle * 2f * Mathf.Rad2Deg, 1f, safeReferenceFov);
+        }
+
+        private static bool SightAnchorMatchesCameraEyeRelief(Transform cameraTransform, Transform sightAnchor, float expectedEyeRelief)
+        {
+            if (cameraTransform == null || sightAnchor == null)
+            {
+                return false;
+            }
+
+            var expectedPosition = cameraTransform.position - (cameraTransform.forward * expectedEyeRelief);
+            return Vector3.Distance(sightAnchor.position, expectedPosition) <= 0.0001f
+                && Quaternion.Angle(sightAnchor.rotation, cameraTransform.rotation) <= 0.05f;
         }
 
         private static ScriptableObject ResolveOpticDefinitionById(string opticId)
