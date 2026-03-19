@@ -70,5 +70,44 @@ namespace Reloader.Core.Tests.EditMode
 
             Assert.That(actual, Is.EqualTo(new UnityEngine.Vector3(8f, 20f, 30f)));
         }
+
+        [TestCase("Auto", 0.012f)]
+        [TestCase("RenderTexturePiP", 0.012f)]
+        public void ResolveOpticEyeReliefBackOffset_UsesAuthoredOpticBaselineForAllVisualModes(
+            string visualModeName,
+            float expectedEyeRelief)
+        {
+            var alignerType = System.Type.GetType("Reloader.Game.Weapons.WeaponAimAligner, Reloader.Game.Weapons");
+            var opticDefinitionType = System.Type.GetType("Reloader.Game.Weapons.OpticDefinition, Reloader.Game.Weapons");
+            var adsVisualModeType = System.Type.GetType("Reloader.Game.Weapons.AdsVisualMode, Reloader.Game.Weapons");
+            Assert.That(alignerType, Is.Not.Null, "WeaponAimAligner type should exist.");
+            Assert.That(opticDefinitionType, Is.Not.Null, "OpticDefinition type should exist.");
+            Assert.That(adsVisualModeType, Is.Not.Null, "AdsVisualMode type should exist.");
+
+            var method = alignerType!.GetMethod(
+                "ResolveOpticEyeReliefBackOffset",
+                BindingFlags.Static | BindingFlags.NonPublic);
+
+            Assert.That(method, Is.Not.Null, "Expected private optic eye-relief helper to exist.");
+
+            var opticDefinition = UnityEngine.ScriptableObject.CreateInstance(opticDefinitionType);
+            try
+            {
+                var visualModeField = opticDefinitionType!.GetField("_visualModePolicy", BindingFlags.Instance | BindingFlags.NonPublic);
+                var eyeReliefField = opticDefinitionType.GetField("_eyeReliefBackOffset", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(visualModeField, Is.Not.Null, "OpticDefinition visual mode field should exist.");
+                Assert.That(eyeReliefField, Is.Not.Null, "OpticDefinition eye relief field should exist.");
+
+                visualModeField!.SetValue(opticDefinition, System.Enum.Parse(adsVisualModeType!, visualModeName));
+                eyeReliefField!.SetValue(opticDefinition, expectedEyeRelief);
+
+                var actual = (float)method!.Invoke(null, new object[] { opticDefinition });
+                Assert.That(actual, Is.EqualTo(expectedEyeRelief).Within(0.0001f));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(opticDefinition);
+            }
+        }
     }
 }

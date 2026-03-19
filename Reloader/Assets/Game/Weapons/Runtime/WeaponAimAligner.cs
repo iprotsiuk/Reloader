@@ -249,14 +249,6 @@ namespace Reloader.Game.Weapons
                 return 0f;
             }
 
-            // PiP optics already render on an authored ocular display surface.
-            // Keeping an additional camera-vs-sight anchor offset here causes
-            // the image to drift relative to the scope body while turning.
-            if (activeOptic.VisualModePolicy == AdsVisualMode.RenderTexturePiP)
-            {
-                return 0f;
-            }
-
             return activeOptic.EyeReliefBackOffset;
         }
 
