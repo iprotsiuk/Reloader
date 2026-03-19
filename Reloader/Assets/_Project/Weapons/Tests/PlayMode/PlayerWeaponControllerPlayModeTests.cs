@@ -1616,6 +1616,14 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
                 yield return null;
+                var equipFrames = 0;
+                while (equipFrames < 30 && controller.EquippedWeaponViewTransform == null)
+                {
+                    equipFrames++;
+                    yield return null;
+                }
+
+                Assert.That(controller.EquippedWeaponViewTransform, Is.Not.Null);
 
                 Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-optic-pip"), Is.True);
                 yield return null;
@@ -1865,6 +1873,14 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
                 yield return null;
+                var equipFrames = 0;
+                while (equipFrames < 30 && controller.EquippedWeaponViewTransform == null)
+                {
+                    equipFrames++;
+                    yield return null;
+                }
+
+                Assert.That(controller.EquippedWeaponViewTransform, Is.Not.Null);
 
                 Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-optic-pip"), Is.True);
                 input.AimHeldValue = true;
