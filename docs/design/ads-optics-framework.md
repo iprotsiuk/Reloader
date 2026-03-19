@@ -110,6 +110,7 @@ Enums:
   - production eye-relief offset from authored `OpticDefinition.eyeReliefBackOffset`
   - additive per-weapon presentation correction from `WeaponViewPoseTuningHelper.ScopedAdsEyeReliefBackOffset`
   - debug gizmos for camera/sight/error
+  - stable magnified ADS is intentionally a hold mode after final alignment; do not turn it back into a continuous corrective writer without redesigning parent-chain ownership first
 
 - `ScopeMaskController`
   - scope mask UI + outside darkening + reticle scaling
@@ -183,6 +184,7 @@ Strict development rule:
 
 - Future optics must follow the reusable authored contract instead of one-off scene tuning.
 - `WeaponViewPoseTuningHelper` gets the rifle close; `WeaponAimAligner` makes the scope actually line up.
+- In stable magnified ADS, `WeaponAimAligner` must not continuously rewrite `AdsPivot` every frame on top of live parent-chain motion. Camera/body turn, viewmodel stabilization, and hand-rig motion can still move the rifle hierarchy, and a second live `AdsPivot` writer reintroduces scoped vibration.
 - Correctness order for PiP scopes is:
   1. authored `SightAnchor`
   2. authored `eyeReliefBackOffset`
@@ -191,6 +193,33 @@ Strict development rule:
   5. coarse pose tuning
 - keep adjustment persistence in optic runtime state, not scene-only pose offsets or hardcoded camera fudges; current repo already restores runtime windage/elevation snapshots while live zero-step exposure is still partial
 - Missing anchors, missing lens displays, or scope cameras rendering `Viewmodel` are development bugs, not acceptable degraded behavior.
+
+## Scoped Stability Regression Note [2026-03-19]
+
+We hit a regression by changing `WeaponAimAligner` stable scoped ADS from:
+- solve once on entry to held magnified ADS, then stop writing `AdsPivot`
+
+to:
+- recompute and write `AdsPivot.localPosition/localRotation` every `LateUpdate` while held scoped ADS stayed active
+
+That change looked correct in a narrow seam test, but it reintroduced the vibration bug we had already fought:
+- the rifle parent chain can still move slightly from camera/body turn
+- `FpsViewmodelAnimatorDriver` scoped stabilization still clamps the viewmodel root
+- `WeaponHandRigController` still drives hand targets in `LateUpdate`
+- turning `WeaponAimAligner` back into a continuous held-ADS writer created another live transform owner on top of those systems
+
+Observed result:
+- at some view angles, the scoped rifle and PiP no longer looked smoothly locked
+- instead they showed vibration / jitter because parent motion and child corrective writes fought each other frame to frame
+
+Rule going forward:
+- treat stable magnified ADS as a single-live-owner state
+- do not add a second continuous `AdsPivot` writer during that state as a local fix for perceived parent drift
+- if scoped turning looks stepped, investigate which parent-chain system is still moving the rifle during hold instead of making `WeaponAimAligner` continuously chase it again
+
+Testing lesson:
+- a seam test that proves `AdsPivot` can keep correcting synthetic parent drift is not enough
+- any change to held scoped ADS ownership must also be validated against the real runtime stack: camera turn, viewmodel stabilization, hand rig, and PiP scope camera together
 
 ## Integration Notes [v0.1]
 

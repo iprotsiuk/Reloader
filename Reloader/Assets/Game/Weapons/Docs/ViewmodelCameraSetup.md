@@ -33,6 +33,7 @@ ADS alignment is camera-driven:
 
 Strict rule:
 - if `ScopeCamera` renders `Viewmodel`, the PiP setup is broken
+- if stable magnified ADS has more than one live transform owner for the scoped solve, scoped jitter is expected
 
 ## 2. Required Weapon Prefab Layout
 
@@ -88,6 +89,7 @@ For PiP optics also author:
 - `AttachmentManager` -> same object reference
 - `AdsStateController` -> same object reference
 - applies `OpticDefinition.eyeReliefBackOffset`
+- stable magnified ADS is a hold state; do not keep rewriting `AdsPivot` every frame during that state unless parent-chain ownership has been redesigned and revalidated
 
 `RenderTextureScopeController`
 - `ScopeCamera` -> dedicated scope camera
@@ -219,7 +221,26 @@ Current adjustment-state note:
 - `WeaponAimAligner` gizmos show camera axis, sight axis, and error line.
 - Error decreases to near zero when fully ADS.
 
-## 9. PiP Note
+## 9. Scoped Jitter Guardrail
+
+Regression recorded on `2026-03-19`:
+- rewriting `AdsPivot.localPosition/localRotation` every `LateUpdate` during already-stable magnified ADS reintroduced the scoped vibration bug
+- the change was reverted in commit `307bbfa8`
+
+Why it happened:
+- the scoped weapon parent chain can still move slightly from camera/body turn, viewmodel-root stabilization, and hand-rig updates
+- making `WeaponAimAligner` a continuous writer again caused the child scoped solve to fight those parent-chain systems
+
+Practical rule:
+- once magnified scoped ADS reaches its held state, do not add another continuous corrective writer to `AdsPivot` as a local fix for perceived drift
+- investigate the upstream parent-chain motion instead
+
+If scoped turning looks chunky or double-driven:
+1. check whether the rifle parent chain is still being moved during held ADS
+2. check `FpsViewmodelAnimatorDriver` and `WeaponHandRigController` timing before touching `WeaponAimAligner`
+3. validate any attempted fix in live runtime with camera turn + PiP active, not only in a seam test
+
+## 10. PiP Note
 
 `RenderTextureScopeController` is the PiP scope-image owner:
 - enabled only while ADS and when optic policy is `RenderTexturePiP`
