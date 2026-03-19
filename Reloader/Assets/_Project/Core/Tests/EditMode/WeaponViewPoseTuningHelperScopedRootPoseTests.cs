@@ -1,5 +1,6 @@
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.Weapons.Controllers;
 using Reloader.Weapons.Runtime;
 using UnityEngine;
 
@@ -21,6 +22,66 @@ namespace Reloader.Core.Tests.EditMode
 
             var actual = (bool)method!.Invoke(null, new object[] { stableScopedPresentationActive });
             Assert.That(actual, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void LateUpdate_StableScopedAds_ReassertsRootPoseAfterExternalDrift()
+        {
+            var root = new GameObject("PlayerRoot");
+            var controller = root.AddComponent<PlayerWeaponController>();
+            var view = new GameObject("WeaponView");
+            view.transform.SetParent(root.transform, false);
+            var helper = view.AddComponent<WeaponViewPoseTuningHelper>();
+
+            try
+            {
+                SetPrivateField(helper, "_weaponController", controller);
+                SetPrivateField(helper, "_enabledInPlayMode", true);
+                SetPrivateField(helper, "_targetWeaponItemId", "weapon-kar98k");
+                SetPrivateField(helper, "_hipLocalPosition", new Vector3(0.25f, -0.5f, 1.5f));
+                SetPrivateField(helper, "_hipLocalEuler", new Vector3(1f, 2f, 3f));
+                SetPrivateField(helper, "_adsLocalPosition", new Vector3(4f, 5f, 6f));
+                SetPrivateField(helper, "_adsLocalEuler", new Vector3(7f, 8f, 9f));
+                SetPrivateField(helper, "_rifleLocalEulerOffset", Vector3.zero);
+                SetPrivateField(helper, "_blendSpeed", 24f);
+                SetPrivateField(controller, "_equippedItemId", "weapon-kar98k");
+                SetPrivateField(controller, "_equippedWeaponView", view);
+                SetPrivateField(controller, "_isStableMagnifiedScopedAds", true);
+
+                InvokePrivateLateUpdate(helper);
+
+                Assert.That(Vector3.Distance(view.transform.localPosition, new Vector3(4f, 5f, 6f)), Is.LessThanOrEqualTo(0.0001f));
+                Assert.That(Vector3.Distance(view.transform.localRotation.eulerAngles, new Vector3(7f, 8f, 9f)), Is.LessThanOrEqualTo(0.0001f));
+
+                view.transform.localPosition = new Vector3(-9f, -8f, -7f);
+                view.transform.localRotation = Quaternion.Euler(11f, 12f, 13f);
+
+                InvokePrivateLateUpdate(helper);
+
+                Assert.That(Vector3.Distance(view.transform.localPosition, new Vector3(4f, 5f, 6f)), Is.LessThanOrEqualTo(0.0001f));
+                Assert.That(Vector3.Distance(view.transform.localRotation.eulerAngles, new Vector3(7f, 8f, 9f)), Is.LessThanOrEqualTo(0.0001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void InvokePrivateLateUpdate(WeaponViewPoseTuningHelper helper)
+        {
+            var method = typeof(WeaponViewPoseTuningHelper).GetMethod(
+                "LateUpdate",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+
+            Assert.That(method, Is.Not.Null, "Expected WeaponViewPoseTuningHelper LateUpdate to exist.");
+            method!.Invoke(helper, null);
+        }
+
+        private static void SetPrivateField(object instance, string fieldName, object value)
+        {
+            var field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
+            field!.SetValue(instance, value);
         }
     }
 
