@@ -29,6 +29,8 @@ namespace Reloader.UI.Toolkit.EscMenu
             string[] resolutionOptions,
             int selectedResolutionIndex,
             float fov,
+            float lookSensitivity,
+            float adsSensitivity,
             int scopedPipResolutionPercent,
             int peripheralBlurPercent,
             float globalVolume,
@@ -42,6 +44,8 @@ namespace Reloader.UI.Toolkit.EscMenu
             _resolutionOptions = resolutionOptions ?? Array.Empty<string>();
             SelectedResolutionIndex = Math.Max(0, selectedResolutionIndex);
             Fov = fov;
+            LookSensitivity = lookSensitivity;
+            AdsSensitivity = adsSensitivity;
             ScopedPipResolutionPercent = scopedPipResolutionPercent;
             PeripheralBlurPercent = peripheralBlurPercent;
             GlobalVolume = globalVolume;
@@ -55,6 +59,8 @@ namespace Reloader.UI.Toolkit.EscMenu
         public IReadOnlyList<string> ResolutionOptions => _resolutionOptions;
         public int SelectedResolutionIndex { get; }
         public float Fov { get; }
+        public float LookSensitivity { get; }
+        public float AdsSensitivity { get; }
         public int ScopedPipResolutionPercent { get; }
         public int PeripheralBlurPercent { get; }
         public float GlobalVolume { get; }
@@ -68,6 +74,8 @@ namespace Reloader.UI.Toolkit.EscMenu
             IEnumerable<string> resolutionOptions,
             int selectedResolutionIndex,
             float fov,
+            float lookSensitivity,
+            float adsSensitivity,
             int scopedPipResolutionPercent,
             int peripheralBlurPercent,
             float globalVolume,
@@ -82,6 +90,8 @@ namespace Reloader.UI.Toolkit.EscMenu
                 options,
                 selectedResolutionIndex,
                 fov,
+                lookSensitivity,
+                adsSensitivity,
                 scopedPipResolutionPercent,
                 peripheralBlurPercent,
                 globalVolume,

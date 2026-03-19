@@ -114,6 +114,92 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator RealKar98kOpticAsset_PipPrecisionCurve_BridgesDedicatedScopedMultiplier()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var playerWeaponControllerType = ResolveType("Reloader.Weapons.Controllers.PlayerWeaponController");
+            var playerLookControllerType = ResolveType("Reloader.Player.PlayerLookController");
+            var opticDefinition = ResolveOpticDefinitionById("att-kar98k-scope-remote-a");
+            ScriptableObject weaponDefinition = null;
+
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(playerWeaponControllerType, Is.Not.Null);
+            Assert.That(playerLookControllerType, Is.Not.Null);
+            Assert.That(opticDefinition, Is.Not.Null, "Expected the real Kar98k optic definition asset to be loaded.");
+
+            var root = new GameObject("Kar98kScopedPrecisionRoot");
+
+            try
+            {
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", opticDefinition), Is.True);
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_useLegacyInput", false);
+                weaponDefinition = ScriptableObject.CreateInstance(ResolveType("Reloader.Game.Weapons.WeaponDefinition"));
+                SetField(weaponDefinition, "_baseAdsSensitivityScale", 0.25f);
+                SetField(ads, "_weaponDefinition", weaponDefinition);
+                SetField(ads, "<CurrentMagnification>k__BackingField", 25f);
+                SetField(ads, "<AdsT>k__BackingField", 1f);
+                Invoke(ads, "TickScaling");
+
+                Assert.That((float)GetProperty(ads, "CurrentSensitivityScale"), Is.EqualTo(0.045f).Within(0.0001f),
+                    "Expected weapon ADS tuning to affect the generic ADS curve.");
+                Assert.That((float)GetProperty(ads, "CurrentPipPrecisionScale"), Is.EqualTo(0.04f).Within(0.0001f),
+                    "Expected PiP optics to use the dedicated high-mag precision curve.");
+
+                SetField(weaponDefinition, "_baseAdsSensitivityScale", 2f);
+                Invoke(ads, "TickScaling");
+
+                Assert.That((float)GetProperty(ads, "CurrentSensitivityScale"), Is.EqualTo(0.36f).Within(0.0001f),
+                    "Expected weapon ADS tuning changes to continue affecting the generic ADS curve.");
+                Assert.That((float)GetProperty(ads, "CurrentPipPrecisionScale"), Is.EqualTo(0.04f).Within(0.0001f),
+                    "Expected the dedicated PiP precision curve to remain unchanged when weapon ADS sensitivity changes.");
+
+                var look = root.AddComponent(playerLookControllerType);
+                var weaponController = root.AddComponent(playerWeaponControllerType);
+                SetField(weaponController, "_adsStateRuntimeBridge", ads);
+                SetField(weaponController, "_adsAttachmentManagerRuntimeBridge", manager);
+                SetField(weaponController, "_playerLookControllerRuntimeBridge", look);
+                SetField(weaponController, "_isStableMagnifiedScopedAds", true);
+
+                Invoke(weaponController, "SyncScopedAdsLookSensitivityBridge");
+
+                var bridgedMultiplier = (Vector2)GetProperty(look, "RuntimeAdsSensitivityMultiplier");
+                Assert.That(
+                    Vector2.Distance(bridgedMultiplier, new Vector2(0.04f, 0.04f)),
+                    Is.LessThanOrEqualTo(0.0001f),
+                    "Expected PlayerWeaponController to bridge the dedicated PiP precision multiplier into look sensitivity.");
+                Assert.That((bool)GetProperty(look, "AllowFovSensitivityScaling"), Is.False,
+                    "Expected PiP scoped ADS to disable FOV-based look scaling while the dedicated precision bridge is active.");
+
+                Invoke(weaponController, "ResetScopedAdsLookSensitivityBridge");
+                Assert.That((bool)GetProperty(look, "AllowFovSensitivityScaling"), Is.True,
+                    "Expected scoped ADS reset to restore FOV-based look scaling.");
+            }
+            finally
+            {
+                if (weaponDefinition != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(weaponDefinition);
+                }
+                Cleanup(root);
+            }
+
+            yield return null;
+        }
+
+        [UnityTest]
         public IEnumerator RealKar98kOpticAsset_AdaptivePipResolution_FollowsPercent()
         {
             var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");

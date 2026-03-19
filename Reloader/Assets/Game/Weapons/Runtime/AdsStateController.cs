@@ -56,6 +56,13 @@ namespace Reloader.Game.Weapons
             new Keyframe(25f, 0.18f),
             new Keyframe(40f, 0.1f));
 
+        [SerializeField] private AnimationCurve _pipPrecisionScaleByMagnification = new AnimationCurve(
+            new Keyframe(1f, 1f),
+            new Keyframe(4f, 0.4f),
+            new Keyframe(10f, 0.12f),
+            new Keyframe(25f, 0.04f),
+            new Keyframe(40f, 0.03f));
+
         [SerializeField] private AnimationCurve _swayScaleByMagnification = new AnimationCurve(
             new Keyframe(1f, 1f),
             new Keyframe(4f, 0.6f),
@@ -97,6 +104,7 @@ namespace Reloader.Game.Weapons
         public float AdsT { get; private set; }
         public float CurrentMagnification { get; private set; } = 1f;
         public float CurrentSensitivityScale { get; private set; } = 1f;
+        public float CurrentPipPrecisionScale { get; private set; } = 1f;
         public float CurrentSwayScale { get; private set; } = 1f;
         public float TargetWorldFov { get; private set; }
 
@@ -145,6 +153,7 @@ namespace Reloader.Game.Weapons
             _targetMagnification = 1f;
             CurrentMagnification = 1f;
             CurrentSensitivityScale = 1f;
+            CurrentPipPrecisionScale = 1f;
             CurrentSwayScale = 1f;
             _maskLatch = false;
             _externalAdsControlActive = false;
@@ -408,15 +417,21 @@ namespace Reloader.Game.Weapons
 
         private void TickScaling()
         {
+            var optic = _attachmentManager != null ? _attachmentManager.ActiveOpticDefinition : null;
+            var usePipPrecision = UsesScopedPip(optic);
             var baseSensitivity = _weaponDefinition != null ? _weaponDefinition.BaseAdsSensitivityScale : 1f;
             var baseSway = _weaponDefinition != null ? _weaponDefinition.BaseAdsSwayScale : 1f;
 
             var sensitivityCurve = Mathf.Max(0.01f, _sensitivityScaleByMagnification.Evaluate(CurrentMagnification));
+            var pipPrecisionCurve = Mathf.Max(0.01f, _pipPrecisionScaleByMagnification.Evaluate(CurrentMagnification));
             var swayCurve = Mathf.Max(0.01f, _swayScaleByMagnification.Evaluate(CurrentMagnification));
 
             var targetAdsSensitivity = baseSensitivity * sensitivityCurve;
+            // PiP scopes keep the gameplay FOV fixed, so they need a dedicated precision path.
+            var targetPipPrecision = usePipPrecision ? pipPrecisionCurve : 1f;
             var targetAdsSway = baseSway * swayCurve;
             CurrentSensitivityScale = Mathf.Lerp(1f, targetAdsSensitivity, AdsT);
+            CurrentPipPrecisionScale = Mathf.Lerp(1f, targetPipPrecision, AdsT);
             CurrentSwayScale = Mathf.Lerp(1f, targetAdsSway, AdsT);
         }
 

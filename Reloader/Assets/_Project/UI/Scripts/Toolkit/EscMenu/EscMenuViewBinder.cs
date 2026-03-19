@@ -29,6 +29,8 @@ namespace Reloader.UI.Toolkit.EscMenu
 
         private DropdownField _resolutionDropdown;
         private Slider _fovSlider;
+        private Slider _lookSensitivitySlider;
+        private Slider _adsSensitivitySlider;
         private Slider _scopedPipResolutionSlider;
         private Slider _peripheralBlurSlider;
         private Slider _globalVolumeSlider;
@@ -65,6 +67,8 @@ namespace Reloader.UI.Toolkit.EscMenu
 
             _resolutionDropdown = root?.Q<DropdownField>("esc-menu__resolution");
             _fovSlider = root?.Q<Slider>("esc-menu__fov");
+            _lookSensitivitySlider = root?.Q<Slider>("esc-menu__look-sensitivity");
+            _adsSensitivitySlider = root?.Q<Slider>("esc-menu__ads-sensitivity");
             _scopedPipResolutionSlider = root?.Q<Slider>("esc-menu__scoped-pip-resolution");
             _peripheralBlurSlider = root?.Q<Slider>("esc-menu__peripheral-blur");
             _globalVolumeSlider = root?.Q<Slider>("esc-menu__global-volume");
@@ -117,6 +121,8 @@ namespace Reloader.UI.Toolkit.EscMenu
                 }
 
                 _fovSlider?.SetValueWithoutNotify(escState.Fov);
+                _lookSensitivitySlider?.SetValueWithoutNotify(escState.LookSensitivity);
+                _adsSensitivitySlider?.SetValueWithoutNotify(escState.AdsSensitivity);
                 _scopedPipResolutionSlider?.SetValueWithoutNotify(escState.ScopedPipResolutionPercent);
                 _peripheralBlurSlider?.SetValueWithoutNotify(escState.PeripheralBlurPercent);
                 _globalVolumeSlider?.SetValueWithoutNotify(escState.GlobalVolume);
@@ -184,6 +190,16 @@ namespace Reloader.UI.Toolkit.EscMenu
             if (_fovSlider != null)
             {
                 _fovSlider.RegisterValueChangedCallback(HandleFovChanged);
+            }
+
+            if (_lookSensitivitySlider != null)
+            {
+                _lookSensitivitySlider.RegisterValueChangedCallback(HandleLookSensitivityChanged);
+            }
+
+            if (_adsSensitivitySlider != null)
+            {
+                _adsSensitivitySlider.RegisterValueChangedCallback(HandleAdsSensitivityChanged);
             }
 
             if (_scopedPipResolutionSlider != null)
@@ -267,6 +283,16 @@ namespace Reloader.UI.Toolkit.EscMenu
             if (_fovSlider != null)
             {
                 _fovSlider.UnregisterValueChangedCallback(HandleFovChanged);
+            }
+
+            if (_lookSensitivitySlider != null)
+            {
+                _lookSensitivitySlider.UnregisterValueChangedCallback(HandleLookSensitivityChanged);
+            }
+
+            if (_adsSensitivitySlider != null)
+            {
+                _adsSensitivitySlider.UnregisterValueChangedCallback(HandleAdsSensitivityChanged);
             }
 
             if (_scopedPipResolutionSlider != null)
@@ -370,6 +396,22 @@ namespace Reloader.UI.Toolkit.EscMenu
             if (!_suppressCallbacks)
             {
                 IntentRaised?.Invoke(new UiIntent("esc.menu.settings.video.fov.changed", evt.newValue));
+            }
+        }
+
+        private void HandleLookSensitivityChanged(ChangeEvent<float> evt)
+        {
+            if (!_suppressCallbacks)
+            {
+                IntentRaised?.Invoke(new UiIntent("esc.menu.settings.game.look-sensitivity.changed", evt.newValue));
+            }
+        }
+
+        private void HandleAdsSensitivityChanged(ChangeEvent<float> evt)
+        {
+            if (!_suppressCallbacks)
+            {
+                IntentRaised?.Invoke(new UiIntent("esc.menu.settings.game.ads-sensitivity.changed", evt.newValue));
             }
         }
 

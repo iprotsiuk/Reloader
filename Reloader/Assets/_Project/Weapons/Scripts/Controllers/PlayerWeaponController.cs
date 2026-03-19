@@ -1548,8 +1548,9 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
-            var clampedScale = Mathf.Max(0.001f, _adsStateRuntimeBridge.CurrentSensitivityScale);
+            var clampedScale = Mathf.Max(0.001f, _adsStateRuntimeBridge.CurrentPipPrecisionScale);
             _playerLookControllerRuntimeBridge.RuntimeAdsSensitivityMultiplier = new Vector2(clampedScale, clampedScale);
+            _playerLookControllerRuntimeBridge.AllowFovSensitivityScaling = false;
         }
 
         private void ResetScopedAdsLookSensitivityBridge()
@@ -1561,6 +1562,7 @@ namespace Reloader.Weapons.Controllers
             }
 
             _playerLookControllerRuntimeBridge.RuntimeAdsSensitivityMultiplier = Vector2.one;
+            _playerLookControllerRuntimeBridge.AllowFovSensitivityScaling = true;
         }
 
         private static bool UsesRenderTexturePipOptic(GameOpticDefinition opticDefinition)

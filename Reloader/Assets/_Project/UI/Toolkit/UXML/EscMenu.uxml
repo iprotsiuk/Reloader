@@ -22,7 +22,15 @@
                 </ui:VisualElement>
 
                 <ui:VisualElement name="esc-menu__tab-panel-game" class="esc-menu__tab-panel">
-                    <ui:Label text="Gameplay settings are coming soon." class="ui-kit__hint"/>
+                    <ui:Label text="Sensitivity" class="esc-menu__section-title ui-kit__hint"/>
+                    <ui:VisualElement class="esc-menu__field-row">
+                        <ui:Label text="Look Sensitivity" class="esc-menu__field-label"/>
+                        <ui:Slider name="esc-menu__look-sensitivity" low-value="0.1" high-value="2" class="esc-menu__field-control"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="esc-menu__field-row">
+                        <ui:Label text="ADS Sensitivity" class="esc-menu__field-label"/>
+                        <ui:Slider name="esc-menu__ads-sensitivity" low-value="0.1" high-value="2" class="esc-menu__field-control"/>
+                    </ui:VisualElement>
                 </ui:VisualElement>
 
                 <ui:VisualElement name="esc-menu__tab-panel-video" class="esc-menu__tab-panel">

@@ -177,6 +177,20 @@ namespace Reloader.UI.Toolkit.EscMenu
                 return;
             }
 
+            if (intent.Key == "esc.menu.settings.game.look-sensitivity.changed" && TryGetFloat(intent.Payload, out var lookSensitivity))
+            {
+                ResolveSettingsStore().SetLookSensitivity(lookSensitivity);
+                Refresh();
+                return;
+            }
+
+            if (intent.Key == "esc.menu.settings.game.ads-sensitivity.changed" && TryGetFloat(intent.Payload, out var adsSensitivity))
+            {
+                ResolveSettingsStore().SetAdsSensitivity(adsSensitivity);
+                Refresh();
+                return;
+            }
+
             if (intent.Key == "esc.menu.settings.video.scoped-pip-resolution.changed" && TryGetFloat(intent.Payload, out var pipResolutionPercent))
             {
                 ResolveSettingsStore().SetScopedPipResolutionPercent(Mathf.RoundToInt(pipResolutionPercent));
@@ -235,6 +249,8 @@ namespace Reloader.UI.Toolkit.EscMenu
                 resolutionOptions: snapshot.ResolutionOptions,
                 selectedResolutionIndex: snapshot.SelectedResolutionIndex,
                 fov: snapshot.Fov,
+                lookSensitivity: snapshot.LookSensitivity,
+                adsSensitivity: snapshot.AdsSensitivity,
                 scopedPipResolutionPercent: snapshot.ScopedPipResolutionPercent,
                 peripheralBlurPercent: snapshot.PeripheralBlurPercent,
                 globalVolume: snapshot.GlobalVolume,

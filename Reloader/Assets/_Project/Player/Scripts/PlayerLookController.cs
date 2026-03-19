@@ -9,6 +9,8 @@ namespace Reloader.Player
         [SerializeField] private Transform _pitchTransform;
         [SerializeField] private Vector2 _lookSensitivity = Vector2.one;
         [SerializeField] private Vector2 _pitchClamp = new Vector2(-85f, 85f);
+        [SerializeField, Range(0.1f, 2f)] private float _userLookSensitivityMultiplier = 1f;
+        [SerializeField, Range(0.1f, 2f)] private float _userAdsSensitivityMultiplier = 1f;
         [SerializeField] private Vector2 _adsSensitivityMultiplier = new Vector2(0.35f, 0.35f);
         [SerializeField] private Vector2 _runtimeAdsSensitivityMultiplier = Vector2.one;
         [SerializeField] private bool _scaleByDeltaTime;
@@ -39,6 +41,18 @@ namespace Reloader.Player
         {
             get => _pitchClamp;
             set => _pitchClamp = value;
+        }
+
+        public float UserLookSensitivityMultiplier
+        {
+            get => _userLookSensitivityMultiplier;
+            set => _userLookSensitivityMultiplier = Mathf.Clamp(value, 0.1f, 2f);
+        }
+
+        public float UserAdsSensitivityMultiplier
+        {
+            get => _userAdsSensitivityMultiplier;
+            set => _userAdsSensitivityMultiplier = Mathf.Clamp(value, 0.1f, 2f);
         }
 
         public Vector2 AdsSensitivityMultiplier
@@ -73,9 +87,12 @@ namespace Reloader.Player
             set => _lookSmoothingStrength = Mathf.Clamp01(value);
         }
 
+        public bool AllowFovSensitivityScaling { get; set; } = true;
+
         private void Awake()
         {
             ResolveReferences();
+            AllowFovSensitivityScaling = true;
             _yaw = transform.eulerAngles.y;
             _pitch = _pitchTransform != null ? Mathf.DeltaAngle(0f, _pitchTransform.localEulerAngles.x) : 0f;
         }
@@ -91,6 +108,7 @@ namespace Reloader.Player
             _pitchTransform = pitchTransform;
             _useRuntimeKernelUiStateEvents = uiStateEvents == null;
             _uiStateEvents = uiStateEvents;
+            AllowFovSensitivityScaling = true;
             _yaw = transform.eulerAngles.y;
             _pitch = _pitchTransform != null ? Mathf.DeltaAngle(0f, _pitchTransform.localEulerAngles.x) : 0f;
             ResetSmoothingState();
@@ -100,6 +118,7 @@ namespace Reloader.Player
         {
             _inputSourceBehaviour = source;
             _inputSource = source as IPlayerInputSource;
+            AllowFovSensitivityScaling = true;
         }
 
         public void SetPitchTransform(Transform pitchTransform)
@@ -141,7 +160,15 @@ namespace Reloader.Player
             var sensitivity = _inputSource.AimHeld
                 ? Vector2.Scale(_lookSensitivity, Vector2.Scale(_adsSensitivityMultiplier, _runtimeAdsSensitivityMultiplier))
                 : _lookSensitivity;
-            sensitivity *= GetFieldOfViewSensitivityScale();
+            sensitivity *= _userLookSensitivityMultiplier;
+            if (_inputSource.AimHeld)
+            {
+                sensitivity *= _userAdsSensitivityMultiplier;
+            }
+            if (AllowFovSensitivityScaling)
+            {
+                sensitivity *= GetFieldOfViewSensitivityScale();
+            }
             var scale = _scaleByDeltaTime ? deltaTime : 1f;
 
             _yaw += lookInput.x * sensitivity.x * scale;

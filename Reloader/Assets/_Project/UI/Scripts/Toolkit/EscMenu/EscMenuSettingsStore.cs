@@ -25,16 +25,27 @@ namespace Reloader.UI.Toolkit.EscMenu
         }
     }
 
+    public static class EscMenuSensitivitySettings
+    {
+        public const float MinValue = 0.1f;
+        public const float MaxValue = 2f;
+        public const float DefaultValue = 1f;
+    }
+
     public interface IEscMenuSettingsRuntime
     {
         IReadOnlyList<EscMenuResolutionOption> GetAvailableResolutionOptions();
         EscMenuResolutionOption GetCurrentResolutionOption();
         float GetCurrentFov();
+        float GetCurrentUserLookSensitivityMultiplier();
+        float GetCurrentUserAdsSensitivityMultiplier();
         float GetCurrentGlobalVolume();
         float GetCurrentMusicVolume();
         float GetCurrentSoundsVolume();
         void ApplyResolution(EscMenuResolutionOption option, int selectedIndex);
         void ApplyFov(float fov);
+        void ApplyUserLookSensitivityMultiplier(float multiplier);
+        void ApplyUserAdsSensitivityMultiplier(float multiplier);
         void ApplyGlobalVolume(float volume);
         void ApplyMusicVolume(float volume);
         void ApplySoundsVolume(float volume);
@@ -46,6 +57,8 @@ namespace Reloader.UI.Toolkit.EscMenu
             IReadOnlyList<string> resolutionOptions,
             int selectedResolutionIndex,
             float fov,
+            float lookSensitivity,
+            float adsSensitivity,
             int scopedPipResolutionPercent,
             int peripheralBlurPercent,
             float globalVolume,
@@ -55,6 +68,8 @@ namespace Reloader.UI.Toolkit.EscMenu
             ResolutionOptions = resolutionOptions ?? Array.Empty<string>();
             SelectedResolutionIndex = selectedResolutionIndex;
             Fov = fov;
+            LookSensitivity = lookSensitivity;
+            AdsSensitivity = adsSensitivity;
             ScopedPipResolutionPercent = scopedPipResolutionPercent;
             PeripheralBlurPercent = peripheralBlurPercent;
             GlobalVolume = globalVolume;
@@ -65,6 +80,8 @@ namespace Reloader.UI.Toolkit.EscMenu
         public IReadOnlyList<string> ResolutionOptions { get; }
         public int SelectedResolutionIndex { get; }
         public float Fov { get; }
+        public float LookSensitivity { get; }
+        public float AdsSensitivity { get; }
         public int ScopedPipResolutionPercent { get; }
         public int PeripheralBlurPercent { get; }
         public float GlobalVolume { get; }
@@ -83,6 +100,8 @@ namespace Reloader.UI.Toolkit.EscMenu
         private readonly Action _saveAction;
         private readonly string _resolutionKey;
         private readonly string _fovKey;
+        private readonly string _lookSensitivityKey;
+        private readonly string _adsSensitivityKey;
         private readonly string _scopedPipResolutionPercentKey;
         private readonly string _peripheralBlurPercentKey;
         private readonly string _globalVolumeKey;
@@ -94,6 +113,8 @@ namespace Reloader.UI.Toolkit.EscMenu
 
         private int _selectedResolutionIndex;
         private float _fov;
+        private float _lookSensitivity;
+        private float _adsSensitivity;
         private int _scopedPipResolutionPercent;
         private int _peripheralBlurPercent;
         private float _globalVolume;
@@ -113,6 +134,8 @@ namespace Reloader.UI.Toolkit.EscMenu
             var prefix = string.IsNullOrWhiteSpace(playerPrefsKeyPrefix) ? "esc-menu" : playerPrefsKeyPrefix;
             _resolutionKey = prefix + ".resolution";
             _fovKey = prefix + ".fov";
+            _lookSensitivityKey = prefix + ".look-sensitivity";
+            _adsSensitivityKey = prefix + ".ads-sensitivity";
             _scopedPipResolutionPercentKey = prefix + ".scoped-pip-resolution-percent";
             _peripheralBlurPercentKey = prefix + ".peripheral-blur-percent";
             _globalVolumeKey = prefix + ".global";
@@ -131,6 +154,8 @@ namespace Reloader.UI.Toolkit.EscMenu
                 _resolutionOptionLabels,
                 _selectedResolutionIndex,
                 _fov,
+                _lookSensitivity,
+                _adsSensitivity,
                 _scopedPipResolutionPercent,
                 _peripheralBlurPercent,
                 _globalVolume,
@@ -172,6 +197,22 @@ namespace Reloader.UI.Toolkit.EscMenu
             _fov = Mathf.Clamp(value, MinFov, MaxFov);
             _runtime.ApplyFov(_fov);
             PlayerPrefs.SetFloat(_fovKey, _fov);
+            MarkPersistenceDirty();
+        }
+
+        public void SetLookSensitivity(float value)
+        {
+            _lookSensitivity = Mathf.Clamp(value, EscMenuSensitivitySettings.MinValue, EscMenuSensitivitySettings.MaxValue);
+            _runtime.ApplyUserLookSensitivityMultiplier(_lookSensitivity);
+            PlayerPrefs.SetFloat(_lookSensitivityKey, _lookSensitivity);
+            MarkPersistenceDirty();
+        }
+
+        public void SetAdsSensitivity(float value)
+        {
+            _adsSensitivity = Mathf.Clamp(value, EscMenuSensitivitySettings.MinValue, EscMenuSensitivitySettings.MaxValue);
+            _runtime.ApplyUserAdsSensitivityMultiplier(_adsSensitivity);
+            PlayerPrefs.SetFloat(_adsSensitivityKey, _adsSensitivity);
             MarkPersistenceDirty();
         }
 
@@ -262,6 +303,14 @@ namespace Reloader.UI.Toolkit.EscMenu
             }
 
             _fov = Mathf.Clamp(PlayerPrefs.GetFloat(_fovKey, _runtime.GetCurrentFov()), MinFov, MaxFov);
+            _lookSensitivity = Mathf.Clamp(
+                PlayerPrefs.GetFloat(_lookSensitivityKey, _runtime.GetCurrentUserLookSensitivityMultiplier()),
+                EscMenuSensitivitySettings.MinValue,
+                EscMenuSensitivitySettings.MaxValue);
+            _adsSensitivity = Mathf.Clamp(
+                PlayerPrefs.GetFloat(_adsSensitivityKey, _runtime.GetCurrentUserAdsSensitivityMultiplier()),
+                EscMenuSensitivitySettings.MinValue,
+                EscMenuSensitivitySettings.MaxValue);
             _scopedPipResolutionPercent = Mathf.Clamp(
                 PlayerPrefs.GetInt(_scopedPipResolutionPercentKey, ScopedOpticsSettings.DefaultPipResolutionPercent),
                 ScopedOpticsSettings.MinPipResolutionPercent,
@@ -283,6 +332,8 @@ namespace Reloader.UI.Toolkit.EscMenu
             }
 
             _runtime.ApplyFov(_fov);
+            _runtime.ApplyUserLookSensitivityMultiplier(_lookSensitivity);
+            _runtime.ApplyUserAdsSensitivityMultiplier(_adsSensitivity);
             _runtime.ApplyGlobalVolume(_globalVolume);
             _runtime.ApplyMusicVolume(_musicVolume);
             _runtime.ApplySoundsVolume(_soundsVolume);
@@ -560,6 +611,42 @@ namespace Reloader.UI.Toolkit.EscMenu
             }
         }
 
+        public float GetCurrentUserLookSensitivityMultiplier()
+        {
+            if (TryGetPlayerLookController(out var lookController) && lookController != null)
+            {
+                return lookController.UserLookSensitivityMultiplier;
+            }
+
+            return EscMenuSensitivitySettings.DefaultValue;
+        }
+
+        public float GetCurrentUserAdsSensitivityMultiplier()
+        {
+            if (TryGetPlayerLookController(out var lookController) && lookController != null)
+            {
+                return lookController.UserAdsSensitivityMultiplier;
+            }
+
+            return EscMenuSensitivitySettings.DefaultValue;
+        }
+
+        public void ApplyUserLookSensitivityMultiplier(float multiplier)
+        {
+            if (TryGetPlayerLookController(out var lookController) && lookController != null)
+            {
+                lookController.UserLookSensitivityMultiplier = multiplier;
+            }
+        }
+
+        public void ApplyUserAdsSensitivityMultiplier(float multiplier)
+        {
+            if (TryGetPlayerLookController(out var lookController) && lookController != null)
+            {
+                lookController.UserAdsSensitivityMultiplier = multiplier;
+            }
+        }
+
         private static bool TryGetPlayerCameraDefaults(out PlayerCameraDefaults cameraDefaults)
         {
 #if UNITY_2023_1_OR_NEWER || UNITY_6000_0_OR_NEWER
@@ -569,6 +656,17 @@ namespace Reloader.UI.Toolkit.EscMenu
             cameraDefaults = matches != null && matches.Length > 0 ? matches[0] : null;
 #endif
             return cameraDefaults != null;
+        }
+
+        private static bool TryGetPlayerLookController(out PlayerLookController lookController)
+        {
+#if UNITY_2023_1_OR_NEWER || UNITY_6000_0_OR_NEWER
+            lookController = UnityEngine.Object.FindAnyObjectByType<PlayerLookController>(FindObjectsInactive.Exclude);
+#else
+            var matches = UnityEngine.Object.FindObjectsOfType<PlayerLookController>(false);
+            lookController = matches != null && matches.Length > 0 ? matches[0] : null;
+#endif
+            return lookController != null;
         }
 
         public void ApplyGlobalVolume(float volume)

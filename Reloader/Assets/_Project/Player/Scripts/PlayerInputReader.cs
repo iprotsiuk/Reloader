@@ -110,9 +110,7 @@ namespace Reloader.Player
                 ? _moveAction.ReadValue<Vector2>()
                 : Vector2.zero;
 
-            LookInput = !isDevConsoleVisible && _lookAction != null
-                ? _lookAction.ReadValue<Vector2>()
-                : Vector2.zero;
+            LookInput = ResolveLookInput(isDevConsoleVisible);
 
             SprintHeld = !isGameplayInputSuppressed && _sprintAction != null && _sprintAction.IsPressed();
 
@@ -275,6 +273,18 @@ namespace Reloader.Player
                     }
                 }
             }
+        }
+
+        private Vector2 ResolveLookInput(bool isDevConsoleVisible)
+        {
+            if (isDevConsoleVisible || _lookAction == null)
+            {
+                return Vector2.zero;
+            }
+
+            var lookInput = _lookAction.ReadValue<Vector2>();
+            var activeControl = _lookAction.activeControl;
+            return LookInputNormalization.NormalizeLookDelta(lookInput, activeControl != null ? activeControl.path : null);
         }
 
         public bool ConsumeJumpPressed()

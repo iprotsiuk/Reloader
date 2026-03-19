@@ -392,6 +392,135 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerLookController_Tick_Aiming_UsesRuntimeAdsSensitivityMultiplier()
+        {
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Look = new Vector2(4f, 0f);
+            input.AimHeldValue = true;
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            look.LookSensitivity = Vector2.one;
+            look.AdsSensitivityMultiplier = Vector2.one;
+            look.RuntimeAdsSensitivityMultiplier = new Vector2(0.25f, 0.25f);
+
+            look.Tick(1f);
+
+            Assert.That(root.transform.eulerAngles.y, Is.EqualTo(1f).Within(0.05f));
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void PlayerLookController_Tick_Hipfire_AppliesUserLookSensitivityMultiplier()
+        {
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Look = new Vector2(4f, 0f);
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            look.LookSensitivity = Vector2.one;
+            look.UserLookSensitivityMultiplier = 1.5f;
+
+            look.Tick(1f);
+
+            Assert.That(root.transform.eulerAngles.y, Is.EqualTo(6f).Within(0.05f));
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void PlayerLookController_Tick_Aiming_AppliesUserLookAndUserAdsSensitivityMultipliers()
+        {
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Look = new Vector2(4f, 0f);
+            input.AimHeldValue = true;
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            look.LookSensitivity = Vector2.one;
+            look.AdsSensitivityMultiplier = new Vector2(0.25f, 0.25f);
+            look.RuntimeAdsSensitivityMultiplier = new Vector2(0.5f, 0.5f);
+            look.UserLookSensitivityMultiplier = 2f;
+            look.UserAdsSensitivityMultiplier = 1.5f;
+
+            look.Tick(1f);
+
+            Assert.That(root.transform.eulerAngles.y, Is.EqualTo(1.5f).Within(0.05f));
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void PlayerLookController_Tick_PipScopedAds_CanDisableFovSensitivityScaling()
+        {
+            var root = new GameObject("PlayerRoot");
+            var camera = root.AddComponent<Camera>();
+            camera.tag = "MainCamera";
+            camera.fieldOfView = 60f;
+
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Look = new Vector2(4f, 0f);
+            input.AimHeldValue = true;
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            look.LookSensitivity = Vector2.one;
+            look.AdsSensitivityMultiplier = Vector2.one;
+            look.RuntimeAdsSensitivityMultiplier = Vector2.one;
+            look.AllowFovSensitivityScaling = false;
+
+            look.Tick(1f);
+            var yawAtSixtyFov = root.transform.eulerAngles.y;
+
+            root.transform.rotation = Quaternion.identity;
+            look.Configure(input, cameraPivot.transform);
+            look.AllowFovSensitivityScaling = false;
+            camera.fieldOfView = 30f;
+            look.Tick(1f);
+            var yawAtThirtyFov = root.transform.eulerAngles.y;
+
+            Assert.That(yawAtSixtyFov, Is.EqualTo(4f).Within(0.05f));
+            Assert.That(yawAtThirtyFov, Is.EqualTo(yawAtSixtyFov).Within(0.05f));
+
+            Object.DestroyImmediate(root);
+            Object.DestroyImmediate(cameraPivot);
+        }
+
+        [Test]
+        public void PlayerLookController_Configure_ResetsAllowFovSensitivityScalingToDefault()
+        {
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var input = root.AddComponent<TestInputSource>();
+            var look = root.AddComponent<PlayerLookController>();
+            look.AllowFovSensitivityScaling = false;
+
+            look.Configure(input, cameraPivot.transform);
+
+            Assert.That(look.AllowFovSensitivityScaling, Is.True);
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void PlayerLookController_Tick_WithLookSmoothingEnabled_SpreadsStepAcrossFrames()
         {
             var smoothRoot = new GameObject("SmoothPlayerRoot");
@@ -696,6 +825,25 @@ namespace Reloader.Player.Tests.PlayMode
         {
             Assert.That(ZoomInputNormalization.NormalizeScrollDelta(120f), Is.EqualTo(1f).Within(0.001f));
             Assert.That(ZoomInputNormalization.NormalizeScrollDelta(12f), Is.EqualTo(1f).Within(0.001f));
+        }
+
+        [Test]
+        public void LookInputNormalization_NormalizeLookDelta_AppliesMouseScale()
+        {
+            var normalized = LookInputNormalization.NormalizeLookDelta(new Vector2(10f, -5f), "<Pointer>/delta");
+
+            Assert.That(normalized.x, Is.EqualTo(0.5f).Within(0.001f));
+            Assert.That(normalized.y, Is.EqualTo(-0.25f).Within(0.001f));
+        }
+
+        [Test]
+        public void LookInputNormalization_NormalizeLookDelta_DoesNotScaleGamepadInput()
+        {
+            var raw = new Vector2(0.5f, -0.25f);
+            var normalized = LookInputNormalization.NormalizeLookDelta(raw, "<Gamepad>/rightStick");
+
+            Assert.That(normalized.x, Is.EqualTo(raw.x).Within(0.001f));
+            Assert.That(normalized.y, Is.EqualTo(raw.y).Within(0.001f));
         }
 
         [Test]
