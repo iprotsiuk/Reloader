@@ -2246,6 +2246,11 @@ namespace Reloader.Weapons.Controllers
                 return false;
             }
 
+            if (!HasScopedAttachmentRuntimeAuthoring(_equippedWeaponView))
+            {
+                return false;
+            }
+
             if (string.IsNullOrWhiteSpace(attachmentItemId))
             {
                 manager.UnequipOptic();
@@ -2364,18 +2369,44 @@ namespace Reloader.Weapons.Controllers
                 return null;
             }
 
-            if (scopeSlot != null && mounts.IronSightAnchor == null)
-            {
-                Debug.LogWarning(
-                    $"PlayerWeaponController: View '{viewRoot.name}' is missing an authored IronSightAnchor required for scoped attachment runtime.",
-                    this);
-                return null;
-            }
-
             var ironSightAnchor = mounts.IronSightAnchor;
             var muzzleRuntime = viewRoot.GetComponent<GameMuzzleAttachmentRuntime>();
             manager.ConfigureMounts(scopeSlot, ironSightAnchor, muzzleSlot, muzzleRuntime);
             return manager;
+        }
+
+        private bool HasScopedAttachmentRuntimeAuthoring(GameObject viewRoot)
+        {
+            if (viewRoot == null)
+            {
+                return false;
+            }
+
+            var mounts = viewRoot.GetComponent<WeaponViewAttachmentMounts>();
+            if (mounts == null)
+            {
+                Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing WeaponViewAttachmentMounts.", this);
+                return false;
+            }
+
+            mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Scope, out var scopeSlot);
+            if (scopeSlot == null)
+            {
+                Debug.LogWarning(
+                    $"PlayerWeaponController: View '{viewRoot.name}' is missing an authored scope attachment slot required for scoped attachment runtime.",
+                    this);
+                return false;
+            }
+
+            if (mounts.IronSightAnchor == null)
+            {
+                Debug.LogWarning(
+                    $"PlayerWeaponController: View '{viewRoot.name}' is missing an authored IronSightAnchor required for scoped attachment runtime.",
+                    this);
+                return false;
+            }
+
+            return true;
         }
 
         private void EnsureScopedAdsRuntimeBridge(GameObject viewRoot, GameAttachmentManager attachmentManager)

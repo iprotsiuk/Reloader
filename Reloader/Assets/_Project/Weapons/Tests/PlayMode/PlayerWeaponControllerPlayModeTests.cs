@@ -1770,6 +1770,125 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator TrySwapEquippedWeaponAttachment_MuzzleStillSucceeds_WhenScopeSetupIsMissingIronSightAnchor()
+        {
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            GameObject equippedView = null;
+            GameMuzzleAttachmentDefinition muzzleDefinition = null;
+            GameObject muzzlePrefab = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+                runtime.TryAddStackItem("att-muzzle-brake", 1, out _, out _, out _);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Muzzle, new[] { "att-muzzle-brake" })
+                });
+
+                viewPrefab = new GameObject("ViewWithValidMuzzleAndBrokenScopeSetup");
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(viewPrefab.transform, false);
+                var muzzleTransform = new GameObject("Muzzle").transform;
+                muzzleTransform.SetParent(viewPrefab.transform, false);
+                var muzzleSlot = new GameObject("MuzzleAttachmentSlot").transform;
+                muzzleSlot.SetParent(viewPrefab.transform, false);
+                ConfigureTestWeaponViewMounts(
+                    viewPrefab,
+                    muzzleFirePoint: muzzleTransform,
+                    scopeSlot: scopeSlot,
+                    muzzleSlot: muzzleSlot);
+
+                muzzleDefinition = ScriptableObject.CreateInstance<GameMuzzleAttachmentDefinition>();
+                muzzlePrefab = new GameObject("MuzzleBrakePrefab");
+                SetField(typeof(GameMuzzleAttachmentDefinition), muzzleDefinition, "_attachmentId", "att-muzzle-brake");
+                SetField(typeof(GameMuzzleAttachmentDefinition), muzzleDefinition, "_muzzlePrefab", muzzlePrefab);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_weaponViewParent", root.transform);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests("att-muzzle-brake", WeaponAttachmentSlotType.Muzzle, muzzleDefinition)
+                });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
+
+                yield return null;
+                SetControllerField(controller, "_equippedItemId", "weapon-kar98k");
+                SetControllerField(controller, "_equippedDefinition", definition);
+                equippedView = Object.Instantiate(viewPrefab, root.transform, false);
+                SetControllerField(controller, "_equippedWeaponView", equippedView);
+                yield return null;
+
+                Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+                Assert.That(controller.EquippedWeaponViewTransform, Is.Not.Null);
+                Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Muzzle, "att-muzzle-brake"), Is.True);
+                Assert.That(state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Muzzle), Is.EqualTo("att-muzzle-brake"));
+                Assert.That(runtime.GetItemQuantity("att-muzzle-brake"), Is.EqualTo(0));
+                var attachmentManager = root.GetComponentInChildren<GameAttachmentManager>(true);
+                Assert.That(attachmentManager, Is.Not.Null, "Shared attachment manager should still exist for authored muzzle mounting.");
+                Assert.That(attachmentManager!.ActiveMuzzleDefinition, Is.EqualTo(muzzleDefinition));
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (equippedView != null)
+                {
+                    Object.Destroy(equippedView);
+                }
+
+                if (muzzleDefinition != null)
+                {
+                    Object.Destroy(muzzleDefinition);
+                }
+
+                if (muzzlePrefab != null)
+                {
+                    Object.Destroy(muzzlePrefab);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator EquipScopedWeapon_RuntimeBridge_WiresPipScopeControllerAndScopeCamera()
         {
             GameObject root = null;
