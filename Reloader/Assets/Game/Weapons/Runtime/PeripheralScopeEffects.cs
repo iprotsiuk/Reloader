@@ -1,10 +1,16 @@
 using UnityEngine;
+using Reloader.Game.Weapons.Rendering;
 
 namespace Reloader.Game.Weapons
 {
     internal interface IPeripheralScopeBlurReceiver
     {
         void SetPeripheralBlur(float blurPercent);
+    }
+
+    internal interface IPeripheralScopeBlurRuntimeStateSource
+    {
+        void UpdateBlurRuntimeState(bool isActive, float alpha, float blurPercent);
     }
 
     public sealed class PeripheralScopeEffects : MonoBehaviour
@@ -28,9 +34,11 @@ namespace Reloader.Game.Weapons
 
             if (_scopedBehaviours == null)
             {
+                PeripheralScopeBlurRuntimeState.Reset();
                 return;
             }
 
+            var updatedBlurRuntimeState = false;
             for (var i = 0; i < _scopedBehaviours.Length; i++)
             {
                 var behaviour = _scopedBehaviours[i];
@@ -49,7 +57,18 @@ namespace Reloader.Game.Weapons
                     blurReceiver.SetPeripheralBlur(CurrentPeripheralBlur);
                 }
 
+                if (behaviour is IPeripheralScopeBlurRuntimeStateSource blurRuntimeStateSource)
+                {
+                    blurRuntimeStateSource.UpdateBlurRuntimeState(isActive, CurrentAlpha, CurrentPeripheralBlur);
+                    updatedBlurRuntimeState = true;
+                }
+
                 behaviour.enabled = isActive;
+            }
+
+            if (!updatedBlurRuntimeState)
+            {
+                PeripheralScopeBlurRuntimeState.Reset();
             }
         }
     }

@@ -1,4 +1,5 @@
 using UnityEngine;
+using Reloader.Game.Weapons.Rendering;
 
 namespace Reloader.Game.Weapons
 {
@@ -7,13 +8,14 @@ namespace Reloader.Game.Weapons
         void SetScopedState(bool isActive, float alpha);
     }
 
-    public sealed class PeripheralScopeScreenMask : MonoBehaviour, IPeripheralScopeEffectReceiver, IPeripheralScopeBlurReceiver
+    public sealed class PeripheralScopeScreenMask : MonoBehaviour, IPeripheralScopeEffectReceiver, IPeripheralScopeBlurReceiver, IPeripheralScopeBlurRuntimeStateSource
     {
         [SerializeField, Range(0f, 1f)] private float _centerWidthNormalized = 0.3f;
         [SerializeField, Range(0f, 1f)] private float _centerHeightNormalized = 0.3f;
         [SerializeField, Range(0f, 1f)] private float _maxPeripheralAlpha = 0.82f;
         [SerializeField, Range(0f, 1f)] private float _maxPeripheralBlurAlpha = 0.95f;
         [SerializeField, Range(0f, 1f)] private float _minCenterNormalizedScale = 0.55f;
+        [SerializeField, Range(0.001f, 0.25f)] private float _softEdgeNormalized = 0.04f;
         [SerializeField] private Color _maskColor = Color.black;
 
         private static Texture2D s_fillTexture;
@@ -36,6 +38,23 @@ namespace Reloader.Game.Weapons
         public void SetPeripheralBlur(float blurPercent)
         {
             _peripheralBlurPercent = Mathf.Clamp01(blurPercent);
+        }
+
+        public void UpdateBlurRuntimeState(bool isActive, float alpha, float blurPercent)
+        {
+            var clampedBlur = Mathf.Clamp01(blurPercent);
+            var effectiveActive = isActive && alpha > 0.001f && clampedBlur > 0.001f;
+            var blurScale = Mathf.Lerp(1f, _minCenterNormalizedScale, clampedBlur);
+            var centerWidthNormalized = Mathf.Clamp01(_centerWidthNormalized * blurScale);
+            var centerHeightNormalized = Mathf.Clamp01(_centerHeightNormalized * blurScale);
+
+            PeripheralScopeBlurRuntimeState.Update(
+                effectiveActive,
+                alpha,
+                clampedBlur,
+                centerWidthNormalized,
+                centerHeightNormalized,
+                Mathf.Clamp(_softEdgeNormalized, 0.001f, 0.25f));
         }
 
         private void OnGUI()

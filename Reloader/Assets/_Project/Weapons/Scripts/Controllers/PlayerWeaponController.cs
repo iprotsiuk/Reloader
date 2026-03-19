@@ -2257,17 +2257,17 @@ namespace Reloader.Weapons.Controllers
                 return false;
             }
 
-            if (!HasScopedAttachmentRuntimeAuthoring(_equippedWeaponView))
-            {
-                return false;
-            }
-
             if (string.IsNullOrWhiteSpace(attachmentItemId))
             {
                 manager.UnequipOptic();
                 EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
                 NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
                 return true;
+            }
+
+            if (!HasScopedAttachmentRuntimeAuthoring(_equippedWeaponView))
+            {
+                return false;
             }
 
             var definition = ResolveOpticDefinition(attachmentItemId);
@@ -2738,8 +2738,12 @@ namespace Reloader.Weapons.Controllers
             DestroyScopedBridgeComponent(_adsStateRuntimeBridge);
             DestroyScopedBridgeComponent(_weaponAimAlignerRuntimeBridge);
             DestroyScopedBridgeComponent(_renderTextureScopeRuntimeBridge);
-            DestroyScopedBridgeComponent(_peripheralScopeEffectsRuntimeBridge);
             DestroyScopedBridgeComponent(_scopeAdjustmentTooltipRuntimeBridge);
+
+            if (_peripheralScopeEffectsRuntimeBridge != null)
+            {
+                _peripheralScopeEffectsRuntimeBridge.SetState(false, 0f);
+            }
 
             _adsStateRuntimeBridge = null;
             _adsAttachmentManagerRuntimeBridge = null;

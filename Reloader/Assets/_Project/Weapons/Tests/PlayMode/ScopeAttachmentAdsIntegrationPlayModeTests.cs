@@ -2068,6 +2068,107 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator ScopedPipOptic_UpdatesPeripheralBlurRuntimeStateFromSettings()
+        {
+            const string peripheralBlurKey = "esc-menu.peripheral-blur-percent";
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            var peripheralEffectsType = ResolveType("Reloader.Game.Weapons.PeripheralScopeEffects");
+            var peripheralScopeScreenMaskType = ResolveType("Reloader.Game.Weapons.PeripheralScopeScreenMask");
+            var runtimeStateType = ResolveType("Reloader.Game.Weapons.Rendering.PeripheralScopeBlurRuntimeState");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+            Assert.That(peripheralEffectsType, Is.Not.Null);
+            Assert.That(peripheralScopeScreenMaskType, Is.Not.Null);
+            Assert.That(runtimeStateType, Is.Not.Null, "Expected the new peripheral blur runtime state type to exist.");
+
+            var previousHasKey = PlayerPrefs.HasKey(peripheralBlurKey);
+            var previousValue = PlayerPrefs.GetInt(peripheralBlurKey, 50);
+            var root = new GameObject("ScopedAdsBlurRuntimeRoot");
+            ScriptableObject scopedOptic = null;
+            GameObject worldCamGo = null;
+            GameObject viewmodelCamGo = null;
+            GameObject scopeCameraGo = null;
+
+            try
+            {
+                PlayerPrefs.SetInt(peripheralBlurKey, 80);
+
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                worldCamGo = new GameObject("WorldCam");
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+                viewmodelCamGo = new GameObject("ViewmodelCam");
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+                scopeCameraGo = new GameObject("ScopeCam");
+                var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+                SetField(scopeController, "_scopeCamera", scopeCamera);
+                var peripheralEffects = root.AddComponent(peripheralEffectsType);
+                var peripheralMask = root.AddComponent(peripheralScopeScreenMaskType) as Behaviour;
+                Assert.That(peripheralMask, Is.Not.Null);
+                SetField(peripheralEffectsType, peripheralEffects, "_scopedBehaviours", new[] { peripheralMask });
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_worldCamera", worldCamera);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_renderTextureScopeController", scopeController);
+                SetField(ads, "_peripheralScopeEffects", peripheralEffects);
+                SetField(ads, "_useLegacyInput", false);
+                SetField(ads, "_fallbackAdsOutTime", 0.01f);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-blur-runtime", 4f, 12f, true, "RenderTexturePiP");
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+
+                Invoke(ads, "SetAdsHeld", true);
+                Invoke(ads, "SetMagnification", 6f);
+
+                var isActiveProperty = runtimeStateType!.GetProperty("IsActive", BindingFlags.Static | BindingFlags.Public);
+                var blurAmountProperty = runtimeStateType.GetProperty("BlurAmount", BindingFlags.Static | BindingFlags.Public);
+                Assert.That(isActiveProperty, Is.Not.Null);
+                Assert.That(blurAmountProperty, Is.Not.Null);
+
+                yield return WaitUntil(
+                    () => (bool)isActiveProperty!.GetValue(null),
+                    60,
+                    "Peripheral blur runtime state did not activate after entering PiP ADS.");
+
+                Assert.That((float)blurAmountProperty!.GetValue(null), Is.EqualTo(0.8f).Within(0.0001f),
+                    "Expected the runtime blur state to normalize the Peripheral Blur setting into the render feature seam.");
+
+                Invoke(ads, "SetAdsHeld", false);
+
+                yield return WaitUntil(
+                    () => !(bool)isActiveProperty.GetValue(null),
+                    60,
+                    "Peripheral blur runtime state did not deactivate after leaving PiP ADS.");
+            }
+            finally
+            {
+                if (previousHasKey)
+                {
+                    PlayerPrefs.SetInt(peripheralBlurKey, previousValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(peripheralBlurKey);
+                }
+
+                Cleanup(root, scopedOptic, worldCamGo, viewmodelCamGo, scopeCameraGo);
+            }
+        }
+
         [Test]
         public void ScopedPipOptic_UsesPlayerPrefsFallbackForScopedOpticsSettings()
         {

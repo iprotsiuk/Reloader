@@ -1,7 +1,7 @@
 using UnityEngine;
 using System;
 using System.Reflection;
-using UnityEngine.Rendering;
+using Reloader.Game.Weapons.Rendering;
 
 namespace Reloader.Game.Weapons
 {
@@ -20,7 +20,6 @@ namespace Reloader.Game.Weapons
         private const string ScopedOpticsSettingsContractTypeName = "Reloader.UI.Toolkit.EscMenu.ScopedOpticsSettings";
         private const string ScopedPipResolutionPlayerPrefKey = "esc-menu.scoped-pip-resolution-percent";
         private const string PeripheralBlurPlayerPrefKey = "esc-menu.peripheral-blur-percent";
-        private const float MinPeripheralRenderScale = 0.35f;
 
         [Header("References")]
         [SerializeField] private Camera _worldCamera;
@@ -97,7 +96,6 @@ namespace Reloader.Game.Weapons
         private Type _scopedOpticsSettingsSourceType;
         private Type _scopedOpticsSettingsSnapshotType;
         private Type _scopedOpticsSettingsContractType;
-        private float _lastAppliedWorldRenderScale = 1f;
         private bool _hasResolvedScopedOpticsSettingsSource;
 
         public bool IsAdsActive => _isAdsHeld;
@@ -190,19 +188,21 @@ namespace Reloader.Game.Weapons
             {
                 _peripheralScopeEffects.SetState(false, 0f);
             }
+            else
+            {
+                PeripheralScopeBlurRuntimeState.Reset();
+            }
 
             if (_scopeAdjustmentTooltipOverlay != null)
             {
                 _scopeAdjustmentTooltipOverlay.SetState(false, 0, 0);
             }
-
-            RestorePeripheralWorldRenderScale();
         }
 
         private void OnDestroy()
         {
             UnsubscribeAttachmentManagerEvents();
-            RestorePeripheralWorldRenderScale();
+            PeripheralScopeBlurRuntimeState.Reset();
         }
 
         public void SetAdsHeld(bool held)
@@ -474,6 +474,10 @@ namespace Reloader.Game.Weapons
             {
                 _peripheralScopeEffects.SetState(usePip, AdsT, normalizedPeripheralBlur);
             }
+            else
+            {
+                PeripheralScopeBlurRuntimeState.Reset();
+            }
 
             if (_renderTextureScopeController != null)
             {
@@ -493,8 +497,6 @@ namespace Reloader.Game.Weapons
                     windageClicks,
                     elevationClicks);
             }
-
-            ApplyScopedWorldRenderScale(usePip ? normalizedPeripheralBlur : 0f, AdsT);
 
             UpdateScopeAdjustmentTooltip(
                 _isAdsHeld && policy == AdsVisualMode.RenderTexturePiP,
@@ -829,25 +831,6 @@ namespace Reloader.Game.Weapons
             }
 
             return null;
-        }
-
-        private void ApplyScopedWorldRenderScale(float normalizedPeripheralBlur, float adsBlend)
-        {
-            var clampedBlend = Mathf.Clamp01(adsBlend);
-            var clampedBlur = Mathf.Clamp01(normalizedPeripheralBlur);
-            var targetScale = Mathf.Lerp(1f, MinPeripheralRenderScale, clampedBlur * clampedBlend);
-            targetScale = Mathf.Clamp(targetScale, MinPeripheralRenderScale, 1f);
-            if (!Mathf.Approximately(_lastAppliedWorldRenderScale, targetScale))
-            {
-                ScalableBufferManager.ResizeBuffers(targetScale, targetScale);
-                _lastAppliedWorldRenderScale = targetScale;
-            }
-        }
-
-        private void RestorePeripheralWorldRenderScale()
-        {
-            ApplyScopedWorldRenderScale(0f, 0f);
-            _lastAppliedWorldRenderScale = 1f;
         }
 
         private int ResolveScopedOpticsMinPipResolutionPercent()
