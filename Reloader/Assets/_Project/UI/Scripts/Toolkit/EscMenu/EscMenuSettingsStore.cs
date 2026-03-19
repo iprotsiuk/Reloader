@@ -46,6 +46,8 @@ namespace Reloader.UI.Toolkit.EscMenu
             IReadOnlyList<string> resolutionOptions,
             int selectedResolutionIndex,
             float fov,
+            int scopedPipResolutionPercent,
+            int peripheralBlurPercent,
             float globalVolume,
             float musicVolume,
             float soundsVolume)
@@ -53,6 +55,8 @@ namespace Reloader.UI.Toolkit.EscMenu
             ResolutionOptions = resolutionOptions ?? Array.Empty<string>();
             SelectedResolutionIndex = selectedResolutionIndex;
             Fov = fov;
+            ScopedPipResolutionPercent = scopedPipResolutionPercent;
+            PeripheralBlurPercent = peripheralBlurPercent;
             GlobalVolume = globalVolume;
             MusicVolume = musicVolume;
             SoundsVolume = soundsVolume;
@@ -61,12 +65,14 @@ namespace Reloader.UI.Toolkit.EscMenu
         public IReadOnlyList<string> ResolutionOptions { get; }
         public int SelectedResolutionIndex { get; }
         public float Fov { get; }
+        public int ScopedPipResolutionPercent { get; }
+        public int PeripheralBlurPercent { get; }
         public float GlobalVolume { get; }
         public float MusicVolume { get; }
         public float SoundsVolume { get; }
     }
 
-    public sealed class EscMenuSettingsStore
+    public sealed class EscMenuSettingsStore : IScopedOpticsSettingsSource
     {
         private const float MinFov = 50f;
         private const float MaxFov = 110f;
@@ -77,6 +83,8 @@ namespace Reloader.UI.Toolkit.EscMenu
         private readonly Action _saveAction;
         private readonly string _resolutionKey;
         private readonly string _fovKey;
+        private readonly string _scopedPipResolutionPercentKey;
+        private readonly string _peripheralBlurPercentKey;
         private readonly string _globalVolumeKey;
         private readonly string _musicVolumeKey;
         private readonly string _soundsVolumeKey;
@@ -86,6 +94,8 @@ namespace Reloader.UI.Toolkit.EscMenu
 
         private int _selectedResolutionIndex;
         private float _fov;
+        private int _scopedPipResolutionPercent;
+        private int _peripheralBlurPercent;
         private float _globalVolume;
         private float _musicVolume;
         private float _soundsVolume;
@@ -103,6 +113,8 @@ namespace Reloader.UI.Toolkit.EscMenu
             var prefix = string.IsNullOrWhiteSpace(playerPrefsKeyPrefix) ? "esc-menu" : playerPrefsKeyPrefix;
             _resolutionKey = prefix + ".resolution";
             _fovKey = prefix + ".fov";
+            _scopedPipResolutionPercentKey = prefix + ".scoped-pip-resolution-percent";
+            _peripheralBlurPercentKey = prefix + ".peripheral-blur-percent";
             _globalVolumeKey = prefix + ".global";
             _musicVolumeKey = prefix + ".music";
             _soundsVolumeKey = prefix + ".sounds";
@@ -119,9 +131,26 @@ namespace Reloader.UI.Toolkit.EscMenu
                 _resolutionOptionLabels,
                 _selectedResolutionIndex,
                 _fov,
+                _scopedPipResolutionPercent,
+                _peripheralBlurPercent,
                 _globalVolume,
                 _musicVolume,
                 _soundsVolume);
+        }
+
+        public ScopedOpticsSettingsSnapshot GetScopedOpticsSettingsSnapshot()
+        {
+            return new ScopedOpticsSettingsSnapshot(_scopedPipResolutionPercent, _peripheralBlurPercent);
+        }
+
+        public int GetScopedPipResolutionPercent()
+        {
+            return _scopedPipResolutionPercent;
+        }
+
+        public int GetPeripheralBlurPercent()
+        {
+            return _peripheralBlurPercent;
         }
 
         public void SetSelectedResolutionIndex(int index)
@@ -143,6 +172,26 @@ namespace Reloader.UI.Toolkit.EscMenu
             _fov = Mathf.Clamp(value, MinFov, MaxFov);
             _runtime.ApplyFov(_fov);
             PlayerPrefs.SetFloat(_fovKey, _fov);
+            MarkPersistenceDirty();
+        }
+
+        public void SetScopedPipResolutionPercent(int value)
+        {
+            _scopedPipResolutionPercent = Mathf.Clamp(
+                value,
+                ScopedOpticsSettings.MinPipResolutionPercent,
+                ScopedOpticsSettings.MaxPipResolutionPercent);
+            PlayerPrefs.SetInt(_scopedPipResolutionPercentKey, _scopedPipResolutionPercent);
+            MarkPersistenceDirty();
+        }
+
+        public void SetPeripheralBlurPercent(int value)
+        {
+            _peripheralBlurPercent = Mathf.Clamp(
+                value,
+                ScopedOpticsSettings.MinPeripheralBlurPercent,
+                ScopedOpticsSettings.MaxPeripheralBlurPercent);
+            PlayerPrefs.SetInt(_peripheralBlurPercentKey, _peripheralBlurPercent);
             MarkPersistenceDirty();
         }
 
@@ -213,6 +262,14 @@ namespace Reloader.UI.Toolkit.EscMenu
             }
 
             _fov = Mathf.Clamp(PlayerPrefs.GetFloat(_fovKey, _runtime.GetCurrentFov()), MinFov, MaxFov);
+            _scopedPipResolutionPercent = Mathf.Clamp(
+                PlayerPrefs.GetInt(_scopedPipResolutionPercentKey, ScopedOpticsSettings.DefaultPipResolutionPercent),
+                ScopedOpticsSettings.MinPipResolutionPercent,
+                ScopedOpticsSettings.MaxPipResolutionPercent);
+            _peripheralBlurPercent = Mathf.Clamp(
+                PlayerPrefs.GetInt(_peripheralBlurPercentKey, ScopedOpticsSettings.DefaultPeripheralBlurPercent),
+                ScopedOpticsSettings.MinPeripheralBlurPercent,
+                ScopedOpticsSettings.MaxPeripheralBlurPercent);
             _globalVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(_globalVolumeKey, _runtime.GetCurrentGlobalVolume()));
             _musicVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(_musicVolumeKey, _runtime.GetCurrentMusicVolume()));
             _soundsVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(_soundsVolumeKey, _runtime.GetCurrentSoundsVolume()));

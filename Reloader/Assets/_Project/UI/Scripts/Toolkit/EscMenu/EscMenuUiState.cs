@@ -29,6 +29,8 @@ namespace Reloader.UI.Toolkit.EscMenu
             string[] resolutionOptions,
             int selectedResolutionIndex,
             float fov,
+            int scopedPipResolutionPercent,
+            int peripheralBlurPercent,
             float globalVolume,
             float musicVolume,
             float soundsVolume)
@@ -40,6 +42,8 @@ namespace Reloader.UI.Toolkit.EscMenu
             _resolutionOptions = resolutionOptions ?? Array.Empty<string>();
             SelectedResolutionIndex = Math.Max(0, selectedResolutionIndex);
             Fov = fov;
+            ScopedPipResolutionPercent = scopedPipResolutionPercent;
+            PeripheralBlurPercent = peripheralBlurPercent;
             GlobalVolume = globalVolume;
             MusicVolume = musicVolume;
             SoundsVolume = soundsVolume;
@@ -51,6 +55,8 @@ namespace Reloader.UI.Toolkit.EscMenu
         public IReadOnlyList<string> ResolutionOptions => _resolutionOptions;
         public int SelectedResolutionIndex { get; }
         public float Fov { get; }
+        public int ScopedPipResolutionPercent { get; }
+        public int PeripheralBlurPercent { get; }
         public float GlobalVolume { get; }
         public float MusicVolume { get; }
         public float SoundsVolume { get; }
@@ -62,6 +68,8 @@ namespace Reloader.UI.Toolkit.EscMenu
             IEnumerable<string> resolutionOptions,
             int selectedResolutionIndex,
             float fov,
+            int scopedPipResolutionPercent,
+            int peripheralBlurPercent,
             float globalVolume,
             float musicVolume,
             float soundsVolume)
@@ -74,6 +82,8 @@ namespace Reloader.UI.Toolkit.EscMenu
                 options,
                 selectedResolutionIndex,
                 fov,
+                scopedPipResolutionPercent,
+                peripheralBlurPercent,
                 globalVolume,
                 musicVolume,
                 soundsVolume);

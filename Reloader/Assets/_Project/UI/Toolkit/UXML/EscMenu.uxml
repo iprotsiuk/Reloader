@@ -34,6 +34,15 @@
                         <ui:Label text="FOV" class="esc-menu__field-label"/>
                         <ui:Slider name="esc-menu__fov" low-value="50" high-value="110" class="esc-menu__field-control"/>
                     </ui:VisualElement>
+                    <ui:Label text="Scoped Optics" class="esc-menu__section-title ui-kit__hint"/>
+                    <ui:VisualElement class="esc-menu__field-row">
+                        <ui:Label text="Scoped PiP Resolution %" class="esc-menu__field-label"/>
+                        <ui:Slider name="esc-menu__scoped-pip-resolution" low-value="10" high-value="400" class="esc-menu__field-control"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="esc-menu__field-row">
+                        <ui:Label text="Peripheral Blur" class="esc-menu__field-label"/>
+                        <ui:Slider name="esc-menu__peripheral-blur" low-value="0" high-value="100" class="esc-menu__field-control"/>
+                    </ui:VisualElement>
                 </ui:VisualElement>
 
                 <ui:VisualElement name="esc-menu__tab-panel-audio" class="esc-menu__tab-panel">

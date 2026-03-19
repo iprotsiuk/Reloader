@@ -239,6 +239,8 @@ namespace Reloader.UI.Tests.PlayMode
                 resolutionOptions: new[] { "1280x720", "1920x1080" },
                 selectedResolutionIndex: 1,
                 fov: 87f,
+                scopedPipResolutionPercent: 135,
+                peripheralBlurPercent: 65,
                 globalVolume: 0.8f,
                 musicVolume: 0.2f,
                 soundsVolume: 0.4f));
@@ -248,12 +250,16 @@ namespace Reloader.UI.Tests.PlayMode
             var audioPanel = root.Q<VisualElement>("esc-menu__tab-panel-audio");
             var resolutionDropdown = root.Q<DropdownField>("esc-menu__resolution");
             var fovSlider = root.Q<Slider>("esc-menu__fov");
+            var scopedPipResolutionSlider = root.Q<Slider>("esc-menu__scoped-pip-resolution");
+            var peripheralBlurSlider = root.Q<Slider>("esc-menu__peripheral-blur");
 
             Assert.That(settingsScreen.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(videoPanel.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(audioPanel.style.display.value, Is.EqualTo(DisplayStyle.None));
             Assert.That(resolutionDropdown.index, Is.EqualTo(1));
             Assert.That(fovSlider.value, Is.EqualTo(87f).Within(0.001f));
+            Assert.That(scopedPipResolutionSlider.value, Is.EqualTo(135f).Within(0.001f));
+            Assert.That(peripheralBlurSlider.value, Is.EqualTo(65f).Within(0.001f));
         }
 
         [Test]
@@ -263,6 +269,8 @@ namespace Reloader.UI.Tests.PlayMode
             var prefsKeyPrefix = "esc-menu-tests";
             PlayerPrefs.DeleteKey(prefsKeyPrefix + ".resolution");
             PlayerPrefs.DeleteKey(prefsKeyPrefix + ".fov");
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".scoped-pip-resolution-percent");
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".peripheral-blur-percent");
             PlayerPrefs.DeleteKey(prefsKeyPrefix + ".global");
             PlayerPrefs.DeleteKey(prefsKeyPrefix + ".music");
             PlayerPrefs.DeleteKey(prefsKeyPrefix + ".sounds");
@@ -270,12 +278,16 @@ namespace Reloader.UI.Tests.PlayMode
             var store = new EscMenuSettingsStore(runtime, prefsKeyPrefix);
             store.SetSelectedResolutionIndex(1);
             store.SetFov(95f);
+            store.SetScopedPipResolutionPercent(175);
+            store.SetPeripheralBlurPercent(70);
             store.SetGlobalVolume(0.33f);
             store.SetMusicVolume(0.44f);
             store.SetSoundsVolume(0.55f);
 
             Assert.That(runtime.LastResolutionIndex, Is.EqualTo(1));
             Assert.That(runtime.Fov, Is.EqualTo(95f).Within(0.001f));
+            Assert.That(store.GetScopedPipResolutionPercent(), Is.EqualTo(175));
+            Assert.That(store.GetPeripheralBlurPercent(), Is.EqualTo(70));
             Assert.That(runtime.GlobalVolume, Is.EqualTo(0.33f).Within(0.001f));
             Assert.That(runtime.MusicVolume, Is.EqualTo(0.44f).Within(0.001f));
             Assert.That(runtime.SoundsVolume, Is.EqualTo(0.55f).Within(0.001f));
@@ -284,6 +296,8 @@ namespace Reloader.UI.Tests.PlayMode
             var snapshot = reloaded.CreateSnapshot();
             Assert.That(snapshot.SelectedResolutionIndex, Is.EqualTo(1));
             Assert.That(snapshot.Fov, Is.EqualTo(95f).Within(0.001f));
+            Assert.That(snapshot.ScopedPipResolutionPercent, Is.EqualTo(175));
+            Assert.That(snapshot.PeripheralBlurPercent, Is.EqualTo(70));
             Assert.That(snapshot.GlobalVolume, Is.EqualTo(0.33f).Within(0.001f));
             Assert.That(snapshot.MusicVolume, Is.EqualTo(0.44f).Within(0.001f));
             Assert.That(snapshot.SoundsVolume, Is.EqualTo(0.55f).Within(0.001f));
@@ -297,12 +311,16 @@ namespace Reloader.UI.Tests.PlayMode
             var saveCalls = 0;
             PlayerPrefs.DeleteKey(prefsKeyPrefix + ".resolution");
             PlayerPrefs.DeleteKey(prefsKeyPrefix + ".fov");
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".scoped-pip-resolution-percent");
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".peripheral-blur-percent");
             PlayerPrefs.DeleteKey(prefsKeyPrefix + ".global");
             PlayerPrefs.DeleteKey(prefsKeyPrefix + ".music");
             PlayerPrefs.DeleteKey(prefsKeyPrefix + ".sounds");
 
             var store = new EscMenuSettingsStore(runtime, prefsKeyPrefix, () => saveCalls++);
             store.SetFov(92f);
+            store.SetScopedPipResolutionPercent(120);
+            store.SetPeripheralBlurPercent(45);
             store.SetMusicVolume(0.2f);
             store.SetSoundsVolume(0.7f);
 
@@ -325,6 +343,8 @@ namespace Reloader.UI.Tests.PlayMode
             var prefsKeyPrefix = "esc-menu-tests-current-resolution";
             PlayerPrefs.DeleteKey(prefsKeyPrefix + ".resolution");
             PlayerPrefs.DeleteKey(prefsKeyPrefix + ".fov");
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".scoped-pip-resolution-percent");
+            PlayerPrefs.DeleteKey(prefsKeyPrefix + ".peripheral-blur-percent");
             PlayerPrefs.DeleteKey(prefsKeyPrefix + ".global");
             PlayerPrefs.DeleteKey(prefsKeyPrefix + ".music");
             PlayerPrefs.DeleteKey(prefsKeyPrefix + ".sounds");
@@ -333,6 +353,33 @@ namespace Reloader.UI.Tests.PlayMode
             var snapshot = store.CreateSnapshot();
             Assert.That(snapshot.SelectedResolutionIndex, Is.EqualTo(1));
             Assert.That(runtime.LastResolutionIndex, Is.EqualTo(1));
+            Assert.That(snapshot.ScopedPipResolutionPercent, Is.EqualTo(ScopedOpticsSettings.DefaultPipResolutionPercent));
+            Assert.That(snapshot.PeripheralBlurPercent, Is.EqualTo(ScopedOpticsSettings.DefaultPeripheralBlurPercent));
+        }
+
+        [Test]
+        public void EscMenuController_HandleIntent_VideoScopedOpticsChangesUpdateRenderedSliders()
+        {
+            var go = new GameObject("esc-menu-controller-scoped-optics");
+            var root = BuildEscRoot();
+            var binder = new EscMenuViewBinder();
+            binder.Initialize(root);
+
+            var controller = go.AddComponent<EscMenuController>();
+            controller.SetViewBinder(binder);
+
+            controller.HandleIntent(new UiIntent("esc.menu.settings"));
+            controller.HandleIntent(new UiIntent("esc.menu.settings.tab", "video"));
+            controller.HandleIntent(new UiIntent("esc.menu.settings.video.scoped-pip-resolution.changed", 180f));
+            controller.HandleIntent(new UiIntent("esc.menu.settings.video.peripheral-blur.changed", 72f));
+
+            var scopedPipResolutionSlider = root.Q<Slider>("esc-menu__scoped-pip-resolution");
+            var peripheralBlurSlider = root.Q<Slider>("esc-menu__peripheral-blur");
+
+            Assert.That(scopedPipResolutionSlider.value, Is.EqualTo(180f).Within(0.001f));
+            Assert.That(peripheralBlurSlider.value, Is.EqualTo(72f).Within(0.001f));
+
+            UnityEngine.Object.DestroyImmediate(go);
         }
 
         [Test]
@@ -534,6 +581,18 @@ namespace Reloader.UI.Tests.PlayMode
 
             settingsScreen.Add(new DropdownField { name = "esc-menu__resolution" });
             settingsScreen.Add(new Slider { name = "esc-menu__fov", lowValue = 50f, highValue = 110f });
+            settingsScreen.Add(new Slider
+            {
+                name = "esc-menu__scoped-pip-resolution",
+                lowValue = ScopedOpticsSettings.MinPipResolutionPercent,
+                highValue = ScopedOpticsSettings.MaxPipResolutionPercent
+            });
+            settingsScreen.Add(new Slider
+            {
+                name = "esc-menu__peripheral-blur",
+                lowValue = ScopedOpticsSettings.MinPeripheralBlurPercent,
+                highValue = ScopedOpticsSettings.MaxPeripheralBlurPercent
+            });
             settingsScreen.Add(new Slider { name = "esc-menu__global-volume", lowValue = 0f, highValue = 1f });
             settingsScreen.Add(new Slider { name = "esc-menu__music-volume", lowValue = 0f, highValue = 1f });
             settingsScreen.Add(new Slider { name = "esc-menu__sounds-volume", lowValue = 0f, highValue = 1f });
