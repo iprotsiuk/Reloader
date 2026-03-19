@@ -6,6 +6,7 @@ namespace Reloader.Player
 {
     public sealed class PlayerCameraDefaults : MonoBehaviour
     {
+        private const string ViewmodelCameraName = "ViewmodelCamera";
         [SerializeField] private bool _applyOnAwake = true;
         [SerializeField] private bool _enableVSync = true;
         [SerializeField] private Camera _mainCamera;
@@ -168,10 +169,21 @@ namespace Reloader.Player
                 return;
             }
 
-            _viewmodelCamera ??= _mainCamera.transform.Find("ViewmodelCamera")?.GetComponent<Camera>();
+            var viewmodelParent = ResolveViewmodelCameraParent();
+            if (viewmodelParent == null)
+            {
+                return;
+            }
+
+            _viewmodelCamera ??= ResolveViewmodelCamera(viewmodelParent, false);
             if (_viewmodelCamera == null || !TryGetEffectiveFieldOfView(out var fieldOfView))
             {
                 return;
+            }
+
+            if (_viewmodelCamera.transform.parent != viewmodelParent)
+            {
+                _viewmodelCamera.transform.SetParent(viewmodelParent, false);
             }
 
             _viewmodelCamera.nearClipPlane = _mainCamera.nearClipPlane;
@@ -182,7 +194,7 @@ namespace Reloader.Player
             _viewmodelCamera.allowMSAA = _mainCamera.allowMSAA;
         }
 
-        private static Camera ConfigureViewmodelCamera(Camera mainCamera, UniversalAdditionalCameraData mainCameraData)
+        private Camera ConfigureViewmodelCamera(Camera mainCamera, UniversalAdditionalCameraData mainCameraData)
         {
             var viewmodelLayer = LayerMask.NameToLayer("Viewmodel");
             if (mainCamera == null || viewmodelLayer < 0)
@@ -190,12 +202,11 @@ namespace Reloader.Player
                 return null;
             }
 
-            var viewmodelCamera = mainCamera.transform.Find("ViewmodelCamera")?.GetComponent<Camera>();
+            var viewmodelParent = ResolveViewmodelCameraParent();
+            var viewmodelCamera = ResolveViewmodelCamera(viewmodelParent, true);
             if (viewmodelCamera == null)
             {
-                var viewmodelCameraGo = new GameObject("ViewmodelCamera");
-                viewmodelCameraGo.transform.SetParent(mainCamera.transform, false);
-                viewmodelCamera = viewmodelCameraGo.AddComponent<Camera>();
+                return null;
             }
 
             var viewmodelMask = 1 << viewmodelLayer;
@@ -229,6 +240,84 @@ namespace Reloader.Player
             }
 
             return viewmodelCamera;
+        }
+
+        private Transform ResolveViewmodelCameraParent()
+        {
+            if (_cameraFollowTarget != null)
+            {
+                return _cameraFollowTarget;
+            }
+
+            if (_mainCamera != null && _mainCamera.transform.parent != null)
+            {
+                return _mainCamera.transform.parent;
+            }
+
+            return _mainCamera != null ? _mainCamera.transform : null;
+        }
+
+        private Camera ResolveViewmodelCamera(Transform viewmodelParent, bool createIfMissing)
+        {
+            if (_mainCamera == null || viewmodelParent == null)
+            {
+                return null;
+            }
+
+            var legacyCamera = _mainCamera.transform != viewmodelParent
+                ? _mainCamera.transform.Find(ViewmodelCameraName)?.GetComponent<Camera>()
+                : null;
+
+            if (_viewmodelCamera != null)
+            {
+                if (_viewmodelCamera.transform.parent != viewmodelParent)
+                {
+                    _viewmodelCamera.transform.SetParent(viewmodelParent, false);
+                }
+
+                if (legacyCamera != null && legacyCamera != _viewmodelCamera)
+                {
+                    if (Application.isPlaying)
+                    {
+                        Object.Destroy(legacyCamera.gameObject);
+                    }
+                    else
+                    {
+                        Object.DestroyImmediate(legacyCamera.gameObject);
+                    }
+                }
+
+                return _viewmodelCamera;
+            }
+
+            var viewmodelCamera = viewmodelParent.Find(ViewmodelCameraName)?.GetComponent<Camera>();
+
+            if (viewmodelCamera == null && legacyCamera != null)
+            {
+                legacyCamera.transform.SetParent(viewmodelParent, false);
+                viewmodelCamera = legacyCamera;
+            }
+            else if (viewmodelCamera != null && legacyCamera != null && legacyCamera != viewmodelCamera)
+            {
+                if (Application.isPlaying)
+                {
+                    Object.Destroy(legacyCamera.gameObject);
+                }
+                else
+                {
+                    Object.DestroyImmediate(legacyCamera.gameObject);
+                }
+            }
+
+            if (viewmodelCamera == null && createIfMissing)
+            {
+                var viewmodelCameraGo = new GameObject(ViewmodelCameraName);
+                viewmodelCameraGo.transform.SetParent(viewmodelParent, false);
+                viewmodelCamera = viewmodelCameraGo.AddComponent<Camera>();
+            }
+
+            _viewmodelCamera = viewmodelCamera;
+            return _viewmodelCamera;
         }
     }
 }

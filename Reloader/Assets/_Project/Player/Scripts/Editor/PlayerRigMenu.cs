@@ -408,13 +408,6 @@ namespace Reloader.Player.Editor
             armsVisual.localPosition = Vector3.zero;
             armsVisual.localRotation = Quaternion.identity;
             armsVisual.localScale = Vector3.one;
-            EnsureUnitScale(cameraPivot.root, mainCamera.transform, mainCamera.transform.Find("ViewmodelCamera"));
-
-            foreach (var collider in armsVisual.GetComponentsInChildren<Collider>(true))
-            {
-                collider.enabled = false;
-            }
-
             var viewmodelLayer = EnsureLayer(ViewmodelLayerName);
             if (viewmodelLayer < 0)
             {
@@ -422,10 +415,17 @@ namespace Reloader.Player.Editor
                 return;
             }
 
+            var viewmodelCamera = ConfigureViewmodelCameras(cameraPivot, mainCamera, viewmodelLayer);
+            EnsureUnitScale(cameraPivot.root, cameraPivot, mainCamera.transform, viewmodelCamera != null ? viewmodelCamera.transform : null);
+
+            foreach (var collider in armsVisual.GetComponentsInChildren<Collider>(true))
+            {
+                collider.enabled = false;
+            }
+
             var weaponPresentationRoot = EnsureWeaponPresentationRoot(cameraPivot);
             SetLayerRecursively(playerArmsRoot.gameObject, viewmodelLayer);
             SetLayerRecursively(weaponPresentationRoot.gameObject, viewmodelLayer);
-            ConfigureViewmodelCameras(mainCamera, viewmodelLayer);
             EnsureViewmodelAnimator(armsVisual, cameraPivot.root);
             EnsureWeaponHandRigController(cameraPivot.root);
             LogViewmodelRendererType(armsVisual);
@@ -583,20 +583,36 @@ namespace Reloader.Player.Editor
             return -1;
         }
 
-        private static void ConfigureViewmodelCameras(Camera mainCamera, int viewmodelLayer)
+        private static Camera ConfigureViewmodelCameras(Transform cameraPivot, Camera mainCamera, int viewmodelLayer)
         {
-            if (mainCamera == null)
+            if (mainCamera == null || cameraPivot == null)
             {
-                return;
+                return null;
             }
 
-            var viewmodelCamera = mainCamera.transform.Find("ViewmodelCamera")?.GetComponent<Camera>();
+            var viewmodelCamera = cameraPivot.Find("ViewmodelCamera")?.GetComponent<Camera>();
+            var legacyViewmodelCamera = mainCamera.transform != cameraPivot
+                ? mainCamera.transform.Find("ViewmodelCamera")?.GetComponent<Camera>()
+                : null;
+
             if (viewmodelCamera == null)
             {
-                var viewmodelCameraGo = new GameObject("ViewmodelCamera");
-                Undo.RegisterCreatedObjectUndo(viewmodelCameraGo, "Create Viewmodel Camera");
-                viewmodelCameraGo.transform.SetParent(mainCamera.transform, false);
-                viewmodelCamera = viewmodelCameraGo.AddComponent<Camera>();
+                if (legacyViewmodelCamera != null)
+                {
+                    legacyViewmodelCamera.transform.SetParent(cameraPivot, false);
+                    viewmodelCamera = legacyViewmodelCamera;
+                }
+                else
+                {
+                    var viewmodelCameraGo = new GameObject("ViewmodelCamera");
+                    Undo.RegisterCreatedObjectUndo(viewmodelCameraGo, "Create Viewmodel Camera");
+                    viewmodelCameraGo.transform.SetParent(cameraPivot, false);
+                    viewmodelCamera = viewmodelCameraGo.AddComponent<Camera>();
+                }
+            }
+            else if (legacyViewmodelCamera != null && legacyViewmodelCamera != viewmodelCamera)
+            {
+                Undo.DestroyObjectImmediate(legacyViewmodelCamera.gameObject);
             }
 
             viewmodelCamera.clearFlags = CameraClearFlags.Depth;
@@ -631,6 +647,8 @@ namespace Reloader.Player.Editor
             {
                 mainCamData.cameraStack.Add(viewmodelCamera);
             }
+
+            return viewmodelCamera;
         }
 
         private static void EnsureWeaponHandRigController(Transform playerRoot)

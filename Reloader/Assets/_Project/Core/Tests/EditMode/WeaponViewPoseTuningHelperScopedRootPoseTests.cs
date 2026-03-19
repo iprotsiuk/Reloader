@@ -107,7 +107,7 @@ namespace Reloader.Core.Tests.EditMode
     public sealed class RenderTextureScopeControllerReticleOffsetTests
     {
         [Test]
-        public void SetScopeActive_RenderTexturePipWithoutExplicitProfile_UsesAdaptiveResolutionByMagnification()
+        public void SetScopeActive_RenderTexturePipWithoutExplicitProfile_UsesNativeBaselinePercentScaling()
         {
             var controllerType = System.Type.GetType("Reloader.Game.Weapons.RenderTextureScopeController, Reloader.Game.Weapons");
             var opticDefinitionType = System.Type.GetType("Reloader.Game.Weapons.OpticDefinition, Reloader.Game.Weapons");
@@ -132,17 +132,31 @@ namespace Reloader.Core.Tests.EditMode
                 SetPrivateField(opticDefinition, "_magnificationStep", 1f);
 
                 var setScopeActiveMethod = controllerType!.GetMethod("SetScopeActive", BindingFlags.Instance | BindingFlags.Public);
+                var setScopedPipResolutionPercentMethod = controllerType.GetMethod("SetScopedPipResolutionPercent", BindingFlags.Instance | BindingFlags.Public);
                 Assert.That(setScopeActiveMethod, Is.Not.Null);
+                Assert.That(setScopedPipResolutionPercentMethod, Is.Not.Null);
 
-                setScopeActiveMethod!.Invoke(controller, new object[] { true, opticDefinition, null, 60f, 5f, 0, 0 });
-                var lowMagnificationResolution = scopeCamera.targetTexture != null ? scopeCamera.targetTexture.width : 0;
+                var nativeSquareBaseline = Mathf.Max(Screen.width, Screen.height);
+                if (nativeSquareBaseline <= 0)
+                {
+                    nativeSquareBaseline = 1024;
+                }
 
-                setScopeActiveMethod.Invoke(controller, new object[] { true, opticDefinition, null, 60f, 25f, 0, 0 });
-                var highMagnificationResolution = scopeCamera.targetTexture != null ? scopeCamera.targetTexture.width : 0;
+                setScopedPipResolutionPercentMethod!.Invoke(controller, new object[] { 100 });
+                setScopeActiveMethod!.Invoke(controller, new object[] { true, opticDefinition, null, 60f, 10f, 0, 0 });
+                var mediumResolution = scopeCamera.targetTexture != null ? scopeCamera.targetTexture.width : 0;
 
-                Assert.That(lowMagnificationResolution, Is.EqualTo(4096));
-                Assert.That(highMagnificationResolution, Is.EqualTo(2048));
-                Assert.That(lowMagnificationResolution, Is.GreaterThan(highMagnificationResolution));
+                setScopedPipResolutionPercentMethod.Invoke(controller, new object[] { 10 });
+                setScopeActiveMethod.Invoke(controller, new object[] { true, opticDefinition, null, 60f, 10f, 0, 0 });
+                var lowResolution = scopeCamera.targetTexture != null ? scopeCamera.targetTexture.width : 0;
+
+                setScopedPipResolutionPercentMethod.Invoke(controller, new object[] { 400 });
+                setScopeActiveMethod.Invoke(controller, new object[] { true, opticDefinition, null, 60f, 10f, 0, 0 });
+                var highResolution = scopeCamera.targetTexture != null ? scopeCamera.targetTexture.width : 0;
+
+                Assert.That(mediumResolution, Is.EqualTo(nativeSquareBaseline));
+                Assert.That(lowResolution, Is.EqualTo(Mathf.Clamp(Mathf.CeilToInt(nativeSquareBaseline * 0.1f), 256, 8192)));
+                Assert.That(highResolution, Is.EqualTo(Mathf.Clamp(nativeSquareBaseline * 4, 256, 8192)));
             }
             finally
             {

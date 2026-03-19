@@ -2,7 +2,7 @@
 
 This setup uses a strict two-camera FPS pipeline:
 - `WorldCamera`: renders world geometry.
-- `ViewmodelCamera`: renders only weapon/arms on `Viewmodel` layer.
+- `ViewmodelCamera`: renders only weapon/arms on `Viewmodel` layer and shares the `CameraPivot` presentation basis with `PlayerArms` and `WeaponPresentationRoot`.
 - `ScopeCamera`: renders PiP scope imagery and must exclude `Viewmodel`.
 
 ADS alignment is camera-driven:
@@ -21,6 +21,7 @@ ADS alignment is camera-driven:
 - Depth: higher than `WorldCamera`.
 - Near clip: small (for weapon clipping safety).
 - FOV: from `WeaponDefinition.defaultViewmodelFov`.
+- Parent: `CameraPivot`, not `WorldCamera`.
 
 3. Put weapon and arms meshes on `Viewmodel` layer.
 
@@ -90,6 +91,7 @@ For PiP optics also author:
 - `AdsStateController` -> same object reference
 - applies `OpticDefinition.eyeReliefBackOffset`
 - stable magnified ADS is a hold state; do not keep rewriting `AdsPivot` every frame during that state unless parent-chain ownership has been redesigned and revalidated
+- `ViewmodelCamera` should stay on the shared `CameraPivot` basis so the weapon root and viewmodel camera resolve from the same presentation frame
 
 `RenderTextureScopeController`
 - `ScopeCamera` -> dedicated scope camera
@@ -246,3 +248,12 @@ If scoped turning looks chunky or double-driven:
 - enabled only while ADS and when optic policy is `RenderTexturePiP`
 - owns scope-camera FOV and render-texture binding
 - depends on explicit optic prefab authoring (`SightAnchor`, `ScopeLensDisplay`, reticle wiring when needed)
+
+Current scoped render-quality runtime contract:
+- `Scoped PiP Resolution %` is a percentage of native screen baseline:
+  - `100` equals the current native/current-game square baseline, taken from the larger effective screen dimension
+  - `10` to `400` scales linearly from that baseline for all PiP optics unless profile overrides exist
+- `Peripheral Blur %` controls peripheral suppression while scoped PiP is active:
+  - increasing it increases vignette strength and shrinks the clear center
+  - world resolution is also downscaled proportionally as a low-cost fallback tradeoff while PiP is active
+  - this is intentionally not a full-screen effect pass yet; it is the progressive path for future blur quality tuning

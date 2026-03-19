@@ -5,11 +5,13 @@ namespace Reloader.Game.Weapons
 {
     public sealed class RenderTextureScopeController : MonoBehaviour
     {
+        private const int DefaultPipResolutionPercent = 100;
+        private const int MinPipResolutionPercent = 10;
+        private const int MaxPipResolutionPercent = 400;
         private const float MaxProjectionAxisOffset = 0.45f;
         private const int DefaultScopeRenderTextureResolution = 1024;
-        private const int MinimumAdaptiveScopeRenderTextureResolution = 1024;
-        private const int MaximumAdaptiveScopeRenderTextureResolution = 4096;
-        private const float TargetAngularPrecisionMradPerPixel = 0.03f;
+        private const int MinimumAdaptiveScopeRenderTextureResolution = 256;
+        private const int MaximumAdaptiveScopeRenderTextureResolution = 8192;
 
         [SerializeField] private Camera _scopeCamera;
         [SerializeField] private Behaviour[] _expensiveScopeBehaviours;
@@ -47,6 +49,7 @@ namespace Reloader.Game.Weapons
         private float _currentProjectionCalibrationMultiplier = 1f;
         private float _currentMradPerClick = 0.1f;
         private Vector2 _currentMechanicalZeroOffsetMrad;
+        private int _scopedPipResolutionPercent = DefaultPipResolutionPercent;
 
         public bool IsCompositeReticleActive => _isCompositeReticleActive;
         public Sprite CurrentCompositeReticleSprite => _currentCompositeReticleSprite;
@@ -57,6 +60,7 @@ namespace Reloader.Game.Weapons
         public float CurrentProjectionCalibrationMultiplier => _currentProjectionCalibrationMultiplier;
         public float CurrentMradPerClick => _currentMradPerClick;
         public Vector2 CurrentMechanicalZeroOffsetMrad => _currentMechanicalZeroOffsetMrad;
+        public int ScopedPipResolutionPercent => _scopedPipResolutionPercent;
 
         private void Awake()
         {
@@ -94,6 +98,11 @@ namespace Reloader.Game.Weapons
             {
                 _defaultScopeCameraFov = _scopeCamera.fieldOfView;
             }
+        }
+
+        public void SetScopedPipResolutionPercent(int pipResolutionPercent)
+        {
+            _scopedPipResolutionPercent = Mathf.Clamp(pipResolutionPercent, MinPipResolutionPercent, MaxPipResolutionPercent);
         }
 
         public void SetScopeActive(
@@ -236,7 +245,7 @@ namespace Reloader.Game.Weapons
                 return DefaultScopeRenderTextureResolution;
             }
 
-            return ResolveAdaptiveResolution(requestedFov);
+            return ResolveAdaptiveResolution(ResolveAdaptiveResolutionBaseline(), _scopedPipResolutionPercent);
         }
 
         private ScopeLensDisplay ResolveLensDisplay(GameObject activeOpticInstance)
@@ -261,7 +270,10 @@ namespace Reloader.Game.Weapons
 
         private void EnsureRenderTexture(int resolution)
         {
-            var safeResolution = Mathf.Clamp(resolution, 128, 4096);
+            var safeResolution = Mathf.Clamp(
+                resolution,
+                MinimumAdaptiveScopeRenderTextureResolution,
+                MaximumAdaptiveScopeRenderTextureResolution);
             if (_scopeRenderTexture != null
                 && _scopeRenderTexture.width == safeResolution
                 && _scopeRenderTexture.height == safeResolution)
@@ -299,13 +311,33 @@ namespace Reloader.Game.Weapons
                 && Mathf.Approximately(_scopeCamera.fieldOfView, expectedFieldOfView);
         }
 
-        private static int ResolveAdaptiveResolution(float requestedFov)
+        private static int ResolveAdaptiveResolution(int nativeSquareBaseline, int pipResolutionPercent)
         {
-            var safeFov = Mathf.Clamp(requestedFov, 1f, 179f);
-            var totalAngularSpanMrad = safeFov * Mathf.Deg2Rad * 1000f;
-            var requiredResolution = Mathf.CeilToInt(totalAngularSpanMrad / TargetAngularPrecisionMradPerPixel);
-            var boundedResolution = Mathf.Max(MinimumAdaptiveScopeRenderTextureResolution, requiredResolution);
-            return Mathf.Clamp(Mathf.NextPowerOfTwo(boundedResolution), MinimumAdaptiveScopeRenderTextureResolution, MaximumAdaptiveScopeRenderTextureResolution);
+            var scopedPipResolutionPercent = Mathf.Clamp(pipResolutionPercent, MinPipResolutionPercent, MaxPipResolutionPercent);
+            var scopedResolutionScale = scopedPipResolutionPercent / 100f;
+
+            var baseline = nativeSquareBaseline;
+            if (baseline <= 0)
+            {
+                baseline = DefaultScopeRenderTextureResolution;
+            }
+
+            var scaledResolution = Mathf.CeilToInt(baseline * scopedResolutionScale);
+            return Mathf.Clamp(
+                scaledResolution,
+                MinimumAdaptiveScopeRenderTextureResolution,
+                MaximumAdaptiveScopeRenderTextureResolution);
+        }
+
+        private static int ResolveAdaptiveResolutionBaseline()
+        {
+            var nativeSquareBaseline = Mathf.Max(Screen.width, Screen.height);
+            if (nativeSquareBaseline <= 0)
+            {
+                return DefaultScopeRenderTextureResolution;
+            }
+
+            return nativeSquareBaseline;
         }
 
         private void BindLensDisplay(bool isActive, ScopeLensDisplay lensDisplay)
@@ -682,7 +714,7 @@ namespace Reloader.Game.Weapons
             _compositeReticleMaterial = null;
         }
 
-        private static void DestroyRuntimeObject(Object runtimeObject)
+        private static void DestroyRuntimeObject(UnityEngine.Object runtimeObject)
         {
             if (runtimeObject == null)
             {

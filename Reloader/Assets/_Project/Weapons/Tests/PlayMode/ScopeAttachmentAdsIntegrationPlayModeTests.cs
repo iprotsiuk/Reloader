@@ -114,7 +114,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator RealKar98kOpticAsset_AdaptivePipResolution_ScalesWithMagnification()
+        public IEnumerator RealKar98kOpticAsset_AdaptivePipResolution_FollowsPercent()
         {
             var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
             Assert.That(renderTextureScopeControllerType, Is.Not.Null);
@@ -129,6 +129,9 @@ namespace Reloader.Weapons.Tests.PlayMode
             try
             {
                 var scopeController = root.AddComponent(renderTextureScopeControllerType);
+                var setScopedPipResolutionPercentMethod = renderTextureScopeControllerType.GetMethod("SetScopedPipResolutionPercent", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(setScopedPipResolutionPercentMethod, Is.Not.Null);
+
                 SetField(scopeController, "_scopeCamera", scopeCamera);
 
                 Invoke(scopeController, "SetScopeActive", true, opticDefinition, null, 60f, 5f, 0, 0);
@@ -136,14 +139,21 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(scopeCamera.targetTexture, Is.Not.Null);
                 var lowMagnificationResolution = scopeCamera.targetTexture!.width;
 
+                setScopedPipResolutionPercentMethod!.Invoke(scopeController, new object[] { 400 });
+                Invoke(scopeController, "SetScopeActive", true, opticDefinition, null, 60f, 25f, 0, 0);
+                yield return null;
+                Assert.That(scopeCamera.targetTexture, Is.Not.Null);
+                var highPercentResolution = scopeCamera.targetTexture!.width;
+
                 Invoke(scopeController, "SetScopeActive", true, opticDefinition, null, 60f, 25f, 0, 0);
                 yield return null;
                 Assert.That(scopeCamera.targetTexture, Is.Not.Null);
                 var highMagnificationResolution = scopeCamera.targetTexture!.width;
 
-                Assert.That(lowMagnificationResolution, Is.EqualTo(4096));
-                Assert.That(highMagnificationResolution, Is.EqualTo(2048));
-                Assert.That(lowMagnificationResolution, Is.GreaterThan(highMagnificationResolution));
+                Assert.That(lowMagnificationResolution, Is.GreaterThan(0));
+                Assert.That(highPercentResolution, Is.GreaterThan(lowMagnificationResolution));
+                Assert.That(highMagnificationResolution, Is.EqualTo(highPercentResolution));
+                Assert.That((int)GetProperty(scopeController, "ScopedPipResolutionPercent"), Is.EqualTo(400));
             }
             finally
             {
@@ -1969,6 +1979,89 @@ namespace Reloader.Weapons.Tests.PlayMode
             finally
             {
                 Cleanup(root, scopedOptic, worldCamGo, viewmodelCamGo, scopeCameraGo);
+            }
+        }
+
+        [Test]
+        public void ScopedPipOptic_UsesPlayerPrefsFallbackForScopedOpticsSettings()
+        {
+            const string pipResolutionKey = "esc-menu.scoped-pip-resolution-percent";
+            const string peripheralBlurKey = "esc-menu.peripheral-blur-percent";
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            Assert.That(adsStateControllerType, Is.Not.Null);
+
+            var sourceType = System.Type.GetType("Reloader.UI.Toolkit.EscMenu.IScopedOpticsSettingsSource");
+            if (sourceType != null)
+            {
+                var sourceObjects = Resources.FindObjectsOfTypeAll<MonoBehaviour>();
+                if (sourceObjects != null && System.Array.Exists(sourceObjects, candidate => candidate != null && sourceType.IsInstanceOfType(candidate)))
+                {
+                    Assert.Ignore("Scoped optics settings source already exists in runtime; skipping PlayerPrefs fallback assertion.");
+                }
+            }
+
+            var root = new GameObject("ScopedPipOpticPrefsFallbackRoot");
+            var ads = root.AddComponent(adsStateControllerType);
+            var previousPipHasKey = PlayerPrefs.HasKey(pipResolutionKey);
+            var previousBlurHasKey = PlayerPrefs.HasKey(peripheralBlurKey);
+            var previousPipValue = PlayerPrefs.GetInt(pipResolutionKey, 100);
+            var previousBlurValue = PlayerPrefs.GetInt(peripheralBlurKey, 50);
+
+            try
+            {
+                var worldCamGo = new GameObject("WorldCam");
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+                worldCamGo.transform.SetParent(root.transform, false);
+                SetField(ads, "_worldCamera", worldCamera);
+                var viewmodelCamGo = new GameObject("ViewmodelCam");
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+                viewmodelCamGo.transform.SetParent(root.transform, false);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_useLegacyInput", false);
+                PlayerPrefs.SetInt(pipResolutionKey, 250);
+                PlayerPrefs.SetInt(peripheralBlurKey, 75);
+
+                var resolveMethod = adsStateControllerType.GetMethod("ResolveScopedOpticsSettings", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveMethod, Is.Not.Null, "Expected AdsStateController to expose ResolveScopedOpticsSettings helper.");
+                var settings = resolveMethod!.Invoke(ads, null);
+                Assert.That(settings, Is.Not.Null);
+                var settingsType = settings!.GetType();
+                var pipProperty = settingsType.GetProperty("PipResolutionPercent");
+                var blurProperty = settingsType.GetProperty("PeripheralBlurPercent");
+                Assert.That(pipProperty, Is.Not.Null);
+                Assert.That(blurProperty, Is.Not.Null);
+                Assert.That((int)pipProperty!.GetValue(settings), Is.EqualTo(250));
+                Assert.That((int)blurProperty!.GetValue(settings), Is.EqualTo(75));
+
+                PlayerPrefs.SetInt(pipResolutionKey, 999);
+                PlayerPrefs.SetInt(peripheralBlurKey, -1);
+
+                var clampedSettings = resolveMethod.Invoke(ads, null);
+                Assert.That(clampedSettings, Is.Not.Null);
+                Assert.That((int)settingsType.GetProperty("PipResolutionPercent")!.GetValue(clampedSettings), Is.EqualTo(400));
+                Assert.That((int)settingsType.GetProperty("PeripheralBlurPercent")!.GetValue(clampedSettings), Is.EqualTo(0));
+            }
+            finally
+            {
+                if (previousPipHasKey)
+                {
+                    PlayerPrefs.SetInt(pipResolutionKey, previousPipValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(pipResolutionKey);
+                }
+
+                if (previousBlurHasKey)
+                {
+                    PlayerPrefs.SetInt(peripheralBlurKey, previousBlurValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(peripheralBlurKey);
+                }
+
+                Cleanup(root);
             }
         }
 

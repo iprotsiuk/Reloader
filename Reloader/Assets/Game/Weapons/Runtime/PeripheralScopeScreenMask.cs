@@ -7,16 +7,19 @@ namespace Reloader.Game.Weapons
         void SetScopedState(bool isActive, float alpha);
     }
 
-    public sealed class PeripheralScopeScreenMask : MonoBehaviour, IPeripheralScopeEffectReceiver
+    public sealed class PeripheralScopeScreenMask : MonoBehaviour, IPeripheralScopeEffectReceiver, IPeripheralScopeBlurReceiver
     {
         [SerializeField, Range(0f, 1f)] private float _centerWidthNormalized = 0.3f;
         [SerializeField, Range(0f, 1f)] private float _centerHeightNormalized = 0.3f;
         [SerializeField, Range(0f, 1f)] private float _maxPeripheralAlpha = 0.82f;
+        [SerializeField, Range(0f, 1f)] private float _maxPeripheralBlurAlpha = 0.95f;
+        [SerializeField, Range(0f, 1f)] private float _minCenterNormalizedScale = 0.55f;
         [SerializeField] private Color _maskColor = Color.black;
 
         private static Texture2D s_fillTexture;
         private bool _isActive;
         private float _alpha;
+        private float _peripheralBlurPercent;
 
         private void OnEnable()
         {
@@ -28,6 +31,11 @@ namespace Reloader.Game.Weapons
             _isActive = isActive;
             _alpha = Mathf.Clamp01(alpha);
             enabled = isActive;
+        }
+
+        public void SetPeripheralBlur(float blurPercent)
+        {
+            _peripheralBlurPercent = Mathf.Clamp01(blurPercent);
         }
 
         private void OnGUI()
@@ -46,13 +54,17 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
-            var centerWidth = Mathf.Clamp(screenWidth * _centerWidthNormalized, 1f, screenWidth);
-            var centerHeight = Mathf.Clamp(screenHeight * _centerHeightNormalized, 1f, screenHeight);
+            var blurScale = Mathf.Lerp(1f, _minCenterNormalizedScale, _peripheralBlurPercent);
+            var centerWidthNormalized = Mathf.Clamp01(_centerWidthNormalized * blurScale);
+            var centerHeightNormalized = Mathf.Clamp01(_centerHeightNormalized * blurScale);
+            var centerWidth = Mathf.Clamp(screenWidth * centerWidthNormalized, 1f, screenWidth);
+            var centerHeight = Mathf.Clamp(screenHeight * centerHeightNormalized, 1f, screenHeight);
             var centerX = (screenWidth - centerWidth) * 0.5f;
             var centerY = (screenHeight - centerHeight) * 0.5f;
 
             var color = _maskColor;
-            color.a *= (_alpha * _maxPeripheralAlpha);
+            var blurAlpha = _alpha * Mathf.Lerp(_maxPeripheralAlpha, _maxPeripheralBlurAlpha, _peripheralBlurPercent);
+            color.a = Mathf.Clamp01(blurAlpha);
 
             DrawRect(new Rect(0f, 0f, screenWidth, centerY), color);
             DrawRect(new Rect(0f, centerY + centerHeight, screenWidth, screenHeight - (centerY + centerHeight)), color);

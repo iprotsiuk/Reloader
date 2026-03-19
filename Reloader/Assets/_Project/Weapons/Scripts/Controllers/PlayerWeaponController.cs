@@ -2573,8 +2573,25 @@ namespace Reloader.Weapons.Controllers
                 return null;
             }
 
-            var child = worldCamera.transform.Find("ViewmodelCamera");
-            return child != null ? child.GetComponent<Camera>() : null;
+            var worldCameraTransform = worldCamera.transform;
+            var sharedBasis = worldCameraTransform.parent != null ? worldCameraTransform.parent : worldCameraTransform;
+
+            var sharedBasisViewmodelCamera = sharedBasis.Find("ViewmodelCamera")?.GetComponent<Camera>();
+            if (sharedBasisViewmodelCamera != null)
+            {
+                return sharedBasisViewmodelCamera;
+            }
+
+            if (sharedBasis != worldCameraTransform)
+            {
+                var legacyChild = worldCameraTransform.Find("ViewmodelCamera")?.GetComponent<Camera>();
+                if (legacyChild != null)
+                {
+                    return legacyChild;
+                }
+            }
+
+            return null;
         }
 
         private static Camera EnsureScopeCamera(Camera worldCamera)
