@@ -1609,6 +1609,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var controller = root.AddComponent<PlayerWeaponController>();
                 SetControllerField(controller, "_adsCamera", worldCamera);
                 SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_weaponViewParent", root.transform);
                 SetControllerField(controller, "_attachmentItemMetadata", new[]
                 {
                     WeaponAttachmentItemMetadata.CreateForTests("att-optic-pip", WeaponAttachmentSlotType.Scope, opticDefinition)
@@ -1866,6 +1867,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var controller = root.AddComponent<PlayerWeaponController>();
                 SetControllerField(controller, "_adsCamera", worldCamera);
                 SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_weaponViewParent", root.transform);
                 SetControllerField(controller, "_attachmentItemMetadata", new[]
                 {
                     WeaponAttachmentItemMetadata.CreateForTests("att-optic-pip", WeaponAttachmentSlotType.Scope, opticDefinition)
