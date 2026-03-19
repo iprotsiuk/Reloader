@@ -327,6 +327,7 @@ GameObject:
   - component: {fileID: 7999831991638637002}
   - component: {fileID: 7999831991638637003}
   - component: {fileID: 7999831991638637004}
+  - component: {fileID: 7999831991638637005}
   m_Layer: 0
   m_Name: PlayerRoot_MainTown
   m_TagString: Player
@@ -793,6 +794,38 @@ MonoBehaviour:
   _centerHeightNormalized: 0.32
   _maxPeripheralAlpha: 0.82
   _maskColor: {r: 0, g: 0, b: 0, a: 1}
+--- !u!114 &7999831991638637005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8805273355277606564}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5f5eedd0efb44f5a86e2e256db1424a, type: 3}
+  m_Name: ''
+  m_EditorClassIdentifier: Reloader.Weapons::Reloader.Player.Viewmodel.WeaponHandRigController
+  _armsAnimator: {fileID: 0}
+  _rigBuilder: {fileID: 0}
+  _weaponHandRig: {fileID: 0}
+  _leftHandConstraint: {fileID: 0}
+  _rightHandConstraint: {fileID: 0}
+  _leftHandTarget: {fileID: 0}
+  _leftHandHint: {fileID: 0}
+  _rightHandTarget: {fileID: 0}
+  _rightHandHint: {fileID: 0}
+  _enabledInPlayMode: 1
+  _driveLeftHand: 1
+  _driveRightHand: 0
+  _releaseLeftHandDuringReload: 1
+  _leftHandActiveWeight: 1
+  _leftHandReloadWeight: 0
+  _rightHandActiveWeight: 1
+  _rightHandReloadWeight: 1
+  _hintDistance: 0.18
+  _equippedViewName: ''
+  _hasResolvedWeaponAnchors: 0
 --- !u!1001 &4151765724084627930
 PrefabInstance:
   m_ObjectHideFlags: 0

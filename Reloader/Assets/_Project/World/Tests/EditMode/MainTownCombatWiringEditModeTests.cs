@@ -1,9 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using NUnit.Framework;
-using Reloader.Weapons.Runtime;
-using Reloader.World.Editor;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -14,52 +11,7 @@ namespace Reloader.World.Tests.EditMode
     public class MainTownCombatWiringEditModeTests
     {
         private const string MainTownScenePath = "Assets/_Project/World/Scenes/MainTown.unity";
-
-        private static readonly MethodInfo ShouldSeedDefaultWeaponPoseTuningMethod =
-            typeof(MainTownCombatWiring).GetMethod(
-                "ShouldSeedDefaultWeaponPoseTuning",
-                BindingFlags.NonPublic | BindingFlags.Static);
-
-        private GameObject _root;
-
-        [SetUp]
-        public void SetUp()
-        {
-            _root = new GameObject("PoseTuningRoot");
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            if (_root != null)
-            {
-                UnityEngine.Object.DestroyImmediate(_root);
-            }
-        }
-
-        [Test]
-        public void ShouldSeedDefaultWeaponPoseTuning_WhenHelperHasFreshDefaultBlendSpeed_ReturnsTrue()
-        {
-            var helper = _root.AddComponent<WeaponViewPoseTuningHelper>();
-            var serializedObject = new SerializedObject(helper);
-
-            var shouldSeed = InvokeShouldSeedDefaultWeaponPoseTuning(serializedObject);
-
-            Assert.That(shouldSeed, Is.True);
-        }
-
-        [Test]
-        public void ShouldSeedDefaultWeaponPoseTuning_WhenHelperHasAuthoredPose_ReturnsFalse()
-        {
-            var helper = _root.AddComponent<WeaponViewPoseTuningHelper>();
-            var serializedObject = new SerializedObject(helper);
-            serializedObject.FindProperty("_adsLocalPosition").vector3Value = new Vector3(0f, 0.2f, 0.05f);
-            serializedObject.ApplyModifiedPropertiesWithoutUndo();
-
-            var shouldSeed = InvokeShouldSeedDefaultWeaponPoseTuning(serializedObject);
-
-            Assert.That(shouldSeed, Is.False);
-        }
+        private const string PlayerRootPrefabPath = "Assets/_Project/Player/Prefabs/PlayerRoot_MainTown.prefab";
 
         [Test]
         public void MainTownScene_RemovesStarterFloorPickups_InFavorOfVendorAndChestAuthority()
@@ -167,7 +119,7 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void MainTownScene_PlayerRoot_Kar98kScopedOverride_KeepsAuthoredMoveAwayOffset()
+        public void MainTownScene_PlayerRoot_UsesWeaponHandRigController_AndNoSceneOwnedPoseHelper()
         {
             var originalScene = SceneManager.GetActiveScene();
             var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
@@ -176,41 +128,7 @@ namespace Reloader.World.Tests.EditMode
             {
                 var playerRoot = FindRoot(scene, "PlayerRoot");
                 Assert.That(playerRoot, Is.Not.Null, "Expected authored PlayerRoot in MainTown.");
-
-                var helper = playerRoot!.GetComponent<WeaponViewPoseTuningHelper>();
-                Assert.That(helper, Is.Not.Null, "Expected WeaponViewPoseTuningHelper on MainTown PlayerRoot.");
-
-                var helperObject = new SerializedObject(helper);
-                var overrides = helperObject.FindProperty("_attachmentPoseOverrides");
-                Assert.That(overrides, Is.Not.Null);
-                Assert.That(overrides!.isArray, Is.True);
-
-                SerializedProperty scopedOverride = null;
-                for (var i = 0; i < overrides.arraySize; i++)
-                {
-                    var entry = overrides.GetArrayElementAtIndex(i);
-                    if (entry.FindPropertyRelative("_slotType").enumValueIndex != (int)Reloader.Weapons.Data.WeaponAttachmentSlotType.Scope)
-                    {
-                        continue;
-                    }
-
-                    if (!string.Equals(
-                            entry.FindPropertyRelative("_attachmentItemId").stringValue,
-                            "att-kar98k-scope-remote-a",
-                            StringComparison.Ordinal))
-                    {
-                        continue;
-                    }
-
-                    scopedOverride = entry;
-                    break;
-                }
-
-                Assert.That(scopedOverride, Is.Not.Null, "Expected MainTown to author a scoped Kar98k pose override.");
-                Assert.That(
-                    scopedOverride!.FindPropertyRelative("_scopedAdsEyeReliefBackOffset").floatValue,
-                    Is.EqualTo(-0.1f).Within(0.0001f),
-                    "MainTown scoped Kar98k tuning must keep the authored move-away offset so the PiP eyepiece stays out of the player camera.");
+                AssertWeaponHandRigOwner(playerRoot!, "MainTown scene PlayerRoot");
             }
             finally
             {
@@ -222,10 +140,19 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
-        private static bool InvokeShouldSeedDefaultWeaponPoseTuning(SerializedObject serializedObject)
+        [Test]
+        public void PlayerRootMainTownPrefab_UsesWeaponHandRigController_AndNoSceneOwnedPoseHelper()
         {
-            Assert.That(ShouldSeedDefaultWeaponPoseTuningMethod, Is.Not.Null);
-            return (bool)ShouldSeedDefaultWeaponPoseTuningMethod.Invoke(null, new object[] { serializedObject });
+            var prefabRoot = PrefabUtility.LoadPrefabContents(PlayerRootPrefabPath);
+
+            try
+            {
+                AssertWeaponHandRigOwner(prefabRoot, "PlayerRoot_MainTown prefab");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(prefabRoot);
+            }
         }
 
         private static GameObject FindRoot(Scene scene, string rootName)
@@ -239,6 +166,29 @@ namespace Reloader.World.Tests.EditMode
             }
 
             return null;
+        }
+
+        private static void AssertWeaponHandRigOwner(GameObject playerRoot, string context)
+        {
+            Assert.That(playerRoot, Is.Not.Null, $"{context} should exist.");
+
+            var handRigController = playerRoot.GetComponent("WeaponHandRigController");
+            Assert.That(handRigController, Is.Not.Null, $"{context} should include WeaponHandRigController.");
+            Assert.That(playerRoot.GetComponent("WeaponViewPoseTuningHelper"), Is.Null, $"{context} should not carry WeaponViewPoseTuningHelper.");
+
+            var serialized = new SerializedObject(handRigController);
+            Assert.That(serialized.FindProperty("_enabledInPlayMode")?.boolValue, Is.True, $"{context} should keep the hand rig active in play mode.");
+            Assert.That(serialized.FindProperty("_driveLeftHand")?.boolValue, Is.True, $"{context} should keep left-hand rigging enabled.");
+            Assert.That(serialized.FindProperty("_driveRightHand")?.boolValue, Is.False, $"{context} should keep right hand animation-authored.");
+
+            var weaponController = playerRoot.GetComponent("PlayerWeaponController");
+            Assert.That(weaponController, Is.Not.Null, $"{context} should include PlayerWeaponController.");
+
+            var weaponControllerSerialized = new SerializedObject(weaponController);
+            Assert.That(
+                weaponControllerSerialized.FindProperty("_allowSceneWideDependencyLookup")?.boolValue,
+                Is.False,
+                $"{context} should keep scene-wide dependency lookup disabled for the weapon controller.");
         }
 
 

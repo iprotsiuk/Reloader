@@ -427,6 +427,7 @@ namespace Reloader.Player.Editor
             SetLayerRecursively(weaponPresentationRoot.gameObject, viewmodelLayer);
             ConfigureViewmodelCameras(mainCamera, viewmodelLayer);
             EnsureViewmodelAnimator(armsVisual, cameraPivot.root);
+            EnsureWeaponHandRigController(cameraPivot.root);
             LogViewmodelRendererType(armsVisual);
         }
 
@@ -630,6 +631,22 @@ namespace Reloader.Player.Editor
             {
                 mainCamData.cameraStack.Add(viewmodelCamera);
             }
+        }
+
+        private static void EnsureWeaponHandRigController(Transform playerRoot)
+        {
+            if (playerRoot == null)
+            {
+                return;
+            }
+
+            var controller = playerRoot.GetComponent<WeaponHandRigController>();
+            if (controller == null)
+            {
+                controller = Undo.AddComponent<WeaponHandRigController>(playerRoot.gameObject);
+            }
+
+            EditorUtility.SetDirty(controller);
         }
 
         private static void SetLayerRecursively(GameObject root, int layer)

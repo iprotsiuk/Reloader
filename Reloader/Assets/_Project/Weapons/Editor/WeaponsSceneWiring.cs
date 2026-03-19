@@ -145,6 +145,11 @@ namespace Reloader.Weapons.Editor
             {
                 weaponController = Undo.AddComponent<PlayerWeaponController>(playerRoot);
             }
+            var handRigController = playerRoot.GetComponent<WeaponHandRigController>();
+            if (handRigController == null)
+            {
+                handRigController = Undo.AddComponent<WeaponHandRigController>(playerRoot);
+            }
             var animationBinder = playerRoot.GetComponent<PlayerWeaponAnimationBinder>();
             if (animationBinder == null)
             {

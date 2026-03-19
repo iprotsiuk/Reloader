@@ -8,6 +8,7 @@ using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.Player;
+using Reloader.Player.Viewmodel;
 using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.Cinematics;
 using Reloader.Weapons.Controllers;
@@ -1764,6 +1765,15 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var playerArmsVisual = new GameObject("PlayerArmsVisual");
                 playerArmsVisual.transform.SetParent(playerArms, false);
                 var packAnimator = playerArmsVisual.AddComponent<Animator>();
+                var upperArm = new GameObject("upperarm_l").transform;
+                upperArm.SetParent(playerArmsVisual.transform, false);
+                var lowerArm = new GameObject("lowerarm_l").transform;
+                lowerArm.SetParent(upperArm, false);
+                lowerArm.localPosition = new Vector3(-0.2f, 0f, 0f);
+                var hand = new GameObject("hand_l").transform;
+                hand.SetParent(lowerArm, false);
+                hand.localPosition = new Vector3(-0.2f, 0f, 0f);
+                var handRigController = root.AddComponent<WeaponHandRigController>();
 
                 var input = root.AddComponent<TestInputSource>();
                 var resolver = root.AddComponent<TestPickupResolver>();
@@ -1797,7 +1807,15 @@ namespace Reloader.Weapons.Tests.PlayMode
                 scopeSlot.SetParent(adsPivot, false);
                 var ironSightAnchor = new GameObject("IronSightAnchor").transform;
                 ironSightAnchor.SetParent(adsPivot, false);
+                var leftHandGrip = new GameObject("LeftHandGrip").transform;
+                leftHandGrip.SetParent(adsPivot, false);
+                leftHandGrip.localPosition = new Vector3(0.05f, 0.01f, 0.3f);
+                var rightHandGrip = new GameObject("RightHandGrip").transform;
+                rightHandGrip.SetParent(adsPivot, false);
+                rightHandGrip.localPosition = new Vector3(-0.02f, -0.02f, 0.14f);
                 ConfigureTestWeaponViewMounts(viewPrefab, adsPivot: adsPivot, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
+                var handAnchors = viewPrefab.AddComponent<WeaponViewHandAnchors>();
+                handAnchors.SetHandTargets(leftHandGrip, rightHandGrip);
 
                 var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.That(iconPrefabField, Is.Not.Null);
@@ -1847,6 +1865,10 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 Assert.That(packAnimator.speed, Is.GreaterThan(0.01f),
                     "Stable scoped ADS should not freeze the whole pack animator. Reload and bolt animations must still be able to play.");
+                Assert.That(handRigController.LeftHandConstraint, Is.Not.Null,
+                    "Expected the player-side hand rig controller to bootstrap a left-hand IK constraint once the scoped rifle view is equipped.");
+                Assert.That(handRigController.LeftHandConstraint.weight, Is.GreaterThan(0.01f),
+                    "Expected scoped rifle ADS to keep the support-hand rig active when weapon hand anchors are available.");
             }
             finally
             {

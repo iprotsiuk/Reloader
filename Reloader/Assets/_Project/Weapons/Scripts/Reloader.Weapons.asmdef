@@ -7,6 +7,7 @@
     "Reloader.PlayerDevice",
     "Reloader.Inventory",
     "Reloader.Player",
+    "Unity.Animation.Rigging",
     "Unity.InputSystem",
     "Unity.Cinemachine"
   ],

@@ -131,7 +131,7 @@ namespace Reloader.World.Editor
             var lookController = playerRoot.GetComponent<PlayerLookController>();
 
             var weaponController = GetOrAddComponent<PlayerWeaponController>(playerRoot);
-            var poseTuningHelper = GetOrAddComponent<WeaponViewPoseTuningHelper>(playerRoot);
+            var handRigController = GetOrAddComponent<WeaponHandRigController>(playerRoot);
             var animationBinder = GetOrAddComponent<PlayerWeaponAnimationBinder>(playerRoot);
             var cameraDefaults = GetOrAddComponent<PlayerCameraDefaults>(playerRoot);
             var animatorDriver = GetOrAddComponent<FpsViewmodelAnimatorDriver>(playerRoot);
@@ -235,26 +235,6 @@ namespace Reloader.World.Editor
                 SetStringPropertyIfPresent(packConfig, "_fireStateName", "Layer Actions.Fire");
             }
             weaponSo.ApplyModifiedPropertiesWithoutUndo();
-
-            if (poseTuningHelper != null)
-            {
-                var tuningSo = new SerializedObject(poseTuningHelper);
-                SetObjectReferencePropertyIfPresent(tuningSo, "_weaponController", weaponController);
-                SetStringPropertyIfPresent(tuningSo, "_targetWeaponItemId", "weapon-kar98k");
-                SetBoolPropertyIfPresent(tuningSo, "_enabledInPlayMode", true);
-                SetBoolPropertyIfPresent(tuningSo, "_seedOffsetsFromCurrentPoseOnEquip", false);
-                if (ShouldSeedDefaultWeaponPoseTuning(tuningSo))
-                {
-                    SetVector3PropertyIfPresent(tuningSo, "_hipLocalPosition", new Vector3(0.015f, 0.15f, 0.005f));
-                    SetVector3PropertyIfPresent(tuningSo, "_hipLocalEuler", Vector3.zero);
-                    SetVector3PropertyIfPresent(tuningSo, "_adsLocalPosition", new Vector3(0f, 0.2f, 0.05f));
-                    SetVector3PropertyIfPresent(tuningSo, "_adsLocalEuler", Vector3.zero);
-                    SetFloatPropertyIfPresent(tuningSo, "_blendSpeed", 24f);
-                    SetVector3PropertyIfPresent(tuningSo, "_rifleLocalEulerOffset", new Vector3(90f, 0f, 0f));
-                }
-
-                tuningSo.ApplyModifiedPropertiesWithoutUndo();
-            }
 
             if (packController != null && armsAnimator != null)
             {
@@ -360,86 +340,6 @@ namespace Reloader.World.Editor
             {
                 property.stringValue = value ?? string.Empty;
             }
-        }
-
-        private static void SetBoolPropertyIfPresent(SerializedObject so, string propertyName, bool value)
-        {
-            if (so == null || string.IsNullOrWhiteSpace(propertyName))
-            {
-                return;
-            }
-
-            var property = so.FindProperty(propertyName);
-            if (property != null)
-            {
-                property.boolValue = value;
-            }
-        }
-
-        private static void SetFloatPropertyIfPresent(SerializedObject so, string propertyName, float value)
-        {
-            if (so == null || string.IsNullOrWhiteSpace(propertyName))
-            {
-                return;
-            }
-
-            var property = so.FindProperty(propertyName);
-            if (property != null)
-            {
-                property.floatValue = value;
-            }
-        }
-
-        private static void SetVector3PropertyIfPresent(SerializedObject so, string propertyName, Vector3 value)
-        {
-            if (so == null || string.IsNullOrWhiteSpace(propertyName))
-            {
-                return;
-            }
-
-            var property = so.FindProperty(propertyName);
-            if (property != null)
-            {
-                property.vector3Value = value;
-            }
-        }
-
-        private static bool ShouldSeedDefaultWeaponPoseTuning(SerializedObject so)
-        {
-            if (so == null)
-            {
-                return false;
-            }
-
-            var hipLocalPosition = so.FindProperty("_hipLocalPosition");
-            var hipLocalEuler = so.FindProperty("_hipLocalEuler");
-            var adsLocalPosition = so.FindProperty("_adsLocalPosition");
-            var adsLocalEuler = so.FindProperty("_adsLocalEuler");
-            var rifleLocalEulerOffset = so.FindProperty("_rifleLocalEulerOffset");
-            var blendSpeed = so.FindProperty("_blendSpeed");
-
-            if (hipLocalPosition == null
-                || hipLocalEuler == null
-                || adsLocalPosition == null
-                || adsLocalEuler == null
-                || rifleLocalEulerOffset == null
-                || blendSpeed == null)
-            {
-                return false;
-            }
-
-            return hipLocalPosition.vector3Value.sqrMagnitude <= 0.000001f
-                && hipLocalEuler.vector3Value.sqrMagnitude <= 0.000001f
-                && adsLocalPosition.vector3Value.sqrMagnitude <= 0.000001f
-                && adsLocalEuler.vector3Value.sqrMagnitude <= 0.000001f
-                && rifleLocalEulerOffset.vector3Value.sqrMagnitude <= 0.000001f
-                && IsApproximatelyUnseededBlendSpeed(blendSpeed.floatValue);
-        }
-
-        private static bool IsApproximatelyUnseededBlendSpeed(float value)
-        {
-            return Mathf.Abs(value) <= 0.000001f
-                || Mathf.Abs(value - 24f) <= 0.000001f;
         }
 
         private static void SetObjectReferencePropertyIfPresent(SerializedObject so, string propertyName, UnityEngine.Object value)
