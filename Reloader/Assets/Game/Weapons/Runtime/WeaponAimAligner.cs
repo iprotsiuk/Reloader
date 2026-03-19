@@ -132,9 +132,12 @@ namespace Reloader.Game.Weapons
             var shouldHoldScopedAdsPose = ShouldHoldScopedAdsPose(_isHoldingScopedAdsPose, activeOptic, adsT);
             if (shouldHoldScopedAdsPose)
             {
-                _adsPivot.localPosition = targetLocalPosition;
-                _adsPivot.localRotation = targetLocalRotation;
-                _isHoldingScopedAdsPose = true;
+                if (!_isHoldingScopedAdsPose)
+                {
+                    _adsPivot.localPosition = targetLocalPosition;
+                    _adsPivot.localRotation = targetLocalRotation;
+                    _isHoldingScopedAdsPose = true;
+                }
 
                 DebugAlignmentErrorDistance = Vector3.Distance(sightAnchor.position, cameraTx.position);
                 DebugAlignmentErrorAngleDegrees = Quaternion.Angle(sightAnchor.rotation, cameraTx.rotation);
