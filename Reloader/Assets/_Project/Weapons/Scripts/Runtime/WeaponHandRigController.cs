@@ -128,7 +128,20 @@ namespace Reloader.Player.Viewmodel
                 _equippedViewName = weaponView.name;
             }
 
-            if (_cachedAnchors == null || !_cachedAnchors.TryGetHandTargets(out var leftGrip, out var rightGrip))
+            if (_cachedAnchors == null)
+            {
+                ClearRuntimeState();
+                RestoreHandTargets();
+                ApplyConstraintWeights(hasWeaponAnchors: false);
+                return;
+            }
+
+            var leftGrip = _cachedAnchors.LeftHandGrip;
+            var rightGrip = _cachedAnchors.RightHandGrip;
+            var hasDrivenGrip = (_driveLeftHand && leftGrip != null) || (_driveRightHand && rightGrip != null);
+            if (!hasDrivenGrip
+                || (_driveLeftHand && leftGrip == null)
+                || (_driveRightHand && rightGrip == null))
             {
                 ClearRuntimeState();
                 RestoreHandTargets();
@@ -137,8 +150,15 @@ namespace Reloader.Player.Viewmodel
             }
 
             _hasResolvedWeaponAnchors = true;
-            PushTargetPose(_leftHandTarget, leftGrip);
-            PushTargetPose(_rightHandTarget, rightGrip);
+            if (leftGrip != null)
+            {
+                PushTargetPose(_leftHandTarget, leftGrip);
+            }
+
+            if (rightGrip != null)
+            {
+                PushTargetPose(_rightHandTarget, rightGrip);
+            }
             ApplyConstraintWeights(hasWeaponAnchors: true);
         }
 
@@ -329,7 +349,7 @@ namespace Reloader.Player.Viewmodel
             }
 
             var changed = false;
-            ref var data = ref constraint.data;
+            var data = constraint.data;
             changed |= !ReferenceEquals(data.root, rootBone);
             changed |= !ReferenceEquals(data.mid, midBone);
             changed |= !ReferenceEquals(data.tip, tipBone);
@@ -346,6 +366,8 @@ namespace Reloader.Player.Viewmodel
             data.hintWeight = 1f;
             data.maintainTargetPositionOffset = false;
             data.maintainTargetRotationOffset = false;
+
+            constraint.data = data;
 
             target.position = tipBone.position;
             target.rotation = tipBone.rotation;

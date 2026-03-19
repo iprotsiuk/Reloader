@@ -14,6 +14,7 @@ namespace Reloader.Game.Weapons
         private bool _loggedUnsafeFlashPrefab;
 
         public MuzzleAttachmentDefinition ActiveAttachment => _activeAttachment;
+        public Transform AttachmentSlot => _attachmentSlot;
 
         private void Awake()
         {
@@ -44,6 +45,13 @@ namespace Reloader.Game.Weapons
 
             _activeAttachment = definition;
             _equippedMuzzleInstance = Instantiate(_activeAttachment.MuzzlePrefab, _attachmentSlot, false);
+        }
+
+        public void ConfigureRuntimeReferences(Transform muzzleSocket, Transform attachmentSlot)
+        {
+            _muzzleSocket = muzzleSocket;
+            _attachmentSlot = attachmentSlot;
+            _defaultAttachment = null;
         }
 
         public void Unequip()

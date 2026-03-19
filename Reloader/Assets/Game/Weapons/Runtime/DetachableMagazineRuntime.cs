@@ -27,6 +27,13 @@ namespace Reloader.Game.Weapons
             RebuildAttachedMagazineVisual();
         }
 
+        public void ConfigureRuntimeReferences(Transform magazineSocket, Transform magazineDropSocket)
+        {
+            _magazineSocket = magazineSocket;
+            _magazineDropSocket = magazineDropSocket;
+            _defaultAttachment = null;
+        }
+
         public void HandleReloadStarted(string _)
         {
             if (_activeAttachment == null || !_activeAttachment.DetachOnReloadStart)

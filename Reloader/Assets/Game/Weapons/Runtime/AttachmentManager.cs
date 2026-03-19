@@ -314,13 +314,7 @@ namespace Reloader.Game.Weapons
 
         private static Transform ResolveRuntimeAttachmentSlot(MuzzleAttachmentRuntime runtime)
         {
-            if (runtime == null)
-            {
-                return null;
-            }
-
-            var slotField = typeof(MuzzleAttachmentRuntime).GetField("_attachmentSlot", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            return slotField?.GetValue(runtime) as Transform;
+            return runtime != null ? runtime.AttachmentSlot : null;
         }
 
         private void RefreshSightAnchor()

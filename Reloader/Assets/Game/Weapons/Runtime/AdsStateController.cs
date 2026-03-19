@@ -207,6 +207,40 @@ namespace Reloader.Game.Weapons
             }
         }
 
+        public void BindRuntimeReferences(
+            Camera worldCamera,
+            Camera viewmodelCamera,
+            AttachmentManager attachmentManager,
+            RenderTextureScopeController renderTextureScopeController,
+            PeripheralScopeEffects peripheralScopeEffects,
+            ScopeAdjustmentTooltipOverlay scopeAdjustmentTooltipOverlay)
+        {
+            _worldCamera = worldCamera;
+            _viewmodelCamera = viewmodelCamera;
+            _renderTextureScopeController = renderTextureScopeController;
+            _peripheralScopeEffects = peripheralScopeEffects;
+            _scopeAdjustmentTooltipOverlay = scopeAdjustmentTooltipOverlay;
+
+            if (ReferenceEquals(_attachmentManager, attachmentManager))
+            {
+                return;
+            }
+
+            UnsubscribeAttachmentManagerEvents();
+            _attachmentManager = attachmentManager;
+            SubscribeAttachmentManagerEvents();
+        }
+
+        public void SetUseLegacyInput(bool useLegacyInput)
+        {
+            _useLegacyInput = useLegacyInput;
+        }
+
+        public void RefreshVisualMode()
+        {
+            TickVisualMode();
+        }
+
         public bool ApplyScopeAdjustmentInput(int windageClicks, int elevationClicks)
         {
             var optic = _attachmentManager != null ? _attachmentManager.ActiveOpticDefinition : null;

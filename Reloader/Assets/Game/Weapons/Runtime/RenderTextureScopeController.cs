@@ -83,6 +83,15 @@ namespace Reloader.Game.Weapons
             ReleaseRenderTexture();
         }
 
+        public void SetScopeCamera(Camera scopeCamera)
+        {
+            _scopeCamera = scopeCamera;
+            if (_scopeCamera != null)
+            {
+                _defaultScopeCameraFov = _scopeCamera.fieldOfView;
+            }
+        }
+
         public void SetScopeActive(
             bool isActive,
             OpticDefinition optic,

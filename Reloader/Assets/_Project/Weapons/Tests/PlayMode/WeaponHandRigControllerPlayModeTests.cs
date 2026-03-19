@@ -1,3 +1,4 @@
+using System.Reflection;
 using NUnit.Framework;
 using Reloader.Player.Viewmodel;
 using Reloader.Weapons.Runtime;
@@ -19,6 +20,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
             try
             {
+                SetPrivateField(controller, "_driveRightHand", true);
                 controller.ConfigureTargets(leftHandTarget, rightHandTarget);
 
                 var anchors = weaponView.AddComponent<WeaponViewHandAnchors>();
@@ -114,6 +116,41 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void SyncHandTargets_UsesLeftHandAnchorWhenRightGripIsMissing()
+        {
+            var root = CreateWeaponHandRigTestRoot(out var controller, out var upperArm, out var lowerArm, out var hand);
+            var weaponView = new GameObject("EquippedWeaponView");
+
+            try
+            {
+                var anchors = weaponView.AddComponent<WeaponViewHandAnchors>();
+                var leftGrip = new GameObject("LeftGrip").transform;
+                leftGrip.SetParent(weaponView.transform, false);
+                leftGrip.localPosition = new Vector3(0.12f, 0.28f, 0.34f);
+                leftGrip.localRotation = Quaternion.Euler(12f, 34f, -8f);
+
+                anchors.SetHandTargets(leftGrip, null);
+                controller.SetEquippedWeaponViewForTests(weaponView.transform);
+
+                controller.SyncHandTargets();
+
+                Assert.That(controller.HasResolvedWeaponAnchors, Is.True);
+                Assert.That(controller.LeftHandConstraint, Is.Not.Null);
+                Assert.That(controller.LeftHandConstraint.data.root, Is.SameAs(upperArm));
+                Assert.That(controller.LeftHandConstraint.data.mid, Is.SameAs(lowerArm));
+                Assert.That(controller.LeftHandConstraint.data.tip, Is.SameAs(hand));
+                Assert.That(controller.LeftHandConstraint.weight, Is.GreaterThan(0.01f));
+                Assert.That(Vector3.Distance(controller.LeftHandTarget.position, leftGrip.position), Is.LessThan(0.0001f));
+                Assert.That(Quaternion.Angle(controller.LeftHandTarget.rotation, leftGrip.rotation), Is.LessThan(0.01f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(weaponView);
+                Object.DestroyImmediate(root);
+            }
+        }
+
         private static GameObject CreateWeaponHandRigTestRoot(
             out WeaponHandRigController controller,
             out Transform upperArm,
@@ -145,6 +182,13 @@ namespace Reloader.Weapons.Tests.PlayMode
 
             controller = root.AddComponent<WeaponHandRigController>();
             return root;
+        }
+
+        private static void SetPrivateField(object target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected private field '{fieldName}' on {target.GetType().Name}.");
+            field!.SetValue(target, value);
         }
     }
 }

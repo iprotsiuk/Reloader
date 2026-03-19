@@ -39,7 +39,7 @@ namespace Reloader.Core.Tests.EditMode
             float adsBlendT,
             bool expected)
         {
-            var alignerType = System.Type.GetType("Reloader.Game.Weapons.WeaponAimAligner, Assembly-CSharp");
+            var alignerType = System.Type.GetType("Reloader.Game.Weapons.WeaponAimAligner, Reloader.Game.Weapons");
             Assert.That(alignerType, Is.Not.Null, "WeaponAimAligner type should exist.");
 
             var method = alignerType!.GetMethod(
@@ -55,7 +55,7 @@ namespace Reloader.Core.Tests.EditMode
         [Test]
         public void ApplyEyeReliefOffset_UsesCameraForwardAxis()
         {
-            var alignerType = System.Type.GetType("Reloader.Game.Weapons.WeaponAimAligner, Assembly-CSharp");
+            var alignerType = System.Type.GetType("Reloader.Game.Weapons.WeaponAimAligner, Reloader.Game.Weapons");
             Assert.That(alignerType, Is.Not.Null, "WeaponAimAligner type should exist.");
 
             var method = alignerType!.GetMethod(
