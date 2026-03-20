@@ -79,7 +79,13 @@ namespace Reloader.Player.Editor
             defaultsSo.ApplyModifiedPropertiesWithoutUndo();
             defaults.ApplyDefaults();
             EnsureShadowBody(playerRoot.transform);
-            EnsureWeaponPresentationRoot(cameraPivot.transform);
+            if (playerRoot.transform.Find(WeaponPresentationRootName) == null)
+            {
+                Debug.LogWarning("Create FPS Rig requires an authored WeaponPresentationRoot root.");
+                Selection.activeGameObject = playerRoot;
+                return;
+            }
+
             EnsureFpsArmsViewmodel(cameraPivot.transform, camera);
 
             Selection.activeGameObject = playerRoot;

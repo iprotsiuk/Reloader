@@ -85,5 +85,39 @@ namespace Reloader.Player.Tests.EditMode
                 Object.DestroyImmediate(root);
             }
         }
+
+        [Test]
+        public void CreateFpsRig_DoesNotCreateWeaponPresentationRoot_AsLegacyBackfill()
+        {
+            var previousSelection = Selection.activeGameObject;
+            GameObject createdRoot = null;
+
+            try
+            {
+                var playerRigMenuType = System.Type.GetType("Reloader.Player.Editor.PlayerRigMenu, Reloader.Player.Editor");
+                Assert.That(playerRigMenuType, Is.Not.Null, "Expected PlayerRigMenu type to exist.");
+
+                var method = playerRigMenuType!.GetMethod(
+                    "CreateFpsRig",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+
+                Assert.That(method, Is.Not.Null, "Expected PlayerRigMenu.CreateFpsRig to exist.");
+
+                method!.Invoke(null, null);
+
+                createdRoot = Selection.activeGameObject;
+                Assert.That(createdRoot, Is.Not.Null);
+                Assert.That(createdRoot.transform.Find("WeaponPresentationRoot"), Is.Null);
+            }
+            finally
+            {
+                if (createdRoot != null && createdRoot != previousSelection)
+                {
+                    Object.DestroyImmediate(createdRoot);
+                }
+
+                Selection.activeGameObject = previousSelection;
+            }
+        }
     }
 }
