@@ -34,10 +34,11 @@ namespace Reloader.Weapons.Tests.PlayMode
             var armsAnimator = armsVisual.gameObject.AddComponent<Animator>();
 
             var defaults = ConfigurePlayerCameraDefaults(root, cameraPivot, playerArms, armsAnimator);
-            CreateWeaponHandRigTargets(cameraPivot);
+            var handTargetRoot = CreateWeaponHandRigTargets(cameraPivot);
 
             var controller = root.AddComponent<WeaponHandRigController>();
             SetPrivateField(controller, "_cameraDefaults", defaults);
+            SetPrivateField(controller, "_handTargetRoot", handTargetRoot);
             var leftHandTarget = new GameObject("LeftHandTarget").transform;
             var rightHandTarget = new GameObject("RightHandTarget").transform;
             var weaponView = new GameObject("EquippedWeaponView");
@@ -98,7 +99,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 armsVisual.SetParent(playerArms, false);
                 var armsAnimator = armsVisual.gameObject.AddComponent<Animator>();
                 var defaults = ConfigurePlayerCameraDefaults(root, cameraPivot, playerArms, armsAnimator);
-                CreateWeaponHandRigTargets(cameraPivot);
+                var handTargetRoot = CreateWeaponHandRigTargets(cameraPivot);
 #if UNITY_EDITOR
                 armsAnimator.runtimeAnimatorController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(
                     "Assets/_Project/Player/Resources/Viewmodels/Characters/ViewmodelArms.controller");
@@ -136,6 +137,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 var handRigController = root.AddComponent<WeaponHandRigController>();
                 SetPrivateField(handRigController, "_cameraDefaults", defaults);
+                SetPrivateField(handRigController, "_handTargetRoot", handTargetRoot);
                 SetPrivateField(handRigController, "_driveRightHand", true);
                 var leftHandTarget = new GameObject("LeftHandTarget").transform;
                 var rightHandTarget = new GameObject("RightHandTarget").transform;
@@ -260,6 +262,38 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [Test]
+        public void SyncHandTargets_DoesNotCreateHandTargetRoot_WhenExplicitRootIsMissing()
+        {
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(root.transform, false);
+
+            var playerArms = new GameObject("PlayerArms").transform;
+            playerArms.SetParent(cameraPivot, false);
+
+            var armsVisual = new GameObject("PlayerArmsVisual").transform;
+            armsVisual.SetParent(playerArms, false);
+            var armsAnimator = armsVisual.gameObject.AddComponent<Animator>();
+            var defaults = ConfigurePlayerCameraDefaults(root, cameraPivot, playerArms, armsAnimator);
+
+            var controller = root.AddComponent<WeaponHandRigController>();
+            SetPrivateField(controller, "_cameraDefaults", defaults);
+
+            try
+            {
+                controller.SyncHandTargets();
+
+                Assert.That(cameraPivot.Find("WeaponHandRigTargets"), Is.Null,
+                    "WeaponHandRigController should not recreate WeaponHandRigTargets under CameraPivot when the explicit authored root is missing.");
+                Assert.That(controller.HasResolvedWeaponAnchors, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void SyncHandTargets_ReleasesLeftHandConstraintDuringReload()
         {
             var root = CreateWeaponHandRigTestRoot(out var controller, out _, out _, out _);
@@ -349,7 +383,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             armsVisual.SetParent(playerArms, false);
             var armsAnimator = armsVisual.gameObject.AddComponent<Animator>();
             var defaults = ConfigurePlayerCameraDefaults(root, cameraPivot, playerArms, armsAnimator);
-            CreateWeaponHandRigTargets(cameraPivot);
+            var handTargetRoot = CreateWeaponHandRigTargets(cameraPivot);
 
             upperArm = new GameObject("upperarm_l").transform;
             upperArm.SetParent(armsVisual, false);
@@ -365,6 +399,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
             controller = root.AddComponent<WeaponHandRigController>();
             SetPrivateField(controller, "_cameraDefaults", defaults);
+            SetPrivateField(controller, "_handTargetRoot", handTargetRoot);
             return root;
         }
 

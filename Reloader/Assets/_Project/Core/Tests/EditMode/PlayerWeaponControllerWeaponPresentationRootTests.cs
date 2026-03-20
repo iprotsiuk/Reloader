@@ -170,7 +170,8 @@ namespace Reloader.Core.Tests.EditMode
             SetField(defaults, "_playerArmsRoot", playerArmsRoot);
             SetField(defaults, "_playerArmsAnimator", armsAnimator);
             SetField(defaults, "_weaponPresentationRoot", weaponMount);
-            new GameObject("WeaponHandRigTargets").transform.SetParent(presentationPivot, false);
+            var handTargetRoot = new GameObject("WeaponHandRigTargets").transform;
+            handTargetRoot.SetParent(presentationPivot, false);
 
             var binder = playerRoot.AddComponent<PlayerWeaponAnimationBinder>();
             var driver = playerRoot.AddComponent<FpsViewmodelAnimatorDriver>();
@@ -179,6 +180,7 @@ namespace Reloader.Core.Tests.EditMode
 
             var handRigController = playerRoot.AddComponent<WeaponHandRigController>();
             SetField(handRigController, "_cameraDefaults", defaults);
+            SetField(handRigController, "_handTargetRoot", handTargetRoot);
             SetField(handRigController, "_driveRightHand", true);
 
             var viewPrefab = new GameObject("Kar98kView");

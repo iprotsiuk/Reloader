@@ -30,6 +30,7 @@ namespace Reloader.Player.Viewmodel
         [SerializeField] private Transform _leftHandHint;
         [SerializeField] private Transform _rightHandTarget;
         [SerializeField] private Transform _rightHandHint;
+        [SerializeField] private Transform _handTargetRoot;
 
         [Header("Behavior")]
         [SerializeField] private bool _enabledInPlayMode = true;
@@ -224,16 +225,10 @@ namespace Reloader.Player.Viewmodel
                 needsRigRebuild = true;
             }
 
-            var needsTargetRoot = (_driveLeftHand && (_leftHandTarget == null || _leftHandHint == null))
-                || (_driveRightHand && (_rightHandTarget == null || _rightHandHint == null));
-            Transform targetRoot = null;
-            if (needsTargetRoot)
+            var targetRoot = ResolveTargetRoot();
+            if (targetRoot == null)
             {
-                targetRoot = ResolveTargetRoot();
-                if (targetRoot == null)
-                {
-                    return;
-                }
+                return;
             }
 
             if (_driveLeftHand)
@@ -323,12 +318,17 @@ namespace Reloader.Player.Viewmodel
 
         private Transform ResolveTargetRoot()
         {
-            if (_cameraDefaults == null || !_cameraDefaults.TryGetCameraPivot(out var cameraPivot) || cameraPivot == null)
+            if (!IsReferenceOnPlayerHierarchy(_handTargetRoot))
             {
                 return null;
             }
 
-            return cameraPivot.Find(TargetRootName);
+            return _handTargetRoot;
+        }
+
+        private bool IsReferenceOnPlayerHierarchy(Transform candidate)
+        {
+            return candidate != null && (candidate == transform || candidate.IsChildOf(transform));
         }
 
         private bool IsAnimatorOnPlayerHierarchy(Animator animator)
