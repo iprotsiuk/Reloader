@@ -1,0 +1,23 @@
+{
+  "name": "Reloader.Weapons.Tests.EditMode",
+  "rootNamespace": "Reloader.Weapons.Tests.EditMode",
+  "references": [
+    "Reloader.Weapons",
+    "Reloader.Player",
+    "Reloader.Inventory"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

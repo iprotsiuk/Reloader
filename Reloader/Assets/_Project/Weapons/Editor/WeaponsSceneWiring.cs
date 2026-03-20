@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using Reloader.Core.Items;
 using Reloader.Inventory;
 using Reloader.Player;
-using Reloader.Player.Viewmodel;
 using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.Controllers;
 using Reloader.Weapons.Data;
 using Reloader.Weapons.Runtime;
 using Reloader.Weapons.World;
+using Reloader.Player.Viewmodel;
 using Reloader.Weapons.Animations;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -92,6 +92,14 @@ namespace Reloader.Weapons.Editor
             }
 
             var playerRoot = inventoryController.gameObject;
+            var cameraDefaults = playerRoot.GetComponent<PlayerCameraDefaults>();
+            if (cameraDefaults == null
+                || !cameraDefaults.TryGetCameraPivot(out var cameraPivot)
+                || !cameraDefaults.TryGetWeaponPresentationRoot(out var weaponPresentationRoot))
+            {
+                Debug.LogError("Weapons scene wiring failed: PlayerRoot must already have authored PlayerCameraDefaults with CameraPivot and WeaponPresentationRoot.");
+                return false;
+            }
 
             var pickupResolver = playerRoot.GetComponent<PlayerWeaponPickupResolver>();
             if (pickupResolver == null)
@@ -156,9 +164,18 @@ namespace Reloader.Weapons.Editor
                 animationBinder = Undo.AddComponent<PlayerWeaponAnimationBinder>(playerRoot);
             }
 
-            var muzzle = EnsureMuzzle(playerRoot.transform);
+            var muzzle = EnsureMuzzle(cameraPivot);
+            if (muzzle == null)
+            {
+                Debug.LogError("Weapons scene wiring failed: CameraPivot must already author a WeaponMuzzle child.");
+                return false;
+            }
 
             var weaponSo = new SerializedObject(weaponController);
+            if (weaponSo.FindProperty("_cameraDefaults") != null)
+            {
+                weaponSo.FindProperty("_cameraDefaults").objectReferenceValue = cameraDefaults;
+            }
             weaponSo.FindProperty("_inputSourceBehaviour").objectReferenceValue = inputReader;
             weaponSo.FindProperty("_inventoryController").objectReferenceValue = inventoryController;
             weaponSo.FindProperty("_weaponRegistry").objectReferenceValue = registry;
@@ -172,7 +189,7 @@ namespace Reloader.Weapons.Editor
 
             if (weaponSo.FindProperty("_weaponViewParent") != null)
             {
-                weaponSo.FindProperty("_weaponViewParent").objectReferenceValue = ResolveWeaponViewParent(armsAnimator);
+                weaponSo.FindProperty("_weaponViewParent").objectReferenceValue = weaponPresentationRoot;
             }
 
             var rifleViewPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(RifleViewPrefabPath);
@@ -290,114 +307,14 @@ namespace Reloader.Weapons.Editor
             }
         }
 
-        private static Transform ResolveWeaponViewParent(Animator armsAnimator)
+        private static Transform EnsureMuzzle(Transform cameraPivot)
         {
-            if (armsAnimator == null)
-            {
-                return null;
-            }
-
-            var playerArmsRoot = ResolvePlayerArmsRoot(armsAnimator.transform);
-            if (playerArmsRoot == null)
-            {
-                return null;
-            }
-
-            var cameraPivot = playerArmsRoot.parent;
-            if (cameraPivot == null || !string.Equals(cameraPivot.name, "CameraPivot", System.StringComparison.Ordinal))
-            {
-                return null;
-            }
-
-            var viewmodelLayer = playerArmsRoot.gameObject.layer;
-
-            var existing = cameraPivot.Find("WeaponPresentationRoot");
-            if (existing != null)
-            {
-                SetLayerRecursively(existing.gameObject, viewmodelLayer);
-                return existing;
-            }
-
-            var weaponPresentationRoot = new GameObject("WeaponPresentationRoot");
-            Undo.RegisterCreatedObjectUndo(weaponPresentationRoot, "Create Weapon Presentation Root");
-            weaponPresentationRoot.transform.SetParent(cameraPivot, false);
-            weaponPresentationRoot.transform.localPosition = Vector3.zero;
-            weaponPresentationRoot.transform.localRotation = Quaternion.identity;
-            weaponPresentationRoot.transform.localScale = Vector3.one;
-            SetLayerRecursively(weaponPresentationRoot, viewmodelLayer);
-            return weaponPresentationRoot.transform;
-        }
-
-        private static void SetLayerRecursively(GameObject root, int layer)
-        {
-            root.layer = layer;
-            foreach (Transform child in root.transform)
-            {
-                SetLayerRecursively(child.gameObject, layer);
-            }
-        }
-
-        private static Transform ResolvePlayerArmsRoot(Transform animatorTransform)
-        {
-            var current = animatorTransform;
-            while (current != null)
-            {
-                if (string.Equals(current.name, "PlayerArms", System.StringComparison.Ordinal))
-                {
-                    return current;
-                }
-
-                current = current.parent;
-            }
-
-            return null;
-        }
-
-        private static Transform FindDescendantByName(Transform root, string targetName)
-        {
-            if (root == null || string.IsNullOrWhiteSpace(targetName))
-            {
-                return null;
-            }
-
-            if (root.name == targetName)
-            {
-                return root;
-            }
-
-            for (var i = 0; i < root.childCount; i++)
-            {
-                var found = FindDescendantByName(root.GetChild(i), targetName);
-                if (found != null)
-                {
-                    return found;
-                }
-            }
-
-            return null;
-        }
-
-        private static Transform EnsureMuzzle(Transform playerRoot)
-        {
-            var existing = playerRoot.Find("CameraPivot/WeaponMuzzle");
-            if (existing != null)
-            {
-                return existing;
-            }
-
-            var cameraPivot = playerRoot.Find("CameraPivot");
             if (cameraPivot == null)
             {
-                var pivot = new GameObject("CameraPivot");
-                pivot.transform.SetParent(playerRoot, false);
-                pivot.transform.localPosition = new Vector3(0f, 1.8f, 0f);
-                cameraPivot = pivot.transform;
+                return null;
             }
 
-            var muzzleGo = new GameObject("WeaponMuzzle");
-            muzzleGo.transform.SetParent(cameraPivot, false);
-            muzzleGo.transform.localPosition = new Vector3(0f, -0.08f, 0.45f);
-            return muzzleGo.transform;
+            return cameraPivot.Find("WeaponMuzzle");
         }
     }
 }
