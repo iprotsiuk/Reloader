@@ -223,6 +223,69 @@ namespace Reloader.Player.Tests.EditMode
         }
 
         [Test]
+        public void TryGetViewmodelCamera_DoesNotReturnCachedCamera_WhenExplicitParentIsMissing()
+        {
+            var (root, cameraPivot, mainCamera) = CreateRigRoot();
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+            var legacyViewmodelCamera = new GameObject("ViewmodelCamera").AddComponent<Camera>();
+            legacyViewmodelCamera.transform.SetParent(cameraPivot, false);
+
+            typeof(PlayerCameraDefaults)
+                .GetField("_mainCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, mainCamera);
+            typeof(PlayerCameraDefaults)
+                .GetField("_viewmodelCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, legacyViewmodelCamera);
+
+            Assert.That(defaults.TryGetViewmodelCamera(out var resolvedViewmodelCamera), Is.False);
+            Assert.That(resolvedViewmodelCamera, Is.Null);
+            Assert.That(
+                typeof(PlayerCameraDefaults)
+                    .GetField("_viewmodelCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                    ?.GetValue(defaults),
+                Is.Null);
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void TryGetAuthoredMainCamera_DoesNotRecoverFromCameraMain_WhenExplicitMainCameraIsMissing()
+        {
+            var root = new GameObject("CameraDefaultsRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(root.transform, false);
+            var mainCamera = new GameObject("MainCamera").AddComponent<Camera>();
+            mainCamera.tag = "MainCamera";
+            mainCamera.transform.SetParent(cameraPivot, false);
+
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+
+            Assert.That(defaults.TryGetAuthoredMainCamera(out var resolvedMainCamera), Is.False);
+            Assert.That(resolvedMainCamera, Is.Null);
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void TryGetCameraLookTarget_DoesNotRecoverFromCameraFollowTarget_WhenExplicitCameraLookTargetIsMissing()
+        {
+            var (root, cameraPivot, mainCamera) = CreateRigRoot();
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+
+            typeof(PlayerCameraDefaults)
+                .GetField("_mainCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, mainCamera);
+            typeof(PlayerCameraDefaults)
+                .GetField("_cameraFollowTarget", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, cameraPivot);
+
+            Assert.That(defaults.TryGetCameraLookTarget(out var resolvedCameraLookTarget), Is.False);
+            Assert.That(resolvedCameraLookTarget, Is.Null);
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void ApplyDefaults_UsesExplicitViewmodelCameraParent_WhenProvided()
         {
             var (root, cameraPivot, mainCamera) = CreateRigRoot();
@@ -256,6 +319,9 @@ namespace Reloader.Player.Tests.EditMode
             var root = new GameObject("CameraDefaultsRoot");
             var presentationPivot = new GameObject("PresentationPivot").transform;
             presentationPivot.SetParent(root.transform, false);
+            var mainCameraGo = new GameObject("MainCamera");
+            mainCameraGo.transform.SetParent(root.transform, false);
+            var mainCamera = mainCameraGo.AddComponent<Camera>();
             var weaponPresentationRoot = new GameObject("WeaponMount").transform;
             weaponPresentationRoot.SetParent(presentationPivot, false);
             var playerArmsRoot = new GameObject("ArmsBranch").transform;
@@ -272,6 +338,12 @@ namespace Reloader.Player.Tests.EditMode
                 .GetField("_cameraFollowTarget", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                 ?.SetValue(defaults, presentationPivot);
             typeof(PlayerCameraDefaults)
+                .GetField("_cameraLookTarget", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, presentationPivot);
+            typeof(PlayerCameraDefaults)
+                .GetField("_mainCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, mainCamera);
+            typeof(PlayerCameraDefaults)
                 .GetField("_viewmodelCameraParent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                 ?.SetValue(defaults, presentationPivot);
             typeof(PlayerCameraDefaults)
@@ -285,11 +357,15 @@ namespace Reloader.Player.Tests.EditMode
                 ?.SetValue(defaults, weaponPresentationRoot);
 
             Assert.That(defaults.TryGetCameraPivot(out var resolvedPivot), Is.True);
+            Assert.That(defaults.TryGetAuthoredMainCamera(out var resolvedMainCamera), Is.True);
+            Assert.That(defaults.TryGetCameraLookTarget(out var resolvedCameraLookTarget), Is.True);
             Assert.That(defaults.TryGetPlayerArmsRoot(out var resolvedPlayerArmsRoot), Is.True);
             Assert.That(defaults.TryGetPlayerArmsAnimator(out var resolvedPlayerArmsAnimator), Is.True);
             Assert.That(defaults.TryGetWeaponPresentationRoot(out var resolvedWeaponPresentationRoot), Is.True);
 
             Assert.That(resolvedPivot, Is.SameAs(presentationPivot));
+            Assert.That(resolvedMainCamera, Is.Not.Null);
+            Assert.That(resolvedCameraLookTarget, Is.SameAs(presentationPivot));
             Assert.That(resolvedPlayerArmsRoot, Is.SameAs(playerArmsRoot));
             Assert.That(resolvedPlayerArmsAnimator, Is.SameAs(playerArmsAnimator));
             Assert.That(resolvedWeaponPresentationRoot, Is.SameAs(weaponPresentationRoot));
@@ -297,6 +373,14 @@ namespace Reloader.Player.Tests.EditMode
                 "Explicit PlayerCameraDefaults ownership should not create the legacy CameraPivot/WeaponPresentationRoot fallback.");
 
             Object.DestroyImmediate(root);
+        }
+
+        public static void VerifySlice()
+        {
+            var suite = new PlayerCameraDefaultsEditModeTests();
+            suite.TryGetAuthoredMainCamera_DoesNotRecoverFromCameraMain_WhenExplicitMainCameraIsMissing();
+            suite.TryGetCameraLookTarget_DoesNotRecoverFromCameraFollowTarget_WhenExplicitCameraLookTargetIsMissing();
+            suite.ExplicitOwnershipContract_UsesSerializedRoots_AndDoesNotCreateLegacyPresentationFallback();
         }
 
         private static (GameObject Root, Transform CameraPivot, Camera MainCamera) CreateRigRoot()

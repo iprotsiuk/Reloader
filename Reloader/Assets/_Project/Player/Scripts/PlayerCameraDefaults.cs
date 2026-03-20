@@ -86,6 +86,18 @@ namespace Reloader.Player
             return mainCamera != null;
         }
 
+        public bool TryGetAuthoredMainCamera(out Camera mainCamera)
+        {
+            if (_mainCamera == null || !IsUsableHierarchyReference(_mainCamera.transform))
+            {
+                mainCamera = null;
+                return false;
+            }
+
+            mainCamera = _mainCamera;
+            return true;
+        }
+
         public bool TryGetPresentationCamera(out Camera presentationCamera)
         {
             presentationCamera = ShotCameraGameplayState.PresentationCamera;
@@ -95,6 +107,12 @@ namespace Reloader.Player
             }
 
             return TryGetMainCamera(out presentationCamera);
+        }
+
+        public bool TryGetCameraLookTarget(out Transform cameraLookTarget)
+        {
+            cameraLookTarget = ResolveCameraLookTarget();
+            return cameraLookTarget != null;
         }
 
         public bool TryGetCameraPivot(out Transform cameraPivot)
@@ -163,6 +181,18 @@ namespace Reloader.Player
         public bool TryGetViewmodelCamera(out Camera viewmodelCamera)
         {
             var viewmodelParent = ResolveViewmodelCameraParent();
+            if (viewmodelParent == null)
+            {
+                _viewmodelCamera = null;
+                viewmodelCamera = null;
+                return false;
+            }
+
+            if (_viewmodelCamera != null && _viewmodelCamera.transform.parent != viewmodelParent)
+            {
+                _viewmodelCamera = null;
+            }
+
             _viewmodelCamera ??= ResolveViewmodelCamera(viewmodelParent, false);
             viewmodelCamera = _viewmodelCamera;
             return viewmodelCamera != null;
@@ -281,9 +311,19 @@ namespace Reloader.Player
 
         private Transform ResolveViewmodelCameraParent()
         {
-            if (_viewmodelCameraParent != null)
+            if (IsUsableHierarchyReference(_viewmodelCameraParent))
             {
                 return _viewmodelCameraParent;
+            }
+
+            return null;
+        }
+
+        private Transform ResolveCameraLookTarget()
+        {
+            if (IsUsableHierarchyReference(_cameraLookTarget))
+            {
+                return _cameraLookTarget;
             }
 
             return null;

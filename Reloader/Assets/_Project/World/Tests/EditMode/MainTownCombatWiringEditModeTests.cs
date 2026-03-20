@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.Player;
 using Reloader.World.Editor;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -166,8 +167,13 @@ namespace Reloader.World.Tests.EditMode
             var cameraPivot = new GameObject("CameraPivot").transform;
             cameraPivot.SetParent(playerRoot.transform, false);
 
-            var weaponPresentationRoot = new GameObject("WeaponPresentationRoot").transform;
-            weaponPresentationRoot.SetParent(cameraPivot, false);
+            var explicitWeaponPresentationRoot = new GameObject("ExplicitWeaponPresentationRoot").transform;
+            explicitWeaponPresentationRoot.SetParent(cameraPivot, false);
+            var cameraDefaults = playerRoot.AddComponent<PlayerCameraDefaults>();
+            SetField(cameraDefaults, "_cameraPivot", cameraPivot);
+            SetField(cameraDefaults, "_weaponPresentationRoot", explicitWeaponPresentationRoot);
+
+            var weaponPresentationRoot = explicitWeaponPresentationRoot;
             weaponPresentationRoot.localPosition = Vector3.zero;
             weaponPresentationRoot.localRotation = Quaternion.identity;
             weaponPresentationRoot.localScale = Vector3.one;
@@ -184,12 +190,11 @@ namespace Reloader.World.Tests.EditMode
 
                 Assert.That(resolveWeaponViewParent, Is.Not.Null, "Expected MainTownCombatWiring.ResolveWeaponViewParent to exist.");
 
-                var resolvedParent = resolveWeaponViewParent!.Invoke(null, new object[] { cameraPivot }) as Transform;
+                var resolvedParent = resolveWeaponViewParent!.Invoke(null, new object[] { cameraDefaults }) as Transform;
 
                 Assert.That(resolvedParent, Is.Not.Null);
-                Assert.That(resolvedParent.name, Is.EqualTo("WeaponPresentationRoot"));
+                Assert.That(resolvedParent, Is.SameAs(explicitWeaponPresentationRoot));
                 Assert.That(resolvedParent.parent, Is.EqualTo(cameraPivot));
-                Assert.That(cameraPivot.Find("WeaponPresentationRoot"), Is.SameAs(resolvedParent));
                 Assert.That(resolvedParent.localPosition, Is.EqualTo(Vector3.zero));
                 Assert.That(resolvedParent.localRotation, Is.EqualTo(Quaternion.identity));
                 Assert.That(resolvedParent.localScale, Is.EqualTo(Vector3.one));
@@ -201,6 +206,94 @@ namespace Reloader.World.Tests.EditMode
             {
                 UnityEngine.Object.DestroyImmediate(playerRoot);
             }
+        }
+
+        [Test]
+        public void MainTownCombatWiring_ResolveWeaponViewParent_ReturnsNull_WhenExplicitWeaponPresentationRootMissing_EvenIfHierarchyContainsOne()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(playerRoot.transform, false);
+
+            var legacyNamedWeaponPresentationRoot = new GameObject("WeaponPresentationRoot").transform;
+            legacyNamedWeaponPresentationRoot.SetParent(cameraPivot, false);
+
+            var cameraDefaults = playerRoot.AddComponent<PlayerCameraDefaults>();
+            SetField(cameraDefaults, "_cameraPivot", cameraPivot);
+
+            try
+            {
+                var resolveWeaponViewParent = typeof(MainTownCombatWiring).GetMethod(
+                    "ResolveWeaponViewParent",
+                    BindingFlags.Static | BindingFlags.NonPublic);
+
+                Assert.That(resolveWeaponViewParent, Is.Not.Null, "Expected MainTownCombatWiring.ResolveWeaponViewParent to exist.");
+
+                var resolvedParent = resolveWeaponViewParent!.Invoke(null, new object[] { cameraDefaults }) as Transform;
+
+                Assert.That(resolvedParent, Is.Null,
+                    "MainTownCombatWiring should fail closed when the explicit PlayerCameraDefaults contract lacks WeaponPresentationRoot.");
+                Assert.That(cameraPivot.Find("WeaponPresentationRoot"), Is.SameAs(legacyNamedWeaponPresentationRoot),
+                    "The helper must not recover the root from a hierarchy-name search.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(playerRoot);
+            }
+        }
+
+        [Test]
+        public void MainTownCombatWiring_TryResolveMainTownDependencies_FailsClosed_WhenExplicitMainCameraMissing_EvenIfCameraMainExists()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(playerRoot.transform, false);
+            var playerArmsRoot = new GameObject("PlayerArms").transform;
+            playerArmsRoot.SetParent(cameraPivot, false);
+            var playerArmsVisual = new GameObject("PlayerArmsVisual");
+            playerArmsVisual.transform.SetParent(playerArmsRoot, false);
+            var playerArmsAnimator = playerArmsVisual.AddComponent<Animator>();
+            var lookTarget = new GameObject("CameraLookTarget").transform;
+            lookTarget.SetParent(cameraPivot, false);
+            var weaponPresentationRoot = new GameObject("WeaponPresentationRoot").transform;
+            weaponPresentationRoot.SetParent(cameraPivot, false);
+            var taggedMainCamera = new GameObject("Main Camera").AddComponent<Camera>();
+            taggedMainCamera.tag = "MainCamera";
+            taggedMainCamera.transform.SetParent(cameraPivot, false);
+
+            var cameraDefaults = playerRoot.AddComponent<PlayerCameraDefaults>();
+            SetField(cameraDefaults, "_cameraPivot", cameraPivot);
+            SetField(cameraDefaults, "_playerArmsRoot", playerArmsRoot);
+            SetField(cameraDefaults, "_playerArmsAnimator", playerArmsAnimator);
+            SetField(cameraDefaults, "_cameraLookTarget", lookTarget);
+            SetField(cameraDefaults, "_weaponPresentationRoot", weaponPresentationRoot);
+
+            try
+            {
+                var tryResolveMainTownDependencies = typeof(MainTownCombatWiring).GetMethod(
+                    "TryResolveMainTownDependencies",
+                    BindingFlags.Static | BindingFlags.NonPublic);
+
+                Assert.That(tryResolveMainTownDependencies, Is.Not.Null, "Expected MainTownCombatWiring.TryResolveMainTownDependencies to exist.");
+
+                var args = new object[] { cameraDefaults, null, null, null, null, null, null };
+                var resolved = (bool)tryResolveMainTownDependencies!.Invoke(null, args)!;
+
+                Assert.That(resolved, Is.False,
+                    "MainTownCombatWiring must fail closed when the explicit main camera contract is missing.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(playerRoot);
+            }
+        }
+
+        public static void VerifySlice()
+        {
+            var suite = new MainTownCombatWiringEditModeTests();
+            suite.MainTownCombatWiring_ResolveWeaponViewParent_UsesExplicitWeaponPresentationRoot_AndDoesNotCreateFallback();
+            suite.MainTownCombatWiring_ResolveWeaponViewParent_ReturnsNull_WhenExplicitWeaponPresentationRootMissing_EvenIfHierarchyContainsOne();
+            suite.MainTownCombatWiring_TryResolveMainTownDependencies_FailsClosed_WhenExplicitMainCameraMissing_EvenIfCameraMainExists();
         }
 
         private static GameObject FindRoot(Scene scene, string rootName)
@@ -245,14 +338,33 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(cameraDefaults, Is.Not.Null, $"{context} should include PlayerCameraDefaults.");
 
             var serialized = new SerializedObject(cameraDefaults);
+            var cameraPivot = serialized.FindProperty("_cameraPivot")?.objectReferenceValue as Transform;
+            var playerArmsRoot = serialized.FindProperty("_playerArmsRoot")?.objectReferenceValue as Transform;
+            var playerArmsAnimator = serialized.FindProperty("_playerArmsAnimator")?.objectReferenceValue as Animator;
+            var viewmodelCameraParent = serialized.FindProperty("_viewmodelCameraParent")?.objectReferenceValue as Transform;
+            var weaponPresentationRoot = serialized.FindProperty("_weaponPresentationRoot")?.objectReferenceValue as Transform;
+
             Assert.That(serialized.FindProperty("_mainCamera")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the main camera.");
             Assert.That(serialized.FindProperty("_cameraFollowTarget")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the camera follow target.");
             Assert.That(serialized.FindProperty("_cameraLookTarget")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the camera look target.");
-            Assert.That(serialized.FindProperty("_viewmodelCameraParent")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the viewmodel camera parent.");
-            Assert.That(serialized.FindProperty("_cameraPivot")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the camera pivot.");
-            Assert.That(serialized.FindProperty("_playerArmsRoot")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the player arms root.");
-            Assert.That(serialized.FindProperty("_playerArmsAnimator")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the player arms animator.");
-            Assert.That(serialized.FindProperty("_weaponPresentationRoot")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the weapon presentation root.");
+            Assert.That(viewmodelCameraParent, Is.Not.Null, $"{context} should serialize the viewmodel camera parent.");
+            Assert.That(cameraPivot, Is.Not.Null, $"{context} should serialize the camera pivot.");
+            Assert.That(playerArmsRoot, Is.Not.Null, $"{context} should serialize the player arms root.");
+            Assert.That(playerArmsAnimator, Is.Not.Null, $"{context} should serialize the player arms animator.");
+            Assert.That(weaponPresentationRoot, Is.Not.Null, $"{context} should serialize the weapon presentation root.");
+            Assert.That(cameraPivot!.parent, Is.SameAs(playerRoot.transform), $"{context} should keep CameraPivot under PlayerRoot.");
+            Assert.That(playerArmsRoot!.parent, Is.SameAs(cameraPivot), $"{context} should keep PlayerArms under CameraPivot.");
+            Assert.That(viewmodelCameraParent, Is.SameAs(cameraPivot), $"{context} should keep ViewmodelCameraParent on the CameraPivot contract.");
+            Assert.That(weaponPresentationRoot!.parent, Is.SameAs(cameraPivot), $"{context} should keep WeaponPresentationRoot under CameraPivot.");
+            Assert.That(playerRoot.transform.Find("CameraPivot/PlayerArms"), Is.SameAs(playerArmsRoot), $"{context} should keep PlayerArms as a sibling branch of WeaponPresentationRoot.");
+            Assert.That(playerRoot.transform.Find("CameraPivot/WeaponPresentationRoot"), Is.SameAs(weaponPresentationRoot), $"{context} should keep WeaponPresentationRoot as the live mount root.");
+        }
+
+        private static void SetField(object instance, string fieldName, object value)
+        {
+            var field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
+            field!.SetValue(instance, value);
         }
 
 
