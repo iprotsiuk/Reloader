@@ -138,7 +138,6 @@ namespace Reloader.Weapons.Controllers
         private bool _baseCameraFieldOfViewCaptured;
         private Camera _cachedAdsCamera;
         private bool _pendingUnequipFovBaselineRestore;
-        private Transform _defaultMuzzleTransform;
         private GameObject _equippedWeaponView;
         private bool _activationResyncReady;
         private GameAdsStateController _adsStateRuntimeBridge;
@@ -179,7 +178,6 @@ namespace Reloader.Weapons.Controllers
         private void Awake()
         {
             ResolveReferences();
-            _defaultMuzzleTransform = _muzzleTransform;
             RefreshPackRenderers();
             SetArmsVisible(false);
         }
@@ -514,13 +512,6 @@ namespace Reloader.Weapons.Controllers
                 _weaponRegistry = FindFirstObjectByType<WeaponRegistry>();
             }
 
-            if (_muzzleTransform == null)
-            {
-                _muzzleTransform = transform;
-            }
-
-            _defaultMuzzleTransform ??= _muzzleTransform;
-
             if (_cameraDefaults == null)
             {
                 _cameraDefaults = GetComponent<PlayerCameraDefaults>();
@@ -687,10 +678,7 @@ namespace Reloader.Weapons.Controllers
             }
 
             DestroyEquippedWeaponView();
-            if (_defaultMuzzleTransform != null)
-            {
-                _muzzleTransform = _defaultMuzzleTransform;
-            }
+            _muzzleTransform = null;
 
             _equippedItemId = itemId;
             _equippedDefinition = definition;
@@ -1015,6 +1003,11 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
+            if (_muzzleTransform == null)
+            {
+                return;
+            }
+
             if (!state.TryFire(Time.time, out var fireData))
             {
                 return;
@@ -1027,7 +1020,8 @@ namespace Reloader.Weapons.Controllers
             var projectile = SpawnProjectile();
             projectile?.Configure(_useRuntimeKernelWeaponEvents ? null : _weaponEvents);
             projectile?.SetPathObserver(TryCreateActiveTracePathObserver());
-            var firedDirection = ApplyDispersion(_muzzleTransform.forward, ballisticSpec.DispersionMoa, URandom.value, URandom.value);
+            var muzzleTransform = _muzzleTransform;
+            var firedDirection = ApplyDispersion(muzzleTransform.forward, ballisticSpec.DispersionMoa, URandom.value, URandom.value);
             projectile?.Initialize(
                 _equippedItemId,
                 firedDirection,
@@ -1044,8 +1038,8 @@ namespace Reloader.Weapons.Controllers
 
             NotifyViewWeaponFired(_equippedItemId);
             var muzzleAudioOverride = ResolveMuzzleAudioOverride();
-            ResolveWeaponEvents()?.RaiseWeaponFired(_equippedItemId, _muzzleTransform.position, firedDirection);
-            ResolveCombatAudioEmitter()?.EmitWeaponFire(_equippedItemId, _muzzleTransform.position, muzzleAudioOverride);
+            ResolveWeaponEvents()?.RaiseWeaponFired(_equippedItemId, muzzleTransform.position, firedDirection);
+            ResolveCombatAudioEmitter()?.EmitWeaponFire(_equippedItemId, muzzleTransform.position, muzzleAudioOverride);
         }
 
         private static bool IsFireInputBlocked()
@@ -1176,6 +1170,11 @@ namespace Reloader.Weapons.Controllers
             predictedImpactPoint = default;
             predictedDistanceMeters = 0f;
 
+            if (_muzzleTransform == null)
+            {
+                return false;
+            }
+
             var camera = ResolveAdsCamera();
             if (camera == null)
             {
@@ -1202,8 +1201,7 @@ namespace Reloader.Weapons.Controllers
                 }
 
                 predictedImpactPoint = candidate.point;
-                var origin = _muzzleTransform != null ? _muzzleTransform.position : transform.position;
-                predictedDistanceMeters = Vector3.Distance(origin, predictedImpactPoint);
+                predictedDistanceMeters = Vector3.Distance(_muzzleTransform.position, predictedImpactPoint);
                 return true;
             }
 
@@ -1255,7 +1253,10 @@ namespace Reloader.Weapons.Controllers
 
             state.IsReloading = true;
             ResolveWeaponEvents()?.RaiseWeaponReloadStarted(_equippedItemId);
-            ResolveCombatAudioEmitter()?.EmitReloadStarted(_equippedItemId, _muzzleTransform.position);
+            if (_muzzleTransform != null)
+            {
+                ResolveCombatAudioEmitter()?.EmitReloadStarted(_equippedItemId, _muzzleTransform.position);
+            }
             NotifyViewReloadStarted(_equippedItemId);
         }
 
@@ -1314,7 +1315,10 @@ namespace Reloader.Weapons.Controllers
 
             state.SetReserveCount(_inventoryController.Runtime.GetItemQuantity(ammoItemId));
             ResolveWeaponEvents()?.RaiseWeaponReloaded(_equippedItemId, state.MagazineCount, state.ReserveCount);
-            ResolveCombatAudioEmitter()?.EmitReloadCompleted(_equippedItemId, _muzzleTransform.position);
+            if (_muzzleTransform != null)
+            {
+                ResolveCombatAudioEmitter()?.EmitReloadCompleted(_equippedItemId, _muzzleTransform.position);
+            }
             NotifyViewReloadCompleted(_equippedItemId);
         }
 
@@ -2131,10 +2135,7 @@ namespace Reloader.Weapons.Controllers
             }
 
             var viewMuzzle = mounts != null ? mounts.MuzzleTransform : null;
-            if (viewMuzzle != null)
-            {
-                _muzzleTransform = viewMuzzle;
-            }
+            _muzzleTransform = viewMuzzle;
 
             EnsureMuzzleRuntimeBridge(_equippedWeaponView, mounts, viewMuzzle);
             EnsureDetachableMagazineRuntimeBridge(_equippedWeaponView, mounts);
@@ -2154,10 +2155,7 @@ namespace Reloader.Weapons.Controllers
             if (rebuildView && _equippedWeaponView != null)
             {
                 DestroyEquippedWeaponView();
-                if (_defaultMuzzleTransform != null)
-                {
-                    _muzzleTransform = _defaultMuzzleTransform;
-                }
+                _muzzleTransform = null;
             }
 
             if (_equippedWeaponView == null)

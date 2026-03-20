@@ -2898,6 +2898,64 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Fire_DoesNotUseControllerTransform_WhenWeaponViewLacksAuthoredMuzzleTransform()
+        {
+            var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
+            var runtimeEvents = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeEvents;
+
+            var firedRaised = 0;
+            runtimeEvents.OnWeaponFired += (_, _, _) => firedRaised++;
+
+            var root = new GameObject("PlayerRoot");
+            var input = root.AddComponent<TestInputSource>();
+            var resolver = root.AddComponent<TestPickupResolver>();
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            inventoryController.Configure(input, resolver, runtime);
+
+            var registryGo = new GameObject("Registry");
+            var definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+
+            try
+            {
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 0, true);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetField(typeof(PlayerWeaponController), controller, "_weaponRegistry", registry);
+                AttachDefaultWeaponHarness(root, controller, includeProjectilePrefab: true, includeMuzzleFirePoint: false);
+                yield return null;
+
+                Assert.That(GetControllerField<Transform>(controller, "_muzzleTransform"), Is.Null,
+                    "Missing authored muzzle data should clear the controller muzzle reference instead of reviving the controller transform.");
+
+                Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+                var chamberRound = new AmmoBallisticSnapshot(AmmoSourceType.Factory, 3000f, 0f, 168f, 0.46f, 12f);
+                state.SetAmmoLoadoutForTests(chamberRound, System.Array.Empty<AmmoBallisticSnapshot>());
+
+                input.FirePressedThisFrame = true;
+                yield return null;
+
+                Assert.That(firedRaised, Is.EqualTo(0),
+                    "Fire should fail closed when the equipped view has no authored muzzle transform.");
+                Assert.That(Object.FindFirstObjectByType<WeaponProjectile>(), Is.Null,
+                    "The controller must not spawn a projectile from its own transform when the weapon view omits a muzzle origin.");
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = runtimeEventsBefore;
+                Object.Destroy(root);
+                Object.Destroy(registryGo);
+                Object.Destroy(definition);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ReloadStart_ThenSprint_CancelsReload()
         {
             var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
@@ -3266,7 +3324,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             PlayerWeaponController controller,
             bool includeProjectilePrefab = false,
             string itemId = "weapon-kar98k",
-            bool includeViewBinding = true)
+            bool includeViewBinding = true,
+            bool includeMuzzleFirePoint = true)
         {
             EnsureSceneAudioListener(root);
             EnsureExplicitViewmodelOwnershipContract(root, controller);
@@ -3280,10 +3339,15 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 var adsPivot = new GameObject("AdsPivot").transform;
                 adsPivot.SetParent(viewPrefab, false);
-                var muzzleFirePoint = new GameObject("Muzzle").transform;
-                muzzleFirePoint.SetParent(viewPrefab, false);
                 var ironSightAnchor = new GameObject("IronSightAnchor").transform;
                 ironSightAnchor.SetParent(viewPrefab, false);
+                Transform muzzleFirePoint = null;
+                if (includeMuzzleFirePoint)
+                {
+                    muzzleFirePoint = new GameObject("Muzzle").transform;
+                    muzzleFirePoint.SetParent(viewPrefab, false);
+                }
+
                 ConfigureTestWeaponViewMounts(
                     viewPrefab.gameObject,
                     adsPivot: adsPivot,
