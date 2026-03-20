@@ -16,7 +16,6 @@ namespace Reloader.Weapons.Runtime
         public Vector3 AdsLocalEuler;
         public float BlendSpeed;
         public Vector3 RifleLocalEulerOffset;
-        public float ScopedAdsEyeReliefBackOffset;
     }
 
     public struct WeaponViewPoseTuningRuntimeContext
@@ -43,7 +42,6 @@ namespace Reloader.Weapons.Runtime
             [SerializeField] private Vector3 _adsLocalEuler;
             [SerializeField, Min(1f)] private float _blendSpeed;
             [SerializeField] private Vector3 _rifleLocalEulerOffset;
-            [SerializeField] private float _scopedAdsEyeReliefBackOffset;
 
             public WeaponAttachmentSlotType SlotType => _slotType;
             public string AttachmentItemId => string.IsNullOrWhiteSpace(_attachmentItemId) ? string.Empty : _attachmentItemId;
@@ -53,7 +51,6 @@ namespace Reloader.Weapons.Runtime
             public Vector3 AdsLocalEuler => _adsLocalEuler;
             public float BlendSpeed => Mathf.Max(1f, _blendSpeed);
             public Vector3 RifleLocalEulerOffset => _rifleLocalEulerOffset;
-            public float ScopedAdsEyeReliefBackOffset => _scopedAdsEyeReliefBackOffset;
 
             public void SetValues(WeaponViewPoseTuningValues values)
             {
@@ -63,7 +60,6 @@ namespace Reloader.Weapons.Runtime
                 _adsLocalEuler = values.AdsLocalEuler;
                 _blendSpeed = Mathf.Max(1f, values.BlendSpeed);
                 _rifleLocalEulerOffset = values.RifleLocalEulerOffset;
-                _scopedAdsEyeReliefBackOffset = values.ScopedAdsEyeReliefBackOffset;
             }
         }
 
@@ -75,7 +71,6 @@ namespace Reloader.Weapons.Runtime
             public Vector3 AdsLocalEuler;
             public float BlendSpeed;
             public Vector3 RifleLocalEulerOffset;
-            public float ScopedAdsEyeReliefBackOffset;
         }
 
         [Header("References")]
@@ -117,7 +112,6 @@ namespace Reloader.Weapons.Runtime
 
         private void OnDisable()
         {
-            ClearScopedAdsRuntimeTuning();
             ResetRuntimeState();
         }
 
@@ -131,7 +125,6 @@ namespace Reloader.Weapons.Runtime
 
             if (!IsTuningTargetEquipped())
             {
-                ClearScopedAdsRuntimeTuning();
                 ResetRuntimeState();
                 return;
             }
@@ -147,12 +140,10 @@ namespace Reloader.Weapons.Runtime
 
             if (!IsTuningTargetEquipped())
             {
-                ClearScopedAdsRuntimeTuning();
                 return;
             }
 
             var pose = ResolveActivePose(out var overrideIndex, out var matchedAttachmentItemId);
-            ApplyScopedAdsRuntimeTuning(overrideIndex, matchedAttachmentItemId, pose);
             _activeAttachmentItemId = matchedAttachmentItemId;
             _activePoseSource = overrideIndex >= 0
                 ? $"AttachmentOverride[{overrideIndex}]"
@@ -274,8 +265,7 @@ namespace Reloader.Weapons.Runtime
                 AdsLocalPosition = _adsLocalPosition,
                 AdsLocalEuler = _adsLocalEuler,
                 BlendSpeed = Mathf.Max(1f, _blendSpeed),
-                RifleLocalEulerOffset = _rifleLocalEulerOffset,
-                ScopedAdsEyeReliefBackOffset = 0f
+                RifleLocalEulerOffset = _rifleLocalEulerOffset
             };
 
             overrideIndex = -1;
@@ -313,7 +303,6 @@ namespace Reloader.Weapons.Runtime
                 pose.AdsLocalEuler = candidate.AdsLocalEuler;
                 pose.BlendSpeed = candidate.BlendSpeed;
                 pose.RifleLocalEulerOffset = candidate.RifleLocalEulerOffset;
-                pose.ScopedAdsEyeReliefBackOffset = candidate.ScopedAdsEyeReliefBackOffset;
                 return pose;
             }
 
@@ -329,8 +318,7 @@ namespace Reloader.Weapons.Runtime
                 AdsLocalPosition = _adsLocalPosition,
                 AdsLocalEuler = _adsLocalEuler,
                 BlendSpeed = Mathf.Max(1f, _blendSpeed),
-                RifleLocalEulerOffset = _rifleLocalEulerOffset,
-                ScopedAdsEyeReliefBackOffset = 0f
+                RifleLocalEulerOffset = _rifleLocalEulerOffset
             };
         }
 
@@ -454,8 +442,7 @@ namespace Reloader.Weapons.Runtime
                 AdsLocalPosition = value.AdsLocalPosition,
                 AdsLocalEuler = value.AdsLocalEuler,
                 BlendSpeed = value.BlendSpeed,
-                RifleLocalEulerOffset = value.RifleLocalEulerOffset,
-                ScopedAdsEyeReliefBackOffset = value.ScopedAdsEyeReliefBackOffset
+                RifleLocalEulerOffset = value.RifleLocalEulerOffset
             };
         }
 
@@ -486,29 +473,6 @@ namespace Reloader.Weapons.Runtime
             return IsTuningTargetEquipped();
         }
 
-        private void ApplyScopedAdsRuntimeTuning(int overrideIndex, string matchedAttachmentItemId, PoseData pose)
-        {
-            if (_weaponController == null)
-            {
-                return;
-            }
-
-            if (overrideIndex < 0 || string.IsNullOrWhiteSpace(matchedAttachmentItemId))
-            {
-                _weaponController.SetScopedAdsPresentationEyeReliefOffset(0f);
-                return;
-            }
-
-            var candidate = _attachmentPoseOverrides[overrideIndex];
-            if (candidate.SlotType != WeaponAttachmentSlotType.Scope)
-            {
-                _weaponController.SetScopedAdsPresentationEyeReliefOffset(0f);
-                return;
-            }
-
-            _weaponController.SetScopedAdsPresentationEyeReliefOffset(pose.ScopedAdsEyeReliefBackOffset);
-        }
-
         private void ResolveWeaponController(bool forceRefresh = false)
         {
             if (!forceRefresh
@@ -530,17 +494,5 @@ namespace Reloader.Weapons.Runtime
             _isHoldingScopedAdsRootPose = false;
         }
 
-        private void ClearScopedAdsRuntimeTuning()
-        {
-            if (_weaponController == null)
-            {
-                return;
-            }
-
-            if (ReferenceEquals(_weaponController.EquippedWeaponViewTransform, transform))
-            {
-                _weaponController.SetScopedAdsPresentationEyeReliefOffset(0f);
-            }
-        }
     }
 }

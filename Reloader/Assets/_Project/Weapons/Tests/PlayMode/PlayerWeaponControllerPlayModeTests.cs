@@ -13,7 +13,6 @@ using GameMuzzleAttachmentDefinition = Reloader.Game.Weapons.MuzzleAttachmentDef
 using GameOpticDefinition = Reloader.Game.Weapons.OpticDefinition;
 using GamePeripheralScopeEffects = Reloader.Game.Weapons.PeripheralScopeEffects;
 using GameRenderTextureScopeController = Reloader.Game.Weapons.RenderTextureScopeController;
-using GameWeaponAimAligner = Reloader.Game.Weapons.WeaponAimAligner;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.Player.Viewmodel;
@@ -1950,6 +1949,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 });
 
                 viewPrefab = new GameObject("Kar98kView");
+                viewPrefab.transform.localPosition = new Vector3(0.015f, 0.15f, 0.005f);
+                viewPrefab.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
                 var adsPivot = new GameObject("AdsPivot").transform;
                 adsPivot.SetParent(viewPrefab.transform, false);
                 var scopeSlot = new GameObject("ScopeSlot").transform;
@@ -2001,28 +2002,23 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var adsBridge = root.GetComponent<GameAdsStateController>();
                 var renderTextureScopeController = root.GetComponent<GameRenderTextureScopeController>();
                 var peripheralEffects = root.GetComponent<GamePeripheralScopeEffects>();
-                var weaponAimAligner = root.GetComponent<GameWeaponAimAligner>();
 
                 Assert.That(adsBridge, Is.Not.Null);
                 Assert.That(renderTextureScopeController, Is.Not.Null);
                 Assert.That(peripheralEffects, Is.Not.Null);
-                Assert.That(weaponAimAligner, Is.Not.Null);
                 Assert.That(runtimeStateAfterScopeEquip.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.EqualTo("att-optic-pip"));
 
                 var scopeCamera = worldCamera.transform.Find("ScopeCamera");
                 Assert.That(scopeCamera, Is.Not.Null);
 
                 var adsBridgeInstanceId = adsBridge.GetInstanceID();
-                var weaponAimAlignerInstanceId = weaponAimAligner.GetInstanceID();
                 Object.DestroyImmediate(adsBridge);
-                Object.DestroyImmediate(weaponAimAligner);
 
                 var frames = 0;
                 while (frames < 90)
                 {
                     var nextAdsBridge = root.GetComponent<GameAdsStateController>();
-                    var nextAligner = root.GetComponent<GameWeaponAimAligner>();
-                    if (nextAdsBridge != null && nextAligner != null)
+                    if (nextAdsBridge != null)
                     {
                         break;
                     }
@@ -2032,11 +2028,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 }
 
                 var repairedAdsBridge = root.GetComponent<GameAdsStateController>();
-                var repairedAligner = root.GetComponent<GameWeaponAimAligner>();
                 Assert.That(repairedAdsBridge, Is.Not.Null);
-                Assert.That(repairedAligner, Is.Not.Null);
                 Assert.That(repairedAdsBridge.GetInstanceID(), Is.Not.EqualTo(adsBridgeInstanceId));
-                Assert.That(repairedAligner.GetInstanceID(), Is.Not.EqualTo(weaponAimAlignerInstanceId));
                 Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var runtimeStateAfterRepair), Is.True);
                 Assert.That(runtimeStateAfterRepair.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.EqualTo("att-optic-pip"));
             }
@@ -2406,7 +2399,6 @@ namespace Reloader.Weapons.Tests.PlayMode
                 rightHandGrip.SetParent(adsPivot, false);
                 rightHandGrip.localPosition = new Vector3(-0.02f, -0.02f, 0.14f);
                 ConfigureTestWeaponViewMounts(viewPrefab, adsPivot: adsPivot, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
-                viewPrefab.AddComponent<WeaponViewPoseTuningHelper>();
                 var handAnchors = viewPrefab.AddComponent<WeaponViewHandAnchors>();
                 handAnchors.SetHandTargets(leftHandGrip, rightHandGrip);
 
@@ -2455,6 +2447,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                     "Equipped weapon ownership must stay on the spawned runtime view, not the legacy ik_hand_gun bone.");
                 Assert.That(controller.EquippedWeaponViewTransform!.IsChildOf(legacyHandGun), Is.False,
                     "The spawned runtime view should not be treated as a child of the legacy ik_hand_gun branch.");
+                Assert.That(controller.EquippedWeaponViewTransform.localPosition, Is.EqualTo(new Vector3(0.015f, 0.15f, 0.005f)),
+                    "Spawned view should preserve prefab-authored hip carry position.");
+                Assert.That(controller.EquippedWeaponViewTransform.localRotation, Is.EqualTo(Quaternion.Euler(90f, 0f, 0f)),
+                    "Spawned view should preserve prefab-authored hip carry rotation.");
 
                 Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-optic-pip"), Is.True);
                 input.AimHeldValue = true;
@@ -2469,10 +2465,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(controller.HasStableScopedAdsAlignment, Is.True, "Expected magnified scoped ADS to become stable in the test harness.");
                 Assert.That(root.GetComponentInChildren<GameAttachmentManager>(true), Is.Not.Null);
                 Assert.That(root.GetComponent<GameAdsStateController>(), Is.Not.Null);
-                Assert.That(root.GetComponent<GameWeaponAimAligner>(), Is.Not.Null);
                 Assert.That(controller.EquippedWeaponViewTransform, Is.Not.Null);
-                Assert.That(controller.EquippedWeaponViewTransform!.GetComponent<WeaponViewPoseTuningHelper>(), Is.Not.Null,
-                    "Prefab-owned pose helpers must survive spawned view cleanup.");
                 Assert.That(controller.EquippedWeaponViewTransform.GetComponent<WeaponViewHandAnchors>(), Is.Not.Null,
                     "Prefab-owned hand anchors must survive spawned view cleanup.");
 
@@ -3080,9 +3073,12 @@ namespace Reloader.Weapons.Tests.PlayMode
                 "Assets/_Project/Weapons/Prefabs/RifleView.prefab");
             Assert.That(rifleViewPrefab, Is.Not.Null);
 
-            var poseHelper = rifleViewPrefab.GetComponent<WeaponViewPoseTuningHelper>();
-            Assert.That(poseHelper, Is.Not.Null,
-                "Kar98k runtime view should own its coarse pose tuning on the prefab.");
+            Assert.That(rifleViewPrefab!.transform.localPosition, Is.EqualTo(new Vector3(0.015f, 0.15f, 0.005f)),
+                "Kar98k runtime view should own hip carry position directly on the prefab root.");
+            Assert.That(rifleViewPrefab.transform.localRotation, Is.EqualTo(Quaternion.Euler(90f, 0f, 0f)),
+                "Kar98k runtime view should own hip carry rotation directly on the prefab root.");
+            Assert.That(System.Array.Exists(rifleViewPrefab.GetComponents<Component>(), component => component == null), Is.False,
+                "Kar98k runtime view should not keep helper-era missing-script scaffolding on the prefab.");
 
             var handAnchors = rifleViewPrefab.GetComponent<WeaponViewHandAnchors>();
             Assert.That(handAnchors, Is.Not.Null,

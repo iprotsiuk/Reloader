@@ -46,7 +46,7 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void EnsureEquippedWeaponViewParent_ReparentsLegacyHandMountedViewToWeaponPresentationRoot()
+        public void EnsureEquippedWeaponViewParent_ReparentsLegacyHandMountedViewToWeaponPresentationRootWithoutRewritingAuthoredLocalPose()
         {
             var rig = CreateRigWithLegacyHandHierarchy();
 
@@ -67,41 +67,9 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(equippedView.transform.parent.name, Is.EqualTo("WeaponPresentationRoot"));
             Assert.That(equippedView.transform.parent.parent, Is.EqualTo(rig.CameraPivot));
             Assert.That(equippedView.transform.parent.parent, Is.Not.EqualTo(rig.PlayerArms));
-            Assert.That(equippedView.transform.localPosition, Is.EqualTo(Vector3.zero));
-            Assert.That(equippedView.transform.localRotation, Is.EqualTo(Quaternion.identity));
-            Assert.That(equippedView.transform.localScale, Is.EqualTo(Vector3.one));
-        }
-
-        [TestCase(true, true, true, true, true, false)]
-        [TestCase(true, false, true, true, true, true)]
-        [TestCase(true, true, false, true, true, true)]
-        [TestCase(true, true, true, false, true, true)]
-        [TestCase(true, true, true, true, false, true)]
-        [TestCase(false, false, false, false, false, false)]
-        public void ShouldRepairScopedRuntimePresentation_OnlyRepairsScopedViewsWithBrokenBridges(
-            bool hasEquippedScopedAttachment,
-            bool hasScopedAdsStateBridge,
-            bool hasScopedAttachmentManagerBridge,
-            bool hasWeaponAimAlignerBridge,
-            bool hasScopedAdsAlignment,
-            bool expected)
-        {
-            var method = typeof(PlayerWeaponController).GetMethod(
-                "ShouldRepairScopedRuntimePresentation",
-                BindingFlags.Static | BindingFlags.NonPublic);
-
-            Assert.That(method, Is.Not.Null, "Expected private scoped-runtime repair helper to exist.");
-
-            var actual = (bool)method!.Invoke(null, new object[]
-            {
-                hasEquippedScopedAttachment,
-                hasScopedAdsStateBridge,
-                hasScopedAttachmentManagerBridge,
-                hasWeaponAimAlignerBridge,
-                hasScopedAdsAlignment
-            });
-
-            Assert.That(actual, Is.EqualTo(expected));
+            Assert.That(equippedView.transform.localPosition, Is.EqualTo(new Vector3(1f, 2f, 3f)));
+            Assert.That(equippedView.transform.localRotation, Is.EqualTo(Quaternion.Euler(10f, 20f, 30f)));
+            Assert.That(equippedView.transform.localScale, Is.EqualTo(new Vector3(2f, 2f, 2f)));
         }
 
         private static TestRig CreateRigWithLegacyHandHierarchy()

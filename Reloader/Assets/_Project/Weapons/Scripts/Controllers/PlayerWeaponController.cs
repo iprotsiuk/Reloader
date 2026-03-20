@@ -15,7 +15,6 @@ using GameOpticDefinition = Reloader.Game.Weapons.OpticDefinition;
 using GamePeripheralScopeEffects = Reloader.Game.Weapons.PeripheralScopeEffects;
 using GameRenderTextureScopeController = Reloader.Game.Weapons.RenderTextureScopeController;
 using GameScopeAdjustmentTooltipOverlay = Reloader.Game.Weapons.ScopeAdjustmentTooltipOverlay;
-using GameWeaponAimAligner = Reloader.Game.Weapons.WeaponAimAligner;
 using GameWeaponDefinition = Reloader.Game.Weapons.WeaponDefinition;
 using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.Cinematics;
@@ -146,13 +145,11 @@ namespace Reloader.Weapons.Controllers
         private bool _activationResyncReady;
         private GameAdsStateController _adsStateRuntimeBridge;
         private GameAttachmentManager _adsAttachmentManagerRuntimeBridge;
-        private GameWeaponAimAligner _weaponAimAlignerRuntimeBridge;
         private GameRenderTextureScopeController _renderTextureScopeRuntimeBridge;
         private GamePeripheralScopeEffects _peripheralScopeEffectsRuntimeBridge;
         private GameScopeAdjustmentTooltipOverlay _scopeAdjustmentTooltipRuntimeBridge;
         private PlayerLookController _playerLookControllerRuntimeBridge;
         private FpsViewmodelAnimatorDriver _viewmodelAnimatorDriver;
-        private float _scopedAdsPresentationEyeReliefOffset;
         private float _cachedScopeMagnification = 1f;
         private string _pendingEquipItemId;
         private WeaponDefinition _pendingEquipDefinition;
@@ -764,7 +761,6 @@ namespace Reloader.Weapons.Controllers
             var activeOpticDefinition = ResolveActiveOpticDefinition();
             if (_adsStateRuntimeBridge == null
                 || _adsAttachmentManagerRuntimeBridge == null
-                || _weaponAimAlignerRuntimeBridge == null
                 || _scopeAdjustmentTooltipRuntimeBridge == null
                 || activeOpticDefinition == null
                 || _adsAttachmentManagerRuntimeBridge.GetActiveSightAnchor() == null)
@@ -1363,11 +1359,6 @@ namespace Reloader.Weapons.Controllers
             {
                 _viewmodelAnimatorDriver.LockViewmodelRootPose = shouldStabilize;
             }
-
-            if (_weaponAimAlignerRuntimeBridge != null)
-            {
-                _weaponAimAlignerRuntimeBridge.SetStableScopedPresentationActive(shouldStabilize);
-            }
         }
 
         private void ResetScopedViewmodelStabilization()
@@ -1375,11 +1366,6 @@ namespace Reloader.Weapons.Controllers
             if (_viewmodelAnimatorDriver != null)
             {
                 _viewmodelAnimatorDriver.LockViewmodelRootPose = false;
-            }
-
-            if (_weaponAimAlignerRuntimeBridge != null)
-            {
-                _weaponAimAlignerRuntimeBridge.SetStableScopedPresentationActive(false);
             }
         }
 
@@ -1409,15 +1395,8 @@ namespace Reloader.Weapons.Controllers
                 && _adsAttachmentManagerRuntimeBridge.ActiveOpticDefinition != null;
         }
 
-        public bool HasActiveScopedAdsAlignment => HasScopedAdsBridgeActive() && _weaponAimAlignerRuntimeBridge != null;
+        public bool HasActiveScopedAdsAlignment => HasScopedAdsBridgeActive();
         public bool HasStableScopedAdsAlignment => _isStableMagnifiedScopedAds;
-        public float ScopedAdsPresentationEyeReliefOffset => _scopedAdsPresentationEyeReliefOffset;
-
-        public void SetScopedAdsPresentationEyeReliefOffset(float value)
-        {
-            _scopedAdsPresentationEyeReliefOffset = value;
-            ApplyScopedAdsPresentationEyeReliefOffset();
-        }
 
         private string ResolveMountedScopeAttachmentItemId()
         {
@@ -1436,7 +1415,7 @@ namespace Reloader.Weapons.Controllers
         {
             _isStableMagnifiedScopedAds = ShouldStabilizeScopedViewmodelPresentation(
                 _isStableMagnifiedScopedAds,
-                _adsStateRuntimeBridge != null && _weaponAimAlignerRuntimeBridge != null,
+                HasScopedAdsBridgeActive(),
                 HasMagnifiedOpticEquipped(),
                 ResolveCurrentAdsBlendT(),
                 _equippedWeaponView != null);
@@ -2425,11 +2404,9 @@ namespace Reloader.Weapons.Controllers
             if (viewRoot == null || attachmentManager == null)
             {
                 _adsStateRuntimeBridge = null;
-                _weaponAimAlignerRuntimeBridge = null;
                 _renderTextureScopeRuntimeBridge = null;
                 _peripheralScopeEffectsRuntimeBridge = null;
                 _scopeAdjustmentTooltipRuntimeBridge = null;
-                _scopedAdsPresentationEyeReliefOffset = 0f;
                 return;
             }
 
@@ -2443,7 +2420,6 @@ namespace Reloader.Weapons.Controllers
             var viewmodelCamera = ResolveViewmodelCamera(worldCamera);
             _adsAttachmentManagerRuntimeBridge = attachmentManager;
 
-            EnsureWeaponAimAlignerRuntimeBridge(viewRoot, attachmentManager, worldCamera);
             EnsureRenderTextureScopeRuntimeBridge(worldCamera);
             EnsurePeripheralScopeEffectsRuntimeBridge();
             EnsureScopeAdjustmentTooltipRuntimeBridge();
@@ -2457,35 +2433,6 @@ namespace Reloader.Weapons.Controllers
             TryAssignScopedAdsWeaponDefinition();
             _adsStateRuntimeBridge.RefreshVisualMode();
             _adsStateRuntimeBridge.SetUseLegacyInput(false);
-        }
-
-        private void EnsureWeaponAimAlignerRuntimeBridge(GameObject viewRoot, GameAttachmentManager attachmentManager, Camera worldCamera)
-        {
-            _weaponAimAlignerRuntimeBridge = null;
-            if (viewRoot == null || attachmentManager == null)
-            {
-                return;
-            }
-
-            var mounts = viewRoot.GetComponent<WeaponViewAttachmentMounts>();
-            var adsPivot = mounts != null ? mounts.AdsPivot : null;
-            if (adsPivot == null)
-            {
-                Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing an authored AdsPivot required for scoped ADS alignment.", this);
-                return;
-            }
-
-            var aligner = gameObject.GetComponent<GameWeaponAimAligner>() ?? gameObject.AddComponent<GameWeaponAimAligner>();
-            if (aligner == null)
-            {
-                return;
-            }
-
-            var cameraTransform = worldCamera != null ? worldCamera.transform : null;
-            aligner.BindRuntimeReferences(adsPivot, cameraTransform, attachmentManager, _adsStateRuntimeBridge);
-            aligner.SetStableScopedPresentationActive(_isStableMagnifiedScopedAds);
-            _weaponAimAlignerRuntimeBridge = aligner;
-            ApplyScopedAdsPresentationEyeReliefOffset();
         }
 
         private void EnsureRenderTextureScopeRuntimeBridge(Camera worldCamera)
@@ -2736,7 +2683,6 @@ namespace Reloader.Weapons.Controllers
             ResetStableMagnifiedScopedAdsState();
             ResetScopedViewmodelStabilization();
             DestroyScopedBridgeComponent(_adsStateRuntimeBridge);
-            DestroyScopedBridgeComponent(_weaponAimAlignerRuntimeBridge);
             DestroyScopedBridgeComponent(_renderTextureScopeRuntimeBridge);
             DestroyScopedBridgeComponent(_scopeAdjustmentTooltipRuntimeBridge);
 
@@ -2747,11 +2693,9 @@ namespace Reloader.Weapons.Controllers
 
             _adsStateRuntimeBridge = null;
             _adsAttachmentManagerRuntimeBridge = null;
-            _weaponAimAlignerRuntimeBridge = null;
             _renderTextureScopeRuntimeBridge = null;
             _peripheralScopeEffectsRuntimeBridge = null;
             _scopeAdjustmentTooltipRuntimeBridge = null;
-            _scopedAdsPresentationEyeReliefOffset = 0f;
             ResetScopedAdsLookSensitivityBridge();
         }
 
@@ -2761,16 +2705,6 @@ namespace Reloader.Weapons.Controllers
             {
                 Destroy(component);
             }
-        }
-
-        private void ApplyScopedAdsPresentationEyeReliefOffset()
-        {
-            if (_weaponAimAlignerRuntimeBridge == null)
-            {
-                return;
-            }
-
-            _weaponAimAlignerRuntimeBridge.SetRuntimeEyeReliefBackOffset(_scopedAdsPresentationEyeReliefOffset);
         }
 
         private static void ClearAttachmentSlots(WeaponRuntimeState state)

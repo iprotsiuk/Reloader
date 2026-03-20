@@ -81,7 +81,7 @@ namespace Reloader.World.Editor
                 }
 
                 EditorGUI.BeginChangeCheck();
-                _playModeBufferValues = DrawValuesEditor(_playModeBufferValues, context.UsesMagnifiedScopedAlignment);
+                _playModeBufferValues = DrawValuesEditor(_playModeBufferValues);
                 if (EditorGUI.EndChangeCheck())
                 {
                     helper.TrySetAttachmentPoseOverride(context.SlotType, context.AttachmentItemId, _playModeBufferValues);
@@ -100,7 +100,7 @@ namespace Reloader.World.Editor
 
             SyncPlayModeBaseBuffer(context.Values);
             EditorGUI.BeginChangeCheck();
-            _playModeBufferValues = DrawValuesEditor(_playModeBufferValues, context.UsesMagnifiedScopedAlignment);
+            _playModeBufferValues = DrawValuesEditor(_playModeBufferValues);
             if (EditorGUI.EndChangeCheck())
             {
                 helper.SetBasePoseValues(_playModeBufferValues);
@@ -151,7 +151,7 @@ namespace Reloader.World.Editor
             }
         }
 
-        private static WeaponViewPoseTuningValues DrawValuesEditor(WeaponViewPoseTuningValues values, bool usesMagnifiedScopedAlignment)
+        private static WeaponViewPoseTuningValues DrawValuesEditor(WeaponViewPoseTuningValues values)
         {
             values.HipLocalPosition = EditorGUILayout.Vector3Field("Hip Local Position", values.HipLocalPosition);
             values.HipLocalEuler = EditorGUILayout.Vector3Field("Hip Local Euler", values.HipLocalEuler);
@@ -159,19 +159,6 @@ namespace Reloader.World.Editor
             values.AdsLocalEuler = EditorGUILayout.Vector3Field("Ads Local Euler", values.AdsLocalEuler);
             values.BlendSpeed = EditorGUILayout.FloatField("Blend Speed", values.BlendSpeed);
             values.RifleLocalEulerOffset = EditorGUILayout.Vector3Field("Rifle Local Euler Offset", values.RifleLocalEulerOffset);
-            if (usesMagnifiedScopedAlignment)
-            {
-                var moveRifleAwayFromCamera = EditorGUILayout.FloatField(
-                    new GUIContent(
-                        "Move Rifle Away From Camera",
-                        "Positive values move the scoped rifle farther away from the camera during full magnified ADS."),
-                    -values.ScopedAdsEyeReliefBackOffset);
-                values.ScopedAdsEyeReliefBackOffset = -moveRifleAwayFromCamera;
-            }
-            else
-            {
-                values.ScopedAdsEyeReliefBackOffset = EditorGUILayout.FloatField("Scoped Eye Relief Back Offset", values.ScopedAdsEyeReliefBackOffset);
-            }
 
             return values;
         }
@@ -186,7 +173,6 @@ namespace Reloader.World.Editor
                 EditorGUILayout.Vector3Field("Ads Local Euler", values.AdsLocalEuler);
                 EditorGUILayout.FloatField("Blend Speed", values.BlendSpeed);
                 EditorGUILayout.Vector3Field("Rifle Local Euler Offset", values.RifleLocalEulerOffset);
-                EditorGUILayout.FloatField("Scoped Eye Relief Back Offset", values.ScopedAdsEyeReliefBackOffset);
             }
         }
 
@@ -305,7 +291,6 @@ namespace Reloader.World.Editor
             overrideProperty.FindPropertyRelative("_adsLocalEuler").vector3Value = payload.Values.AdsLocalEuler;
             overrideProperty.FindPropertyRelative("_blendSpeed").floatValue = Mathf.Max(1f, payload.Values.BlendSpeed);
             overrideProperty.FindPropertyRelative("_rifleLocalEulerOffset").vector3Value = payload.Values.RifleLocalEulerOffset;
-            overrideProperty.FindPropertyRelative("_scopedAdsEyeReliefBackOffset").floatValue = payload.Values.ScopedAdsEyeReliefBackOffset;
         }
 
         private static string BuildTargetKey(WeaponViewPoseTuningHelper helper)
