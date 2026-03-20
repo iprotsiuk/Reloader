@@ -79,6 +79,7 @@ namespace Reloader.Player.Editor
             defaultsSo.ApplyModifiedPropertiesWithoutUndo();
             defaults.ApplyDefaults();
             EnsureShadowBody(playerRoot.transform);
+            EnsureWeaponPresentationRoot(cameraPivot.transform);
             EnsureFpsArmsViewmodel(cameraPivot.transform, camera);
 
             Selection.activeGameObject = playerRoot;
@@ -91,6 +92,12 @@ namespace Reloader.Player.Editor
             if (root == null)
             {
                 Debug.LogWarning("Select a player root GameObject first.");
+                return;
+            }
+
+            if (root.transform.Find(WeaponPresentationRootName) == null)
+            {
+                Debug.LogWarning("Selected rig must already have authored WeaponPresentationRoot root.");
                 return;
             }
 
@@ -433,7 +440,13 @@ namespace Reloader.Player.Editor
                 collider.enabled = false;
             }
 
-            var weaponPresentationRoot = EnsureWeaponPresentationRoot(cameraPivot);
+            var weaponPresentationRoot = cameraPivot.Find(WeaponPresentationRootName);
+            if (weaponPresentationRoot == null)
+            {
+                Debug.LogWarning("WeaponPresentationRoot must already be authored before configuring FPS arms viewmodel.");
+                return;
+            }
+
             SetLayerRecursively(playerArmsRoot.gameObject, viewmodelLayer);
             SetLayerRecursively(weaponPresentationRoot.gameObject, viewmodelLayer);
             EnsureViewmodelAnimator(armsVisual, cameraPivot.root);

@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 namespace Reloader.Player.Tests.EditMode
@@ -39,6 +40,48 @@ namespace Reloader.Player.Tests.EditMode
             }
             finally
             {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void RepairSelectedFpsRig_DoesNotBackfillWeaponPresentationRoot_WhenMissing()
+        {
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(root.transform, false);
+
+            var playerArmsRoot = new GameObject("PlayerArms").transform;
+            playerArmsRoot.SetParent(cameraPivot, false);
+            var playerArmsVisual = new GameObject("PlayerArmsVisual");
+            playerArmsVisual.transform.SetParent(playerArmsRoot, false);
+            playerArmsVisual.AddComponent<Animator>();
+
+            var mainCamera = new GameObject("Main Camera").AddComponent<Camera>();
+            mainCamera.transform.SetParent(cameraPivot, false);
+
+            var previousSelection = Selection.activeGameObject;
+            Selection.activeGameObject = root;
+
+            try
+            {
+                var playerRigMenuType = System.Type.GetType("Reloader.Player.Editor.PlayerRigMenu, Reloader.Player.Editor");
+                Assert.That(playerRigMenuType, Is.Not.Null, "Expected PlayerRigMenu type to exist.");
+
+                var method = playerRigMenuType!.GetMethod(
+                    "RepairSelectedFpsRig",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+
+                Assert.That(method, Is.Not.Null, "Expected PlayerRigMenu.RepairSelectedFpsRig to exist.");
+
+                method!.Invoke(null, null);
+
+                Assert.That(root.transform.Find("WeaponPresentationRoot"), Is.Null);
+                Assert.That(root.GetComponent<CharacterController>(), Is.Null);
+            }
+            finally
+            {
+                Selection.activeGameObject = previousSelection;
                 Object.DestroyImmediate(root);
             }
         }
