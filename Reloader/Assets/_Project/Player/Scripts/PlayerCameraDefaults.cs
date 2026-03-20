@@ -286,19 +286,13 @@ namespace Reloader.Player
                 return _viewmodelCameraParent;
             }
 
-            return ResolveCameraPivot();
+            return null;
         }
 
         private Transform ResolveCameraPivot()
         {
             if (IsUsableHierarchyReference(_cameraPivot))
             {
-                return _cameraPivot;
-            }
-
-            if (IsUsableHierarchyReference(_viewmodelCameraParent))
-            {
-                _cameraPivot = _viewmodelCameraParent;
                 return _cameraPivot;
             }
 

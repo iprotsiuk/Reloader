@@ -137,6 +137,25 @@ namespace Reloader.Player.Tests.EditMode
         }
 
         [Test]
+        public void TryGetCameraPivot_DoesNotRecoverFromViewmodelCameraParent_WhenExplicitCameraPivotIsMissing()
+        {
+            var (root, cameraPivot, mainCamera) = CreateRigRoot();
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+
+            typeof(PlayerCameraDefaults)
+                .GetField("_mainCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, mainCamera);
+            typeof(PlayerCameraDefaults)
+                .GetField("_viewmodelCameraParent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, cameraPivot);
+
+            Assert.That(defaults.TryGetCameraPivot(out var resolvedPivot), Is.False);
+            Assert.That(resolvedPivot, Is.Null);
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void TryGetPlayerArmsRoot_DoesNotRecoverFromAnimatorParent_WhenExplicitPlayerArmsRootIsMissing()
         {
             var root = new GameObject("CameraDefaultsRoot");
@@ -155,6 +174,27 @@ namespace Reloader.Player.Tests.EditMode
 
             Assert.That(defaults.TryGetPlayerArmsRoot(out var resolvedPlayerArmsRoot), Is.False);
             Assert.That(resolvedPlayerArmsRoot, Is.Null);
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void TryGetViewmodelCamera_DoesNotRecoverFromCameraPivot_WhenExplicitViewmodelCameraParentIsMissing()
+        {
+            var (root, cameraPivot, mainCamera) = CreateRigRoot();
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+            var legacyViewmodelCamera = new GameObject("ViewmodelCamera").AddComponent<Camera>();
+            legacyViewmodelCamera.transform.SetParent(cameraPivot, false);
+
+            typeof(PlayerCameraDefaults)
+                .GetField("_mainCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, mainCamera);
+            typeof(PlayerCameraDefaults)
+                .GetField("_cameraPivot", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, cameraPivot);
+
+            Assert.That(defaults.TryGetViewmodelCamera(out var resolvedViewmodelCamera), Is.False);
+            Assert.That(resolvedViewmodelCamera, Is.Null);
 
             Object.DestroyImmediate(root);
         }
