@@ -12989,8 +12989,8 @@ MonoBehaviour:
   _adsSensitivityMultiplier: {x: 0.35, y: 0.35}
   _runtimeAdsSensitivityMultiplier: {x: 1, y: 1}
   _scaleByDeltaTime: 0
-  _lookSmoothingEnabled: 0
-  _lookSmoothingSpeed: 20
+  _lookSmoothingEnabled: 1
+  _lookSmoothingSpeed: 10
   _lookSmoothingStrength: 1
   _focusTargetSmoothingSpeed: {x: 10, y: 10}
   _cameraDefaults: {fileID: 573788849}
