@@ -242,6 +242,127 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
+        public void MainTownCombatWiring_DoesNotAddPlayerCameraDefaults_WhenMissingFromPlayerRoot()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+
+            var starterRifle = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>("Assets/_Project/Weapons/Data/Weapons/StarterRifle.asset");
+            var starterPistol = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>("Assets/_Project/Weapons/Data/Weapons/StarterPistol.asset");
+            var projectilePrefabGo = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Weapons/Prefabs/WeaponProjectile.prefab");
+            var projectilePrefabType = Type.GetType("Reloader.Weapons.Ballistics.WeaponProjectile, Reloader.Weapons");
+
+            Assert.That(starterRifle, Is.Not.Null);
+            Assert.That(starterPistol, Is.Not.Null);
+            Assert.That(projectilePrefabGo, Is.Not.Null);
+            Assert.That(projectilePrefabType, Is.Not.Null, "Expected WeaponProjectile type to exist.");
+
+            var projectilePrefab = projectilePrefabGo!.GetComponent(projectilePrefabType!);
+            Assert.That(projectilePrefab, Is.Not.Null, "Expected WeaponProjectile component on the projectile prefab.");
+
+            try
+            {
+                var wireScene = typeof(MainTownCombatWiring).GetMethod(
+                    "WireScene",
+                    BindingFlags.Static | BindingFlags.NonPublic);
+
+                Assert.That(wireScene, Is.Not.Null, "Expected MainTownCombatWiring.WireScene to exist.");
+                LogAssert.Expect(LogType.Error, "MainTown combat wiring failed: PlayerRoot must already have authored PlayerCameraDefaults.");
+
+                var resolved = (bool)wireScene!.Invoke(null, new object[] { starterRifle, starterPistol, projectilePrefab })!;
+
+                Assert.That(resolved, Is.False,
+                    "MainTown combat wiring should fail closed when PlayerCameraDefaults is missing.");
+                Assert.That(playerRoot.GetComponent<PlayerCameraDefaults>(), Is.Null,
+                    "MainTown combat wiring must not add PlayerCameraDefaults as a repair step.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(playerRoot);
+            }
+        }
+
+        [Test]
+        public void MainTownCombatWiring_DoesNotAddCombatViewmodelComponents_WhenAuthoredBundleMissing()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("PresentationPivot").transform;
+            cameraPivot.SetParent(playerRoot.transform, false);
+
+            var playerArmsRoot = new GameObject("AuthoredArmsRoot").transform;
+            playerArmsRoot.SetParent(cameraPivot, false);
+            var playerArmsVisual = new GameObject("AuthoredArmsVisual");
+            playerArmsVisual.transform.SetParent(playerArmsRoot, false);
+            var playerArmsAnimator = playerArmsVisual.AddComponent<Animator>();
+
+            var cameraLookTarget = new GameObject("CameraLookTarget").transform;
+            cameraLookTarget.SetParent(cameraPivot, false);
+            var weaponPresentationRoot = new GameObject("ExplicitWeaponPresentationRoot").transform;
+            weaponPresentationRoot.SetParent(cameraPivot, false);
+
+            var mainCamera = new GameObject("Main Camera").AddComponent<Camera>();
+            mainCamera.tag = "MainCamera";
+            mainCamera.transform.SetParent(cameraPivot, false);
+
+            var cameraDefaults = playerRoot.AddComponent<PlayerCameraDefaults>();
+            SetField(cameraDefaults, "_cameraPivot", cameraPivot);
+            SetField(cameraDefaults, "_playerArmsRoot", playerArmsRoot);
+            SetField(cameraDefaults, "_playerArmsAnimator", playerArmsAnimator);
+            SetField(cameraDefaults, "_cameraLookTarget", cameraLookTarget);
+            SetField(cameraDefaults, "_mainCamera", mainCamera);
+            SetField(cameraDefaults, "_weaponPresentationRoot", weaponPresentationRoot);
+            SetField(cameraDefaults, "_viewmodelCameraParent", cameraPivot);
+
+            var handTargetRoot = new GameObject("WeaponHandRigTargets").transform;
+            handTargetRoot.SetParent(cameraPivot, false);
+            var handRigController = playerRoot.AddComponent<Reloader.Player.Viewmodel.WeaponHandRigController>();
+            SetField(handRigController, "_handTargetRoot", handTargetRoot);
+
+            playerRoot.AddComponent<PlayerInputReader>();
+            var playerInventoryControllerType = Type.GetType("Reloader.Inventory.PlayerInventoryController, Reloader.Inventory");
+            Assert.That(playerInventoryControllerType, Is.Not.Null, "Expected PlayerInventoryController type to exist.");
+            playerRoot.AddComponent(playerInventoryControllerType!);
+            playerRoot.AddComponent<CharacterController>();
+            playerRoot.AddComponent<PlayerLookController>();
+
+            var starterRifle = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>("Assets/_Project/Weapons/Data/Weapons/StarterRifle.asset");
+            var starterPistol = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>("Assets/_Project/Weapons/Data/Weapons/StarterPistol.asset");
+            var projectilePrefabGo = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Weapons/Prefabs/WeaponProjectile.prefab");
+            var projectilePrefabType = Type.GetType("Reloader.Weapons.Ballistics.WeaponProjectile, Reloader.Weapons");
+
+            Assert.That(starterRifle, Is.Not.Null);
+            Assert.That(starterPistol, Is.Not.Null);
+            Assert.That(projectilePrefabGo, Is.Not.Null);
+            Assert.That(projectilePrefabType, Is.Not.Null, "Expected WeaponProjectile type to exist.");
+
+            var projectilePrefab = projectilePrefabGo!.GetComponent(projectilePrefabType!);
+            Assert.That(projectilePrefab, Is.Not.Null, "Expected WeaponProjectile component on the projectile prefab.");
+
+            try
+            {
+                var wireScene = typeof(MainTownCombatWiring).GetMethod(
+                    "WireScene",
+                    BindingFlags.Static | BindingFlags.NonPublic);
+
+                Assert.That(wireScene, Is.Not.Null, "Expected MainTownCombatWiring.WireScene to exist.");
+                LogAssert.Expect(LogType.Error,
+                    "MainTown combat wiring failed: PlayerRoot must already have authored PlayerWeaponController, PlayerWeaponAnimationBinder, FpsViewmodelAnimatorDriver, and ViewmodelAnimationAdapter.");
+
+                var resolved = (bool)wireScene!.Invoke(null, new object[] { starterRifle, starterPistol, projectilePrefab })!;
+
+                Assert.That(resolved, Is.False,
+                    "MainTown combat wiring should fail closed when the authored first-person component bundle is missing.");
+                Assert.That(playerRoot.GetComponent("PlayerWeaponController"), Is.Null);
+                Assert.That(playerRoot.GetComponent("PlayerWeaponAnimationBinder"), Is.Null);
+                Assert.That(playerRoot.GetComponent("FpsViewmodelAnimatorDriver"), Is.Null);
+                Assert.That(playerRoot.GetComponent("ViewmodelAnimationAdapter"), Is.Null);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(playerRoot);
+            }
+        }
+
+        [Test]
         public void PlayerRootMainTownPrefab_UsesWeaponHandRigController_AndNoSceneOwnedPoseHelper()
         {
             var prefabRoot = PrefabUtility.LoadPrefabContents(PlayerRootPrefabPath);

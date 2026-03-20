@@ -92,9 +92,10 @@ namespace Reloader.World.Editor
                 return false;
             }
 
-            var cameraDefaults = GetOrAddComponent<PlayerCameraDefaults>(playerRoot);
+            var cameraDefaults = playerRoot.GetComponent<PlayerCameraDefaults>();
             if (cameraDefaults == null)
             {
+                Debug.LogError("MainTown combat wiring failed: PlayerRoot must already have authored PlayerCameraDefaults.");
                 return false;
             }
 
@@ -148,10 +149,19 @@ namespace Reloader.World.Editor
             definitionsProp.GetArrayElementAtIndex(1).objectReferenceValue = starterPistol;
             registrySo.ApplyModifiedPropertiesWithoutUndo();
 
-            var weaponController = GetOrAddComponent<PlayerWeaponController>(playerRoot);
-            var animationBinder = GetOrAddComponent<PlayerWeaponAnimationBinder>(playerRoot);
-            var animatorDriver = GetOrAddComponent<FpsViewmodelAnimatorDriver>(playerRoot);
-            var viewmodelAdapter = GetOrAddComponent<ViewmodelAnimationAdapter>(playerRoot);
+            var weaponController = playerRoot.GetComponent<PlayerWeaponController>();
+            var animationBinder = playerRoot.GetComponent<PlayerWeaponAnimationBinder>();
+            var animatorDriver = playerRoot.GetComponent<FpsViewmodelAnimatorDriver>();
+            var viewmodelAdapter = playerRoot.GetComponent<ViewmodelAnimationAdapter>();
+
+            if (weaponController == null
+                || animationBinder == null
+                || animatorDriver == null
+                || viewmodelAdapter == null)
+            {
+                Debug.LogError("MainTown combat wiring failed: PlayerRoot must already have authored PlayerWeaponController, PlayerWeaponAnimationBinder, FpsViewmodelAnimatorDriver, and ViewmodelAnimationAdapter.");
+                return false;
+            }
 
             if (inventoryController != null)
             {
@@ -530,13 +540,7 @@ namespace Reloader.World.Editor
             }
         }
 
-        private static T GetOrAddComponent<T>(GameObject target) where T : Component
-        {
-            var component = target.GetComponent<T>();
-            return component != null ? component : Undo.AddComponent<T>(target);
-        }
-
-private static void WireContractTargetsToRuntimeProvider()
+	private static void WireContractTargetsToRuntimeProvider()
         {
             var provider = Object.FindFirstObjectByType<StaticContractRuntimeProvider>();
             var targets = Object.FindObjectsByType<ContractTargetDamageable>(FindObjectsInactive.Include, FindObjectsSortMode.None);

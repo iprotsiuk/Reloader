@@ -84,32 +84,26 @@ namespace Reloader.Player.Editor
             var root = Selection.activeGameObject;
             if (root == null)
             {
-                var inputReader = Object.FindFirstObjectByType<PlayerInputReader>();
-                root = inputReader != null ? inputReader.gameObject : GameObject.Find("PlayerRoot");
-            }
-
-            if (root == null)
-            {
-                Debug.LogWarning("Select a player root GameObject first, or ensure a PlayerRoot with PlayerInputReader exists in scene.");
+                Debug.LogWarning("Select a player root GameObject first.");
                 return;
             }
 
-            var cameraPivot = root.transform.Find("CameraPivot");
-            if (cameraPivot == null)
-            {
-                Debug.LogWarning("Selected object has no CameraPivot child.");
-                return;
-            }
-
-            if (!root.TryGetComponent<PlayerCameraDefaults>(out var defaults) || !defaults.TryGetMainCamera(out var mainCamera))
+            if (!TryResolveExplicitFirstPersonPresentation(
+                    root,
+                    out var defaults,
+                    out var cameraPivot,
+                    out var playerArmsRoot,
+                    out var playerArmsAnimator,
+                    out var mainCamera,
+                    out var viewmodelCamera,
+                    out var weaponPresentationRoot))
             {
                 Debug.LogWarning("Selected rig must already have an authored main camera reference.");
                 return;
             }
 
-            if (!TryRebuildFpsArmsViewmodel(cameraPivot, mainCamera))
+            if (!TryRebuildFpsArmsViewmodel(root.transform, defaults, cameraPivot, playerArmsRoot, playerArmsAnimator, weaponPresentationRoot, mainCamera, viewmodelCamera))
             {
-                Debug.LogWarning("Selected rig must already have authored PlayerArms, PlayerArmsVisual, and WeaponPresentationRoot roots.");
                 return;
             }
 
@@ -119,30 +113,30 @@ namespace Reloader.Player.Editor
         [MenuItem("Reloader/Player/Rebuild FPS Arms Viewmodel In Active Scene")]
         public static void RebuildFpsArmsViewmodelInActiveScene()
         {
-            var inputReader = Object.FindFirstObjectByType<PlayerInputReader>();
-            var root = inputReader != null ? inputReader.gameObject : GameObject.Find("PlayerRoot");
+            var defaults = Object.FindFirstObjectByType<PlayerCameraDefaults>();
+            var root = defaults != null ? defaults.gameObject : null;
             if (root == null)
             {
-                Debug.LogWarning("Could not find PlayerRoot/PlayerInputReader in active scene.");
+                Debug.LogWarning("Could not find authored PlayerCameraDefaults in active scene.");
                 return;
             }
 
-            var cameraPivot = root.transform.Find("CameraPivot");
-            if (cameraPivot == null)
-            {
-                Debug.LogWarning("Found PlayerRoot but it has no CameraPivot child.");
-                return;
-            }
-
-            if (!root.TryGetComponent<PlayerCameraDefaults>(out var defaults) || !defaults.TryGetMainCamera(out var mainCamera))
+            if (!TryResolveExplicitFirstPersonPresentation(
+                    root,
+                    out defaults,
+                    out var cameraPivot,
+                    out var playerArmsRoot,
+                    out var playerArmsAnimator,
+                    out var mainCamera,
+                    out var viewmodelCamera,
+                    out var weaponPresentationRoot))
             {
                 Debug.LogWarning("Active scene player rig must already have an authored main camera reference.");
                 return;
             }
 
-            if (!TryRebuildFpsArmsViewmodel(cameraPivot, mainCamera))
+            if (!TryRebuildFpsArmsViewmodel(root.transform, defaults, cameraPivot, playerArmsRoot, playerArmsAnimator, weaponPresentationRoot, mainCamera, viewmodelCamera))
             {
-                Debug.LogWarning("Active scene player rig must already have authored PlayerArms, PlayerArmsVisual, and WeaponPresentationRoot roots.");
                 return;
             }
 
@@ -184,12 +178,12 @@ namespace Reloader.Player.Editor
                 return false;
             }
 
-            if (playerArmsRoot.Find(PlayerArmsVisualName) == null)
+            if (!defaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator))
             {
                 return false;
             }
 
-            if (!defaults.TryGetPlayerArmsAnimator(out _))
+            if (playerArmsAnimator == null || !playerArmsAnimator.transform.IsChildOf(playerArmsRoot))
             {
                 return false;
             }
@@ -316,7 +310,15 @@ namespace Reloader.Player.Editor
             }
         }
 
-        private static bool EnsureFpsArmsViewmodel(Transform cameraPivot, Camera mainCamera)
+        private static bool EnsureFpsArmsViewmodel(
+            Transform playerRoot,
+            PlayerCameraDefaults defaults,
+            Transform cameraPivot,
+            Transform playerArmsRoot,
+            Animator playerArmsAnimator,
+            Transform weaponPresentationRoot,
+            Camera mainCamera,
+            Camera viewmodelCamera)
         {
             ConfigureFpsArmsImporter();
 
@@ -327,24 +329,32 @@ namespace Reloader.Player.Editor
                 return false;
             }
 
-            var playerArmsRoot = cameraPivot.Find(PlayerArmsRootName);
-            if (playerArmsRoot == null)
+            if (playerRoot == null
+                || defaults == null
+                || cameraPivot == null
+                || playerArmsRoot == null
+                || playerArmsAnimator == null
+                || weaponPresentationRoot == null
+                || mainCamera == null
+                || viewmodelCamera == null)
             {
-                Debug.LogWarning($"FPS arms viewmodel requires authored '{PlayerArmsRootName}' under CameraPivot.");
+                Debug.LogWarning("Selected rig must already have authored first-person presentation references.");
                 return false;
             }
 
-            var armsVisual = playerArmsRoot.Find(PlayerArmsVisualName);
-            if (armsVisual == null)
+            var armsVisual = playerArmsAnimator.transform;
+            if (!armsVisual.IsChildOf(playerArmsRoot))
             {
-                Debug.LogWarning($"FPS arms viewmodel requires authored '{PlayerArmsVisualName}' under '{PlayerArmsRootName}'.");
+                Debug.LogWarning("Selected rig must keep the authored player-arms animator under the explicit player-arms root.");
                 return false;
             }
 
-            var weaponPresentationRoot = cameraPivot.Find(WeaponPresentationRootName);
-            if (weaponPresentationRoot == null)
+            var driver = playerRoot.GetComponent<FpsViewmodelAnimatorDriver>();
+            var adapter = playerRoot.GetComponent<ViewmodelAnimationAdapter>();
+            var handRigController = playerRoot.GetComponent<WeaponHandRigController>();
+            if (driver == null || adapter == null || handRigController == null)
             {
-                Debug.LogWarning("WeaponPresentationRoot must already be authored before configuring FPS arms viewmodel.");
+                Debug.LogWarning("Selected rig must already have authored FpsViewmodelAnimatorDriver, ViewmodelAnimationAdapter, and WeaponHandRigController components.");
                 return false;
             }
 
@@ -361,8 +371,8 @@ namespace Reloader.Player.Editor
                 return false;
             }
 
-            var viewmodelCamera = ConfigureViewmodelCameras(cameraPivot, mainCamera, viewmodelLayer);
-            EnsureUnitScale(cameraPivot.root, cameraPivot, mainCamera.transform, viewmodelCamera != null ? viewmodelCamera.transform : null);
+            ConfigureViewmodelCameras(mainCamera, viewmodelCamera, viewmodelLayer);
+            EnsureUnitScale(playerRoot, cameraPivot, mainCamera.transform, viewmodelCamera.transform);
 
             foreach (var collider in armsVisual.GetComponentsInChildren<Collider>(true))
             {
@@ -371,15 +381,34 @@ namespace Reloader.Player.Editor
 
             SetLayerRecursively(playerArmsRoot.gameObject, viewmodelLayer);
             SetLayerRecursively(weaponPresentationRoot.gameObject, viewmodelLayer);
-            EnsureViewmodelAnimator(armsVisual, cameraPivot.root);
-            EnsureWeaponHandRigController(cameraPivot.root);
+            driver.Configure(playerArmsAnimator, playerRoot.GetComponent<CharacterController>());
+            adapter.Configure(playerArmsAnimator);
+            EditorUtility.SetDirty(driver);
+            EditorUtility.SetDirty(adapter);
+            EditorUtility.SetDirty(handRigController);
             LogViewmodelRendererType(armsVisual);
             return true;
         }
 
-        private static bool TryRebuildFpsArmsViewmodel(Transform cameraPivot, Camera mainCamera)
+        private static bool TryRebuildFpsArmsViewmodel(
+            Transform playerRoot,
+            PlayerCameraDefaults defaults,
+            Transform cameraPivot,
+            Transform playerArmsRoot,
+            Animator playerArmsAnimator,
+            Transform weaponPresentationRoot,
+            Camera mainCamera,
+            Camera viewmodelCamera)
         {
-            return EnsureFpsArmsViewmodel(cameraPivot, mainCamera);
+            return EnsureFpsArmsViewmodel(
+                playerRoot,
+                defaults,
+                cameraPivot,
+                playerArmsRoot,
+                playerArmsAnimator,
+                weaponPresentationRoot,
+                mainCamera,
+                viewmodelCamera);
         }
 
         private static void ConfigureFpsArmsImporter()
@@ -475,15 +504,9 @@ namespace Reloader.Player.Editor
             return -1;
         }
 
-        private static Camera ConfigureViewmodelCameras(Transform cameraPivot, Camera mainCamera, int viewmodelLayer)
+        private static Camera ConfigureViewmodelCameras(Camera mainCamera, Camera viewmodelCamera, int viewmodelLayer)
         {
-            if (mainCamera == null || cameraPivot == null)
-            {
-                return null;
-            }
-
-            var viewmodelCamera = cameraPivot.Find("ViewmodelCamera")?.GetComponent<Camera>();
-            if (viewmodelCamera == null)
+            if (mainCamera == null || viewmodelCamera == null)
             {
                 return null;
             }
@@ -524,22 +547,6 @@ namespace Reloader.Player.Editor
             return viewmodelCamera;
         }
 
-        private static void EnsureWeaponHandRigController(Transform playerRoot)
-        {
-            if (playerRoot == null)
-            {
-                return;
-            }
-
-            var controller = playerRoot.GetComponent<WeaponHandRigController>();
-            if (controller == null)
-            {
-                controller = Undo.AddComponent<WeaponHandRigController>(playerRoot.gameObject);
-            }
-
-            EditorUtility.SetDirty(controller);
-        }
-
         private static void SetLayerRecursively(GameObject root, int layer)
         {
             root.layer = layer;
@@ -569,36 +576,35 @@ namespace Reloader.Player.Editor
             }
         }
 
-        private static void EnsureViewmodelAnimator(Transform armsRoot, Transform playerRoot)
+        private static bool TryResolveExplicitFirstPersonPresentation(
+            GameObject root,
+            out PlayerCameraDefaults defaults,
+            out Transform cameraPivot,
+            out Transform playerArmsRoot,
+            out Animator playerArmsAnimator,
+            out Camera mainCamera,
+            out Camera viewmodelCamera,
+            out Transform weaponPresentationRoot)
         {
-            var animator = armsRoot.GetComponent<Animator>();
-            if (animator == null)
+            defaults = null;
+            cameraPivot = null;
+            playerArmsRoot = null;
+            playerArmsAnimator = null;
+            mainCamera = null;
+            viewmodelCamera = null;
+            weaponPresentationRoot = null;
+
+            if (root == null || !root.TryGetComponent(out defaults) || defaults == null)
             {
-                animator = armsRoot.gameObject.AddComponent<Animator>();
+                return false;
             }
 
-            var controller = EnsureViewmodelAnimatorController();
-            if (controller != null)
-            {
-                animator.runtimeAnimatorController = controller;
-            }
-
-            var driver = playerRoot.GetComponent<FpsViewmodelAnimatorDriver>();
-            if (driver == null)
-            {
-                driver = playerRoot.gameObject.AddComponent<FpsViewmodelAnimatorDriver>();
-            }
-
-            driver.Configure(animator, playerRoot.GetComponent<CharacterController>());
-            var adapter = playerRoot.GetComponent<ViewmodelAnimationAdapter>();
-            if (adapter == null)
-            {
-                adapter = playerRoot.gameObject.AddComponent<ViewmodelAnimationAdapter>();
-            }
-            adapter.Configure(animator);
-
-            EditorUtility.SetDirty(playerRoot);
-            EditorUtility.SetDirty(armsRoot);
+            return defaults.TryGetCameraPivot(out cameraPivot)
+                && defaults.TryGetPlayerArmsRoot(out playerArmsRoot)
+                && defaults.TryGetPlayerArmsAnimator(out playerArmsAnimator)
+                && defaults.TryGetAuthoredMainCamera(out mainCamera)
+                && defaults.TryGetViewmodelCamera(out viewmodelCamera)
+                && defaults.TryGetWeaponPresentationRoot(out weaponPresentationRoot);
         }
 
         private static AnimatorController EnsureViewmodelAnimatorController()
