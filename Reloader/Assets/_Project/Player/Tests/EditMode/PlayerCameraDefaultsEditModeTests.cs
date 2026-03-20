@@ -8,11 +8,13 @@ namespace Reloader.Player.Tests.EditMode
     public sealed class PlayerCameraDefaultsEditModeTests
     {
         [Test]
-        public void ApplyDefaults_DoesNotCreateViewmodelCameraOverlayStack_WhenViewmodelCameraMissing()
+        public void ApplyDefaults_DoesNotRecoverViewmodelCameraFromChildName_WhenExplicitViewmodelCameraMissing()
         {
             var (root, cameraPivot, mainCamera) = CreateRigRoot();
             var defaults = root.AddComponent<PlayerCameraDefaults>();
             var viewmodelLayer = LayerMask.NameToLayer("Viewmodel");
+            var legacyViewmodelCamera = new GameObject("ViewmodelCamera").AddComponent<Camera>();
+            legacyViewmodelCamera.transform.SetParent(cameraPivot, false);
 
             Assert.That(viewmodelLayer, Is.GreaterThanOrEqualTo(0), "Expected project Viewmodel layer to exist.");
 
@@ -29,19 +31,22 @@ namespace Reloader.Player.Tests.EditMode
                 .GetField("_cameraFollowTarget", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                 ?.SetValue(defaults, cameraPivot);
 
-            Assert.That(root.transform.Find("CameraPivot/ViewmodelCamera"), Is.Null);
             var originalCullingMask = mainCamera.cullingMask;
 
             defaults.ApplyDefaults();
 
+            Assert.That(defaults.TryGetViewmodelCamera(out var resolvedViewmodelCamera), Is.False);
+            Assert.That(resolvedViewmodelCamera, Is.Null);
+
             var viewmodelTransform = cameraPivot.Find("ViewmodelCamera");
-            Assert.That(viewmodelTransform, Is.Null, "Expected PlayerCameraDefaults to fail closed when the authored ViewmodelCamera is missing.");
+            Assert.That(viewmodelTransform, Is.SameAs(legacyViewmodelCamera.transform),
+                "Expected PlayerCameraDefaults to leave the legacy ViewmodelCamera child untouched when the explicit field is missing.");
 
             var mainCameraData = mainCamera.GetUniversalAdditionalCameraData();
 
             Assert.That(mainCameraData.renderType, Is.EqualTo(CameraRenderType.Base));
-            Assert.That(root.GetComponentsInChildren<Camera>(true).Length, Is.EqualTo(1),
-                "Expected PlayerCameraDefaults to avoid creating a ViewmodelCamera when the authored one is missing.");
+            Assert.That(root.GetComponentsInChildren<Camera>(true).Length, Is.EqualTo(2),
+                "Expected PlayerCameraDefaults to avoid creating a replacement ViewmodelCamera when the explicit field is missing.");
             Assert.That(mainCamera.cullingMask, Is.EqualTo(originalCullingMask));
 
             Object.DestroyImmediate(root);
@@ -67,6 +72,9 @@ namespace Reloader.Player.Tests.EditMode
                 ?.SetValue(defaults, cameraPivot);
             var authoredViewmodelCamera = new GameObject("ViewmodelCamera").AddComponent<Camera>();
             authoredViewmodelCamera.transform.SetParent(cameraPivot, false);
+            typeof(PlayerCameraDefaults)
+                .GetField("_viewmodelCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, authoredViewmodelCamera);
 
             defaults.ApplyDefaults();
 
@@ -82,7 +90,7 @@ namespace Reloader.Player.Tests.EditMode
         }
 
         [Test]
-        public void ApplyDefaults_CreatesViewmodelCameraUnderExplicitParent_AndLeavesLegacyWorldCameraChildUntouched()
+        public void ApplyDefaults_DoesNotRecoverViewmodelCameraFromLegacyWorldCameraChild_WhenExplicitFieldMissing()
         {
             var (root, cameraPivot, mainCamera) = CreateRigRoot();
             var defaults = root.AddComponent<PlayerCameraDefaults>();
@@ -106,8 +114,7 @@ namespace Reloader.Player.Tests.EditMode
 
             var explicitCamera = cameraPivot.Find("ViewmodelCamera")?.GetComponent<Camera>();
 
-            Assert.That(explicitCamera, Is.Not.Null);
-            Assert.That(explicitCamera, Is.Not.SameAs(legacyCamera));
+            Assert.That(explicitCamera, Is.Null);
             Assert.That(legacyCamera.transform.parent, Is.EqualTo(mainCamera.transform));
             Assert.That(mainCamera.transform.Find("ViewmodelCamera"), Is.SameAs(legacyCamera.transform));
 
@@ -240,7 +247,35 @@ namespace Reloader.Player.Tests.EditMode
                 typeof(PlayerCameraDefaults)
                     .GetField("_viewmodelCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                     ?.GetValue(defaults),
-                Is.Null);
+                Is.SameAs(legacyViewmodelCamera));
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void TryGetViewmodelCamera_DoesNotReparentCachedCamera_WhenExplicitParentMismatchExists()
+        {
+            var (root, cameraPivot, mainCamera) = CreateRigRoot();
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+            var explicitParent = new GameObject("ExplicitViewmodelRoot").transform;
+            explicitParent.SetParent(root.transform, false);
+            var cachedViewmodelCamera = new GameObject("ViewmodelCamera").AddComponent<Camera>();
+            cachedViewmodelCamera.transform.SetParent(cameraPivot, false);
+
+            typeof(PlayerCameraDefaults)
+                .GetField("_mainCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, mainCamera);
+            typeof(PlayerCameraDefaults)
+                .GetField("_viewmodelCameraParent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, explicitParent);
+            typeof(PlayerCameraDefaults)
+                .GetField("_viewmodelCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, cachedViewmodelCamera);
+
+            Assert.That(defaults.TryGetViewmodelCamera(out var resolvedViewmodelCamera), Is.False);
+            Assert.That(resolvedViewmodelCamera, Is.Null);
+            Assert.That(cachedViewmodelCamera.transform.parent, Is.EqualTo(cameraPivot),
+                "Expected the cached viewmodel camera to stay put when the explicit parent mismatches.");
 
             Object.DestroyImmediate(root);
         }
@@ -301,6 +336,9 @@ namespace Reloader.Player.Tests.EditMode
             typeof(PlayerCameraDefaults)
                 .GetField("_viewmodelCameraParent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                 ?.SetValue(defaults, explicitParent);
+            typeof(PlayerCameraDefaults)
+                .GetField("_viewmodelCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, authoredViewmodelCamera);
 
             defaults.ApplyDefaults();
 
@@ -379,6 +417,8 @@ namespace Reloader.Player.Tests.EditMode
             var suite = new PlayerCameraDefaultsEditModeTests();
             suite.TryGetAuthoredMainCamera_DoesNotRecoverFromCameraMain_WhenExplicitMainCameraIsMissing();
             suite.TryGetCameraLookTarget_DoesNotRecoverFromCameraFollowTarget_WhenExplicitCameraLookTargetIsMissing();
+            suite.TryGetViewmodelCamera_DoesNotReparentCachedCamera_WhenExplicitParentMismatchExists();
+            suite.ApplyDefaults_DoesNotRecoverViewmodelCameraFromChildName_WhenExplicitViewmodelCameraMissing();
             suite.ExplicitOwnershipContract_UsesSerializedRoots_AndDoesNotCreateLegacyPresentationFallback();
         }
 

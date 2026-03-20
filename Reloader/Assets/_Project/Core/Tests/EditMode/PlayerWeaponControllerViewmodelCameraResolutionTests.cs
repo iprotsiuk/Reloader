@@ -18,6 +18,7 @@ namespace Reloader.Core.Tests.EditMode
                 SetField(defaults, "_mainCamera", rig.WorldCamera);
                 SetField(defaults, "_cameraPivot", rig.CameraPivot);
                 SetField(defaults, "_viewmodelCameraParent", rig.CameraPivot);
+                SetField(defaults, "_viewmodelCamera", rig.SharedBasisViewmodelCamera);
 
                 var controller = rig.Root.AddComponent<PlayerWeaponController>();
                 SetField(controller, "_cameraDefaults", defaults);

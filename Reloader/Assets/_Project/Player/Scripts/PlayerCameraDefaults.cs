@@ -15,13 +15,13 @@ namespace Reloader.Player
         [SerializeField] private Transform _cameraFollowTarget;
         [SerializeField] private Transform _cameraLookTarget;
         [SerializeField] private Transform _viewmodelCameraParent;
+        [SerializeField] private Camera _viewmodelCamera;
         [SerializeField] private Transform _cameraPivot;
         [SerializeField] private Transform _playerArmsRoot;
         [SerializeField] private Animator _playerArmsAnimator;
         [SerializeField] private Transform _weaponPresentationRoot;
         [SerializeField] private float _nearClipPlane = 0.001f;
         [SerializeField] private float _farClipPlane = 2828f;
-        private Camera _viewmodelCamera;
 
         private void Awake()
         {
@@ -180,22 +180,21 @@ namespace Reloader.Player
 
         public bool TryGetViewmodelCamera(out Camera viewmodelCamera)
         {
-            var viewmodelParent = ResolveViewmodelCameraParent();
-            if (viewmodelParent == null)
+            if (!IsUsableHierarchyReference(_viewmodelCamera?.transform))
             {
-                _viewmodelCamera = null;
                 viewmodelCamera = null;
                 return false;
             }
 
-            if (_viewmodelCamera != null && _viewmodelCamera.transform.parent != viewmodelParent)
+            var viewmodelParent = ResolveViewmodelCameraParent();
+            if (viewmodelParent == null || _viewmodelCamera.transform.parent != viewmodelParent)
             {
-                _viewmodelCamera = null;
+                viewmodelCamera = null;
+                return false;
             }
 
-            _viewmodelCamera ??= ResolveViewmodelCamera(viewmodelParent);
             viewmodelCamera = _viewmodelCamera;
-            return viewmodelCamera != null;
+            return true;
         }
 
         public void RestoreGameplayView()
@@ -242,15 +241,14 @@ namespace Reloader.Player
                 return;
             }
 
-            _viewmodelCamera ??= ResolveViewmodelCamera(viewmodelParent);
-            if (_viewmodelCamera == null || !TryGetEffectiveFieldOfView(out var fieldOfView))
+            if (!TryGetEffectiveFieldOfView(out var fieldOfView))
             {
                 return;
             }
 
-            if (_viewmodelCamera.transform.parent != viewmodelParent)
+            if (!IsUsableHierarchyReference(_viewmodelCamera?.transform) || _viewmodelCamera.transform.parent != viewmodelParent)
             {
-                _viewmodelCamera.transform.SetParent(viewmodelParent, false);
+                return;
             }
 
             _viewmodelCamera.nearClipPlane = _mainCamera.nearClipPlane;
@@ -270,26 +268,25 @@ namespace Reloader.Player
             }
 
             var viewmodelParent = ResolveViewmodelCameraParent();
-            var viewmodelCamera = ResolveViewmodelCamera(viewmodelParent);
-            if (viewmodelCamera == null)
+            if (!IsUsableHierarchyReference(_viewmodelCamera?.transform) || viewmodelParent == null || _viewmodelCamera.transform.parent != viewmodelParent)
             {
                 return null;
             }
 
             var viewmodelMask = 1 << viewmodelLayer;
-            viewmodelCamera.transform.localPosition = Vector3.zero;
-            viewmodelCamera.transform.localRotation = Quaternion.identity;
-            viewmodelCamera.transform.localScale = Vector3.one;
-            viewmodelCamera.clearFlags = CameraClearFlags.Depth;
-            viewmodelCamera.cullingMask = viewmodelMask;
-            viewmodelCamera.nearClipPlane = mainCamera.nearClipPlane;
-            viewmodelCamera.farClipPlane = Mathf.Max(viewmodelCamera.nearClipPlane + 0.01f, 10f);
-            viewmodelCamera.depth = mainCamera.depth + 1f;
-            viewmodelCamera.fieldOfView = mainCamera.fieldOfView;
-            viewmodelCamera.allowHDR = mainCamera.allowHDR;
-            viewmodelCamera.allowMSAA = mainCamera.allowMSAA;
+            _viewmodelCamera.transform.localPosition = Vector3.zero;
+            _viewmodelCamera.transform.localRotation = Quaternion.identity;
+            _viewmodelCamera.transform.localScale = Vector3.one;
+            _viewmodelCamera.clearFlags = CameraClearFlags.Depth;
+            _viewmodelCamera.cullingMask = viewmodelMask;
+            _viewmodelCamera.nearClipPlane = mainCamera.nearClipPlane;
+            _viewmodelCamera.farClipPlane = Mathf.Max(_viewmodelCamera.nearClipPlane + 0.01f, 10f);
+            _viewmodelCamera.depth = mainCamera.depth + 1f;
+            _viewmodelCamera.fieldOfView = mainCamera.fieldOfView;
+            _viewmodelCamera.allowHDR = mainCamera.allowHDR;
+            _viewmodelCamera.allowMSAA = mainCamera.allowMSAA;
 
-            var audioListener = viewmodelCamera.GetComponent<AudioListener>();
+            var audioListener = _viewmodelCamera.GetComponent<AudioListener>();
             if (audioListener != null)
             {
                 Object.DestroyImmediate(audioListener);
@@ -297,16 +294,16 @@ namespace Reloader.Player
 
             mainCamera.cullingMask &= ~viewmodelMask;
 
-            var viewmodelCameraData = viewmodelCamera.GetUniversalAdditionalCameraData();
+            var viewmodelCameraData = _viewmodelCamera.GetUniversalAdditionalCameraData();
             mainCameraData.renderType = CameraRenderType.Base;
             viewmodelCameraData.renderType = CameraRenderType.Overlay;
 
-            if (!mainCameraData.cameraStack.Contains(viewmodelCamera))
+            if (!mainCameraData.cameraStack.Contains(_viewmodelCamera))
             {
-                mainCameraData.cameraStack.Add(viewmodelCamera);
+                mainCameraData.cameraStack.Add(_viewmodelCamera);
             }
 
-            return viewmodelCamera;
+            return _viewmodelCamera;
         }
 
         private Transform ResolveViewmodelCameraParent()
@@ -375,27 +372,5 @@ namespace Reloader.Player
             return candidate != null && (candidate == transform || candidate.IsChildOf(transform));
         }
 
-        private Camera ResolveViewmodelCamera(Transform viewmodelParent)
-        {
-            if (_mainCamera == null || viewmodelParent == null)
-            {
-                return null;
-            }
-
-            if (_viewmodelCamera != null)
-            {
-                if (_viewmodelCamera.transform.parent != viewmodelParent)
-                {
-                    _viewmodelCamera.transform.SetParent(viewmodelParent, false);
-                }
-
-                return _viewmodelCamera;
-            }
-
-            var viewmodelCamera = viewmodelParent.Find(ViewmodelCameraName)?.GetComponent<Camera>();
-
-            _viewmodelCamera = viewmodelCamera;
-            return _viewmodelCamera;
-        }
     }
 }
