@@ -9,89 +9,7 @@ namespace Reloader.Player.Tests.EditMode
     public sealed class PlayerRigMenuEditModeTests
     {
         [Test]
-        public void TryRebuildFpsArmsViewmodel_DoesNotCreateWeaponPresentationRoot_WhenMissing()
-        {
-            var root = new GameObject("PlayerRoot");
-            var cameraPivot = new GameObject("CameraPivot").transform;
-            cameraPivot.SetParent(root.transform, false);
-
-            var mainCamera = new GameObject("Main Camera").AddComponent<Camera>();
-            mainCamera.transform.SetParent(cameraPivot, false);
-
-            var previousSelection = Selection.activeGameObject;
-            Selection.activeGameObject = root;
-            var previousIgnoreFailingMessages = LogAssert.ignoreFailingMessages;
-            LogAssert.ignoreFailingMessages = true;
-
-            try
-            {
-                var playerRigMenuType = System.Type.GetType("Reloader.Player.Editor.PlayerRigMenu, Reloader.Player.Editor");
-                Assert.That(playerRigMenuType, Is.Not.Null, "Expected PlayerRigMenu type to exist.");
-
-                var method = playerRigMenuType!.GetMethod(
-                    "ConfigureFpsArmsViewmodelOnSelectedRig",
-                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
-
-                Assert.That(method, Is.Not.Null, "Expected PlayerRigMenu.ConfigureFpsArmsViewmodelOnSelectedRig to exist.");
-
-                LogAssert.Expect(LogType.Warning, "Selected rig must already have an authored main camera reference.");
-                method!.Invoke(null, null);
-
-                Assert.That(cameraPivot.Find("PlayerArms"), Is.Null);
-                Assert.That(cameraPivot.Find("PlayerArmsVisual"), Is.Null);
-                Assert.That(cameraPivot.Find("WeaponPresentationRoot"), Is.Null);
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = previousIgnoreFailingMessages;
-                Selection.activeGameObject = previousSelection;
-                Object.DestroyImmediate(root);
-            }
-        }
-
-        [Test]
-        public void RepairSelectedFpsRig_DoesNotBackfillWeaponPresentationRoot_WhenMissing()
-        {
-            var root = new GameObject("PlayerRoot");
-            var cameraPivot = new GameObject("CameraPivot").transform;
-            cameraPivot.SetParent(root.transform, false);
-
-            var mainCamera = new GameObject("Main Camera").AddComponent<Camera>();
-            mainCamera.transform.SetParent(cameraPivot, false);
-
-            var previousSelection = Selection.activeGameObject;
-            Selection.activeGameObject = root;
-            var previousIgnoreFailingMessages = LogAssert.ignoreFailingMessages;
-            LogAssert.ignoreFailingMessages = true;
-
-            try
-            {
-                var playerRigMenuType = System.Type.GetType("Reloader.Player.Editor.PlayerRigMenu, Reloader.Player.Editor");
-                Assert.That(playerRigMenuType, Is.Not.Null, "Expected PlayerRigMenu type to exist.");
-
-                var method = playerRigMenuType!.GetMethod(
-                    "RepairSelectedFpsRig",
-                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
-
-                Assert.That(method, Is.Not.Null, "Expected PlayerRigMenu.RepairSelectedFpsRig to exist.");
-
-                method!.Invoke(null, null);
-
-                Assert.That(root.transform.Find("PlayerArms"), Is.Null);
-                Assert.That(root.transform.Find("PlayerArmsVisual"), Is.Null);
-                Assert.That(root.transform.Find("WeaponPresentationRoot"), Is.Null);
-                Assert.That(root.GetComponent<CharacterController>(), Is.Null);
-            }
-            finally
-            {
-                LogAssert.ignoreFailingMessages = previousIgnoreFailingMessages;
-                Selection.activeGameObject = previousSelection;
-                Object.DestroyImmediate(root);
-            }
-        }
-
-        [Test]
-        public void CreateFpsRig_DoesNotCreateWeaponPresentationRoot_AsLegacyBackfill()
+        public void CreateFpsRig_CreatesExplicitAuthoredFirstPersonRig()
         {
             var previousSelection = Selection.activeGameObject;
             GameObject createdRoot = null;
@@ -106,19 +24,44 @@ namespace Reloader.Player.Tests.EditMode
                     System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
 
                 Assert.That(method, Is.Not.Null, "Expected PlayerRigMenu.CreateFpsRig to exist.");
-
-                LogAssert.Expect(LogType.Warning, "Create FPS Rig requires an authored first-person presentation hierarchy.");
                 method!.Invoke(null, null);
 
                 createdRoot = Selection.activeGameObject;
                 Assert.That(createdRoot, Is.Not.Null);
-                Assert.That(createdRoot.transform.Find("CameraPivot"), Is.Null);
-                Assert.That(createdRoot.transform.Find("CM_PlayerCamera"), Is.Null);
-                Assert.That(createdRoot.transform.Find("Main Camera"), Is.Null);
-                Assert.That(createdRoot.transform.Find("PlayerArms"), Is.Null);
-                Assert.That(createdRoot.transform.Find("PlayerArmsVisual"), Is.Null);
-                Assert.That(createdRoot.transform.Find("WeaponPresentationRoot"), Is.Null);
-                Assert.That(createdRoot.GetComponent<PlayerCameraDefaults>(), Is.Null);
+                Assert.That(createdRoot.GetComponent<CharacterController>(), Is.Not.Null);
+                Assert.That(createdRoot.GetComponent<PlayerInputReader>(), Is.Not.Null);
+                Assert.That(createdRoot.GetComponent<PlayerCursorLockController>(), Is.Not.Null);
+                Assert.That(createdRoot.GetComponent<PlayerMover>(), Is.Not.Null);
+                Assert.That(createdRoot.GetComponent<PlayerLookController>(), Is.Not.Null);
+                Assert.That(createdRoot.GetComponent<PlayerCameraDefaults>(), Is.Not.Null);
+                Assert.That(createdRoot.GetComponent<FpsViewmodelAnimatorDriver>(), Is.Not.Null);
+                Assert.That(createdRoot.GetComponent<ViewmodelAnimationAdapter>(), Is.Not.Null);
+                Assert.That(createdRoot.GetComponent("WeaponHandRigController"), Is.Not.Null);
+
+                var defaults = createdRoot.GetComponent<PlayerCameraDefaults>();
+                Assert.That(defaults.TryGetCameraPivot(out var cameraPivot), Is.True);
+                Assert.That(defaults.TryGetCameraLookTarget(out var cameraLookTarget), Is.True);
+                Assert.That(defaults.TryGetAuthoredMainCamera(out var mainCamera), Is.True);
+                Assert.That(defaults.TryGetViewmodelCamera(out var viewmodelCamera), Is.True);
+                Assert.That(defaults.TryGetPlayerArmsRoot(out var playerArmsRoot), Is.True);
+                Assert.That(defaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator), Is.True);
+                Assert.That(defaults.TryGetWeaponPresentationRoot(out var weaponPresentationRoot), Is.True);
+
+                Assert.That(cameraPivot, Is.Not.Null);
+                Assert.That(cameraLookTarget, Is.Not.Null);
+                Assert.That(mainCamera, Is.Not.Null);
+                Assert.That(viewmodelCamera, Is.Not.Null);
+                Assert.That(playerArmsRoot, Is.Not.Null);
+                Assert.That(playerArmsAnimator, Is.Not.Null);
+                Assert.That(weaponPresentationRoot, Is.Not.Null);
+
+                Assert.That(cameraPivot.IsChildOf(createdRoot.transform), Is.True);
+                Assert.That(mainCamera.transform.parent, Is.SameAs(cameraPivot));
+                Assert.That(viewmodelCamera.transform.parent, Is.SameAs(cameraPivot));
+                Assert.That(playerArmsRoot.parent, Is.SameAs(cameraPivot));
+                Assert.That(playerArmsAnimator.transform.IsChildOf(playerArmsRoot), Is.True);
+                Assert.That(weaponPresentationRoot.parent, Is.SameAs(cameraPivot));
+                Assert.That(mainCamera, Is.Not.SameAs(viewmodelCamera));
             }
             finally
             {
@@ -132,14 +75,12 @@ namespace Reloader.Player.Tests.EditMode
         }
 
         [Test]
-        public void RepairSelectedFpsRig_DoesNotCreateCameraPivot_WhenAuthoredPresentationContractMissing()
+        public void CreateFpsRig_DoesNotReuseTaggedSceneMainCamera()
         {
-            var root = new GameObject("PlayerRoot");
-            var weaponPresentationRoot = new GameObject("WeaponPresentationRoot").transform;
-            weaponPresentationRoot.SetParent(root.transform, false);
-
             var previousSelection = Selection.activeGameObject;
-            Selection.activeGameObject = root;
+            var existingMainCamera = new GameObject("ExistingSceneMainCamera").AddComponent<Camera>();
+            existingMainCamera.tag = "MainCamera";
+            GameObject createdRoot = null;
 
             try
             {
@@ -147,26 +88,32 @@ namespace Reloader.Player.Tests.EditMode
                 Assert.That(playerRigMenuType, Is.Not.Null, "Expected PlayerRigMenu type to exist.");
 
                 var method = playerRigMenuType!.GetMethod(
-                    "RepairSelectedFpsRig",
+                    "CreateFpsRig",
                     System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
 
-                Assert.That(method, Is.Not.Null, "Expected PlayerRigMenu.RepairSelectedFpsRig to exist.");
-
-                LogAssert.Expect(LogType.Warning, "Selected rig must already have an authored first-person presentation hierarchy.");
+                Assert.That(method, Is.Not.Null, "Expected PlayerRigMenu.CreateFpsRig to exist.");
                 method!.Invoke(null, null);
 
-                Assert.That(root.transform.Find("CameraPivot"), Is.Null);
-                Assert.That(root.transform.Find("CM_PlayerCamera"), Is.Null);
-                Assert.That(root.transform.Find("Main Camera"), Is.Null);
-                Assert.That(root.transform.Find("PlayerArms"), Is.Null);
-                Assert.That(root.transform.Find("PlayerArmsVisual"), Is.Null);
-                Assert.That(root.transform.Find("WeaponPresentationRoot"), Is.SameAs(weaponPresentationRoot));
-                Assert.That(root.GetComponent<PlayerCameraDefaults>(), Is.Null);
+                createdRoot = Selection.activeGameObject;
+                Assert.That(createdRoot, Is.Not.Null);
+
+                var defaults = createdRoot.GetComponent<PlayerCameraDefaults>();
+                Assert.That(defaults, Is.Not.Null);
+                Assert.That(defaults.TryGetAuthoredMainCamera(out var authoredMainCamera), Is.True);
+                Assert.That(authoredMainCamera, Is.Not.Null);
+                Assert.That(authoredMainCamera, Is.Not.SameAs(existingMainCamera));
+                Assert.That(authoredMainCamera.transform.IsChildOf(createdRoot.transform), Is.True);
+                Assert.That(existingMainCamera.transform.IsChildOf(createdRoot.transform), Is.False);
             }
             finally
             {
+                if (createdRoot != null && createdRoot != previousSelection)
+                {
+                    Object.DestroyImmediate(createdRoot);
+                }
+
                 Selection.activeGameObject = previousSelection;
-                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(existingMainCamera.gameObject);
             }
         }
 

@@ -32,13 +32,6 @@ namespace Reloader.Player.Editor
             var playerRoot = new GameObject("PlayerRoot");
             Undo.RegisterCreatedObjectUndo(playerRoot, "Create FPS Rig");
 
-            if (!HasAuthoredFirstPersonPresentation(playerRoot.transform))
-            {
-                Debug.LogWarning("Create FPS Rig requires an authored first-person presentation hierarchy.");
-                Selection.activeGameObject = playerRoot;
-                return;
-            }
-
             var controller = playerRoot.AddComponent<CharacterController>();
             controller.height = 2f;
             controller.radius = 0.3f;
@@ -56,26 +49,98 @@ namespace Reloader.Player.Editor
             var lookController = playerRoot.AddComponent<PlayerLookController>();
             lookController.SetInputSource(inputReader);
 
+            var defaults = Undo.AddComponent<PlayerCameraDefaults>(playerRoot);
+            var driver = Undo.AddComponent<FpsViewmodelAnimatorDriver>(playerRoot);
+            var adapter = Undo.AddComponent<ViewmodelAnimationAdapter>(playerRoot);
+            var handRigController = Undo.AddComponent<WeaponHandRigController>(playerRoot);
+
+            var cameraPivotGo = new GameObject("CameraPivot");
+            Undo.RegisterCreatedObjectUndo(cameraPivotGo, "Create Camera Pivot");
+            var cameraPivot = cameraPivotGo.transform;
+            cameraPivot.SetParent(playerRoot.transform, false);
+            cameraPivot.localPosition = new Vector3(0f, 1.8f, 0f);
+            lookController.SetPitchTransform(cameraPivot);
+
+            var cameraLookTargetGo = new GameObject("CameraLookTarget");
+            Undo.RegisterCreatedObjectUndo(cameraLookTargetGo, "Create Camera Look Target");
+            var cameraLookTarget = cameraLookTargetGo.transform;
+            cameraLookTarget.SetParent(cameraPivot, false);
+            cameraLookTarget.localPosition = Vector3.forward * 10f;
+
+            var mainCameraGo = new GameObject("Main Camera");
+            Undo.RegisterCreatedObjectUndo(mainCameraGo, "Create Main Camera");
+            var mainCameraTransform = mainCameraGo.transform;
+            mainCameraTransform.SetParent(cameraPivot, false);
+            var mainCamera = mainCameraGo.AddComponent<Camera>();
+            mainCameraGo.tag = "MainCamera";
+            mainCameraGo.AddComponent<AudioListener>();
+            var brain = mainCameraGo.AddComponent<CinemachineBrain>();
+
+            var viewmodelCameraGo = new GameObject("ViewmodelCamera");
+            Undo.RegisterCreatedObjectUndo(viewmodelCameraGo, "Create Viewmodel Camera");
+            var viewmodelCameraTransform = viewmodelCameraGo.transform;
+            viewmodelCameraTransform.SetParent(cameraPivot, false);
+            var viewmodelCamera = viewmodelCameraGo.AddComponent<Camera>();
+
+            var weaponPresentationRootGo = new GameObject(WeaponPresentationRootName);
+            Undo.RegisterCreatedObjectUndo(weaponPresentationRootGo, "Create Weapon Presentation Root");
+            var weaponPresentationRoot = weaponPresentationRootGo.transform;
+            weaponPresentationRoot.SetParent(cameraPivot, false);
+
+            var playerArmsRootGo = new GameObject(PlayerArmsRootName);
+            Undo.RegisterCreatedObjectUndo(playerArmsRootGo, "Create Player Arms Root");
+            var playerArmsRoot = playerArmsRootGo.transform;
+            playerArmsRoot.SetParent(cameraPivot, false);
+
+            var playerArmsAnimator = CreatePlayerArmsAnimator(playerArmsRoot);
+
+            var handTargetRootGo = new GameObject("WeaponHandRigTargets");
+            Undo.RegisterCreatedObjectUndo(handTargetRootGo, "Create Weapon Hand Rig Targets");
+            var handTargetRoot = handTargetRootGo.transform;
+            handTargetRoot.SetParent(cameraPivot, false);
+            CreateHandRigTarget(handTargetRoot, "LeftHandTarget", new Vector3(-0.15f, -0.15f, 0.45f));
+            CreateHandRigTarget(handTargetRoot, "LeftElbowHint", new Vector3(-0.25f, -0.1f, 0.3f));
+            CreateHandRigTarget(handTargetRoot, "RightHandTarget", new Vector3(0.15f, -0.15f, 0.45f));
+            CreateHandRigTarget(handTargetRoot, "RightElbowHint", new Vector3(0.25f, -0.1f, 0.3f));
+
+            var cmCameraGo = new GameObject("CM_PlayerCamera");
+            Undo.RegisterCreatedObjectUndo(cmCameraGo, "Create Cinemachine Camera");
+            cmCameraGo.transform.SetParent(playerRoot.transform, false);
+            var cmCamera = cmCameraGo.AddComponent<CinemachineCamera>();
+            cmCamera.Follow = cameraPivot;
+            cmCamera.LookAt = cameraLookTarget;
+            EnsureCameraPipeline(cmCamera);
+
+            ConfigurePlayerCameraDefaults(
+                defaults,
+                mainCamera,
+                brain,
+                cmCamera,
+                cameraPivot,
+                cameraLookTarget,
+                viewmodelCamera,
+                playerArmsRoot,
+                playerArmsAnimator,
+                weaponPresentationRoot);
+
+            ConfigureWeaponHandRigController(handRigController, defaults, handTargetRoot);
+            defaults.ApplyDefaults();
+            EnsureShadowBody(playerRoot.transform);
+            TryRebuildFpsArmsViewmodel(
+                playerRoot.transform,
+                defaults,
+                cameraPivot,
+                playerArmsRoot,
+                playerArmsAnimator,
+                weaponPresentationRoot,
+                mainCamera,
+                viewmodelCamera);
+            EditorUtility.SetDirty(driver);
+            EditorUtility.SetDirty(adapter);
+            EditorUtility.SetDirty(handRigController);
+            EditorUtility.SetDirty(defaults);
+
             Selection.activeGameObject = playerRoot;
-        }
-
-        [MenuItem("Reloader/Player/Repair Selected FPS Rig")]
-        public static void RepairSelectedFpsRig()
-        {
-            var root = Selection.activeGameObject;
-            if (root == null)
-            {
-                Debug.LogWarning("Select a player root GameObject first.");
-                return;
-            }
-
-            if (!HasAuthoredFirstPersonPresentation(root.transform))
-            {
-                Debug.LogWarning("Selected rig must already have an authored first-person presentation hierarchy.");
-                return;
-            }
-            Selection.activeGameObject = root;
-            Debug.Log("Selected FPS rig already has authored first-person presentation roots; no repair performed.");
         }
 
         [MenuItem("Reloader/Player/Configure FPS Arms Viewmodel On Selected Rig")]
@@ -110,40 +175,6 @@ namespace Reloader.Player.Editor
             Debug.Log("FPS arms viewmodel configured on selected rig.");
         }
 
-        [MenuItem("Reloader/Player/Rebuild FPS Arms Viewmodel In Active Scene")]
-        public static void RebuildFpsArmsViewmodelInActiveScene()
-        {
-            var defaults = Object.FindFirstObjectByType<PlayerCameraDefaults>();
-            var root = defaults != null ? defaults.gameObject : null;
-            if (root == null)
-            {
-                Debug.LogWarning("Could not find authored PlayerCameraDefaults in active scene.");
-                return;
-            }
-
-            if (!TryResolveExplicitFirstPersonPresentation(
-                    root,
-                    out defaults,
-                    out var cameraPivot,
-                    out var playerArmsRoot,
-                    out var playerArmsAnimator,
-                    out var mainCamera,
-                    out var viewmodelCamera,
-                    out var weaponPresentationRoot))
-            {
-                Debug.LogWarning("Active scene player rig must already have an authored main camera reference.");
-                return;
-            }
-
-            if (!TryRebuildFpsArmsViewmodel(root.transform, defaults, cameraPivot, playerArmsRoot, playerArmsAnimator, weaponPresentationRoot, mainCamera, viewmodelCamera))
-            {
-                return;
-            }
-
-            Selection.activeGameObject = root;
-            Debug.Log("FPS arms viewmodel rebuilt in active scene.");
-        }
-
         private static InputActionAsset LoadActionsAsset()
         {
             var actionsAsset = AssetDatabase.LoadAssetAtPath<InputActionAsset>(ActionsAssetPath);
@@ -153,89 +184,6 @@ namespace Reloader.Player.Editor
             }
 
             return actionsAsset;
-        }
-
-        private static bool HasAuthoredFirstPersonPresentation(Transform root)
-        {
-            if (root == null)
-            {
-                return false;
-            }
-
-            var defaults = root.GetComponent<PlayerCameraDefaults>();
-            if (defaults == null)
-            {
-                return false;
-            }
-
-            if (!defaults.TryGetCameraPivot(out var cameraPivot))
-            {
-                return false;
-            }
-
-            if (!defaults.TryGetPlayerArmsRoot(out var playerArmsRoot))
-            {
-                return false;
-            }
-
-            if (!defaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator))
-            {
-                return false;
-            }
-
-            if (playerArmsAnimator == null || !playerArmsAnimator.transform.IsChildOf(playerArmsRoot))
-            {
-                return false;
-            }
-
-            if (!defaults.TryGetWeaponPresentationRoot(out _))
-            {
-                return false;
-            }
-
-            if (!defaults.TryGetCameraLookTarget(out _))
-            {
-                return false;
-            }
-
-            if (!defaults.TryGetMainCamera(out _))
-            {
-                return false;
-            }
-
-            if (!defaults.TryGetViewmodelCamera(out _))
-            {
-                return false;
-            }
-
-            if (root.GetComponentInChildren<CinemachineCamera>(true) == null)
-            {
-                return false;
-            }
-
-            return cameraPivot != null;
-        }
-
-        private static Camera EnsureMainCamera(Transform cameraPivot)
-        {
-            var existing = Camera.main;
-            if (existing != null && existing.transform.parent == cameraPivot)
-            {
-                return existing;
-            }
-
-            return null;
-        }
-
-        private static CinemachineCamera FindOrCreateCmCamera(Transform root)
-        {
-            var existing = root.GetComponentInChildren<CinemachineCamera>(true);
-            if (existing != null)
-            {
-                return existing;
-            }
-
-            return null;
         }
 
         private static void EnsureCameraPipeline(CinemachineCamera camera)
@@ -253,15 +201,88 @@ namespace Reloader.Player.Editor
             }
         }
 
-        private static Transform CreateOrFindCameraLookTarget(Transform cameraPivot)
+        private static Animator CreatePlayerArmsAnimator(Transform playerArmsRoot)
         {
-            var existing = cameraPivot.Find("CameraLookTarget");
-            if (existing != null)
+            ConfigureFpsArmsImporter();
+
+            var modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(FpsArmsModelPath);
+            GameObject armsVisualGo;
+            if (modelAsset != null)
             {
-                return existing;
+                armsVisualGo = PrefabUtility.InstantiatePrefab(modelAsset) as GameObject;
+                armsVisualGo ??= Object.Instantiate(modelAsset);
+            }
+            else
+            {
+                Debug.LogWarning($"FPS arms model not found at '{FpsArmsModelPath}'. Creating empty PlayerArmsVisual.");
+                armsVisualGo = new GameObject(PlayerArmsVisualName);
             }
 
-            return null;
+            armsVisualGo.name = PlayerArmsVisualName;
+            Undo.RegisterCreatedObjectUndo(armsVisualGo, "Create Player Arms Visual");
+            armsVisualGo.transform.SetParent(playerArmsRoot, false);
+
+            var animator = armsVisualGo.GetComponent<Animator>();
+            if (animator == null)
+            {
+                animator = armsVisualGo.AddComponent<Animator>();
+            }
+
+            var controller = EnsureViewmodelAnimatorController();
+            if (controller != null)
+            {
+                animator.runtimeAnimatorController = controller;
+            }
+
+            return animator;
+        }
+
+        private static void CreateHandRigTarget(Transform handTargetRoot, string name, Vector3 localPosition)
+        {
+            var targetGo = new GameObject(name);
+            Undo.RegisterCreatedObjectUndo(targetGo, $"Create {name}");
+            targetGo.transform.SetParent(handTargetRoot, false);
+            targetGo.transform.localPosition = localPosition;
+            targetGo.transform.localRotation = Quaternion.identity;
+            targetGo.transform.localScale = Vector3.one;
+        }
+
+        private static void ConfigurePlayerCameraDefaults(
+            PlayerCameraDefaults defaults,
+            Camera mainCamera,
+            CinemachineBrain brain,
+            CinemachineCamera cinemachineCamera,
+            Transform cameraPivot,
+            Transform cameraLookTarget,
+            Camera viewmodelCamera,
+            Transform playerArmsRoot,
+            Animator playerArmsAnimator,
+            Transform weaponPresentationRoot)
+        {
+            var defaultsSo = new SerializedObject(defaults);
+            defaultsSo.FindProperty("_mainCamera").objectReferenceValue = mainCamera;
+            defaultsSo.FindProperty("_brain").objectReferenceValue = brain;
+            defaultsSo.FindProperty("_cinemachineCamera").objectReferenceValue = cinemachineCamera;
+            defaultsSo.FindProperty("_cameraFollowTarget").objectReferenceValue = cameraPivot;
+            defaultsSo.FindProperty("_cameraLookTarget").objectReferenceValue = cameraLookTarget;
+            defaultsSo.FindProperty("_viewmodelCameraParent").objectReferenceValue = cameraPivot;
+            defaultsSo.FindProperty("_viewmodelCamera").objectReferenceValue = viewmodelCamera;
+            defaultsSo.FindProperty("_cameraPivot").objectReferenceValue = cameraPivot;
+            defaultsSo.FindProperty("_playerArmsRoot").objectReferenceValue = playerArmsRoot;
+            defaultsSo.FindProperty("_playerArmsAnimator").objectReferenceValue = playerArmsAnimator;
+            defaultsSo.FindProperty("_weaponPresentationRoot").objectReferenceValue = weaponPresentationRoot;
+            defaultsSo.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void ConfigureWeaponHandRigController(
+            WeaponHandRigController handRigController,
+            PlayerCameraDefaults cameraDefaults,
+            Transform handTargetRoot)
+        {
+            var controllerSo = new SerializedObject(handRigController);
+            controllerSo.FindProperty("_cameraDefaults").objectReferenceValue = cameraDefaults;
+            controllerSo.FindProperty("_handTargetRoot").objectReferenceValue = handTargetRoot;
+            controllerSo.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private static void EnsureShadowBody(Transform playerRoot)
@@ -420,9 +441,9 @@ namespace Reloader.Player.Editor
             }
 
             var changed = false;
-            if (importer.animationType != ModelImporterAnimationType.Human)
+            if (importer.animationType != ModelImporterAnimationType.Generic)
             {
-                importer.animationType = ModelImporterAnimationType.Human;
+                importer.animationType = ModelImporterAnimationType.Generic;
                 changed = true;
             }
 
@@ -442,24 +463,6 @@ namespace Reloader.Player.Editor
             {
                 importer.SaveAndReimport();
             }
-
-            var avatars = AssetDatabase.LoadAllAssetsAtPath(FpsArmsModelPath).OfType<Avatar>();
-            var hasValidHumanoid = avatars.Any(a => a != null && a.isValid && a.isHuman);
-            if (hasValidHumanoid)
-            {
-                return;
-            }
-
-            importer = AssetImporter.GetAtPath(FpsArmsModelPath) as ModelImporter;
-            if (importer == null || importer.animationType == ModelImporterAnimationType.Generic)
-            {
-                return;
-            }
-
-            importer.animationType = ModelImporterAnimationType.Generic;
-            importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
-            importer.SaveAndReimport();
-            Debug.LogWarning("FPS_Arms humanoid import was invalid. Switched import type to Generic.");
         }
 
         private static int EnsureLayer(string layerName)
