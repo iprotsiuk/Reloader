@@ -53,6 +53,39 @@ namespace Reloader.Player.Tests.EditMode
                 "ViewmodelAnimationAdapter should not recover its animator from CameraPivot/PlayerArms/PlayerArmsVisual when the explicit camera-defaults contract is absent.");
         }
 
+        [Test]
+        public void ResolveAnimator_PreservesExplicitAnimator_WhenItRemainsValidOnPlayerHierarchy()
+        {
+            var root = new GameObject("PlayerRoot");
+            var presentationPivot = new GameObject("PresentationPivot").transform;
+            presentationPivot.SetParent(root.transform, false);
+
+            var explicitRoot = new GameObject("ExplicitArmsRoot").transform;
+            explicitRoot.SetParent(root.transform, false);
+            var explicitVisual = new GameObject("ExplicitArmsVisual").transform;
+            explicitVisual.SetParent(explicitRoot, false);
+            var explicitAnimator = explicitVisual.gameObject.AddComponent<Animator>();
+
+            var defaultsRoot = new GameObject("DefaultsArmsRoot").transform;
+            defaultsRoot.SetParent(presentationPivot, false);
+            var defaultsVisual = new GameObject("DefaultsArmsVisual").transform;
+            defaultsVisual.SetParent(defaultsRoot, false);
+            var defaultsAnimator = defaultsVisual.gameObject.AddComponent<Animator>();
+
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+            SetField(defaults, "_cameraPivot", presentationPivot);
+            SetField(defaults, "_playerArmsRoot", defaultsRoot);
+            SetField(defaults, "_playerArmsAnimator", defaultsAnimator);
+
+            var adapter = root.AddComponent<ViewmodelAnimationAdapter>();
+            SetField(adapter, "_cameraDefaults", defaults);
+            SetField(adapter, "_animator", explicitAnimator);
+
+            Invoke(adapter, "ResolveAnimator");
+
+            Assert.That(GetField(adapter, "_animator"), Is.SameAs(explicitAnimator));
+        }
+
         private static void Invoke(object instance, string methodName)
         {
             var method = instance.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);

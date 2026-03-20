@@ -61,6 +61,41 @@ namespace Reloader.Player.Tests.EditMode
                 "FpsViewmodelAnimatorDriver should not recover its animator from legacy CameraPivot/PlayerArms name searches when no explicit contract is configured.");
         }
 
+        [Test]
+        public void ResolveReferences_PreservesExplicitAnimatorAndRoot_WhenTheyRemainValidOnPlayerHierarchy()
+        {
+            var root = new GameObject("PlayerRoot");
+            var presentationPivot = new GameObject("PresentationPivot").transform;
+            presentationPivot.SetParent(root.transform, false);
+
+            var explicitRoot = new GameObject("ExplicitArmsRoot").transform;
+            explicitRoot.SetParent(root.transform, false);
+            var explicitVisual = new GameObject("ExplicitArmsVisual").transform;
+            explicitVisual.SetParent(explicitRoot, false);
+            var explicitAnimator = explicitVisual.gameObject.AddComponent<Animator>();
+
+            var defaultsRoot = new GameObject("DefaultsArmsRoot").transform;
+            defaultsRoot.SetParent(presentationPivot, false);
+            var defaultsVisual = new GameObject("DefaultsArmsVisual").transform;
+            defaultsVisual.SetParent(defaultsRoot, false);
+            var defaultsAnimator = defaultsVisual.gameObject.AddComponent<Animator>();
+
+            var cameraDefaults = root.AddComponent<PlayerCameraDefaults>();
+            SetField(cameraDefaults, "_cameraPivot", presentationPivot);
+            SetField(cameraDefaults, "_playerArmsRoot", defaultsRoot);
+            SetField(cameraDefaults, "_playerArmsAnimator", defaultsAnimator);
+
+            var driver = root.AddComponent<FpsViewmodelAnimatorDriver>();
+            SetField(driver, "_cameraDefaults", cameraDefaults);
+            SetField(driver, "_animator", explicitAnimator);
+            SetField(driver, "_viewmodelRoot", explicitRoot);
+
+            Invoke(driver, "ResolveReferences");
+
+            Assert.That(GetField(driver, "_animator"), Is.SameAs(explicitAnimator));
+            Assert.That(GetField(driver, "_viewmodelRoot"), Is.SameAs(explicitRoot));
+        }
+
         private static void Invoke(object instance, string methodName)
         {
             var method = instance.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);

@@ -102,6 +102,11 @@ namespace Reloader.Player
 
         private Animator ResolveViewmodelAnimator()
         {
+            if (IsAnimatorOnPlayerHierarchy(_animator))
+            {
+                return _animator;
+            }
+
             if (_cameraDefaults != null && _cameraDefaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator))
             {
                 return playerArmsAnimator;
@@ -188,6 +193,11 @@ namespace Reloader.Player
 
         private Transform ResolveViewmodelRoot()
         {
+            if (IsTransformOnPlayerHierarchy(_viewmodelRoot))
+            {
+                return _viewmodelRoot;
+            }
+
             if (_cameraDefaults != null
                 && _cameraDefaults.TryGetPlayerArmsRoot(out var playerArmsRoot)
                 && IsTransformOnPlayerHierarchy(playerArmsRoot))
