@@ -69,14 +69,14 @@ namespace Reloader.Player.Viewmodel
         private void Awake()
         {
             ResolveLocalDependencies();
-            EnsureRigSetup();
+            TryEnsureRigSetup();
             CaptureRestPose(force: true);
         }
 
         private void OnEnable()
         {
             ResolveLocalDependencies();
-            EnsureRigSetup();
+            TryEnsureRigSetup();
             CaptureRestPose(force: true);
         }
 
@@ -112,7 +112,13 @@ namespace Reloader.Player.Viewmodel
         public void SyncHandTargets()
         {
             ResolveLocalDependencies();
-            EnsureRigSetup();
+            if (!TryEnsureRigSetup())
+            {
+                ClearRuntimeState();
+                RestoreHandTargets();
+                ApplyConstraintWeights(hasWeaponAnchors: false);
+                return;
+            }
 
             var weaponView = ResolveEquippedWeaponView();
             if (weaponView == null)
@@ -188,74 +194,62 @@ namespace Reloader.Player.Viewmodel
             }
         }
 
-        private void EnsureRigSetup()
+        private bool TryEnsureRigSetup()
         {
             if (_armsAnimator == null)
             {
-                return;
-            }
-
-            var needsRigRebuild = false;
-            if (_rigBuilder == null)
-            {
-                _rigBuilder = _armsAnimator.gameObject.GetComponent<RigBuilder>();
-                if (_rigBuilder == null)
-                {
-                    _rigBuilder = _armsAnimator.gameObject.AddComponent<RigBuilder>();
-                }
-
-                needsRigRebuild = true;
-            }
-
-            if (_weaponHandRig == null)
-            {
-                var rigTransform = _armsAnimator.transform.Find(RigName);
-                if (rigTransform == null)
-                {
-                    rigTransform = new GameObject(RigName).transform;
-                    rigTransform.SetParent(_armsAnimator.transform, false);
-                }
-
-                _weaponHandRig = rigTransform.GetComponent<Rig>();
-                if (_weaponHandRig == null)
-                {
-                    _weaponHandRig = rigTransform.gameObject.AddComponent<Rig>();
-                }
-
-                needsRigRebuild = true;
+                return false;
             }
 
             var targetRoot = ResolveTargetRoot();
             if (targetRoot == null)
             {
-                return;
+                return false;
+            }
+
+            if (_rigBuilder == null)
+            {
+                _rigBuilder = _armsAnimator.GetComponent<RigBuilder>();
+            }
+
+            if (_rigBuilder == null)
+            {
+                return false;
+            }
+
+            if (_weaponHandRig == null)
+            {
+                _weaponHandRig = _armsAnimator.transform.Find(RigName)?.GetComponent<Rig>();
+            }
+
+            if (_weaponHandRig == null)
+            {
+                return false;
             }
 
             if (_driveLeftHand)
             {
                 if (_leftHandTarget == null)
                 {
-                    _leftHandTarget = ResolveOrCreateChild(targetRoot, LeftTargetName);
+                    _leftHandTarget = targetRoot.Find(LeftTargetName);
                 }
 
                 if (_leftHandHint == null)
                 {
-                    _leftHandHint = ResolveOrCreateChild(targetRoot, LeftHintName);
+                    _leftHandHint = targetRoot.Find(LeftHintName);
                 }
 
                 if (_leftHandConstraint == null)
                 {
-                    var constraintTransform = ResolveOrCreateChild(_weaponHandRig.transform, LeftConstraintName);
-                    _leftHandConstraint = constraintTransform.GetComponent<TwoBoneIKConstraint>();
-                    if (_leftHandConstraint == null)
-                    {
-                        _leftHandConstraint = constraintTransform.gameObject.AddComponent<TwoBoneIKConstraint>();
-                    }
-
-                    needsRigRebuild = true;
+                    _leftHandConstraint = _weaponHandRig.transform.Find(LeftConstraintName)?.GetComponent<TwoBoneIKConstraint>();
                 }
 
-                if (ConfigureConstraint(
+                if (_leftHandTarget == null || _leftHandHint == null || _leftHandConstraint == null)
+                {
+                    return false;
+                }
+
+                if (!ConfigureConstraint(
                         _leftHandConstraint,
                         rootBoneName: "upperarm_l",
                         midBoneName: "lowerarm_l",
@@ -263,7 +257,7 @@ namespace Reloader.Player.Viewmodel
                         _leftHandTarget,
                         _leftHandHint))
                 {
-                    needsRigRebuild = true;
+                    return false;
                 }
             }
 
@@ -271,27 +265,25 @@ namespace Reloader.Player.Viewmodel
             {
                 if (_rightHandTarget == null)
                 {
-                    _rightHandTarget = ResolveOrCreateChild(targetRoot, RightTargetName);
+                    _rightHandTarget = targetRoot.Find(RightTargetName);
                 }
 
                 if (_rightHandHint == null)
                 {
-                    _rightHandHint = ResolveOrCreateChild(targetRoot, RightHintName);
+                    _rightHandHint = targetRoot.Find(RightHintName);
                 }
 
                 if (_rightHandConstraint == null)
                 {
-                    var constraintTransform = ResolveOrCreateChild(_weaponHandRig.transform, RightConstraintName);
-                    _rightHandConstraint = constraintTransform.GetComponent<TwoBoneIKConstraint>();
-                    if (_rightHandConstraint == null)
-                    {
-                        _rightHandConstraint = constraintTransform.gameObject.AddComponent<TwoBoneIKConstraint>();
-                    }
-
-                    needsRigRebuild = true;
+                    _rightHandConstraint = _weaponHandRig.transform.Find(RightConstraintName)?.GetComponent<TwoBoneIKConstraint>();
                 }
 
-                if (ConfigureConstraint(
+                if (_rightHandTarget == null || _rightHandHint == null || _rightHandConstraint == null)
+                {
+                    return false;
+                }
+
+                if (!ConfigureConstraint(
                         _rightHandConstraint,
                         rootBoneName: "upperarm_r",
                         midBoneName: "lowerarm_r",
@@ -299,21 +291,16 @@ namespace Reloader.Player.Viewmodel
                         _rightHandTarget,
                         _rightHandHint))
                 {
-                    needsRigRebuild = true;
+                    return false;
                 }
             }
 
             if (!HasRigLayer(_rigBuilder, _weaponHandRig))
             {
-                _rigBuilder.layers.Add(new RigLayer(_weaponHandRig));
-                needsRigRebuild = true;
+                return false;
             }
 
-            if (needsRigRebuild)
-            {
-                RebuildRigGraph();
-                CaptureRestPose(force: true);
-            }
+            return true;
         }
 
         private Transform ResolveTargetRoot()
@@ -338,19 +325,6 @@ namespace Reloader.Player.Viewmodel
                 && (animator.transform == transform || animator.transform.IsChildOf(transform));
         }
 
-        private static Transform ResolveOrCreateChild(Transform parent, string childName)
-        {
-            var child = parent.Find(childName);
-            if (child != null)
-            {
-                return child;
-            }
-
-            child = new GameObject(childName).transform;
-            child.SetParent(parent, false);
-            return child;
-        }
-
         private bool ConfigureConstraint(
             TwoBoneIKConstraint constraint,
             string rootBoneName,
@@ -372,14 +346,7 @@ namespace Reloader.Player.Viewmodel
                 return false;
             }
 
-            var changed = false;
             var data = constraint.data;
-            changed |= !ReferenceEquals(data.root, rootBone);
-            changed |= !ReferenceEquals(data.mid, midBone);
-            changed |= !ReferenceEquals(data.tip, tipBone);
-            changed |= !ReferenceEquals(data.target, target);
-            changed |= !ReferenceEquals(data.hint, hint);
-
             data.root = rootBone;
             data.mid = midBone;
             data.tip = tipBone;
@@ -397,7 +364,7 @@ namespace Reloader.Player.Viewmodel
             target.rotation = tipBone.rotation;
             hint.position = ResolveDefaultHintPosition(rootBone, midBone, tipBone);
             hint.rotation = tipBone.rotation;
-            return changed;
+            return true;
         }
 
         private void RebuildRigGraph()

@@ -9,6 +9,7 @@ using Reloader.Weapons.Controllers;
 using Reloader.Weapons.Data;
 using Reloader.Weapons.Runtime;
 using UnityEngine;
+using UnityEngine.Animations.Rigging;
 using UnityEngine.TestTools;
 using Object = UnityEngine.Object;
 #if UNITY_EDITOR
@@ -22,32 +23,16 @@ namespace Reloader.Weapons.Tests.PlayMode
         [Test]
         public void SyncHandTargets_UsesEquippedWeaponViewAnchors()
         {
-            var root = new GameObject("PlayerRoot");
-            var cameraPivot = new GameObject("CameraPivot").transform;
-            cameraPivot.SetParent(root.transform, false);
-
-            var playerArms = new GameObject("PlayerArms").transform;
-            playerArms.SetParent(cameraPivot, false);
-
-            var armsVisual = new GameObject("PlayerArmsVisual").transform;
-            armsVisual.SetParent(playerArms, false);
-            var armsAnimator = armsVisual.gameObject.AddComponent<Animator>();
-
-            var defaults = ConfigurePlayerCameraDefaults(root, cameraPivot, playerArms, armsAnimator);
-            var handTargetRoot = CreateWeaponHandRigTargets(cameraPivot);
-
-            var controller = root.AddComponent<WeaponHandRigController>();
-            SetPrivateField(controller, "_cameraDefaults", defaults);
-            SetPrivateField(controller, "_handTargetRoot", handTargetRoot);
-            var leftHandTarget = new GameObject("LeftHandTarget").transform;
-            var rightHandTarget = new GameObject("RightHandTarget").transform;
+            var root = CreateWeaponHandRigTestRoot(out var controller, out _, out _, out _);
+            var leftHandTarget = controller.LeftHandTarget;
+            var rightHandTarget = controller.RightHandTarget;
+            Assert.That(leftHandTarget, Is.Not.Null);
+            Assert.That(rightHandTarget, Is.Not.Null);
             var weaponView = new GameObject("EquippedWeaponView");
 
             try
             {
                 SetPrivateField(controller, "_driveRightHand", true);
-                controller.ConfigureTargets(leftHandTarget, rightHandTarget);
-
                 var anchors = weaponView.AddComponent<WeaponViewHandAnchors>();
                 var leftGrip = new GameObject("LeftGrip").transform;
                 leftGrip.SetParent(weaponView.transform, false);
@@ -63,6 +48,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 controller.SetEquippedWeaponViewForTests(weaponView.transform);
                 controller.SyncHandTargets();
 
+                Assert.That(controller.LeftHandTarget, Is.SameAs(leftHandTarget));
+                Assert.That(controller.RightHandTarget, Is.SameAs(rightHandTarget));
                 Assert.That(Vector3.Distance(leftHandTarget.position, leftGrip.position), Is.LessThan(0.0001f));
                 Assert.That(Quaternion.Angle(leftHandTarget.rotation, leftGrip.rotation), Is.LessThan(0.01f));
                 Assert.That(Vector3.Distance(rightHandTarget.position, rightGrip.position), Is.LessThan(0.0001f));
@@ -81,32 +68,16 @@ namespace Reloader.Weapons.Tests.PlayMode
         [Test]
         public void SyncHandTargets_DoesNotRecoverHandAnchorsFromNestedChild_WhenRootAnchorsAreMissing()
         {
-            var root = new GameObject("PlayerRoot");
-            var cameraPivot = new GameObject("CameraPivot").transform;
-            cameraPivot.SetParent(root.transform, false);
-
-            var playerArms = new GameObject("PlayerArms").transform;
-            playerArms.SetParent(cameraPivot, false);
-
-            var armsVisual = new GameObject("PlayerArmsVisual").transform;
-            armsVisual.SetParent(playerArms, false);
-            var armsAnimator = armsVisual.gameObject.AddComponent<Animator>();
-
-            var defaults = ConfigurePlayerCameraDefaults(root, cameraPivot, playerArms, armsAnimator);
-            var handTargetRoot = CreateWeaponHandRigTargets(cameraPivot);
-
-            var controller = root.AddComponent<WeaponHandRigController>();
-            SetPrivateField(controller, "_cameraDefaults", defaults);
-            SetPrivateField(controller, "_handTargetRoot", handTargetRoot);
-            var leftHandTarget = new GameObject("LeftHandTarget").transform;
-            var rightHandTarget = new GameObject("RightHandTarget").transform;
+            var root = CreateWeaponHandRigTestRoot(out var controller, out _, out _, out _);
+            var leftHandTarget = controller.LeftHandTarget;
+            var rightHandTarget = controller.RightHandTarget;
+            Assert.That(leftHandTarget, Is.Not.Null);
+            Assert.That(rightHandTarget, Is.Not.Null);
             var weaponView = new GameObject("EquippedWeaponView");
 
             try
             {
                 SetPrivateField(controller, "_driveRightHand", true);
-                controller.ConfigureTargets(leftHandTarget, rightHandTarget);
-
                 var nestedAnchorsRoot = new GameObject("NestedAnchors").transform;
                 nestedAnchorsRoot.SetParent(weaponView.transform, false);
                 var anchors = nestedAnchorsRoot.gameObject.AddComponent<WeaponViewHandAnchors>();
@@ -125,6 +96,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 controller.SyncHandTargets();
 
                 Assert.That(controller.HasResolvedWeaponAnchors, Is.False);
+                Assert.That(controller.LeftHandTarget, Is.SameAs(leftHandTarget));
+                Assert.That(controller.RightHandTarget, Is.SameAs(rightHandTarget));
                 Assert.That(leftHandTarget.position, Is.EqualTo(Vector3.zero));
                 Assert.That(rightHandTarget.position, Is.EqualTo(Vector3.zero));
             }
@@ -147,33 +120,27 @@ namespace Reloader.Weapons.Tests.PlayMode
 
             try
             {
-                root = new GameObject("PlayerRoot");
-                var cameraPivot = new GameObject("CameraPivot").transform;
-                cameraPivot.SetParent(root.transform, false);
-
-                var playerArms = new GameObject("PlayerArms").transform;
-                playerArms.SetParent(cameraPivot, false);
-
-                var armsVisual = new GameObject("PlayerArmsVisual").transform;
-                armsVisual.SetParent(playerArms, false);
-                var armsAnimator = armsVisual.gameObject.AddComponent<Animator>();
-                var defaults = ConfigurePlayerCameraDefaults(root, cameraPivot, playerArms, armsAnimator);
-                var handTargetRoot = CreateWeaponHandRigTargets(cameraPivot);
+                root = CreateWeaponHandRigTestRoot(out var handRigController, out _, out _, out _);
+                var cameraPivot = root.transform.Find("CameraPivot");
+                Assert.That(cameraPivot, Is.Not.Null);
+                var defaults = root.GetComponent<PlayerCameraDefaults>();
+                Assert.That(defaults, Is.Not.Null);
+                var playerArms = cameraPivot!.Find("PlayerArms");
+                Assert.That(playerArms, Is.Not.Null);
+                var armsVisual = playerArms!.Find("PlayerArmsVisual");
+                Assert.That(armsVisual, Is.Not.Null);
+                var armsAnimator = armsVisual!.GetComponent<Animator>();
+                Assert.That(armsAnimator, Is.Not.Null);
+                var leftHandTarget = handRigController.LeftHandTarget;
+                var rightHandTarget = handRigController.RightHandTarget;
+                Assert.That(leftHandTarget, Is.Not.Null);
+                Assert.That(rightHandTarget, Is.Not.Null);
 #if UNITY_EDITOR
                 armsAnimator.runtimeAnimatorController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(
                     "Assets/_Project/Player/Resources/Viewmodels/Characters/ViewmodelArms.controller");
                 Assert.That(armsAnimator.runtimeAnimatorController, Is.Not.Null,
                     "Hand-rig seam test requires a RuntimeAnimatorController to avoid Animator.Play warnings.");
 #endif
-
-                var upperArm = new GameObject("upperarm_l").transform;
-                upperArm.SetParent(armsVisual, false);
-
-                var lowerArm = new GameObject("lowerarm_l").transform;
-                lowerArm.SetParent(upperArm, false);
-
-                var hand = new GameObject("hand_l").transform;
-                hand.SetParent(lowerArm, false);
 
                 var armature = new GameObject("Armature").transform;
                 armature.SetParent(playerArms, false);
@@ -194,13 +161,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 legacyRightGrip.localRotation = Quaternion.Euler(-15f, -25f, -35f);
                 legacyAnchors.SetHandTargets(legacyLeftGrip, legacyRightGrip);
 
-                var handRigController = root.AddComponent<WeaponHandRigController>();
-                SetPrivateField(handRigController, "_cameraDefaults", defaults);
-                SetPrivateField(handRigController, "_handTargetRoot", handTargetRoot);
                 SetPrivateField(handRigController, "_driveRightHand", true);
-                var leftHandTarget = new GameObject("LeftHandTarget").transform;
-                var rightHandTarget = new GameObject("RightHandTarget").transform;
-                handRigController.ConfigureTargets(leftHandTarget, rightHandTarget);
 
                 root.AddComponent<TestInputSource>();
                 var resolver = root.AddComponent<TestPickupResolver>();
@@ -261,6 +222,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(liveAnchors, Is.Not.Null);
                 Assert.That(weaponController.EquippedWeaponViewTransform, Is.Not.SameAs(legacyHandGun));
                 Assert.That(weaponController.EquippedWeaponViewTransform.IsChildOf(legacyHandGun), Is.False);
+                Assert.That(handRigController.LeftHandTarget, Is.SameAs(leftHandTarget));
+                Assert.That(handRigController.RightHandTarget, Is.SameAs(rightHandTarget));
                 Assert.That(Vector3.Distance(leftHandTarget.position, liveAnchors!.LeftHandGrip.position), Is.LessThan(0.0001f));
                 Assert.That(Quaternion.Angle(leftHandTarget.rotation, liveAnchors.LeftHandGrip.rotation), Is.LessThan(0.01f));
                 Assert.That(Vector3.Distance(rightHandTarget.position, liveAnchors.RightHandGrip.position), Is.LessThan(0.0001f));
@@ -296,7 +259,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [Test]
-        public void SyncHandTargets_CreatesLeftHandIkRigWhenAnimatorBonesExist()
+        public void SyncHandTargets_UsesExplicitAuthoredHandRig_WhenAnimatorBonesExist()
         {
             var root = CreateWeaponHandRigTestRoot(out var controller, out var upperArm, out var lowerArm, out var hand);
 
@@ -345,6 +308,47 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(cameraPivot.Find("WeaponHandRigTargets"), Is.Null,
                     "WeaponHandRigController should not recreate WeaponHandRigTargets under CameraPivot when the explicit authored root is missing.");
                 Assert.That(controller.HasResolvedWeaponAnchors, Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void SyncHandTargets_DoesNotCreateRigTargetsOrConstraints_WhenAuthoredContractIsIncomplete()
+        {
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(root.transform, false);
+
+            var playerArms = new GameObject("PlayerArms").transform;
+            playerArms.SetParent(cameraPivot, false);
+
+            var armsVisual = new GameObject("PlayerArmsVisual").transform;
+            armsVisual.SetParent(playerArms, false);
+            var armsAnimator = armsVisual.gameObject.AddComponent<Animator>();
+            var defaults = ConfigurePlayerCameraDefaults(root, cameraPivot, playerArms, armsAnimator);
+            var handTargetRoot = CreateWeaponHandRigTargets(cameraPivot);
+
+            var controller = root.AddComponent<WeaponHandRigController>();
+            SetPrivateField(controller, "_cameraDefaults", defaults);
+            SetPrivateField(controller, "_handTargetRoot", handTargetRoot);
+
+            try
+            {
+                controller.SyncHandTargets();
+
+                Assert.That(controller.HasResolvedWeaponAnchors, Is.False);
+                Assert.That(handTargetRoot.Find("LeftHandTarget"), Is.Null);
+                Assert.That(handTargetRoot.Find("LeftElbowHint"), Is.Null);
+                Assert.That(handTargetRoot.Find("RightHandTarget"), Is.Null);
+                Assert.That(handTargetRoot.Find("RightElbowHint"), Is.Null);
+                Assert.That(armsAnimator.transform.Find("WeaponHandRig"), Is.Null);
+                Assert.That(root.GetComponent<RigBuilder>(), Is.Null);
+                Assert.That(controller.LeftHandTarget, Is.Null);
+                Assert.That(controller.LeftHandHint, Is.Null);
+                Assert.That(controller.LeftHandConstraint, Is.Null);
             }
             finally
             {
@@ -443,6 +447,26 @@ namespace Reloader.Weapons.Tests.PlayMode
             var armsAnimator = armsVisual.gameObject.AddComponent<Animator>();
             var defaults = ConfigurePlayerCameraDefaults(root, cameraPivot, playerArms, armsAnimator);
             var handTargetRoot = CreateWeaponHandRigTargets(cameraPivot);
+            var leftHandTarget = new GameObject("LeftHandTarget").transform;
+            leftHandTarget.SetParent(handTargetRoot, false);
+            var leftHint = new GameObject("LeftElbowHint").transform;
+            leftHint.SetParent(handTargetRoot, false);
+            var rightHandTarget = new GameObject("RightHandTarget").transform;
+            rightHandTarget.SetParent(handTargetRoot, false);
+            var rightHint = new GameObject("RightElbowHint").transform;
+            rightHint.SetParent(handTargetRoot, false);
+
+            var rigBuilder = armsAnimator.gameObject.AddComponent<RigBuilder>();
+            var weaponHandRigGo = new GameObject("WeaponHandRig");
+            weaponHandRigGo.transform.SetParent(armsAnimator.transform, false);
+            var weaponHandRig = weaponHandRigGo.AddComponent<Rig>();
+            var leftConstraint = new GameObject("LeftHandConstraint");
+            leftConstraint.transform.SetParent(weaponHandRigGo.transform, false);
+            var leftConstraintComponent = leftConstraint.AddComponent<TwoBoneIKConstraint>();
+            var rightConstraint = new GameObject("RightHandConstraint");
+            rightConstraint.transform.SetParent(weaponHandRigGo.transform, false);
+            var rightConstraintComponent = rightConstraint.AddComponent<TwoBoneIKConstraint>();
+            rigBuilder.layers.Add(new RigLayer(weaponHandRig));
 
             upperArm = new GameObject("upperarm_l").transform;
             upperArm.SetParent(armsVisual, false);
@@ -456,9 +480,30 @@ namespace Reloader.Weapons.Tests.PlayMode
             hand.SetParent(lowerArm, false);
             hand.localPosition = new Vector3(-0.2f, 0f, 0f);
 
+            var upperArmRight = new GameObject("upperarm_r").transform;
+            upperArmRight.SetParent(armsVisual, false);
+            upperArmRight.localPosition = new Vector3(0.1f, 0.05f, 0.2f);
+
+            var lowerArmRight = new GameObject("lowerarm_r").transform;
+            lowerArmRight.SetParent(upperArmRight, false);
+            lowerArmRight.localPosition = new Vector3(0.2f, 0f, 0f);
+
+            var handRight = new GameObject("hand_r").transform;
+            handRight.SetParent(lowerArmRight, false);
+            handRight.localPosition = new Vector3(0.2f, 0f, 0f);
+
             controller = root.AddComponent<WeaponHandRigController>();
             SetPrivateField(controller, "_cameraDefaults", defaults);
+            SetPrivateField(controller, "_armsAnimator", armsAnimator);
+            SetPrivateField(controller, "_rigBuilder", rigBuilder);
+            SetPrivateField(controller, "_weaponHandRig", weaponHandRig);
             SetPrivateField(controller, "_handTargetRoot", handTargetRoot);
+            SetPrivateField(controller, "_leftHandTarget", leftHandTarget);
+            SetPrivateField(controller, "_leftHandHint", leftHint);
+            SetPrivateField(controller, "_rightHandTarget", rightHandTarget);
+            SetPrivateField(controller, "_rightHandHint", rightHint);
+            SetPrivateField(controller, "_leftHandConstraint", leftConstraintComponent);
+            SetPrivateField(controller, "_rightHandConstraint", rightConstraintComponent);
             return root;
         }
 
