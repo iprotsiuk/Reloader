@@ -175,9 +175,12 @@ namespace Reloader.Weapons.Runtime
             var shouldHoldScopedAdsRootPose = ShouldHoldScopedAdsRootPose(useDirectScopedBlend);
             if (shouldHoldScopedAdsRootPose)
             {
-                transform.localPosition = pose.AdsLocalPosition;
-                transform.localRotation = adsRot * Quaternion.Euler(pose.RifleLocalEulerOffset);
-                _isHoldingScopedAdsRootPose = true;
+                if (!_isHoldingScopedAdsRootPose)
+                {
+                    transform.localPosition = pose.AdsLocalPosition;
+                    transform.localRotation = adsRot * Quaternion.Euler(pose.RifleLocalEulerOffset);
+                    _isHoldingScopedAdsRootPose = true;
+                }
 
                 return;
             }

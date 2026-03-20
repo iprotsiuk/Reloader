@@ -25,7 +25,7 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void LateUpdate_StableScopedAds_ReassertsRootPoseAfterExternalDrift()
+        public void LateUpdate_StableScopedAds_SnapsOnceThenStopsRewritingRootPose()
         {
             var root = new GameObject("PlayerRoot");
             var controller = root.AddComponent<PlayerWeaponController>();
@@ -58,8 +58,8 @@ namespace Reloader.Core.Tests.EditMode
 
                 InvokePrivateLateUpdate(helper);
 
-                Assert.That(Vector3.Distance(view.transform.localPosition, new Vector3(4f, 5f, 6f)), Is.LessThanOrEqualTo(0.0001f));
-                Assert.That(Vector3.Distance(view.transform.localRotation.eulerAngles, new Vector3(7f, 8f, 9f)), Is.LessThanOrEqualTo(0.0001f));
+                Assert.That(Vector3.Distance(view.transform.localPosition, new Vector3(-9f, -8f, -7f)), Is.LessThanOrEqualTo(0.0001f));
+                Assert.That(Vector3.Distance(view.transform.localRotation.eulerAngles, new Vector3(11f, 12f, 13f)), Is.LessThanOrEqualTo(0.0001f));
             }
             finally
             {
@@ -126,10 +126,10 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [TestCase("Auto", 0.012f)]
-        [TestCase("RenderTexturePiP", 0.012f)]
-        public void ResolveOpticEyeReliefBackOffset_UsesAuthoredOpticBaselineForAllVisualModes(
+        [TestCase("RenderTexturePiP", 0f)]
+        public void ResolveOpticEyeReliefBackOffset_UsesVisualModeSpecificBaseline(
             string visualModeName,
-            float expectedEyeRelief)
+            float expectedResolvedEyeRelief)
         {
             var alignerType = System.Type.GetType("Reloader.Game.Weapons.WeaponAimAligner, Reloader.Game.Weapons");
             var opticDefinitionType = System.Type.GetType("Reloader.Game.Weapons.OpticDefinition, Reloader.Game.Weapons");
@@ -153,10 +153,10 @@ namespace Reloader.Core.Tests.EditMode
                 Assert.That(eyeReliefField, Is.Not.Null, "OpticDefinition eye relief field should exist.");
 
                 visualModeField!.SetValue(opticDefinition, System.Enum.Parse(adsVisualModeType!, visualModeName));
-                eyeReliefField!.SetValue(opticDefinition, expectedEyeRelief);
+                eyeReliefField!.SetValue(opticDefinition, 0.012f);
 
                 var actual = (float)method!.Invoke(null, new object[] { opticDefinition });
-                Assert.That(actual, Is.EqualTo(expectedEyeRelief).Within(0.0001f));
+                Assert.That(actual, Is.EqualTo(expectedResolvedEyeRelief).Within(0.0001f));
             }
             finally
             {
