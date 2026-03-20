@@ -1367,6 +1367,23 @@ namespace Reloader.Weapons.Tests.PlayMode
 
             Assert.That(adsCamera.fieldOfView, Is.EqualTo(externalFov).Within(0.2f), "Unarmed flow should not overwrite externally applied FOV.");
 
+            runtime.SelectBeltSlot(0);
+            yield return null;
+
+            input.AimHeldValue = true;
+            yield return null;
+            yield return new WaitForSeconds(0.45f);
+
+            Assert.That(adsCamera.fieldOfView, Is.LessThan(externalFov - 1f),
+                "Re-equipping should still allow ADS to lower FOV from the refreshed explicit-owner baseline.");
+
+            input.AimHeldValue = false;
+            yield return null;
+            yield return new WaitForSeconds(0.45f);
+
+            Assert.That(adsCamera.fieldOfView, Is.EqualTo(externalFov).Within(0.6f),
+                "Unarmed settings-driven FOV changes should refresh the baseline used by the next equip/aim cycle.");
+
             Object.Destroy(root);
             Object.Destroy(registryGo);
             Object.Destroy(definition);

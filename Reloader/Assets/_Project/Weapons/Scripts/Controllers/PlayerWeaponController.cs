@@ -1270,6 +1270,10 @@ namespace Reloader.Weapons.Controllers
             if (string.IsNullOrWhiteSpace(_equippedItemId))
             {
                 ResetScopedAdsLookSensitivityBridge();
+                if (hasFieldOfView)
+                {
+                    _baseCameraFieldOfView = Mathf.Clamp(currentFieldOfView, 1f, 179f);
+                }
                 return;
             }
 
