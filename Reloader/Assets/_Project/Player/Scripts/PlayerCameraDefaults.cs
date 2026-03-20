@@ -311,18 +311,11 @@ namespace Reloader.Player
 
         private Animator ResolvePlayerArmsAnimator()
         {
-            if (_playerArmsAnimator != null && IsUsableHierarchyReference(_playerArmsAnimator.transform))
-            {
-                return _playerArmsAnimator;
-            }
-
-            var playerArmsRoot = ResolvePlayerArmsRoot();
-            if (playerArmsRoot == null)
+            if (_playerArmsAnimator == null || !IsUsableHierarchyReference(_playerArmsAnimator.transform))
             {
                 return null;
             }
 
-            _playerArmsAnimator = playerArmsRoot.GetComponentInChildren<Animator>(true);
             return _playerArmsAnimator;
         }
 

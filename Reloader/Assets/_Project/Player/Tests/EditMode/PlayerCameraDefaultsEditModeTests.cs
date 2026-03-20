@@ -179,6 +179,29 @@ namespace Reloader.Player.Tests.EditMode
         }
 
         [Test]
+        public void TryGetPlayerArmsAnimator_DoesNotRecoverFromPlayerArmsRoot_WhenExplicitAnimatorIsMissing()
+        {
+            var root = new GameObject("CameraDefaultsRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(root.transform, false);
+            var playerArmsRoot = new GameObject("PlayerArms").transform;
+            playerArmsRoot.SetParent(cameraPivot, false);
+            var playerArmsVisual = new GameObject("PlayerArmsVisual");
+            playerArmsVisual.transform.SetParent(playerArmsRoot, false);
+            playerArmsVisual.AddComponent<Animator>();
+
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+            typeof(PlayerCameraDefaults)
+                .GetField("_playerArmsRoot", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, playerArmsRoot);
+
+            Assert.That(defaults.TryGetPlayerArmsAnimator(out var resolvedPlayerArmsAnimator), Is.False);
+            Assert.That(resolvedPlayerArmsAnimator, Is.Null);
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void TryGetViewmodelCamera_DoesNotRecoverFromCameraPivot_WhenExplicitViewmodelCameraParentIsMissing()
         {
             var (root, cameraPivot, mainCamera) = CreateRigRoot();

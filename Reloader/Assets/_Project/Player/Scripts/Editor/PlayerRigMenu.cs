@@ -211,7 +211,12 @@ namespace Reloader.Player.Editor
                 return;
             }
 
-            RebuildFpsArmsViewmodel(cameraPivot, mainCamera);
+            if (!TryRebuildFpsArmsViewmodel(cameraPivot, mainCamera))
+            {
+                Debug.LogWarning("Selected rig must already have authored PlayerArms and WeaponPresentationRoot roots.");
+                return;
+            }
+
             Debug.Log("FPS arms viewmodel configured on selected rig.");
         }
 
@@ -240,7 +245,12 @@ namespace Reloader.Player.Editor
                 return;
             }
 
-            RebuildFpsArmsViewmodel(cameraPivot, mainCamera);
+            if (!TryRebuildFpsArmsViewmodel(cameraPivot, mainCamera))
+            {
+                Debug.LogWarning("Active scene player rig must already have authored PlayerArms and WeaponPresentationRoot roots.");
+                return;
+            }
+
             Selection.activeGameObject = root;
             Debug.Log("FPS arms viewmodel rebuilt in active scene.");
         }
@@ -431,23 +441,82 @@ namespace Reloader.Player.Editor
             LogViewmodelRendererType(armsVisual);
         }
 
-        private static void RebuildFpsArmsViewmodel(Transform cameraPivot, Camera mainCamera)
+        private static bool TryRebuildFpsArmsViewmodel(Transform cameraPivot, Camera mainCamera)
         {
-            EnsureWeaponPresentationRoot(cameraPivot);
-
             var existingPlayerArms = cameraPivot.Find(PlayerArmsRootName);
-            if (existingPlayerArms != null)
+            var weaponPresentationRoot = cameraPivot.Find(WeaponPresentationRootName);
+            if (existingPlayerArms == null || weaponPresentationRoot == null)
             {
-                Object.DestroyImmediate(existingPlayerArms.gameObject);
+                return false;
             }
 
-            var existingOffset = cameraPivot.Find("FPS_ArmsOffset");
-            if (existingOffset != null)
+            ConfigureExistingFpsArmsViewmodel(cameraPivot, mainCamera, existingPlayerArms, weaponPresentationRoot);
+            return true;
+        }
+
+        private static void ConfigureExistingFpsArmsViewmodel(Transform cameraPivot, Camera mainCamera, Transform playerArmsRoot, Transform weaponPresentationRoot)
+        {
+            ConfigureFpsArmsImporter();
+
+            var modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(FpsArmsModelPath);
+            if (modelAsset == null)
             {
-                Object.DestroyImmediate(existingOffset.gameObject);
+                Debug.LogWarning($"FPS arms model not found at '{FpsArmsModelPath}'.");
+                return;
             }
 
-            EnsureFpsArmsViewmodel(cameraPivot, mainCamera);
+            var armsVisual = playerArmsRoot.Find(PlayerArmsVisualName);
+            if (armsVisual == null)
+            {
+                var legacyVisual = playerArmsRoot.Find("FPS_Arms");
+                if (legacyVisual != null)
+                {
+                    legacyVisual.name = PlayerArmsVisualName;
+                    armsVisual = legacyVisual;
+                }
+                else
+                {
+                    var instance = PrefabUtility.InstantiatePrefab(modelAsset) as GameObject;
+                    instance ??= Object.Instantiate(modelAsset);
+                    instance.name = PlayerArmsVisualName;
+                    Undo.RegisterCreatedObjectUndo(instance, "Create FPS Arms");
+                    instance.transform.SetParent(playerArmsRoot, false);
+                    armsVisual = instance.transform;
+                }
+            }
+
+            playerArmsRoot.localPosition = FpsArmsOffsetLocalPosition;
+            playerArmsRoot.localRotation = Quaternion.Euler(FpsArmsOffsetLocalEuler);
+            playerArmsRoot.localScale = FpsArmsOffsetLocalScale;
+            armsVisual.localPosition = Vector3.zero;
+            armsVisual.localRotation = Quaternion.identity;
+            armsVisual.localScale = Vector3.one;
+            var viewmodelLayer = EnsureLayer(ViewmodelLayerName);
+            if (viewmodelLayer < 0)
+            {
+                Debug.LogWarning("Could not assign Viewmodel layer. Cameras were not reconfigured.");
+                return;
+            }
+
+            var viewmodelCamera = ConfigureViewmodelCameras(cameraPivot, mainCamera, viewmodelLayer);
+            EnsureUnitScale(cameraPivot.root, cameraPivot, mainCamera.transform, viewmodelCamera != null ? viewmodelCamera.transform : null);
+
+            foreach (var renderer in armsVisual.GetComponentsInChildren<Renderer>(true))
+            {
+                renderer.shadowCastingMode = ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+            }
+
+            foreach (var collider in armsVisual.GetComponentsInChildren<Collider>(true))
+            {
+                collider.enabled = false;
+            }
+
+            SetLayerRecursively(playerArmsRoot.gameObject, viewmodelLayer);
+            SetLayerRecursively(weaponPresentationRoot.gameObject, viewmodelLayer);
+            EnsureViewmodelAnimator(armsVisual, cameraPivot.root);
+            EnsureWeaponHandRigController(cameraPivot.root);
+            LogViewmodelRendererType(armsVisual);
         }
 
         private static Transform EnsurePlayerArmsRoot(Transform cameraPivot)

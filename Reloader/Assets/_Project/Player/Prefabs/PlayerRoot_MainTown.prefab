@@ -610,6 +610,10 @@ MonoBehaviour:
   _cameraFollowTarget: {fileID: 393772354762719187}
   _cameraLookTarget: {fileID: 1799004325867949257}
   _viewmodelCameraParent: {fileID: 393772354762719187}
+  _cameraPivot: {fileID: 393772354762719187}
+  _playerArmsRoot: {fileID: 6046686744160355134}
+  _playerArmsAnimator: {fileID: 7562842590407840843}
+  _weaponPresentationRoot: {fileID: 7349667363605887490}
   _nearClipPlane: 0.001
   _farClipPlane: 2828
 --- !u!114 &1114805819061063012

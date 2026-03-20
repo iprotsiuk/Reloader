@@ -12847,6 +12847,7 @@ GameObject:
   - component: {fileID: 573788851}
   - component: {fileID: 573788852}
   - component: {fileID: 573788853}
+  - component: {fileID: 573788859}
   m_Layer: 0
   m_Name: PlayerRoot
   m_TagString: Player
@@ -13219,6 +13220,11 @@ MonoBehaviour:
   _cinemachineCamera: {fileID: 0}
   _cameraFollowTarget: {fileID: 936686685}
   _cameraLookTarget: {fileID: 1353132413}
+  _viewmodelCameraParent: {fileID: 936686685}
+  _cameraPivot: {fileID: 936686685}
+  _playerArmsRoot: {fileID: 982901832}
+  _playerArmsAnimator: {fileID: 20147494}
+  _weaponPresentationRoot: {fileID: 166930804}
   _nearClipPlane: 0.01
   _farClipPlane: 2828
 --- !u!114 &573788850
@@ -13283,6 +13289,38 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Animations.PlayerWeaponAnimationBinder
   _animator: {fileID: 20147494}
   _animationProfile: {fileID: 11400000, guid: 052fe1896bea14619ab66cde169b093a, type: 2}
+--- !u!114 &573788859
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 573788834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5f5eedd0efb44f5a86e2e256db1424a, type: 3}
+  m_Name: ''
+  m_EditorClassIdentifier: Reloader.Weapons::Reloader.Player.Viewmodel.WeaponHandRigController
+  _armsAnimator: {fileID: 0}
+  _rigBuilder: {fileID: 0}
+  _weaponHandRig: {fileID: 0}
+  _leftHandConstraint: {fileID: 0}
+  _rightHandConstraint: {fileID: 0}
+  _leftHandTarget: {fileID: 0}
+  _leftHandHint: {fileID: 0}
+  _rightHandTarget: {fileID: 0}
+  _rightHandHint: {fileID: 0}
+  _enabledInPlayMode: 1
+  _driveLeftHand: 1
+  _driveRightHand: 0
+  _releaseLeftHandDuringReload: 1
+  _leftHandActiveWeight: 1
+  _leftHandReloadWeight: 0
+  _rightHandActiveWeight: 1
+  _rightHandReloadWeight: 1
+  _hintDistance: 0.18
+  _equippedViewName: ''
+  _hasResolvedWeaponAnchors: 0
 --- !u!114 &573788857
 MonoBehaviour:
   m_ObjectHideFlags: 0

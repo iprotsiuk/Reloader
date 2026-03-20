@@ -131,6 +131,7 @@ namespace Reloader.World.Tests.EditMode
                 var playerRoot = FindRoot(scene, "PlayerRoot");
                 Assert.That(playerRoot, Is.Not.Null, "Expected authored PlayerRoot in MainTown.");
                 AssertWeaponHandRigOwner(playerRoot!, "MainTown scene PlayerRoot");
+                AssertPlayerCameraDefaultsOwnership(playerRoot!, "MainTown scene PlayerRoot");
             }
             finally
             {
@@ -150,6 +151,7 @@ namespace Reloader.World.Tests.EditMode
             try
             {
                 AssertWeaponHandRigOwner(prefabRoot, "PlayerRoot_MainTown prefab");
+                AssertPlayerCameraDefaultsOwnership(prefabRoot, "PlayerRoot_MainTown prefab");
             }
             finally
             {
@@ -158,30 +160,21 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void MainTownCombatWiring_ResolveWeaponViewParent_PrefersWeaponPresentationRoot_OverLegacyIkHandGun()
+        public void MainTownCombatWiring_ResolveWeaponViewParent_UsesExplicitWeaponPresentationRoot_AndDoesNotCreateFallback()
         {
             var playerRoot = new GameObject("PlayerRoot");
             var cameraPivot = new GameObject("CameraPivot").transform;
             cameraPivot.SetParent(playerRoot.transform, false);
 
-            var playerArms = new GameObject("PlayerArms").transform;
-            playerArms.SetParent(cameraPivot, false);
-            playerArms.gameObject.layer = 17;
+            var weaponPresentationRoot = new GameObject("WeaponPresentationRoot").transform;
+            weaponPresentationRoot.SetParent(cameraPivot, false);
+            weaponPresentationRoot.localPosition = Vector3.zero;
+            weaponPresentationRoot.localRotation = Quaternion.identity;
+            weaponPresentationRoot.localScale = Vector3.one;
 
-            var playerArmsVisual = new GameObject("PlayerArmsVisual");
-            playerArmsVisual.transform.SetParent(playerArms, false);
-            playerArmsVisual.layer = playerArms.gameObject.layer;
-            var animator = playerArmsVisual.AddComponent<Animator>();
-
-            var armature = new GameObject("Armature").transform;
-            armature.SetParent(playerArmsVisual.transform, false);
-            armature.gameObject.layer = playerArms.gameObject.layer;
-            var ikHandRoot = new GameObject("ik_hand_root").transform;
-            ikHandRoot.SetParent(armature, false);
-            ikHandRoot.gameObject.layer = playerArms.gameObject.layer;
-            var ikHandGun = new GameObject("ik_hand_gun").transform;
-            ikHandGun.SetParent(ikHandRoot, false);
-            ikHandGun.gameObject.layer = playerArms.gameObject.layer;
+            var legacyIkHandGun = new GameObject("ik_hand_gun").transform;
+            legacyIkHandGun.SetParent(cameraPivot, false);
+            legacyIkHandGun.gameObject.layer = 17;
 
             try
             {
@@ -191,7 +184,7 @@ namespace Reloader.World.Tests.EditMode
 
                 Assert.That(resolveWeaponViewParent, Is.Not.Null, "Expected MainTownCombatWiring.ResolveWeaponViewParent to exist.");
 
-                var resolvedParent = resolveWeaponViewParent!.Invoke(null, new object[] { animator }) as Transform;
+                var resolvedParent = resolveWeaponViewParent!.Invoke(null, new object[] { cameraPivot }) as Transform;
 
                 Assert.That(resolvedParent, Is.Not.Null);
                 Assert.That(resolvedParent.name, Is.EqualTo("WeaponPresentationRoot"));
@@ -200,11 +193,9 @@ namespace Reloader.World.Tests.EditMode
                 Assert.That(resolvedParent.localPosition, Is.EqualTo(Vector3.zero));
                 Assert.That(resolvedParent.localRotation, Is.EqualTo(Quaternion.identity));
                 Assert.That(resolvedParent.localScale, Is.EqualTo(Vector3.one));
-                Assert.That(resolvedParent.gameObject.layer, Is.EqualTo(playerArms.gameObject.layer));
-                Assert.That(resolvedParent, Is.Not.SameAs(ikHandGun));
-                Assert.That(resolvedParent, Is.Not.SameAs(playerArms));
-                Assert.That(resolvedParent, Is.Not.SameAs(playerArmsVisual.transform),
-                    "MainTown combat wiring should only mount runtime weapon views under CameraPivot/WeaponPresentationRoot.");
+                Assert.That(resolvedParent.gameObject.layer, Is.EqualTo(weaponPresentationRoot.gameObject.layer));
+                Assert.That(resolvedParent, Is.Not.SameAs(legacyIkHandGun));
+                Assert.That(cameraPivot.Find("LegacyWeaponPresentationRoot"), Is.Null);
             }
             finally
             {
@@ -246,6 +237,22 @@ namespace Reloader.World.Tests.EditMode
                 weaponControllerSerialized.FindProperty("_allowSceneWideDependencyLookup")?.boolValue,
                 Is.False,
                 $"{context} should keep scene-wide dependency lookup disabled for the weapon controller.");
+        }
+
+        private static void AssertPlayerCameraDefaultsOwnership(GameObject playerRoot, string context)
+        {
+            var cameraDefaults = playerRoot.GetComponent("PlayerCameraDefaults");
+            Assert.That(cameraDefaults, Is.Not.Null, $"{context} should include PlayerCameraDefaults.");
+
+            var serialized = new SerializedObject(cameraDefaults);
+            Assert.That(serialized.FindProperty("_mainCamera")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the main camera.");
+            Assert.That(serialized.FindProperty("_cameraFollowTarget")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the camera follow target.");
+            Assert.That(serialized.FindProperty("_cameraLookTarget")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the camera look target.");
+            Assert.That(serialized.FindProperty("_viewmodelCameraParent")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the viewmodel camera parent.");
+            Assert.That(serialized.FindProperty("_cameraPivot")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the camera pivot.");
+            Assert.That(serialized.FindProperty("_playerArmsRoot")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the player arms root.");
+            Assert.That(serialized.FindProperty("_playerArmsAnimator")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the player arms animator.");
+            Assert.That(serialized.FindProperty("_weaponPresentationRoot")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the weapon presentation root.");
         }
 
 
