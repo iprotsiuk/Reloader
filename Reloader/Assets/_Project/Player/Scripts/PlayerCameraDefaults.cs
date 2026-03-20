@@ -39,15 +39,6 @@ namespace Reloader.Player
         [ContextMenu("Apply Camera Defaults")]
         public void ApplyDefaults()
         {
-            if (_mainCamera != null && _brain == null)
-            {
-                _brain = _mainCamera.GetComponent<CinemachineBrain>();
-                if (_brain == null)
-                {
-                    _brain = _mainCamera.gameObject.AddComponent<CinemachineBrain>();
-                }
-            }
-
             if (_enableVSync)
             {
                 QualitySettings.vSyncCount = 1;
@@ -65,7 +56,6 @@ namespace Reloader.Player
                 var lookTarget = _cameraLookTarget != null ? _cameraLookTarget : _cameraFollowTarget;
                 _cinemachineCamera.Follow = _cameraFollowTarget;
                 _cinemachineCamera.LookAt = lookTarget;
-                EnsurePipelineComponents(_cinemachineCamera);
             }
 
             if (_mainCamera != null)
@@ -212,21 +202,6 @@ namespace Reloader.Player
                 : _cameraFollowTarget.rotation;
 
             mainCamera.transform.SetPositionAndRotation(_cameraFollowTarget.position, rotation);
-        }
-
-        private static void EnsurePipelineComponents(CinemachineCamera cinemachineCamera)
-        {
-            var body = cinemachineCamera.GetCinemachineComponent(CinemachineCore.Stage.Body);
-            if (body == null)
-            {
-                cinemachineCamera.gameObject.AddComponent<CinemachineHardLockToTarget>();
-            }
-
-            var aim = cinemachineCamera.GetCinemachineComponent(CinemachineCore.Stage.Aim);
-            if (aim == null)
-            {
-                cinemachineCamera.gameObject.AddComponent<CinemachineHardLookAt>();
-            }
         }
 
         private void SyncViewmodelCameraLens()

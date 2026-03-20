@@ -1474,7 +1474,7 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
-        public void PlayerCameraDefaults_ApplyDefaults_AddsMissingBrainToMainCamera()
+        public void PlayerCameraDefaults_ApplyDefaults_DoesNotAddMissingBrainToMainCamera()
         {
             var root = new GameObject("CameraDefaultsRoot");
             var camera = root.AddComponent<Camera>();
@@ -1491,13 +1491,9 @@ namespace Reloader.Player.Tests.PlayMode
             defaults.ApplyDefaults();
 
             var brain = camera.GetComponent(brainType);
-            Assert.That(brain, Is.Not.Null, "Expected PlayerCameraDefaults to self-heal a missing CinemachineBrain on the main camera.");
-            Assert.That(
-                brainType.GetProperty("UpdateMethod")?.GetValue(brain)?.ToString(),
-                Is.EqualTo("LateUpdate"));
-            Assert.That(
-                brainType.GetProperty("BlendUpdateMethod")?.GetValue(brain)?.ToString(),
-                Is.EqualTo("LateUpdate"));
+            Assert.That(brain, Is.Null, "Expected PlayerCameraDefaults to leave a missing CinemachineBrain missing.");
+            Assert.That(camera.nearClipPlane, Is.EqualTo(0.001f).Within(0.0001f));
+            Assert.That(camera.farClipPlane, Is.EqualTo(2828f).Within(0.0001f));
 
             Object.DestroyImmediate(root);
         }
