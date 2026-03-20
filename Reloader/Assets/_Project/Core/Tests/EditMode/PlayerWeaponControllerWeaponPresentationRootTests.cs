@@ -67,9 +67,9 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(equippedView.transform.parent.name, Is.EqualTo("WeaponPresentationRoot"));
             Assert.That(equippedView.transform.parent.parent, Is.EqualTo(rig.CameraPivot));
             Assert.That(equippedView.transform.parent.parent, Is.Not.EqualTo(rig.PlayerArms));
-            Assert.That(equippedView.transform.localPosition, Is.EqualTo(new Vector3(1f, 2f, 3f)));
-            Assert.That(equippedView.transform.localRotation, Is.EqualTo(Quaternion.Euler(10f, 20f, 30f)));
-            Assert.That(equippedView.transform.localScale, Is.EqualTo(new Vector3(2f, 2f, 2f)));
+            Assert.That(Vector3.Distance(equippedView.transform.localPosition, new Vector3(1f, 2f, 3f)), Is.LessThan(0.0001f));
+            Assert.That(Quaternion.Angle(equippedView.transform.localRotation, Quaternion.Euler(10f, 20f, 30f)), Is.LessThan(0.0001f));
+            Assert.That(Vector3.Distance(equippedView.transform.localScale, new Vector3(2f, 2f, 2f)), Is.LessThan(0.0001f));
         }
 
         private static TestRig CreateRigWithLegacyHandHierarchy()
@@ -113,11 +113,11 @@ namespace Reloader.Core.Tests.EditMode
             public Transform IkHandGun { get; }
         }
 
-        private static void Invoke(object instance, string methodName)
+        private static void Invoke(object instance, string methodName, object[] args = null)
         {
             var method = instance.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(method, Is.Not.Null, $"Method '{methodName}' was not found.");
-            method!.Invoke(instance, null);
+            method!.Invoke(instance, args);
         }
 
         private static object GetField(object instance, string fieldName)

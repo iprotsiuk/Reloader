@@ -155,10 +155,10 @@ namespace Reloader.DevTools.Tests.PlayMode
 
             var equippedView = GetPropertyValue<Transform>(weaponController, "EquippedWeaponViewTransform");
             Assert.That(equippedView, Is.Not.Null);
-            Assert.That(equippedView.GetComponent<WeaponViewPoseTuningHelper>(), Is.Not.Null,
-                "Kar98k pose tuning should live on the equipped rifle view prefab, not the player root.");
-            Assert.That(root.GetComponent<WeaponViewPoseTuningHelper>(), Is.Null,
-                "Player root should not own Kar98k pose tuning once the prefab owns the weapon pose.");
+            Assert.That(Vector3.Distance(equippedView.localPosition, new Vector3(0.015f, 0.15f, 0.005f)), Is.LessThan(0.0001f),
+                "Kar98k hip carry should now be authored directly on the equipped rifle prefab root.");
+            Assert.That(Quaternion.Angle(equippedView.localRotation, Quaternion.Euler(90f, 0f, 0f)), Is.LessThan(0.0001f),
+                "Kar98k hip carry rotation should now be authored directly on the equipped rifle prefab root.");
 
             inputSource.AimHeldValue = true;
             var adsBridge = GetPrivateFieldValue<Component>(weaponController, "_adsStateRuntimeBridge");

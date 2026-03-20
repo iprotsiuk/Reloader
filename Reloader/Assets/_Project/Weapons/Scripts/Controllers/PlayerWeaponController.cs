@@ -2087,9 +2087,9 @@ namespace Reloader.Weapons.Controllers
             }
 
             _equippedWeaponView.name = $"EquippedView_{itemId}";
-            _equippedWeaponView.transform.localPosition = Vector3.zero;
-            _equippedWeaponView.transform.localRotation = Quaternion.identity;
-            _equippedWeaponView.transform.localScale = Vector3.one;
+            _equippedWeaponView.transform.localPosition = viewPrefab.transform.localPosition;
+            _equippedWeaponView.transform.localRotation = viewPrefab.transform.localRotation;
+            _equippedWeaponView.transform.localScale = viewPrefab.transform.localScale;
             ResetAppliedAttachmentViewState();
             ApplyViewmodelLayer(_equippedWeaponView.transform);
             StripViewPhysicsComponents(_equippedWeaponView);
@@ -2162,9 +2162,6 @@ namespace Reloader.Weapons.Controllers
             }
 
             _equippedWeaponView.transform.SetParent(_weaponViewParent, false);
-            _equippedWeaponView.transform.localPosition = Vector3.zero;
-            _equippedWeaponView.transform.localRotation = Quaternion.identity;
-            _equippedWeaponView.transform.localScale = Vector3.one;
         }
 
         private void ApplyEquippedAttachmentStateToViewRuntime(WeaponRuntimeState state)
@@ -2731,7 +2728,7 @@ namespace Reloader.Weapons.Controllers
             UObject instance;
             try
             {
-                instance = Instantiate((UObject)source, parent);
+                instance = Instantiate((UObject)source);
             }
             catch (System.Exception)
             {
@@ -2740,11 +2737,21 @@ namespace Reloader.Weapons.Controllers
 
             if (instance is GameObject gameObjectInstance)
             {
+                if (parent != null)
+                {
+                    gameObjectInstance.transform.SetParent(parent, false);
+                }
+
                 return gameObjectInstance;
             }
 
             if (instance is Component componentInstance)
             {
+                if (parent != null)
+                {
+                    componentInstance.transform.SetParent(parent, false);
+                }
+
                 return componentInstance.gameObject;
             }
 
@@ -3075,7 +3082,6 @@ namespace Reloader.Weapons.Controllers
                 }
 
                 if (behaviour is WeaponViewAttachmentMounts
-                    || behaviour is WeaponViewPoseTuningHelper
                     || behaviour is WeaponViewHandAnchors
                     || behaviour is GameMuzzleAttachmentRuntime
                     || behaviour is GameDetachableMagazineRuntime
