@@ -242,6 +242,60 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
+        [Test]
+        public void MainTownCombatWiring_TryResolveMainTownDependencies_FailsClosed_WhenExplicitMainCameraMissing_EvenIfCameraMainExists()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(playerRoot.transform, false);
+            var playerArmsRoot = new GameObject("PlayerArms").transform;
+            playerArmsRoot.SetParent(cameraPivot, false);
+            var playerArmsVisual = new GameObject("PlayerArmsVisual");
+            playerArmsVisual.transform.SetParent(playerArmsRoot, false);
+            var playerArmsAnimator = playerArmsVisual.AddComponent<Animator>();
+            var lookTarget = new GameObject("CameraLookTarget").transform;
+            lookTarget.SetParent(cameraPivot, false);
+            var weaponPresentationRoot = new GameObject("WeaponPresentationRoot").transform;
+            weaponPresentationRoot.SetParent(cameraPivot, false);
+            var taggedMainCamera = new GameObject("Main Camera").AddComponent<Camera>();
+            taggedMainCamera.tag = "MainCamera";
+            taggedMainCamera.transform.SetParent(cameraPivot, false);
+
+            var cameraDefaults = playerRoot.AddComponent<PlayerCameraDefaults>();
+            SetField(cameraDefaults, "_cameraPivot", cameraPivot);
+            SetField(cameraDefaults, "_playerArmsRoot", playerArmsRoot);
+            SetField(cameraDefaults, "_playerArmsAnimator", playerArmsAnimator);
+            SetField(cameraDefaults, "_cameraLookTarget", lookTarget);
+            SetField(cameraDefaults, "_weaponPresentationRoot", weaponPresentationRoot);
+
+            try
+            {
+                var tryResolveMainTownDependencies = typeof(MainTownCombatWiring).GetMethod(
+                    "TryResolveMainTownDependencies",
+                    BindingFlags.Static | BindingFlags.NonPublic);
+
+                Assert.That(tryResolveMainTownDependencies, Is.Not.Null, "Expected MainTownCombatWiring.TryResolveMainTownDependencies to exist.");
+
+                var args = new object[] { cameraDefaults, null, null, null, null, null, null };
+                var resolved = (bool)tryResolveMainTownDependencies!.Invoke(null, args)!;
+
+                Assert.That(resolved, Is.False,
+                    "MainTownCombatWiring must fail closed when the explicit main camera contract is missing.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(playerRoot);
+            }
+        }
+
+        public static void VerifySlice()
+        {
+            var suite = new MainTownCombatWiringEditModeTests();
+            suite.MainTownCombatWiring_ResolveWeaponViewParent_UsesExplicitWeaponPresentationRoot_AndDoesNotCreateFallback();
+            suite.MainTownCombatWiring_ResolveWeaponViewParent_ReturnsNull_WhenExplicitWeaponPresentationRootMissing_EvenIfHierarchyContainsOne();
+            suite.MainTownCombatWiring_TryResolveMainTownDependencies_FailsClosed_WhenExplicitMainCameraMissing_EvenIfCameraMainExists();
+        }
+
         private static GameObject FindRoot(Scene scene, string rootName)
         {
             foreach (var root in scene.GetRootGameObjects())
