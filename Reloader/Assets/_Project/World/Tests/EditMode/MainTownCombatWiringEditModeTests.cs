@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
+using Reloader.World.Editor;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -152,6 +154,61 @@ namespace Reloader.World.Tests.EditMode
             finally
             {
                 PrefabUtility.UnloadPrefabContents(prefabRoot);
+            }
+        }
+
+        [Test]
+        public void MainTownCombatWiring_ResolveWeaponViewParent_PrefersWeaponPresentationRoot_OverLegacyIkHandGun()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(playerRoot.transform, false);
+
+            var playerArms = new GameObject("PlayerArms").transform;
+            playerArms.SetParent(cameraPivot, false);
+            playerArms.gameObject.layer = 17;
+
+            var playerArmsVisual = new GameObject("PlayerArmsVisual");
+            playerArmsVisual.transform.SetParent(playerArms, false);
+            playerArmsVisual.layer = playerArms.gameObject.layer;
+            var animator = playerArmsVisual.AddComponent<Animator>();
+
+            var armature = new GameObject("Armature").transform;
+            armature.SetParent(playerArmsVisual.transform, false);
+            armature.gameObject.layer = playerArms.gameObject.layer;
+            var ikHandRoot = new GameObject("ik_hand_root").transform;
+            ikHandRoot.SetParent(armature, false);
+            ikHandRoot.gameObject.layer = playerArms.gameObject.layer;
+            var ikHandGun = new GameObject("ik_hand_gun").transform;
+            ikHandGun.SetParent(ikHandRoot, false);
+            ikHandGun.gameObject.layer = playerArms.gameObject.layer;
+
+            try
+            {
+                var resolveWeaponViewParent = typeof(MainTownCombatWiring).GetMethod(
+                    "ResolveWeaponViewParent",
+                    BindingFlags.Static | BindingFlags.NonPublic);
+
+                Assert.That(resolveWeaponViewParent, Is.Not.Null, "Expected MainTownCombatWiring.ResolveWeaponViewParent to exist.");
+
+                var resolvedParent = resolveWeaponViewParent!.Invoke(null, new object[] { animator }) as Transform;
+
+                Assert.That(resolvedParent, Is.Not.Null);
+                Assert.That(resolvedParent.name, Is.EqualTo("WeaponPresentationRoot"));
+                Assert.That(resolvedParent.parent, Is.EqualTo(cameraPivot));
+                Assert.That(cameraPivot.Find("WeaponPresentationRoot"), Is.SameAs(resolvedParent));
+                Assert.That(resolvedParent.localPosition, Is.EqualTo(Vector3.zero));
+                Assert.That(resolvedParent.localRotation, Is.EqualTo(Quaternion.identity));
+                Assert.That(resolvedParent.localScale, Is.EqualTo(Vector3.one));
+                Assert.That(resolvedParent.gameObject.layer, Is.EqualTo(playerArms.gameObject.layer));
+                Assert.That(resolvedParent, Is.Not.SameAs(ikHandGun));
+                Assert.That(resolvedParent, Is.Not.SameAs(playerArms));
+                Assert.That(resolvedParent, Is.Not.SameAs(playerArmsVisual.transform),
+                    "MainTown combat wiring should only mount runtime weapon views under CameraPivot/WeaponPresentationRoot.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(playerRoot);
             }
         }
 

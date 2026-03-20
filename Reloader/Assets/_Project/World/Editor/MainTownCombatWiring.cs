@@ -385,32 +385,59 @@ namespace Reloader.World.Editor
                 return null;
             }
 
-            var root = armsAnimator.transform;
-            return FindDescendantByName(root, "ik_hand_gun") ?? root;
-        }
-
-        private static Transform FindDescendantByName(Transform root, string targetName)
-        {
-            if (root == null || string.IsNullOrWhiteSpace(targetName))
+            var playerArmsRoot = FindSelfOrAncestorByName(armsAnimator.transform, "PlayerArms");
+            if (playerArmsRoot == null)
             {
                 return null;
             }
 
-            if (root.name == targetName)
+            var cameraPivot = playerArmsRoot.parent;
+            if (cameraPivot == null || cameraPivot.name != "CameraPivot")
             {
-                return root;
+                return null;
             }
 
-            for (var i = 0; i < root.childCount; i++)
+            var viewmodelLayer = playerArmsRoot.gameObject.layer;
+            var weaponPresentationRoot = cameraPivot.Find("WeaponPresentationRoot");
+            if (weaponPresentationRoot != null)
             {
-                var found = FindDescendantByName(root.GetChild(i), targetName);
-                if (found != null)
+                SetLayerRecursively(weaponPresentationRoot.gameObject, viewmodelLayer);
+                return weaponPresentationRoot;
+            }
+
+            var weaponPresentationRootGo = new GameObject("WeaponPresentationRoot");
+            Undo.RegisterCreatedObjectUndo(weaponPresentationRootGo, "Create Weapon Presentation Root");
+            weaponPresentationRoot = weaponPresentationRootGo.transform;
+            weaponPresentationRoot.SetParent(cameraPivot, false);
+            weaponPresentationRoot.localPosition = Vector3.zero;
+            weaponPresentationRoot.localRotation = Quaternion.identity;
+            weaponPresentationRoot.localScale = Vector3.one;
+            SetLayerRecursively(weaponPresentationRootGo, viewmodelLayer);
+            return weaponPresentationRoot;
+        }
+
+        private static Transform FindSelfOrAncestorByName(Transform current, string targetName)
+        {
+            while (current != null)
+            {
+                if (current.name == targetName)
                 {
-                    return found;
+                    return current;
                 }
+
+                current = current.parent;
             }
 
             return null;
+        }
+
+        private static void SetLayerRecursively(GameObject root, int layer)
+        {
+            root.layer = layer;
+            foreach (Transform child in root.transform)
+            {
+                SetLayerRecursively(child.gameObject, layer);
+            }
         }
 
         private static void CleanupStarterWorldObjects()

@@ -8,11 +8,9 @@ namespace Reloader.Core.Tests.EditMode
     public sealed class PlayerWeaponControllerWeaponPresentationRootTests
     {
         [Test]
-        public void ResolveReferences_CreatesWeaponPresentationRootAsCameraPivotSibling_WhenLegacyHierarchyIsPresent()
+        public void ResolveReferences_RejectsLegacyIkHandGunAndCreatesWeaponPresentationRootAsCameraPivotSibling()
         {
             var rig = CreateRigWithLegacyHandHierarchy();
-            var legacyPresentationRoot = new GameObject("WeaponPresentationRoot").transform;
-            legacyPresentationRoot.SetParent(rig.PlayerArms, false);
 
             var controller = rig.PlayerRoot.AddComponent<PlayerWeaponController>();
             SetField(controller, "_packAnimator", rig.PlayerArmsVisual.GetComponent<Animator>());
@@ -25,8 +23,7 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(resolvedParent, Is.Not.Null);
             Assert.That(resolvedParent.name, Is.EqualTo("WeaponPresentationRoot"));
             Assert.That(resolvedParent.parent, Is.EqualTo(rig.CameraPivot));
-            Assert.That(resolvedParent, Is.Not.EqualTo(legacyPresentationRoot));
-            Assert.That(legacyPresentationRoot.parent, Is.EqualTo(rig.PlayerArms));
+            Assert.That(rig.CameraPivot.Find("WeaponPresentationRoot"), Is.SameAs(resolvedParent));
             Assert.That(resolvedParent.localPosition, Is.EqualTo(Vector3.zero));
             Assert.That(resolvedParent.localRotation, Is.EqualTo(Quaternion.identity));
             Assert.That(resolvedParent.localScale, Is.EqualTo(Vector3.one));
