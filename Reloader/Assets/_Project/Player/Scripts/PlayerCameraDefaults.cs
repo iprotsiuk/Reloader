@@ -82,8 +82,14 @@ namespace Reloader.Player
 
         public bool TryGetMainCamera(out Camera mainCamera)
         {
-            mainCamera = _mainCamera != null ? _mainCamera : Camera.main;
-            return mainCamera != null;
+            if (_mainCamera == null || !IsUsableHierarchyReference(_mainCamera.transform))
+            {
+                mainCamera = null;
+                return false;
+            }
+
+            mainCamera = _mainCamera;
+            return true;
         }
 
         public bool TryGetAuthoredMainCamera(out Camera mainCamera)
@@ -101,12 +107,7 @@ namespace Reloader.Player
         public bool TryGetPresentationCamera(out Camera presentationCamera)
         {
             presentationCamera = ShotCameraGameplayState.PresentationCamera;
-            if (presentationCamera != null)
-            {
-                return true;
-            }
-
-            return TryGetMainCamera(out presentationCamera);
+            return presentationCamera != null;
         }
 
         public bool TryGetCameraLookTarget(out Transform cameraLookTarget)

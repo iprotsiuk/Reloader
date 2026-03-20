@@ -299,6 +299,24 @@ namespace Reloader.Player.Tests.EditMode
         }
 
         [Test]
+        public void TryGetMainCamera_DoesNotRecoverFromCameraMain_WhenExplicitMainCameraIsMissing()
+        {
+            var root = new GameObject("CameraDefaultsRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(root.transform, false);
+            var mainCamera = new GameObject("MainCamera").AddComponent<Camera>();
+            mainCamera.tag = "MainCamera";
+            mainCamera.transform.SetParent(cameraPivot, false);
+
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+
+            Assert.That(defaults.TryGetMainCamera(out var resolvedMainCamera), Is.False);
+            Assert.That(resolvedMainCamera, Is.Null);
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void TryGetCameraLookTarget_DoesNotRecoverFromCameraFollowTarget_WhenExplicitCameraLookTargetIsMissing()
         {
             var (root, cameraPivot, mainCamera) = CreateRigRoot();
@@ -412,10 +430,30 @@ namespace Reloader.Player.Tests.EditMode
             Object.DestroyImmediate(root);
         }
 
+        [Test]
+        public void TryGetPresentationCamera_DoesNotRecoverFromCameraMain_WhenPresentationCameraIsMissing()
+        {
+            var root = new GameObject("CameraDefaultsRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(root.transform, false);
+            var mainCamera = new GameObject("MainCamera").AddComponent<Camera>();
+            mainCamera.tag = "MainCamera";
+            mainCamera.transform.SetParent(cameraPivot, false);
+
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+
+            Assert.That(defaults.TryGetPresentationCamera(out var resolvedPresentationCamera), Is.False);
+            Assert.That(resolvedPresentationCamera, Is.Null);
+
+            Object.DestroyImmediate(root);
+        }
+
         public static void VerifySlice()
         {
             var suite = new PlayerCameraDefaultsEditModeTests();
+            suite.TryGetMainCamera_DoesNotRecoverFromCameraMain_WhenExplicitMainCameraIsMissing();
             suite.TryGetAuthoredMainCamera_DoesNotRecoverFromCameraMain_WhenExplicitMainCameraIsMissing();
+            suite.TryGetPresentationCamera_DoesNotRecoverFromCameraMain_WhenPresentationCameraIsMissing();
             suite.TryGetCameraLookTarget_DoesNotRecoverFromCameraFollowTarget_WhenExplicitCameraLookTargetIsMissing();
             suite.TryGetViewmodelCamera_DoesNotReparentCachedCamera_WhenExplicitParentMismatchExists();
             suite.ApplyDefaults_DoesNotRecoverViewmodelCameraFromChildName_WhenExplicitViewmodelCameraMissing();
