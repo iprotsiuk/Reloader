@@ -8,7 +8,7 @@ namespace Reloader.Player.Tests.EditMode
     public sealed class PlayerCameraDefaultsEditModeTests
     {
         [Test]
-        public void ApplyDefaults_CreatesViewmodelCameraOverlayStack_WhenMissing()
+        public void ApplyDefaults_DoesNotCreateViewmodelCameraOverlayStack_WhenViewmodelCameraMissing()
         {
             var (root, cameraPivot, mainCamera) = CreateRigRoot();
             var defaults = root.AddComponent<PlayerCameraDefaults>();
@@ -30,24 +30,19 @@ namespace Reloader.Player.Tests.EditMode
                 ?.SetValue(defaults, cameraPivot);
 
             Assert.That(root.transform.Find("CameraPivot/ViewmodelCamera"), Is.Null);
+            var originalCullingMask = mainCamera.cullingMask;
 
             defaults.ApplyDefaults();
 
             var viewmodelTransform = cameraPivot.Find("ViewmodelCamera");
-            Assert.That(viewmodelTransform, Is.Not.Null, "Expected PlayerCameraDefaults to create a ViewmodelCamera under CameraPivot when missing.");
-            Assert.That(viewmodelTransform.parent, Is.EqualTo(cameraPivot));
+            Assert.That(viewmodelTransform, Is.Null, "Expected PlayerCameraDefaults to fail closed when the authored ViewmodelCamera is missing.");
 
-            var viewmodelCamera = viewmodelTransform.GetComponent<Camera>();
             var mainCameraData = mainCamera.GetUniversalAdditionalCameraData();
-            var viewmodelCameraData = viewmodelCamera.GetUniversalAdditionalCameraData();
-            var viewmodelMask = 1 << viewmodelLayer;
 
-            Assert.That(viewmodelCamera, Is.Not.Null);
             Assert.That(mainCameraData.renderType, Is.EqualTo(CameraRenderType.Base));
-            Assert.That(viewmodelCameraData.renderType, Is.EqualTo(CameraRenderType.Overlay));
-            Assert.That(viewmodelCamera.cullingMask, Is.EqualTo(viewmodelMask));
-            Assert.That(mainCamera.cullingMask & viewmodelMask, Is.EqualTo(0));
-            Assert.That(mainCameraData.cameraStack.Contains(viewmodelCamera), Is.True);
+            Assert.That(root.GetComponentsInChildren<Camera>(true).Length, Is.EqualTo(1),
+                "Expected PlayerCameraDefaults to avoid creating a ViewmodelCamera when the authored one is missing.");
+            Assert.That(mainCamera.cullingMask, Is.EqualTo(originalCullingMask));
 
             Object.DestroyImmediate(root);
         }
@@ -70,11 +65,13 @@ namespace Reloader.Player.Tests.EditMode
             typeof(PlayerCameraDefaults)
                 .GetField("_cameraFollowTarget", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                 ?.SetValue(defaults, cameraPivot);
+            var authoredViewmodelCamera = new GameObject("ViewmodelCamera").AddComponent<Camera>();
+            authoredViewmodelCamera.transform.SetParent(cameraPivot, false);
 
             defaults.ApplyDefaults();
 
             var viewmodelCamera = cameraPivot.Find("ViewmodelCamera")?.GetComponent<Camera>();
-            Assert.That(viewmodelCamera, Is.Not.Null);
+            Assert.That(viewmodelCamera, Is.SameAs(authoredViewmodelCamera));
 
             var updated = defaults.TrySetEffectiveFieldOfView(37f);
 
@@ -286,12 +283,14 @@ namespace Reloader.Player.Tests.EditMode
         }
 
         [Test]
-        public void ApplyDefaults_UsesExplicitViewmodelCameraParent_WhenProvided()
+        public void ApplyDefaults_UsesExistingViewmodelCameraUnderExplicitParent_WhenProvided()
         {
             var (root, cameraPivot, mainCamera) = CreateRigRoot();
             var defaults = root.AddComponent<PlayerCameraDefaults>();
             var explicitParent = new GameObject("ExplicitViewmodelRoot").transform;
             explicitParent.SetParent(root.transform, false);
+            var authoredViewmodelCamera = new GameObject("ViewmodelCamera").AddComponent<Camera>();
+            authoredViewmodelCamera.transform.SetParent(explicitParent, false);
 
             typeof(PlayerCameraDefaults)
                 .GetField("_mainCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
@@ -306,7 +305,7 @@ namespace Reloader.Player.Tests.EditMode
             defaults.ApplyDefaults();
 
             var viewmodelTransform = explicitParent.Find("ViewmodelCamera");
-            Assert.That(viewmodelTransform, Is.Not.Null);
+            Assert.That(viewmodelTransform, Is.SameAs(authoredViewmodelCamera.transform));
             Assert.That(viewmodelTransform.parent, Is.EqualTo(explicitParent));
             Assert.That(cameraPivot.Find("ViewmodelCamera"), Is.Null);
 

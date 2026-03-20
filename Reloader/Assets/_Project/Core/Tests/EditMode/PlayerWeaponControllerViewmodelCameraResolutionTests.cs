@@ -51,6 +51,32 @@ namespace Reloader.Core.Tests.EditMode
             }
         }
 
+        [Test]
+        public void ResolveAdsCamera_DoesNotRecoverFromCameraMain_WhenExplicitMainCameraIsMissing()
+        {
+            var rigRoot = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(rigRoot.transform, false);
+
+            var mainCameraGo = new GameObject("MainCamera");
+            mainCameraGo.tag = "MainCamera";
+            mainCameraGo.transform.SetParent(cameraPivot, false);
+            mainCameraGo.AddComponent<Camera>();
+
+            var controller = rigRoot.AddComponent<PlayerWeaponController>();
+
+            try
+            {
+                var resolved = ResolveAdsCamera(controller);
+
+                Assert.That(resolved, Is.Null);
+            }
+            finally
+            {
+                Object.DestroyImmediate(rigRoot);
+            }
+        }
+
         private static Camera ResolveRuntimeViewmodelCamera(PlayerWeaponController controller, Camera worldCamera)
         {
             var method = typeof(PlayerWeaponController).GetMethod("ResolveRuntimeViewmodelCamera", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -58,6 +84,15 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(method, Is.Not.Null, "Expected PlayerWeaponController private runtime viewmodel-camera resolver to exist.");
 
             return (Camera)method!.Invoke(controller, new object[] { worldCamera });
+        }
+
+        private static Camera ResolveAdsCamera(PlayerWeaponController controller)
+        {
+            var method = typeof(PlayerWeaponController).GetMethod("ResolveAdsCamera", BindingFlags.Instance | BindingFlags.NonPublic);
+
+            Assert.That(method, Is.Not.Null, "Expected PlayerWeaponController private ADS camera resolver to exist.");
+
+            return (Camera)method!.Invoke(controller, null);
         }
 
         private static void SetField(object instance, string fieldName, object value)

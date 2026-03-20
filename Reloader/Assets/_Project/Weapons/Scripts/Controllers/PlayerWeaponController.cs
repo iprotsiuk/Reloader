@@ -3210,8 +3210,13 @@ namespace Reloader.Weapons.Controllers
 
         private Camera ResolveAdsCamera()
         {
-            var activeCamera = _adsCamera != null ? _adsCamera : Camera.main;
-            if (activeCamera == null && (_cameraDefaults == null || !_cameraDefaults.TryGetEffectiveFieldOfView(out _)))
+            var activeCamera = _adsCamera;
+            if (activeCamera == null && _cameraDefaults != null && _cameraDefaults.TryGetAuthoredMainCamera(out var authoredMainCamera))
+            {
+                activeCamera = authoredMainCamera;
+            }
+
+            if (activeCamera == null)
             {
                 return null;
             }
@@ -3235,34 +3240,33 @@ namespace Reloader.Weapons.Controllers
 
         private bool TryGetCurrentFieldOfView(out float fieldOfView)
         {
-            ResolveAdsCamera();
+            var camera = ResolveAdsCamera();
+            if (camera == null)
+            {
+                fieldOfView = default;
+                return false;
+            }
+
             if (_cameraDefaults != null && _cameraDefaults.TryGetEffectiveFieldOfView(out fieldOfView))
             {
                 return true;
             }
 
-            var camera = _cachedAdsCamera ?? _adsCamera ?? Camera.main;
-            if (camera != null)
-            {
-                fieldOfView = camera.fieldOfView;
-                return true;
-            }
-
-            fieldOfView = default;
-            return false;
+            fieldOfView = camera.fieldOfView;
+            return true;
         }
 
         private bool TrySetCurrentFieldOfView(float fieldOfView)
         {
-            if (_cameraDefaults != null && _cameraDefaults.TrySetEffectiveFieldOfView(fieldOfView))
-            {
-                return true;
-            }
-
-            var camera = _cachedAdsCamera ?? _adsCamera ?? Camera.main;
+            var camera = ResolveAdsCamera();
             if (camera == null)
             {
                 return false;
+            }
+
+            if (_cameraDefaults != null && _cameraDefaults.TrySetEffectiveFieldOfView(fieldOfView))
+            {
+                return true;
             }
 
             camera.fieldOfView = fieldOfView;

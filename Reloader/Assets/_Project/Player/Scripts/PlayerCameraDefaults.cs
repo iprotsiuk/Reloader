@@ -193,7 +193,7 @@ namespace Reloader.Player
                 _viewmodelCamera = null;
             }
 
-            _viewmodelCamera ??= ResolveViewmodelCamera(viewmodelParent, false);
+            _viewmodelCamera ??= ResolveViewmodelCamera(viewmodelParent);
             viewmodelCamera = _viewmodelCamera;
             return viewmodelCamera != null;
         }
@@ -242,7 +242,7 @@ namespace Reloader.Player
                 return;
             }
 
-            _viewmodelCamera ??= ResolveViewmodelCamera(viewmodelParent, false);
+            _viewmodelCamera ??= ResolveViewmodelCamera(viewmodelParent);
             if (_viewmodelCamera == null || !TryGetEffectiveFieldOfView(out var fieldOfView))
             {
                 return;
@@ -270,7 +270,7 @@ namespace Reloader.Player
             }
 
             var viewmodelParent = ResolveViewmodelCameraParent();
-            var viewmodelCamera = ResolveViewmodelCamera(viewmodelParent, true);
+            var viewmodelCamera = ResolveViewmodelCamera(viewmodelParent);
             if (viewmodelCamera == null)
             {
                 return null;
@@ -375,7 +375,7 @@ namespace Reloader.Player
             return candidate != null && (candidate == transform || candidate.IsChildOf(transform));
         }
 
-        private Camera ResolveViewmodelCamera(Transform viewmodelParent, bool createIfMissing)
+        private Camera ResolveViewmodelCamera(Transform viewmodelParent)
         {
             if (_mainCamera == null || viewmodelParent == null)
             {
@@ -393,13 +393,6 @@ namespace Reloader.Player
             }
 
             var viewmodelCamera = viewmodelParent.Find(ViewmodelCameraName)?.GetComponent<Camera>();
-
-            if (viewmodelCamera == null && createIfMissing)
-            {
-                var viewmodelCameraGo = new GameObject(ViewmodelCameraName);
-                viewmodelCameraGo.transform.SetParent(viewmodelParent, false);
-                viewmodelCamera = viewmodelCameraGo.AddComponent<Camera>();
-            }
 
             _viewmodelCamera = viewmodelCamera;
             return _viewmodelCamera;
