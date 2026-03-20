@@ -94,28 +94,10 @@ namespace Reloader.Player
             return true;
         }
 
-        public bool TryGetAuthoredMainCamera(out Camera mainCamera)
-        {
-            if (_mainCamera == null || !IsUsableHierarchyReference(_mainCamera.transform))
-            {
-                mainCamera = null;
-                return false;
-            }
-
-            mainCamera = _mainCamera;
-            return true;
-        }
-
         public bool TryGetPresentationCamera(out Camera presentationCamera)
         {
             presentationCamera = ShotCameraGameplayState.PresentationCamera;
             return presentationCamera != null;
-        }
-
-        public bool TryGetCameraLookTarget(out Transform cameraLookTarget)
-        {
-            cameraLookTarget = ResolveCameraLookTarget();
-            return cameraLookTarget != null;
         }
 
         public bool TryGetCameraLookTarget(out Transform cameraLookTarget)
