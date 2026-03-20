@@ -147,6 +147,45 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void ScopedWorldRenderScaleRuntime_RebindingAssetRestoresPreviousAssetState()
+        {
+            var runtimeType = ResolveType("Reloader.Game.Weapons.Rendering.ScopedPeripheralWorldRenderScaleRuntime");
+            Assert.That(runtimeType, Is.Not.Null);
+
+            var applyMethod = runtimeType!.GetMethod("ApplyToAsset", BindingFlags.Static | BindingFlags.NonPublic);
+            var resetMethod = runtimeType.GetMethod("Reset", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(applyMethod, Is.Not.Null);
+            Assert.That(resetMethod, Is.Not.Null);
+
+            var firstAsset = ScriptableObject.CreateInstance<UniversalRenderPipelineAsset>();
+            var secondAsset = ScriptableObject.CreateInstance<UniversalRenderPipelineAsset>();
+            var originalFirstRenderScale = firstAsset.renderScale;
+            var originalFirstUpscalingFilter = firstAsset.upscalingFilter;
+
+            try
+            {
+                resetMethod!.Invoke(null, null);
+
+                applyMethod!.Invoke(null, new object[] { firstAsset, true, 1f });
+                Assert.That(firstAsset.renderScale, Is.EqualTo(0.5f));
+                Assert.That(firstAsset.upscalingFilter, Is.EqualTo(UpscalingFilterSelection.Linear));
+
+                applyMethod.Invoke(null, new object[] { secondAsset, true, 1f });
+
+                Assert.That(firstAsset.renderScale, Is.EqualTo(originalFirstRenderScale));
+                Assert.That(firstAsset.upscalingFilter, Is.EqualTo(originalFirstUpscalingFilter));
+                Assert.That(secondAsset.renderScale, Is.EqualTo(0.5f));
+                Assert.That(secondAsset.upscalingFilter, Is.EqualTo(UpscalingFilterSelection.Linear));
+            }
+            finally
+            {
+                resetMethod!.Invoke(null, null);
+                Object.DestroyImmediate(firstAsset);
+                Object.DestroyImmediate(secondAsset);
+            }
+        }
+
         private static System.Type ResolveType(string fullName)
         {
             foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())

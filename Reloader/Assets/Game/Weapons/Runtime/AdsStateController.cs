@@ -20,6 +20,8 @@ namespace Reloader.Game.Weapons
         private const string ScopedOpticsSettingsContractTypeName = "Reloader.UI.Toolkit.EscMenu.ScopedOpticsSettings";
         private const string ScopedPipResolutionPlayerPrefKey = "esc-menu.scoped-pip-resolution-percent";
         private const string PeripheralBlurPlayerPrefKey = "esc-menu.peripheral-blur-percent";
+        private const int ScopedOpticsSettingsSourceInitialRetryFrameInterval = 30;
+        private const int ScopedOpticsSettingsSourceMaxRetryFrameInterval = 600;
 
         [Header("References")]
         [SerializeField] private Camera _worldCamera;
@@ -97,6 +99,8 @@ namespace Reloader.Game.Weapons
         private Type _scopedOpticsSettingsSnapshotType;
         private Type _scopedOpticsSettingsContractType;
         private bool _hasResolvedScopedOpticsSettingsSource;
+        private int _nextScopedOpticsSettingsSourceLookupFrame;
+        private int _scopedOpticsSettingsSourceRetryFrameInterval = ScopedOpticsSettingsSourceInitialRetryFrameInterval;
 
         public bool IsAdsActive => _isAdsHeld;
         public float AdsT { get; private set; }
@@ -163,6 +167,8 @@ namespace Reloader.Game.Weapons
             _lastMaskOpticDefinition = null;
             _lastMaskPolicy = AdsVisualMode.Auto;
             _capturedRuntimeCameraDefaults = false;
+            _nextScopedOpticsSettingsSourceLookupFrame = 0;
+            _scopedOpticsSettingsSourceRetryFrameInterval = ScopedOpticsSettingsSourceInitialRetryFrameInterval;
 
             if (_worldCamera != null)
             {
@@ -655,6 +661,14 @@ namespace Reloader.Game.Weapons
                 _scopedOpticsSettingsContractType = ResolveType(ScopedOpticsSettingsContractTypeName);
                 _scopedOpticsSettingsSource = ResolveScopedOpticsSettingsSource(_scopedOpticsSettingsSourceType);
                 _hasResolvedScopedOpticsSettingsSource = true;
+                ScheduleScopedOpticsSettingsSourceLookupRetry(_scopedOpticsSettingsSource);
+            }
+            else if (_scopedOpticsSettingsSource == null
+                && _scopedOpticsSettingsSourceType != null
+                && Time.frameCount >= _nextScopedOpticsSettingsSourceLookupFrame)
+            {
+                _scopedOpticsSettingsSource = ResolveScopedOpticsSettingsSource(_scopedOpticsSettingsSourceType);
+                ScheduleScopedOpticsSettingsSourceLookupRetry(_scopedOpticsSettingsSource);
             }
 
             var minPip = ResolveScopedOpticsMinPipResolutionPercent();
@@ -698,6 +712,21 @@ namespace Reloader.Game.Weapons
                 Mathf.Clamp(blurPercent, minBlur, maxBlur));
         }
 
+        private void ScheduleScopedOpticsSettingsSourceLookupRetry(object source)
+        {
+            if (source != null)
+            {
+                _nextScopedOpticsSettingsSourceLookupFrame = 0;
+                _scopedOpticsSettingsSourceRetryFrameInterval = ScopedOpticsSettingsSourceInitialRetryFrameInterval;
+                return;
+            }
+
+            _nextScopedOpticsSettingsSourceLookupFrame = Time.frameCount + _scopedOpticsSettingsSourceRetryFrameInterval;
+            _scopedOpticsSettingsSourceRetryFrameInterval = Mathf.Min(
+                _scopedOpticsSettingsSourceRetryFrameInterval * 2,
+                ScopedOpticsSettingsSourceMaxRetryFrameInterval);
+        }
+
         private object ResolveScopedOpticsSettingsSource(Type sourceType)
         {
             if (sourceType == null)
@@ -714,9 +743,76 @@ namespace Reloader.Game.Weapons
             for (var i = 0; i < settingsObjects.Length; i++)
             {
                 var candidate = settingsObjects[i];
-                if (candidate != null && sourceType.IsInstanceOfType(candidate))
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                if (sourceType.IsInstanceOfType(candidate))
                 {
                     return candidate;
+                }
+
+                var providerFromMember = ResolveScopedOpticsSettingsSourceFromMembers(candidate, sourceType);
+                if (providerFromMember != null)
+                {
+                    return providerFromMember;
+                }
+            }
+
+            return null;
+        }
+
+        private static object ResolveScopedOpticsSettingsSourceFromMembers(object host, Type sourceType)
+        {
+            if (host == null || sourceType == null)
+            {
+                return null;
+            }
+
+            var hostType = host.GetType();
+            var flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            var fields = hostType.GetFields(flags);
+            for (var i = 0; i < fields.Length; i++)
+            {
+                object value;
+                try
+                {
+                    value = fields[i].GetValue(host);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (value != null && sourceType.IsInstanceOfType(value))
+                {
+                    return value;
+                }
+            }
+
+            var properties = hostType.GetProperties(flags);
+            for (var i = 0; i < properties.Length; i++)
+            {
+                var property = properties[i];
+                if (!property.CanRead || property.GetIndexParameters().Length != 0)
+                {
+                    continue;
+                }
+
+                object value;
+                try
+                {
+                    value = property.GetValue(host, null);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (value != null && sourceType.IsInstanceOfType(value))
+                {
+                    return value;
                 }
             }
 

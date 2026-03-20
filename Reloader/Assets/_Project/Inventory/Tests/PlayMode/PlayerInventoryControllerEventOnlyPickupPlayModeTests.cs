@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using System.Reflection;
 using UnityEngine;
 
 namespace Reloader.Inventory.Tests.PlayMode
@@ -24,6 +25,32 @@ namespace Reloader.Inventory.Tests.PlayMode
             Assert.That(events.ItemPickupRejectedCount, Is.EqualTo(0));
 
             Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void OnEnable_WhenRuntimeWasCleared_ReinitializesRuntime()
+        {
+            var root = new GameObject("InventoryControllerReloadRecoveryRoot");
+            var controller = root.AddComponent<PlayerInventoryController>();
+
+            controller.enabled = false;
+            SetRuntimeForTests(controller, null);
+            controller.enabled = true;
+
+            Assert.That(controller.Runtime, Is.Not.Null);
+            Assert.That(controller.Runtime.BackpackCapacity, Is.EqualTo(9));
+            Assert.That(controller.TryStoreItemWithBeltPriority("item-after-reenable"), Is.True);
+
+            Object.DestroyImmediate(root);
+        }
+
+        private static void SetRuntimeForTests(PlayerInventoryController controller, PlayerInventoryRuntime runtime)
+        {
+            var field = typeof(PlayerInventoryController).GetField(
+                "<Runtime>k__BackingField",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            field.SetValue(controller, runtime);
         }
 
         private sealed class FakeInventoryEvents : IInventoryEvents

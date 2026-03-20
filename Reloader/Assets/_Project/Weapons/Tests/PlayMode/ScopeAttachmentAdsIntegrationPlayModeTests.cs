@@ -1488,7 +1488,217 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator ScopedPipOptic_WithAuthoredEyeRelief_KeepsStableOffsetWhileTurning()
+        public IEnumerator HipFireWithZeroAdsBlend_TinyCameraYaw_DoesNotRewriteAdsPivotPose()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var weaponAimAlignerType = ResolveType("Reloader.Game.Weapons.WeaponAimAligner");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(weaponAimAlignerType, Is.Not.Null);
+
+            var root = new GameObject("HipFireAdsAlignerRoot");
+            ScriptableObject scopedOptic = null;
+            GameObject opticPrefab = null;
+            GameObject cameraPivotGo = null;
+            GameObject worldCamGo = null;
+            GameObject viewmodelCamGo = null;
+
+            try
+            {
+                var adsPivot = new GameObject("AdsPivot").transform;
+                adsPivot.SetParent(root.transform, false);
+                adsPivot.localPosition = new Vector3(0.011f, -0.022f, 0.331f);
+                adsPivot.localRotation = Quaternion.Euler(1.5f, -2.25f, 0.75f);
+
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(adsPivot, false);
+                scopeSlot.localPosition = new Vector3(0.08f, -0.04f, 0.36f);
+                scopeSlot.localRotation = Quaternion.Euler(2f, -3f, 1f);
+
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(adsPivot, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                cameraPivotGo = new GameObject("CameraPivot");
+                cameraPivotGo.transform.position = new Vector3(4f, 1.6f, -3f);
+                cameraPivotGo.transform.rotation = Quaternion.Euler(6f, 18f, 0f);
+                root.transform.SetParent(cameraPivotGo.transform, false);
+
+                worldCamGo = new GameObject("WorldCam");
+                worldCamGo.transform.SetParent(cameraPivotGo.transform, false);
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+
+                viewmodelCamGo = new GameObject("ViewmodelCam");
+                viewmodelCamGo.transform.SetParent(cameraPivotGo.transform, false);
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_worldCamera", worldCamera);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_useLegacyInput", false);
+                SetField(ads, "_fallbackAdsInTime", 0.01f);
+                SetField(ads, "_fallbackAdsOutTime", 0.01f);
+
+                var aligner = root.AddComponent(weaponAimAlignerType);
+                Invoke(aligner, "BindRuntimeReferences", adsPivot, worldCamera.transform, manager, ads);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-hipfire-invariance", 4f, 8f, true, "RenderTexturePiP");
+                opticPrefab = GetProperty(scopedOptic, "OpticPrefab") as GameObject;
+                Assert.That(opticPrefab, Is.Not.Null);
+
+                var prefabSightAnchor = opticPrefab.transform.Find("SightAnchor");
+                Assert.That(prefabSightAnchor, Is.Not.Null);
+                prefabSightAnchor.localPosition = new Vector3(0.013f, -0.009f, -0.041f);
+                prefabSightAnchor.localRotation = Quaternion.Euler(4f, -6f, 1.5f);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+
+                Invoke(ads, "SetAdsHeld", false);
+                SetField(ads, "_isAdsHeld", false);
+                SetField(ads, "<AdsT>k__BackingField", 0f);
+
+                yield return null;
+
+                var injectedHipFireLocalPosition = adsPivot.localPosition + new Vector3(0.0011f, -0.0008f, 0.0009f);
+                var injectedHipFireLocalRotation = adsPivot.localRotation * Quaternion.Euler(0.05f, -0.04f, 0.03f);
+
+                adsPivot.localPosition = injectedHipFireLocalPosition;
+                adsPivot.localRotation = injectedHipFireLocalRotation;
+
+                for (var frame = 0; frame < 6; frame++)
+                {
+                    cameraPivotGo.transform.rotation *= Quaternion.Euler(0f, 0.03f, 0f);
+                    yield return null;
+
+                    Assert.That((bool)GetProperty(ads, "IsAdsActive"), Is.False);
+                    Assert.That((float)GetProperty(ads, "AdsT"), Is.EqualTo(0f).Within(0.0001f));
+                    Assert.That(
+                        Vector3.Distance(adsPivot.localPosition, injectedHipFireLocalPosition),
+                        Is.LessThan(0.00001f),
+                        "Hip-fire pivot local position should remain stable when ADS is inactive at zero blend.");
+                    Assert.That(
+                        Quaternion.Angle(adsPivot.localRotation, injectedHipFireLocalRotation),
+                        Is.LessThan(0.001f),
+                        "Hip-fire pivot local rotation should remain stable when ADS is inactive at zero blend.");
+                }
+            }
+            finally
+            {
+                Cleanup(root, scopedOptic, opticPrefab, cameraPivotGo, worldCamGo, viewmodelCamGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator AdsExitAtZeroBlend_RestoresAdsPivotToCachedRestPose()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var weaponAimAlignerType = ResolveType("Reloader.Game.Weapons.WeaponAimAligner");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(weaponAimAlignerType, Is.Not.Null);
+
+            var root = new GameObject("AdsExitRestPoseRoot");
+            ScriptableObject scopedOptic = null;
+            GameObject opticPrefab = null;
+            GameObject cameraPivotGo = null;
+            GameObject worldCamGo = null;
+            GameObject viewmodelCamGo = null;
+
+            try
+            {
+                var adsPivot = new GameObject("AdsPivot").transform;
+                adsPivot.SetParent(root.transform, false);
+                adsPivot.localPosition = new Vector3(0.014f, -0.021f, 0.338f);
+                adsPivot.localRotation = Quaternion.Euler(1.25f, -1.75f, 0.5f);
+                var restLocalPosition = adsPivot.localPosition;
+                var restLocalRotation = adsPivot.localRotation;
+
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(adsPivot, false);
+                scopeSlot.localPosition = new Vector3(0.08f, -0.04f, 0.36f);
+                scopeSlot.localRotation = Quaternion.Euler(2f, -3f, 1f);
+
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(adsPivot, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                cameraPivotGo = new GameObject("CameraPivot");
+                cameraPivotGo.transform.position = new Vector3(3.5f, 1.5f, -2.5f);
+                cameraPivotGo.transform.rotation = Quaternion.Euler(6f, 24f, 0f);
+                root.transform.SetParent(cameraPivotGo.transform, false);
+
+                worldCamGo = new GameObject("WorldCam");
+                worldCamGo.transform.SetParent(cameraPivotGo.transform, false);
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+
+                viewmodelCamGo = new GameObject("ViewmodelCam");
+                viewmodelCamGo.transform.SetParent(cameraPivotGo.transform, false);
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_worldCamera", worldCamera);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_useLegacyInput", false);
+                SetField(ads, "_fallbackAdsInTime", 0.01f);
+                SetField(ads, "_fallbackAdsOutTime", 0.01f);
+
+                var aligner = root.AddComponent(weaponAimAlignerType);
+                Invoke(aligner, "BindRuntimeReferences", adsPivot, worldCamera.transform, manager, ads);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-ads-exit-rest", 4f, 8f, true, "RenderTexturePiP");
+                opticPrefab = GetProperty(scopedOptic, "OpticPrefab") as GameObject;
+                Assert.That(opticPrefab, Is.Not.Null);
+
+                var prefabSightAnchor = opticPrefab.transform.Find("SightAnchor");
+                Assert.That(prefabSightAnchor, Is.Not.Null);
+                prefabSightAnchor.localPosition = new Vector3(0.013f, -0.009f, -0.041f);
+                prefabSightAnchor.localRotation = Quaternion.Euler(4f, -6f, 1.5f);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+
+                Invoke(ads, "SetAdsHeld", true);
+                yield return WaitUntil(
+                    () => (float)GetProperty(ads, "AdsT") >= 0.999f,
+                    20,
+                    "ADS blend did not reach full scoped state for ADS-exit rest-pose regression coverage.");
+
+                Assert.That(
+                    Vector3.Distance(adsPivot.localPosition, restLocalPosition),
+                    Is.GreaterThan(0.0001f),
+                    "Expected scoped ADS to move the pivot away from its cached rest position before exit.");
+
+                Invoke(ads, "SetAdsHeld", false);
+                yield return WaitUntil(
+                    () => !(bool)GetProperty(ads, "IsAdsActive") && (float)GetProperty(ads, "AdsT") <= 0.0001f,
+                    30,
+                    "ADS blend did not settle to zero during exit.");
+                yield return null;
+
+                Assert.That(
+                    Vector3.Distance(adsPivot.localPosition, restLocalPosition),
+                    Is.LessThanOrEqualTo(0.00001f),
+                    "ADS exit should restore ads pivot local position to cached rest pose at zero blend.");
+                Assert.That(
+                    Quaternion.Angle(adsPivot.localRotation, restLocalRotation),
+                    Is.LessThanOrEqualTo(0.001f),
+                    "ADS exit should restore ads pivot local rotation to cached rest pose at zero blend.");
+            }
+            finally
+            {
+                Cleanup(root, scopedOptic, opticPrefab, cameraPivotGo, worldCamGo, viewmodelCamGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ScopedPipOptic_IgnoresAuthoredEyeReliefAndKeepsStableOffsetWhileTurning()
         {
             var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
             var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
@@ -1547,7 +1757,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 const float opticEyeRelief = 0.012f;
                 const float runtimeEyeRelief = 0.008f;
-                const float totalEyeRelief = opticEyeRelief + runtimeEyeRelief;
+                const float expectedPipEyeRelief = runtimeEyeRelief;
 
                 scopedOptic = CreateOpticDefinition("scope-pip-eye-relief", 4f, 8f, true, "RenderTexturePiP");
                 SetField(scopedOptic, "_eyeReliefBackOffset", opticEyeRelief);
@@ -1570,14 +1780,14 @@ namespace Reloader.Weapons.Tests.PlayMode
                     "ADS blend did not reach full scoped state for the PiP eye-relief test.");
 
                 yield return WaitUntil(
-                    () => SightAnchorMatchesCameraEyeRelief(worldCamera.transform, Invoke(manager, "GetActiveSightAnchor") as Transform, totalEyeRelief),
+                    () => SightAnchorMatchesCameraEyeRelief(worldCamera.transform, Invoke(manager, "GetActiveSightAnchor") as Transform, expectedPipEyeRelief),
                     20,
-                    "Initial PiP eye relief offset did not hold the authored total distance.");
+                    "Initial PiP eye relief offset did not ignore authored optic eye relief.");
 
                 cameraPivotGo.transform.rotation = Quaternion.Euler(-3f, 71f, 0f);
 
                 yield return WaitUntil(
-                    () => SightAnchorMatchesCameraEyeRelief(worldCamera.transform, Invoke(manager, "GetActiveSightAnchor") as Transform, totalEyeRelief),
+                    () => SightAnchorMatchesCameraEyeRelief(worldCamera.transform, Invoke(manager, "GetActiveSightAnchor") as Transform, expectedPipEyeRelief),
                     20,
                     "PiP eye relief offset drifted after rotating the camera.");
             }
@@ -2267,6 +2477,264 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [Test]
+        public void ScopedPipOptic_ResolveScopedOpticsSettingsSource_FindsNonMonoBehaviourProviderOnHost()
+        {
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            Assert.That(adsStateControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedOpticsSettingsSourceHostRoot");
+            var ads = root.AddComponent(adsStateControllerType);
+            var host = root.AddComponent<TestScopedOpticsSettingsSourceHost>();
+            var provider = new TestScopedOpticsSettingsSource(215, 67);
+            host.SetScopedOpticsSettingsSource(provider);
+
+            try
+            {
+                var resolveSourceMethod = adsStateControllerType.GetMethod("ResolveScopedOpticsSettingsSource", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveSourceMethod, Is.Not.Null, "Expected AdsStateController to expose scoped settings source lookup helper.");
+
+                var resolved = resolveSourceMethod!.Invoke(ads, new object[] { typeof(ITestScopedOpticsSettingsSource) });
+                Assert.That(resolved, Is.SameAs(provider), "Expected source lookup to resolve non-MonoBehaviour providers hosted on MonoBehaviour members.");
+            }
+            finally
+            {
+                Cleanup(root);
+            }
+        }
+
+        [Test]
+        public void ScopedPipOptic_ResolveScopedOpticsSettings_RetriesLookupAfterInitialMiss()
+        {
+            const string pipResolutionKey = "esc-menu.scoped-pip-resolution-percent";
+            const string peripheralBlurKey = "esc-menu.peripheral-blur-percent";
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            Assert.That(adsStateControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedOpticsSettingsRetryLookupRoot");
+            var ads = root.AddComponent(adsStateControllerType);
+            var previousPipHasKey = PlayerPrefs.HasKey(pipResolutionKey);
+            var previousBlurHasKey = PlayerPrefs.HasKey(peripheralBlurKey);
+            var previousPipValue = PlayerPrefs.GetInt(pipResolutionKey, 100);
+            var previousBlurValue = PlayerPrefs.GetInt(peripheralBlurKey, 50);
+
+            try
+            {
+                var resolveMethod = adsStateControllerType.GetMethod("ResolveScopedOpticsSettings", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveMethod, Is.Not.Null, "Expected AdsStateController to expose ResolveScopedOpticsSettings helper.");
+
+                SetField(ads, "_scopedOpticsSettingsSourceType", typeof(ITestScopedOpticsSettingsSource));
+                SetField(ads, "_scopedOpticsSettingsSnapshotType", null);
+                SetField(ads, "_scopedOpticsSettingsContractType", null);
+                SetField(ads, "_hasResolvedScopedOpticsSettingsSource", true);
+                SetField(ads, "_scopedOpticsSettingsSource", null);
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", Time.frameCount);
+
+                PlayerPrefs.SetInt(pipResolutionKey, 111);
+                PlayerPrefs.SetInt(peripheralBlurKey, 22);
+
+                var firstSettings = resolveMethod!.Invoke(ads, null);
+                Assert.That(firstSettings, Is.Not.Null);
+                Assert.That((int)GetProperty(firstSettings!, "PipResolutionPercent"), Is.EqualTo(111));
+                Assert.That((int)GetProperty(firstSettings, "PeripheralBlurPercent"), Is.EqualTo(22));
+
+                var host = root.AddComponent<TestScopedOpticsSettingsSourceHost>();
+                host.SetScopedOpticsSettingsSource(new TestScopedOpticsSettingsSource(333, 77));
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", Time.frameCount);
+
+                var secondSettings = resolveMethod.Invoke(ads, null);
+                Assert.That(secondSettings, Is.Not.Null);
+                Assert.That((int)GetProperty(secondSettings!, "PipResolutionPercent"), Is.EqualTo(333),
+                    "Expected scoped settings lookup to retry after an initial miss once a provider appears.");
+                Assert.That((int)GetProperty(secondSettings, "PeripheralBlurPercent"), Is.EqualTo(77));
+            }
+            finally
+            {
+                if (previousPipHasKey)
+                {
+                    PlayerPrefs.SetInt(pipResolutionKey, previousPipValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(pipResolutionKey);
+                }
+
+                if (previousBlurHasKey)
+                {
+                    PlayerPrefs.SetInt(peripheralBlurKey, previousBlurValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(peripheralBlurKey);
+                }
+
+                Cleanup(root);
+            }
+        }
+
+        [Test]
+        public void ScopedPipOptic_ResolveScopedOpticsSettings_MissingSource_DoesNotRescanBeforeRetryFrame()
+        {
+            const string pipResolutionKey = "esc-menu.scoped-pip-resolution-percent";
+            const string peripheralBlurKey = "esc-menu.peripheral-blur-percent";
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            Assert.That(adsStateControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedOpticsSettingsNoRescanRoot");
+            var ads = root.AddComponent(adsStateControllerType);
+            root.AddComponent<TestScopedOpticsSettingsProbeHost>();
+            var previousPipHasKey = PlayerPrefs.HasKey(pipResolutionKey);
+            var previousBlurHasKey = PlayerPrefs.HasKey(peripheralBlurKey);
+            var previousPipValue = PlayerPrefs.GetInt(pipResolutionKey, 100);
+            var previousBlurValue = PlayerPrefs.GetInt(peripheralBlurKey, 50);
+
+            try
+            {
+                var resolveMethod = adsStateControllerType.GetMethod("ResolveScopedOpticsSettings", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveMethod, Is.Not.Null, "Expected AdsStateController to expose ResolveScopedOpticsSettings helper.");
+
+                SetField(ads, "_scopedOpticsSettingsSourceType", typeof(ITestScopedOpticsSettingsSource));
+                SetField(ads, "_scopedOpticsSettingsSnapshotType", null);
+                SetField(ads, "_scopedOpticsSettingsContractType", null);
+                SetField(ads, "_hasResolvedScopedOpticsSettingsSource", true);
+                SetField(ads, "_scopedOpticsSettingsSource", null);
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", Time.frameCount);
+
+                PlayerPrefs.SetInt(pipResolutionKey, 111);
+                PlayerPrefs.SetInt(peripheralBlurKey, 22);
+                TestScopedOpticsSettingsProbeHost.GetterCallCount = 0;
+
+                var firstSettings = resolveMethod!.Invoke(ads, null);
+                Assert.That(firstSettings, Is.Not.Null);
+                Assert.That((int)GetProperty(firstSettings!, "PipResolutionPercent"), Is.EqualTo(111));
+                Assert.That((int)GetProperty(firstSettings, "PeripheralBlurPercent"), Is.EqualTo(22));
+
+                var getterCallsAfterFirstResolve = TestScopedOpticsSettingsProbeHost.GetterCallCount;
+                Assert.That(getterCallsAfterFirstResolve, Is.GreaterThan(0), "Expected first lookup attempt to inspect probe host members.");
+
+                var secondSettings = resolveMethod.Invoke(ads, null);
+                Assert.That(secondSettings, Is.Not.Null);
+                Assert.That((int)GetProperty(secondSettings!, "PipResolutionPercent"), Is.EqualTo(111));
+                Assert.That((int)GetProperty(secondSettings, "PeripheralBlurPercent"), Is.EqualTo(22));
+                Assert.That(
+                    TestScopedOpticsSettingsProbeHost.GetterCallCount,
+                    Is.EqualTo(getterCallsAfterFirstResolve),
+                    "Expected lookup miss to be throttled so scoped settings source scanning does not rerun immediately.");
+            }
+            finally
+            {
+                TestScopedOpticsSettingsProbeHost.GetterCallCount = 0;
+
+                if (previousPipHasKey)
+                {
+                    PlayerPrefs.SetInt(pipResolutionKey, previousPipValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(pipResolutionKey);
+                }
+
+                if (previousBlurHasKey)
+                {
+                    PlayerPrefs.SetInt(peripheralBlurKey, previousBlurValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(peripheralBlurKey);
+                }
+
+                Cleanup(root);
+            }
+        }
+
+        [Test]
+        public void ScopedPipOptic_ResolveScopedOpticsSettings_MissingSource_UsesRetryBackoff()
+        {
+            const string pipResolutionKey = "esc-menu.scoped-pip-resolution-percent";
+            const string peripheralBlurKey = "esc-menu.peripheral-blur-percent";
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            Assert.That(adsStateControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedOpticsSettingsRetryBackoffRoot");
+            var ads = root.AddComponent(adsStateControllerType);
+            root.AddComponent<TestScopedOpticsSettingsProbeHost>();
+            var previousPipHasKey = PlayerPrefs.HasKey(pipResolutionKey);
+            var previousBlurHasKey = PlayerPrefs.HasKey(peripheralBlurKey);
+            var previousPipValue = PlayerPrefs.GetInt(pipResolutionKey, 100);
+            var previousBlurValue = PlayerPrefs.GetInt(peripheralBlurKey, 50);
+
+            try
+            {
+                var resolveMethod = adsStateControllerType.GetMethod("ResolveScopedOpticsSettings", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveMethod, Is.Not.Null, "Expected AdsStateController to expose ResolveScopedOpticsSettings helper.");
+
+                SetField(ads, "_scopedOpticsSettingsSourceType", typeof(ITestScopedOpticsSettingsSource));
+                SetField(ads, "_scopedOpticsSettingsSnapshotType", null);
+                SetField(ads, "_scopedOpticsSettingsContractType", null);
+                SetField(ads, "_hasResolvedScopedOpticsSettingsSource", true);
+                SetField(ads, "_scopedOpticsSettingsSource", null);
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", Time.frameCount);
+                SetField(ads, "_scopedOpticsSettingsSourceRetryFrameInterval", 30);
+
+                PlayerPrefs.SetInt(pipResolutionKey, 111);
+                PlayerPrefs.SetInt(peripheralBlurKey, 22);
+                TestScopedOpticsSettingsProbeHost.GetterCallCount = 0;
+
+                var firstSettings = resolveMethod!.Invoke(ads, null);
+                Assert.That(firstSettings, Is.Not.Null);
+                var getterCallsAfterFirstResolve = TestScopedOpticsSettingsProbeHost.GetterCallCount;
+                Assert.That(getterCallsAfterFirstResolve, Is.GreaterThan(0), "Expected first lookup attempt to inspect probe host members.");
+
+                var nextLookupAfterFirstResolve = (int)GetPrivateField(ads, "_nextScopedOpticsSettingsSourceLookupFrame");
+                var retryIntervalAfterFirstResolve = (int)GetPrivateField(ads, "_scopedOpticsSettingsSourceRetryFrameInterval");
+
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", Time.frameCount);
+
+                var secondSettings = resolveMethod.Invoke(ads, null);
+                Assert.That(secondSettings, Is.Not.Null);
+                var getterCallsAfterSecondResolve = TestScopedOpticsSettingsProbeHost.GetterCallCount;
+                Assert.That(getterCallsAfterSecondResolve, Is.GreaterThan(getterCallsAfterFirstResolve), "Expected retry frame to trigger another lookup.");
+
+                var nextLookupAfterSecondResolve = (int)GetPrivateField(ads, "_nextScopedOpticsSettingsSourceLookupFrame");
+                var retryIntervalAfterSecondResolve = (int)GetPrivateField(ads, "_scopedOpticsSettingsSourceRetryFrameInterval");
+                Assert.That(nextLookupAfterSecondResolve, Is.GreaterThan(nextLookupAfterFirstResolve),
+                    "Expected repeated misses to push the next lookup farther out instead of rescanning every frame.");
+                Assert.That(retryIntervalAfterSecondResolve, Is.GreaterThan(retryIntervalAfterFirstResolve),
+                    "Expected missing-source retry interval to back off between repeated misses.");
+
+                var thirdSettings = resolveMethod.Invoke(ads, null);
+                Assert.That(thirdSettings, Is.Not.Null);
+                Assert.That(
+                    TestScopedOpticsSettingsProbeHost.GetterCallCount,
+                    Is.EqualTo(getterCallsAfterSecondResolve),
+                    "Expected no additional member scan before the next scheduled retry frame.");
+            }
+            finally
+            {
+                TestScopedOpticsSettingsProbeHost.GetterCallCount = 0;
+
+                if (previousPipHasKey)
+                {
+                    PlayerPrefs.SetInt(pipResolutionKey, previousPipValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(pipResolutionKey);
+                }
+
+                if (previousBlurHasKey)
+                {
+                    PlayerPrefs.SetInt(peripheralBlurKey, previousBlurValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(peripheralBlurKey);
+                }
+
+                Cleanup(root);
+            }
+        }
+
+        [Test]
         public void ScopedPipOptic_UsesPlayerPrefsFallbackForScopedOpticsSettings()
         {
             const string pipResolutionKey = "esc-menu.scoped-pip-resolution-percent";
@@ -2477,6 +2945,56 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
 
             return null;
+        }
+
+        private interface ITestScopedOpticsSettingsSource
+        {
+            int GetScopedPipResolutionPercent();
+            int GetPeripheralBlurPercent();
+        }
+
+        private sealed class TestScopedOpticsSettingsSource : ITestScopedOpticsSettingsSource
+        {
+            private readonly int _pipResolutionPercent;
+            private readonly int _peripheralBlurPercent;
+
+            public TestScopedOpticsSettingsSource(int pipResolutionPercent, int peripheralBlurPercent)
+            {
+                _pipResolutionPercent = pipResolutionPercent;
+                _peripheralBlurPercent = peripheralBlurPercent;
+            }
+
+            public int GetScopedPipResolutionPercent()
+            {
+                return _pipResolutionPercent;
+            }
+
+            public int GetPeripheralBlurPercent()
+            {
+                return _peripheralBlurPercent;
+            }
+        }
+
+        private sealed class TestScopedOpticsSettingsSourceHost : MonoBehaviour
+        {
+            [SerializeField] private object _scopedOpticsSettingsSource;
+
+            public void SetScopedOpticsSettingsSource(object scopedOpticsSettingsSource)
+            {
+                _scopedOpticsSettingsSource = scopedOpticsSettingsSource;
+            }
+        }
+
+        private sealed class TestScopedOpticsSettingsProbeHost : MonoBehaviour
+        {
+            public static int GetterCallCount { get; set; }
+            private object ScopedOpticsSettingsProbe => CountAccessAndReturnNull();
+
+            private static object CountAccessAndReturnNull()
+            {
+                GetterCallCount++;
+                return null;
+            }
         }
 
         private static object Invoke(object instance, string methodName, params object[] args)

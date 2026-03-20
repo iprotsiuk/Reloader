@@ -104,6 +104,15 @@ namespace Reloader.Game.Weapons
             }
 
             var adsT = _adsStateController != null ? _adsStateController.AdsT : 0f;
+            var isAdsActive = _adsStateController != null && _adsStateController.IsAdsActive;
+
+            if (!isAdsActive && adsT <= 0.0001f && !_stableScopedPresentationActive)
+            {
+                _isHoldingScopedAdsPose = false;
+                DebugAlignmentErrorDistance = Vector3.Distance(sightAnchor.position, cameraTx.position);
+                DebugAlignmentErrorAngleDegrees = Quaternion.Angle(sightAnchor.rotation, cameraTx.rotation);
+                return;
+            }
 
             var deltaMatrix = Matrix4x4.TRS(cameraTx.position, cameraTx.rotation, Vector3.one)
                             * Matrix4x4.TRS(sightAnchor.position, sightAnchor.rotation, Vector3.one).inverse;
@@ -240,6 +249,14 @@ namespace Reloader.Game.Weapons
         private static float ResolveOpticEyeReliefBackOffset(OpticDefinition activeOptic)
         {
             if (activeOptic == null)
+            {
+                return 0f;
+            }
+
+            // PiP optics already render onto an authored ocular display surface.
+            // Applying authored eye relief again here shifts the internal PiP image
+            // relative to the planted scope body while the player turns.
+            if (activeOptic.VisualModePolicy == AdsVisualMode.RenderTexturePiP)
             {
                 return 0f;
             }

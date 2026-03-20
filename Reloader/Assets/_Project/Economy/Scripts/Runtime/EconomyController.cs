@@ -40,12 +40,13 @@ namespace Reloader.Economy
 
         private void Awake()
         {
-            _runtime = new EconomyRuntime(_startingMoney);
+            EnsureRuntimeInitialized();
             ResolveReferences();
         }
 
         private void OnEnable()
         {
+            EnsureRuntimeInitialized();
             ResolveReferences();
             SubscribeToRuntimeHubReconfigure();
             SubscribeToShopEvents(ResolveShopEvents());
@@ -472,6 +473,11 @@ public bool TryAwardMoney(int amount)
         private void UnsubscribeFromRuntimeHubReconfigure()
         {
             RuntimeKernelBootstrapper.EventsReconfigured -= HandleRuntimeEventsReconfigured;
+        }
+
+        private void EnsureRuntimeInitialized()
+        {
+            _runtime ??= new EconomyRuntime(_startingMoney);
         }
     }
 }

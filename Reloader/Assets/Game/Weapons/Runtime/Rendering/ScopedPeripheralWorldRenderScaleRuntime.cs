@@ -69,6 +69,12 @@ namespace Reloader.Game.Weapons.Rendering
                 return;
             }
 
+            if (!ReferenceEquals(s_boundAsset, asset) && s_hasCapturedOriginalState && s_boundAsset != null)
+            {
+                s_boundAsset.renderScale = s_originalRenderScale;
+                s_boundAsset.upscalingFilter = s_originalUpscalingFilter;
+            }
+
             s_boundAsset = asset;
             s_originalRenderScale = asset.renderScale;
             s_originalUpscalingFilter = asset.upscalingFilter;

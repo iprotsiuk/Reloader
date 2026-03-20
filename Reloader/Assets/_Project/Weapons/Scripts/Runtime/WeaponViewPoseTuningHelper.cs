@@ -251,6 +251,11 @@ namespace Reloader.Weapons.Runtime
 
         private bool ShouldWriteEquippedRootPoseAtRuntime()
         {
+            if (Application.isPlaying)
+            {
+                return true;
+            }
+
 #if UNITY_EDITOR
             return Selection.activeObject == this
                 || Selection.activeGameObject == gameObject
