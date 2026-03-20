@@ -12,6 +12,7 @@ namespace Reloader.Game.Weapons
         private const int DefaultScopeRenderTextureResolution = 1024;
         private const int MinimumAdaptiveScopeRenderTextureResolution = 256;
         private const int MaximumAdaptiveScopeRenderTextureResolution = 8192;
+        private const float NearSquareReticleAspectTolerance = 0.01f;
 
         [SerializeField] private Camera _scopeCamera;
         [SerializeField] private Behaviour[] _expensiveScopeBehaviours;
@@ -494,14 +495,12 @@ namespace Reloader.Game.Weapons
 
             var width = _scopeRenderTexture.width * _currentCompositeReticleDrawScale.x;
             var height = _scopeRenderTexture.height * _currentCompositeReticleDrawScale.y;
-            var offsetPixels = new Vector2(
-                _currentCompositeReticleOffset.x * _scopeRenderTexture.width,
-                -_currentCompositeReticleOffset.y * _scopeRenderTexture.height);
-            var destination = new Rect(
-                ((_scopeRenderTexture.width - width) * 0.5f) + offsetPixels.x,
-                ((_scopeRenderTexture.height - height) * 0.5f) + offsetPixels.y,
-                width,
-                height);
+            var destination = ResolveCompositeReticleDestination(
+                _scopeRenderTexture.width,
+                new Vector2(
+                    width / _scopeRenderTexture.width,
+                    height / _scopeRenderTexture.height),
+                _currentCompositeReticleOffset);
             var textureRect = _currentCompositeReticleSprite.textureRect;
             var source = new Rect(
                 textureRect.x / spriteTexture.width,
@@ -567,6 +566,11 @@ namespace Reloader.Game.Weapons
             var textureRect = reticleSprite.textureRect;
             var width = Mathf.Max(0.0001f, textureRect.width);
             var height = Mathf.Max(0.0001f, textureRect.height);
+            if (Mathf.Abs(1f - (width / height)) <= NearSquareReticleAspectTolerance)
+            {
+                return new Vector2(safeScale, safeScale);
+            }
+
             if (width >= height)
             {
                 return new Vector2(safeScale, safeScale * (height / width));
@@ -586,6 +590,23 @@ namespace Reloader.Game.Weapons
             }
 
             return compositeReticleOffset * ResolveReticleScale(reticleDefinition, magnification);
+        }
+
+        private static Rect ResolveCompositeReticleDestination(
+            int renderTextureResolution,
+            Vector2 compositeReticleDrawScale,
+            Vector2 compositeReticleOffset)
+        {
+            var safeResolution = Mathf.Max(1, renderTextureResolution);
+            var width = Mathf.Max(1f, Mathf.Round(safeResolution * compositeReticleDrawScale.x));
+            var height = Mathf.Max(1f, Mathf.Round(safeResolution * compositeReticleDrawScale.y));
+            var offsetPixels = new Vector2(
+                compositeReticleOffset.x * safeResolution,
+                -compositeReticleOffset.y * safeResolution);
+
+            var x = Mathf.Round(((safeResolution - width) * 0.5f) + offsetPixels.x);
+            var y = Mathf.Round(((safeResolution - height) * 0.5f) + offsetPixels.y);
+            return new Rect(x, y, width, height);
         }
 
         private Material EnsureCompositeReticleMaterial()
