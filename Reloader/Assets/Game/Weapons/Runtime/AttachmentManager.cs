@@ -418,16 +418,7 @@ namespace Reloader.Game.Weapons
                 return null;
             }
 
-            var transforms = root.GetComponentsInChildren<Transform>(true);
-            for (var i = 0; i < transforms.Length; i++)
-            {
-                if (transforms[i].name == SightAnchorName)
-                {
-                    return transforms[i];
-                }
-            }
-
-            return null;
+            return root.Find(SightAnchorName);
         }
 
         private static void ApplySlotLayer(Transform slot)

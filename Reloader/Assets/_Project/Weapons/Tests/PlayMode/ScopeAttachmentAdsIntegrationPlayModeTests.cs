@@ -637,6 +637,52 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator EquipOptic_RenderTexturePipOpticWithNestedOnlySightAnchor_FailsWithoutRecursiveFallback()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+
+            var root = new GameObject("AttachmentRoot");
+            ScriptableObject opticDefinition = null;
+            GameObject opticPrefab = null;
+
+            try
+            {
+                yield return null;
+
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                opticDefinition = CreateOpticDefinition("scope-pip-nested-anchor", 4f, 12f, true, "RenderTexturePiP");
+                opticPrefab = new GameObject("OpticNestedOnlySightAnchor");
+                var housing = new GameObject("Housing").transform;
+                housing.SetParent(opticPrefab.transform, false);
+                new GameObject("SightAnchor").transform.SetParent(housing, false);
+                SetField(opticDefinition, "_opticPrefab", opticPrefab);
+
+                Assert.That(
+                    (bool)Invoke(manager, "EquipOptic", opticDefinition),
+                    Is.False,
+                    "PiP optics should reject nested-only SightAnchor authoring instead of recursively recovering it at runtime.");
+                Assert.That(scopeSlot.childCount, Is.EqualTo(0), "Rejected optics should not remain mounted in the scope slot.");
+                Assert.That(GetProperty(manager, "ActiveOpticInstance"), Is.Null);
+                Assert.That(Invoke(manager, "GetActiveSightAnchor"), Is.SameAs(ironAnchor));
+            }
+            finally
+            {
+                Cleanup(root, opticDefinition, opticPrefab);
+            }
+
+            yield return null;
+        }
+
+        [UnityTest]
         public IEnumerator AdsStateController_ApplyScopeAdjustmentInput_RequiresScopedAds()
         {
             var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
@@ -1727,7 +1773,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator ScopedPipOptic_MissingLensDisplay_LogsWarning()
+        public IEnumerator ScopedPipOptic_MissingLensDisplay_FailsClosedAndLogsWarning()
         {
             var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
             var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
@@ -1800,8 +1846,104 @@ namespace Reloader.Weapons.Tests.PlayMode
                 warnings.Exists(message => message.Contains("ScopeLensDisplay", StringComparison.Ordinal)),
                 Is.True,
                 "Scoped PiP optics without lens-display wiring should fail loudly.");
+            Assert.That(scopeCamera.enabled, Is.False, "PiP should fail closed when the active optic has no authored ScopeLensDisplay.");
+            Assert.That(scopeCamera.targetTexture, Is.Null, "PiP should not keep rendering to an unbound scope camera when ScopeLensDisplay is missing.");
 
             Cleanup(root, scopedOptic, worldCamGo, viewmodelCamGo, scopeCameraGo);
+        }
+
+        [UnityTest]
+        public IEnumerator ScopedPipOptic_NestedOnlyLensDisplay_FailsClosedWithoutRecursiveFallback()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            var scopeLensDisplayType = ResolveType("Reloader.Game.Weapons.ScopeLensDisplay");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+            Assert.That(scopeLensDisplayType, Is.Not.Null);
+
+            var root = new GameObject("ScopedAdsRoot");
+            ScriptableObject scopedOptic = null;
+            GameObject opticPrefab = null;
+            GameObject worldCamGo = null;
+            GameObject viewmodelCamGo = null;
+            GameObject scopeCameraGo = null;
+
+            var warnings = new List<string>();
+            void CaptureLog(string condition, string stackTrace, LogType type)
+            {
+                if (type == LogType.Warning)
+                {
+                    warnings.Add(condition ?? string.Empty);
+                }
+            }
+
+            Application.logMessageReceived += CaptureLog;
+            try
+            {
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                worldCamGo = new GameObject("WorldCam");
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+                worldCamera.fieldOfView = 72f;
+
+                viewmodelCamGo = new GameObject("ViewmodelCam");
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+                viewmodelCamera.fieldOfView = 55f;
+
+                scopeCameraGo = new GameObject("ScopeCam");
+                var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+                scopeCamera.fieldOfView = 20f;
+
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+                SetField(scopeController, "_scopeCamera", scopeCamera);
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_worldCamera", worldCamera);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_renderTextureScopeController", scopeController);
+                SetField(ads, "_useLegacyInput", false);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-nested-display", 4f, 12f, true, "RenderTexturePiP");
+                opticPrefab = new GameObject("Optic_scope-pip-nested-display");
+                new GameObject("SightAnchor").transform.SetParent(opticPrefab.transform, false);
+                var housing = new GameObject("Housing").transform;
+                housing.SetParent(opticPrefab.transform, false);
+                var lensDisplayGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                lensDisplayGo.name = "LensDisplay";
+                lensDisplayGo.transform.SetParent(housing, false);
+                var nestedLensDisplay = lensDisplayGo.AddComponent(scopeLensDisplayType);
+                SetField(nestedLensDisplay, "_targetRenderer", lensDisplayGo.GetComponent<Renderer>());
+                SetField(scopedOptic, "_opticPrefab", opticPrefab);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+
+                Invoke(ads, "SetAdsHeld", true);
+                Invoke(ads, "SetMagnification", 8f);
+
+                yield return WaitUntil(
+                    () => warnings.Exists(message => message.Contains("ScopeLensDisplay", StringComparison.Ordinal)),
+                    60,
+                    "Nested-only lens-display authoring did not emit the expected fail-closed warning.");
+
+                Assert.That(scopeCamera.enabled, Is.False, "PiP should fail closed when ScopeLensDisplay is not authored as an explicit optic-root child.");
+                Assert.That(scopeCamera.targetTexture, Is.Null, "PiP should not bind a render texture when recursive ScopeLensDisplay fallback is removed.");
+                Assert.That(GetProperty(nestedLensDisplay, "CurrentTexture"), Is.Null, "Nested-only lens displays should not be bound by runtime fallback discovery.");
+            }
+            finally
+            {
+                Application.logMessageReceived -= CaptureLog;
+                Cleanup(root, scopedOptic, opticPrefab, worldCamGo, viewmodelCamGo, scopeCameraGo);
+            }
         }
 
         [UnityTest]

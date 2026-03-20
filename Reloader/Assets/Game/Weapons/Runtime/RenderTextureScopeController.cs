@@ -30,6 +30,7 @@ namespace Reloader.Game.Weapons
         private RenderTexture _scopeRenderTexture;
         private ScopeLensDisplay _lastLensDisplay;
         private ScopeReticleController _lastReticleController;
+        private GameObject _lastMissingLensDisplayOpticInstance;
         private int _lastResolution = -1;
         private float _lastMagnification = -1f;
         private int _lastWindageClicks;
@@ -119,18 +120,21 @@ namespace Reloader.Game.Weapons
             var requestedResolution = ResolveRequestedResolution(optic, requestedFov);
             var lensDisplay = ResolveLensDisplay(activeOpticInstance);
             var reticleController = ResolveReticleController(activeOpticInstance);
+            var requiresLensDisplay = isActive && optic != null && optic.VisualModePolicy == AdsVisualMode.RenderTexturePiP;
+            var missingLensDisplay = requiresLensDisplay && lensDisplay == null;
+            var effectiveIsActive = isActive && !missingLensDisplay;
             var mradPerClick = ResolveMradPerClick(optic);
             var mechanicalZeroOffsetMrad = ResolveMechanicalZeroOffsetMrad(optic);
             var effectiveAdjustmentMrad = ResolveEffectiveAdjustmentMrad(mechanicalZeroOffsetMrad, mradPerClick, windageClicks, elevationClicks);
             var projectionCalibrationMultiplier = ResolveProjectionCalibrationMultiplier(optic);
             var compositeReticleScale = ResolveCompositeReticleScale(optic);
             var compositeReticleOffset = ResolveCompositeReticleOffset(optic);
-            var renderTextureStateMatches = !isActive || ScopeRenderTextureMatches(requestedResolution);
-            var scopeCameraStateMatches = ScopeCameraStateMatches(isActive, requestedFov);
-            var lensDisplayStateMatches = !isActive || (lensDisplay != null && ReferenceEquals(lensDisplay.CurrentTexture, _scopeRenderTexture));
+            var renderTextureStateMatches = !effectiveIsActive || ScopeRenderTextureMatches(requestedResolution);
+            var scopeCameraStateMatches = ScopeCameraStateMatches(effectiveIsActive, requestedFov);
+            var lensDisplayStateMatches = !effectiveIsActive || (lensDisplay != null && ReferenceEquals(lensDisplay.CurrentTexture, _scopeRenderTexture));
 
             if (_initialized
-                && _lastIsActive == isActive
+                && _lastIsActive == effectiveIsActive
                 && Mathf.Approximately(_lastAppliedFov, requestedFov)
                 && _lastResolution == requestedResolution
                 && Mathf.Approximately(_lastMagnification, magnification)
@@ -144,6 +148,7 @@ namespace Reloader.Game.Weapons
                 && Approximately(_lastCompositeReticleOffset, compositeReticleOffset)
                 && ReferenceEquals(_lastLensDisplay, lensDisplay)
                 && ReferenceEquals(_lastReticleController, reticleController)
+                && ReferenceEquals(_lastMissingLensDisplayOpticInstance, missingLensDisplay ? activeOpticInstance : null)
                 && renderTextureStateMatches
                 && scopeCameraStateMatches
                 && lensDisplayStateMatches)
@@ -151,7 +156,12 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
-            if (isActive)
+            if (missingLensDisplay && !ReferenceEquals(_lastMissingLensDisplayOpticInstance, activeOpticInstance))
+            {
+                Debug.LogWarning("RenderTextureScopeController: Active scoped optic is missing an authored optic-root ScopeLensDisplay binding.", this);
+            }
+
+            if (effectiveIsActive)
             {
                 EnsureRenderTexture(requestedResolution);
             }
@@ -160,16 +170,16 @@ namespace Reloader.Game.Weapons
                 ReleaseRenderTexture();
             }
 
-            BindLensDisplay(isActive, lensDisplay);
-            BindReticle(isActive, reticleController, optic, magnification, compositeReticleScale, compositeReticleOffset);
+            BindLensDisplay(effectiveIsActive, lensDisplay);
+            BindReticle(effectiveIsActive, reticleController, optic, magnification, compositeReticleScale, compositeReticleOffset);
             ApplyState(
-                isActive,
+                effectiveIsActive,
                 requestedFov,
                 effectiveAdjustmentMrad,
                 projectionCalibrationMultiplier,
                 mradPerClick,
                 mechanicalZeroOffsetMrad);
-            _lastIsActive = isActive;
+            _lastIsActive = effectiveIsActive;
             _lastAppliedFov = requestedFov;
             _lastResolution = requestedResolution;
             _lastMagnification = magnification;
@@ -183,6 +193,7 @@ namespace Reloader.Game.Weapons
             _lastCompositeReticleOffset = compositeReticleOffset;
             _lastLensDisplay = lensDisplay;
             _lastReticleController = reticleController;
+            _lastMissingLensDisplayOpticInstance = missingLensDisplay ? activeOpticInstance : null;
             _initialized = true;
         }
 
@@ -256,7 +267,7 @@ namespace Reloader.Game.Weapons
                 return null;
             }
 
-            return activeOpticInstance.GetComponentInChildren<ScopeLensDisplay>(true);
+            return FindDirectChildComponent<ScopeLensDisplay>(activeOpticInstance.transform);
         }
 
         private ScopeReticleController ResolveReticleController(GameObject activeOpticInstance)
@@ -267,6 +278,31 @@ namespace Reloader.Game.Weapons
             }
 
             return activeOpticInstance.GetComponentInChildren<ScopeReticleController>(true);
+        }
+
+        private static T FindDirectChildComponent<T>(Transform root) where T : Component
+        {
+            if (root == null)
+            {
+                return null;
+            }
+
+            var componentOnRoot = root.GetComponent<T>();
+            if (componentOnRoot != null)
+            {
+                return componentOnRoot;
+            }
+
+            for (var i = 0; i < root.childCount; i++)
+            {
+                var component = root.GetChild(i).GetComponent<T>();
+                if (component != null)
+                {
+                    return component;
+                }
+            }
+
+            return null;
         }
 
         private void EnsureRenderTexture(int resolution)
