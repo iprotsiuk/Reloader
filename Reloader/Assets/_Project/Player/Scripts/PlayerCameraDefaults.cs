@@ -14,6 +14,7 @@ namespace Reloader.Player
         [SerializeField] private CinemachineCamera _cinemachineCamera;
         [SerializeField] private Transform _cameraFollowTarget;
         [SerializeField] private Transform _cameraLookTarget;
+        [SerializeField] private Transform _viewmodelCameraParent;
         [SerializeField] private float _nearClipPlane = 0.001f;
         [SerializeField] private float _farClipPlane = 2828f;
         private Camera _viewmodelCamera;
@@ -131,6 +132,14 @@ namespace Reloader.Player
             return false;
         }
 
+        public bool TryGetViewmodelCamera(out Camera viewmodelCamera)
+        {
+            var viewmodelParent = ResolveViewmodelCameraParent();
+            _viewmodelCamera ??= ResolveViewmodelCamera(viewmodelParent, false);
+            viewmodelCamera = _viewmodelCamera;
+            return viewmodelCamera != null;
+        }
+
         public void RestoreGameplayView()
         {
             if (_cameraFollowTarget == null || !TryGetMainCamera(out var mainCamera))
@@ -244,6 +253,11 @@ namespace Reloader.Player
 
         private Transform ResolveViewmodelCameraParent()
         {
+            if (_viewmodelCameraParent != null)
+            {
+                return _viewmodelCameraParent;
+            }
+
             if (_cameraFollowTarget != null)
             {
                 return _cameraFollowTarget;

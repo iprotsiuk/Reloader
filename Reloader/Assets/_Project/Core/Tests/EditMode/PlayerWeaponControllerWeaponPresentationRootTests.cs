@@ -72,6 +72,37 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(Vector3.Distance(equippedView.transform.localScale, new Vector3(2f, 2f, 2f)), Is.LessThan(0.0001f));
         }
 
+        [Test]
+        public void ResolveReferences_PreservesExplicitPresentationRootWithoutNameBasedRecovery()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var presentationPivot = new GameObject("PresentationPivot").transform;
+            presentationPivot.SetParent(playerRoot.transform, false);
+
+            var explicitViewmodelRoot = new GameObject("PresentationArmsRoot").transform;
+            explicitViewmodelRoot.SetParent(presentationPivot, false);
+
+            var playerArmsVisual = new GameObject("PlayerArmsVisual");
+            playerArmsVisual.transform.SetParent(explicitViewmodelRoot, false);
+            var animator = playerArmsVisual.AddComponent<Animator>();
+
+            var explicitPresentationRoot = new GameObject("ExplicitPresentationRoot").transform;
+            explicitPresentationRoot.SetParent(presentationPivot, false);
+
+            var controller = playerRoot.AddComponent<PlayerWeaponController>();
+            SetField(controller, "_packAnimator", animator);
+            SetField(controller, "_cameraPivot", presentationPivot);
+            SetField(controller, "_viewmodelRoot", explicitViewmodelRoot);
+            SetField(controller, "_weaponViewParent", explicitPresentationRoot);
+
+            Invoke(controller, "ResolveReferences");
+
+            var resolvedParent = (Transform)GetField(controller, "_weaponViewParent");
+            Assert.That(resolvedParent, Is.SameAs(explicitPresentationRoot));
+            Assert.That(resolvedParent.parent, Is.SameAs(presentationPivot));
+            Assert.That(resolvedParent.name, Is.EqualTo("ExplicitPresentationRoot"));
+        }
+
         private static TestRig CreateRigWithLegacyHandHierarchy()
         {
             var playerRoot = new GameObject("PlayerRoot");

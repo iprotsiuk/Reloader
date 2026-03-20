@@ -98,6 +98,34 @@ namespace Reloader.Player.Tests.EditMode
             Object.DestroyImmediate(root);
         }
 
+        [Test]
+        public void ApplyDefaults_UsesExplicitViewmodelCameraParent_WhenProvided()
+        {
+            var (root, cameraPivot, mainCamera) = CreateRigRoot();
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+            var explicitParent = new GameObject("ExplicitViewmodelRoot").transform;
+            explicitParent.SetParent(root.transform, false);
+
+            typeof(PlayerCameraDefaults)
+                .GetField("_mainCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, mainCamera);
+            typeof(PlayerCameraDefaults)
+                .GetField("_cameraFollowTarget", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, cameraPivot);
+            typeof(PlayerCameraDefaults)
+                .GetField("_viewmodelCameraParent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, explicitParent);
+
+            defaults.ApplyDefaults();
+
+            var viewmodelTransform = explicitParent.Find("ViewmodelCamera");
+            Assert.That(viewmodelTransform, Is.Not.Null);
+            Assert.That(viewmodelTransform.parent, Is.EqualTo(explicitParent));
+            Assert.That(cameraPivot.Find("ViewmodelCamera"), Is.Null);
+
+            Object.DestroyImmediate(root);
+        }
+
         private static (GameObject Root, Transform CameraPivot, Camera MainCamera) CreateRigRoot()
         {
             var root = new GameObject("CameraDefaultsRoot");

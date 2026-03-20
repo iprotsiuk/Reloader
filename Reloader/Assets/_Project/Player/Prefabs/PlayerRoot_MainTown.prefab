@@ -609,6 +609,7 @@ MonoBehaviour:
   _cinemachineCamera: {fileID: 0}
   _cameraFollowTarget: {fileID: 393772354762719187}
   _cameraLookTarget: {fileID: 1799004325867949257}
+  _viewmodelCameraParent: {fileID: 393772354762719187}
   _nearClipPlane: 0.001
   _farClipPlane: 2828
 --- !u!114 &1114805819061063012
@@ -630,6 +631,8 @@ MonoBehaviour:
   _muzzleTransform: {fileID: 3282642832389094783}
   _cameraDefaults: {fileID: 8804757470899672677}
   _adsCamera: {fileID: 0}
+  _cameraPivot: {fileID: 393772354762719187}
+  _viewmodelRoot: {fileID: 6046686744160355134}
   _packAnimator: {fileID: 7562842590407840843}
   _combatAudioEmitter: {fileID: 0}
   _packPresentationConfig:
