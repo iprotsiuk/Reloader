@@ -126,7 +126,7 @@ namespace Reloader.Player.Viewmodel
             if (!ReferenceEquals(_cachedEquippedWeaponView, weaponView))
             {
                 _cachedEquippedWeaponView = weaponView;
-                _cachedAnchors = weaponView.GetComponentInChildren<WeaponViewHandAnchors>(true);
+                _cachedAnchors = weaponView.GetComponent<WeaponViewHandAnchors>();
                 _equippedViewName = weaponView.name;
             }
 

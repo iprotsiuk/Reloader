@@ -78,6 +78,65 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void SyncHandTargets_DoesNotRecoverHandAnchorsFromNestedChild_WhenRootAnchorsAreMissing()
+        {
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(root.transform, false);
+
+            var playerArms = new GameObject("PlayerArms").transform;
+            playerArms.SetParent(cameraPivot, false);
+
+            var armsVisual = new GameObject("PlayerArmsVisual").transform;
+            armsVisual.SetParent(playerArms, false);
+            var armsAnimator = armsVisual.gameObject.AddComponent<Animator>();
+
+            var defaults = ConfigurePlayerCameraDefaults(root, cameraPivot, playerArms, armsAnimator);
+            var handTargetRoot = CreateWeaponHandRigTargets(cameraPivot);
+
+            var controller = root.AddComponent<WeaponHandRigController>();
+            SetPrivateField(controller, "_cameraDefaults", defaults);
+            SetPrivateField(controller, "_handTargetRoot", handTargetRoot);
+            var leftHandTarget = new GameObject("LeftHandTarget").transform;
+            var rightHandTarget = new GameObject("RightHandTarget").transform;
+            var weaponView = new GameObject("EquippedWeaponView");
+
+            try
+            {
+                SetPrivateField(controller, "_driveRightHand", true);
+                controller.ConfigureTargets(leftHandTarget, rightHandTarget);
+
+                var nestedAnchorsRoot = new GameObject("NestedAnchors").transform;
+                nestedAnchorsRoot.SetParent(weaponView.transform, false);
+                var anchors = nestedAnchorsRoot.gameObject.AddComponent<WeaponViewHandAnchors>();
+                var leftGrip = new GameObject("LeftGrip").transform;
+                leftGrip.SetParent(nestedAnchorsRoot, false);
+                leftGrip.localPosition = new Vector3(0.12f, 0.28f, 0.34f);
+                leftGrip.localRotation = Quaternion.Euler(12f, 34f, -8f);
+
+                var rightGrip = new GameObject("RightGrip").transform;
+                rightGrip.SetParent(nestedAnchorsRoot, false);
+                rightGrip.localPosition = new Vector3(-0.08f, 0.19f, 0.26f);
+                rightGrip.localRotation = Quaternion.Euler(-6f, 15f, 5f);
+
+                anchors.SetHandTargets(leftGrip, rightGrip);
+                controller.SetEquippedWeaponViewForTests(weaponView.transform);
+                controller.SyncHandTargets();
+
+                Assert.That(controller.HasResolvedWeaponAnchors, Is.False);
+                Assert.That(leftHandTarget.position, Is.EqualTo(Vector3.zero));
+                Assert.That(rightHandTarget.position, Is.EqualTo(Vector3.zero));
+            }
+            finally
+            {
+                Object.DestroyImmediate(weaponView);
+                Object.DestroyImmediate(leftHandTarget.gameObject);
+                Object.DestroyImmediate(rightHandTarget.gameObject);
+                Object.DestroyImmediate(root);
+            }
+        }
+
         [UnityTest]
         public IEnumerator SyncHandTargets_IgnoresLegacyIkHandGunHierarchyWhenControllerOwnsEquippedView()
         {

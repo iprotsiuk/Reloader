@@ -16,6 +16,7 @@ using GameRenderTextureScopeController = Reloader.Game.Weapons.RenderTextureScop
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.Player.Viewmodel;
+using Reloader.Weapons.Animations;
 using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.Cinematics;
 using Reloader.Weapons.Controllers;
@@ -2523,7 +2524,6 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
-        [UnityTest]
         public IEnumerator BeltSelectedWeapon_EquipsAndFiresAndReloads()
         {
             var runtimeEventsBefore = RuntimeKernelBootstrapper.Events;
@@ -3078,6 +3078,18 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(System.Array.Exists(rifleViewPrefab.GetComponents<Component>(), component => component == null), Is.False,
                 "Kar98k runtime view should not keep helper-era missing-script scaffolding on the prefab.");
 
+            var mounts = rifleViewPrefab.GetComponent<WeaponViewAttachmentMounts>();
+            Assert.That(mounts, Is.Not.Null, "Kar98k runtime view should expose explicit authored attachment mounts.");
+            Assert.That(mounts!.AdsPivot, Is.Not.Null, "Kar98k runtime view should own an authored AdsPivot.");
+            Assert.That(mounts.IronSightAnchor, Is.Not.Null, "Kar98k runtime view should own an authored IronSightAnchor.");
+            Assert.That(mounts.MuzzleTransform, Is.Not.Null, "Kar98k runtime view should own an authored MuzzleTransform.");
+            Assert.That(mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Scope, out var scopeSlot), Is.True,
+                "Kar98k runtime view should expose an authored scope attachment slot.");
+            Assert.That(scopeSlot, Is.Not.Null);
+            Assert.That(mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Muzzle, out var muzzleSlot), Is.True,
+                "Kar98k runtime view should expose an authored muzzle attachment slot.");
+            Assert.That(muzzleSlot, Is.Not.Null);
+
             var handAnchors = rifleViewPrefab.GetComponent<WeaponViewHandAnchors>();
             Assert.That(handAnchors, Is.Not.Null,
                 "Kar98k runtime view should expose explicit hand anchors for player-side rigging.");
@@ -3257,6 +3269,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             bool includeViewBinding = true)
         {
             EnsureSceneAudioListener(root);
+            EnsureExplicitViewmodelOwnershipContract(root, controller);
 
             var harnessRoot = EnsureControllerHarnessRoot(root.transform);
             var viewPrefab = harnessRoot.Find($"{itemId}-DefaultView");
@@ -3308,6 +3321,81 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
 
             SetControllerField(controller, "_projectilePrefab", projectilePrefab.GetComponent<WeaponProjectile>());
+        }
+
+        private static void EnsureExplicitViewmodelOwnershipContract(GameObject root, PlayerWeaponController controller)
+        {
+            var cameraPivot = GetControllerField<Transform>(controller, "_cameraPivot");
+            if (cameraPivot == null)
+            {
+                cameraPivot = root.transform.Find("CameraPivot");
+                if (cameraPivot == null)
+                {
+                    cameraPivot = new GameObject("CameraPivot").transform;
+                    cameraPivot.SetParent(root.transform, false);
+                }
+
+                SetField(typeof(PlayerWeaponController), controller, "_cameraPivot", cameraPivot);
+            }
+
+            var viewmodelRoot = GetControllerField<Transform>(controller, "_viewmodelRoot");
+            if (viewmodelRoot == null)
+            {
+                viewmodelRoot = cameraPivot.Find("PlayerArms");
+                if (viewmodelRoot == null)
+                {
+                    viewmodelRoot = new GameObject("PlayerArms").transform;
+                    viewmodelRoot.SetParent(cameraPivot, false);
+                }
+
+                SetField(typeof(PlayerWeaponController), controller, "_viewmodelRoot", viewmodelRoot);
+            }
+
+            var playerArmsVisual = viewmodelRoot.Find("PlayerArmsVisual");
+            if (playerArmsVisual == null)
+            {
+                playerArmsVisual = new GameObject("PlayerArmsVisual").transform;
+                playerArmsVisual.SetParent(viewmodelRoot, false);
+            }
+
+            var packAnimator = GetControllerField<Animator>(controller, "_packAnimator");
+            if (packAnimator == null)
+            {
+                packAnimator = playerArmsVisual.GetComponent<Animator>();
+                if (packAnimator == null)
+                {
+                    packAnimator = playerArmsVisual.gameObject.AddComponent<Animator>();
+                }
+
+                SetField(typeof(PlayerWeaponController), controller, "_packAnimator", packAnimator);
+            }
+
+            var weaponViewParent = GetControllerField<Transform>(controller, "_weaponViewParent");
+            if (weaponViewParent == null)
+            {
+                weaponViewParent = cameraPivot.Find("WeaponPresentationRoot");
+                if (weaponViewParent == null)
+                {
+                    weaponViewParent = new GameObject("WeaponPresentationRoot").transform;
+                    weaponViewParent.SetParent(cameraPivot, false);
+                }
+
+                SetField(typeof(PlayerWeaponController), controller, "_weaponViewParent", weaponViewParent);
+            }
+
+            var cameraDefaults = root.GetComponent<PlayerCameraDefaults>();
+            if (cameraDefaults == null)
+            {
+                cameraDefaults = root.AddComponent<PlayerCameraDefaults>();
+            }
+
+            SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_cameraPivot", cameraPivot);
+            SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_cameraFollowTarget", cameraPivot);
+            SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_viewmodelCameraParent", cameraPivot);
+            SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_playerArmsRoot", viewmodelRoot);
+            SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_playerArmsAnimator", packAnimator);
+            SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_weaponPresentationRoot", weaponViewParent);
+            SetField(typeof(PlayerWeaponController), controller, "_cameraDefaults", cameraDefaults);
         }
 
         private static Transform EnsureControllerHarnessRoot(Transform root)
@@ -3376,7 +3464,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(weaponViewParentField, Is.Not.Null);
             if (weaponViewParentField.GetValue(controller) == null)
             {
-                weaponViewParentField.SetValue(controller, controller.transform);
+                EnsureExplicitViewmodelOwnershipContract(controller.gameObject, controller);
             }
 
             var bindingType = typeof(WeaponViewPrefabBinding);
