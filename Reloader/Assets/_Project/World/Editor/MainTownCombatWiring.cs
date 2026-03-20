@@ -102,24 +102,6 @@ namespace Reloader.World.Editor
 
             cameraPivot.localPosition = CameraPivotLocalPosition;
 
-            var playerArms = cameraPivot.Find("PlayerArms");
-            if (playerArms == null)
-            {
-                Debug.LogError("MainTown combat wiring failed: missing authored PlayerArms under CameraPivot.");
-                return false;
-            }
-
-            var weaponPresentationRoot = cameraPivot.Find("WeaponPresentationRoot");
-            if (weaponPresentationRoot == null)
-            {
-                Debug.LogError("MainTown combat wiring failed: missing authored WeaponPresentationRoot under CameraPivot.");
-                return false;
-            }
-
-            playerArms.localPosition = ArmsLocalPosition;
-            playerArms.localEulerAngles = ArmsLocalRotation;
-            playerArms.localScale = ArmsLocalScale;
-
             var lookTarget = cameraPivot.Find("CameraLookTarget");
             if (lookTarget == null)
             {
@@ -211,13 +193,38 @@ namespace Reloader.World.Editor
                 cameraTransform.localPosition = Vector3.zero;
                 cameraTransform.localRotation = Quaternion.identity;
             }
-            var armsAnimator = cameraPivot.GetComponentInChildren<Animator>(true);
             var rifleViewPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(RifleViewPrefabPath);
             var pistolViewPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PistolViewPrefabPath);
             var packController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(PackCharacterControllerPath);
             var rifleAnimationOverride = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(PackRifleOverridePath);
             var pistolAnimationOverride = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(PackPistolOverridePath);
             var weaponAnimationProfile = LoadOrCreateAnimationProfile(packController, rifleAnimationOverride, pistolAnimationOverride);
+
+            var cameraDefaultsSo = new SerializedObject(cameraDefaults);
+            cameraDefaultsSo.FindProperty("_mainCamera").objectReferenceValue = mainCamera;
+            cameraDefaultsSo.FindProperty("_cameraFollowTarget").objectReferenceValue = cameraPivot;
+            cameraDefaultsSo.FindProperty("_cameraLookTarget").objectReferenceValue = lookTarget;
+            cameraDefaultsSo.FindProperty("_viewmodelCameraParent").objectReferenceValue = cameraPivot;
+            cameraDefaultsSo.FindProperty("_cameraPivot").objectReferenceValue = cameraPivot;
+            cameraDefaultsSo.ApplyModifiedPropertiesWithoutUndo();
+            cameraDefaults.ApplyDefaults();
+
+            Transform playerArms = null;
+            Animator armsAnimator = null;
+            Transform weaponPresentationRoot = null;
+            if (!cameraDefaults.TryGetCameraPivot(out var configuredCameraPivot)
+                || configuredCameraPivot != cameraPivot
+                || !cameraDefaults.TryGetPlayerArmsRoot(out playerArms)
+                || !cameraDefaults.TryGetPlayerArmsAnimator(out armsAnimator)
+                || !cameraDefaults.TryGetWeaponPresentationRoot(out weaponPresentationRoot))
+            {
+                Debug.LogError("MainTown combat wiring failed: explicit PlayerCameraDefaults ownership is incomplete.");
+                return false;
+            }
+
+            playerArms.localPosition = ArmsLocalPosition;
+            playerArms.localEulerAngles = ArmsLocalRotation;
+            playerArms.localScale = ArmsLocalScale;
 
             var weaponSo = new SerializedObject(weaponController);
             weaponSo.FindProperty("_inputSourceBehaviour").objectReferenceValue = inputReader;
@@ -230,7 +237,7 @@ namespace Reloader.World.Editor
             var weaponViewParent = weaponSo.FindProperty("_weaponViewParent");
             if (weaponViewParent != null)
             {
-                weaponViewParent.objectReferenceValue = ResolveWeaponViewParent(cameraPivot);
+                weaponViewParent.objectReferenceValue = weaponPresentationRoot;
             }
 
             var weaponViewPrefabs = weaponSo.FindProperty("_weaponViewPrefabs");
@@ -283,17 +290,6 @@ namespace Reloader.World.Editor
                 lookSo.ApplyModifiedPropertiesWithoutUndo();
                 EditorUtility.SetDirty(lookController);
             }
-
-            var cameraDefaultsSo = new SerializedObject(cameraDefaults);
-            cameraDefaultsSo.FindProperty("_mainCamera").objectReferenceValue = mainCamera;
-            cameraDefaultsSo.FindProperty("_cameraFollowTarget").objectReferenceValue = cameraPivot;
-            cameraDefaultsSo.FindProperty("_cameraLookTarget").objectReferenceValue = lookTarget;
-            cameraDefaultsSo.FindProperty("_viewmodelCameraParent").objectReferenceValue = cameraPivot;
-            cameraDefaultsSo.FindProperty("_cameraPivot").objectReferenceValue = cameraPivot;
-            cameraDefaultsSo.FindProperty("_playerArmsRoot").objectReferenceValue = playerArms;
-            cameraDefaultsSo.FindProperty("_playerArmsAnimator").objectReferenceValue = armsAnimator;
-            cameraDefaultsSo.FindProperty("_weaponPresentationRoot").objectReferenceValue = weaponPresentationRoot;
-            cameraDefaultsSo.ApplyModifiedPropertiesWithoutUndo();
 
             animatorDriver.Configure(armsAnimator, characterController);
             viewmodelAdapter.Configure(armsAnimator);
@@ -413,14 +409,14 @@ namespace Reloader.World.Editor
             }
         }
 
-        private static Transform ResolveWeaponViewParent(Transform cameraPivot)
+        private static Transform ResolveWeaponViewParent(PlayerCameraDefaults cameraDefaults)
         {
-            if (cameraPivot == null)
+            if (cameraDefaults == null)
             {
                 return null;
             }
 
-            return cameraPivot.Find("WeaponPresentationRoot");
+            return cameraDefaults.TryGetWeaponPresentationRoot(out var weaponPresentationRoot) ? weaponPresentationRoot : null;
         }
 
         private static void SetLayerRecursively(GameObject root, int layer)
