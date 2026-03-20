@@ -145,6 +145,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var controller = root.AddComponent<PlayerWeaponController>();
                 SetControllerField(controller, "_weaponRegistry", registry);
                 controller.Configure(weaponEvents: injectedEvents, inventoryEvents: injectedEvents);
+                AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
                 yield return null;
 
                 input.FirePressedThisFrame = true;
@@ -225,6 +226,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 var controller = root.AddComponent<PlayerWeaponController>();
                 controller.Configure();
+                AttachDefaultWeaponHarness(root, controller, includeProjectilePrefab: true);
                 yield return null;
 
                 runtimeEvents.RaiseTabInventoryVisibilityChanged(true);
@@ -288,6 +290,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 var controller = root.AddComponent<PlayerWeaponController>();
                 SetControllerField(controller, "_weaponRegistry", registry);
+                AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
                 yield return null;
 
                 var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
@@ -375,6 +378,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             SetControllerField(controller, "_weaponRegistry", registry);
             SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraSpy);
             SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+            AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
             yield return null;
 
             var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
@@ -436,6 +440,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             SetControllerField(controller, "_weaponRegistry", registry);
             SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraSpy);
             SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+            AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
             yield return null;
 
             var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
@@ -496,6 +501,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             SetControllerField(controller, "_weaponRegistry", registry);
             SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraSpy);
             SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+            AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
             yield return null;
 
             var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
@@ -566,6 +572,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetControllerField(controller, "_weaponRegistry", registry);
                 SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraRuntime);
                 SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+                AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
                 yield return null;
 
                 var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
@@ -676,6 +683,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetControllerField(controller, "_weaponRegistry", registry);
                 SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraRuntime);
                 SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+                AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
                 yield return null;
 
                 var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
@@ -785,6 +793,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetControllerField(controller, "_weaponRegistry", registry);
                 SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraRuntime);
                 SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+                AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
                 yield return null;
 
                 var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
@@ -900,6 +909,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetControllerField(controller, "_weaponRegistry", registry);
                 SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraRuntime);
                 SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+                AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
                 yield return null;
 
                 var chamberRound = new AmmoBallisticSnapshot(
@@ -1025,6 +1035,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetControllerField(controller, "_weaponRegistry", registry);
                 SetControllerField(controller, "_shotCameraRuntimeBehaviour", shotCameraRuntime);
                 SetControllerField(controller, "_shotCameraSettings", new ShotCameraSettings(true, 100f, 0.1f, 0.25f));
+                AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
                 yield return null;
 
                 var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
@@ -1144,6 +1155,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 0.7f,
                 WeaponScopeConfiguration.Create(true, 4f, 20f, 8f, "ebr-7c", 100, 25));
             registry.SetDefinitionsForTests(new[] { definition });
+            var viewPrefab = new GameObject("Kar98kView");
 
             var adsCameraGo = new GameObject("AdsCamera");
             var adsCamera = adsCameraGo.AddComponent<Camera>();
@@ -1152,6 +1164,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var controller = root.AddComponent<PlayerWeaponController>();
             SetControllerField(controller, "_weaponRegistry", registry);
             SetControllerField(controller, "_adsCamera", adsCamera);
+            SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
             yield return null;
 
             const float expectedAdsFieldOfView = 45f;
@@ -1170,6 +1183,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             Object.Destroy(root);
             Object.Destroy(registryGo);
             Object.Destroy(definition);
+            Object.Destroy(viewPrefab);
             Object.Destroy(adsCameraGo);
         }
 
@@ -1214,6 +1228,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var controller = root.AddComponent<PlayerWeaponController>();
             SetControllerField(controller, "_weaponRegistry", registry);
             SetControllerField(controller, "_adsCamera", adsCamera);
+            AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
             yield return null;
 
             input.AimHeldValue = true;
@@ -1274,6 +1289,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var controller = root.AddComponent<PlayerWeaponController>();
             SetControllerField(controller, "_weaponRegistry", registry);
             SetControllerField(controller, "_adsCamera", adsCamera);
+            AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
             yield return null;
 
             input.AimHeldValue = true;
@@ -1320,6 +1336,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var controller = root.AddComponent<PlayerWeaponController>();
             SetControllerField(controller, "_weaponRegistry", registry);
             SetControllerField(controller, "_combatAudioEmitter", null);
+            AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
 
             yield return null;
 
@@ -1368,6 +1385,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var controller = root.AddComponent<PlayerWeaponController>();
             SetControllerField(controller, "_weaponRegistry", registry);
             SetControllerField(controller, "_combatAudioEmitter", null);
+            AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
 
             yield return null;
 
@@ -1423,6 +1441,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 WeaponAttachmentItemMetadata.CreateForTests("att-optic-4x", WeaponAttachmentSlotType.Scope),
                 WeaponAttachmentItemMetadata.CreateForTests("att-muzzle-brake", WeaponAttachmentSlotType.Muzzle)
             });
+            AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
 
             yield return null;
 
@@ -1453,6 +1472,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             try
             {
                 root = new GameObject("PlayerRoot");
+                var cameraPivot = new GameObject("CameraPivot").transform;
+                cameraPivot.SetParent(root.transform, false);
                 var input = root.AddComponent<TestInputSource>();
                 var resolver = root.AddComponent<TestPickupResolver>();
                 var inventoryController = root.AddComponent<PlayerInventoryController>();
@@ -1489,15 +1510,17 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 var controller = root.AddComponent<PlayerWeaponController>();
                 SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_weaponViewParent", EnsureWeaponPresentationRoot(cameraPivot));
                 SetControllerField(controller, "_attachmentItemMetadata", new[]
                 {
                     WeaponAttachmentItemMetadata.CreateForTests("att-optic-4x", WeaponAttachmentSlotType.Scope, opticDefinition)
                 });
                 SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
-                yield return null;
+                yield return WaitForEquippedWeaponView(controller);
 
                 Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
+                Assert.That(controller.EquippedWeaponViewTransform, Is.Not.Null);
                 Assert.That(state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.EqualTo(string.Empty));
                 Assert.That(runtime.GetItemQuantity("att-optic-4x"), Is.EqualTo(1));
 
@@ -1507,6 +1530,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var attachmentManager = root.GetComponentInChildren<GameAttachmentManager>(true);
                 Assert.That(attachmentManager == null || attachmentManager.ActiveOpticDefinition == null, Is.True,
                     "A failed optic mount should not leave partial runtime optic state behind.");
+                ClearEditorConsole();
             }
             finally
             {
@@ -1616,6 +1640,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var attachmentManager = root.GetComponentInChildren<GameAttachmentManager>(true);
                 Assert.That(attachmentManager == null || attachmentManager.ActiveOpticDefinition == null, Is.True,
                     "Scoped attachment mount should fail when the view prefab omits its authored iron-sight anchor.");
+                ClearEditorConsole();
             }
             finally
             {
@@ -1637,11 +1662,6 @@ namespace Reloader.Weapons.Tests.PlayMode
                 if (viewPrefab != null)
                 {
                     Object.Destroy(viewPrefab);
-                }
-
-                if (equippedView != null)
-                {
-                    Object.Destroy(equippedView);
                 }
 
                 if (opticDefinition != null)
@@ -1729,6 +1749,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var attachmentManager = root.GetComponentInChildren<GameAttachmentManager>(true);
                 Assert.That(attachmentManager == null || attachmentManager.ActiveMuzzleDefinition == null, Is.True,
                     "Named children should not act as implicit muzzle slots once the prefab-owned mount contract is enforced.");
+                ClearEditorConsole();
             }
             finally
             {
@@ -2046,11 +2067,6 @@ namespace Reloader.Weapons.Tests.PlayMode
                     Object.Destroy(viewPrefab);
                 }
 
-                if (equippedView != null)
-                {
-                    Object.Destroy(equippedView);
-                }
-
                 if (opticDefinition != null)
                 {
                     Object.Destroy(opticDefinition);
@@ -2194,11 +2210,6 @@ namespace Reloader.Weapons.Tests.PlayMode
                     Object.Destroy(viewPrefab);
                 }
 
-                if (equippedView != null)
-                {
-                    Object.Destroy(equippedView);
-                }
-
                 if (opticDefinition != null)
                 {
                     Object.Destroy(opticDefinition);
@@ -2276,6 +2287,7 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 var controller = root.AddComponent<PlayerWeaponController>();
                 controller.Configure();
+                AttachDefaultWeaponHarness(root, controller, includeProjectilePrefab: true);
                 yield return null;
 
                 cursorController.SetForcedCursorUnlock(true);
@@ -2310,9 +2322,9 @@ namespace Reloader.Weapons.Tests.PlayMode
             GameObject registryGo = null;
             GameObject worldCameraGo = null;
             GameObject viewPrefab = null;
-            GameObject equippedView = null;
             GameOpticDefinition opticDefinition = null;
             GameObject opticPrefab = null;
+            ScriptableObject scopeReticleDefinition = null;
 
             try
             {
@@ -2324,6 +2336,20 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var playerArmsVisual = new GameObject("PlayerArmsVisual");
                 playerArmsVisual.transform.SetParent(playerArms, false);
                 var packAnimator = playerArmsVisual.AddComponent<Animator>();
+                var armature = new GameObject("Armature").transform;
+                armature.SetParent(playerArms, false);
+                var legacyHandRoot = new GameObject("ik_hand_root").transform;
+                legacyHandRoot.SetParent(armature, false);
+                var legacyHandGun = new GameObject("ik_hand_gun").transform;
+                legacyHandGun.SetParent(legacyHandRoot, false);
+                var legacyAnchors = legacyHandGun.gameObject.AddComponent<WeaponViewHandAnchors>();
+                var legacyLeftGrip = new GameObject("LegacyLeftGrip").transform;
+                legacyLeftGrip.SetParent(legacyHandGun, false);
+                legacyLeftGrip.localPosition = new Vector3(0.45f, 0.2f, -0.35f);
+                var legacyRightGrip = new GameObject("LegacyRightGrip").transform;
+                legacyRightGrip.SetParent(legacyHandGun, false);
+                legacyRightGrip.localPosition = new Vector3(-0.3f, -0.15f, -0.25f);
+                legacyAnchors.SetHandTargets(legacyLeftGrip, legacyRightGrip);
                 var upperArm = new GameObject("upperarm_l").transform;
                 upperArm.SetParent(playerArmsVisual.transform, false);
                 var lowerArm = new GameObject("lowerarm_l").transform;
@@ -2333,6 +2359,13 @@ namespace Reloader.Weapons.Tests.PlayMode
                 hand.SetParent(lowerArm, false);
                 hand.localPosition = new Vector3(-0.2f, 0f, 0f);
                 var handRigController = root.AddComponent<WeaponHandRigController>();
+                SetField(typeof(WeaponHandRigController), handRigController, "_driveRightHand", true);
+#if UNITY_EDITOR
+                packAnimator.runtimeAnimatorController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(
+                    "Assets/_Project/Player/Resources/Viewmodels/Characters/ViewmodelArms.controller");
+                Assert.That(packAnimator.runtimeAnimatorController, Is.Not.Null,
+                    "Scoped ADS test harness requires a RuntimeAnimatorController to avoid Animator.Play warnings.");
+#endif
 
                 var input = root.AddComponent<TestInputSource>();
                 var resolver = root.AddComponent<TestPickupResolver>();
@@ -2384,9 +2417,15 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 opticDefinition = ScriptableObject.CreateInstance<GameOpticDefinition>();
                 opticPrefab = new GameObject("OpticPiPPrefab");
+                var lensSurface = new GameObject("LensSurface");
+                lensSurface.transform.SetParent(opticPrefab.transform, false);
+                lensSurface.AddComponent<MeshRenderer>();
+                lensSurface.AddComponent<MeshFilter>();
+                lensSurface.AddComponent<Reloader.Game.Weapons.ScopeLensDisplay>();
                 var sightAnchor = new GameObject("SightAnchor").transform;
                 sightAnchor.SetParent(opticPrefab.transform, false);
                 sightAnchor.localPosition = new Vector3(0f, 0f, -0.05f);
+                scopeReticleDefinition = ScriptableObject.CreateInstance<Reloader.Game.Weapons.ScopeReticleDefinition>();
 
                 SetField(typeof(GameOpticDefinition), opticDefinition, "_opticId", "att-optic-pip");
                 SetField(typeof(GameOpticDefinition), opticDefinition, "_isVariableZoom", true);
@@ -2395,25 +2434,27 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetField(typeof(GameOpticDefinition), opticDefinition, "_magnificationStep", 1f);
                 SetField(typeof(GameOpticDefinition), opticDefinition, "_visualModePolicy", GameAdsVisualMode.RenderTexturePiP);
                 SetField(typeof(GameOpticDefinition), opticDefinition, "_opticPrefab", opticPrefab);
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_scopeReticleDefinition", scopeReticleDefinition);
 
                 var controller = root.AddComponent<PlayerWeaponController>();
                 SetControllerField(controller, "_adsCamera", worldCamera);
                 SetControllerField(controller, "_weaponRegistry", registry);
-                SetControllerField(controller, "_weaponViewParent", root.transform);
+                SetControllerField(controller, "_weaponViewParent", EnsureWeaponPresentationRoot(cameraPivot));
                 SetControllerField(controller, "_attachmentItemMetadata", new[]
                 {
                     WeaponAttachmentItemMetadata.CreateForTests("att-optic-pip", WeaponAttachmentSlotType.Scope, opticDefinition)
                 });
                 SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
 
-                yield return null;
-                SetControllerField(controller, "_equippedItemId", "weapon-kar98k");
-                SetControllerField(controller, "_equippedDefinition", definition);
-                equippedView = Object.Instantiate(viewPrefab, root.transform, false);
-                SetControllerField(controller, "_equippedWeaponView", equippedView);
-                yield return null;
+                yield return WaitForEquippedWeaponView(controller);
 
                 Assert.That(controller.EquippedWeaponViewTransform, Is.Not.Null);
+                Assert.That(controller.EquippedWeaponViewTransform.parent, Is.SameAs(EnsureWeaponPresentationRoot(cameraPivot)),
+                    "PlayerWeaponController should own the spawned view under the presentation root.");
+                Assert.That(controller.EquippedWeaponViewTransform, Is.Not.SameAs(legacyHandGun),
+                    "Equipped weapon ownership must stay on the spawned runtime view, not the legacy ik_hand_gun bone.");
+                Assert.That(controller.EquippedWeaponViewTransform!.IsChildOf(legacyHandGun), Is.False,
+                    "The spawned runtime view should not be treated as a child of the legacy ik_hand_gun branch.");
 
                 Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-optic-pip"), Is.True);
                 input.AimHeldValue = true;
@@ -2436,6 +2477,14 @@ namespace Reloader.Weapons.Tests.PlayMode
                     "Prefab-owned hand anchors must survive spawned view cleanup.");
 
                 yield return null;
+                handRigController.SyncHandTargets();
+
+                var liveAnchors = controller.EquippedWeaponViewTransform.GetComponent<WeaponViewHandAnchors>();
+                Assert.That(liveAnchors, Is.Not.Null);
+                Assert.That(Vector3.Distance(handRigController.LeftHandTarget.position, liveAnchors!.LeftHandGrip.position), Is.LessThan(0.0001f));
+                Assert.That(Quaternion.Angle(handRigController.LeftHandTarget.rotation, liveAnchors.LeftHandGrip.rotation), Is.LessThan(0.01f));
+                Assert.That(Vector3.Distance(handRigController.LeftHandTarget.position, legacyLeftGrip.position), Is.GreaterThan(0.001f),
+                    "Hand rig targets must come from the controller-owned equipped view, not the legacy ik_hand_gun branch.");
 
                 Assert.That(packAnimator.speed, Is.GreaterThan(0.01f),
                     "Stable scoped ADS should not freeze the whole pack animator. Reload and bolt animations must still be able to play.");
@@ -2466,11 +2515,6 @@ namespace Reloader.Weapons.Tests.PlayMode
                     Object.Destroy(viewPrefab);
                 }
 
-                if (equippedView != null)
-                {
-                    Object.Destroy(equippedView);
-                }
-
                 if (opticDefinition != null)
                 {
                     Object.Destroy(opticDefinition);
@@ -2479,6 +2523,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                 if (opticPrefab != null)
                 {
                     Object.Destroy(opticPrefab);
+                }
+
+                if (scopeReticleDefinition != null)
+                {
+                    Object.Destroy(scopeReticleDefinition);
                 }
             }
         }
@@ -2526,6 +2575,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
             void OnReloaded(string itemId, int _, int __) => reloaded = itemId;
 
+            AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
             yield return null;
 
             input.FirePressedThisFrame = true;
@@ -2589,6 +2639,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
+            AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
             var inventoryChangedCount = 0;
             var reloadEventCount = 0;
             string reloadedItemId = null;
@@ -2653,6 +2704,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             LogAssert.Expect(LogType.Error, "PlayerWeaponController requires PlayerInventoryController and WeaponRegistry references.");
             yield return null;
             yield return null;
+            ClearEditorConsole();
 
             Object.Destroy(root);
         }
@@ -2723,11 +2775,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
             registry.SetDefinitionsForTests(new[] { definition });
 
-            root.AddComponent<PlayerWeaponController>();
+            var controller = root.AddComponent<PlayerWeaponController>();
+            AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
 
             yield return null;
 
             var before = Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None).Length;
+            LogAssert.Expect(LogType.Warning, "PlayerWeaponController has no projectile prefab assigned. Spawning runtime fallback projectile.");
             input.FirePressedThisFrame = true;
             yield return null;
 
@@ -2738,6 +2792,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             {
                 Object.Destroy(projectile.gameObject);
             }
+
+            ClearEditorConsole();
 
             Object.Destroy(root);
             Object.Destroy(registryGo);
@@ -2764,6 +2820,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
+            AttachDefaultWeaponHarness(root, controller, includeProjectilePrefab: true);
             yield return null;
 
             Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
@@ -2812,6 +2869,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             registry.SetDefinitionsForTests(new[] { definition });
 
             var controller = root.AddComponent<PlayerWeaponController>();
+            AttachDefaultWeaponHarness(root, controller, includeProjectilePrefab: true);
             yield return null;
 
             Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
@@ -2872,7 +2930,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 0, 10, false);
             registry.SetDefinitionsForTests(new[] { definition });
 
-            root.AddComponent<PlayerWeaponController>();
+            var controller = root.AddComponent<PlayerWeaponController>();
+            AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
 
             string startedItemId = null;
             string cancelledItemId = null;
@@ -2929,7 +2988,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 1, 10, true);
             registry.SetDefinitionsForTests(new[] { definition });
 
-            root.AddComponent<PlayerWeaponController>();
+            var controller = root.AddComponent<PlayerWeaponController>();
+            AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
 
             string eventItemId = null;
             var isAiming = false;
@@ -2982,7 +3042,8 @@ namespace Reloader.Weapons.Tests.PlayMode
             definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0.1f, 80f, 0f, 20f, 120f, 0, 10, false);
             registry.SetDefinitionsForTests(new[] { definition });
 
-            root.AddComponent<PlayerWeaponController>();
+            var controller = root.AddComponent<PlayerWeaponController>();
+            AttachDefaultWeaponHarness(root, controller, includeViewBinding: true);
 
             string cancelledItemId = null;
             var cancelledReason = WeaponReloadCancelReason.DryStateInvalidated;
@@ -3152,6 +3213,11 @@ namespace Reloader.Weapons.Tests.PlayMode
             var field = typeof(PlayerWeaponController).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
             field.SetValue(controller, value);
+
+            if (fieldName == "_weaponRegistry")
+            {
+                AttachDefaultWeaponHarness(controller.gameObject, controller, includeProjectilePrefab: true, includeViewBinding: false);
+            }
         }
 
         private static object Invoke(object instance, string methodName, params object[] args)
@@ -3187,6 +3253,127 @@ namespace Reloader.Weapons.Tests.PlayMode
             var field = typeof(PlayerWeaponController).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
             return (T)field.GetValue(controller);
+        }
+
+        private static void AttachDefaultWeaponHarness(
+            GameObject root,
+            PlayerWeaponController controller,
+            bool includeProjectilePrefab = false,
+            string itemId = "weapon-kar98k",
+            bool includeViewBinding = true)
+        {
+            EnsureSceneAudioListener(root);
+
+            var harnessRoot = EnsureControllerHarnessRoot(root.transform);
+            var viewPrefab = harnessRoot.Find($"{itemId}-DefaultView");
+            if (viewPrefab == null)
+            {
+                viewPrefab = new GameObject($"{itemId}-DefaultView").transform;
+                viewPrefab.SetParent(harnessRoot, false);
+
+                var adsPivot = new GameObject("AdsPivot").transform;
+                adsPivot.SetParent(viewPrefab, false);
+                var muzzleFirePoint = new GameObject("Muzzle").transform;
+                muzzleFirePoint.SetParent(viewPrefab, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(viewPrefab, false);
+                ConfigureTestWeaponViewMounts(
+                    viewPrefab.gameObject,
+                    adsPivot: adsPivot,
+                    muzzleFirePoint: muzzleFirePoint,
+                    ironSightAnchor: ironSightAnchor);
+            }
+
+            var existingBindings = GetControllerField<WeaponViewPrefabBinding[]>(controller, "_weaponViewPrefabs");
+            if (includeViewBinding && (existingBindings == null || existingBindings.Length == 0))
+            {
+                SetControllerWeaponViewBinding(controller, itemId, viewPrefab.gameObject);
+            }
+
+            if (!includeProjectilePrefab || GetControllerField<WeaponProjectile>(controller, "_projectilePrefab") != null)
+            {
+                return;
+            }
+
+#if UNITY_EDITOR
+            var projectileAsset = AssetDatabase.LoadAssetAtPath<WeaponProjectile>(
+                "Assets/_Project/Weapons/Prefabs/WeaponProjectile.prefab");
+            if (projectileAsset != null)
+            {
+                SetControllerField(controller, "_projectilePrefab", projectileAsset);
+                return;
+            }
+#endif
+
+            var projectilePrefab = harnessRoot.Find($"{itemId}-DefaultProjectile");
+            if (projectilePrefab == null)
+            {
+                projectilePrefab = new GameObject($"{itemId}-DefaultProjectile").transform;
+                projectilePrefab.SetParent(harnessRoot, false);
+                projectilePrefab.gameObject.AddComponent<WeaponProjectile>();
+            }
+
+            SetControllerField(controller, "_projectilePrefab", projectilePrefab.GetComponent<WeaponProjectile>());
+        }
+
+        private static Transform EnsureControllerHarnessRoot(Transform root)
+        {
+            var existing = root.Find("__TestControllerHarness");
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            var harnessRoot = new GameObject("__TestControllerHarness").transform;
+            harnessRoot.SetParent(root, false);
+            return harnessRoot;
+        }
+
+        private static void EnsureSceneAudioListener(GameObject root)
+        {
+            if (Object.FindFirstObjectByType<AudioListener>() != null)
+            {
+                return;
+            }
+
+            var listener = new GameObject("TestAudioListener");
+            listener.transform.SetParent(root.transform, false);
+            listener.AddComponent<AudioListener>();
+        }
+
+        private static void ClearEditorConsole()
+        {
+#if UNITY_EDITOR
+            var logEntriesType = Type.GetType("UnityEditor.LogEntries, UnityEditor.dll");
+            var clearMethod = logEntriesType?.GetMethod("Clear", BindingFlags.Static | BindingFlags.Public);
+            clearMethod?.Invoke(null, null);
+#endif
+        }
+
+        private static Transform EnsureWeaponPresentationRoot(Transform cameraPivot)
+        {
+            var existing = cameraPivot.Find("WeaponPresentationRoot");
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            var root = new GameObject("WeaponPresentationRoot").transform;
+            root.SetParent(cameraPivot, false);
+            return root;
+        }
+
+        private static IEnumerator WaitForEquippedWeaponView(PlayerWeaponController controller, int maxFrames = 10)
+        {
+            var frames = 0;
+            while (controller.EquippedWeaponViewTransform == null && frames < maxFrames)
+            {
+                frames++;
+                yield return null;
+            }
+
+            Assert.That(controller.EquippedWeaponViewTransform, Is.Not.Null,
+                $"Expected PlayerWeaponController to spawn an equipped view within {maxFrames} frames.");
         }
 
         private static void SetControllerWeaponViewBinding(PlayerWeaponController controller, string itemId, GameObject viewPrefab)

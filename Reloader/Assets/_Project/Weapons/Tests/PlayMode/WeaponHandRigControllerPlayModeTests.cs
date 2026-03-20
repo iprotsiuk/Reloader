@@ -1,9 +1,19 @@
+using System;
+using System.Collections;
 using System.Reflection;
+using Reloader.Inventory;
+using Reloader.Player;
 using NUnit.Framework;
 using Reloader.Player.Viewmodel;
+using Reloader.Weapons.Controllers;
+using Reloader.Weapons.Data;
 using Reloader.Weapons.Runtime;
 using UnityEngine;
+using UnityEngine.TestTools;
 using Object = UnityEngine.Object;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Reloader.Weapons.Tests.PlayMode
 {
@@ -50,6 +60,158 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Object.DestroyImmediate(leftHandTarget.gameObject);
                 Object.DestroyImmediate(rightHandTarget.gameObject);
                 Object.DestroyImmediate(root);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator SyncHandTargets_IgnoresLegacyIkHandGunHierarchyWhenControllerOwnsEquippedView()
+        {
+            GameObject root = null;
+            GameObject registryGo = null;
+            GameObject viewPrefab = null;
+            WeaponDefinition definition = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var cameraPivot = new GameObject("CameraPivot").transform;
+                cameraPivot.SetParent(root.transform, false);
+
+                var playerArms = new GameObject("PlayerArms").transform;
+                playerArms.SetParent(cameraPivot, false);
+
+                var armsVisual = new GameObject("PlayerArmsVisual").transform;
+                armsVisual.SetParent(playerArms, false);
+                var armsAnimator = armsVisual.gameObject.AddComponent<Animator>();
+#if UNITY_EDITOR
+                armsAnimator.runtimeAnimatorController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(
+                    "Assets/_Project/Player/Resources/Viewmodels/Characters/ViewmodelArms.controller");
+                Assert.That(armsAnimator.runtimeAnimatorController, Is.Not.Null,
+                    "Hand-rig seam test requires a RuntimeAnimatorController to avoid Animator.Play warnings.");
+#endif
+
+                var upperArm = new GameObject("upperarm_l").transform;
+                upperArm.SetParent(armsVisual, false);
+
+                var lowerArm = new GameObject("lowerarm_l").transform;
+                lowerArm.SetParent(upperArm, false);
+
+                var hand = new GameObject("hand_l").transform;
+                hand.SetParent(lowerArm, false);
+
+                var armature = new GameObject("Armature").transform;
+                armature.SetParent(playerArms, false);
+                var legacyHandRoot = new GameObject("ik_hand_root").transform;
+                legacyHandRoot.SetParent(armature, false);
+                var legacyHandGun = new GameObject("ik_hand_gun").transform;
+                legacyHandGun.SetParent(legacyHandRoot, false);
+
+                var legacyAnchors = legacyHandGun.gameObject.AddComponent<WeaponViewHandAnchors>();
+                var legacyLeftGrip = new GameObject("LegacyLeftGrip").transform;
+                legacyLeftGrip.SetParent(legacyHandGun, false);
+                legacyLeftGrip.localPosition = new Vector3(4f, 5f, 6f);
+                legacyLeftGrip.localRotation = Quaternion.Euler(15f, 25f, 35f);
+
+                var legacyRightGrip = new GameObject("LegacyRightGrip").transform;
+                legacyRightGrip.SetParent(legacyHandGun, false);
+                legacyRightGrip.localPosition = new Vector3(-4f, -5f, -6f);
+                legacyRightGrip.localRotation = Quaternion.Euler(-15f, -25f, -35f);
+                legacyAnchors.SetHandTargets(legacyLeftGrip, legacyRightGrip);
+
+                var handRigController = root.AddComponent<WeaponHandRigController>();
+                SetPrivateField(handRigController, "_driveRightHand", true);
+                var leftHandTarget = new GameObject("LeftHandTarget").transform;
+                var rightHandTarget = new GameObject("RightHandTarget").transform;
+                handRigController.ConfigureTargets(leftHandTarget, rightHandTarget);
+
+                root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(root.GetComponent<TestInputSource>(), resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Kar98k", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+
+                viewPrefab = new GameObject("Kar98kView");
+                var adsPivot = new GameObject("AdsPivot").transform;
+                adsPivot.SetParent(viewPrefab.transform, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(adsPivot, false);
+                var muzzleSlot = new GameObject("MuzzleAttachmentSlot").transform;
+                muzzleSlot.SetParent(adsPivot, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, adsPivot, ironSightAnchor, muzzleSlot);
+
+                var prefabAnchors = viewPrefab.AddComponent<WeaponViewHandAnchors>();
+                var prefabLeftGrip = new GameObject("RealLeftGrip").transform;
+                prefabLeftGrip.SetParent(adsPivot, false);
+                prefabLeftGrip.localPosition = new Vector3(0.11f, 0.22f, 0.33f);
+                prefabLeftGrip.localRotation = Quaternion.Euler(7f, 17f, 27f);
+
+                var prefabRightGrip = new GameObject("RealRightGrip").transform;
+                prefabRightGrip.SetParent(adsPivot, false);
+                prefabRightGrip.localPosition = new Vector3(-0.14f, -0.09f, 0.28f);
+                prefabRightGrip.localRotation = Quaternion.Euler(-9f, 19f, -11f);
+                prefabAnchors.SetHandTargets(prefabLeftGrip, prefabRightGrip);
+
+                SetPrivateField(definition, "_iconSourcePrefab", viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var weaponController = root.AddComponent<PlayerWeaponController>();
+                SetPrivateField(weaponController, "_weaponRegistry", registry);
+                SetPrivateField(weaponController, "_weaponViewParent", EnsureWeaponPresentationRoot(cameraPivot));
+                SetWeaponViewBinding(weaponController, "weapon-kar98k", viewPrefab);
+
+                var frames = 0;
+                while (weaponController.EquippedWeaponViewTransform == null && frames < 10)
+                {
+                    frames++;
+                    yield return null;
+                }
+
+                Assert.That(weaponController.EquippedWeaponViewTransform, Is.Not.Null);
+
+                handRigController.SyncHandTargets();
+
+                var liveAnchors = weaponController.EquippedWeaponViewTransform!.GetComponent<WeaponViewHandAnchors>();
+                Assert.That(liveAnchors, Is.Not.Null);
+                Assert.That(weaponController.EquippedWeaponViewTransform, Is.Not.SameAs(legacyHandGun));
+                Assert.That(weaponController.EquippedWeaponViewTransform.IsChildOf(legacyHandGun), Is.False);
+                Assert.That(Vector3.Distance(leftHandTarget.position, liveAnchors!.LeftHandGrip.position), Is.LessThan(0.0001f));
+                Assert.That(Quaternion.Angle(leftHandTarget.rotation, liveAnchors.LeftHandGrip.rotation), Is.LessThan(0.01f));
+                Assert.That(Vector3.Distance(rightHandTarget.position, liveAnchors.RightHandGrip.position), Is.LessThan(0.0001f));
+                Assert.That(Quaternion.Angle(rightHandTarget.rotation, liveAnchors.RightHandGrip.rotation), Is.LessThan(0.01f));
+                Assert.That(Vector3.Distance(leftHandTarget.position, legacyLeftGrip.position), Is.GreaterThan(0.001f));
+                Assert.That(Quaternion.Angle(leftHandTarget.rotation, legacyLeftGrip.rotation), Is.GreaterThan(0.1f));
+                Assert.That(Vector3.Distance(rightHandTarget.position, legacyRightGrip.position), Is.GreaterThan(0.001f));
+                Assert.That(Quaternion.Angle(rightHandTarget.rotation, legacyRightGrip.rotation), Is.GreaterThan(0.1f));
+                Assert.That(handRigController.HasResolvedWeaponAnchors, Is.True);
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
             }
         }
 
@@ -184,11 +346,85 @@ namespace Reloader.Weapons.Tests.PlayMode
             return root;
         }
 
+        private static Transform EnsureWeaponPresentationRoot(Transform cameraPivot)
+        {
+            var existing = cameraPivot.Find("WeaponPresentationRoot");
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            var root = new GameObject("WeaponPresentationRoot").transform;
+            root.SetParent(cameraPivot, false);
+            return root;
+        }
+
+        private static void SetWeaponViewBinding(PlayerWeaponController controller, string itemId, GameObject viewPrefab)
+        {
+            var bindingType = typeof(WeaponViewPrefabBinding);
+            var binding = Activator.CreateInstance(bindingType);
+            SetPrivateField(binding, "_itemId", itemId);
+            SetPrivateField(binding, "_viewPrefab", viewPrefab);
+            SetPrivateField(controller, "_weaponViewPrefabs", new[] { (WeaponViewPrefabBinding)binding });
+        }
+
+        private static void ConfigureTestWeaponViewMounts(
+            GameObject viewPrefab,
+            Transform adsPivot,
+            Transform ironSightAnchor,
+            Transform muzzleSlot)
+        {
+            var mounts = viewPrefab.AddComponent<WeaponViewAttachmentMounts>();
+            SetPrivateField(mounts, "_adsPivot", adsPivot);
+            SetPrivateField(mounts, "_muzzleTransform", null);
+            SetPrivateField(mounts, "_ironSightAnchor", ironSightAnchor);
+            SetPrivateField(mounts, "_magazineSocket", null);
+            SetPrivateField(mounts, "_magazineDropSocket", null);
+
+            var slotEntryType = typeof(WeaponViewAttachmentMounts).GetNestedType("AttachmentSlotMount", BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(slotEntryType, Is.Not.Null);
+            var entries = Array.CreateInstance(slotEntryType!, 1);
+            var entry = Activator.CreateInstance(slotEntryType);
+            SetPrivateField(entry, "_slotType", WeaponAttachmentSlotType.Muzzle);
+            SetPrivateField(entry, "_slotTransform", muzzleSlot);
+            entries.SetValue(entry, 0);
+            SetPrivateField(mounts, "_attachmentSlots", entries);
+        }
+
         private static void SetPrivateField(object target, string fieldName, object value)
         {
             var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Expected private field '{fieldName}' on {target.GetType().Name}.");
             field!.SetValue(target, value);
+        }
+
+        private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
+        {
+            public Vector2 MoveInput => Vector2.zero;
+            public Vector2 LookInput => Vector2.zero;
+            public bool SprintHeld => false;
+            public bool AimHeld => false;
+            public bool ConsumeJumpPressed() => false;
+            public bool ConsumeAimTogglePressed() => false;
+            public bool ConsumeFirePressed() => false;
+            public bool ConsumeReloadPressed() => false;
+            public bool ConsumePickupPressed() => false;
+            public float ConsumeZoomInput() => 0f;
+            public int ConsumeZeroAdjustStep() => 0;
+            public int ConsumeBeltSelectPressed() => -1;
+            public bool ConsumeMenuTogglePressed() => false;
+            public bool ConsumeDevConsoleTogglePressed() => false;
+            public bool ConsumeAutocompletePressed() => false;
+            public int ConsumeSuggestionDelta() => 0;
+        }
+
+        private sealed class TestPickupResolver : MonoBehaviour, IInventoryPickupTargetResolver
+        {
+            public bool TryResolvePickupTarget(out IInventoryPickupTarget target)
+            {
+                target = null;
+                return false;
+            }
         }
     }
 }
