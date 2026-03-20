@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Reloader.Player.Tests.EditMode
 {
@@ -12,12 +13,6 @@ namespace Reloader.Player.Tests.EditMode
             var root = new GameObject("PlayerRoot");
             var cameraPivot = new GameObject("CameraPivot").transform;
             cameraPivot.SetParent(root.transform, false);
-
-            var playerArmsRoot = new GameObject("PlayerArms").transform;
-            playerArmsRoot.SetParent(cameraPivot, false);
-            var playerArmsVisual = new GameObject("PlayerArmsVisual");
-            playerArmsVisual.transform.SetParent(playerArmsRoot, false);
-            playerArmsVisual.AddComponent<Animator>();
 
             var mainCamera = new GameObject("Main Camera").AddComponent<Camera>();
             mainCamera.transform.SetParent(cameraPivot, false);
@@ -33,10 +28,21 @@ namespace Reloader.Player.Tests.EditMode
 
                 Assert.That(method, Is.Not.Null, "Expected PlayerRigMenu.TryRebuildFpsArmsViewmodel to exist.");
 
-                var result = (bool)method!.Invoke(null, new object[] { cameraPivot, mainCamera })!;
+                var previousIgnoreFailingMessages = LogAssert.ignoreFailingMessages;
+                LogAssert.ignoreFailingMessages = true;
+                try
+                {
+                    var result = (bool)method!.Invoke(null, new object[] { cameraPivot, mainCamera })!;
 
-                Assert.That(result, Is.False);
-                Assert.That(cameraPivot.Find("WeaponPresentationRoot"), Is.Null);
+                    Assert.That(result, Is.False);
+                    Assert.That(cameraPivot.Find("PlayerArms"), Is.Null);
+                    Assert.That(cameraPivot.Find("PlayerArmsVisual"), Is.Null);
+                    Assert.That(cameraPivot.Find("WeaponPresentationRoot"), Is.Null);
+                }
+                finally
+                {
+                    LogAssert.ignoreFailingMessages = previousIgnoreFailingMessages;
+                }
             }
             finally
             {
@@ -50,12 +56,6 @@ namespace Reloader.Player.Tests.EditMode
             var root = new GameObject("PlayerRoot");
             var cameraPivot = new GameObject("CameraPivot").transform;
             cameraPivot.SetParent(root.transform, false);
-
-            var playerArmsRoot = new GameObject("PlayerArms").transform;
-            playerArmsRoot.SetParent(cameraPivot, false);
-            var playerArmsVisual = new GameObject("PlayerArmsVisual");
-            playerArmsVisual.transform.SetParent(playerArmsRoot, false);
-            playerArmsVisual.AddComponent<Animator>();
 
             var mainCamera = new GameObject("Main Camera").AddComponent<Camera>();
             mainCamera.transform.SetParent(cameraPivot, false);
@@ -76,6 +76,8 @@ namespace Reloader.Player.Tests.EditMode
 
                 method!.Invoke(null, null);
 
+                Assert.That(root.transform.Find("PlayerArms"), Is.Null);
+                Assert.That(root.transform.Find("PlayerArmsVisual"), Is.Null);
                 Assert.That(root.transform.Find("WeaponPresentationRoot"), Is.Null);
                 Assert.That(root.GetComponent<CharacterController>(), Is.Null);
             }
@@ -107,6 +109,8 @@ namespace Reloader.Player.Tests.EditMode
 
                 createdRoot = Selection.activeGameObject;
                 Assert.That(createdRoot, Is.Not.Null);
+                Assert.That(createdRoot.transform.Find("PlayerArms"), Is.Null);
+                Assert.That(createdRoot.transform.Find("PlayerArmsVisual"), Is.Null);
                 Assert.That(createdRoot.transform.Find("WeaponPresentationRoot"), Is.Null);
             }
             finally

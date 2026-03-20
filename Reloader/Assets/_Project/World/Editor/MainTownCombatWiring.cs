@@ -111,6 +111,24 @@ namespace Reloader.World.Editor
                 return false;
             }
 
+            var inputReader = playerRoot.GetComponent<PlayerInputReader>();
+            var inventoryController = playerRoot.GetComponent<PlayerInventoryController>();
+            var characterController = playerRoot.GetComponent<CharacterController>();
+            var lookController = playerRoot.GetComponent<PlayerLookController>();
+            var handRigController = playerRoot.GetComponent<WeaponHandRigController>();
+
+            if (handRigController == null)
+            {
+                Debug.LogError("MainTown combat wiring failed: WeaponHandRigController must be authored on the PlayerRoot.");
+                return false;
+            }
+
+            if (!TryResolveWeaponHandRigTargets(handRigController, cameraPivot, out _))
+            {
+                Debug.LogError("MainTown combat wiring failed: explicit WeaponHandRigTargets root is missing or not parented under CameraPivot.");
+                return false;
+            }
+
             cameraPivot.localPosition = CameraPivotLocalPosition;
             cameraLookTarget.localPosition = new Vector3(0f, 0f, 10f);
             cameraLookTarget.localRotation = Quaternion.identity;
@@ -130,27 +148,10 @@ namespace Reloader.World.Editor
             definitionsProp.GetArrayElementAtIndex(1).objectReferenceValue = starterPistol;
             registrySo.ApplyModifiedPropertiesWithoutUndo();
 
-            var inputReader = playerRoot.GetComponent<PlayerInputReader>();
-            var inventoryController = playerRoot.GetComponent<PlayerInventoryController>();
-            var characterController = playerRoot.GetComponent<CharacterController>();
-            var lookController = playerRoot.GetComponent<PlayerLookController>();
             var weaponController = GetOrAddComponent<PlayerWeaponController>(playerRoot);
-            var handRigController = playerRoot.GetComponent<WeaponHandRigController>();
             var animationBinder = GetOrAddComponent<PlayerWeaponAnimationBinder>(playerRoot);
             var animatorDriver = GetOrAddComponent<FpsViewmodelAnimatorDriver>(playerRoot);
             var viewmodelAdapter = GetOrAddComponent<ViewmodelAnimationAdapter>(playerRoot);
-
-            if (handRigController == null)
-            {
-                Debug.LogError("MainTown combat wiring failed: WeaponHandRigController must be authored on the PlayerRoot.");
-                return false;
-            }
-
-            if (!TryResolveWeaponHandRigTargets(handRigController, cameraPivot, out _))
-            {
-                Debug.LogError("MainTown combat wiring failed: explicit WeaponHandRigTargets root is missing or not parented under CameraPivot.");
-                return false;
-            }
 
             if (inventoryController != null)
             {

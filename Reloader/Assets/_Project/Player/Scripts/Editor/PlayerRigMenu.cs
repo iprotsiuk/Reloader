@@ -86,7 +86,11 @@ namespace Reloader.Player.Editor
                 return;
             }
 
-            EnsureFpsArmsViewmodel(cameraPivot.transform, camera);
+            if (!EnsureFpsArmsViewmodel(cameraPivot.transform, camera))
+            {
+                Selection.activeGameObject = playerRoot;
+                return;
+            }
 
             Selection.activeGameObject = playerRoot;
         }
@@ -188,7 +192,11 @@ namespace Reloader.Player.Editor
             defaultsSo.ApplyModifiedPropertiesWithoutUndo();
             defaults.ApplyDefaults();
             EnsureShadowBody(root.transform);
-            EnsureFpsArmsViewmodel(cameraPivot, camera);
+            if (!EnsureFpsArmsViewmodel(cameraPivot, camera))
+            {
+                Selection.activeGameObject = root;
+                return;
+            }
 
             Selection.activeGameObject = root;
             Debug.Log("Selected FPS rig repaired and wired.");
@@ -226,7 +234,7 @@ namespace Reloader.Player.Editor
 
             if (!TryRebuildFpsArmsViewmodel(cameraPivot, mainCamera))
             {
-                Debug.LogWarning("Selected rig must already have authored PlayerArms and WeaponPresentationRoot roots.");
+                Debug.LogWarning("Selected rig must already have authored PlayerArms, PlayerArmsVisual, and WeaponPresentationRoot roots.");
                 return;
             }
 
@@ -260,7 +268,7 @@ namespace Reloader.Player.Editor
 
             if (!TryRebuildFpsArmsViewmodel(cameraPivot, mainCamera))
             {
-                Debug.LogWarning("Active scene player rig must already have authored PlayerArms and WeaponPresentationRoot roots.");
+                Debug.LogWarning("Active scene player rig must already have authored PlayerArms, PlayerArmsVisual, and WeaponPresentationRoot roots.");
                 return;
             }
 
@@ -393,7 +401,7 @@ namespace Reloader.Player.Editor
             }
         }
 
-        private static void EnsureFpsArmsViewmodel(Transform cameraPivot, Camera mainCamera)
+        private static bool EnsureFpsArmsViewmodel(Transform cameraPivot, Camera mainCamera)
         {
             ConfigureFpsArmsImporter();
 
@@ -401,107 +409,28 @@ namespace Reloader.Player.Editor
             if (modelAsset == null)
             {
                 Debug.LogWarning($"FPS arms model not found at '{FpsArmsModelPath}'.");
-                return;
+                return false;
             }
 
-            var playerArmsRoot = EnsurePlayerArmsRoot(cameraPivot);
+            var playerArmsRoot = cameraPivot.Find(PlayerArmsRootName);
+            if (playerArmsRoot == null)
+            {
+                Debug.LogWarning($"FPS arms viewmodel requires authored '{PlayerArmsRootName}' under CameraPivot.");
+                return false;
+            }
+
             var armsVisual = playerArmsRoot.Find(PlayerArmsVisualName);
             if (armsVisual == null)
             {
-                var legacyVisual = playerArmsRoot.Find("FPS_Arms");
-                if (legacyVisual != null)
-                {
-                    legacyVisual.name = PlayerArmsVisualName;
-                    armsVisual = legacyVisual;
-                }
-                else
-                {
-                    var instance = PrefabUtility.InstantiatePrefab(modelAsset) as GameObject;
-                    instance ??= Object.Instantiate(modelAsset);
-                    instance.name = PlayerArmsVisualName;
-                    Undo.RegisterCreatedObjectUndo(instance, "Create FPS Arms");
-                    instance.transform.SetParent(playerArmsRoot, false);
-                    armsVisual = instance.transform;
-                }
-            }
-
-            playerArmsRoot.localPosition = FpsArmsOffsetLocalPosition;
-            playerArmsRoot.localRotation = Quaternion.Euler(FpsArmsOffsetLocalEuler);
-            playerArmsRoot.localScale = FpsArmsOffsetLocalScale;
-            armsVisual.localPosition = Vector3.zero;
-            armsVisual.localRotation = Quaternion.identity;
-            armsVisual.localScale = Vector3.one;
-            var viewmodelLayer = EnsureLayer(ViewmodelLayerName);
-            if (viewmodelLayer < 0)
-            {
-                Debug.LogWarning("Could not assign Viewmodel layer. Cameras were not reconfigured.");
-                return;
-            }
-
-            var viewmodelCamera = ConfigureViewmodelCameras(cameraPivot, mainCamera, viewmodelLayer);
-            EnsureUnitScale(cameraPivot.root, cameraPivot, mainCamera.transform, viewmodelCamera != null ? viewmodelCamera.transform : null);
-
-            foreach (var collider in armsVisual.GetComponentsInChildren<Collider>(true))
-            {
-                collider.enabled = false;
+                Debug.LogWarning($"FPS arms viewmodel requires authored '{PlayerArmsVisualName}' under '{PlayerArmsRootName}'.");
+                return false;
             }
 
             var weaponPresentationRoot = cameraPivot.Find(WeaponPresentationRootName);
             if (weaponPresentationRoot == null)
             {
                 Debug.LogWarning("WeaponPresentationRoot must already be authored before configuring FPS arms viewmodel.");
-                return;
-            }
-
-            SetLayerRecursively(playerArmsRoot.gameObject, viewmodelLayer);
-            SetLayerRecursively(weaponPresentationRoot.gameObject, viewmodelLayer);
-            EnsureViewmodelAnimator(armsVisual, cameraPivot.root);
-            EnsureWeaponHandRigController(cameraPivot.root);
-            LogViewmodelRendererType(armsVisual);
-        }
-
-        private static bool TryRebuildFpsArmsViewmodel(Transform cameraPivot, Camera mainCamera)
-        {
-            var existingPlayerArms = cameraPivot.Find(PlayerArmsRootName);
-            var weaponPresentationRoot = cameraPivot.Find(WeaponPresentationRootName);
-            if (existingPlayerArms == null || weaponPresentationRoot == null)
-            {
                 return false;
-            }
-
-            ConfigureExistingFpsArmsViewmodel(cameraPivot, mainCamera, existingPlayerArms, weaponPresentationRoot);
-            return true;
-        }
-
-        private static void ConfigureExistingFpsArmsViewmodel(Transform cameraPivot, Camera mainCamera, Transform playerArmsRoot, Transform weaponPresentationRoot)
-        {
-            ConfigureFpsArmsImporter();
-
-            var modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(FpsArmsModelPath);
-            if (modelAsset == null)
-            {
-                Debug.LogWarning($"FPS arms model not found at '{FpsArmsModelPath}'.");
-                return;
-            }
-
-            var armsVisual = playerArmsRoot.Find(PlayerArmsVisualName);
-            if (armsVisual == null)
-            {
-                var legacyVisual = playerArmsRoot.Find("FPS_Arms");
-                if (legacyVisual != null)
-                {
-                    legacyVisual.name = PlayerArmsVisualName;
-                    armsVisual = legacyVisual;
-                }
-                else
-                {
-                    var instance = PrefabUtility.InstantiatePrefab(modelAsset) as GameObject;
-                    instance ??= Object.Instantiate(modelAsset);
-                    instance.name = PlayerArmsVisualName;
-                    Undo.RegisterCreatedObjectUndo(instance, "Create FPS Arms");
-                    instance.transform.SetParent(playerArmsRoot, false);
-                    armsVisual = instance.transform;
-                }
             }
 
             playerArmsRoot.localPosition = FpsArmsOffsetLocalPosition;
@@ -514,17 +443,11 @@ namespace Reloader.Player.Editor
             if (viewmodelLayer < 0)
             {
                 Debug.LogWarning("Could not assign Viewmodel layer. Cameras were not reconfigured.");
-                return;
+                return false;
             }
 
             var viewmodelCamera = ConfigureViewmodelCameras(cameraPivot, mainCamera, viewmodelLayer);
             EnsureUnitScale(cameraPivot.root, cameraPivot, mainCamera.transform, viewmodelCamera != null ? viewmodelCamera.transform : null);
-
-            foreach (var renderer in armsVisual.GetComponentsInChildren<Renderer>(true))
-            {
-                renderer.shadowCastingMode = ShadowCastingMode.Off;
-                renderer.receiveShadows = false;
-            }
 
             foreach (var collider in armsVisual.GetComponentsInChildren<Collider>(true))
             {
@@ -536,46 +459,12 @@ namespace Reloader.Player.Editor
             EnsureViewmodelAnimator(armsVisual, cameraPivot.root);
             EnsureWeaponHandRigController(cameraPivot.root);
             LogViewmodelRendererType(armsVisual);
+            return true;
         }
 
-        private static Transform EnsurePlayerArmsRoot(Transform cameraPivot)
+        private static bool TryRebuildFpsArmsViewmodel(Transform cameraPivot, Camera mainCamera)
         {
-            var playerArmsRoot = cameraPivot.Find(PlayerArmsRootName);
-            if (playerArmsRoot != null)
-            {
-                return playerArmsRoot;
-            }
-
-            var legacyOffsetRoot = cameraPivot.Find("FPS_ArmsOffset");
-            if (legacyOffsetRoot != null)
-            {
-                legacyOffsetRoot.name = PlayerArmsRootName;
-                return legacyOffsetRoot;
-            }
-
-            var playerArmsGo = new GameObject(PlayerArmsRootName);
-            playerArmsGo.transform.SetParent(cameraPivot, false);
-            return playerArmsGo.transform;
-        }
-
-        private static Transform EnsureWeaponPresentationRoot(Transform cameraPivot)
-        {
-            var presentationLayer = cameraPivot.gameObject.layer;
-            var presentationRoot = cameraPivot.Find(WeaponPresentationRootName);
-            if (presentationRoot != null)
-            {
-                SetLayerRecursively(presentationRoot.gameObject, presentationLayer);
-                return presentationRoot;
-            }
-
-            var presentationGo = new GameObject(WeaponPresentationRootName);
-            Undo.RegisterCreatedObjectUndo(presentationGo, "Create Weapon Presentation Root");
-            SetLayerRecursively(presentationGo, presentationLayer);
-            presentationGo.transform.SetParent(cameraPivot, false);
-            presentationGo.transform.localPosition = Vector3.zero;
-            presentationGo.transform.localRotation = Quaternion.identity;
-            presentationGo.transform.localScale = Vector3.one;
-            return presentationGo.transform;
+            return EnsureFpsArmsViewmodel(cameraPivot, mainCamera);
         }
 
         private static void ConfigureFpsArmsImporter()
