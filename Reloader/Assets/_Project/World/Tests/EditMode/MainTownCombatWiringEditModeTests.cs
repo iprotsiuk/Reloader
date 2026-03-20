@@ -134,6 +134,9 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(sceneText, Does.Contain("_handTargetRoot: {fileID: 2662114487113379158}"), "MainTown scene should serialize the explicit WeaponHandRigTargets root.");
             Assert.That(sceneText, Does.Contain("m_Name: WeaponHandRigTargets"), "MainTown scene should author the hand-target root as a first-person child.");
             Assert.That(sceneText, Does.Contain("m_Father: {fileID: 936686685}"), "MainTown scene should keep WeaponHandRigTargets under CameraPivot.");
+            Assert.That(sceneText, Does.Contain("_viewmodelCamera: {fileID: 1178895432109876544}"), "MainTown scene should serialize the explicit viewmodel camera reference.");
+            Assert.That(sceneText, Does.Contain("m_Name: ViewmodelCamera"), "MainTown scene should keep the explicit viewmodel camera child authored.");
+            Assert.That(sceneText, Does.Contain("m_Father: {fileID: 936686685}"), "MainTown scene should keep ViewmodelCamera under CameraPivot.");
         }
 
         [Test]
