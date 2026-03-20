@@ -105,13 +105,18 @@ namespace Reloader.Player.Tests.EditMode
 
                 Assert.That(method, Is.Not.Null, "Expected PlayerRigMenu.CreateFpsRig to exist.");
 
+                LogAssert.Expect(LogType.Warning, "Create FPS Rig requires an authored first-person presentation hierarchy.");
                 method!.Invoke(null, null);
 
                 createdRoot = Selection.activeGameObject;
                 Assert.That(createdRoot, Is.Not.Null);
+                Assert.That(createdRoot.transform.Find("CameraPivot"), Is.Null);
+                Assert.That(createdRoot.transform.Find("CM_PlayerCamera"), Is.Null);
+                Assert.That(createdRoot.transform.Find("Main Camera"), Is.Null);
                 Assert.That(createdRoot.transform.Find("PlayerArms"), Is.Null);
                 Assert.That(createdRoot.transform.Find("PlayerArmsVisual"), Is.Null);
                 Assert.That(createdRoot.transform.Find("WeaponPresentationRoot"), Is.Null);
+                Assert.That(createdRoot.GetComponent<PlayerCameraDefaults>(), Is.Null);
             }
             finally
             {
@@ -121,6 +126,45 @@ namespace Reloader.Player.Tests.EditMode
                 }
 
                 Selection.activeGameObject = previousSelection;
+            }
+        }
+
+        [Test]
+        public void RepairSelectedFpsRig_DoesNotCreateCameraPivot_WhenAuthoredPresentationContractMissing()
+        {
+            var root = new GameObject("PlayerRoot");
+            var weaponPresentationRoot = new GameObject("WeaponPresentationRoot").transform;
+            weaponPresentationRoot.SetParent(root.transform, false);
+
+            var previousSelection = Selection.activeGameObject;
+            Selection.activeGameObject = root;
+
+            try
+            {
+                var playerRigMenuType = System.Type.GetType("Reloader.Player.Editor.PlayerRigMenu, Reloader.Player.Editor");
+                Assert.That(playerRigMenuType, Is.Not.Null, "Expected PlayerRigMenu type to exist.");
+
+                var method = playerRigMenuType!.GetMethod(
+                    "RepairSelectedFpsRig",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+
+                Assert.That(method, Is.Not.Null, "Expected PlayerRigMenu.RepairSelectedFpsRig to exist.");
+
+                LogAssert.Expect(LogType.Warning, "Selected rig must already have an authored first-person presentation hierarchy.");
+                method!.Invoke(null, null);
+
+                Assert.That(root.transform.Find("CameraPivot"), Is.Null);
+                Assert.That(root.transform.Find("CM_PlayerCamera"), Is.Null);
+                Assert.That(root.transform.Find("Main Camera"), Is.Null);
+                Assert.That(root.transform.Find("PlayerArms"), Is.Null);
+                Assert.That(root.transform.Find("PlayerArmsVisual"), Is.Null);
+                Assert.That(root.transform.Find("WeaponPresentationRoot"), Is.SameAs(weaponPresentationRoot));
+                Assert.That(root.GetComponent<PlayerCameraDefaults>(), Is.Null);
+            }
+            finally
+            {
+                Selection.activeGameObject = previousSelection;
+                Object.DestroyImmediate(root);
             }
         }
     }
