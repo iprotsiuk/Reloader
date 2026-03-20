@@ -170,8 +170,7 @@ namespace Reloader.Core.Tests.EditMode
             SetField(defaults, "_playerArmsRoot", playerArmsRoot);
             SetField(defaults, "_playerArmsAnimator", armsAnimator);
             SetField(defaults, "_weaponPresentationRoot", weaponMount);
-            var handRigTargets = new GameObject("WeaponHandRigTargets").transform;
-            handRigTargets.SetParent(presentationPivot, false);
+            new GameObject("WeaponHandRigTargets").transform.SetParent(presentationPivot, false);
 
             var binder = playerRoot.AddComponent<PlayerWeaponAnimationBinder>();
             var driver = playerRoot.AddComponent<FpsViewmodelAnimatorDriver>();
