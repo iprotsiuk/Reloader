@@ -307,13 +307,6 @@ namespace Reloader.Player
                 return true;
             }
 
-            var mainCamera = Camera.main;
-            if (mainCamera != null)
-            {
-                fieldOfView = mainCamera.fieldOfView;
-                return true;
-            }
-
             fieldOfView = default;
             return false;
         }

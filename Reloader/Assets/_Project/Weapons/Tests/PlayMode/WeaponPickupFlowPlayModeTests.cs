@@ -80,6 +80,37 @@ namespace Reloader.Weapons.Tests.PlayMode
             Object.Destroy(pickupGo);
         }
 
+        [UnityTest]
+        public IEnumerator PickupFlow_DoesNotUseCameraMain_WhenExplicitPickupCameraIsMissing()
+        {
+            var root = new GameObject("PlayerRoot");
+            var worldCameraGo = new GameObject("WorldCamera");
+            worldCameraGo.transform.position = Vector3.zero;
+            worldCameraGo.transform.forward = Vector3.forward;
+            var worldCamera = worldCameraGo.AddComponent<Camera>();
+            worldCamera.tag = "MainCamera";
+
+            var resolver = root.AddComponent<PlayerWeaponPickupResolver>();
+
+            var pickupGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            pickupGo.transform.position = new Vector3(0f, 0f, 2f);
+            pickupGo.AddComponent<TestPickupTarget>();
+
+            yield return null;
+
+            try
+            {
+                Assert.That(resolver.TryResolvePickupTarget(out var target), Is.False);
+                Assert.That(target, Is.Null);
+            }
+            finally
+            {
+                Object.Destroy(root);
+                Object.Destroy(worldCameraGo);
+                Object.Destroy(pickupGo);
+            }
+        }
+
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource
         {
             public bool PickupPressedThisFrame;
@@ -109,6 +140,15 @@ namespace Reloader.Weapons.Tests.PlayMode
 
                 PickupPressedThisFrame = false;
                 return true;
+            }
+        }
+
+        private sealed class TestPickupTarget : MonoBehaviour, IInventoryPickupTarget
+        {
+            public string ItemId => "test-pickup";
+
+            public void OnPickedUp()
+            {
             }
         }
     }

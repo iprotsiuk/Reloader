@@ -565,14 +565,26 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
-        public void PlayerLookController_Tick_LowerMainCameraFov_ReducesYawDeltaForSameInput()
+        public void PlayerLookController_Tick_LowerExplicitCameraDefaultsFov_ReducesYawDeltaForSameInput()
         {
+            var mainCameraRoot = new GameObject("MainCameraRoot");
+            var mainCamera = mainCameraRoot.AddComponent<Camera>();
+            mainCamera.tag = "MainCamera";
+            mainCamera.fieldOfView = 60f;
+
             var root = new GameObject("PlayerRoot");
             var cameraPivot = new GameObject("CameraPivot");
             cameraPivot.transform.SetParent(root.transform);
-            var camera = root.AddComponent<Camera>();
-            camera.tag = "MainCamera";
-            camera.fieldOfView = 60f;
+
+            var defaultsCameraRoot = new GameObject("DefaultsCameraRoot");
+            defaultsCameraRoot.transform.SetParent(root.transform);
+            var defaultsCamera = defaultsCameraRoot.AddComponent<Camera>();
+            defaultsCamera.fieldOfView = 60f;
+
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+            typeof(PlayerCameraDefaults)
+                .GetField("_mainCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, defaultsCamera);
 
             var input = root.AddComponent<TestInputSource>();
             input.Look = new Vector2(4f, 0f);
@@ -585,8 +597,8 @@ namespace Reloader.Player.Tests.PlayMode
             var hipFireYaw = root.transform.eulerAngles.y;
 
             root.transform.rotation = Quaternion.identity;
+            defaultsCamera.fieldOfView = 30f;
             look.Configure(input, cameraPivot.transform);
-            camera.fieldOfView = 30f;
             look.Tick(1f);
             var zoomYaw = root.transform.eulerAngles.y;
 
@@ -595,10 +607,37 @@ namespace Reloader.Player.Tests.PlayMode
             Assert.That(zoomYaw, Is.LessThan(hipFireYaw));
 
             Object.DestroyImmediate(root);
+            Object.DestroyImmediate(mainCameraRoot);
         }
 
         [Test]
-        public void PlayerLookController_Tick_PlayerCameraDefaultsFov_OverridesMainCameraFallback()
+        public void PlayerLookController_Tick_DoesNotUseCameraMain_WhenCameraDefaultsAreMissing()
+        {
+            var mainCameraRoot = new GameObject("MainCameraRoot");
+            var mainCamera = mainCameraRoot.AddComponent<Camera>();
+            mainCamera.tag = "MainCamera";
+            mainCamera.fieldOfView = 30f;
+
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Look = new Vector2(4f, 0f);
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            look.LookSensitivity = Vector2.one;
+            look.Tick(1f);
+
+            Assert.That(root.transform.eulerAngles.y, Is.EqualTo(4f).Within(0.05f));
+
+            Object.DestroyImmediate(root);
+            Object.DestroyImmediate(mainCameraRoot);
+        }
+
+        [Test]
+        public void PlayerLookController_Tick_ExplicitCameraDefaultsFov_OverridesMainCamera()
         {
             var mainCameraRoot = new GameObject("MainCameraRoot");
             var mainCamera = mainCameraRoot.AddComponent<Camera>();

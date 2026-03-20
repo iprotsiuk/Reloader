@@ -412,11 +412,55 @@ namespace Reloader.Weapons.Tests.PlayMode
                 "Expected SRP projects to skip Camera.stereoTargetEye writes.");
         }
 
+        [Test]
+        public void ShotCameraRuntime_TryRegisterShot_DoesNotUseCameraMain_WhenExplicitGameplayCameraIsMissing()
+        {
+            var runtimeRoot = new GameObject("ShotCameraRuntimeRoot");
+            var worldCameraRoot = new GameObject("WorldCameraRoot");
+            var worldCamera = worldCameraRoot.AddComponent<Camera>();
+            worldCamera.tag = "MainCamera";
+            worldCamera.fieldOfView = 30f;
+
+            var projectileGo = new GameObject("Projectile");
+            projectileGo.transform.position = Vector3.zero;
+            projectileGo.transform.forward = Vector3.forward;
+            var projectile = projectileGo.AddComponent<WeaponProjectile>();
+
+            try
+            {
+                var runtime = runtimeRoot.AddComponent<ShotCameraRuntime>();
+                var settings = new ShotCameraSettings(true, 100f, 0.1f, 0.25f);
+                runtime.Configure(null, settings);
+
+                projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 120f, gravityMultiplier: 0f, damage: 1f);
+
+                var request = new ShotCameraRequest(
+                    projectile,
+                    projectileGo.transform.position,
+                    projectileGo.transform.position + (Vector3.forward * 120f),
+                    120f,
+                    settings);
+
+                Assert.That(runtime.TryRegisterShot(request), Is.False);
+                Assert.That(runtime.IsShotActive, Is.False);
+                Assert.That(runtime.HasActiveCinematicCamera, Is.False);
+                Assert.That(ShotCameraGameplayState.PresentationCamera, Is.Null);
+                Assert.That(FindShotRenderCamera(), Is.Null);
+            }
+            finally
+            {
+                Object.DestroyImmediate(runtimeRoot);
+                Object.DestroyImmediate(worldCameraRoot);
+                Object.DestroyImmediate(projectileGo);
+            }
+        }
+
         [UnityTest]
         public IEnumerator ShotCameraRuntime_ProjectileDespawn_RestoresRealtimeAndClearsCinematicCamera()
         {
             GameObject runtimeRoot = null;
             GameObject projectileGo = null;
+            GameObject worldCameraGo = null;
             var previousTimeScale = Time.timeScale;
             var previousFixedDeltaTime = Time.fixedDeltaTime;
 
@@ -427,6 +471,14 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var runtime = runtimeRoot.AddComponent<ShotCameraRuntime>();
                 var settings = new ShotCameraSettings(true, 100f, 0.1f, 0.25f);
                 runtime.Configure(null, settings);
+
+                var cameraDefaults = runtimeRoot.AddComponent<PlayerCameraDefaults>();
+                worldCameraGo = new GameObject("WorldCamera");
+                worldCameraGo.transform.SetParent(runtimeRoot.transform, false);
+                var worldCamera = worldCameraGo.AddComponent<Camera>();
+                typeof(PlayerCameraDefaults)
+                    .GetField("_mainCamera", BindingFlags.NonPublic | BindingFlags.Instance)
+                    ?.SetValue(cameraDefaults, worldCamera);
 
                 projectileGo = new GameObject("Projectile");
                 projectileGo.transform.position = new Vector3(0f, -499.8f, 0f);
@@ -479,6 +531,11 @@ namespace Reloader.Weapons.Tests.PlayMode
                     Object.Destroy(projectileGo);
                 }
 
+                if (worldCameraGo != null)
+                {
+                    Object.Destroy(worldCameraGo);
+                }
+
                 if (runtimeRoot != null)
                 {
                     Object.Destroy(runtimeRoot);
@@ -503,9 +560,15 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var settings = new ShotCameraSettings(true, 100f, 0.1f, 0.25f);
                 runtime.Configure(null, settings);
 
+                var cameraDefaults = runtimeRoot.AddComponent<PlayerCameraDefaults>();
+
                 cameraGo = new GameObject("WorldCamera");
+                cameraGo.transform.SetParent(runtimeRoot.transform, false);
                 var worldCamera = cameraGo.AddComponent<Camera>();
                 worldCamera.tag = "MainCamera";
+                typeof(PlayerCameraDefaults)
+                    .GetField("_mainCamera", BindingFlags.NonPublic | BindingFlags.Instance)
+                    ?.SetValue(cameraDefaults, worldCamera);
 
                 projectileGo = new GameObject("Projectile");
                 projectileGo.transform.position = new Vector3(0f, -499.8f, 0f);
