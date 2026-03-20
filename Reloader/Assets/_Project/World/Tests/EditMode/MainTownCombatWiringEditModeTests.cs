@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Player;
@@ -124,23 +125,41 @@ namespace Reloader.World.Tests.EditMode
         [Test]
         public void MainTownScene_PlayerRoot_UsesWeaponHandRigController_AndNoSceneOwnedPoseHelper()
         {
-            var originalScene = SceneManager.GetActiveScene();
-            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+            var scenePath = Path.Combine(Application.dataPath, "_Project", "World", "Scenes", "MainTown.unity");
+            var sceneText = File.ReadAllText(scenePath);
+
+            Assert.That(sceneText, Does.Contain("m_Name: PlayerRoot"), "Expected authored PlayerRoot in MainTown scene file.");
+            Assert.That(sceneText, Does.Contain("m_EditorClassIdentifier: Reloader.Weapons::Reloader.Player.Viewmodel.WeaponHandRigController"), "MainTown scene should keep the hand rig controller authored on PlayerRoot.");
+            Assert.That(sceneText, Does.Contain("_handTargetRoot: {fileID: 2662114487113379158}"), "MainTown scene should serialize the explicit WeaponHandRigTargets root.");
+            Assert.That(sceneText, Does.Contain("m_Name: WeaponHandRigTargets"), "MainTown scene should author the hand-target root as a first-person child.");
+            Assert.That(sceneText, Does.Contain("m_Father: {fileID: 936686685}"), "MainTown scene should keep WeaponHandRigTargets under CameraPivot.");
+        }
+
+        [Test]
+        public void MainTownCombatWiring_RejectsMissingExplicitHandTargetRoot()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var handRigController = playerRoot.AddComponent<Reloader.Player.Viewmodel.WeaponHandRigController>();
+            var cameraPivot = new GameObject("CameraPivot").transform;
 
             try
             {
-                var playerRoot = FindRoot(scene, "PlayerRoot");
-                Assert.That(playerRoot, Is.Not.Null, "Expected authored PlayerRoot in MainTown.");
-                AssertWeaponHandRigOwner(playerRoot!, "MainTown scene PlayerRoot");
-                AssertPlayerCameraDefaultsOwnership(playerRoot!, "MainTown scene PlayerRoot");
+                var tryResolveHandTargetRoot = typeof(MainTownCombatWiring).GetMethod(
+                    "TryResolveWeaponHandRigTargets",
+                    BindingFlags.Static | BindingFlags.NonPublic);
+
+                Assert.That(tryResolveHandTargetRoot, Is.Not.Null, "Expected MainTownCombatWiring.TryResolveWeaponHandRigTargets to exist.");
+
+                var args = new object[] { handRigController, cameraPivot, null };
+                var resolved = (bool)tryResolveHandTargetRoot!.Invoke(null, args)!;
+
+                Assert.That(resolved, Is.False,
+                    "MainTownCombatWiring should fail closed when the explicit WeaponHandRigController hand-target root is missing.");
             }
             finally
             {
-                EditorSceneManager.CloseScene(scene, true);
-                if (originalScene.IsValid())
-                {
-                    SceneManager.SetActiveScene(originalScene);
-                }
+                UnityEngine.Object.DestroyImmediate(cameraPivot.gameObject);
+                UnityEngine.Object.DestroyImmediate(playerRoot);
             }
         }
 
@@ -321,6 +340,7 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(serialized.FindProperty("_enabledInPlayMode")?.boolValue, Is.True, $"{context} should keep the hand rig active in play mode.");
             Assert.That(serialized.FindProperty("_driveLeftHand")?.boolValue, Is.True, $"{context} should keep left-hand rigging enabled.");
             Assert.That(serialized.FindProperty("_driveRightHand")?.boolValue, Is.False, $"{context} should keep right hand animation-authored.");
+            Assert.That(serialized.FindProperty("_handTargetRoot")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the explicit hand target root.");
 
             var weaponController = playerRoot.GetComponent("PlayerWeaponController");
             Assert.That(weaponController, Is.Not.Null, $"{context} should include PlayerWeaponController.");
@@ -356,6 +376,7 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(playerArmsRoot!.parent, Is.SameAs(cameraPivot), $"{context} should keep PlayerArms under CameraPivot.");
             Assert.That(viewmodelCameraParent, Is.SameAs(cameraPivot), $"{context} should keep ViewmodelCameraParent on the CameraPivot contract.");
             Assert.That(weaponPresentationRoot!.parent, Is.SameAs(cameraPivot), $"{context} should keep WeaponPresentationRoot under CameraPivot.");
+            Assert.That(playerRoot.transform.Find("CameraPivot/WeaponHandRigTargets"), Is.Not.Null, $"{context} should keep WeaponHandRigTargets under CameraPivot.");
             Assert.That(playerRoot.transform.Find("CameraPivot/PlayerArms"), Is.SameAs(playerArmsRoot), $"{context} should keep PlayerArms as a sibling branch of WeaponPresentationRoot.");
             Assert.That(playerRoot.transform.Find("CameraPivot/WeaponPresentationRoot"), Is.SameAs(weaponPresentationRoot), $"{context} should keep WeaponPresentationRoot as the live mount root.");
         }

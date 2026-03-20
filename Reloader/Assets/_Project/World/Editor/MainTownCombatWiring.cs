@@ -135,10 +135,22 @@ namespace Reloader.World.Editor
             var characterController = playerRoot.GetComponent<CharacterController>();
             var lookController = playerRoot.GetComponent<PlayerLookController>();
             var weaponController = GetOrAddComponent<PlayerWeaponController>(playerRoot);
-            var handRigController = GetOrAddComponent<WeaponHandRigController>(playerRoot);
+            var handRigController = playerRoot.GetComponent<WeaponHandRigController>();
             var animationBinder = GetOrAddComponent<PlayerWeaponAnimationBinder>(playerRoot);
             var animatorDriver = GetOrAddComponent<FpsViewmodelAnimatorDriver>(playerRoot);
             var viewmodelAdapter = GetOrAddComponent<ViewmodelAnimationAdapter>(playerRoot);
+
+            if (handRigController == null)
+            {
+                Debug.LogError("MainTown combat wiring failed: WeaponHandRigController must be authored on the PlayerRoot.");
+                return false;
+            }
+
+            if (!TryResolveWeaponHandRigTargets(handRigController, cameraPivot, out _))
+            {
+                Debug.LogError("MainTown combat wiring failed: explicit WeaponHandRigTargets root is missing or not parented under CameraPivot.");
+                return false;
+            }
 
             if (inventoryController != null)
             {
@@ -387,6 +399,25 @@ namespace Reloader.World.Editor
             }
 
             return cameraDefaults.TryGetWeaponPresentationRoot(out var weaponPresentationRoot) ? weaponPresentationRoot : null;
+        }
+
+        private static bool TryResolveWeaponHandRigTargets(
+            WeaponHandRigController handRigController,
+            Transform cameraPivot,
+            out Transform handTargetRoot)
+        {
+            handTargetRoot = null;
+
+            if (handRigController == null || cameraPivot == null)
+            {
+                return false;
+            }
+
+            var serialized = new SerializedObject(handRigController);
+            handTargetRoot = serialized.FindProperty("_handTargetRoot")?.objectReferenceValue as Transform;
+            return handTargetRoot != null
+                && handTargetRoot.parent == cameraPivot
+                && handTargetRoot.IsChildOf(handRigController.transform);
         }
 
         private static bool TryResolveMainTownDependencies(
