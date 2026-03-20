@@ -223,6 +223,32 @@ namespace Reloader.Player.Tests.EditMode
         }
 
         [Test]
+        public void TryGetViewmodelCamera_DoesNotReturnCachedCamera_WhenExplicitParentIsMissing()
+        {
+            var (root, cameraPivot, mainCamera) = CreateRigRoot();
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+            var legacyViewmodelCamera = new GameObject("ViewmodelCamera").AddComponent<Camera>();
+            legacyViewmodelCamera.transform.SetParent(cameraPivot, false);
+
+            typeof(PlayerCameraDefaults)
+                .GetField("_mainCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, mainCamera);
+            typeof(PlayerCameraDefaults)
+                .GetField("_viewmodelCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, legacyViewmodelCamera);
+
+            Assert.That(defaults.TryGetViewmodelCamera(out var resolvedViewmodelCamera), Is.False);
+            Assert.That(resolvedViewmodelCamera, Is.Null);
+            Assert.That(
+                typeof(PlayerCameraDefaults)
+                    .GetField("_viewmodelCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                    ?.GetValue(defaults),
+                Is.Null);
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void ApplyDefaults_UsesExplicitViewmodelCameraParent_WhenProvided()
         {
             var (root, cameraPivot, mainCamera) = CreateRigRoot();

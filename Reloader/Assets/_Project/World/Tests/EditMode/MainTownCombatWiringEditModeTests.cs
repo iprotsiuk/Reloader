@@ -245,14 +245,26 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(cameraDefaults, Is.Not.Null, $"{context} should include PlayerCameraDefaults.");
 
             var serialized = new SerializedObject(cameraDefaults);
+            var cameraPivot = serialized.FindProperty("_cameraPivot")?.objectReferenceValue as Transform;
+            var playerArmsRoot = serialized.FindProperty("_playerArmsRoot")?.objectReferenceValue as Transform;
+            var playerArmsAnimator = serialized.FindProperty("_playerArmsAnimator")?.objectReferenceValue as Animator;
+            var viewmodelCameraParent = serialized.FindProperty("_viewmodelCameraParent")?.objectReferenceValue as Transform;
+            var weaponPresentationRoot = serialized.FindProperty("_weaponPresentationRoot")?.objectReferenceValue as Transform;
+
             Assert.That(serialized.FindProperty("_mainCamera")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the main camera.");
             Assert.That(serialized.FindProperty("_cameraFollowTarget")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the camera follow target.");
             Assert.That(serialized.FindProperty("_cameraLookTarget")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the camera look target.");
-            Assert.That(serialized.FindProperty("_viewmodelCameraParent")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the viewmodel camera parent.");
-            Assert.That(serialized.FindProperty("_cameraPivot")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the camera pivot.");
-            Assert.That(serialized.FindProperty("_playerArmsRoot")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the player arms root.");
-            Assert.That(serialized.FindProperty("_playerArmsAnimator")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the player arms animator.");
-            Assert.That(serialized.FindProperty("_weaponPresentationRoot")?.objectReferenceValue, Is.Not.Null, $"{context} should serialize the weapon presentation root.");
+            Assert.That(viewmodelCameraParent, Is.Not.Null, $"{context} should serialize the viewmodel camera parent.");
+            Assert.That(cameraPivot, Is.Not.Null, $"{context} should serialize the camera pivot.");
+            Assert.That(playerArmsRoot, Is.Not.Null, $"{context} should serialize the player arms root.");
+            Assert.That(playerArmsAnimator, Is.Not.Null, $"{context} should serialize the player arms animator.");
+            Assert.That(weaponPresentationRoot, Is.Not.Null, $"{context} should serialize the weapon presentation root.");
+            Assert.That(cameraPivot!.parent, Is.SameAs(playerRoot.transform), $"{context} should keep CameraPivot under PlayerRoot.");
+            Assert.That(playerArmsRoot!.parent, Is.SameAs(cameraPivot), $"{context} should keep PlayerArms under CameraPivot.");
+            Assert.That(viewmodelCameraParent, Is.SameAs(cameraPivot), $"{context} should keep ViewmodelCameraParent on the CameraPivot contract.");
+            Assert.That(weaponPresentationRoot!.parent, Is.SameAs(cameraPivot), $"{context} should keep WeaponPresentationRoot under CameraPivot.");
+            Assert.That(playerRoot.transform.Find("CameraPivot/PlayerArms"), Is.SameAs(playerArmsRoot), $"{context} should keep PlayerArms as a sibling branch of WeaponPresentationRoot.");
+            Assert.That(playerRoot.transform.Find("CameraPivot/WeaponPresentationRoot"), Is.SameAs(weaponPresentationRoot), $"{context} should keep WeaponPresentationRoot as the live mount root.");
         }
 
 

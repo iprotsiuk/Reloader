@@ -163,6 +163,18 @@ namespace Reloader.Player
         public bool TryGetViewmodelCamera(out Camera viewmodelCamera)
         {
             var viewmodelParent = ResolveViewmodelCameraParent();
+            if (viewmodelParent == null)
+            {
+                _viewmodelCamera = null;
+                viewmodelCamera = null;
+                return false;
+            }
+
+            if (_viewmodelCamera != null && _viewmodelCamera.transform.parent != viewmodelParent)
+            {
+                _viewmodelCamera = null;
+            }
+
             _viewmodelCamera ??= ResolveViewmodelCamera(viewmodelParent, false);
             viewmodelCamera = _viewmodelCamera;
             return viewmodelCamera != null;
@@ -281,7 +293,7 @@ namespace Reloader.Player
 
         private Transform ResolveViewmodelCameraParent()
         {
-            if (_viewmodelCameraParent != null)
+            if (IsUsableHierarchyReference(_viewmodelCameraParent))
             {
                 return _viewmodelCameraParent;
             }
