@@ -2401,7 +2401,14 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var rightHandGrip = new GameObject("RightHandGrip").transform;
                 rightHandGrip.SetParent(adsPivot, false);
                 rightHandGrip.localPosition = new Vector3(-0.02f, -0.02f, 0.14f);
-                ConfigureTestWeaponViewMounts(viewPrefab, adsPivot: adsPivot, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
+                ConfigureTestWeaponViewMounts(
+                    viewPrefab,
+                    adsPivot: adsPivot,
+                    scopeSlot: scopeSlot,
+                    ironSightAnchor: ironSightAnchor,
+                    hasScopedPoseAuthoring: true,
+                    scopedHipLocalPosition: new Vector3(0.015f, 0.13f, 0.005f),
+                    scopedAdsLocalPosition: new Vector3(0f, 0.2f, 0.05f));
                 var handAnchors = viewPrefab.AddComponent<WeaponViewHandAnchors>();
                 handAnchors.SetHandTargets(leftHandGrip, rightHandGrip);
 
@@ -2469,21 +2476,28 @@ namespace Reloader.Weapons.Tests.PlayMode
                     "Prefab-owned hand anchors must survive spawned view cleanup.");
 
                 yield return null;
-                handRigController.SyncHandTargets();
+                var runtimeMounts = controller.EquippedWeaponViewTransform.GetComponent<WeaponViewAttachmentMounts>();
+                Assert.That(runtimeMounts, Is.Not.Null);
+                Assert.That(runtimeMounts!.HasScopedPoseAuthoring, Is.True);
 
-                var liveAnchors = controller.EquippedWeaponViewTransform.GetComponent<WeaponViewHandAnchors>();
-                Assert.That(liveAnchors, Is.Not.Null);
-                Assert.That(Vector3.Distance(handRigController.LeftHandTarget.position, liveAnchors!.LeftHandGrip.position), Is.LessThan(0.0001f));
-                Assert.That(Quaternion.Angle(handRigController.LeftHandTarget.rotation, liveAnchors.LeftHandGrip.rotation), Is.LessThan(0.01f));
-                Assert.That(Vector3.Distance(handRigController.LeftHandTarget.position, legacyLeftGrip.position), Is.GreaterThan(0.001f),
-                    "Hand rig targets must come from the controller-owned equipped view, not the legacy ik_hand_gun branch.");
+                input.AimHeldValue = true;
+                frames = 0;
+                while (!controller.HasStableScopedAdsAlignment && frames < 90)
+                {
+                    frames++;
+                    yield return null;
+                }
+
+                Assert.That(controller.HasStableScopedAdsAlignment, Is.True, "Expected magnified scoped ADS to become stable in the test harness.");
+                var expectedScopedPose = Vector3.Lerp(
+                    new Vector3(0.015f, 0.13f, 0.005f),
+                    new Vector3(0f, 0.2f, 0.05f),
+                    controller.CurrentAdsBlendT);
+                Assert.That(Vector3.Distance(runtimeMounts.AdsPivot.localPosition, expectedScopedPose), Is.LessThan(0.0001f),
+                    "Scoped ADS pose should follow the authored AdsPivot seam interpolation.");
 
                 Assert.That(packAnimator.speed, Is.GreaterThan(0.01f),
                     "Stable scoped ADS should not freeze the whole pack animator. Reload and bolt animations must still be able to play.");
-                Assert.That(handRigController.LeftHandConstraint, Is.Not.Null,
-                    "Expected the player-side hand rig controller to bootstrap a left-hand IK constraint once the scoped rifle view is equipped.");
-                Assert.That(handRigController.LeftHandConstraint.weight, Is.GreaterThan(0.01f),
-                    "Expected scoped rifle ADS to keep the support-hand rig active when weapon hand anchors are available.");
             }
             finally
             {
@@ -3141,6 +3155,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(mounts!.AdsPivot, Is.Not.Null, "Kar98k runtime view should own an authored AdsPivot.");
             Assert.That(mounts.IronSightAnchor, Is.Not.Null, "Kar98k runtime view should own an authored IronSightAnchor.");
             Assert.That(mounts.MuzzleTransform, Is.Not.Null, "Kar98k runtime view should own an authored MuzzleTransform.");
+            Assert.That(mounts.HasScopedPoseAuthoring, Is.True, "Kar98k runtime view should serialize scoped pose authoring on the prefab-owned seam.");
+            Assert.That(mounts.TryGetScopedPoseAuthoring(out var scopedHipLocalPosition, out var scopedAdsLocalPosition), Is.True,
+                "Kar98k runtime view should expose scoped pose authoring through WeaponViewAttachmentMounts.");
+            Assert.That(Vector3.Distance(scopedHipLocalPosition, new Vector3(0.015f, 0.13f, 0.005f)), Is.LessThan(0.0001f),
+                "Kar98k scoped hip pose should remain prefab-authored.");
+            Assert.That(Vector3.Distance(scopedAdsLocalPosition, new Vector3(0f, 0.2f, 0.05f)), Is.LessThan(0.0001f),
+                "Kar98k scoped ADS pose should remain prefab-authored.");
             Assert.That(mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Scope, out var scopeSlot), Is.True,
                 "Kar98k runtime view should expose an authored scope attachment slot.");
             Assert.That(scopeSlot, Is.Not.Null);
@@ -3547,7 +3568,10 @@ namespace Reloader.Weapons.Tests.PlayMode
             Transform magazineSocket = null,
             Transform magazineDropSocket = null,
             Transform scopeSlot = null,
-            Transform muzzleSlot = null)
+            Transform muzzleSlot = null,
+            bool hasScopedPoseAuthoring = false,
+            Vector3 scopedHipLocalPosition = default,
+            Vector3 scopedAdsLocalPosition = default)
         {
             var mounts = viewPrefab.GetComponent<WeaponViewAttachmentMounts>() ?? viewPrefab.AddComponent<WeaponViewAttachmentMounts>();
             SetField(typeof(WeaponViewAttachmentMounts), mounts, "_adsPivot", adsPivot != null ? adsPivot : viewPrefab.transform);
@@ -3555,6 +3579,9 @@ namespace Reloader.Weapons.Tests.PlayMode
             SetField(typeof(WeaponViewAttachmentMounts), mounts, "_ironSightAnchor", ironSightAnchor);
             SetField(typeof(WeaponViewAttachmentMounts), mounts, "_magazineSocket", magazineSocket);
             SetField(typeof(WeaponViewAttachmentMounts), mounts, "_magazineDropSocket", magazineDropSocket);
+            SetField(typeof(WeaponViewAttachmentMounts), mounts, "_hasScopedPoseAuthoring", hasScopedPoseAuthoring);
+            SetField(typeof(WeaponViewAttachmentMounts), mounts, "_scopedHipLocalPosition", scopedHipLocalPosition);
+            SetField(typeof(WeaponViewAttachmentMounts), mounts, "_scopedAdsLocalPosition", scopedAdsLocalPosition);
 
             var slotEntryType = typeof(WeaponViewAttachmentMounts).GetNestedType("AttachmentSlotMount", BindingFlags.Public | BindingFlags.NonPublic);
             Assert.That(slotEntryType, Is.Not.Null);

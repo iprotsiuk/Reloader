@@ -139,6 +139,7 @@ namespace Reloader.Weapons.Controllers
         private Camera _cachedAdsCamera;
         private bool _pendingUnequipFovBaselineRestore;
         private GameObject _equippedWeaponView;
+        private WeaponViewAttachmentMounts _equippedViewMounts;
         private bool _activationResyncReady;
         private GameAdsStateController _adsStateRuntimeBridge;
         private GameAttachmentManager _adsAttachmentManagerRuntimeBridge;
@@ -1364,6 +1365,7 @@ namespace Reloader.Weapons.Controllers
                 packDriver.TickAimFov(_inputSource.AimHeld, _baseCameraFieldOfView, _baseCameraFieldOfView, Time.deltaTime);
                 TickScopedAdsBridgeInput();
                 SyncScopedAdsLookSensitivityBridge();
+                SyncScopedWeaponPresentationPose();
                 return;
             }
 
@@ -1380,6 +1382,8 @@ namespace Reloader.Weapons.Controllers
             {
                 TrySetCurrentFieldOfView(nextFieldOfView);
             }
+
+            SyncScopedWeaponPresentationPose();
         }
 
         private void SyncScopedViewmodelStabilization()
@@ -1390,6 +1394,30 @@ namespace Reloader.Weapons.Controllers
             {
                 _viewmodelAnimatorDriver.LockViewmodelRootPose = shouldStabilize;
             }
+        }
+
+        private void SyncScopedWeaponPresentationPose()
+        {
+            if (!HasMagnifiedOpticEquipped())
+            {
+                return;
+            }
+
+            var mounts = _equippedViewMounts;
+            if (mounts == null || !mounts.HasScopedPoseAuthoring || mounts.AdsPivot == null)
+            {
+                return;
+            }
+
+            if (!mounts.TryGetScopedPoseAuthoring(out var scopedHipLocalPosition, out var scopedAdsLocalPosition))
+            {
+                return;
+            }
+
+            mounts.AdsPivot.localPosition = Vector3.Lerp(
+                scopedHipLocalPosition,
+                scopedAdsLocalPosition,
+                _inputSource != null && _inputSource.AimHeld ? 1f : 0f);
         }
 
         private void ResetScopedViewmodelStabilization()
@@ -2129,6 +2157,7 @@ namespace Reloader.Weapons.Controllers
             NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
 
             var mounts = _equippedWeaponView.GetComponent<WeaponViewAttachmentMounts>();
+            _equippedViewMounts = mounts;
             if (mounts == null)
             {
                 Debug.LogWarning($"PlayerWeaponController: View '{_equippedWeaponView.name}' is missing WeaponViewAttachmentMounts.", this);
@@ -2666,6 +2695,7 @@ namespace Reloader.Weapons.Controllers
             ResetStableMagnifiedScopedAdsState();
             ResetScopedViewmodelStabilization();
             ResetAppliedAttachmentViewState();
+            _equippedViewMounts = null;
 
             if (_equippedWeaponView == null)
             {

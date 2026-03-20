@@ -24,6 +24,11 @@ namespace Reloader.Weapons.Runtime
         [SerializeField] private Transform _magazineSocket;
         [SerializeField] private Transform _magazineDropSocket;
 
+        [Header("Scoped Pose")]
+        [SerializeField] private bool _hasScopedPoseAuthoring;
+        [SerializeField] private Vector3 _scopedHipLocalPosition;
+        [SerializeField] private Vector3 _scopedAdsLocalPosition;
+
         [Header("Attachment Slots")]
         [SerializeField] private AttachmentSlotMount[] _attachmentSlots = Array.Empty<AttachmentSlotMount>();
 
@@ -32,6 +37,21 @@ namespace Reloader.Weapons.Runtime
         public Transform MuzzleTransform => _muzzleTransform;
         public Transform MagazineSocket => _magazineSocket;
         public Transform MagazineDropSocket => _magazineDropSocket;
+        public bool HasScopedPoseAuthoring => _hasScopedPoseAuthoring;
+
+        public bool TryGetScopedPoseAuthoring(out Vector3 hipLocalPosition, out Vector3 adsLocalPosition)
+        {
+            if (!_hasScopedPoseAuthoring)
+            {
+                hipLocalPosition = default;
+                adsLocalPosition = default;
+                return false;
+            }
+
+            hipLocalPosition = _scopedHipLocalPosition;
+            adsLocalPosition = _scopedAdsLocalPosition;
+            return true;
+        }
 
         public bool TryGetAttachmentSlot(WeaponAttachmentSlotType slotType, out Transform slotTransform)
         {
