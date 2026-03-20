@@ -3,6 +3,9 @@ using NUnit.Framework;
 using Reloader.Weapons.Controllers;
 using Reloader.Weapons.Runtime;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Reloader.Core.Tests.EditMode
 {
@@ -25,13 +28,62 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void LateUpdate_StableScopedAds_SnapsOnceThenStopsRewritingRootPose()
+        public void LateUpdate_HipfireRuntimeWithoutPreview_DoesNotRewriteRootPose()
         {
             var root = new GameObject("PlayerRoot");
             var controller = root.AddComponent<PlayerWeaponController>();
             var view = new GameObject("WeaponView");
             view.transform.SetParent(root.transform, false);
             var helper = view.AddComponent<WeaponViewPoseTuningHelper>();
+#if UNITY_EDITOR
+            var previousSelection = Selection.activeObject;
+#endif
+
+            try
+            {
+                SetPrivateField(helper, "_weaponController", controller);
+                SetPrivateField(helper, "_enabledInPlayMode", true);
+                SetPrivateField(helper, "_targetWeaponItemId", "weapon-kar98k");
+                SetPrivateField(helper, "_hipLocalPosition", new Vector3(0.25f, -0.5f, 1.5f));
+                SetPrivateField(helper, "_hipLocalEuler", new Vector3(1f, 2f, 3f));
+                SetPrivateField(helper, "_adsLocalPosition", new Vector3(4f, 5f, 6f));
+                SetPrivateField(helper, "_adsLocalEuler", new Vector3(7f, 8f, 9f));
+                SetPrivateField(helper, "_rifleLocalEulerOffset", Vector3.zero);
+                SetPrivateField(helper, "_blendSpeed", 24f);
+                SetPrivateField(controller, "_equippedItemId", "weapon-kar98k");
+                SetPrivateField(controller, "_equippedWeaponView", view);
+                SetPrivateField(controller, "_isStableMagnifiedScopedAds", false);
+
+                view.transform.localPosition = new Vector3(-9f, -8f, -7f);
+                view.transform.localRotation = Quaternion.Euler(11f, 12f, 13f);
+
+                InvokePrivateLateUpdate(helper);
+
+                AssertLocalPose(
+                    view.transform,
+                    new Vector3(-9f, -8f, -7f),
+                    Quaternion.Euler(11f, 12f, 13f));
+            }
+            finally
+            {
+#if UNITY_EDITOR
+                Selection.activeObject = previousSelection;
+#endif
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void LateUpdate_StableScopedAdsWithoutPreview_DoesNotRewriteRootPose()
+        {
+            var root = new GameObject("PlayerRoot");
+            var controller = root.AddComponent<PlayerWeaponController>();
+            var view = new GameObject("WeaponView");
+            view.transform.SetParent(root.transform, false);
+            var helper = view.AddComponent<WeaponViewPoseTuningHelper>();
+#if UNITY_EDITOR
+            var previousSelection = Selection.activeObject;
+#endif
 
             try
             {
@@ -48,23 +100,89 @@ namespace Reloader.Core.Tests.EditMode
                 SetPrivateField(controller, "_equippedWeaponView", view);
                 SetPrivateField(controller, "_isStableMagnifiedScopedAds", true);
 
-                InvokePrivateLateUpdate(helper);
-
-                Assert.That(Vector3.Distance(view.transform.localPosition, new Vector3(4f, 5f, 6f)), Is.LessThanOrEqualTo(0.0001f));
-                Assert.That(Vector3.Distance(view.transform.localRotation.eulerAngles, new Vector3(7f, 8f, 9f)), Is.LessThanOrEqualTo(0.0001f));
-
                 view.transform.localPosition = new Vector3(-9f, -8f, -7f);
                 view.transform.localRotation = Quaternion.Euler(11f, 12f, 13f);
 
                 InvokePrivateLateUpdate(helper);
 
-                Assert.That(Vector3.Distance(view.transform.localPosition, new Vector3(-9f, -8f, -7f)), Is.LessThanOrEqualTo(0.0001f));
-                Assert.That(Vector3.Distance(view.transform.localRotation.eulerAngles, new Vector3(11f, 12f, 13f)), Is.LessThanOrEqualTo(0.0001f));
+                AssertLocalPose(
+                    view.transform,
+                    new Vector3(-9f, -8f, -7f),
+                    Quaternion.Euler(11f, 12f, 13f));
+
+                view.transform.localPosition = new Vector3(2f, 3f, 4f);
+                view.transform.localRotation = Quaternion.Euler(15f, 25f, 35f);
+
+                InvokePrivateLateUpdate(helper);
+
+                AssertLocalPose(
+                    view.transform,
+                    new Vector3(2f, 3f, 4f),
+                    Quaternion.Euler(15f, 25f, 35f));
             }
             finally
             {
+#if UNITY_EDITOR
+                Selection.activeObject = previousSelection;
+#endif
                 Object.DestroyImmediate(root);
             }
+        }
+
+        [Test]
+        public void LateUpdate_SelectedPreview_RewritesRootPoseFromResolvedPose()
+        {
+            var root = new GameObject("PlayerRoot");
+            var controller = root.AddComponent<PlayerWeaponController>();
+            var view = new GameObject("WeaponView");
+            view.transform.SetParent(root.transform, false);
+            var helper = view.AddComponent<WeaponViewPoseTuningHelper>();
+#if UNITY_EDITOR
+            var previousSelection = Selection.activeObject;
+#endif
+
+            try
+            {
+                SetPrivateField(helper, "_weaponController", controller);
+                SetPrivateField(helper, "_enabledInPlayMode", true);
+                SetPrivateField(helper, "_targetWeaponItemId", "weapon-kar98k");
+                SetPrivateField(helper, "_hipLocalPosition", new Vector3(0.25f, -0.5f, 1.5f));
+                SetPrivateField(helper, "_hipLocalEuler", new Vector3(1f, 2f, 3f));
+                SetPrivateField(helper, "_adsLocalPosition", new Vector3(4f, 5f, 6f));
+                SetPrivateField(helper, "_adsLocalEuler", new Vector3(7f, 8f, 9f));
+                SetPrivateField(helper, "_rifleLocalEulerOffset", new Vector3(0f, 10f, 0f));
+                SetPrivateField(helper, "_blendSpeed", 24f);
+                SetPrivateField(controller, "_equippedItemId", "weapon-kar98k");
+                SetPrivateField(controller, "_equippedWeaponView", view);
+                SetPrivateField(controller, "_isStableMagnifiedScopedAds", false);
+
+                view.transform.localPosition = new Vector3(-9f, -8f, -7f);
+                view.transform.localRotation = Quaternion.Euler(11f, 12f, 13f);
+#if UNITY_EDITOR
+                Selection.activeObject = helper;
+                Selection.activeGameObject = view;
+#endif
+
+                InvokePrivateLateUpdate(helper);
+
+                AssertLocalPose(
+                    view.transform,
+                    new Vector3(0.25f, -0.5f, 1.5f),
+                    Quaternion.Euler(1f, 2f, 3f) * Quaternion.Euler(0f, 10f, 0f));
+            }
+            finally
+            {
+#if UNITY_EDITOR
+                Selection.activeObject = previousSelection;
+#endif
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void AssertLocalPose(Transform target, Vector3 expectedPosition, Quaternion expectedRotation)
+        {
+            Assert.That(Vector3.Distance(target.localPosition, expectedPosition), Is.LessThanOrEqualTo(0.0001f));
+            Assert.That(Quaternion.Angle(target.localRotation, expectedRotation), Is.LessThanOrEqualTo(0.0001f));
         }
 
         private static void InvokePrivateLateUpdate(WeaponViewPoseTuningHelper helper)

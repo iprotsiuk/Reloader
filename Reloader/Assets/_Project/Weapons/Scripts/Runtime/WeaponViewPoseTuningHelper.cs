@@ -1,6 +1,9 @@
 using Reloader.Weapons.Controllers;
 using Reloader.Weapons.Data;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Reloader.Weapons.Runtime
 {
@@ -172,6 +175,12 @@ namespace Reloader.Weapons.Runtime
             var adsRot = Quaternion.Euler(pose.AdsLocalEuler);
             var targetRotation = Quaternion.Slerp(hipRot, adsRot, _blendT) * Quaternion.Euler(pose.RifleLocalEulerOffset);
 
+            if (!ShouldWriteEquippedRootPoseAtRuntime())
+            {
+                _isHoldingScopedAdsRootPose = false;
+                return;
+            }
+
             var shouldHoldScopedAdsRootPose = ShouldHoldScopedAdsRootPose(useDirectScopedBlend);
             if (shouldHoldScopedAdsRootPose)
             {
@@ -238,6 +247,17 @@ namespace Reloader.Weapons.Runtime
         private static bool ShouldHoldScopedAdsRootPose(bool stableScopedPresentationActive)
         {
             return stableScopedPresentationActive;
+        }
+
+        private bool ShouldWriteEquippedRootPoseAtRuntime()
+        {
+#if UNITY_EDITOR
+            return Selection.activeObject == this
+                || Selection.activeGameObject == gameObject
+                || Selection.Contains(gameObject);
+#else
+            return false;
+#endif
         }
 
         private PoseData ResolveActivePose(out int overrideIndex, out string matchedAttachmentItemId)
