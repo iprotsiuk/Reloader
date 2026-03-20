@@ -1,5 +1,6 @@
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.Player;
 using Reloader.Weapons.Controllers;
 using UnityEngine;
 
@@ -8,12 +9,20 @@ namespace Reloader.Core.Tests.EditMode
     public sealed class PlayerWeaponControllerViewmodelCameraResolutionTests
     {
         [Test]
-        public void ResolveViewmodelCamera_PrefersCameraPivotChild_WhenSharedBasisLayoutExists()
+        public void ResolveRuntimeViewmodelCamera_UsesExplicitPlayerCameraDefaultsViewmodelCamera()
         {
             var rig = CreateRig(includeSharedBasisViewmodel: true, includeLegacyViewmodel: true);
             try
             {
-                var resolved = ResolveViewmodelCamera(rig.WorldCamera);
+                var defaults = rig.Root.AddComponent<PlayerCameraDefaults>();
+                SetField(defaults, "_mainCamera", rig.WorldCamera);
+                SetField(defaults, "_cameraPivot", rig.CameraPivot);
+                SetField(defaults, "_viewmodelCameraParent", rig.CameraPivot);
+
+                var controller = rig.Root.AddComponent<PlayerWeaponController>();
+                SetField(controller, "_cameraDefaults", defaults);
+
+                var resolved = ResolveRuntimeViewmodelCamera(controller, rig.WorldCamera);
 
                 Assert.That(resolved, Is.SameAs(rig.SharedBasisViewmodelCamera));
                 Assert.That(resolved, Is.Not.SameAs(rig.LegacyViewmodelCamera));
@@ -26,15 +35,15 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void ResolveViewmodelCamera_FallsBackToWorldCameraChild_WhenSharedBasisLayoutIsAbsent()
+        public void ResolveRuntimeViewmodelCamera_WithoutExplicitPlayerCameraDefaultsContract_DoesNotFallBackToLegacyWorldCameraChild()
         {
             var rig = CreateRig(includeSharedBasisViewmodel: false, includeLegacyViewmodel: true);
             try
             {
-                var resolved = ResolveViewmodelCamera(rig.WorldCamera);
+                var controller = rig.Root.AddComponent<PlayerWeaponController>();
+                var resolved = ResolveRuntimeViewmodelCamera(controller, rig.WorldCamera);
 
-                Assert.That(resolved, Is.SameAs(rig.LegacyViewmodelCamera));
-                Assert.That(resolved.transform.parent, Is.EqualTo(rig.WorldCamera.transform));
+                Assert.That(resolved, Is.Null);
             }
             finally
             {
@@ -42,15 +51,20 @@ namespace Reloader.Core.Tests.EditMode
             }
         }
 
-        private static Camera ResolveViewmodelCamera(Camera worldCamera)
+        private static Camera ResolveRuntimeViewmodelCamera(PlayerWeaponController controller, Camera worldCamera)
         {
-            var method = typeof(PlayerWeaponController).GetMethod(
-                "ResolveViewmodelCamera",
-                BindingFlags.Static | BindingFlags.NonPublic);
+            var method = typeof(PlayerWeaponController).GetMethod("ResolveRuntimeViewmodelCamera", BindingFlags.Instance | BindingFlags.NonPublic);
 
-            Assert.That(method, Is.Not.Null, "Expected PlayerWeaponController private viewmodel-camera resolver to exist.");
+            Assert.That(method, Is.Not.Null, "Expected PlayerWeaponController private runtime viewmodel-camera resolver to exist.");
 
-            return (Camera)method!.Invoke(null, new object[] { worldCamera });
+            return (Camera)method!.Invoke(controller, new object[] { worldCamera });
+        }
+
+        private static void SetField(object instance, string fieldName, object value)
+        {
+            var field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
+            field!.SetValue(instance, value);
         }
 
         private static TestRig CreateRig(bool includeSharedBasisViewmodel, bool includeLegacyViewmodel)

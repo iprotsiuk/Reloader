@@ -1,4 +1,5 @@
 using Reloader.Core.Runtime;
+using Reloader.Player;
 using UnityEngine;
 
 namespace Reloader.Weapons.Animations
@@ -7,6 +8,7 @@ namespace Reloader.Weapons.Animations
     {
         [SerializeField] private Animator _animator;
         [SerializeField] private WeaponAnimatorOverrideProfile _animationProfile;
+        [SerializeField] private PlayerCameraDefaults _cameraDefaults;
 
         private IWeaponEvents _subscribedWeaponEvents;
         private Controllers.PlayerWeaponController _weaponController;
@@ -55,6 +57,8 @@ namespace Reloader.Weapons.Animations
 
         private void ResolveReferences()
         {
+            _cameraDefaults ??= GetComponent<PlayerCameraDefaults>();
+            _weaponController ??= GetComponent<Controllers.PlayerWeaponController>();
             if (!IsAnimatorOnPlayerHierarchy(_animator))
             {
                 _animator = ResolveViewmodelAnimator();
@@ -64,8 +68,6 @@ namespace Reloader.Weapons.Animations
             {
                 PlayerArmsAnimationEventReceiver.EnsureReceiver(_animator);
             }
-
-            _weaponController ??= GetComponent<Controllers.PlayerWeaponController>();
         }
 
         private void HandleWeaponEquipped(string itemId)
@@ -140,51 +142,12 @@ namespace Reloader.Weapons.Animations
 
         private Animator ResolveViewmodelAnimator()
         {
-            var explicitPath = transform.Find("CameraPivot/PlayerArms/PlayerArmsVisual");
-            if (explicitPath != null)
+            if (_cameraDefaults != null && _cameraDefaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator))
             {
-                var explicitAnimator = explicitPath.GetComponent<Animator>() ?? explicitPath.GetComponentInChildren<Animator>(true);
-                if (explicitAnimator != null)
-                {
-                    return explicitAnimator;
-                }
+                return playerArmsAnimator;
             }
 
-            var byName = FindDescendantByName(transform, "PlayerArmsVisual");
-            if (byName != null)
-            {
-                var namedAnimator = byName.GetComponent<Animator>() ?? byName.GetComponentInChildren<Animator>(true);
-                if (namedAnimator != null)
-                {
-                    return namedAnimator;
-                }
-            }
-
-            return GetComponentInChildren<Animator>(true);
-        }
-
-        private static Transform FindDescendantByName(Transform root, string targetName)
-        {
-            if (root == null || string.IsNullOrWhiteSpace(targetName))
-            {
-                return null;
-            }
-
-            if (root.name == targetName)
-            {
-                return root;
-            }
-
-            for (var i = 0; i < root.childCount; i++)
-            {
-                var found = FindDescendantByName(root.GetChild(i), targetName);
-                if (found != null)
-                {
-                    return found;
-                }
-            }
-
-            return null;
+            return _weaponController != null ? _weaponController.PackAnimator : null;
         }
 
         private bool IsAnimatorOnPlayerHierarchy(Animator animator)

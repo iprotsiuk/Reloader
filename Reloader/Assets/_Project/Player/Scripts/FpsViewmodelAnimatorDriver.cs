@@ -9,6 +9,8 @@ namespace Reloader.Player
         private static readonly Vector3 ExpectedViewmodelLocalScale = new Vector3(0.42f, 0.42f, 0.42f);
 
         [SerializeField] private Animator _animator;
+        [SerializeField] private PlayerCameraDefaults _cameraDefaults;
+        [SerializeField] private Transform _viewmodelRoot;
         [SerializeField] private CharacterController _characterController;
         [SerializeField] private PlayerMovementSettings _movementSettings = new PlayerMovementSettings();
         [SerializeField] private string _speedParameter = "Speed";
@@ -44,8 +46,7 @@ namespace Reloader.Player
 
             if (_animator.runtimeAnimatorController == null)
             {
-                // Travel/scene swaps can momentarily leave stale animator refs.
-                _animator = FindAnimatorWithController(transform);
+                _animator = ResolveViewmodelAnimator();
                 if (_animator == null)
                 {
                     return;
@@ -92,58 +93,18 @@ namespace Reloader.Player
 
         private void ResolveReferences()
         {
-            if (!IsAnimatorOnPlayerHierarchy(_animator))
-            {
-                _animator = ResolveViewmodelAnimator();
-            }
+            _cameraDefaults ??= GetComponent<PlayerCameraDefaults>();
+            _animator = ResolveViewmodelAnimator();
+            _viewmodelRoot = ResolveViewmodelRoot();
 
             _characterController ??= GetComponent<CharacterController>();
         }
 
         private Animator ResolveViewmodelAnimator()
         {
-            var explicitPath = transform.Find("CameraPivot/PlayerArms/PlayerArmsVisual");
-            if (explicitPath != null)
+            if (_cameraDefaults != null && _cameraDefaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator))
             {
-                var explicitAnimator = explicitPath.GetComponent<Animator>() ?? explicitPath.GetComponentInChildren<Animator>(true);
-                if (explicitAnimator != null)
-                {
-                    return explicitAnimator;
-                }
-            }
-
-            var byName = FindDescendantByName(transform, "PlayerArmsVisual");
-            if (byName != null)
-            {
-                var namedAnimator = byName.GetComponent<Animator>() ?? byName.GetComponentInChildren<Animator>(true);
-                if (namedAnimator != null)
-                {
-                    return namedAnimator;
-                }
-            }
-
-            return GetComponentInChildren<Animator>(true);
-        }
-
-        private static Transform FindDescendantByName(Transform root, string targetName)
-        {
-            if (root == null || string.IsNullOrWhiteSpace(targetName))
-            {
-                return null;
-            }
-
-            if (root.name == targetName)
-            {
-                return root;
-            }
-
-            for (var i = 0; i < root.childCount; i++)
-            {
-                var found = FindDescendantByName(root.GetChild(i), targetName);
-                if (found != null)
-                {
-                    return found;
-                }
+                return playerArmsAnimator;
             }
 
             return null;
@@ -156,24 +117,9 @@ namespace Reloader.Player
                 && (animator.transform == transform || animator.transform.IsChildOf(transform));
         }
 
-        private static Animator FindAnimatorWithController(Transform root)
+        private bool IsTransformOnPlayerHierarchy(Transform candidate)
         {
-            if (root == null)
-            {
-                return null;
-            }
-
-            var animators = root.GetComponentsInChildren<Animator>(true);
-            for (var i = 0; i < animators.Length; i++)
-            {
-                var candidate = animators[i];
-                if (candidate != null && candidate.runtimeAnimatorController != null)
-                {
-                    return candidate;
-                }
-            }
-
-            return null;
+            return candidate != null && (candidate == transform || candidate.IsChildOf(transform));
         }
 
         private void StabilizeViewmodelRootPose()
@@ -188,14 +134,13 @@ namespace Reloader.Player
                 return;
             }
 
-            var viewmodelRoot = ResolveViewmodelRoot(_animator.transform);
+            var viewmodelRoot = ResolveViewmodelRoot();
             if (viewmodelRoot == null)
             {
                 return;
             }
 
-            var parent = viewmodelRoot.parent;
-            if (parent == null || parent.name != "CameraPivot")
+            if (_animator.transform != viewmodelRoot && !_animator.transform.IsChildOf(viewmodelRoot))
             {
                 return;
             }
@@ -241,27 +186,13 @@ namespace Reloader.Player
             }
         }
 
-        private static Transform ResolveViewmodelRoot(Transform animatorTransform)
+        private Transform ResolveViewmodelRoot()
         {
-            if (animatorTransform == null)
+            if (_cameraDefaults != null
+                && _cameraDefaults.TryGetPlayerArmsRoot(out var playerArmsRoot)
+                && IsTransformOnPlayerHierarchy(playerArmsRoot))
             {
-                return null;
-            }
-
-            if (animatorTransform.name == "PlayerArms")
-            {
-                return animatorTransform;
-            }
-
-            var current = animatorTransform.parent;
-            while (current != null)
-            {
-                if (current.name == "PlayerArms")
-                {
-                    return current;
-                }
-
-                current = current.parent;
+                return playerArmsRoot;
             }
 
             return null;

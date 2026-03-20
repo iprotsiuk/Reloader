@@ -101,10 +101,6 @@ namespace Reloader.Weapons.Controllers
         private const float DefaultFov = 60f;
         private const float ScopedPresentationEnterAdsBlendT = 0.999f;
         private const float ScopedPresentationExitAdsBlendT = 0.95f;
-        private const string CameraPivotName = "CameraPivot";
-        private const string PlayerArmsRootName = "PlayerArms";
-        private const string WeaponPresentationRootName = "WeaponPresentationRoot";
-
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private PlayerInventoryController _inventoryController;
         [SerializeField] private WeaponRegistry _weaponRegistry;
@@ -173,6 +169,9 @@ namespace Reloader.Weapons.Controllers
         private static bool s_attemptedDevTraceObserverResolution;
         public string EquippedItemId => _equippedItemId;
         public Transform EquippedWeaponViewTransform => _equippedWeaponView != null ? _equippedWeaponView.transform : null;
+        public Animator PackAnimator => _packAnimator;
+        public Transform ViewmodelRoot => _viewmodelRoot;
+        public Transform WeaponViewParent => _weaponViewParent;
         public bool IsAiming => _isAiming;
         public bool IsAimInputHeld => _inputSource != null && _inputSource.AimHeld;
         public float CurrentAdsBlendT => ResolveCurrentAdsBlendT();
@@ -527,6 +526,32 @@ namespace Reloader.Weapons.Controllers
                 _cameraDefaults = GetComponent<PlayerCameraDefaults>();
             }
 
+            if (_cameraDefaults != null)
+            {
+                if (!IsReferenceOnPlayerHierarchy(_cameraPivot) && _cameraDefaults.TryGetCameraPivot(out var cameraPivot))
+                {
+                    _cameraPivot = cameraPivot;
+                }
+
+                if (!IsReferenceOnPlayerHierarchy(_viewmodelRoot) && _cameraDefaults.TryGetPlayerArmsRoot(out var viewmodelRootFromDefaults))
+                {
+                    _viewmodelRoot = viewmodelRootFromDefaults;
+                }
+
+                if (!IsReferenceOnPlayerHierarchy(_packAnimator != null ? _packAnimator.transform : null)
+                    && _cameraDefaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator))
+                {
+                    _packAnimator = playerArmsAnimator;
+                    RefreshPackRenderers();
+                }
+
+                if (!IsWeaponViewParentUsable(_weaponViewParent)
+                    && _cameraDefaults.TryGetWeaponPresentationRoot(out var weaponPresentationRoot))
+                {
+                    _weaponViewParent = weaponPresentationRoot;
+                }
+            }
+
             _playerLookControllerRuntimeBridge ??= GetComponent<PlayerLookController>();
             _viewmodelAnimatorDriver ??= GetComponent<FpsViewmodelAnimatorDriver>();
 
@@ -544,7 +569,7 @@ namespace Reloader.Weapons.Controllers
 
             if (!IsWeaponViewParentUsable(_weaponViewParent))
             {
-                _weaponViewParent = ResolveDefaultWeaponViewParent(viewmodelRoot);
+                _weaponViewParent = null;
             }
 
             if (_shotCameraRuntimeBehaviour == null && _shotCameraSettings.Enabled)
@@ -2072,7 +2097,8 @@ namespace Reloader.Weapons.Controllers
             var parent = IsWeaponViewParentUsable(_weaponViewParent) ? _weaponViewParent : null;
             if (parent == null)
             {
-                parent = ResolveDefaultWeaponViewParent();
+                ResolveReferences();
+                parent = IsWeaponViewParentUsable(_weaponViewParent) ? _weaponViewParent : null;
             }
 
             if (parent == null)
@@ -2155,7 +2181,7 @@ namespace Reloader.Weapons.Controllers
 
             if (!IsWeaponViewParentUsable(_weaponViewParent))
             {
-                _weaponViewParent = ResolveDefaultWeaponViewParent();
+                ResolveReferences();
             }
 
             if (_weaponViewParent == null || _equippedWeaponView.transform.parent == _weaponViewParent)
@@ -2514,34 +2540,6 @@ namespace Reloader.Weapons.Controllers
             return null;
         }
 
-        private static Camera ResolveViewmodelCamera(Camera worldCamera)
-        {
-            if (worldCamera == null)
-            {
-                return null;
-            }
-
-            var worldCameraTransform = worldCamera.transform;
-            var sharedBasis = worldCameraTransform.parent != null ? worldCameraTransform.parent : worldCameraTransform;
-
-            var sharedBasisViewmodelCamera = sharedBasis.Find("ViewmodelCamera")?.GetComponent<Camera>();
-            if (sharedBasisViewmodelCamera != null)
-            {
-                return sharedBasisViewmodelCamera;
-            }
-
-            if (sharedBasis != worldCameraTransform)
-            {
-                var legacyChild = worldCameraTransform.Find("ViewmodelCamera")?.GetComponent<Camera>();
-                if (legacyChild != null)
-                {
-                    return legacyChild;
-                }
-            }
-
-            return null;
-        }
-
         private Camera ResolveRuntimeViewmodelCamera(Camera worldCamera)
         {
             if (_cameraDefaults != null && _cameraDefaults.TryGetViewmodelCamera(out var viewmodelCamera))
@@ -2549,7 +2547,7 @@ namespace Reloader.Weapons.Controllers
                 return viewmodelCamera;
             }
 
-            return ResolveViewmodelCamera(worldCamera);
+            return null;
         }
 
         private static Camera EnsureScopeCamera(Camera worldCamera)
@@ -2900,55 +2898,11 @@ namespace Reloader.Weapons.Controllers
             return definition != null;
         }
 
-        private Transform ResolveDefaultWeaponViewParent()
-        {
-            return ResolveDefaultWeaponViewParent(null);
-        }
-
-        private Transform ResolveDefaultWeaponViewParent(Transform resolvedViewmodelRoot)
-        {
-            var cameraPivot = ResolveCameraPivot(resolvedViewmodelRoot);
-            if (cameraPivot == null)
-            {
-                return null;
-            }
-
-            var weaponPresentationRoot = cameraPivot.Find(WeaponPresentationRootName);
-            if (weaponPresentationRoot == null)
-            {
-                var rootGo = new GameObject(WeaponPresentationRootName);
-                weaponPresentationRoot = rootGo.transform;
-                weaponPresentationRoot.SetParent(cameraPivot, false);
-                weaponPresentationRoot.localPosition = Vector3.zero;
-                weaponPresentationRoot.localRotation = Quaternion.identity;
-                weaponPresentationRoot.localScale = Vector3.one;
-            }
-
-            ApplyViewmodelLayer(weaponPresentationRoot);
-            return weaponPresentationRoot;
-        }
-
         private Transform ResolveCameraPivot(Transform resolvedViewmodelRoot)
         {
-            if (IsReferenceOnPlayerHierarchy(_cameraPivot))
+            if (_cameraDefaults != null && _cameraDefaults.TryGetCameraPivot(out var cameraPivotFromDefaults))
             {
-                return _cameraPivot;
-            }
-
-            var viewmodelRoot = resolvedViewmodelRoot != null && IsReferenceOnPlayerHierarchy(resolvedViewmodelRoot)
-                ? resolvedViewmodelRoot
-                : ResolveViewmodelRoot();
-
-            if (viewmodelRoot != null && IsReferenceOnPlayerHierarchy(viewmodelRoot.parent))
-            {
-                _cameraPivot = viewmodelRoot.parent;
-                return _cameraPivot;
-            }
-
-            var explicitPath = transform.Find(CameraPivotName);
-            if (explicitPath != null)
-            {
-                _cameraPivot = explicitPath;
+                _cameraPivot = cameraPivotFromDefaults;
                 return _cameraPivot;
             }
 
@@ -2957,62 +2911,23 @@ namespace Reloader.Weapons.Controllers
 
         private Transform ResolveViewmodelRoot()
         {
-            if (IsReferenceOnPlayerHierarchy(_viewmodelRoot))
+            if (_cameraDefaults != null && _cameraDefaults.TryGetPlayerArmsRoot(out var viewmodelRootFromDefaults))
             {
+                _viewmodelRoot = viewmodelRootFromDefaults;
                 return _viewmodelRoot;
             }
 
-            var explicitPath = transform.Find("CameraPivot/PlayerArms");
-            if (explicitPath != null)
-            {
-                _viewmodelRoot = explicitPath;
-                return _viewmodelRoot;
-            }
-
-            if (_packAnimator == null)
-            {
-                _packAnimator = ResolvePackAnimator();
-            }
-
-            var current = _packAnimator != null ? _packAnimator.transform : null;
-            while (current != null)
-            {
-                if (string.Equals(current.name, PlayerArmsRootName, StringComparison.Ordinal))
-                {
-                    _viewmodelRoot = current;
-                    return _viewmodelRoot;
-                }
-
-                current = current.parent;
-            }
-
-            _viewmodelRoot = FindDescendantByName(transform, PlayerArmsRootName);
-            return _viewmodelRoot;
+            return null;
         }
 
         private Animator ResolvePackAnimator()
         {
-            var explicitPath = transform.Find("CameraPivot/PlayerArms/PlayerArmsVisual");
-            if (explicitPath != null)
+            if (_cameraDefaults != null && _cameraDefaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator))
             {
-                var explicitAnimator = explicitPath.GetComponent<Animator>() ?? explicitPath.GetComponentInChildren<Animator>(true);
-                if (explicitAnimator != null)
-                {
-                    return explicitAnimator;
-                }
+                return playerArmsAnimator;
             }
 
-            var byName = FindDescendantByName(transform, "PlayerArmsVisual");
-            if (byName != null)
-            {
-                var namedAnimator = byName.GetComponent<Animator>() ?? byName.GetComponentInChildren<Animator>(true);
-                if (namedAnimator != null)
-                {
-                    return namedAnimator;
-                }
-            }
-
-            return GetComponentInChildren<Animator>(true);
+            return null;
         }
 
         private bool IsReferenceOnPlayerHierarchy(Transform candidate)
@@ -3022,32 +2937,18 @@ namespace Reloader.Weapons.Controllers
 
         private bool IsWeaponViewParentUsable(Transform candidate)
         {
-            var cameraPivot = ResolveCameraPivot(null);
-            return IsReferenceOnPlayerHierarchy(candidate) && cameraPivot != null && candidate.parent == cameraPivot;
-        }
-
-        private static Transform FindDescendantByName(Transform root, string targetName)
-        {
-            if (root == null || string.IsNullOrWhiteSpace(targetName))
+            if (!IsReferenceOnPlayerHierarchy(candidate) || _cameraDefaults == null)
             {
-                return null;
+                return false;
             }
 
-            if (root.name == targetName)
+            if (!_cameraDefaults.TryGetWeaponPresentationRoot(out var configuredPresentationRoot)
+                || !IsReferenceOnPlayerHierarchy(configuredPresentationRoot))
             {
-                return root;
+                return false;
             }
 
-            for (var i = 0; i < root.childCount; i++)
-            {
-                var found = FindDescendantByName(root.GetChild(i), targetName);
-                if (found != null)
-                {
-                    return found;
-                }
-            }
-
-            return null;
+            return candidate == configuredPresentationRoot;
         }
 
         private static void StripViewPhysicsComponents(GameObject root)

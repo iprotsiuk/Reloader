@@ -1,5 +1,6 @@
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
+using Reloader.Player;
 using UnityEngine;
 
 namespace Reloader.Player.Viewmodel
@@ -8,6 +9,7 @@ namespace Reloader.Player.Viewmodel
     {
         [SerializeField] private Animator _animator;
         [SerializeField] private AnimationContractProfile _contractProfile;
+        [SerializeField] private PlayerCameraDefaults _cameraDefaults;
 
         private int _fireTriggerHash;
         private int _reloadTriggerHash;
@@ -221,6 +223,7 @@ namespace Reloader.Player.Viewmodel
 
         private void ResolveAnimator()
         {
+            _cameraDefaults ??= GetComponent<PlayerCameraDefaults>();
             if (!IsAnimatorOnPlayerHierarchy(_animator))
             {
                 _animator = ResolveViewmodelAnimator();
@@ -229,48 +232,9 @@ namespace Reloader.Player.Viewmodel
 
         private Animator ResolveViewmodelAnimator()
         {
-            var explicitPath = transform.Find("CameraPivot/PlayerArms/PlayerArmsVisual");
-            if (explicitPath != null)
+            if (_cameraDefaults != null && _cameraDefaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator))
             {
-                var explicitAnimator = explicitPath.GetComponent<Animator>() ?? explicitPath.GetComponentInChildren<Animator>(true);
-                if (explicitAnimator != null)
-                {
-                    return explicitAnimator;
-                }
-            }
-
-            var byName = FindDescendantByName(transform, "PlayerArmsVisual");
-            if (byName != null)
-            {
-                var namedAnimator = byName.GetComponent<Animator>() ?? byName.GetComponentInChildren<Animator>(true);
-                if (namedAnimator != null)
-                {
-                    return namedAnimator;
-                }
-            }
-
-            return GetComponentInChildren<Animator>(true);
-        }
-
-        private static Transform FindDescendantByName(Transform root, string targetName)
-        {
-            if (root == null || string.IsNullOrWhiteSpace(targetName))
-            {
-                return null;
-            }
-
-            if (root.name == targetName)
-            {
-                return root;
-            }
-
-            for (var i = 0; i < root.childCount; i++)
-            {
-                var found = FindDescendantByName(root.GetChild(i), targetName);
-                if (found != null)
-                {
-                    return found;
-                }
+                return playerArmsAnimator;
             }
 
             return null;

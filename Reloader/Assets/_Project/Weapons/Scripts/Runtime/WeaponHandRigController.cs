@@ -1,3 +1,4 @@
+using Reloader.Player;
 using Reloader.Weapons.Controllers;
 using Reloader.Weapons.Runtime;
 using UnityEngine;
@@ -9,8 +10,6 @@ namespace Reloader.Player.Viewmodel
     [DisallowMultipleComponent]
     public sealed class WeaponHandRigController : MonoBehaviour
     {
-        private const string CameraPivotName = "CameraPivot";
-        private const string PlayerArmsVisualName = "PlayerArmsVisual";
         private const string TargetRootName = "WeaponHandRigTargets";
         private const string LeftTargetName = "LeftHandTarget";
         private const string LeftHintName = "LeftElbowHint";
@@ -22,6 +21,7 @@ namespace Reloader.Player.Viewmodel
 
         [Header("References")]
         [SerializeField] private Animator _armsAnimator;
+        [SerializeField] private PlayerCameraDefaults _cameraDefaults;
         [SerializeField] private RigBuilder _rigBuilder;
         [SerializeField] private Rig _weaponHandRig;
         [SerializeField] private TwoBoneIKConstraint _leftHandConstraint;
@@ -61,6 +61,7 @@ namespace Reloader.Player.Viewmodel
         public bool HasResolvedWeaponAnchors => _hasResolvedWeaponAnchors;
         public Transform LeftHandTarget => _leftHandTarget;
         public Transform LeftHandHint => _leftHandHint;
+        public Transform RightHandTarget => _rightHandTarget;
         public TwoBoneIKConstraint LeftHandConstraint => _leftHandConstraint;
         public RigBuilder RigBuilder => _rigBuilder;
 
@@ -166,16 +167,18 @@ namespace Reloader.Player.Viewmodel
         {
             _weaponController ??= GetComponent<PlayerWeaponController>();
             _viewmodelAnimationAdapter ??= GetComponent<ViewmodelAnimationAdapter>();
+            _cameraDefaults ??= GetComponent<PlayerCameraDefaults>();
 
-            if (_armsAnimator == null)
+            if (!IsAnimatorOnPlayerHierarchy(_armsAnimator))
             {
-                var playerArmsVisual = transform.Find($"{CameraPivotName}/PlayerArms/{PlayerArmsVisualName}");
-                if (playerArmsVisual != null)
+                if (_cameraDefaults != null && _cameraDefaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator))
                 {
-                    _armsAnimator = playerArmsVisual.GetComponent<Animator>();
+                    _armsAnimator = playerArmsAnimator;
                 }
-
-                _armsAnimator ??= GetComponentInChildren<Animator>(true);
+                else
+                {
+                    _armsAnimator = null;
+                }
             }
 
             if (_rigBuilder == null && _armsAnimator != null)
@@ -221,7 +224,18 @@ namespace Reloader.Player.Viewmodel
                 needsRigRebuild = true;
             }
 
-            var targetRoot = ResolveOrCreateTargetRoot();
+            var needsTargetRoot = (_driveLeftHand && (_leftHandTarget == null || _leftHandHint == null))
+                || (_driveRightHand && (_rightHandTarget == null || _rightHandHint == null));
+            Transform targetRoot = null;
+            if (needsTargetRoot)
+            {
+                targetRoot = ResolveTargetRoot();
+                if (targetRoot == null)
+                {
+                    return;
+                }
+            }
+
             if (_driveLeftHand)
             {
                 if (_leftHandTarget == null)
@@ -307,11 +321,21 @@ namespace Reloader.Player.Viewmodel
             }
         }
 
-        private Transform ResolveOrCreateTargetRoot()
+        private Transform ResolveTargetRoot()
         {
-            var cameraPivot = transform.Find(CameraPivotName);
-            var targetParent = cameraPivot != null ? cameraPivot : transform;
-            return ResolveOrCreateChild(targetParent, TargetRootName);
+            if (_cameraDefaults == null || !_cameraDefaults.TryGetCameraPivot(out var cameraPivot) || cameraPivot == null)
+            {
+                return null;
+            }
+
+            return cameraPivot.Find(TargetRootName);
+        }
+
+        private bool IsAnimatorOnPlayerHierarchy(Animator animator)
+        {
+            return animator != null
+                && animator.transform != null
+                && (animator.transform == transform || animator.transform.IsChildOf(transform));
         }
 
         private static Transform ResolveOrCreateChild(Transform parent, string childName)
