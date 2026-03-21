@@ -456,6 +456,8 @@ namespace Reloader.Weapons.Tests.EditMode
                 "Scoped HIP authoring should no longer duplicate the mount-space carry offset.");
             Assert.That(Vector3.Distance((Vector3)GetFieldValue(mounts, "_scopedAdsLocalPosition"), new Vector3(0f, 0.2f, 0.05f)), Is.LessThan(0.0001f),
                 "Authored ADS alignment path should stay intact.");
+            Assert.That((float)GetFieldValue(mounts, "_scopedAdsEyeReliefBackOffset"), Is.EqualTo(0.0425f).Within(0.0001f),
+                "Scoped eye-relief authoring should remain on the live rifle view so the aligner can apply the additive correction at runtime.");
         }
 
         [Test]
@@ -472,10 +474,10 @@ namespace Reloader.Weapons.Tests.EditMode
                     "PlayerRoot should author an explicit static WeaponPresentationMount used by the runtime driver.");
                 Assert.That(weaponPresentationMount!.parent, Is.SameAs(playerRootPrefab.transform.Find("CameraPivot")),
                     "The live PlayerRoot mount should be a direct authored child of CameraPivot instead of the animated armature chain.");
-                Assert.That(Quaternion.Angle(weaponPresentationMount.localRotation, Quaternion.identity), Is.LessThan(0.0001f),
-                    "The static weapon presentation mount should keep identity local rotation.");
-                Assert.That(Vector3.Distance(weaponPresentationMount.localPosition, Vector3.zero), Is.LessThan(0.0001f),
-                    "The static weapon presentation mount should keep identity local position.");
+                Assert.That(weaponPresentationMount.localPosition, Is.EqualTo(new Vector3(0.02542634f, -0.08720852f, 0.17778906f)).Within(0.0001f),
+                    "The static weapon presentation mount should preserve the measured hip pose offset instead of snapping to the camera pivot origin.");
+                Assert.That(Quaternion.Angle(weaponPresentationMount.localRotation, new Quaternion(0.7087967f, 0.0026341488f, -0.0000001728f, -0.7054079f)), Is.LessThan(0.01f),
+                    "The static weapon presentation mount should preserve the measured hip pose rotation so the rifle no longer hangs vertically.");
             }
             finally
             {
