@@ -80,15 +80,15 @@ namespace Reloader.Game.Weapons
             }
 
             _originalSharedMaterials = _targetRenderer.sharedMaterials;
-            var runtimeShader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (runtimeShader == null)
+            var sourceMaterial = ResolveSourceMaterial();
+            if (sourceMaterial == null)
             {
                 return false;
             }
 
-            _runtimeDisplayMaterial ??= new Material(runtimeShader)
+            _runtimeDisplayMaterial ??= new Material(sourceMaterial)
             {
-                name = $"{_targetRenderer.sharedMaterial?.name ?? _targetRenderer.name}_RuntimeInstance"
+                name = $"{sourceMaterial.name}_RuntimeInstance"
             };
 
             var materialCount = _originalSharedMaterials != null && _originalSharedMaterials.Length > 0
@@ -103,6 +103,27 @@ namespace Reloader.Game.Weapons
             _targetRenderer.sharedMaterials = displayMaterials;
             _displayMaterialApplied = true;
             return true;
+        }
+
+        private Material ResolveSourceMaterial()
+        {
+            if (_displayMaterialTemplate != null)
+            {
+                return _displayMaterialTemplate;
+            }
+
+            if (_originalSharedMaterials != null)
+            {
+                for (var i = 0; i < _originalSharedMaterials.Length; i++)
+                {
+                    if (_originalSharedMaterials[i] != null)
+                    {
+                        return _originalSharedMaterials[i];
+                    }
+                }
+            }
+
+            return _targetRenderer != null ? _targetRenderer.sharedMaterial : null;
         }
 
         private void RestoreOriginalMaterials()

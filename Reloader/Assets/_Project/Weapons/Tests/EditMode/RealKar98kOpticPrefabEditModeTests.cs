@@ -28,6 +28,7 @@ namespace Reloader.Weapons.Tests.EditMode
                 Assert.That(isUsingProxySurface, Is.EqualTo(false), "The real Kar98k optic prefab should not fall back to a proxy display surface.");
                 Assert.That(opticPrefab.transform.Find("ScopeDisplayProxy"), Is.Null, "The real Kar98k optic prefab should not contain a proxy display child.");
 
+                var authoredMaterial = targetRenderer!.sharedMaterial;
                 Assert.That((bool)lensDisplay.GetType().GetMethod("TrySetTexture")!.Invoke(lensDisplay, new object[] { Texture2D.blackTexture }), Is.True,
                     "The authored PiP display surface should accept a texture binding.");
                 Assert.That(lensDisplay.GetType().GetProperty("CurrentTexture")?.GetValue(lensDisplay), Is.SameAs(Texture2D.blackTexture));
@@ -35,7 +36,8 @@ namespace Reloader.Weapons.Tests.EditMode
                 var runtimeMaterial = targetRenderer!.sharedMaterial;
                 Assert.That(runtimeMaterial, Is.Not.Null, "The authored PiP display surface should swap to a runtime display material when texture binding is active.");
                 Assert.That(runtimeMaterial!.name, Does.Contain("Runtime"), "The runtime PiP surface should be a distinct runtime material instance.");
-                Assert.That(runtimeMaterial.shader.name, Does.Contain("Unlit"), "The runtime PiP surface should use a texture-capable unlit shader.");
+                Assert.That(runtimeMaterial.renderQueue, Is.EqualTo(authoredMaterial.renderQueue), "The runtime PiP surface should preserve the authored transparent render queue.");
+                Assert.That(runtimeMaterial.shader.name, Is.EqualTo(authoredMaterial.shader.name), "The runtime PiP surface should preserve the authored lens shader.");
             }
             finally
             {
