@@ -2,9 +2,6 @@ using Reloader.Player;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Reloader.World.Travel;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 namespace Reloader.World.Runtime
 {
@@ -16,6 +13,8 @@ namespace Reloader.World.Runtime
         private const string MainTownSceneName = "MainTown";
         private const string MainTownSpawnEntryPointId = "entry.maintown.spawn";
         private const string RuntimePlayerRootInstanceName = "RuntimePlayerRoot";
+
+        [SerializeField] private GameObject _playerRootPrefab;
 
         private void Awake()
         {
@@ -32,7 +31,18 @@ namespace Reloader.World.Runtime
         public static PersistentPlayerRoot Initialize()
         {
             var persistentRoot = PersistentPlayerRoot.EnsureInstance();
-            EnsureRuntimePlayerRoot(persistentRoot);
+            var bootstrapWorldRoot = FindBootstrapWorldRoot();
+            if (bootstrapWorldRoot == null)
+            {
+                if (persistentRoot.PlayerRootTransform == null)
+                {
+                    Debug.LogError("BootstrapWorldRoot failed: no loaded BootstrapWorldRoot instance is available to provide the canonical runtime player prefab.");
+                }
+
+                return persistentRoot;
+            }
+
+            bootstrapWorldRoot.EnsureRuntimePlayerRoot(persistentRoot);
             return persistentRoot;
         }
 
@@ -52,21 +62,20 @@ namespace Reloader.World.Runtime
             WorldTravelCoordinator.TryLoadSceneAtEntry(MainTownSceneName, MainTownSpawnEntryPointId);
         }
 
-        private static void EnsureRuntimePlayerRoot(PersistentPlayerRoot persistentRoot)
+        private void EnsureRuntimePlayerRoot(PersistentPlayerRoot persistentRoot)
         {
             if (persistentRoot == null || persistentRoot.PlayerRootTransform != null)
             {
                 return;
             }
 
-            var playerRootPrefab = LoadPlayerRootPrefab();
-            if (playerRootPrefab == null)
+            if (_playerRootPrefab == null)
             {
-                Debug.LogError($"BootstrapWorldRoot failed: missing canonical runtime player prefab at '{PlayerRootPrefabAssetPath}'.");
+                Debug.LogError($"BootstrapWorldRoot failed: missing canonical runtime player prefab reference. Expected '{PlayerRootPrefabAssetPath}' on the BootstrapWorldRoot scene component.");
                 return;
             }
 
-            var playerRootInstance = InstantiatePlayerRootPrefab(playerRootPrefab);
+            var playerRootInstance = InstantiatePlayerRootPrefab(_playerRootPrefab);
             if (playerRootInstance == null)
             {
                 Debug.LogError($"BootstrapWorldRoot failed: could not instantiate canonical runtime player prefab '{PlayerRootPrefabAssetPath}'.");
@@ -75,17 +84,15 @@ namespace Reloader.World.Runtime
 
             playerRootInstance.name = RuntimePlayerRootInstanceName;
             persistentRoot.RegisterRuntimePlayerRoot(playerRootInstance.transform);
-            playerRootInstance.GetComponent<PlayerCameraDefaults>()?.ApplyDefaults();
+            if (Application.isPlaying)
+            {
+                playerRootInstance.GetComponent<PlayerCameraDefaults>()?.ApplyDefaults();
+            }
         }
 
-        private static GameObject LoadPlayerRootPrefab()
+        private static BootstrapWorldRoot FindBootstrapWorldRoot()
         {
-#if UNITY_EDITOR
-            return AssetDatabase.LoadAssetAtPath<GameObject>(PlayerRootPrefabAssetPath);
-#else
-            Debug.LogError($"BootstrapWorldRoot failed: runtime player prefab '{PlayerRootPrefabAssetPath}' requires Task 3 scene wiring outside the editor.");
-            return null;
-#endif
+            return Object.FindFirstObjectByType<BootstrapWorldRoot>(FindObjectsInactive.Include);
         }
 
         private static GameObject InstantiatePlayerRootPrefab(GameObject playerRootPrefab)
@@ -95,12 +102,6 @@ namespace Reloader.World.Runtime
                 return null;
             }
 
-#if UNITY_EDITOR
-            if (!Application.isPlaying)
-            {
-                return PrefabUtility.InstantiatePrefab(playerRootPrefab) as GameObject;
-            }
-#endif
             return Instantiate(playerRootPrefab);
         }
     }

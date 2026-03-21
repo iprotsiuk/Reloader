@@ -81,8 +81,13 @@ namespace Reloader.World.Travel
             }
 
             EnsureSubscribed();
+            if (!PreparePersistentPlayerRootForTravel())
+            {
+                Debug.LogWarning("Travel failed: canonical runtime player root is missing.");
+                return false;
+            }
+
             CaptureCivilianPopulationStateForTravel();
-            PreparePersistentPlayerRootForTravel();
             CaptureInventorySnapshotForTravel();
             CaptureWeaponRuntimeSnapshotForTravel();
             _pendingSceneName = sceneName.Trim();
@@ -324,9 +329,21 @@ namespace Reloader.World.Travel
 
         }
 
-        private static void PreparePersistentPlayerRootForTravel()
+        private static bool PreparePersistentPlayerRootForTravel()
         {
-            BootstrapWorldRoot.Initialize();
+            var persistentRoot = PersistentPlayerRoot.Instance;
+            if (persistentRoot == null || persistentRoot.PlayerRootTransform == null)
+            {
+                return false;
+            }
+
+            var activeScene = SceneManager.GetActiveScene();
+            if (!activeScene.IsValid() || !activeScene.isLoaded)
+            {
+                return false;
+            }
+
+            return persistentRoot.MoveRuntimePlayerRootToScene(activeScene) != null;
         }
 
         private static Transform ResolveTravelPlayerRoot(Scene destinationScene)

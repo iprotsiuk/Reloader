@@ -461,6 +461,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d41cb9f5638d4b518b084d9bce3f0999, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Reloader.World::Reloader.World.Runtime.BootstrapWorldRoot
+  _playerRootPrefab: {fileID: 8805273355277606564, guid: c1013e013835241329494ffd16b205bf, type: 3}
 --- !u!4 &875686135
 Transform:
   m_ObjectHideFlags: 0
