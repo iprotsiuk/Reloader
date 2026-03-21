@@ -18,6 +18,7 @@
 
 - `docs/plans/progress/2026-03-20-persistent-player-reset-progress.md`
 - `Reloader/Assets/_Project/World/Tests/EditMode/WorldPlayerRootContractEditModeTests.cs`
+- `Reloader/Assets/_Project/World/Tests/EditMode/WorldPlayerRootContractEditModeTests.cs.meta`
 - `Reloader/Assets/_Project/World/Tests/EditMode/PersistentPlayerRootEditModeTests.cs`
 - `Reloader/Assets/_Project/World/Tests/EditMode/TravelContextEditModeTests.cs`
 - `Reloader/Assets/_Project/Player/Tests/EditMode/PlayerLookConfigurationEditModeTests.cs`
@@ -45,6 +46,16 @@
     - `Reloader.World.Tests.EditMode.WorldPlayerRootContractEditModeTests.Scene_DoesNotAuthorPlayerRoot("Assets/_Project/World/Scenes/MainTown.unity")`
     - `Reloader.World.Tests.EditMode.WorldPlayerRootContractEditModeTests.Scene_DoesNotAuthorPlayerRoot("Assets/_Project/World/Scenes/IndoorRangeInstance.unity")`
   - Interpretation: the suite is now red on scene-authored player roots/look controllers and `PersistentPlayerRoot` scene adoption, while the anchor-focused travel contract coverage is green.
+- Unity MCP `run_tests`
+  - Mode: `EditMode`
+  - Filter: `group_names=["Reloader.Player.Tests.EditMode.PlayerLookConfigurationEditModeTests.*","Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests.*"]`
+  - Result: failed `4/7`, passed `3/7`
+  - Failing tests:
+    - `Reloader.Player.Tests.EditMode.PlayerLookConfigurationEditModeTests.Scene_DoesNotAuthorPlayerLookController("Assets/_Project/World/Scenes/MainTown.unity")`
+    - `Reloader.Player.Tests.EditMode.PlayerLookConfigurationEditModeTests.Scene_DoesNotAuthorPlayerLookController("Assets/_Project/World/Scenes/IndoorRangeInstance.unity")`
+    - `Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests.CaptureOrAdoptPlayerRootForScene_WithCanonicalRuntimePlayerRoot_DoesNotSwapToSceneAuthoredPlayerRoot`
+    - `Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests.CaptureOrAdoptPlayerRootForScene_WithoutCanonicalRuntimePlayerRoot_FailsClosedInsteadOfAdoptingScenePlayerRoot`
+  - Interpretation: the narrow rerun stays red for the same Task 2 cutover gaps, so the Task 1 follow-up remains doc-only and deferred at the runtime seam.
 
 ## Commit / Push
 
@@ -59,6 +70,12 @@
   - `MainTown` and `IndoorRangeInstance` still author `PlayerRoot` scene objects.
   - Those scene-authored player roots still own `PlayerLookController`.
   - `PersistentPlayerRoot.CaptureOrAdoptPlayerRootForScene(...)` still swaps to or adopts scene-authored player roots instead of failing closed around the canonical runtime owner.
+
+## Review Findings
+
+- Fixed by this follow-up: the progress tracker is being brought back in sync with the actual commit/push state.
+- Deferred to Task 2: the `PlayerLookController` coverage gap stays on the canonical runtime-owned player prefab seam, which is not being widened in this slice.
+- Deferred to Task 2: the remaining private-field setup in the targeted EditMode tests stays until the canonical public write seam exists for player-root seeding and look configuration.
 
 ## Deletion Log
 
