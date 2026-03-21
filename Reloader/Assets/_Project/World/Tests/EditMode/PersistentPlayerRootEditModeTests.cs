@@ -1,7 +1,6 @@
 using NUnit.Framework;
 using Reloader.World.Runtime;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -10,10 +9,16 @@ namespace Reloader.World.Tests.EditMode
     public class PersistentPlayerRootEditModeTests
     {
         private const string BootstrapScenePath = "Assets/Scenes/Bootstrap.unity";
+        private const string PlayerRootPrefabPath = "Assets/_Project/Player/Prefabs/PlayerRoot.prefab";
 
         [TearDown]
         public void TearDown()
         {
+            if (PersistentPlayerRoot.Instance != null && PersistentPlayerRoot.Instance.PlayerRootTransform != null)
+            {
+                Object.DestroyImmediate(PersistentPlayerRoot.Instance.PlayerRootTransform.gameObject);
+            }
+
             var roots = FindPersistentRoots();
             for (var i = 0; i < roots.Length; i++)
             {
@@ -25,19 +30,29 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void Initialize_CreatesSinglePersistentRootAndMovesItToDontDestroyOnLoadScene()
+        public void Initialize_CreatesSinglePersistentRootWithCanonicalRuntimePlayerPrefab()
         {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerRootPrefabPath);
+            Assert.That(prefab, Is.Not.Null, $"Expected canonical runtime player prefab at '{PlayerRootPrefabPath}'.");
+
             var root = BootstrapWorldRoot.Initialize();
 
             Assert.That(root, Is.Not.Null);
             Assert.That(PersistentPlayerRoot.Instance, Is.SameAs(root));
+            Assert.That(root.PlayerRootTransform, Is.Not.Null, "Bootstrap should create the canonical runtime player root.");
+            Assert.That(
+                PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(root.PlayerRootTransform.gameObject),
+                Is.EqualTo(PlayerRootPrefabPath),
+                "Bootstrap should instantiate the canonical runtime player prefab instead of adopting a scene-authored player.");
             if (Application.isPlaying)
             {
                 Assert.That(root.gameObject.scene.name, Is.EqualTo("DontDestroyOnLoad"));
+                Assert.That(root.PlayerRootTransform.gameObject.scene.name, Is.EqualTo("DontDestroyOnLoad"));
             }
             else
             {
                 Assert.That(root.gameObject.scene.IsValid(), Is.True);
+                Assert.That(root.PlayerRootTransform.gameObject.scene.IsValid(), Is.True);
             }
 
             var roots = Object.FindObjectsByType<PersistentPlayerRoot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
@@ -45,12 +60,14 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void Initialize_WhenCalledTwice_ReusesSameRootInstance()
+        public void Initialize_WhenCalledTwice_ReusesSameRootInstanceAndPlayerPrefabInstance()
         {
             var first = BootstrapWorldRoot.Initialize();
+            var firstPlayerRoot = first.PlayerRootTransform;
             var second = BootstrapWorldRoot.Initialize();
 
             Assert.That(second, Is.SameAs(first));
+            Assert.That(second.PlayerRootTransform, Is.SameAs(firstPlayerRoot));
 
             var roots = Object.FindObjectsByType<PersistentPlayerRoot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             Assert.That(roots.Length, Is.EqualTo(1));
@@ -79,65 +96,66 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void CaptureOrAdoptPlayerRootForScene_WithCanonicalRuntimePlayerRoot_DoesNotSwapToSceneAuthoredPlayerRoot()
+        public void MoveRuntimePlayerRootToScene_WithCanonicalRuntimePlayerRoot_DoesNotSwapToSceneAuthoredPlayerRoot()
         {
             var persistentRoot = BootstrapWorldRoot.Initialize();
-            var runtimeOwnedPlayerRoot = new GameObject("RuntimeOwnedPlayerRoot");
-            AssignPlayerRootTransform(persistentRoot, runtimeOwnedPlayerRoot.transform);
-
             var originalScene = SceneManager.GetActiveScene();
-            var scene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+            var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(BootstrapScenePath, UnityEditor.SceneManagement.OpenSceneMode.Additive);
 
             try
             {
                 var scenePlayerRoot = new GameObject("PlayerRoot");
                 SceneManager.MoveGameObjectToScene(scenePlayerRoot, scene);
 
-                var captured = persistentRoot.CaptureOrAdoptPlayerRootForScene(scene, preferSceneRoot: true);
+                var captured = MoveRuntimePlayerRootToScene(persistentRoot, scene);
 
                 Assert.That(captured, Is.Not.Null);
-                Assert.That(captured.name, Is.EqualTo("RuntimeOwnedPlayerRoot"),
+                Assert.That(captured, Is.SameAs(persistentRoot.PlayerRootTransform));
+                Assert.That(captured.gameObject.scene, Is.EqualTo(scene));
+                Assert.That(captured, Is.Not.SameAs(scenePlayerRoot.transform),
                     "PersistentPlayerRoot should preserve the canonical runtime-owned player root instead of swapping to scene content.");
                 Assert.That(persistentRoot.PlayerRootTransform, Is.SameAs(captured));
             }
             finally
             {
-                EditorSceneManager.CloseScene(scene, true);
+                UnityEditor.SceneManagement.EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
                     SceneManager.SetActiveScene(originalScene);
-                }
-
-                if (runtimeOwnedPlayerRoot != null)
-                {
-                    Object.DestroyImmediate(runtimeOwnedPlayerRoot);
                 }
             }
         }
 
         [Test]
-        public void CaptureOrAdoptPlayerRootForScene_WithoutCanonicalRuntimePlayerRoot_FailsClosedInsteadOfAdoptingScenePlayerRoot()
+        public void MoveRuntimePlayerRootToScene_WithoutCanonicalRuntimePlayerRoot_FailsClosedInsteadOfAdoptingScenePlayerRoot()
         {
             var persistentRoot = BootstrapWorldRoot.Initialize();
+            var runtimePlayerRoot = persistentRoot.PlayerRootTransform;
             AssignPlayerRootTransform(persistentRoot, null);
+            if (runtimePlayerRoot != null)
+            {
+                Object.DestroyImmediate(runtimePlayerRoot.gameObject);
+            }
 
             var originalScene = SceneManager.GetActiveScene();
-            var scene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+            var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(BootstrapScenePath, UnityEditor.SceneManagement.OpenSceneMode.Additive);
 
             try
             {
                 var scenePlayerRoot = new GameObject("PlayerRoot");
                 SceneManager.MoveGameObjectToScene(scenePlayerRoot, scene);
 
-                var captured = persistentRoot.CaptureOrAdoptPlayerRootForScene(scene, preferSceneRoot: false);
+                var captured = MoveRuntimePlayerRootToScene(persistentRoot, scene);
 
                 Assert.That(captured, Is.Null,
                     "Bootstrap must create the canonical runtime player root. PersistentPlayerRoot should not adopt scene-authored PlayerRoot content.");
                 Assert.That(persistentRoot.PlayerRootTransform, Is.Null);
+                Assert.That(scenePlayerRoot, Is.Not.Null);
+                Assert.That(scenePlayerRoot.scene, Is.EqualTo(scene));
             }
             finally
             {
-                EditorSceneManager.CloseScene(scene, true);
+                UnityEditor.SceneManagement.EditorSceneManager.CloseScene(scene, true);
                 if (originalScene.IsValid())
                 {
                     SceneManager.SetActiveScene(originalScene);
@@ -161,6 +179,13 @@ namespace Reloader.World.Tests.EditMode
             }
 
             return false;
+        }
+
+        private static Transform MoveRuntimePlayerRootToScene(PersistentPlayerRoot persistentRoot, Scene scene)
+        {
+            var moveMethod = typeof(PersistentPlayerRoot).GetMethod("MoveRuntimePlayerRootToScene");
+            Assert.That(moveMethod, Is.Not.Null, "PersistentPlayerRoot should expose a runtime-only scene move seam.");
+            return moveMethod.Invoke(persistentRoot, new object[] { scene }) as Transform;
         }
 
         private static void AssignPlayerRootTransform(PersistentPlayerRoot persistentRoot, Transform playerRootTransform)

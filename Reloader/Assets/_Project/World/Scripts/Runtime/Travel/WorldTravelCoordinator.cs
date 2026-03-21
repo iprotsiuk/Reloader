@@ -326,33 +326,12 @@ namespace Reloader.World.Travel
 
         private static void PreparePersistentPlayerRootForTravel()
         {
-            var persistentRoot = PersistentPlayerRoot.EnsureInstance();
-            if (persistentRoot == null)
-            {
-                return;
-            }
-
-            var activeScene = SceneManager.GetActiveScene();
-            if (!activeScene.IsValid() || !activeScene.isLoaded)
-            {
-                return;
-            }
-
-            persistentRoot.CaptureOrAdoptPlayerRootForScene(activeScene, preferSceneRoot: true);
+            BootstrapWorldRoot.Initialize();
         }
 
         private static Transform ResolveTravelPlayerRoot(Scene destinationScene)
         {
-            if (destinationScene.IsValid() && destinationScene.isLoaded && PersistentPlayerRoot.Instance != null)
-            {
-                var adopted = PersistentPlayerRoot.Instance.CaptureOrAdoptPlayerRootForScene(destinationScene, preferSceneRoot: false);
-                if (adopted != null)
-                {
-                    return adopted;
-                }
-            }
-
-            return FindPlayerRootInScene(destinationScene);
+            return PersistentPlayerRoot.Instance?.MoveRuntimePlayerRootToScene(destinationScene);
         }
 
         private static void CaptureInventorySnapshotForTravel()
@@ -360,8 +339,7 @@ namespace Reloader.World.Travel
             _pendingInventoryQuantities.Clear();
             _pendingSelectedBeltIndex = -1;
 
-            var activeScene = SceneManager.GetActiveScene();
-            var playerRoot = FindPlayerRootInScene(activeScene);
+            var playerRoot = PersistentPlayerRoot.Instance?.PlayerRootTransform;
             if (playerRoot == null)
             {
                 return;
@@ -500,8 +478,7 @@ namespace Reloader.World.Travel
         {
             _pendingWeaponSnapshots.Clear();
 
-            var activeScene = SceneManager.GetActiveScene();
-            var playerRoot = FindPlayerRootInScene(activeScene);
+            var playerRoot = PersistentPlayerRoot.Instance?.PlayerRootTransform;
             if (playerRoot == null)
             {
                 return;
@@ -712,26 +689,6 @@ namespace Reloader.World.Travel
                     sink.Add(itemId);
                 }
             }
-        }
-
-        private static Transform FindPlayerRootInScene(Scene scene)
-        {
-            if (!scene.IsValid() || !scene.isLoaded)
-            {
-                return null;
-            }
-
-            var rootObjects = scene.GetRootGameObjects();
-            for (var i = 0; i < rootObjects.Length; i++)
-            {
-                var root = rootObjects[i];
-                if (root != null && root.name == "PlayerRoot")
-                {
-                    return root.transform;
-                }
-            }
-
-            return null;
         }
 
         private static void EnsureViewmodelRigAfterTravel(Transform playerRootTransform)
