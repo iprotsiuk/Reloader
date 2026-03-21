@@ -4,7 +4,7 @@
 
 - Plan: `docs/plans/2026-03-20-persistent-player-reset-implementation-plan.md`
 - Current slice: Task 1
-- Status: Verification complete, commit pending
+- Status: Verification complete, committed, and pushed
 
 ## Task Checklist
 
@@ -12,7 +12,7 @@
 - [x] Record the pre-edit verification baseline
 - [x] Update the scoped EditMode tests to assert the approved contract
 - [x] Re-run the focused suite and confirm failures point at runtime cutover gaps
-- [ ] Commit and push the scoped Task 1 changes
+- [x] Commit and push the scoped Task 1 changes
 
 ## Changed Files
 
@@ -59,8 +59,8 @@
 
 ## Commit / Push
 
-- Commit SHA: pending
-- Push status: pending
+- Commit SHA: `ff2c04f9` (`docs(world): update persistent player reset follow-up`)
+- Push status: pushed to `origin/codex/weapon-pose-framework`
 
 ## Open Risks / Blockers
 
