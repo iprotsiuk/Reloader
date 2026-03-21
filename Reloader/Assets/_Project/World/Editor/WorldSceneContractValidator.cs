@@ -1,9 +1,11 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using Reloader.World.Contracts;
+using Reloader.World.Runtime;
 using Reloader.World.Travel;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -16,20 +18,6 @@ namespace Reloader.World.Editor
     public static class WorldSceneContractValidator
     {
         public const string DefaultContractFolderPath = "Assets/_Project/World/Data/SceneContracts";
-        private static readonly string[] ForbiddenSceneOwnedPlayerImplementationTypeNames =
-        {
-            "Reloader.Player.PlayerCameraDefaults, Reloader.Player",
-            "Reloader.Player.PlayerCursorLockController, Reloader.Player",
-            "Reloader.Player.PlayerInputReader, Reloader.Player",
-            "Reloader.Player.PlayerLookController, Reloader.Player",
-            "Reloader.Player.PlayerMover, Reloader.Player",
-            "Reloader.Inventory.PlayerInventoryController, Reloader.Inventory",
-            "Reloader.Weapons.Controllers.PlayerWeaponController, Reloader.Weapons",
-            "Reloader.Weapons.Animations.PlayerWeaponAnimationBinder, Reloader.Weapons",
-            "Reloader.Player.FpsViewmodelAnimatorDriver, Reloader.Player",
-            "Reloader.Player.Viewmodel.ViewmodelAnimationAdapter, Reloader.Player",
-            "Reloader.Player.Viewmodel.WeaponHandRigController, Reloader.Weapons"
-        };
 
         [MenuItem("Reloader/World/Validate All Scene Contracts")]
         public static void ValidateAllSceneContractsMenu()
@@ -865,13 +853,9 @@ namespace Reloader.World.Editor
                 return false;
             }
 
-            for (var i = 0; i < ForbiddenSceneOwnedPlayerImplementationTypeNames.Length; i++)
+            var forbiddenTypes = GetCanonicalRuntimePlayerImplementationTypes();
+            foreach (var forbiddenType in forbiddenTypes)
             {
-                if (!TryResolveTypeName(ForbiddenSceneOwnedPlayerImplementationTypeNames[i], out var forbiddenType))
-                {
-                    continue;
-                }
-
                 if (forbiddenType == componentType)
                 {
                     return true;
@@ -879,6 +863,49 @@ namespace Reloader.World.Editor
             }
 
             return false;
+        }
+
+        private static HashSet<Type> GetCanonicalRuntimePlayerImplementationTypes()
+        {
+            var forbiddenTypes = new HashSet<Type>();
+            var absolutePrefabPath = Path.GetFullPath(BootstrapWorldRoot.PlayerRootPrefabAssetPath);
+            if (!File.Exists(absolutePrefabPath))
+            {
+                return forbiddenTypes;
+            }
+
+            foreach (var line in File.ReadLines(absolutePrefabPath))
+            {
+                const string prefix = "  m_EditorClassIdentifier: ";
+                if (!line.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var serializedTypeName = line.Substring(prefix.Length).Trim();
+                if (string.IsNullOrWhiteSpace(serializedTypeName))
+                {
+                    continue;
+                }
+
+                var separatorIndex = serializedTypeName.IndexOf("::", StringComparison.Ordinal);
+                if (separatorIndex >= 0)
+                {
+                    serializedTypeName = serializedTypeName.Substring(separatorIndex + 2).Trim();
+                }
+
+                if (!serializedTypeName.Contains("Reloader.", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (TryResolveTypeName(serializedTypeName, out var resolvedType) && typeof(MonoBehaviour).IsAssignableFrom(resolvedType))
+                {
+                    forbiddenTypes.Add(resolvedType);
+                }
+            }
+
+            return forbiddenTypes;
         }
     }
 

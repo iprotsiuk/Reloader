@@ -55,12 +55,25 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(indoorRangeContract, Is.Not.Null);
 
             AssertContractUsesAnchorOnlyPlayerContract(mainTownContract!,
+                new[]
+                {
+                    "MainTownEntry_Spawn",
+                    "MainTownEntry_Return"
+                },
                 "MainTownEntry_Spawn",
                 "MainTownEntry_Return",
                 "MainTownRespawn_Hospital",
                 "MainTownRespawn_Police");
+            Assert.That(mainTownContract.RequiredComponentContracts, Has.Some.Matches<WorldRequiredComponentContract>(component =>
+                component.ObjectPath == "MainTownEntry_Return" &&
+                component.ComponentTypeName.Contains(typeof(SceneEntryPoint).FullName) &&
+                component.RequiredNonNullObjectReferenceFields.Contains("_playerSpawnAnchor")));
 
             AssertContractUsesAnchorOnlyPlayerContract(indoorRangeContract!,
+                new[]
+                {
+                    "IndoorRangeEntry_Arrival"
+                },
                 "IndoorRangeEntry_Arrival");
         }
 
@@ -228,6 +241,48 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
+        [Test]
+        public void Validator_RejectsCanonicalPlayerImplementationComponent_OmittedFromLegacySubset()
+        {
+            const string tempScenePath = "Assets/_Project/World/Scenes/__PlayerAnchorCanonicalImplementationValidatorScene.unity";
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var contract = ScriptableObject.CreateInstance<WorldSceneContract>();
+
+            try
+            {
+                EditorSceneManager.SaveScene(scene, tempScenePath);
+
+                var scenePlayerRig = new GameObject("ScenePlayerRig");
+                SceneManager.MoveGameObjectToScene(scenePlayerRig, scene);
+
+                var omittedCanonicalComponentType = System.Type.GetType("Reloader.NPCs.World.PlayerShopVendorController, Reloader.NPCs");
+                Assert.That(omittedCanonicalComponentType, Is.Not.Null, "Expected PlayerShopVendorController type to exist.");
+                scenePlayerRig.AddComponent(omittedCanonicalComponentType!);
+
+                contract.ScenePath = tempScenePath;
+                contract.SceneRole = WorldSceneRole.TownHub;
+                contract.ValidateRequiredSceneEntryPointIds = false;
+
+                var report = WorldSceneContractValidator.ValidateContracts(new[] { contract });
+
+                Assert.That(report.IsSuccess, Is.False);
+                Assert.That(report.Issues, Has.Some.Matches<WorldSceneContractValidationIssue>(issue =>
+                    issue.ComponentType == omittedCanonicalComponentType!.FullName &&
+                    issue.Message.Contains("runtime player prefab")));
+            }
+            finally
+            {
+                Object.DestroyImmediate(contract);
+                if (scene.IsValid())
+                {
+                    EditorSceneManager.CloseScene(scene, true);
+                }
+
+                AssetDatabase.DeleteAsset(tempScenePath);
+                AssetDatabase.Refresh();
+            }
+        }
+
         private static void AssertSceneUsesAnchorOnlyPlayerContract(
             string scenePath,
             (string objectName, string anchorId, PlayerSpawnAnchorKind kind)[] expectedEntryPoints,
@@ -286,7 +341,10 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
-        private static void AssertContractUsesAnchorOnlyPlayerContract(WorldSceneContract contract, params string[] expectedAnchorObjectPaths)
+        private static void AssertContractUsesAnchorOnlyPlayerContract(
+            WorldSceneContract contract,
+            string[] expectedSceneEntryPointObjectPaths,
+            params string[] expectedAnchorObjectPaths)
         {
             Assert.That(contract.RequiredObjectPaths, Has.None.EqualTo("PlayerRoot"));
             Assert.That(contract.RequiredObjectPaths, Has.None.EqualTo("PlayerRoot/CameraPivot"));
@@ -300,6 +358,14 @@ namespace Reloader.World.Tests.EditMode
 
             Assert.That(contract.RequiredComponentContracts, Has.None.Matches<WorldRequiredComponentContract>(component =>
                 component.ObjectPath == "PlayerRoot"));
+            for (var i = 0; i < expectedSceneEntryPointObjectPaths.Length; i++)
+            {
+                var expectedObjectPath = expectedSceneEntryPointObjectPaths[i];
+                Assert.That(contract.RequiredComponentContracts, Has.Some.Matches<WorldRequiredComponentContract>(component =>
+                    component.ObjectPath == expectedObjectPath &&
+                    component.ComponentTypeName.Contains(typeof(SceneEntryPoint).FullName)));
+            }
+
             Assert.That(contract.RequiredComponentContracts, Has.Some.Matches<WorldRequiredComponentContract>(component =>
                 component.ComponentTypeName.Contains(typeof(PlayerSpawnAnchor).FullName)));
         }
