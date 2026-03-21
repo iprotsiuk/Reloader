@@ -1,11 +1,16 @@
 using NUnit.Framework;
 using Reloader.World.Runtime;
+using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Reloader.World.Tests.EditMode
 {
     public class PersistentPlayerRootEditModeTests
     {
+        private const string BootstrapScenePath = "Assets/Scenes/Bootstrap.unity";
+
         [TearDown]
         public void TearDown()
         {
@@ -73,6 +78,73 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
+        [Test]
+        public void CaptureOrAdoptPlayerRootForScene_WithCanonicalRuntimePlayerRoot_DoesNotSwapToSceneAuthoredPlayerRoot()
+        {
+            var persistentRoot = BootstrapWorldRoot.Initialize();
+            var runtimeOwnedPlayerRoot = new GameObject("RuntimeOwnedPlayerRoot");
+            AssignPlayerRootTransform(persistentRoot, runtimeOwnedPlayerRoot.transform);
+
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var scenePlayerRoot = new GameObject("PlayerRoot");
+                SceneManager.MoveGameObjectToScene(scenePlayerRoot, scene);
+
+                var captured = persistentRoot.CaptureOrAdoptPlayerRootForScene(scene, preferSceneRoot: true);
+
+                Assert.That(captured, Is.Not.Null);
+                Assert.That(captured.name, Is.EqualTo("RuntimeOwnedPlayerRoot"),
+                    "PersistentPlayerRoot should preserve the canonical runtime-owned player root instead of swapping to scene content.");
+                Assert.That(persistentRoot.PlayerRootTransform, Is.SameAs(captured));
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+
+                if (runtimeOwnedPlayerRoot != null)
+                {
+                    Object.DestroyImmediate(runtimeOwnedPlayerRoot);
+                }
+            }
+        }
+
+        [Test]
+        public void CaptureOrAdoptPlayerRootForScene_WithoutCanonicalRuntimePlayerRoot_FailsClosedInsteadOfAdoptingScenePlayerRoot()
+        {
+            var persistentRoot = BootstrapWorldRoot.Initialize();
+            AssignPlayerRootTransform(persistentRoot, null);
+
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var scenePlayerRoot = new GameObject("PlayerRoot");
+                SceneManager.MoveGameObjectToScene(scenePlayerRoot, scene);
+
+                var captured = persistentRoot.CaptureOrAdoptPlayerRootForScene(scene, preferSceneRoot: false);
+
+                Assert.That(captured, Is.Null,
+                    "Bootstrap must create the canonical runtime player root. PersistentPlayerRoot should not adopt scene-authored PlayerRoot content.");
+                Assert.That(persistentRoot.PlayerRootTransform, Is.Null);
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
         private static PersistentPlayerRoot[] FindPersistentRoots()
         {
             return Object.FindObjectsByType<PersistentPlayerRoot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
@@ -89,6 +161,13 @@ namespace Reloader.World.Tests.EditMode
             }
 
             return false;
+        }
+
+        private static void AssignPlayerRootTransform(PersistentPlayerRoot persistentRoot, Transform playerRootTransform)
+        {
+            var serialized = new SerializedObject(persistentRoot);
+            serialized.FindProperty("_playerRootTransform").objectReferenceValue = playerRootTransform;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
         }
     }
 }
