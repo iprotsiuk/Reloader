@@ -2273,6 +2273,47 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void EnsureRenderTextureScopeRuntimeBridge_PreservesAuthoredScopeCamera_WhenResolvedScopedCameraIsNull()
+        {
+            var root = new GameObject("ScopedBridgeRoot");
+            var worldCameraGo = new GameObject("WorldCamera");
+            var authoredScopeCameraGo = new GameObject("AuthoredScopeCamera");
+            var detachedScopeCameraGo = new GameObject("DetachedScopeCamera");
+
+            try
+            {
+                var controller = root.AddComponent<PlayerWeaponController>();
+                var worldCamera = worldCameraGo.AddComponent<Camera>();
+                var authoredScopeCamera = authoredScopeCameraGo.AddComponent<Camera>();
+                var detachedScopeCamera = detachedScopeCameraGo.AddComponent<Camera>();
+                var scopeController = root.AddComponent<GameRenderTextureScopeController>();
+                var adsStateController = root.AddComponent<GameAdsStateController>();
+
+                SetControllerField(controller, "_adsStateRuntimeBridge", adsStateController);
+                SetControllerField(controller, "_scopeCamera", detachedScopeCamera);
+                SetField(typeof(GameRenderTextureScopeController), scopeController, "_scopeCamera", authoredScopeCamera);
+
+                var ensureMethod = typeof(PlayerWeaponController).GetMethod(
+                    "EnsureRenderTextureScopeRuntimeBridge",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(ensureMethod, Is.Not.Null);
+
+                ensureMethod!.Invoke(controller, new object[] { worldCamera });
+
+                var preservedScopeCamera = GetPrivateField<Camera>(scopeController, "_scopeCamera");
+                Assert.That(preservedScopeCamera, Is.SameAs(authoredScopeCamera),
+                    "PlayerWeaponController should not clear a valid authored RenderTextureScopeController scope camera when its own scoped-camera lookup resolves null.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(worldCameraGo);
+                Object.DestroyImmediate(authoredScopeCameraGo);
+                Object.DestroyImmediate(detachedScopeCameraGo);
+            }
+        }
+
         [UnityTest]
         public IEnumerator EquipScopedWeapon_RuntimeBridge_DoesNotAutoAddScopedBridgeComponents_WhenMissing()
         {
@@ -3997,6 +4038,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             var field = type.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
             return field.GetValue(instance);
+        }
+
+        private static T GetPrivateField<T>(object instance, string fieldName)
+        {
+            var field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found on {instance.GetType().Name}.");
+            return (T)field!.GetValue(instance);
         }
 
         private static void SetField(Type type, object instance, string fieldName, object value)

@@ -187,6 +187,7 @@ namespace Reloader.Weapons.Runtime
             var eyeReliefBackOffset = _attachmentManager.ActiveOpticDefinition != null
                 ? _attachmentManager.ActiveOpticDefinition.EyeReliefBackOffset
                 : 0f;
+            eyeReliefBackOffset += _viewMounts != null ? _viewMounts.ScopedAdsEyeReliefBackOffset : 0f;
 
             var cameraTransform = _worldCamera.transform;
             var targetRotation = cameraTransform.rotation;

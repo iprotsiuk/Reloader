@@ -33,6 +33,7 @@ namespace Reloader.Game.Weapons
         private ScopeLensDisplay _lastLensDisplay;
         private ScopeReticleController _lastReticleController;
         private GameObject _lastMissingLensDisplayOpticInstance;
+        private GameObject _lastMissingScopeCameraOpticInstance;
         private int _lastResolution = -1;
         private float _lastMagnification = -1f;
         private int _lastWindageClicks;
@@ -97,6 +98,21 @@ namespace Reloader.Game.Weapons
 
         public void SetScopeCamera(Camera scopeCamera)
         {
+            if (ReferenceEquals(_scopeCamera, scopeCamera))
+            {
+                if (_scopeCamera != null)
+                {
+                    _defaultScopeCameraFov = _scopeCamera.fieldOfView;
+                }
+
+                return;
+            }
+
+            if (_scopeCamera != null)
+            {
+                FailClosedScopePresentation();
+            }
+
             _scopeCamera = scopeCamera;
             if (_scopeCamera != null)
             {
@@ -127,15 +143,16 @@ namespace Reloader.Game.Weapons
             var requestedResolution = ResolveRequestedResolution(optic, requestedFov);
             var lensDisplay = ResolveLensDisplay(activeOpticInstance);
             var reticleController = ResolveReticleController(activeOpticInstance);
-            var requiresLensDisplay = isActive && optic != null && optic.VisualModePolicy == AdsVisualMode.RenderTexturePiP;
-            var missingLensDisplay = requiresLensDisplay && lensDisplay == null;
-            var effectiveIsActive = isActive && !missingLensDisplay;
+            var requiresPipPresentation = isActive && optic != null && optic.VisualModePolicy == AdsVisualMode.RenderTexturePiP;
+            var missingScopeCamera = requiresPipPresentation && _scopeCamera == null;
+            var missingLensDisplay = requiresPipPresentation && lensDisplay == null;
             var mradPerClick = ResolveMradPerClick(optic);
             var mechanicalZeroOffsetMrad = ResolveMechanicalZeroOffsetMrad(optic);
             var effectiveAdjustmentMrad = ResolveEffectiveAdjustmentMrad(mechanicalZeroOffsetMrad, mradPerClick, windageClicks, elevationClicks);
             var projectionCalibrationMultiplier = ResolveProjectionCalibrationMultiplier(optic);
             var compositeReticleScale = ResolveCompositeReticleScale(optic);
             var compositeReticleOffset = ResolveCompositeReticleOffset(optic);
+            var effectiveIsActive = isActive && !missingScopeCamera && !missingLensDisplay;
             var renderTextureStateMatches = !effectiveIsActive || ScopeRenderTextureMatches(requestedResolution);
             var scopeCameraStateMatches = ScopeCameraStateMatches(effectiveIsActive, requestedFov);
             var lensDisplayStateMatches = !effectiveIsActive || (lensDisplay != null && ReferenceEquals(lensDisplay.CurrentTexture, _scopeRenderTexture));
@@ -155,6 +172,7 @@ namespace Reloader.Game.Weapons
                 && Approximately(_lastMechanicalZeroOffsetMrad, mechanicalZeroOffsetMrad)
                 && Mathf.Approximately(_lastCompositeReticleScale, compositeReticleScale)
                 && Approximately(_lastCompositeReticleOffset, compositeReticleOffset)
+                && ReferenceEquals(_lastMissingScopeCameraOpticInstance, missingScopeCamera ? activeOpticInstance : null)
                 && ReferenceEquals(_lastLensDisplay, lensDisplay)
                 && ReferenceEquals(_lastReticleController, reticleController)
                 && ReferenceEquals(_lastMissingLensDisplayOpticInstance, missingLensDisplay ? activeOpticInstance : null)
@@ -165,6 +183,11 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
+            if (missingScopeCamera && !ReferenceEquals(_lastMissingScopeCameraOpticInstance, activeOpticInstance))
+            {
+                Debug.LogWarning("RenderTextureScopeController: Active scoped optic is missing a scope camera binding.", this);
+            }
+
             if (missingLensDisplay && !ReferenceEquals(_lastMissingLensDisplayOpticInstance, activeOpticInstance))
             {
                 Debug.LogWarning("RenderTextureScopeController: Active scoped optic is missing an authored optic-root ScopeLensDisplay binding.", this);
@@ -173,8 +196,10 @@ namespace Reloader.Game.Weapons
             if (effectiveIsActive)
             {
                 EnsureRenderTexture(requestedResolution);
+                effectiveIsActive = _scopeRenderTexture != null && _scopeRenderTexture.IsCreated();
             }
-            else
+
+            if (!effectiveIsActive)
             {
                 ReleaseRenderTexture();
             }
@@ -202,6 +227,7 @@ namespace Reloader.Game.Weapons
             _lastCompositeReticleOffset = compositeReticleOffset;
             _lastLensDisplay = lensDisplay;
             _lastReticleController = reticleController;
+            _lastMissingScopeCameraOpticInstance = missingScopeCamera ? activeOpticInstance : null;
             _lastMissingLensDisplayOpticInstance = missingLensDisplay ? activeOpticInstance : null;
             _initialized = true;
         }
@@ -494,6 +520,12 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
+            if (_scopeRenderTexture == null)
+            {
+                lensDisplay.TrySetTexture(null);
+                return;
+            }
+
             lensDisplay.TrySetTexture(_scopeRenderTexture);
         }
 
@@ -560,6 +592,18 @@ namespace Reloader.Game.Weapons
 
             DestroyRuntimeObject(_scopeRenderTexture);
             _scopeRenderTexture = null;
+        }
+
+        private void FailClosedScopePresentation()
+        {
+            UpdatePeripheralBlurAperture(false, null);
+            BindLensDisplay(false, null);
+            BindReticle(false, null, null, 1f, 1f, Vector2.zero);
+            ReleaseRenderTexture();
+            ApplyState(false, _defaultScopeCameraFov, Vector2.zero, 1f, 0.1f, Vector2.zero);
+            _lastIsActive = false;
+            _lastMissingScopeCameraOpticInstance = null;
+            _lastMissingLensDisplayOpticInstance = null;
         }
 
         private void ApplyProjectionOffset(bool isActive, Vector2 effectiveAdjustmentMrad, float projectionCalibrationMultiplier)

@@ -1854,6 +1854,110 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ScopedPipOptic_MissingScopeCamera_FailsClosedWithoutLensFeedOrCompositeReticle()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            var scopeLensDisplayType = ResolveType("Reloader.Game.Weapons.ScopeLensDisplay");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+            Assert.That(scopeLensDisplayType, Is.Not.Null);
+
+            var root = new GameObject("ScopedAdsRoot");
+            ScriptableObject scopedOptic = null;
+            ScriptableObject reticleDefinition = null;
+            Texture2D reticleTexture = null;
+            Sprite reticleSprite = null;
+            GameObject opticPrefab = null;
+            GameObject worldCamGo = null;
+            GameObject viewmodelCamGo = null;
+
+            var warnings = new List<string>();
+            void CaptureLog(string condition, string stackTrace, LogType type)
+            {
+                if (type == LogType.Warning)
+                {
+                    warnings.Add(condition ?? string.Empty);
+                }
+            }
+
+            Application.logMessageReceived += CaptureLog;
+            try
+            {
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                worldCamGo = new GameObject("WorldCam");
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+                worldCamera.fieldOfView = 72f;
+
+                viewmodelCamGo = new GameObject("ViewmodelCam");
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+                viewmodelCamera.fieldOfView = 55f;
+
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_worldCamera", worldCamera);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_renderTextureScopeController", scopeController);
+                SetField(ads, "_useLegacyInput", false);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-missing-camera", 4f, 12f, true, "RenderTexturePiP");
+                reticleDefinition = CreateReticleDefinition("Ffp", 4f);
+                reticleTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                reticleTexture.SetPixels(new[] { Color.white, Color.white, Color.white, Color.white });
+                reticleTexture.Apply();
+                reticleSprite = Sprite.Create(reticleTexture, new Rect(0f, 0f, 2f, 2f), new Vector2(0.5f, 0.5f));
+                SetField(reticleDefinition, "_reticleSprite", reticleSprite);
+                SetField(scopedOptic, "_scopeReticleDefinition", reticleDefinition);
+
+                opticPrefab = new GameObject("Optic_scope-pip-missing-camera");
+                new GameObject("SightAnchor").transform.SetParent(opticPrefab.transform, false);
+                var lensDisplayGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                lensDisplayGo.name = "LensDisplay";
+                lensDisplayGo.transform.SetParent(opticPrefab.transform, false);
+                var prefabLensDisplay = lensDisplayGo.AddComponent(scopeLensDisplayType);
+                SetField(prefabLensDisplay, "_targetRenderer", lensDisplayGo.GetComponent<Renderer>());
+                SetField(scopedOptic, "_opticPrefab", opticPrefab);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+                var activeOpticInstance = GetProperty(manager, "ActiveOpticInstance") as GameObject;
+                Assert.That(activeOpticInstance, Is.Not.Null);
+                var liveLensDisplay = GetComponentInChildren(activeOpticInstance, scopeLensDisplayType);
+                Assert.That(liveLensDisplay, Is.Not.Null);
+
+                Invoke(ads, "SetAdsHeld", true);
+                Invoke(ads, "SetMagnification", 8f);
+
+                yield return WaitUntil(
+                    () => warnings.Exists(message => message.Contains("scope camera", StringComparison.OrdinalIgnoreCase)),
+                    60,
+                    "Missing scope-camera authoring did not emit the expected fail-closed warning.");
+
+                Assert.That(GetProperty(liveLensDisplay, "CurrentTexture"), Is.Null,
+                    "PiP should not bind a lens texture when no live scope camera is available.");
+                Assert.That((bool)GetProperty(scopeController, "IsCompositeReticleActive"), Is.False,
+                    "PiP reticle compositing should fail closed when no live scope camera is available.");
+                Assert.That(GetProperty(scopeController, "CurrentCompositeReticleSprite"), Is.Null,
+                    "Composite reticle sprite should stay unbound when the PiP camera contract is incomplete.");
+            }
+            finally
+            {
+                Application.logMessageReceived -= CaptureLog;
+                Cleanup(root, scopedOptic, reticleDefinition, reticleSprite, reticleTexture, opticPrefab, worldCamGo, viewmodelCamGo);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ScopedPipOptic_NestedOnlyLensDisplay_FailsClosedWithoutRecursiveFallback()
         {
             var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");

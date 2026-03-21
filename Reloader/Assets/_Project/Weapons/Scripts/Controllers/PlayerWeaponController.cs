@@ -2414,7 +2414,10 @@ namespace Reloader.Weapons.Controllers
             }
 
             var scopeCamera = ResolveScopedAdsCamera(worldCamera);
-            _renderTextureScopeRuntimeBridge.SetScopeCamera(scopeCamera);
+            if (scopeCamera != null)
+            {
+                _renderTextureScopeRuntimeBridge.SetScopeCamera(scopeCamera);
+            }
         }
 
         private void EnsurePeripheralScopeEffectsRuntimeBridge()
