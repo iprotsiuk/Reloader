@@ -41,7 +41,7 @@ namespace Reloader.Core.Tests.EditMode
             var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
             var envelope = coordinator.CaptureEnvelope("0.7.0-dev");
 
-            Assert.That(envelope.SchemaVersion, Is.EqualTo(9));
+            Assert.That(envelope.SchemaVersion, Is.EqualTo(10));
             Assert.That(envelope.Modules.ContainsKey("CivilianPopulation"), Is.True);
             Assert.That(envelope.Modules["CivilianPopulation"].ModuleVersion, Is.EqualTo(2));
         }

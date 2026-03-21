@@ -86,6 +86,26 @@ namespace Reloader.Player.Tests.EditMode
             Object.DestroyImmediate(root);
         }
 
+        [Test]
+        public void CaptureToModule_WhenCurrentAndResolvedAnchorsAreEmpty_ThrowsInsteadOfPersistingInvalidAnchor()
+        {
+            var bridgeType = ResolveBridgeType();
+            var moduleType = ResolveModuleType();
+            var root = new GameObject("PlayerRoot");
+            var bridge = root.AddComponent(bridgeType);
+            var module = Activator.CreateInstance(moduleType);
+
+            Invoke(bridge, "SetPlayerStateModuleForRuntime", module);
+            Invoke(bridge, "SetCurrentAnchorState", string.Empty, string.Empty);
+
+            var ex = Assert.Throws<TargetInvocationException>(() => Invoke(bridge, "CaptureToModule"));
+            Assert.That(ex!.InnerException, Is.TypeOf<InvalidOperationException>());
+            Assert.That(ex.InnerException!.Message, Does.Contain("CurrentAnchorId"));
+            Assert.That(GetProperty<string>(module, "CurrentAnchorId"), Is.EqualTo(string.Empty));
+
+            Object.DestroyImmediate(root);
+        }
+
         private static Type ResolveBridgeType()
         {
             var type = Type.GetType("Reloader.Player.PlayerStateRuntimeBridge, Reloader.Player");

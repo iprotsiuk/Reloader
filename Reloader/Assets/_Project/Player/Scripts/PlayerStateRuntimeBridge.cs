@@ -125,6 +125,11 @@ namespace Reloader.Player
                 anchorId = ResolveLastResolvedEntryPointId();
             }
 
+            if (string.IsNullOrWhiteSpace(anchorId))
+            {
+                throw new InvalidOperationException("PlayerState CurrentAnchorId could not be resolved for save capture.");
+            }
+
             _playerStateModule.CurrentScenePath = scenePath;
             _playerStateModule.CurrentAnchorId = anchorId;
             _playerStateModule.PositionX = _playerRootTransform.position.x;
