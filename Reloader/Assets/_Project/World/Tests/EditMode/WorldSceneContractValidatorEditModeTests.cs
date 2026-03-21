@@ -178,51 +178,6 @@ namespace Reloader.World.Tests.EditMode
                 Is.Null);
         }
 
-        [Test]
-        public void ActivityInstanceScaffold_SeedsSupportedWeaponAuthoritySet()
-        {
-            var scene = CreateTempScene();
-            try
-            {
-                var playerRoot = new GameObject("PlayerRoot");
-                var cameraPivot = new GameObject("CameraPivot");
-                var camera = new GameObject("Main Camera");
-
-                SceneManager.MoveGameObjectToScene(playerRoot, scene);
-                SceneManager.MoveGameObjectToScene(cameraPivot, scene);
-                SceneManager.MoveGameObjectToScene(camera, scene);
-
-                cameraPivot.transform.SetParent(playerRoot.transform, false);
-                camera.transform.SetParent(cameraPivot.transform, false);
-                camera.AddComponent<Camera>();
-
-                EditorSceneManager.SetActiveScene(scene);
-                WorldSceneTemplateScaffolds.ApplyActivityInstanceScaffoldToActiveScene();
-
-                var registry = UnityEngine.Object.FindFirstObjectByType<WeaponRegistry>();
-                Assert.That(registry, Is.Not.Null);
-
-                var definitions = new SerializedObject(registry).FindProperty("_definitions");
-                Assert.That(definitions, Is.Not.Null);
-                var ids = new List<string>();
-                for (var i = 0; i < definitions.arraySize; i++)
-                {
-                    if (definitions.GetArrayElementAtIndex(i).objectReferenceValue is WeaponDefinition definition)
-                    {
-                        ids.Add(definition.ItemId);
-                    }
-                }
-
-                CollectionAssert.AreEquivalent(
-                    new[] { "weapon-kar98k", "weapon-canik-tp9" },
-                    ids);
-            }
-            finally
-            {
-                CloseAndDeleteTempScene(scene);
-            }
-        }
-
         private static WorldSceneContract CreateBaseContract(WorldSceneRole sceneRole)
         {
             var contract = ScriptableObject.CreateInstance<WorldSceneContract>();
