@@ -313,8 +313,14 @@ namespace Reloader.Player
                 return;
             }
 
-            aimHeld = aimPressed;
-            aimToggleQueued = aimPressedThisFrame;
+            if (!aimPressedThisFrame)
+            {
+                aimToggleQueued = false;
+                return;
+            }
+
+            aimHeld = !aimHeld;
+            aimToggleQueued = true;
         }
 
         public bool ConsumeJumpPressed()

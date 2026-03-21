@@ -979,7 +979,7 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
-        public void PlayerInputReader_ResolveAimState_TracksHeldReleaseWithoutLatching()
+        public void PlayerInputReader_ResolveAimState_TogglesHeldStateOnPress()
         {
             var resolveAimStateMethod = typeof(PlayerInputReader).GetMethod(
                 "ResolveAimState",
@@ -993,9 +993,15 @@ namespace Reloader.Player.Tests.PlayMode
 
             var releaseArgs = new object[] { false, false, false, false, true, null };
             resolveAimStateMethod.Invoke(null, releaseArgs);
-            Assert.That((bool)releaseArgs[4], Is.False,
-                "Expected releasing aim to clear the held ADS state instead of leaving it latched.");
+            Assert.That((bool)releaseArgs[4], Is.True,
+                "Expected releasing aim to keep ADS latched until the next toggle press.");
             Assert.That((bool)releaseArgs[5], Is.False);
+
+            var secondPressArgs = new object[] { false, false, true, true, true, null };
+            resolveAimStateMethod.Invoke(null, secondPressArgs);
+            Assert.That((bool)secondPressArgs[4], Is.False,
+                "Expected a second aim press to toggle ADS back off.");
+            Assert.That((bool)secondPressArgs[5], Is.True);
         }
 
         [Test]
