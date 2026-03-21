@@ -8,6 +8,7 @@ using Reloader.Core.Save.IO;
 using Reloader.Core.Save.Modules;
 using Reloader.Reloading.Runtime;
 using Reloader.Reloading.World;
+using Reloader.World.Runtime;
 using UnityEngine;
 
 namespace Reloader.Reloading.Tests.EditMode
@@ -305,6 +306,41 @@ namespace Reloader.Reloading.Tests.EditMode
             UnityEngine.Object.DestroyImmediate(pressItem);
             UnityEngine.Object.DestroyImmediate(benchDefinitionA);
             UnityEngine.Object.DestroyImmediate(benchDefinitionB);
+        }
+
+        [Test]
+        public void TemporaryReloadingSuppliesSpawner_ResolvesCanonicalPersistentPlayerRoot()
+        {
+            if (PersistentPlayerRoot.Instance != null)
+            {
+                UnityEngine.Object.DestroyImmediate(PersistentPlayerRoot.Instance.gameObject);
+            }
+
+            var persistentRootGo = new GameObject("PersistentPlayerRoot");
+            var persistentRoot = persistentRootGo.AddComponent<PersistentPlayerRoot>();
+            var runtimePlayerRootGo = new GameObject("RuntimePlayerRoot");
+            persistentRoot.RegisterRuntimePlayerRoot(runtimePlayerRootGo.transform);
+
+            try
+            {
+                var method = typeof(TemporaryReloadingSuppliesSpawner).GetMethod(
+                    "TryResolvePlayerRoot",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                Assert.That(method, Is.Not.Null, "Expected TemporaryReloadingSuppliesSpawner.TryResolvePlayerRoot helper.");
+
+                var args = new object[] { null };
+                var resolved = (bool)method.Invoke(null, args);
+                var resolvedRoot = args[0] as Transform;
+
+                Assert.That(resolved, Is.True);
+                Assert.That(resolvedRoot, Is.SameAs(runtimePlayerRootGo.transform));
+                Assert.That(GameObject.Find("PlayerRoot"), Is.Null);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(runtimePlayerRootGo);
+                UnityEngine.Object.DestroyImmediate(persistentRootGo);
+            }
         }
 
         private static WorkbenchDefinition CreateWorkbenchDefinition(string workbenchId, params MountSlotDefinition[] topSlots)

@@ -4,6 +4,7 @@ using Reloader.NPCs.Data;
 using Reloader.NPCs.Runtime.Dialogue;
 using Reloader.NPCs.World;
 using UnityEngine;
+using Reloader.World.Runtime;
 
 namespace Reloader.NPCs.Tests.EditMode
 {
@@ -201,6 +202,56 @@ namespace Reloader.NPCs.Tests.EditMode
                 Object.DestroyImmediate(playerSpeaker);
                 Object.DestroyImmediate(npcSpeaker);
                 Object.DestroyImmediate(playerRoot);
+            }
+        }
+
+        [Test]
+        public void TryStartConversation_WithoutRequester_UsesCanonicalPersistentPlayerRoot()
+        {
+            if (PersistentPlayerRoot.Instance != null)
+            {
+                Object.DestroyImmediate(PersistentPlayerRoot.Instance.gameObject);
+            }
+
+            var persistentRootGo = new GameObject("PersistentPlayerRoot");
+            var persistentRoot = persistentRootGo.AddComponent<PersistentPlayerRoot>();
+            var runtimePlayerRootGo = new GameObject("RuntimePlayerRoot");
+            persistentRoot.RegisterRuntimePlayerRoot(runtimePlayerRootGo.transform);
+            var speaker = new GameObject("speaker");
+            var definition = CreateDefinition(
+                "dialogue.persistent",
+                "entry",
+                new DialogueNodeDefinition(
+                    "entry",
+                    "Welcome.",
+                    new[]
+                    {
+                        new DialogueReplyDefinition("reply.ack", "Thanks.", string.Empty, string.Empty, string.Empty)
+                    }));
+
+            try
+            {
+                var request = new DialogueStartRequest(
+                    definition,
+                    speaker.transform,
+                    DialogueStartSourceKind.PlayerInteract);
+
+                var started = DialogueOrchestrator.TryStartConversation(null, request, out var result);
+
+                Assert.That(started, Is.True);
+                Assert.That(result.Success, Is.True);
+                Assert.That(result.RuntimeController, Is.SameAs(runtimePlayerRootGo.GetComponent<DialogueRuntimeController>()));
+                Assert.That(runtimePlayerRootGo.GetComponent<DialogueConversationModeController>(), Is.Not.Null);
+                Assert.That(runtimePlayerRootGo.GetComponent<DialogueOutcomeContractRuntimeBridge>(), Is.Not.Null);
+                Assert.That(Object.FindFirstObjectByType<DialogueRuntimeController>(FindObjectsInactive.Include), Is.SameAs(runtimePlayerRootGo.GetComponent<DialogueRuntimeController>()));
+                Assert.That(GameObject.Find("PlayerRoot"), Is.Null);
+            }
+            finally
+            {
+                Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(speaker);
+                Object.DestroyImmediate(runtimePlayerRootGo);
+                Object.DestroyImmediate(persistentRootGo);
             }
         }
 

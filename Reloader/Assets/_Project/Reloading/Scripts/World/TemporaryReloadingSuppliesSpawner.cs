@@ -1,4 +1,5 @@
 using System;
+using Reloader.World.Runtime;
 using UnityEngine;
 
 namespace Reloader.Reloading.World
@@ -74,11 +75,9 @@ namespace Reloader.Reloading.World
 
         private static bool TryResolvePlayerRoot(out Transform playerRoot)
         {
-            playerRoot = null;
-            var byName = GameObject.Find("PlayerRoot");
-            if (byName != null)
+            playerRoot = PersistentPlayerRoot.Instance?.PlayerRootTransform;
+            if (playerRoot != null)
             {
-                playerRoot = byName.transform;
                 return true;
             }
 

@@ -1,5 +1,6 @@
 using Reloader.NPCs.World;
 using Reloader.Player;
+using Reloader.World.Runtime;
 using UnityEngine;
 
 namespace Reloader.NPCs.Runtime.Dialogue
@@ -52,6 +53,12 @@ namespace Reloader.NPCs.Runtime.Dialogue
                 return fromRequester.gameObject;
             }
 
+            var persistentPlayerRoot = PersistentPlayerRoot.Instance?.PlayerRootTransform;
+            if (persistentPlayerRoot != null)
+            {
+                return persistentPlayerRoot.gameObject;
+            }
+
             var interactionController = Object.FindFirstObjectByType<PlayerNpcInteractionController>(FindObjectsInactive.Include);
             if (interactionController != null)
             {
@@ -76,8 +83,7 @@ namespace Reloader.NPCs.Runtime.Dialogue
                 return mover.gameObject;
             }
 
-            var playerRoot = GameObject.Find("PlayerRoot");
-            return playerRoot;
+            return null;
         }
 
         private static Transform FindPlayerHostInHierarchy(Transform current)
@@ -87,8 +93,7 @@ namespace Reloader.NPCs.Runtime.Dialogue
                 if (current.GetComponent<PlayerNpcInteractionController>() != null
                     || current.GetComponent<PlayerCursorLockController>() != null
                     || current.GetComponent<PlayerLookController>() != null
-                    || current.GetComponent<PlayerMover>() != null
-                    || string.Equals(current.name, "PlayerRoot", System.StringComparison.Ordinal))
+                    || current.GetComponent<PlayerMover>() != null)
                 {
                     return current;
                 }
