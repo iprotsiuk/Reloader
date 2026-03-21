@@ -57,6 +57,28 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [Test]
+        public void ShouldEnqueueForCamera_SkipsOverlayGameCameraWithoutTargetTexture()
+        {
+            var shouldEnqueueMethod = typeof(PeripheralScopeBlurRendererFeature).GetMethod(
+                "ShouldEnqueueForCamera",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(shouldEnqueueMethod, Is.Not.Null);
+
+            var cameraGo = new GameObject("OverlayCamera");
+            var camera = cameraGo.AddComponent<Camera>();
+
+            try
+            {
+                var result = shouldEnqueueMethod!.Invoke(null, new object[] { camera, CameraType.Game, false });
+                Assert.That(result, Is.EqualTo(false));
+            }
+            finally
+            {
+                Object.DestroyImmediate(cameraGo);
+            }
+        }
+
+        [Test]
         public void ResolveScopedWorldRenderScale_UsesFullResolutionWhenBlurIsZero()
         {
             var runtimeType = ResolveType("Reloader.Game.Weapons.Rendering.ScopedPeripheralWorldRenderScaleRuntime");

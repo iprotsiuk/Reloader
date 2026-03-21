@@ -37,7 +37,7 @@ namespace Reloader.Weapons.Tests.EditMode
                 Assert.That(runtimeMaterial, Is.Not.Null, "The authored PiP display surface should swap to a runtime display material when texture binding is active.");
                 Assert.That(runtimeMaterial!.name, Does.Contain("Runtime"), "The runtime PiP surface should be a distinct runtime material instance.");
                 Assert.That(runtimeMaterial.renderQueue, Is.EqualTo(authoredMaterial.renderQueue), "The runtime PiP surface should preserve the authored transparent render queue.");
-                Assert.That(runtimeMaterial.shader.name, Is.EqualTo(authoredMaterial.shader.name), "The runtime PiP surface should preserve the authored lens shader.");
+                Assert.That(runtimeMaterial.shader.name, Does.Contain("Unlit"), "The runtime PiP surface should use a guaranteed texture-capable unlit shader.");
             }
             finally
             {

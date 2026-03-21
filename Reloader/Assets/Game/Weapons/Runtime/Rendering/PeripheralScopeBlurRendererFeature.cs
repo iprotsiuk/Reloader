@@ -173,7 +173,7 @@ namespace Reloader.Game.Weapons.Rendering
                 return false;
             }
 
-            return camera.targetTexture == null;
+            return isBaseCamera && camera.targetTexture == null;
         }
     }
 }
