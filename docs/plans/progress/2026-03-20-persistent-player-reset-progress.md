@@ -65,6 +65,26 @@
   - Filter: `group_names=["Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests.*","Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.*"]`
   - Result: passed `8/8`
   - Interpretation: bootstrap now loads the canonical player from a serialized scene prefab reference, and travel refuses to start if the canonical runtime player is missing.
+- Missing-destination-entry red suite:
+  - Unity MCP `run_tests`
+  - Mode: `EditMode`
+  - Filter: `group_names=["Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.*"]`
+  - Result: failed `1/3`, passed `2/3`
+  - Failing test:
+    - `Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.OnSceneLoaded_WhenDestinationEntryPointIsMissing_FailsClosedWithoutLeavingHalfTravelState`
+  - Interpretation: the loaded destination scene stayed open and pending travel cleanup relied on a warn-and-clear path, which left a half-travel state after missing entry-point validation.
+- Missing-destination-entry green suite:
+  - Unity MCP `run_tests`
+  - Mode: `EditMode`
+  - Filter: `group_names=["Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.*"]`
+  - Result: passed `3/3`
+  - Interpretation: destination validation now happens before pre-travel side effects, and a missing entry point unloads the destination scene while keeping the origin scene and runtime player intact.
+- Final Task 2 suite:
+  - Unity MCP `run_tests`
+  - Mode: `EditMode`
+  - Filter: `group_names=["Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests.*","Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.*"]`
+  - Result: passed `9/9`
+  - Interpretation: the canonical bootstrap player path and all current Task 2 fail-closed travel cases are green together.
 
 ## Commit / Push
 
@@ -82,6 +102,7 @@
 - Fixed in follow-up: bootstrap now sources that prefab from serialized `Bootstrap.unity` data instead of editor-only asset loading.
 - Fixed in Task 2: `PersistentPlayerRoot` no longer adopts or swaps to scene-authored player roots.
 - Fixed in follow-up: travel now fails closed when the canonical runtime player is missing and does not recreate a fresh default player mid-session.
+- Fixed in follow-up: destination entry-point validation now fails closed after scene load without leaving the destination scene loaded or pending travel state behind.
 - Deferred to Task 3: scene assets still author legacy player roots and related controller wiring.
 
 ## Deletion Log

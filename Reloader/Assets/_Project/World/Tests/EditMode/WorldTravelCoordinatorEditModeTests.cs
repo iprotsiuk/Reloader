@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Collections.Generic;
 using NUnit.Framework;
 using Reloader.World.Runtime;
 using Reloader.World.Travel;
@@ -11,6 +12,8 @@ namespace Reloader.World.Tests.EditMode
     public sealed class WorldTravelCoordinatorEditModeTests
     {
         private const string BootstrapScenePath = "Assets/Scenes/Bootstrap.unity";
+        private const string MainTownSceneName = "MainTown";
+        private const string MainTownScenePath = "Assets/_Project/World/Scenes/MainTown.unity";
 
         [TearDown]
         public void TearDown()
@@ -26,6 +29,54 @@ namespace Reloader.World.Tests.EditMode
                 if (persistentRoots[i] != null)
                 {
                     Object.DestroyImmediate(persistentRoots[i].gameObject);
+                }
+            }
+        }
+
+        [Test]
+        public void OnSceneLoaded_WhenDestinationEntryPointIsMissing_FailsClosedWithoutLeavingHalfTravelState()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var bootstrapScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+            var destinationScene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SceneManager.SetActiveScene(bootstrapScene);
+
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                var runtimePlayerRoot = persistentRoot.PlayerRootTransform;
+                Assert.That(runtimePlayerRoot, Is.Not.Null, "Expected canonical runtime player before starting travel.");
+
+                runtimePlayerRoot.position = new Vector3(3f, 4f, 5f);
+                runtimePlayerRoot.rotation = Quaternion.Euler(0f, 35f, 0f);
+
+                SetPrivateStaticField("_pendingSceneName", MainTownSceneName);
+                SetPrivateStaticField("_pendingEntryPointId", "entry.missing");
+                InvokePrivateStatic("OnSceneLoaded", destinationScene, LoadSceneMode.Additive);
+
+                Assert.That(SceneManager.GetActiveScene(), Is.EqualTo(bootstrapScene),
+                    "Missing destination entry point should leave the origin scene active.");
+                Assert.That(destinationScene.isLoaded, Is.False,
+                    "Destination scene should be unloaded again when entry validation fails.");
+                Assert.That(persistentRoot.PlayerRootTransform, Is.SameAs(runtimePlayerRoot));
+                Assert.That(runtimePlayerRoot.gameObject.scene, Is.EqualTo(bootstrapScene),
+                    "Canonical runtime player should remain with the origin scene when travel fails closed.");
+                Assert.That(runtimePlayerRoot.position, Is.EqualTo(new Vector3(3f, 4f, 5f)));
+                Assert.That(WorldTravelCoordinator.LastResolvedEntryPointId, Is.Null);
+                Assert.That(GetPrivateStaticField<string>("_pendingSceneName"), Is.Null);
+                Assert.That(GetPrivateStaticField<string>("_pendingEntryPointId"), Is.Null);
+                Assert.That(GetPendingInventorySnapshotCount(), Is.EqualTo(0));
+                Assert.That(GetPendingWeaponSnapshotCount(), Is.EqualTo(0));
+                Assert.That(GetPrivateStaticField<object>("_pendingTravelPopulationModule"), Is.Null);
+            }
+            finally
+            {
+                CloseSceneIfLoaded(destinationScene);
+                EditorSceneManager.CloseScene(bootstrapScene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
                 }
             }
         }
@@ -116,6 +167,43 @@ namespace Reloader.World.Tests.EditMode
             var method = typeof(WorldTravelCoordinator).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Static);
             Assert.That(method, Is.Not.Null, $"Expected WorldTravelCoordinator.{methodName} to exist.");
             return (T)method.Invoke(null, parameters);
+        }
+
+        private static T GetPrivateStaticField<T>(string fieldName)
+        {
+            var field = typeof(WorldTravelCoordinator).GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.That(field, Is.Not.Null, $"Expected WorldTravelCoordinator.{fieldName} field to exist.");
+            return (T)field.GetValue(null);
+        }
+
+        private static void SetPrivateStaticField<T>(string fieldName, T value)
+        {
+            var field = typeof(WorldTravelCoordinator).GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.That(field, Is.Not.Null, $"Expected WorldTravelCoordinator.{fieldName} field to exist.");
+            field.SetValue(null, value);
+        }
+
+        private static int GetPendingInventorySnapshotCount()
+        {
+            var snapshots = GetPrivateStaticField<Dictionary<string, int>>("_pendingInventoryQuantities");
+            return snapshots.Count;
+        }
+
+        private static int GetPendingWeaponSnapshotCount()
+        {
+            var field = typeof(WorldTravelCoordinator).GetField("_pendingWeaponSnapshots", BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.That(field, Is.Not.Null);
+            var value = field.GetValue(null) as System.Collections.ICollection;
+            Assert.That(value, Is.Not.Null);
+            return value.Count;
+        }
+
+        private static void CloseSceneIfLoaded(Scene scene)
+        {
+            if (scene.IsValid() && scene.isLoaded)
+            {
+                EditorSceneManager.CloseScene(scene, true);
+            }
         }
     }
 }
