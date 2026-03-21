@@ -53,8 +53,13 @@ namespace Reloader.World.Tests.EditMode
 
             Assert.That(mainTownContract, Is.Not.Null);
             Assert.That(indoorRangeContract, Is.Not.Null);
+            if (mainTownContract == null || indoorRangeContract == null)
+            {
+                Assert.Fail("Expected default world scene contracts to exist.");
+                return;
+            }
 
-            AssertContractUsesAnchorOnlyPlayerContract(mainTownContract!,
+            AssertContractUsesAnchorOnlyPlayerContract(mainTownContract,
                 new[]
                 {
                     "MainTownEntry_Spawn",
@@ -69,7 +74,7 @@ namespace Reloader.World.Tests.EditMode
                 component.ComponentTypeName.Contains(typeof(SceneEntryPoint).FullName) &&
                 component.RequiredNonNullObjectReferenceFields.Contains("_playerSpawnAnchor")));
 
-            AssertContractUsesAnchorOnlyPlayerContract(indoorRangeContract!,
+            AssertContractUsesAnchorOnlyPlayerContract(indoorRangeContract,
                 new[]
                 {
                     "IndoorRangeEntry_Arrival"
@@ -95,7 +100,7 @@ namespace Reloader.World.Tests.EditMode
                 contract.SceneRole = WorldSceneRole.TownHub;
                 contract.ValidateRequiredSceneEntryPointIds = false;
 
-                var report = WorldSceneContractValidator.ValidateContracts(new[] { contract });
+                var report = WorldSceneContractValidator.ValidateContracts(new WorldSceneContract[] { contract });
 
                 Assert.That(report.IsSuccess, Is.False);
                 Assert.That(report.Issues, Has.Some.Matches<WorldSceneContractValidationIssue>(issue =>
@@ -136,7 +141,7 @@ namespace Reloader.World.Tests.EditMode
                 contract.SceneRole = WorldSceneRole.TownHub;
                 contract.ValidateRequiredSceneEntryPointIds = false;
 
-                var report = WorldSceneContractValidator.ValidateContracts(new[] { contract });
+                var report = WorldSceneContractValidator.ValidateContracts(new WorldSceneContract[] { contract });
 
                 Assert.That(report.IsSuccess, Is.False);
                 Assert.That(report.Issues, Has.Some.Matches<WorldSceneContractValidationIssue>(issue =>
@@ -179,7 +184,7 @@ namespace Reloader.World.Tests.EditMode
                 contract.SceneRole = WorldSceneRole.TownHub;
                 contract.ValidateRequiredSceneEntryPointIds = false;
 
-                var report = WorldSceneContractValidator.ValidateContracts(new[] { contract });
+                var report = WorldSceneContractValidator.ValidateContracts(new WorldSceneContract[] { contract });
 
                 Assert.That(report.IsSuccess, Is.False);
                 Assert.That(report.Issues, Has.Some.Matches<WorldSceneContractValidationIssue>(issue =>
@@ -215,17 +220,23 @@ namespace Reloader.World.Tests.EditMode
 
                 var playerCameraDefaultsType = System.Type.GetType("Reloader.Player.PlayerCameraDefaults, Reloader.Player");
                 Assert.That(playerCameraDefaultsType, Is.Not.Null, "Expected PlayerCameraDefaults type to exist.");
-                playerRig.AddComponent(playerCameraDefaultsType!);
+                if (playerCameraDefaultsType == null)
+                {
+                    Assert.Fail("Expected PlayerCameraDefaults type to exist.");
+                    return;
+                }
+
+                playerRig.AddComponent(playerCameraDefaultsType);
 
                 contract.ScenePath = tempScenePath;
                 contract.SceneRole = WorldSceneRole.TownHub;
                 contract.ValidateRequiredSceneEntryPointIds = false;
 
-                var report = WorldSceneContractValidator.ValidateContracts(new[] { contract });
+                var report = WorldSceneContractValidator.ValidateContracts(new WorldSceneContract[] { contract });
 
                 Assert.That(report.IsSuccess, Is.False);
                 Assert.That(report.Issues, Has.Some.Matches<WorldSceneContractValidationIssue>(issue =>
-                    issue.ComponentType == playerCameraDefaultsType!.FullName &&
+                    issue.ComponentType == playerCameraDefaultsType.FullName &&
                     issue.Message.Contains("runtime player prefab")));
             }
             finally
@@ -257,17 +268,23 @@ namespace Reloader.World.Tests.EditMode
 
                 var omittedCanonicalComponentType = System.Type.GetType("Reloader.NPCs.World.PlayerShopVendorController, Reloader.NPCs");
                 Assert.That(omittedCanonicalComponentType, Is.Not.Null, "Expected PlayerShopVendorController type to exist.");
-                scenePlayerRig.AddComponent(omittedCanonicalComponentType!);
+                if (omittedCanonicalComponentType == null)
+                {
+                    Assert.Fail("Expected PlayerShopVendorController type to exist.");
+                    return;
+                }
+
+                scenePlayerRig.AddComponent(omittedCanonicalComponentType);
 
                 contract.ScenePath = tempScenePath;
                 contract.SceneRole = WorldSceneRole.TownHub;
                 contract.ValidateRequiredSceneEntryPointIds = false;
 
-                var report = WorldSceneContractValidator.ValidateContracts(new[] { contract });
+                var report = WorldSceneContractValidator.ValidateContracts(new WorldSceneContract[] { contract });
 
                 Assert.That(report.IsSuccess, Is.False);
                 Assert.That(report.Issues, Has.Some.Matches<WorldSceneContractValidationIssue>(issue =>
-                    issue.ComponentType == omittedCanonicalComponentType!.FullName &&
+                    issue.ComponentType == omittedCanonicalComponentType.FullName &&
                     issue.Message.Contains("runtime player prefab")));
             }
             finally

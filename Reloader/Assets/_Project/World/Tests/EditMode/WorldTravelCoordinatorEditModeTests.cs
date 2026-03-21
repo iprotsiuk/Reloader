@@ -89,15 +89,20 @@ namespace Reloader.World.Tests.EditMode
 
             try
             {
+                SceneManager.SetActiveScene(scene);
+
                 var persistentRoot = BootstrapWorldRoot.Initialize();
                 var runtimePlayerRoot = persistentRoot.PlayerRootTransform;
                 Assert.That(runtimePlayerRoot, Is.Not.Null, "Expected bootstrap to create the runtime-owned player root before travel.");
 
                 var scenePlayerRoot = new GameObject("PlayerRoot");
+                SceneManager.MoveGameObjectToScene(scenePlayerRoot, scene);
 
-                InvokePrivateStatic("PreparePersistentPlayerRootForTravel");
+                var prepared = InvokePrivateStatic<bool>("PreparePersistentPlayerRootForTravel");
 
+                Assert.That(prepared, Is.True, "Travel preparation should move the canonical runtime player into the active origin scene.");
                 Assert.That(persistentRoot.PlayerRootTransform, Is.SameAs(runtimePlayerRoot));
+                Assert.That(runtimePlayerRoot.gameObject.scene, Is.EqualTo(scene));
                 Assert.That(scenePlayerRoot, Is.Not.Null, "Travel preparation should not destroy or adopt the scene-authored player root.");
                 if (scenePlayerRoot != null)
                 {
