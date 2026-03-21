@@ -132,7 +132,7 @@ Weapon view prefab
 
 Kar98k runtime wiring must point to `Assets/_Project/Weapons/Prefabs/RifleView.prefab`, not `Assets/Low Poly Weapon Pack 4_WWII_1/Prefabs/Weapons/WWII_Recon_A.prefab`, in:
 
-- `PlayerRoot_MainTown.prefab`
+- `PlayerRoot.prefab`
 - `MainTown.unity`
 - `IndoorRangeInstance.unity`
 - `FPArmsTuning.unity`
