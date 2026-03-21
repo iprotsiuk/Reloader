@@ -274,6 +274,48 @@ namespace Reloader.Core.Tests.EditMode
                 "Ignoring the cache must not resurrect legacy CameraPivot/WeaponPresentationRoot creation.");
         }
 
+        [Test]
+        public void WeaponPresentationMountDriver_AlignsWeaponPresentationRootToExplicitAuthoredMount()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(playerRoot.transform, false);
+
+            var playerArms = new GameObject("PlayerArms").transform;
+            playerArms.SetParent(cameraPivot, false);
+
+            var playerArmsVisual = new GameObject("PlayerArmsVisual").transform;
+            playerArmsVisual.SetParent(playerArms, false);
+
+            var armature = new GameObject("Armature").transform;
+            armature.SetParent(playerArmsVisual, false);
+            var ikHandRoot = new GameObject("ik_hand_root").transform;
+            ikHandRoot.SetParent(armature, false);
+            var weaponMount = new GameObject("ik_hand_gun").transform;
+            weaponMount.SetParent(ikHandRoot, false);
+            weaponMount.localPosition = new Vector3(0.41f, -0.13f, 0.27f);
+            weaponMount.localRotation = Quaternion.Euler(18f, 27f, 36f);
+
+            var weaponPresentationRoot = new GameObject("WeaponPresentationRoot").transform;
+            weaponPresentationRoot.SetParent(cameraPivot, false);
+            weaponPresentationRoot.localPosition = Vector3.zero;
+            weaponPresentationRoot.localRotation = Quaternion.identity;
+
+            var driverType = FindType("Reloader.Player.Viewmodel.WeaponPresentationMountDriver");
+            Assert.That(driverType, Is.Not.Null, "Expected explicit weapon-presentation mount driver to exist.");
+
+            var driver = playerRoot.AddComponent(driverType!);
+            SetField(driver, "_weaponPresentationRoot", weaponPresentationRoot);
+            SetField(driver, "_weaponPresentationMount", weaponMount);
+
+            Invoke(driver, "LateUpdate");
+
+            Assert.That(Vector3.Distance(weaponPresentationRoot.position, weaponMount.position), Is.LessThan(0.0001f),
+                "WeaponPresentationRoot should follow the authored gun socket position after animator evaluation.");
+            Assert.That(Quaternion.Angle(weaponPresentationRoot.rotation, weaponMount.rotation), Is.LessThan(0.01f),
+                "WeaponPresentationRoot should follow the authored gun socket rotation after animator evaluation.");
+        }
+
         private static TestRig CreateRigWithLegacyHandHierarchy()
         {
             var playerRoot = new GameObject("PlayerRoot");
@@ -334,6 +376,20 @@ namespace Reloader.Core.Tests.EditMode
             var field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found.");
             field!.SetValue(instance, value);
+        }
+
+        private static Type FindType(string fullName)
+        {
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                var type = assembly.GetType(fullName, false);
+                if (type != null)
+                {
+                    return type;
+                }
+            }
+
+            return null;
         }
 
         private static void SetWeaponViewBinding(PlayerWeaponController controller, string itemId, GameObject viewPrefab)

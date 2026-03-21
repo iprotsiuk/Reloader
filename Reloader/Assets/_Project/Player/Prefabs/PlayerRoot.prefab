@@ -879,6 +879,7 @@ GameObject:
   - component: {fileID: 7999831991638637006}
   - component: {fileID: 7999831991638637007}
   - component: {fileID: 7999831991638637008}
+  - component: {fileID: 7999831991638637009}
   m_Layer: 0
   m_Name: PlayerRoot
   m_TagString: Player
@@ -1615,6 +1616,21 @@ MonoBehaviour:
     y: 24
     width: 240
     height: 28
+--- !u!114 &7999831991638637009
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8805273355277606564}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e29723039f7e4fd0904051fb4b7a5d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.Player::Reloader.Player.Viewmodel.WeaponPresentationMountDriver
+  _weaponPresentationRoot: {fileID: 7349667363605887490}
+  _weaponPresentationMount: {fileID: 0}
+  _weaponPresentationMountPath: CameraPivot/PlayerArms/PlayerArmsVisual/Armature/root/ik_hand_root/ik_hand_gun
 --- !u!1001 &4151765724084627930
 PrefabInstance:
   m_ObjectHideFlags: 0
