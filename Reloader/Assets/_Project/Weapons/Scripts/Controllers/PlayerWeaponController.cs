@@ -101,6 +101,7 @@ namespace Reloader.Weapons.Controllers
         private const float DefaultFov = 60f;
         private const float ScopedPresentationEnterAdsBlendT = 0.999f;
         private const float ScopedPresentationExitAdsBlendT = 0.95f;
+        private const string ScopedAdsCameraName = "ScopeCamera";
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private PlayerInventoryController _inventoryController;
         [SerializeField] private WeaponRegistry _weaponRegistry;
@@ -2523,32 +2524,59 @@ namespace Reloader.Weapons.Controllers
 
         private Camera ResolveScopedAdsCamera(Camera worldCamera)
         {
-            if (worldCamera == null || _scopeCamera == null)
+            if (worldCamera == null)
             {
                 return null;
             }
 
-            if (!IsReferenceOnPlayerHierarchy(_scopeCamera.transform) || _scopeCamera.transform.parent != worldCamera.transform)
+            var scopeCamera = ResolveCanonicalScopedAdsCamera(worldCamera);
+            if (scopeCamera == null)
             {
                 return null;
             }
 
-            var scopeTransform = _scopeCamera.transform;
+            _scopeCamera = scopeCamera;
+
+            var scopeTransform = scopeCamera.transform;
             scopeTransform.localPosition = Vector3.zero;
             scopeTransform.localRotation = Quaternion.identity;
             scopeTransform.localScale = Vector3.one;
 
-            _scopeCamera.clearFlags = worldCamera.clearFlags;
-            _scopeCamera.backgroundColor = worldCamera.backgroundColor;
-            _scopeCamera.cullingMask = ExcludeViewmodelLayer(worldCamera.cullingMask);
-            _scopeCamera.nearClipPlane = worldCamera.nearClipPlane;
-            _scopeCamera.farClipPlane = worldCamera.farClipPlane;
-            _scopeCamera.allowHDR = worldCamera.allowHDR;
-            _scopeCamera.allowMSAA = worldCamera.allowMSAA;
-            _scopeCamera.orthographic = worldCamera.orthographic;
-            _scopeCamera.depthTextureMode = worldCamera.depthTextureMode;
-            EnsureScopeCameraUniversalRenderPipelineData(_scopeCamera);
-            return _scopeCamera;
+            scopeCamera.clearFlags = worldCamera.clearFlags;
+            scopeCamera.backgroundColor = worldCamera.backgroundColor;
+            scopeCamera.cullingMask = ExcludeViewmodelLayer(worldCamera.cullingMask);
+            scopeCamera.nearClipPlane = worldCamera.nearClipPlane;
+            scopeCamera.farClipPlane = worldCamera.farClipPlane;
+            scopeCamera.allowHDR = worldCamera.allowHDR;
+            scopeCamera.allowMSAA = worldCamera.allowMSAA;
+            scopeCamera.orthographic = worldCamera.orthographic;
+            scopeCamera.depthTextureMode = worldCamera.depthTextureMode;
+            EnsureScopeCameraUniversalRenderPipelineData(scopeCamera);
+            return scopeCamera;
+        }
+
+        private Camera ResolveCanonicalScopedAdsCamera(Camera worldCamera)
+        {
+            if (IsScopedAdsCameraUsable(worldCamera, _scopeCamera))
+            {
+                return _scopeCamera;
+            }
+
+            var canonicalScopeTransform = worldCamera.transform.Find(ScopedAdsCameraName);
+            var canonicalScopeCamera = canonicalScopeTransform != null
+                ? canonicalScopeTransform.GetComponent<Camera>()
+                : null;
+            return IsScopedAdsCameraUsable(worldCamera, canonicalScopeCamera)
+                ? canonicalScopeCamera
+                : null;
+        }
+
+        private bool IsScopedAdsCameraUsable(Camera worldCamera, Camera scopeCamera)
+        {
+            return worldCamera != null
+                && scopeCamera != null
+                && IsReferenceOnPlayerHierarchy(scopeCamera.transform)
+                && scopeCamera.transform.parent == worldCamera.transform;
         }
 
         private static void EnsureScopeCameraUniversalRenderPipelineData(Camera scopeCamera)

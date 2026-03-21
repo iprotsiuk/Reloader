@@ -2314,6 +2314,265 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
+        [Test]
+        public void EnsureRenderTextureScopeRuntimeBridge_RebindsToCanonicalScopedCamera_WhenSerializedControllerCameraIsDetached()
+        {
+            var root = new GameObject("ScopedBridgeRoot");
+            var worldCameraGo = new GameObject("WorldCamera");
+            var liveScopeCameraGo = new GameObject("ScopeCamera");
+            var authoredScopeCameraGo = new GameObject("AuthoredScopeCamera");
+            var detachedScopeCameraGo = new GameObject("DetachedScopeCamera");
+
+            try
+            {
+                var controller = root.AddComponent<PlayerWeaponController>();
+                var worldCamera = worldCameraGo.AddComponent<Camera>();
+                worldCameraGo.transform.SetParent(root.transform, false);
+                liveScopeCameraGo.transform.SetParent(worldCamera.transform, false);
+                var liveScopeCamera = liveScopeCameraGo.AddComponent<Camera>();
+                var authoredScopeCamera = authoredScopeCameraGo.AddComponent<Camera>();
+                var detachedScopeCamera = detachedScopeCameraGo.AddComponent<Camera>();
+                var scopeController = root.AddComponent<GameRenderTextureScopeController>();
+                var adsStateController = root.AddComponent<GameAdsStateController>();
+
+                SetControllerField(controller, "_adsStateRuntimeBridge", adsStateController);
+                SetControllerField(controller, "_scopeCamera", detachedScopeCamera);
+                SetField(typeof(GameRenderTextureScopeController), scopeController, "_scopeCamera", authoredScopeCamera);
+
+                var ensureMethod = typeof(PlayerWeaponController).GetMethod(
+                    "EnsureRenderTextureScopeRuntimeBridge",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(ensureMethod, Is.Not.Null);
+
+                ensureMethod!.Invoke(controller, new object[] { worldCamera });
+
+                var reboundScopeCamera = GetPrivateField<Camera>(scopeController, "_scopeCamera");
+                Assert.That(reboundScopeCamera, Is.SameAs(liveScopeCamera),
+                    "PlayerWeaponController should hand the canonical live ScopeCamera under the world camera to RenderTextureScopeController when the serialized controller scope camera is detached.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(worldCameraGo);
+                Object.DestroyImmediate(authoredScopeCameraGo);
+                Object.DestroyImmediate(detachedScopeCameraGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ScopedAdsRuntimeBridge_ActivatesLivePipFeedAndReticle_FromCanonicalScopedCamera_WhenSerializedControllerCameraIsDetached()
+        {
+            GameObject root = null;
+            GameObject registryGo = null;
+            GameObject worldCameraGo = null;
+            GameObject detachedScopeCameraGo = null;
+            WeaponDefinition definition = null;
+            GameObject viewPrefab = null;
+            GameObject equippedView = null;
+            GameOpticDefinition opticDefinition = null;
+            GameObject opticPrefab = null;
+            Reloader.Game.Weapons.ScopeReticleDefinition scopeReticleDefinition = null;
+            Texture2D reticleTexture = null;
+            Sprite reticleSprite = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+                runtime.TryAddStackItem("att-optic-pip", 1, out _, out _, out _);
+
+                worldCameraGo = new GameObject("WorldCam");
+                var worldCamera = worldCameraGo.AddComponent<Camera>();
+                var viewmodelCameraGo = new GameObject("ViewmodelCamera");
+                var viewmodelCamera = viewmodelCameraGo.AddComponent<Camera>();
+                var liveScopeCameraGo = new GameObject("ScopeCamera");
+                liveScopeCameraGo.transform.SetParent(worldCamera.transform, false);
+                var liveScopeCamera = liveScopeCameraGo.AddComponent<Camera>();
+                detachedScopeCameraGo = new GameObject("DetachedScopeCamera");
+                var detachedScopeCamera = detachedScopeCameraGo.AddComponent<Camera>();
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Kar98k", 5, 0.05f, 80f, 0f, 20f, 120f, 1, 0, true);
+                definition.SetAttachmentCompatibilitiesForTests(new[]
+                {
+                    WeaponAttachmentCompatibility.Create(WeaponAttachmentSlotType.Scope, new[] { "att-optic-pip" })
+                });
+
+                viewPrefab = new GameObject("Kar98kView");
+                viewPrefab.AddComponent<GameAttachmentManager>();
+                var adsPivot = new GameObject("AdsPivot").transform;
+                adsPivot.SetParent(viewPrefab.transform, false);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(adsPivot, false);
+                var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+                ironSightAnchor.SetParent(adsPivot, false);
+                ConfigureTestWeaponViewMounts(viewPrefab, adsPivot: adsPivot, scopeSlot: scopeSlot, ironSightAnchor: ironSightAnchor);
+
+                var iconPrefabField = typeof(WeaponDefinition).GetField("_iconSourcePrefab", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(iconPrefabField, Is.Not.Null);
+                iconPrefabField!.SetValue(definition, viewPrefab);
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                opticDefinition = ScriptableObject.CreateInstance<GameOpticDefinition>();
+                opticPrefab = new GameObject("OpticPiPPrefab");
+                var sightAnchor = new GameObject("SightAnchor").transform;
+                sightAnchor.SetParent(opticPrefab.transform, false);
+                var lensDisplayGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                lensDisplayGo.name = "LensDisplay";
+                lensDisplayGo.transform.SetParent(opticPrefab.transform, false);
+                var lensDisplay = lensDisplayGo.AddComponent<Reloader.Game.Weapons.ScopeLensDisplay>();
+                SetField(typeof(Reloader.Game.Weapons.ScopeLensDisplay), lensDisplay, "_targetRenderer", lensDisplayGo.GetComponent<Renderer>());
+
+                var reticleGo = new GameObject("Reticle");
+                reticleGo.transform.SetParent(opticPrefab.transform, false);
+                reticleGo.AddComponent<SpriteRenderer>();
+                reticleGo.AddComponent<Reloader.Game.Weapons.ScopeReticleController>();
+
+                scopeReticleDefinition = ScriptableObject.CreateInstance<Reloader.Game.Weapons.ScopeReticleDefinition>();
+                reticleTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                reticleTexture.SetPixels(new[]
+                {
+                    Color.white, Color.white,
+                    Color.white, Color.white
+                });
+                reticleTexture.Apply();
+                reticleSprite = Sprite.Create(reticleTexture, new Rect(0f, 0f, 2f, 2f), new Vector2(0.5f, 0.5f), 2f);
+                SetField(typeof(Reloader.Game.Weapons.ScopeReticleDefinition), scopeReticleDefinition, "_mode", Reloader.Game.Weapons.ScopeReticleMode.Ffp);
+                SetField(typeof(Reloader.Game.Weapons.ScopeReticleDefinition), scopeReticleDefinition, "_referenceMagnification", 4f);
+                SetField(typeof(Reloader.Game.Weapons.ScopeReticleDefinition), scopeReticleDefinition, "_reticleSprite", reticleSprite);
+
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_opticId", "att-optic-pip");
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_isVariableZoom", true);
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_magnificationMin", 4f);
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_magnificationMax", 8f);
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_magnificationStep", 1f);
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_visualModePolicy", GameAdsVisualMode.RenderTexturePiP);
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_opticPrefab", opticPrefab);
+                SetField(typeof(GameOpticDefinition), opticDefinition, "_scopeReticleDefinition", scopeReticleDefinition);
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                SetControllerField(controller, "_weaponViewParent", root.transform);
+                SetControllerField(controller, "_attachmentItemMetadata", new[]
+                {
+                    WeaponAttachmentItemMetadata.CreateForTests("att-optic-pip", WeaponAttachmentSlotType.Scope, opticDefinition)
+                });
+                SetControllerWeaponViewBinding(controller, "weapon-kar98k", viewPrefab);
+                BindExplicitScopedRuntimeContract(root, controller, viewPrefab, worldCamera, viewmodelCamera, liveScopeCamera);
+                SetControllerField(controller, "_scopeCamera", detachedScopeCamera);
+
+                yield return null;
+                SetControllerField(controller, "_equippedItemId", "weapon-kar98k");
+                SetControllerField(controller, "_equippedDefinition", definition);
+                equippedView = Object.Instantiate(viewPrefab, root.transform, false);
+                SetControllerField(controller, "_equippedWeaponView", equippedView);
+                yield return null;
+
+                Assert.That(controller.TrySwapEquippedWeaponAttachment(WeaponAttachmentSlotType.Scope, "att-optic-pip"), Is.True);
+                yield return null;
+
+                var attachmentManager = equippedView.GetComponent<GameAttachmentManager>();
+                Assert.That(attachmentManager, Is.Not.Null);
+                var activeOpticInstance = attachmentManager!.ActiveOpticInstance;
+                Assert.That(activeOpticInstance, Is.Not.Null);
+                var liveLensDisplay = activeOpticInstance.GetComponentInChildren<Reloader.Game.Weapons.ScopeLensDisplay>(true);
+                Assert.That(liveLensDisplay, Is.Not.Null);
+
+                input.AimHeldValue = true;
+                var frames = 0;
+                while (frames < 90)
+                {
+                    var renderTextureScopeController = root.GetComponent<GameRenderTextureScopeController>();
+                    if (renderTextureScopeController != null
+                        && liveScopeCamera.enabled
+                        && liveScopeCamera.targetTexture != null
+                        && renderTextureScopeController.IsCompositeReticleActive
+                        && ReferenceEquals(liveLensDisplay!.CurrentTexture, liveScopeCamera.targetTexture))
+                    {
+                        break;
+                    }
+
+                    frames++;
+                    yield return null;
+                }
+
+                var renderTextureScope = root.GetComponent<GameRenderTextureScopeController>();
+                Assert.That(renderTextureScope, Is.Not.Null);
+                Assert.That(GetPrivateField<Camera>(renderTextureScope!, "_scopeCamera"), Is.SameAs(liveScopeCamera),
+                    "Runtime scope bridge should hand the canonical live ScopeCamera to RenderTextureScopeController.");
+                Assert.That(liveScopeCamera.enabled, Is.True, "Live canonical ScopeCamera should be enabled while ADS PiP is active.");
+                Assert.That(liveScopeCamera.targetTexture, Is.Not.Null, "Live canonical ScopeCamera should render into a bound texture while ADS PiP is active.");
+                Assert.That(renderTextureScope.IsCompositeReticleActive, Is.True, "Scoped ADS should composite the authored reticle when PiP is active.");
+                Assert.That(liveLensDisplay!.CurrentTexture, Is.SameAs(liveScopeCamera.targetTexture),
+                    "Lens display should bind the live canonical scope-camera texture instead of leaving the aperture clear.");
+            }
+            finally
+            {
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (worldCameraGo != null)
+                {
+                    Object.Destroy(worldCameraGo);
+                }
+
+                if (detachedScopeCameraGo != null)
+                {
+                    Object.Destroy(detachedScopeCameraGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+
+                if (viewPrefab != null)
+                {
+                    Object.Destroy(viewPrefab);
+                }
+
+                if (opticDefinition != null)
+                {
+                    Object.Destroy(opticDefinition);
+                }
+
+                if (opticPrefab != null)
+                {
+                    Object.Destroy(opticPrefab);
+                }
+
+                if (scopeReticleDefinition != null)
+                {
+                    Object.Destroy(scopeReticleDefinition);
+                }
+
+                if (reticleSprite != null)
+                {
+                    Object.Destroy(reticleSprite);
+                }
+
+                if (reticleTexture != null)
+                {
+                    Object.Destroy(reticleTexture);
+                }
+            }
+        }
+
         [UnityTest]
         public IEnumerator EquipScopedWeapon_RuntimeBridge_DoesNotAutoAddScopedBridgeComponents_WhenMissing()
         {
