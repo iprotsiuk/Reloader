@@ -459,7 +459,7 @@ namespace Reloader.Weapons.Tests.EditMode
         }
 
         [Test]
-        public void PlayerRootPrefab_LiveNestedFpsArms_UsesIdentityWeaponPresentationMountRotation()
+        public void PlayerRootPrefab_AuthorsExplicitStaticWeaponPresentationMount()
         {
             var playerRootPrefab = PrefabUtility.LoadPrefabContents("Assets/_Project/Player/Prefabs/PlayerRoot.prefab");
 
@@ -467,11 +467,15 @@ namespace Reloader.Weapons.Tests.EditMode
             {
                 Assert.That(playerRootPrefab, Is.Not.Null);
 
-                var weaponPresentationMount = playerRootPrefab!.transform.Find("CameraPivot/PlayerArms/PlayerArmsVisual/Armature/root/ik_hand_root/ik_hand_gun");
+                var weaponPresentationMount = playerRootPrefab!.transform.Find("CameraPivot/WeaponPresentationMount");
                 Assert.That(weaponPresentationMount, Is.Not.Null,
-                    "PlayerRoot should keep the explicit live ik_hand_gun authored mount path used by the runtime driver.");
-                Assert.That(Quaternion.Angle(weaponPresentationMount!.localRotation, Quaternion.identity), Is.LessThan(0.0001f),
-                    "The live PlayerRoot FPS_Arms mount should not keep the legacy rifle-up rotation now that RifleView owns identity mount-space authoring.");
+                    "PlayerRoot should author an explicit static WeaponPresentationMount used by the runtime driver.");
+                Assert.That(weaponPresentationMount!.parent, Is.SameAs(playerRootPrefab.transform.Find("CameraPivot")),
+                    "The live PlayerRoot mount should be a direct authored child of CameraPivot instead of the animated armature chain.");
+                Assert.That(Quaternion.Angle(weaponPresentationMount.localRotation, Quaternion.identity), Is.LessThan(0.0001f),
+                    "The static weapon presentation mount should keep identity local rotation.");
+                Assert.That(Vector3.Distance(weaponPresentationMount.localPosition, Vector3.zero), Is.LessThan(0.0001f),
+                    "The static weapon presentation mount should keep identity local position.");
             }
             finally
             {

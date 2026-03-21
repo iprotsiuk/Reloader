@@ -309,9 +309,11 @@ namespace Reloader.World.Tests.EditMode
             var weaponPresentationRoot = root.transform.Find("CameraPivot/WeaponPresentationRoot");
             Assert.That(weaponPresentationRoot, Is.Not.Null, $"{context} should author WeaponPresentationRoot under CameraPivot.");
 
-            var explicitWeaponPresentationMount = root.transform.Find("CameraPivot/PlayerArms/PlayerArmsVisual/Armature/root/ik_hand_root/ik_hand_gun");
+            var explicitWeaponPresentationMount = root.transform.Find("CameraPivot/WeaponPresentationMount");
             Assert.That(explicitWeaponPresentationMount, Is.Not.Null,
-                $"{context} should keep the authored ik_hand_gun gun socket as the explicit weapon presentation mount seam.");
+                $"{context} should author WeaponPresentationMount as the explicit weapon presentation mount seam.");
+            Assert.That(explicitWeaponPresentationMount!.parent, Is.SameAs(root.transform.Find("CameraPivot")),
+                $"{context} should keep WeaponPresentationMount as a direct authored child of CameraPivot instead of an animated armature bone.");
 
             var mountDriver = root.GetComponent(WeaponPresentationMountDriverType);
             Assert.That(mountDriver, Is.Not.Null, $"{context} should include WeaponPresentationMountDriver on PlayerRoot.");
@@ -322,8 +324,8 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(serialized.FindProperty("_weaponPresentationMount")?.objectReferenceValue, Is.Null,
                 $"{context} should not rely on a fragile nested-object reference for the weapon presentation mount.");
             Assert.That(serialized.FindProperty("_weaponPresentationMountPath")?.stringValue,
-                Is.EqualTo("CameraPivot/PlayerArms/PlayerArmsVisual/Armature/root/ik_hand_root/ik_hand_gun"),
-                $"{context} should wire WeaponPresentationMountDriver._weaponPresentationMountPath to the authored ik_hand_gun socket seam.");
+                Is.EqualTo("CameraPivot/WeaponPresentationMount"),
+                $"{context} should wire WeaponPresentationMountDriver._weaponPresentationMountPath to the authored static weapon presentation seam.");
         }
 
         private static Type FindType(string fullName)

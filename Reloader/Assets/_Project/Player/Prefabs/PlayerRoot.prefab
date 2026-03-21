@@ -31,6 +31,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 393772354762719187}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1462797826206653987
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1462797826206653988}
+  m_Layer: 0
+  m_Name: WeaponPresentationMount
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1462797826206653988
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1462797826206653987}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 393772354762719187}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &961288400644348711
 GameObject:
   m_ObjectHideFlags: 0
@@ -730,6 +761,7 @@ Transform:
   - {fileID: 8851480171723198591}
   - {fileID: 6046686744160355134}
   - {fileID: 7349667363605887490}
+  - {fileID: 1462797826206653988}
   - {fileID: 1799004325867949257}
   - {fileID: 1178895432109876545}
   - {fileID: 2662114487113379158}
@@ -1632,7 +1664,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Player::Reloader.Player.Viewmodel.WeaponPresentationMountDriver
   _weaponPresentationRoot: {fileID: 7349667363605887490}
   _weaponPresentationMount: {fileID: 0}
-  _weaponPresentationMountPath: CameraPivot/PlayerArms/PlayerArmsVisual/Armature/root/ik_hand_root/ik_hand_gun
+  _weaponPresentationMountPath: CameraPivot/WeaponPresentationMount
 --- !u!114 &7999831991638637010
 MonoBehaviour:
   m_ObjectHideFlags: 0
