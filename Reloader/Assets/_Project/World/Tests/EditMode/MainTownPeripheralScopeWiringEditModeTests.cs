@@ -11,6 +11,7 @@ namespace Reloader.World.Tests.EditMode
 
         private static readonly Type PlayerCameraDefaultsType = FindType("Reloader.Player.PlayerCameraDefaults");
         private static readonly Type PlayerWeaponControllerType = FindType("Reloader.Weapons.Controllers.PlayerWeaponController");
+        private static readonly Type WeaponHandRigControllerType = FindType("Reloader.Player.Viewmodel.WeaponHandRigController");
         private static readonly Type AdsStateControllerType = FindType("Reloader.Game.Weapons.AdsStateController");
         private static readonly Type RenderTextureScopeControllerType = FindType("Reloader.Game.Weapons.RenderTextureScopeController");
         private static readonly Type PeripheralScopeEffectsType = FindType("Reloader.Game.Weapons.PeripheralScopeEffects");
@@ -20,6 +21,9 @@ namespace Reloader.World.Tests.EditMode
         private static readonly Type CinemachineCameraType = FindType("Unity.Cinemachine.CinemachineCamera");
         private static readonly Type CinemachineHardLockToTargetType = FindType("Unity.Cinemachine.CinemachineHardLockToTarget");
         private static readonly Type CinemachineHardLookAtType = FindType("Unity.Cinemachine.CinemachineHardLookAt");
+        private static readonly Type RigBuilderType = FindType("UnityEngine.Animations.Rigging.RigBuilder");
+        private static readonly Type RigType = FindType("UnityEngine.Animations.Rigging.Rig");
+        private static readonly Type TwoBoneIKConstraintType = FindType("UnityEngine.Animations.Rigging.TwoBoneIKConstraint");
         private static readonly Type UniversalAdditionalCameraDataType = FindType("UnityEngine.Rendering.Universal.UniversalAdditionalCameraData");
 
         [Test]
@@ -61,6 +65,22 @@ namespace Reloader.World.Tests.EditMode
             try
             {
                 AssertWorldCameraCinemachineContract(prefabRoot, "PlayerRoot prefab");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(prefabRoot);
+            }
+        }
+
+        [Test]
+        [Category("PlayerPrefabContract")]
+        public void PlayerRootPrefab_AuthorsWeaponHandRigContract()
+        {
+            var prefabRoot = PrefabUtility.LoadPrefabContents(PlayerRootPrefabPath);
+
+            try
+            {
+                AssertWeaponHandRigContract(prefabRoot, "PlayerRoot prefab");
             }
             finally
             {
@@ -140,6 +160,68 @@ namespace Reloader.World.Tests.EditMode
 
             var renderTextureSerialized = new SerializedObject(renderTextureScopeController);
             Assert.That(renderTextureSerialized.FindProperty("_scopeCamera")?.objectReferenceValue, Is.SameAs(scopeCamera), $"{context} should wire RenderTextureScopeController._scopeCamera.");
+        }
+
+        private static void AssertWeaponHandRigContract(GameObject root, string context)
+        {
+            Assert.That(root, Is.Not.Null, $"{context} should exist.");
+            Assert.That(WeaponHandRigControllerType, Is.Not.Null, "Expected WeaponHandRigController type.");
+            Assert.That(RigBuilderType, Is.Not.Null, "Expected RigBuilder type.");
+            Assert.That(RigType, Is.Not.Null, "Expected Rig type.");
+            Assert.That(TwoBoneIKConstraintType, Is.Not.Null, "Expected TwoBoneIKConstraint type.");
+
+            var cameraPivot = root.transform.Find("CameraPivot");
+            Assert.That(cameraPivot, Is.Not.Null, $"{context} should author CameraPivot.");
+
+            var weaponHandRigTargets = root.transform.Find("CameraPivot/WeaponHandRigTargets");
+            Assert.That(weaponHandRigTargets, Is.Not.Null, $"{context} should author WeaponHandRigTargets under CameraPivot.");
+
+            var leftHandTarget = weaponHandRigTargets.Find("LeftHandTarget");
+            Assert.That(leftHandTarget, Is.Not.Null, $"{context} should author LeftHandTarget under WeaponHandRigTargets.");
+
+            var leftElbowHint = weaponHandRigTargets.Find("LeftElbowHint");
+            Assert.That(leftElbowHint, Is.Not.Null, $"{context} should author LeftElbowHint under WeaponHandRigTargets.");
+
+            var playerArmsVisual = root.transform.Find("CameraPivot/PlayerArms/PlayerArmsVisual");
+            Assert.That(playerArmsVisual, Is.Not.Null, $"{context} should author PlayerArmsVisual on the canonical player path.");
+
+            var animator = playerArmsVisual.GetComponent<Animator>();
+            Assert.That(animator, Is.Not.Null, $"{context} should keep Animator on PlayerArmsVisual.");
+
+            var rigBuilder = playerArmsVisual.GetComponent(RigBuilderType);
+            Assert.That(rigBuilder, Is.Not.Null, $"{context} should author RigBuilder on PlayerArmsVisual.");
+
+            var weaponHandRig = playerArmsVisual.Find("WeaponHandRig");
+            Assert.That(weaponHandRig, Is.Not.Null, $"{context} should author WeaponHandRig under PlayerArmsVisual.");
+
+            var rig = weaponHandRig.GetComponent(RigType);
+            Assert.That(rig, Is.Not.Null, $"{context} should keep Rig on WeaponHandRig.");
+
+            var leftHandConstraint = weaponHandRig.Find("LeftHandConstraint");
+            Assert.That(leftHandConstraint, Is.Not.Null, $"{context} should author LeftHandConstraint under WeaponHandRig.");
+
+            var constraint = leftHandConstraint.GetComponent(TwoBoneIKConstraintType);
+            Assert.That(constraint, Is.Not.Null, $"{context} should keep TwoBoneIKConstraint on LeftHandConstraint.");
+
+            var rigBuilderSerialized = new SerializedObject(rigBuilder);
+            var rigLayers = rigBuilderSerialized.FindProperty("m_RigLayers");
+            Assert.That(rigLayers, Is.Not.Null, $"{context} should serialize RigBuilder.m_RigLayers.");
+            Assert.That(rigLayers.arraySize, Is.EqualTo(1), $"{context} should author exactly one rig layer.");
+
+            var firstRigLayer = rigLayers.GetArrayElementAtIndex(0);
+            Assert.That(firstRigLayer.FindPropertyRelative("m_Active")?.boolValue, Is.True, $"{context} should keep the rig layer active.");
+            Assert.That(firstRigLayer.FindPropertyRelative("m_Rig")?.objectReferenceValue, Is.SameAs(rig), $"{context} should bind the rig layer to WeaponHandRig.");
+
+            var controller = root.GetComponent(WeaponHandRigControllerType);
+            Assert.That(controller, Is.Not.Null, $"{context} should include WeaponHandRigController.");
+
+            var controllerSerialized = new SerializedObject(controller);
+            Assert.That(controllerSerialized.FindProperty("_armsAnimator")?.objectReferenceValue, Is.SameAs(animator), $"{context} should wire WeaponHandRigController._armsAnimator.");
+            Assert.That(controllerSerialized.FindProperty("_rigBuilder")?.objectReferenceValue, Is.SameAs(rigBuilder), $"{context} should wire WeaponHandRigController._rigBuilder.");
+            Assert.That(controllerSerialized.FindProperty("_weaponHandRig")?.objectReferenceValue, Is.SameAs(rig), $"{context} should wire WeaponHandRigController._weaponHandRig.");
+            Assert.That(controllerSerialized.FindProperty("_leftHandConstraint")?.objectReferenceValue, Is.SameAs(constraint), $"{context} should wire WeaponHandRigController._leftHandConstraint.");
+            Assert.That(controllerSerialized.FindProperty("_leftHandTarget")?.objectReferenceValue, Is.SameAs(leftHandTarget), $"{context} should wire WeaponHandRigController._leftHandTarget.");
+            Assert.That(controllerSerialized.FindProperty("_leftHandHint")?.objectReferenceValue, Is.SameAs(leftElbowHint), $"{context} should wire WeaponHandRigController._leftHandHint.");
         }
 
         private static void AssertWorldCameraCinemachineContract(GameObject root, string context)
