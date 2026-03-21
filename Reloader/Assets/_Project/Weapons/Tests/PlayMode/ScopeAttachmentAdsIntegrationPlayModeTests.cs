@@ -5,6 +5,7 @@ using System.Reflection;
 using NUnit.Framework;
 using Reloader.Game.Weapons.Rendering;
 using Reloader.Player;
+using Reloader.UI.Toolkit.EscMenu;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -2486,6 +2487,65 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [Test]
+        public void ScopedPipOptic_ResolveScopedOpticsSettings_UsesSnapshotPropertiesWhenAvailable()
+        {
+            const string pipResolutionKey = "esc-menu.scoped-pip-resolution-percent";
+            const string peripheralBlurKey = "esc-menu.peripheral-blur-percent";
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            Assert.That(adsStateControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedOpticsSnapshotPropertiesRoot");
+            var ads = root.AddComponent(adsStateControllerType);
+            var previousPipHasKey = PlayerPrefs.HasKey(pipResolutionKey);
+            var previousBlurHasKey = PlayerPrefs.HasKey(peripheralBlurKey);
+            var previousPipValue = PlayerPrefs.GetInt(pipResolutionKey, 100);
+            var previousBlurValue = PlayerPrefs.GetInt(peripheralBlurKey, 50);
+
+            try
+            {
+                var resolveMethod = adsStateControllerType.GetMethod("ResolveScopedOpticsSettings", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveMethod, Is.Not.Null, "Expected AdsStateController to expose ResolveScopedOpticsSettings helper.");
+
+                SetField(ads, "_scopedOpticsSettingsSourceType", typeof(ITestScopedOpticsSettingsSnapshotSource));
+                SetField(ads, "_scopedOpticsSettingsSnapshotType", typeof(ScopedOpticsSettingsSnapshot));
+                SetField(ads, "_scopedOpticsSettingsContractType", typeof(ScopedOpticsSettings));
+                SetField(ads, "_hasResolvedScopedOpticsSettingsSource", true);
+                SetField(ads, "_scopedOpticsSettingsSource", new TestScopedOpticsSettingsSnapshotSource(215, 67));
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", int.MaxValue);
+
+                PlayerPrefs.SetInt(pipResolutionKey, 111);
+                PlayerPrefs.SetInt(peripheralBlurKey, 22);
+
+                var settings = resolveMethod!.Invoke(ads, null);
+                Assert.That(settings, Is.Not.Null);
+                Assert.That((int)GetProperty(settings!, "PipResolutionPercent"), Is.EqualTo(215));
+                Assert.That((int)GetProperty(settings, "PeripheralBlurPercent"), Is.EqualTo(67));
+            }
+            finally
+            {
+                if (previousPipHasKey)
+                {
+                    PlayerPrefs.SetInt(pipResolutionKey, previousPipValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(pipResolutionKey);
+                }
+
+                if (previousBlurHasKey)
+                {
+                    PlayerPrefs.SetInt(peripheralBlurKey, previousBlurValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(peripheralBlurKey);
+                }
+
+                Cleanup(root);
+            }
+        }
+
+        [Test]
         public void ScopedPipOptic_ResolveScopedOpticsSettings_RetriesLookupAfterInitialMiss()
         {
             const string pipResolutionKey = "esc-menu.scoped-pip-resolution-percent";
@@ -2718,6 +2778,51 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [Test]
+        public void ScopedPipOptic_ResolveScopedOpticsSettings_RebindsCachedProviderAfterHostSwap()
+        {
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            Assert.That(adsStateControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedOpticsProviderRebindRoot");
+            var ads = root.AddComponent(adsStateControllerType);
+            var host = root.AddComponent<TestScopedOpticsSettingsSourceHost>();
+
+            try
+            {
+                var resolveMethod = adsStateControllerType.GetMethod("ResolveScopedOpticsSettings", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveMethod, Is.Not.Null, "Expected AdsStateController to expose ResolveScopedOpticsSettings helper.");
+
+                var cachedProvider = new TestScopedOpticsSettingsSource(215, 67);
+                var refreshedProvider = new TestScopedOpticsSettingsSource(333, 77);
+                host.SetScopedOpticsSettingsSource(cachedProvider);
+
+                SetField(ads, "_scopedOpticsSettingsSourceType", typeof(ITestScopedOpticsSettingsSource));
+                SetField(ads, "_scopedOpticsSettingsSnapshotType", null);
+                SetField(ads, "_scopedOpticsSettingsContractType", null);
+                SetField(ads, "_hasResolvedScopedOpticsSettingsSource", true);
+                SetField(ads, "_scopedOpticsSettingsSource", cachedProvider);
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", Time.frameCount);
+
+                var firstSettings = resolveMethod!.Invoke(ads, null);
+                Assert.That(firstSettings, Is.Not.Null);
+                Assert.That((int)GetProperty(firstSettings!, "PipResolutionPercent"), Is.EqualTo(215));
+                Assert.That((int)GetProperty(firstSettings, "PeripheralBlurPercent"), Is.EqualTo(67));
+
+                host.SetScopedOpticsSettingsSource(refreshedProvider);
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", Time.frameCount);
+
+                var secondSettings = resolveMethod.Invoke(ads, null);
+                Assert.That(secondSettings, Is.Not.Null);
+                Assert.That((int)GetProperty(secondSettings!, "PipResolutionPercent"), Is.EqualTo(333));
+                Assert.That((int)GetProperty(secondSettings, "PeripheralBlurPercent"), Is.EqualTo(77));
+            }
+            finally
+            {
+                Cleanup(root);
+            }
+        }
+
+        [Test]
         public void ScopedPipOptic_UsesPlayerPrefsFallbackForScopedOpticsSettings()
         {
             const string pipResolutionKey = "esc-menu.scoped-pip-resolution-percent";
@@ -2936,6 +3041,13 @@ namespace Reloader.Weapons.Tests.PlayMode
             int GetPeripheralBlurPercent();
         }
 
+        private interface ITestScopedOpticsSettingsSnapshotSource
+        {
+            ScopedOpticsSettingsSnapshot GetScopedOpticsSettingsSnapshot();
+            int GetScopedPipResolutionPercent();
+            int GetPeripheralBlurPercent();
+        }
+
         private sealed class TestScopedOpticsSettingsSource : ITestScopedOpticsSettingsSource
         {
             private readonly int _pipResolutionPercent;
@@ -2955,6 +3067,33 @@ namespace Reloader.Weapons.Tests.PlayMode
             public int GetPeripheralBlurPercent()
             {
                 return _peripheralBlurPercent;
+            }
+        }
+
+        private sealed class TestScopedOpticsSettingsSnapshotSource : ITestScopedOpticsSettingsSnapshotSource
+        {
+            private readonly int _snapshotPipResolutionPercent;
+            private readonly int _snapshotPeripheralBlurPercent;
+
+            public TestScopedOpticsSettingsSnapshotSource(int snapshotPipResolutionPercent, int snapshotPeripheralBlurPercent)
+            {
+                _snapshotPipResolutionPercent = snapshotPipResolutionPercent;
+                _snapshotPeripheralBlurPercent = snapshotPeripheralBlurPercent;
+            }
+
+            public ScopedOpticsSettingsSnapshot GetScopedOpticsSettingsSnapshot()
+            {
+                return new ScopedOpticsSettingsSnapshot(_snapshotPipResolutionPercent, _snapshotPeripheralBlurPercent);
+            }
+
+            public int GetScopedPipResolutionPercent()
+            {
+                throw new InvalidOperationException("Snapshot contract should be used instead of per-field methods.");
+            }
+
+            public int GetPeripheralBlurPercent()
+            {
+                throw new InvalidOperationException("Snapshot contract should be used instead of per-field methods.");
             }
         }
 
@@ -3081,5 +3220,31 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found on {type.Name}.");
             field.SetValue(instance, value);
         }
+    }
+}
+
+namespace Reloader.UI.Toolkit.EscMenu
+{
+    public static class ScopedOpticsSettings
+    {
+        public const int MinPipResolutionPercent = 10;
+        public const int MaxPipResolutionPercent = 400;
+        public const int DefaultPipResolutionPercent = 100;
+
+        public const int MinPeripheralBlurPercent = 0;
+        public const int MaxPeripheralBlurPercent = 100;
+        public const int DefaultPeripheralBlurPercent = 50;
+    }
+
+    public readonly struct ScopedOpticsSettingsSnapshot
+    {
+        public ScopedOpticsSettingsSnapshot(int pipResolutionPercent, int peripheralBlurPercent)
+        {
+            PipResolutionPercent = pipResolutionPercent;
+            PeripheralBlurPercent = peripheralBlurPercent;
+        }
+
+        public int PipResolutionPercent { get; }
+        public int PeripheralBlurPercent { get; }
     }
 }

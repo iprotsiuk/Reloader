@@ -18,10 +18,13 @@ namespace Reloader.Game.Weapons
         private const string ScopedOpticsSettingsSourceTypeName = "Reloader.UI.Toolkit.EscMenu.IScopedOpticsSettingsSource";
         private const string ScopedOpticsSettingsSnapshotTypeName = "Reloader.UI.Toolkit.EscMenu.ScopedOpticsSettingsSnapshot";
         private const string ScopedOpticsSettingsContractTypeName = "Reloader.UI.Toolkit.EscMenu.ScopedOpticsSettings";
+        private const string ShotCameraGameplayStateTypeName = "Reloader.Player.ShotCameraGameplayState";
         private const string ScopedPipResolutionPlayerPrefKey = "esc-menu.scoped-pip-resolution-percent";
         private const string PeripheralBlurPlayerPrefKey = "esc-menu.peripheral-blur-percent";
         private const int ScopedOpticsSettingsSourceInitialRetryFrameInterval = 30;
         private const int ScopedOpticsSettingsSourceMaxRetryFrameInterval = 600;
+
+        private static PropertyInfo s_shotCameraIsActiveProperty;
 
         [Header("References")]
         [SerializeField] private Camera _worldCamera;
@@ -458,7 +461,9 @@ namespace Reloader.Game.Weapons
             var useMask = ResolveMaskMode(policy, CurrentMagnification);
             var adsVisible = AdsT > 0.01f;
             var scopedOpticsSettings = ResolveScopedOpticsSettings();
-            var usePip = adsVisible && policy == AdsVisualMode.RenderTexturePiP;
+            var usePip = adsVisible
+                && !IsShotCameraActive()
+                && policy == AdsVisualMode.RenderTexturePiP;
             var pipResolutionMin = ResolveScopedOpticsMinPipResolutionPercent();
             var pipResolutionMax = ResolveScopedOpticsMaxPipResolutionPercent();
             var peripheralBlurMin = ResolveScopedOpticsMinPeripheralBlurPercent();
@@ -663,8 +668,7 @@ namespace Reloader.Game.Weapons
                 _hasResolvedScopedOpticsSettingsSource = true;
                 ScheduleScopedOpticsSettingsSourceLookupRetry(_scopedOpticsSettingsSource);
             }
-            else if (_scopedOpticsSettingsSource == null
-                && _scopedOpticsSettingsSourceType != null
+            else if (_scopedOpticsSettingsSourceType != null
                 && Time.frameCount >= _nextScopedOpticsSettingsSourceLookupFrame)
             {
                 _scopedOpticsSettingsSource = ResolveScopedOpticsSettingsSource(_scopedOpticsSettingsSourceType);
@@ -716,7 +720,7 @@ namespace Reloader.Game.Weapons
         {
             if (source != null)
             {
-                _nextScopedOpticsSettingsSourceLookupFrame = 0;
+                _nextScopedOpticsSettingsSourceLookupFrame = Time.frameCount + ScopedOpticsSettingsSourceInitialRetryFrameInterval;
                 _scopedOpticsSettingsSourceRetryFrameInterval = ScopedOpticsSettingsSourceInitialRetryFrameInterval;
                 return;
             }
@@ -857,17 +861,17 @@ namespace Reloader.Game.Weapons
                 return null;
             }
 
-            var pipField = snapshotType.GetField("PipResolutionPercent", BindingFlags.Instance | BindingFlags.Public);
-            var blurField = snapshotType.GetField("PeripheralBlurPercent", BindingFlags.Instance | BindingFlags.Public);
-            if (pipField == null || blurField == null)
+            var pipProperty = snapshotType.GetProperty("PipResolutionPercent", BindingFlags.Instance | BindingFlags.Public);
+            var blurProperty = snapshotType.GetProperty("PeripheralBlurPercent", BindingFlags.Instance | BindingFlags.Public);
+            if (pipProperty == null || blurProperty == null)
             {
                 return null;
             }
 
             try
             {
-                var pipPercent = Convert.ToInt32(pipField.GetValue(snapshot));
-                var blurPercent = Convert.ToInt32(blurField.GetValue(snapshot));
+                var pipPercent = Convert.ToInt32(pipProperty.GetValue(snapshot, null));
+                var blurPercent = Convert.ToInt32(blurProperty.GetValue(snapshot, null));
                 return new ScopedOpticsSettings(
                     Mathf.Clamp(
                         pipPercent,
@@ -932,6 +936,18 @@ namespace Reloader.Game.Weapons
             }
 
             return null;
+        }
+
+        private static bool IsShotCameraActive()
+        {
+            if (s_shotCameraIsActiveProperty == null)
+            {
+                s_shotCameraIsActiveProperty = ResolveType(ShotCameraGameplayStateTypeName)?.GetProperty(
+                    "IsActive",
+                    BindingFlags.Public | BindingFlags.Static);
+            }
+
+            return s_shotCameraIsActiveProperty?.GetValue(null) is true;
         }
 
         private int ResolveScopedOpticsMinPipResolutionPercent()
