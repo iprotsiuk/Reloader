@@ -239,7 +239,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
   m_RenderShadows: 1
   m_RequiresDepthTextureOption: 2
@@ -317,7 +317,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f9dfa5b682dcd46bda6128250e975f58, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineCamera
   Priority:
     Enabled: 0
@@ -360,7 +360,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 36d1163fa822e8b418a0a603ec078d5c, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineHardLockToTarget
   Damping: 0
 --- !u!114 &1234500000000000010
@@ -880,6 +880,7 @@ GameObject:
   - component: {fileID: 7999831991638637007}
   - component: {fileID: 7999831991638637008}
   - component: {fileID: 7999831991638637009}
+  - component: {fileID: 7999831991638637010}
   m_Layer: 0
   m_Name: PlayerRoot
   m_TagString: Player
@@ -1230,9 +1231,9 @@ MonoBehaviour:
   - _attachmentItemId: att-kar98k-muzzle-device-c
     _slotType: 1
     _attachmentDefinition: {fileID: 11400000, guid: 83914ec7921b4e109c6e0510f971249d, type: 2}
-  _shotCameraRuntimeBehaviour: {fileID: 0}
+  _shotCameraRuntimeBehaviour: {fileID: 7999831991638637010}
   _shotCameraSettings:
-    _enabled: 0
+    _enabled: 1
     _minimumPredictedDistanceMeters: 100
     _slowMotionTimeScale: 0.1
     _speedUpTimeScale: 0.25
@@ -1631,6 +1632,18 @@ MonoBehaviour:
   _weaponPresentationRoot: {fileID: 7349667363605887490}
   _weaponPresentationMount: {fileID: 0}
   _weaponPresentationMountPath: CameraPivot/PlayerArms/PlayerArmsVisual/Armature/root/ik_hand_root/ik_hand_gun
+--- !u!114 &7999831991638637010
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8805273355277606564}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 971f61947824d4fc39da09c7132fc0a9, type: 3}
+  m_Name: ""
+  m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Cinematics.ShotCameraRuntime
 --- !u!1001 &4151765724084627930
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -12,12 +12,14 @@ namespace Reloader.World.Tests.EditMode
         private static readonly Type PlayerCameraDefaultsType = FindType("Reloader.Player.PlayerCameraDefaults");
         private static readonly Type PlayerWeaponControllerType = FindType("Reloader.Weapons.Controllers.PlayerWeaponController");
         private static readonly Type WeaponHandRigControllerType = FindType("Reloader.Player.Viewmodel.WeaponHandRigController");
+        private static readonly Type WeaponPresentationMountDriverType = FindType("Reloader.Player.Viewmodel.WeaponPresentationMountDriver");
         private static readonly Type AdsStateControllerType = FindType("Reloader.Game.Weapons.AdsStateController");
         private static readonly Type RenderTextureScopeControllerType = FindType("Reloader.Game.Weapons.RenderTextureScopeController");
         private static readonly Type PeripheralScopeEffectsType = FindType("Reloader.Game.Weapons.PeripheralScopeEffects");
         private static readonly Type PeripheralScopeScreenMaskType = FindType("Reloader.Game.Weapons.PeripheralScopeScreenMask");
         private static readonly Type WeaponAimAlignerType = FindType("Reloader.Weapons.Runtime.WeaponAimAligner");
         private static readonly Type ScopeAdjustmentTooltipOverlayType = FindType("Reloader.Game.Weapons.ScopeAdjustmentTooltipOverlay");
+        private static readonly Type ShotCameraRuntimeType = FindType("Reloader.Weapons.Cinematics.ShotCameraRuntime");
         private static readonly Type CinemachineBrainType = FindType("Unity.Cinemachine.CinemachineBrain");
         private static readonly Type CinemachineCameraType = FindType("Unity.Cinemachine.CinemachineCamera");
         private static readonly Type CinemachineHardLockToTargetType = FindType("Unity.Cinemachine.CinemachineHardLockToTarget");
@@ -89,6 +91,22 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
+        [Test]
+        [Category("PlayerPrefabContract")]
+        public void PlayerRootPrefab_AuthorsExplicitWeaponPresentationMountDriverContract()
+        {
+            var prefabRoot = PrefabUtility.LoadPrefabContents(PlayerRootPrefabPath);
+
+            try
+            {
+                AssertWeaponPresentationMountDriverContract(prefabRoot, "PlayerRoot prefab");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(prefabRoot);
+            }
+        }
+
         private static void AssertPeripheralScopeWiring(GameObject root, string context)
         {
             Assert.That(root, Is.Not.Null, $"{context} should exist.");
@@ -120,6 +138,7 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(PeripheralScopeEffectsType, Is.Not.Null, "Expected PeripheralScopeEffects type.");
             Assert.That(ScopeAdjustmentTooltipOverlayType, Is.Not.Null, "Expected ScopeAdjustmentTooltipOverlay type.");
             Assert.That(UniversalAdditionalCameraDataType, Is.Not.Null, "Expected UniversalAdditionalCameraData type.");
+            Assert.That(ShotCameraRuntimeType, Is.Not.Null, "Expected ShotCameraRuntime type.");
 
             var playerWeaponController = root.GetComponent(PlayerWeaponControllerType);
             Assert.That(playerWeaponController, Is.Not.Null, $"{context} should include PlayerWeaponController.");
@@ -136,6 +155,9 @@ namespace Reloader.World.Tests.EditMode
             var tooltipOverlay = root.GetComponent(ScopeAdjustmentTooltipOverlayType);
             Assert.That(tooltipOverlay, Is.Not.Null, $"{context} should include ScopeAdjustmentTooltipOverlay.");
 
+            var shotCameraRuntime = root.GetComponent(ShotCameraRuntimeType);
+            Assert.That(shotCameraRuntime, Is.Not.Null, $"{context} should author ShotCameraRuntime on the canonical player prefab.");
+
             var scopeCameraTransform = root.transform.Find("CameraPivot/Camera/ScopeCamera");
             Assert.That(scopeCameraTransform, Is.Not.Null, $"{context} should author a ScopeCamera under the world camera.");
 
@@ -150,8 +172,8 @@ namespace Reloader.World.Tests.EditMode
             var playerWeaponSerialized = new SerializedObject(playerWeaponController);
             Assert.That(playerWeaponSerialized.FindProperty("_scopeCamera")?.objectReferenceValue, Is.SameAs(scopeCamera), $"{context} should serialize PlayerWeaponController._scopeCamera to the authored ScopeCamera.");
             Assert.That(playerWeaponSerialized.FindProperty("_adsCamera")?.objectReferenceValue, Is.Null, $"{context} should keep PlayerWeaponController._adsCamera null.");
-            Assert.That(playerWeaponSerialized.FindProperty("_shotCameraSettings")?.FindPropertyRelative("_enabled")?.boolValue, Is.False, $"{context} should explicitly disable shot camera on the canonical prefab for this branch.");
-            Assert.That(playerWeaponSerialized.FindProperty("_shotCameraRuntimeBehaviour")?.objectReferenceValue, Is.Null, $"{context} should keep shot camera runtime unauthored while the feature is disabled.");
+            Assert.That(playerWeaponSerialized.FindProperty("_shotCameraSettings")?.FindPropertyRelative("_enabled")?.boolValue, Is.True, $"{context} should keep shot camera enabled on the canonical prefab.");
+            Assert.That(playerWeaponSerialized.FindProperty("_shotCameraRuntimeBehaviour")?.objectReferenceValue, Is.SameAs(shotCameraRuntime), $"{context} should wire PlayerWeaponController._shotCameraRuntimeBehaviour to the authored ShotCameraRuntime.");
 
             var adsStateSerialized = new SerializedObject(adsStateController);
             Assert.That(adsStateSerialized.FindProperty("_worldCamera")?.objectReferenceValue, Is.SameAs(worldCameraTransform.GetComponent<Camera>()), $"{context} should wire AdsStateController._worldCamera.");
@@ -277,6 +299,31 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(defaultsSerialized.FindProperty("_viewmodelCamera")?.objectReferenceValue, Is.SameAs(root.transform.Find("CameraPivot/ViewmodelCamera")?.GetComponent<Camera>()), $"{context} should keep the viewmodel camera intact.");
             Assert.That(root.transform.Find("CameraPivot/Camera/ScopeCamera"), Is.Not.Null, $"{context} should keep the authored ScopeCamera under the world camera.");
             Assert.That(root.transform.Find("CameraPivot/ViewmodelCamera"), Is.Not.Null, $"{context} should keep the authored ViewmodelCamera under CameraPivot.");
+        }
+
+        private static void AssertWeaponPresentationMountDriverContract(GameObject root, string context)
+        {
+            Assert.That(root, Is.Not.Null, $"{context} should exist.");
+            Assert.That(WeaponPresentationMountDriverType, Is.Not.Null, "Expected WeaponPresentationMountDriver type.");
+
+            var weaponPresentationRoot = root.transform.Find("CameraPivot/WeaponPresentationRoot");
+            Assert.That(weaponPresentationRoot, Is.Not.Null, $"{context} should author WeaponPresentationRoot under CameraPivot.");
+
+            var explicitWeaponPresentationMount = root.transform.Find("CameraPivot/PlayerArms/PlayerArmsVisual/Armature/root/ik_hand_root/ik_hand_gun");
+            Assert.That(explicitWeaponPresentationMount, Is.Not.Null,
+                $"{context} should keep the authored ik_hand_gun gun socket as the explicit weapon presentation mount seam.");
+
+            var mountDriver = root.GetComponent(WeaponPresentationMountDriverType);
+            Assert.That(mountDriver, Is.Not.Null, $"{context} should include WeaponPresentationMountDriver on PlayerRoot.");
+
+            var serialized = new SerializedObject(mountDriver);
+            Assert.That(serialized.FindProperty("_weaponPresentationRoot")?.objectReferenceValue, Is.SameAs(weaponPresentationRoot),
+                $"{context} should wire WeaponPresentationMountDriver._weaponPresentationRoot to CameraPivot/WeaponPresentationRoot.");
+            Assert.That(serialized.FindProperty("_weaponPresentationMount")?.objectReferenceValue, Is.Null,
+                $"{context} should not rely on a fragile nested-object reference for the weapon presentation mount.");
+            Assert.That(serialized.FindProperty("_weaponPresentationMountPath")?.stringValue,
+                Is.EqualTo("CameraPivot/PlayerArms/PlayerArmsVisual/Armature/root/ik_hand_root/ik_hand_gun"),
+                $"{context} should wire WeaponPresentationMountDriver._weaponPresentationMountPath to the authored ik_hand_gun socket seam.");
         }
 
         private static Type FindType(string fullName)

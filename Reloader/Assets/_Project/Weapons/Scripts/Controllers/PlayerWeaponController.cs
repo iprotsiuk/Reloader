@@ -2638,13 +2638,37 @@ namespace Reloader.Weapons.Controllers
             ResetStableMagnifiedScopedAdsState();
             ResetScopedViewmodelStabilization();
             ClearWeaponAimAlignerRuntimeBridge();
-            DestroyScopedBridgeComponent(_adsStateRuntimeBridge);
-            DestroyScopedBridgeComponent(_renderTextureScopeRuntimeBridge);
-            DestroyScopedBridgeComponent(_scopeAdjustmentTooltipRuntimeBridge);
+
+            if (_renderTextureScopeRuntimeBridge != null)
+            {
+                _renderTextureScopeRuntimeBridge.SetApertureCamera(null);
+                var scopeReferenceFov = _baseCameraFieldOfViewCaptured ? _baseCameraFieldOfView : DefaultFov;
+                _renderTextureScopeRuntimeBridge.SetScopeActive(false, null, null, scopeReferenceFov, 1f, 0, 0);
+            }
 
             if (_peripheralScopeEffectsRuntimeBridge != null)
             {
                 _peripheralScopeEffectsRuntimeBridge.SetState(false, 0f);
+            }
+
+            if (_scopeAdjustmentTooltipRuntimeBridge != null)
+            {
+                _scopeAdjustmentTooltipRuntimeBridge.SetState(false, 0, 0);
+            }
+
+            if (_adsStateRuntimeBridge != null)
+            {
+                var worldCamera = ResolveAdsCamera();
+                var viewmodelCamera = ResolveRuntimeViewmodelCamera(worldCamera);
+                _adsStateRuntimeBridge.SetAdsHeld(false);
+                _adsStateRuntimeBridge.BindRuntimeReferences(
+                    worldCamera,
+                    viewmodelCamera,
+                    null,
+                    _renderTextureScopeRuntimeBridge,
+                    _peripheralScopeEffectsRuntimeBridge,
+                    _scopeAdjustmentTooltipRuntimeBridge);
+                _adsStateRuntimeBridge.RefreshVisualMode();
             }
 
             _adsStateRuntimeBridge = null;
@@ -2653,14 +2677,6 @@ namespace Reloader.Weapons.Controllers
             _peripheralScopeEffectsRuntimeBridge = null;
             _scopeAdjustmentTooltipRuntimeBridge = null;
             ResetScopedAdsLookSensitivityBridge();
-        }
-
-        private static void DestroyScopedBridgeComponent(Component component)
-        {
-            if (component != null)
-            {
-                Destroy(component);
-            }
         }
 
         private static void ClearAttachmentSlots(WeaponRuntimeState state)

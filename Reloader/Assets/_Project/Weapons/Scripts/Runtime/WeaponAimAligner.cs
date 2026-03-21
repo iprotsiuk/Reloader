@@ -18,6 +18,7 @@ namespace Reloader.Weapons.Runtime
         private Vector3 _scopedAdsLocalPosition;
         private bool _hasCachedBasePose;
         private bool _hasScopedPoseAuthoring;
+        private bool _wasAdsActiveLastFrame;
         private bool _warnedMissingBindings;
         private bool _warnedMissingSightAnchor;
 
@@ -43,6 +44,7 @@ namespace Reloader.Weapons.Runtime
             _adsPivot = null;
             _hasCachedBasePose = false;
             _hasScopedPoseAuthoring = false;
+            _wasAdsActiveLastFrame = false;
             _warnedMissingBindings = false;
             _warnedMissingSightAnchor = false;
         }
@@ -56,10 +58,17 @@ namespace Reloader.Weapons.Runtime
 
             if (!_adsStateController.IsAdsActive)
             {
-                RestoreHipPose();
+                if (_wasAdsActiveLastFrame)
+                {
+                    RefreshViewPivotCache();
+                    RestoreCanonicalPose();
+                    _wasAdsActiveLastFrame = false;
+                }
+
                 return;
             }
 
+            _wasAdsActiveLastFrame = true;
             ApplyScopedPose();
         }
 
@@ -117,7 +126,7 @@ namespace Reloader.Weapons.Runtime
             }
         }
 
-        private void RestoreHipPose()
+        private void RestoreCanonicalPose()
         {
             if (_adsPivot == null)
             {

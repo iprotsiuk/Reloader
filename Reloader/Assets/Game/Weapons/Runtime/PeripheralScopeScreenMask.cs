@@ -52,6 +52,8 @@ namespace Reloader.Game.Weapons
                 effectiveActive,
                 alpha,
                 clampedBlur,
+                0.5f,
+                0.5f,
                 centerWidthNormalized,
                 centerHeightNormalized,
                 Mathf.Clamp(_softEdgeNormalized, 0.001f, 0.25f));

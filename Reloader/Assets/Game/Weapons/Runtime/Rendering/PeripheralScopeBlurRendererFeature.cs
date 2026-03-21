@@ -60,6 +60,7 @@ namespace Reloader.Game.Weapons.Rendering
             private static readonly int BlurStrengthId = Shader.PropertyToID("_BlurStrength");
             private static readonly int BlurSampleRadiusId = Shader.PropertyToID("_BlurSampleRadius");
             private static readonly int BlendAlphaId = Shader.PropertyToID("_BlendAlpha");
+            private static readonly int CenterUvId = Shader.PropertyToID("_CenterUv");
             private static readonly int CenterSizeId = Shader.PropertyToID("_CenterSize");
             private static readonly int SoftEdgeId = Shader.PropertyToID("_SoftEdgeNormalized");
 
@@ -103,6 +104,13 @@ namespace Reloader.Game.Weapons.Rendering
                 _material.SetFloat(BlurStrengthId, blurAmount);
                 _material.SetFloat(BlurSampleRadiusId, ResolveBlurSampleRadius(blurAmount));
                 _material.SetFloat(BlendAlphaId, PeripheralScopeBlurRuntimeState.BlendAlpha);
+                _material.SetVector(
+                    CenterUvId,
+                    new Vector4(
+                        PeripheralScopeBlurRuntimeState.CenterXNormalized,
+                        PeripheralScopeBlurRuntimeState.CenterYNormalized,
+                        0f,
+                        0f));
                 _material.SetVector(
                     CenterSizeId,
                     new Vector4(
@@ -160,7 +168,7 @@ namespace Reloader.Game.Weapons.Rendering
                 return false;
             }
 
-            if (cameraType != CameraType.Game || !isBaseCamera)
+            if (cameraType != CameraType.Game)
             {
                 return false;
             }

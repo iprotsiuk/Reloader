@@ -119,13 +119,19 @@ Shader "Hidden/Reloader/PeripheralScopeBlurComposite"
             #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
 
             float _BlendAlpha;
+            float2 _CenterUv;
             float2 _CenterSize;
             float _SoftEdgeNormalized;
 
             float ComputePeripheralMask(float2 uv)
             {
-                float2 centerHalfExtents = max(_CenterSize * 0.5, float2(0.001, 0.001));
-                float2 distanceFromCenter = abs(uv - 0.5) - centerHalfExtents;
+                if (_CenterSize.x <= 0.0001 || _CenterSize.y <= 0.0001)
+                {
+                    return 1.0;
+                }
+
+                float2 centerHalfExtents = _CenterSize * 0.5;
+                float2 distanceFromCenter = abs(uv - _CenterUv) - centerHalfExtents;
                 float edgeDistance = max(distanceFromCenter.x, distanceFromCenter.y);
                 return smoothstep(0.0, max(_SoftEdgeNormalized, 0.001), edgeDistance);
             }

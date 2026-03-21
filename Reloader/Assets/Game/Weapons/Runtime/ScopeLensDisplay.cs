@@ -18,6 +18,7 @@ namespace Reloader.Game.Weapons
         private bool _displayMaterialApplied;
 
         public Texture CurrentTexture { get; private set; }
+        public Renderer TargetRenderer => _targetRenderer != null ? _targetRenderer : (_targetRenderer = GetComponent<Renderer>());
         public bool IsUsingProxySurface => false;
 
         private void Awake()

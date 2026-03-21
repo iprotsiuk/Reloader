@@ -15,11 +15,6 @@ namespace Reloader.Game.Weapons
 
     public sealed class PeripheralScopeEffects : MonoBehaviour
     {
-        private const float DefaultCenterWidthNormalized = 0.3f;
-        private const float DefaultCenterHeightNormalized = 0.3f;
-        private const float DefaultMinCenterNormalizedScale = 0.55f;
-        private const float DefaultSoftEdgeNormalized = 0.04f;
-
         [SerializeField] private Behaviour[] _scopedBehaviours;
 
         public bool IsActive { get; private set; }
@@ -83,17 +78,7 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
-            var blurScale = Mathf.Lerp(1f, DefaultMinCenterNormalizedScale, CurrentPeripheralBlur);
-            var centerWidthNormalized = Mathf.Clamp01(DefaultCenterWidthNormalized * blurScale);
-            var centerHeightNormalized = Mathf.Clamp01(DefaultCenterHeightNormalized * blurScale);
-
-            PeripheralScopeBlurRuntimeState.Update(
-                true,
-                CurrentAlpha,
-                CurrentPeripheralBlur,
-                centerWidthNormalized,
-                centerHeightNormalized,
-                DefaultSoftEdgeNormalized);
+            PeripheralScopeBlurRuntimeState.UpdateState(true, CurrentAlpha, CurrentPeripheralBlur);
         }
     }
 }

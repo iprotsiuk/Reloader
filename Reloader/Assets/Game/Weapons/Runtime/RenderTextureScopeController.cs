@@ -15,6 +15,7 @@ namespace Reloader.Game.Weapons
         private const float NearSquareReticleAspectTolerance = 0.01f;
 
         [SerializeField] private Camera _scopeCamera;
+        [SerializeField] private Camera _apertureCamera;
         [SerializeField] private Behaviour[] _expensiveScopeBehaviours;
         [Header("Inspector Calibration Overrides")]
         [SerializeField] private bool _useInspectorCalibrationOverrides;
@@ -102,6 +103,11 @@ namespace Reloader.Game.Weapons
             }
         }
 
+        public void SetApertureCamera(Camera apertureCamera)
+        {
+            _apertureCamera = apertureCamera;
+        }
+
         public void SetScopedPipResolutionPercent(int pipResolutionPercent)
         {
             _scopedPipResolutionPercent = Mathf.Clamp(pipResolutionPercent, MinPipResolutionPercent, MaxPipResolutionPercent);
@@ -132,6 +138,8 @@ namespace Reloader.Game.Weapons
             var renderTextureStateMatches = !effectiveIsActive || ScopeRenderTextureMatches(requestedResolution);
             var scopeCameraStateMatches = ScopeCameraStateMatches(effectiveIsActive, requestedFov);
             var lensDisplayStateMatches = !effectiveIsActive || (lensDisplay != null && ReferenceEquals(lensDisplay.CurrentTexture, _scopeRenderTexture));
+
+            UpdatePeripheralBlurAperture(effectiveIsActive, lensDisplay);
 
             if (_initialized
                 && _lastIsActive == effectiveIsActive
@@ -280,6 +288,28 @@ namespace Reloader.Game.Weapons
             return activeOpticInstance.GetComponentInChildren<ScopeReticleController>(true);
         }
 
+        private void UpdatePeripheralBlurAperture(bool isActive, ScopeLensDisplay lensDisplay)
+        {
+            if (!isActive)
+            {
+                PeripheralScopeBlurRuntimeState.ClearAperture();
+                return;
+            }
+
+            if (!TryResolveLensViewportRectNormalized(_apertureCamera, lensDisplay, out var viewportRect))
+            {
+                PeripheralScopeBlurRuntimeState.ClearAperture();
+                return;
+            }
+
+            PeripheralScopeBlurRuntimeState.UpdateAperture(
+                viewportRect.center.x,
+                viewportRect.center.y,
+                viewportRect.width,
+                viewportRect.height,
+                0.04f);
+        }
+
         private static T FindDirectChildComponent<T>(Transform root) where T : Component
         {
             if (root == null)
@@ -303,6 +333,74 @@ namespace Reloader.Game.Weapons
             }
 
             return null;
+        }
+
+        private static bool TryResolveLensViewportRectNormalized(Camera apertureCamera, ScopeLensDisplay lensDisplay, out Rect viewportRect)
+        {
+            viewportRect = default;
+            var targetRenderer = lensDisplay != null ? lensDisplay.TargetRenderer : null;
+            if (apertureCamera == null || targetRenderer == null)
+            {
+                return false;
+            }
+
+            var bounds = targetRenderer.bounds;
+            if (bounds.size.sqrMagnitude <= 0.000001f)
+            {
+                return false;
+            }
+
+            var min = bounds.min;
+            var max = bounds.max;
+            var corners = new[]
+            {
+                new Vector3(min.x, min.y, min.z),
+                new Vector3(min.x, min.y, max.z),
+                new Vector3(min.x, max.y, min.z),
+                new Vector3(min.x, max.y, max.z),
+                new Vector3(max.x, min.y, min.z),
+                new Vector3(max.x, min.y, max.z),
+                new Vector3(max.x, max.y, min.z),
+                new Vector3(max.x, max.y, max.z)
+            };
+
+            var minX = float.PositiveInfinity;
+            var minY = float.PositiveInfinity;
+            var maxX = float.NegativeInfinity;
+            var maxY = float.NegativeInfinity;
+            var resolvedVisiblePoint = false;
+
+            for (var i = 0; i < corners.Length; i++)
+            {
+                var viewportPoint = apertureCamera.WorldToViewportPoint(corners[i]);
+                if (viewportPoint.z <= 0f)
+                {
+                    continue;
+                }
+
+                resolvedVisiblePoint = true;
+                minX = Mathf.Min(minX, viewportPoint.x);
+                minY = Mathf.Min(minY, viewportPoint.y);
+                maxX = Mathf.Max(maxX, viewportPoint.x);
+                maxY = Mathf.Max(maxY, viewportPoint.y);
+            }
+
+            if (!resolvedVisiblePoint)
+            {
+                return false;
+            }
+
+            minX = Mathf.Clamp01(minX);
+            minY = Mathf.Clamp01(minY);
+            maxX = Mathf.Clamp01(maxX);
+            maxY = Mathf.Clamp01(maxY);
+            if (maxX <= minX || maxY <= minY)
+            {
+                return false;
+            }
+
+            viewportRect = Rect.MinMaxRect(minX, minY, maxX, maxY);
+            return true;
         }
 
         private void EnsureRenderTexture(int resolution)

@@ -498,6 +498,7 @@ namespace Reloader.Game.Weapons
             if (_renderTextureScopeController != null)
             {
                 _renderTextureScopeController.SetScopedPipResolutionPercent(pipResolutionPercent);
+                _renderTextureScopeController.SetApertureCamera(_viewmodelCamera != null ? _viewmodelCamera : _worldCamera);
                 var scopeReferenceFov = _baseWorldFov;
                 var scopeMagnification = Mathf.Max(MinMagnification, CurrentMagnification);
                 var activeOpticInstance = _attachmentManager != null ? _attachmentManager.ActiveOpticInstance : null;
