@@ -1,6 +1,11 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using NUnit.Framework;
 using Reloader.Core.Persistence;
+using Reloader.Core.Save;
+using Reloader.Core.Save.IO;
+using Reloader.Core.Save.Modules;
 
 namespace Reloader.Core.Tests.EditMode
 {
@@ -216,6 +221,104 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(record.ItemInstanceId, Is.EqualTo("drop-instance-001"));
 
             WorldObjectPersistenceRuntimeBridge.ResetForTests();
+        }
+
+        [Test]
+        public void SaveCoordinator_Load_FinalizesRuntimeBridges_BeforeWorldObjectFinalizeAfterLoad()
+        {
+            var tempDir = Path.Combine(Path.GetTempPath(), "reloader-world-object-order-tests-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            var savePath = Path.Combine(tempDir, "slot01.json");
+            var order = new List<string>();
+            var probeBridge = new ProbeRuntimeBridge(() => order.Add("player-finalize"));
+            var observerField = typeof(WorldObjectPersistenceRuntimeBridge).GetField(
+                "FinalizeAfterLoadObserverForTests",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+
+            Assert.That(observerField, Is.Not.Null, "WorldObjectPersistenceRuntimeBridge should expose a finalize observer hook for order verification.");
+            observerField!.SetValue(null, (Action)(() => order.Add("world-object-finalize")));
+            SaveRuntimeBridgeRegistry.Register(probeBridge);
+
+            try
+            {
+                var coordinator = new SaveCoordinator(
+                    new SaveFileRepository(),
+                    new SaveModuleRegistration[]
+                    {
+                        new SaveModuleRegistration(0, new StubModule("PlayerState")),
+                        new SaveModuleRegistration(1, new WorldObjectStateModule())
+                    },
+                    currentSchemaVersion: 1);
+
+                var repository = new SaveFileRepository();
+                repository.WriteEnvelope(savePath, new SaveEnvelope
+                {
+                    SchemaVersion = 1,
+                    BuildVersion = "0.9.0-dev",
+                    CreatedAtUtc = "2026-03-20T12:00:00Z",
+                    Modules = new Dictionary<string, ModuleSaveBlock>
+                    {
+                        { "PlayerState", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } },
+                        { "WorldObjectState", new ModuleSaveBlock { ModuleVersion = 1, PayloadJson = "{}" } }
+                    }
+                });
+
+                coordinator.Load(savePath);
+
+                Assert.That(order, Is.EqualTo(new[] { "player-finalize", "world-object-finalize" }));
+            }
+            finally
+            {
+                observerField.SetValue(null, null);
+                SaveRuntimeBridgeRegistry.Unregister(probeBridge);
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                }
+            }
+        }
+
+        private sealed class ProbeRuntimeBridge : ISaveRuntimeBridge
+        {
+            private readonly Action _onFinalizeAfterLoad;
+
+            public ProbeRuntimeBridge(Action onFinalizeAfterLoad)
+            {
+                _onFinalizeAfterLoad = onFinalizeAfterLoad;
+            }
+
+            public void PrepareForSave(IReadOnlyList<SaveModuleRegistration> moduleRegistrations)
+            {
+            }
+
+            public void FinalizeAfterLoad(IReadOnlyList<SaveModuleRegistration> moduleRegistrations)
+            {
+                _onFinalizeAfterLoad();
+            }
+        }
+
+        private sealed class StubModule : ISaveDomainModule
+        {
+            public StubModule(string moduleKey)
+            {
+                ModuleKey = moduleKey;
+            }
+
+            public string ModuleKey { get; }
+            public int ModuleVersion => 1;
+
+            public string CaptureModuleStateJson()
+            {
+                return "{}";
+            }
+
+            public void RestoreModuleStateFromJson(string payloadJson)
+            {
+            }
+
+            public void ValidateModuleState()
+            {
+            }
         }
     }
 }

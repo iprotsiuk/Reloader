@@ -209,6 +209,24 @@ namespace Reloader.Core.Save.Modules
             }
         }
 
+        public void ReplaceState(
+            IEnumerable<SceneObjectStateRecord> sceneObjectStates,
+            IEnumerable<ReclaimRecord> reclaimEntries)
+        {
+            SceneObjectStates.Clear();
+            ReclaimEntries.Clear();
+
+            if (sceneObjectStates != null)
+            {
+                SceneObjectStates.AddRange(CloneSceneStateRecords(new List<SceneObjectStateRecord>(sceneObjectStates)));
+            }
+
+            if (reclaimEntries != null)
+            {
+                ReclaimEntries.AddRange(CloneReclaimRecords(new List<ReclaimRecord>(reclaimEntries)));
+            }
+        }
+
         private static List<SceneObjectStateRecord> CloneSceneStateRecords(List<SceneObjectStateRecord> source)
         {
             var cloned = new List<SceneObjectStateRecord>(source.Count);
