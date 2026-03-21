@@ -55,27 +55,41 @@ namespace Reloader.Game.Weapons
                 return true;
             }
 
-            EnsureDisplayMaterial();
-            ApplyTextureToRenderer(_targetRenderer, texture);
+            if (!EnsureDisplayMaterial())
+            {
+                return false;
+            }
+
+            ApplyTextureToMaterial(texture);
             _targetRenderer.enabled = true;
             _targetRenderer.SetPropertyBlock(_propertyBlock);
             CurrentTexture = texture;
             return true;
         }
 
-        private void EnsureDisplayMaterial()
+        private bool EnsureDisplayMaterial()
         {
-            if (_displayMaterialApplied || _targetRenderer == null)
+            if (_displayMaterialApplied && _runtimeDisplayMaterial != null)
             {
-                return;
+                return true;
+            }
+
+            if (_targetRenderer == null)
+            {
+                return false;
             }
 
             _originalSharedMaterials = _targetRenderer.sharedMaterials;
-            _runtimeDisplayMaterial ??= CreateDisplayMaterial();
-            if (_runtimeDisplayMaterial == null)
+            var runtimeShader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (runtimeShader == null)
             {
-                return;
+                return false;
             }
+
+            _runtimeDisplayMaterial ??= new Material(runtimeShader)
+            {
+                name = $"{_targetRenderer.sharedMaterial?.name ?? _targetRenderer.name}_RuntimeInstance"
+            };
 
             var materialCount = _originalSharedMaterials != null && _originalSharedMaterials.Length > 0
                 ? _originalSharedMaterials.Length
@@ -88,6 +102,7 @@ namespace Reloader.Game.Weapons
 
             _targetRenderer.sharedMaterials = displayMaterials;
             _displayMaterialApplied = true;
+            return true;
         }
 
         private void RestoreOriginalMaterials()
@@ -105,43 +120,17 @@ namespace Reloader.Game.Weapons
             _displayMaterialApplied = false;
         }
 
-        private void ApplyTextureToRenderer(Renderer renderer, Texture texture)
+        private void ApplyTextureToMaterial(Texture texture)
         {
-            if (renderer == null)
+            if (_runtimeDisplayMaterial == null)
             {
                 return;
             }
 
-            _propertyBlock.Clear();
-            _propertyBlock.SetTexture(BaseMapId, texture);
-            _propertyBlock.SetTexture(MainTexId, texture);
-            _propertyBlock.SetColor(BaseColorId, Color.white);
-            _propertyBlock.SetColor(ColorId, Color.white);
-            renderer.SetPropertyBlock(_propertyBlock);
-        }
-
-        private Material CreateDisplayMaterial()
-        {
-            if (_displayMaterialTemplate != null)
-            {
-                return new Material(_displayMaterialTemplate)
-                {
-                    name = $"{_displayMaterialTemplate.name}_RuntimeInstance"
-                };
-            }
-
-            var shader = Shader.Find("Universal Render Pipeline/Unlit")
-                ?? Shader.Find("Unlit/Texture")
-                ?? Shader.Find("Standard");
-            if (shader == null)
-            {
-                return null;
-            }
-
-            return new Material(shader)
-            {
-                name = "ScopeLensDisplay_RuntimeMaterial"
-            };
+            _runtimeDisplayMaterial.SetTexture(BaseMapId, texture);
+            _runtimeDisplayMaterial.SetTexture(MainTexId, texture);
+            _runtimeDisplayMaterial.SetColor(BaseColorId, Color.white);
+            _runtimeDisplayMaterial.SetColor(ColorId, Color.white);
         }
     }
 }

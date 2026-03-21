@@ -31,6 +31,11 @@ namespace Reloader.Weapons.Tests.EditMode
                 Assert.That((bool)lensDisplay.GetType().GetMethod("TrySetTexture")!.Invoke(lensDisplay, new object[] { Texture2D.blackTexture }), Is.True,
                     "The authored PiP display surface should accept a texture binding.");
                 Assert.That(lensDisplay.GetType().GetProperty("CurrentTexture")?.GetValue(lensDisplay), Is.SameAs(Texture2D.blackTexture));
+
+                var runtimeMaterial = targetRenderer!.sharedMaterial;
+                Assert.That(runtimeMaterial, Is.Not.Null, "The authored PiP display surface should swap to a runtime display material when texture binding is active.");
+                Assert.That(runtimeMaterial!.name, Does.Contain("Runtime"), "The runtime PiP surface should be a distinct runtime material instance.");
+                Assert.That(runtimeMaterial.shader.name, Does.Contain("Unlit"), "The runtime PiP surface should use a texture-capable unlit shader.");
             }
             finally
             {

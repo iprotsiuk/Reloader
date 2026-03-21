@@ -2125,8 +2125,12 @@ namespace Reloader.Weapons.Tests.PlayMode
                 yield return null;
 
                 var currentTexture = GetProperty(liveLensDisplay, "CurrentTexture") as Texture;
+                var liveTargetRenderer = GetProperty(liveLensDisplay, "TargetRenderer") as Renderer;
                 Assert.That(scopeCamera.targetTexture, Is.Not.Null);
                 Assert.That(currentTexture, Is.SameAs(scopeCamera.targetTexture), "Lens display should receive the live scope render texture.");
+                Assert.That(liveTargetRenderer, Is.Not.Null, "Live scope lens display should expose its authored target renderer.");
+                Assert.That(liveTargetRenderer!.sharedMaterial.name, Does.Contain("Runtime"), "Live scope lens display should swap to a runtime display material while ADS is active.");
+                Assert.That(liveTargetRenderer.sharedMaterial.shader.name, Does.Contain("Unlit"), "Live scope lens display should use a texture-capable runtime shader while ADS is active.");
             }
             finally
             {
