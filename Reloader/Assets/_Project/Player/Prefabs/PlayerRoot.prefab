@@ -93,7 +93,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 1234500000000000002}
   m_Father: {fileID: 393772354762719187}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!20 &4826178153707363677
@@ -165,7 +166,135 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
-  m_Name: 
+  m_Name:
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
+  m_RenderShadows: 1
+  m_RequiresDepthTextureOption: 2
+  m_RequiresOpaqueTextureOption: 2
+  m_CameraType: 0
+  m_Cameras: []
+  m_RendererIndex: -1
+  m_VolumeLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  m_VolumeTrigger: {fileID: 0}
+  m_VolumeFrameworkUpdateModeOption: 2
+  m_RenderPostProcessing: 0
+  m_Antialiasing: 0
+  m_AntialiasingQuality: 2
+  m_StopNaN: 0
+  m_Dithering: 0
+  m_ClearDepth: 1
+  m_AllowXRRendering: 1
+  m_AllowHDROutput: 1
+  m_UseScreenCoordOverride: 0
+  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
+  m_RequiresDepthTexture: 0
+  m_RequiresColorTexture: 0
+  m_TaaSettings:
+    m_Quality: 3
+    m_FrameInfluence: 0.1
+    m_JitterScale: 1
+    m_MipBias: 0
+    m_VarianceClampScale: 0.9
+  m_ContrastAdaptiveSharpening: 0
+  m_Version: 2
+--- !u!1 &1234500000000000001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1234500000000000002}
+  - component: {fileID: 1234500000000000003}
+  - component: {fileID: 1234500000000000004}
+  m_Layer: 0
+  m_Name: ScopeCamera
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1234500000000000002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1234500000000000001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8851480171723198591}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!20 &1234500000000000003
+Camera:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1234500000000000001}
+  m_Enabled: 1
+  serializedVersion: 2
+  m_ClearFlags: 1
+  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_projectionMatrixMode: 1
+  m_GateFitMode: 2
+  m_FOVAxisMode: 0
+  m_Iso: 200
+  m_ShutterSpeed: 0.005
+  m_Aperture: 16
+  m_FocusDistance: 10
+  m_FocalLength: 50
+  m_BladeCount: 5
+  m_Curvature: {x: 2, y: 11}
+  m_BarrelClipping: 0.25
+  m_Anamorphism: 0
+  m_SensorSize: {x: 36, y: 24}
+  m_LensShift: {x: 0, y: 0}
+  m_NormalizedViewPortRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  near clip plane: 0.01
+  far clip plane: 1000
+  field of view: 60
+  orthographic: 0
+  orthographic size: 5
+  m_Depth: 0
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 4294967039
+  m_RenderingPath: -1
+  m_TargetTexture: {fileID: 0}
+  m_TargetDisplay: 0
+  m_TargetEye: 3
+  m_HDR: 1
+  m_AllowMSAA: 1
+  m_AllowDynamicResolution: 0
+  m_ForceIntoRT: 0
+  m_OcclusionCulling: 1
+  m_StereoConvergence: 10
+  m_StereoSeparation: 0.022
+--- !u!114 &1234500000000000004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1234500000000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
+  m_Name:
   m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
   m_RenderShadows: 1
   m_RequiresDepthTextureOption: 2
@@ -444,6 +573,9 @@ GameObject:
   - component: {fileID: 7999831991638637003}
   - component: {fileID: 7999831991638637004}
   - component: {fileID: 7999831991638637005}
+  - component: {fileID: 7999831991638637006}
+  - component: {fileID: 7999831991638637007}
+  - component: {fileID: 7999831991638637008}
   m_Layer: 0
   m_Name: RuntimePlayerRoot
   m_TagString: Player
@@ -502,7 +634,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 60f17de97ac0e4df1ad17dfb288e50c8, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Reloader.Player::Reloader.Player.PlayerInputReader
   _actionsAsset: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   _mapName: Player
@@ -531,7 +663,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c0cb92ad850e44e24827496b80a72e36, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Reloader.Player::Reloader.Player.PlayerCursorLockController
   _lockOnStart: 0
   _lockOnClick: 1
@@ -547,7 +679,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 007468385f8ab49cf8d54cb5bf54274f, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Reloader.Player::Reloader.Player.PlayerMover
   _characterController: {fileID: 3318008923015428434}
   _inputSourceBehaviour: {fileID: 1036421017844581326}
@@ -574,7 +706,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 272fe0217f9c942098d42c91f803c6c3, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Reloader.Player::Reloader.Player.PlayerLookController
   _inputSourceBehaviour: {fileID: 1036421017844581326}
   _pitchTransform: {fileID: 393772354762719187}
@@ -600,7 +732,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5f5b4d0002bdc40378f2eecbc373572b, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.World.PlayerWeaponPickupResolver
   _playerCamera: {fileID: 4826178153707363677}
   _maxDistance: 6
@@ -752,6 +884,7 @@ MonoBehaviour:
   _muzzleTransform: {fileID: 3282642832389094783}
   _cameraDefaults: {fileID: 8804757470899672677}
   _adsCamera: {fileID: 0}
+  _scopeCamera: {fileID: 1234500000000000003}
   _cameraPivot: {fileID: 393772354762719187}
   _viewmodelRoot: {fileID: 6046686744160355134}
   _packAnimator: {fileID: 7562842590407840843}
@@ -951,6 +1084,58 @@ MonoBehaviour:
   _hintDistance: 0.18
   _equippedViewName: ''
   _hasResolvedWeaponAnchors: 0
+--- !u!114 &7999831991638637006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8805273355277606564}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5c2927ba015f45e98c1c3b0fd5b359b, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Reloader.Game.Weapons::Reloader.Game.Weapons.AdsStateController
+  _worldCamera: {fileID: 4826178153707363677}
+  _viewmodelCamera: {fileID: 1178895432109876544}
+  _attachmentManager: {fileID: 0}
+  _scopeMaskController: {fileID: 0}
+  _renderTextureScopeController: {fileID: 7999831991638637007}
+  _scopeAdjustmentTooltipOverlay: {fileID: 7999831991638637008}
+  _peripheralScopeEffects: {fileID: 7999831991638637003}
+  _weaponDefinition: {fileID: 0}
+--- !u!114 &7999831991638637007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8805273355277606564}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5605d65a70b5a4d2fa360ed155a9ee7c, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Reloader.Game.Weapons::Reloader.Game.Weapons.RenderTextureScopeController
+  _scopeCamera: {fileID: 1234500000000000003}
+  _expensiveScopeBehaviours: []
+--- !u!114 &7999831991638637008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8805273355277606564}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2c02d99166604280bfc6cd6bdb24387, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Reloader.Game.Weapons::Reloader.Game.Weapons.ScopeAdjustmentTooltipOverlay
+  _screenRect:
+    serializedVersion: 2
+    x: 24
+    y: 24
+    width: 240
+    height: 28
 --- !u!1001 &4151765724084627930
 PrefabInstance:
   m_ObjectHideFlags: 0
