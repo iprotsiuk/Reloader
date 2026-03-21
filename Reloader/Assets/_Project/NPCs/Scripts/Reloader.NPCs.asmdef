@@ -6,6 +6,7 @@
     "Reloader.Core",
     "Reloader.Inventory",
     "Reloader.Player",
+    "Reloader.World",
     "Reloader.Weapons",
     "Unity.InputSystem"
   ],
