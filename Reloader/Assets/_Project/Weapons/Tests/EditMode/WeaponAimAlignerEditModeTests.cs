@@ -458,6 +458,19 @@ namespace Reloader.Weapons.Tests.EditMode
                 "Authored ADS alignment path should stay intact.");
         }
 
+        [Test]
+        public void PlayerArmsTunedPrefab_UsesIdentityWeaponPresentationMountRotation()
+        {
+            var playerArmsPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Player/Prefabs/PlayerArms_Tuned.prefab");
+            Assert.That(playerArmsPrefab, Is.Not.Null);
+
+            var weaponPresentationMount = playerArmsPrefab!.transform.Find("PlayerArmsVisual/Armature/root/ik_hand_root/ik_hand_gun");
+            Assert.That(weaponPresentationMount, Is.Not.Null,
+                "PlayerArms_Tuned should keep the explicit ik_hand_gun authored mount path used by the runtime driver.");
+            Assert.That(Quaternion.Angle(weaponPresentationMount!.localRotation, Quaternion.identity), Is.LessThan(0.0001f),
+                "ik_hand_gun should no longer keep the legacy rifle carry rotation now that RifleView owns identity mount-space authoring.");
+        }
+
         private static bool SightAnchorMatchesCameraEyeRelief(Transform cameraTransform, Transform sightAnchor, float expectedEyeRelief)
         {
             if (cameraTransform == null || sightAnchor == null)
