@@ -459,16 +459,24 @@ namespace Reloader.Weapons.Tests.EditMode
         }
 
         [Test]
-        public void PlayerArmsTunedPrefab_UsesIdentityWeaponPresentationMountRotation()
+        public void PlayerRootPrefab_LiveNestedFpsArms_UsesIdentityWeaponPresentationMountRotation()
         {
-            var playerArmsPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Player/Prefabs/PlayerArms_Tuned.prefab");
-            Assert.That(playerArmsPrefab, Is.Not.Null);
+            var playerRootPrefab = PrefabUtility.LoadPrefabContents("Assets/_Project/Player/Prefabs/PlayerRoot.prefab");
 
-            var weaponPresentationMount = playerArmsPrefab!.transform.Find("PlayerArmsVisual/Armature/root/ik_hand_root/ik_hand_gun");
-            Assert.That(weaponPresentationMount, Is.Not.Null,
-                "PlayerArms_Tuned should keep the explicit ik_hand_gun authored mount path used by the runtime driver.");
-            Assert.That(Quaternion.Angle(weaponPresentationMount!.localRotation, Quaternion.identity), Is.LessThan(0.0001f),
-                "ik_hand_gun should no longer keep the legacy rifle carry rotation now that RifleView owns identity mount-space authoring.");
+            try
+            {
+                Assert.That(playerRootPrefab, Is.Not.Null);
+
+                var weaponPresentationMount = playerRootPrefab!.transform.Find("CameraPivot/PlayerArms/PlayerArmsVisual/Armature/root/ik_hand_root/ik_hand_gun");
+                Assert.That(weaponPresentationMount, Is.Not.Null,
+                    "PlayerRoot should keep the explicit live ik_hand_gun authored mount path used by the runtime driver.");
+                Assert.That(Quaternion.Angle(weaponPresentationMount!.localRotation, Quaternion.identity), Is.LessThan(0.0001f),
+                    "The live PlayerRoot FPS_Arms mount should not keep the legacy rifle-up rotation now that RifleView owns identity mount-space authoring.");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(playerRootPrefab);
+            }
         }
 
         private static bool SightAnchorMatchesCameraEyeRelief(Transform cameraTransform, Transform sightAnchor, float expectedEyeRelief)

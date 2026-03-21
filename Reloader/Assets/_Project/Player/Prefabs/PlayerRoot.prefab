@@ -1700,6 +1700,22 @@ PrefabInstance:
       propertyPath: m_Controller
       value: 
       objectReference: {fileID: 9100000, guid: 027ae8cddc85a484fa5fd415d19d7a8e, type: 2}
+    - target: {fileID: 6978156215748972180, guid: dd0fb2248a7174c218a3013c47f1480a, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6978156215748972180, guid: dd0fb2248a7174c218a3013c47f1480a, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6978156215748972180, guid: dd0fb2248a7174c218a3013c47f1480a, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6978156215748972180, guid: dd0fb2248a7174c218a3013c47f1480a, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
