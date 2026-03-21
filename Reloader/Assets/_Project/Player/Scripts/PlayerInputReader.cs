@@ -4,6 +4,7 @@ using Reloader.Core.Runtime;
 
 namespace Reloader.Player
 {
+    [DefaultExecutionOrder(-100)]
     public sealed class PlayerInputReader : MonoBehaviour, IPlayerInputSource, IShotCameraInputSource
     {
         private const string DefaultScrollWheelActionName = "ScrollWheel";
@@ -162,14 +163,18 @@ namespace Reloader.Player
                 AimHeld = false;
                 AimToggleQueued = false;
             }
-            else if (isShotCameraActive)
+            else
             {
-                AimToggleQueued = false;
-            }
-            else if (_aimAction != null && _aimAction.WasPressedThisFrame())
-            {
-                AimHeld = !AimHeld;
-                AimToggleQueued = true;
+                var nextAimHeld = AimHeld;
+                ResolveAimState(
+                    isAnyMenuOpen,
+                    isShotCameraActive,
+                    _aimAction != null && _aimAction.IsPressed(),
+                    _aimAction != null && _aimAction.WasPressedThisFrame(),
+                    ref nextAimHeld,
+                    out var aimToggleQueued);
+                AimHeld = nextAimHeld;
+                AimToggleQueued = aimToggleQueued;
             }
 
             if (!isGameplayInputSuppressed && !isAnyMenuOpen && keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
@@ -285,6 +290,31 @@ namespace Reloader.Player
             var lookInput = _lookAction.ReadValue<Vector2>();
             var activeControl = _lookAction.activeControl;
             return LookInputNormalization.NormalizeLookDelta(lookInput, activeControl != null ? activeControl.path : null);
+        }
+
+        private static void ResolveAimState(
+            bool isAnyMenuOpen,
+            bool isShotCameraActive,
+            bool aimPressed,
+            bool aimPressedThisFrame,
+            ref bool aimHeld,
+            out bool aimToggleQueued)
+        {
+            if (isAnyMenuOpen)
+            {
+                aimHeld = false;
+                aimToggleQueued = false;
+                return;
+            }
+
+            if (isShotCameraActive)
+            {
+                aimToggleQueued = false;
+                return;
+            }
+
+            aimHeld = aimPressed;
+            aimToggleQueued = aimPressedThisFrame;
         }
 
         public bool ConsumeJumpPressed()

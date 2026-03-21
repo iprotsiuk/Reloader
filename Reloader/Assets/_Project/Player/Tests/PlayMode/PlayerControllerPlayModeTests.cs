@@ -957,10 +957,11 @@ namespace Reloader.Player.Tests.PlayMode
             var go = new GameObject("InputReader");
             var reader = go.AddComponent<PlayerInputReader>();
             reader.SetActionsAsset(actionsAsset);
+            reader.EnsureActionMapEnabled();
 
             try
             {
-                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F2));
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Space));
                 InputSystem.Update();
 
                 reader.SendMessage("Update");
@@ -975,6 +976,26 @@ namespace Reloader.Player.Tests.PlayMode
                 RuntimeKernelBootstrapper.Events = previousEvents;
                 InputSystem.RemoveDevice(keyboard);
             }
+        }
+
+        [Test]
+        public void PlayerInputReader_ResolveAimState_TracksHeldReleaseWithoutLatching()
+        {
+            var resolveAimStateMethod = typeof(PlayerInputReader).GetMethod(
+                "ResolveAimState",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(resolveAimStateMethod, Is.Not.Null, "Expected PlayerInputReader to expose a private aim-state resolver.");
+
+            var pressArgs = new object[] { false, false, true, true, false, null };
+            resolveAimStateMethod!.Invoke(null, pressArgs);
+            Assert.That((bool)pressArgs[4], Is.True);
+            Assert.That((bool)pressArgs[5], Is.True);
+
+            var releaseArgs = new object[] { false, false, false, false, true, null };
+            resolveAimStateMethod.Invoke(null, releaseArgs);
+            Assert.That((bool)releaseArgs[4], Is.False,
+                "Expected releasing aim to clear the held ADS state instead of leaving it latched.");
+            Assert.That((bool)releaseArgs[5], Is.False);
         }
 
         [Test]
@@ -1756,7 +1777,7 @@ namespace Reloader.Player.Tests.PlayMode
         {
             var asset = ScriptableObject.CreateInstance<InputActionAsset>();
             var playerMap = new InputActionMap("Player");
-            playerMap.AddAction("Aim", binding: "<Keyboard>/f2");
+            playerMap.AddAction("Aim", binding: "<Keyboard>/space");
             asset.AddActionMap(playerMap);
             return asset;
         }
