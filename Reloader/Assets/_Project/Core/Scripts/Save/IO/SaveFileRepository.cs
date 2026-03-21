@@ -98,5 +98,43 @@ namespace Reloader.Core.Save.IO
                 throw new InvalidDataException("Save file contains invalid JSON.", ex);
             }
         }
+
+        public bool TryFindLatestSavePath(string directoryPath, out string latestSavePath)
+        {
+            latestSavePath = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+            {
+                return false;
+            }
+
+            var files = Directory.GetFiles(directoryPath, "*.json", SearchOption.TopDirectoryOnly);
+            if (files == null || files.Length == 0)
+            {
+                return false;
+            }
+
+            var newestWriteTime = DateTime.MinValue;
+            var newestPath = string.Empty;
+            for (var i = 0; i < files.Length; i++)
+            {
+                var candidate = files[i];
+                var candidateWriteTime = File.GetLastWriteTimeUtc(candidate);
+                if (candidateWriteTime > newestWriteTime
+                    || (candidateWriteTime == newestWriteTime && string.CompareOrdinal(candidate, newestPath) > 0))
+                {
+                    newestWriteTime = candidateWriteTime;
+                    newestPath = candidate;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(newestPath))
+            {
+                return false;
+            }
+
+            latestSavePath = newestPath;
+            return true;
+        }
     }
 }

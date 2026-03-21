@@ -1,0 +1,23 @@
+{
+  "name": "Reloader.Startup.Tests.EditMode",
+  "rootNamespace": "Reloader.Startup.Tests",
+  "references": [
+    "Reloader.Startup",
+    "Reloader.Core",
+    "Reloader.World"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

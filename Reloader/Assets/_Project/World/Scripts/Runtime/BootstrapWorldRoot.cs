@@ -1,6 +1,5 @@
 using Reloader.Player;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using Reloader.World.Travel;
 
 namespace Reloader.World.Runtime
@@ -8,25 +7,9 @@ namespace Reloader.World.Runtime
     public sealed class BootstrapWorldRoot : MonoBehaviour
     {
         public const string PlayerRootPrefabAssetPath = "Assets/_Project/Player/Prefabs/PlayerRoot.prefab";
-
-        private const string BootstrapSceneName = "Bootstrap";
-        private const string MainTownSceneName = "MainTown";
-        private const string MainTownSpawnEntryPointId = "entry.maintown.spawn";
         private const string RuntimePlayerRootInstanceName = "RuntimePlayerRoot";
 
         [SerializeField] private GameObject _playerRootPrefab;
-
-        private void Awake()
-        {
-            Initialize();
-            TryLoadMainTownFromBootstrap();
-        }
-
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void EnsureMainTownLoadedFromBootstrap()
-        {
-            TryLoadMainTownFromBootstrap();
-        }
 
         public static PersistentPlayerRoot Initialize()
         {
@@ -44,22 +27,6 @@ namespace Reloader.World.Runtime
 
             bootstrapWorldRoot.EnsureRuntimePlayerRoot(persistentRoot);
             return persistentRoot;
-        }
-
-        private static void TryLoadMainTownFromBootstrap()
-        {
-            var activeScene = SceneManager.GetActiveScene();
-            if (!activeScene.IsValid() || activeScene.name != BootstrapSceneName)
-            {
-                return;
-            }
-
-            if (SceneManager.GetSceneByName(MainTownSceneName).isLoaded)
-            {
-                return;
-            }
-
-            WorldTravelCoordinator.TryLoadSceneAtEntry(MainTownSceneName, MainTownSpawnEntryPointId);
         }
 
         private void EnsureRuntimePlayerRoot(PersistentPlayerRoot persistentRoot)

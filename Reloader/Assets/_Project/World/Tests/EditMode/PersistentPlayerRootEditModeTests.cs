@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System.Reflection;
 
 namespace Reloader.World.Tests.EditMode
 {
@@ -56,6 +57,23 @@ namespace Reloader.World.Tests.EditMode
                 {
                     SceneManager.SetActiveScene(originalScene);
                 }
+            }
+        }
+
+        [Test]
+        public void BootstrapWorldRoot_DoesNotDeclareAutomaticMainTownLoadPath()
+        {
+            var loaderMethod = typeof(BootstrapWorldRoot).GetMethod("TryLoadMainTownFromBootstrap", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.That(loaderMethod, Is.Null, "BootstrapWorldRoot should not keep the old automatic MainTown loader once the front door is explicit.");
+
+            var runtimeInitMethods = typeof(BootstrapWorldRoot)
+                .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static);
+
+            for (var i = 0; i < runtimeInitMethods.Length; i++)
+            {
+                var attributes = runtimeInitMethods[i].GetCustomAttributes(typeof(RuntimeInitializeOnLoadMethodAttribute), false);
+                Assert.That(attributes.Length, Is.EqualTo(0),
+                    $"BootstrapWorldRoot should not declare runtime initialize methods after the menu front door cutover. Found '{runtimeInitMethods[i].Name}'.");
             }
         }
 
