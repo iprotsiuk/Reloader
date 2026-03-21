@@ -59,6 +59,17 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void ClearSelectedBeltSlot_ClearsExistingSelection()
+        {
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SelectBeltSlot(1);
+
+            runtime.ClearSelectedBeltSlot();
+
+            Assert.That(runtime.SelectedBeltIndex, Is.EqualTo(-1));
+        }
+
+        [Test]
         public void TryStoreItem_FillingSelectedEmptySlot_MakesSelectedItemAvailable()
         {
             var runtime = new PlayerInventoryRuntime();

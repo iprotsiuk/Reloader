@@ -5,6 +5,7 @@ using Reloader.Core.Save.IO;
 using Reloader.Core.Save.Modules;
 using Reloader.World.Travel;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Reloader.Startup.Runtime
 {
@@ -30,6 +31,11 @@ namespace Reloader.Startup.Runtime
         void EnsureCanonicalRuntimePlayerRoot();
     }
 
+    public interface IStartupDeferredContinueLoad
+    {
+        void Schedule(string sceneName, string entryPointId, Action restoreAction);
+    }
+
     public sealed class StartupMenuFlow : IStartupMenuFlow
     {
         private const string NewGameSceneName = "MainTown";
@@ -41,6 +47,7 @@ namespace Reloader.Startup.Runtime
         private readonly IStartupMenuSceneTravel _sceneTravel;
         private readonly IStartupSaveLoader _saveLoader;
         private readonly IStartupRuntimeBootstrapper _runtimeBootstrapper;
+        private readonly IStartupDeferredContinueLoad _deferredContinueLoad;
         private readonly string _saveDirectoryPath;
 
         public StartupMenuFlow()
@@ -49,6 +56,7 @@ namespace Reloader.Startup.Runtime
                 new UnityStartupMenuSceneTravel(),
                 new SaveCoordinatorSaveLoader(SaveBootstrapper.CreateDefaultCoordinator()),
                 new UnityStartupRuntimeBootstrapper(),
+                new UnityStartupDeferredContinueLoad(),
                 GetDefaultSaveDirectoryPath())
         {
         }
@@ -58,12 +66,14 @@ namespace Reloader.Startup.Runtime
             IStartupMenuSceneTravel sceneTravel,
             IStartupSaveLoader saveLoader,
             IStartupRuntimeBootstrapper runtimeBootstrapper,
+            IStartupDeferredContinueLoad deferredContinueLoad,
             string saveDirectoryPath)
         {
             _fileRepository = fileRepository ?? throw new ArgumentNullException(nameof(fileRepository));
             _sceneTravel = sceneTravel ?? throw new ArgumentNullException(nameof(sceneTravel));
             _saveLoader = saveLoader ?? throw new ArgumentNullException(nameof(saveLoader));
             _runtimeBootstrapper = runtimeBootstrapper ?? throw new ArgumentNullException(nameof(runtimeBootstrapper));
+            _deferredContinueLoad = deferredContinueLoad ?? throw new ArgumentNullException(nameof(deferredContinueLoad));
             _saveDirectoryPath = string.IsNullOrWhiteSpace(saveDirectoryPath)
                 ? throw new ArgumentException("Save directory path is required.", nameof(saveDirectoryPath))
                 : saveDirectoryPath;
@@ -108,7 +118,17 @@ namespace Reloader.Startup.Runtime
                 return false;
             }
 
-            _saveLoader.Load(state.LatestSavePath);
+            _deferredContinueLoad.Schedule(state.CurrentSceneName, state.CurrentAnchorId, () =>
+            {
+                try
+                {
+                    _saveLoader.Load(state.LatestSavePath);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"Startup menu failed to continue from save '{state.LatestSavePath}': {ex.Message}");
+                }
+            });
             return true;
         }
 
@@ -175,6 +195,78 @@ namespace Reloader.Startup.Runtime
         public void EnsureCanonicalRuntimePlayerRoot()
         {
             Reloader.World.Runtime.BootstrapWorldRoot.Initialize();
+        }
+    }
+
+    internal sealed class UnityStartupDeferredContinueLoad : IStartupDeferredContinueLoad
+    {
+        private string _pendingSceneName;
+        private string _pendingEntryPointId;
+        private Action _restoreAction;
+
+        public void Schedule(string sceneName, string entryPointId, Action restoreAction)
+        {
+            if (restoreAction == null)
+            {
+                throw new ArgumentNullException(nameof(restoreAction));
+            }
+
+            ClearPending();
+            _pendingSceneName = sceneName?.Trim() ?? string.Empty;
+            _pendingEntryPointId = entryPointId?.Trim() ?? string.Empty;
+            _restoreAction = restoreAction;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (_restoreAction == null || !IsMatchingPendingScene(scene, _pendingSceneName))
+            {
+                return;
+            }
+
+            var shouldRestore = string.Equals(WorldTravelCoordinator.LastResolvedEntryPointId, _pendingEntryPointId, StringComparison.Ordinal);
+            var restoreAction = _restoreAction;
+            ClearPending();
+            if (shouldRestore)
+            {
+                restoreAction.Invoke();
+            }
+        }
+
+        private void ClearPending()
+        {
+            if (_restoreAction != null)
+            {
+                SceneManager.sceneLoaded -= OnSceneLoaded;
+            }
+
+            _pendingSceneName = string.Empty;
+            _pendingEntryPointId = string.Empty;
+            _restoreAction = null;
+        }
+
+        private static bool IsMatchingPendingScene(Scene loadedScene, string pendingSceneIdentifier)
+        {
+            if (string.IsNullOrWhiteSpace(pendingSceneIdentifier))
+            {
+                return false;
+            }
+
+            var pending = pendingSceneIdentifier.Trim();
+            if (string.Equals(loadedScene.name, pending, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var loadedScenePath = loadedScene.path;
+            if (string.IsNullOrWhiteSpace(loadedScenePath))
+            {
+                return false;
+            }
+
+            var normalizedPending = pending.Replace('\\', '/');
+            return string.Equals(loadedScenePath, normalizedPending, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

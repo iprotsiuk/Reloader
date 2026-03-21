@@ -1,10 +1,13 @@
 using System;
 using System.IO;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using Reloader.Core.Save;
 using Reloader.Core.Save.IO;
 using Reloader.Core.Save.Modules;
 using Reloader.Startup.Runtime;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Reloader.Startup.Tests.EditMode
 {
@@ -43,7 +46,13 @@ namespace Reloader.Startup.Tests.EditMode
             File.SetLastWriteTimeUtc(olderPath, DateTime.UtcNow.AddMinutes(-15));
             File.SetLastWriteTimeUtc(newerPath, DateTime.UtcNow);
 
-            var flow = new StartupMenuFlow(repository, new TestSceneTravel(), new TestSaveLoader(), new TestRuntimeBootstrapper(), _saveDir);
+            var flow = new StartupMenuFlow(
+                repository,
+                new TestSceneTravel(),
+                new TestSaveLoader(),
+                new TestRuntimeBootstrapper(),
+                new TestDeferredContinueLoad(),
+                _saveDir);
             var state = flow.RefreshState();
 
             Assert.That(state.CanContinue, Is.True);
@@ -59,7 +68,13 @@ namespace Reloader.Startup.Tests.EditMode
         {
             var bootstrapper = new TestRuntimeBootstrapper();
             var travel = new TestSceneTravel(bootstrapper);
-            var flow = new StartupMenuFlow(new SaveFileRepository(), travel, new TestSaveLoader(), bootstrapper, _saveDir);
+            var flow = new StartupMenuFlow(
+                new SaveFileRepository(),
+                travel,
+                new TestSaveLoader(),
+                bootstrapper,
+                new TestDeferredContinueLoad(),
+                _saveDir);
 
             var started = flow.TryStartNewGame();
 
@@ -71,7 +86,7 @@ namespace Reloader.Startup.Tests.EditMode
         }
 
         [Test]
-        public void TryContinueLatest_LoadsSceneBeforeRestoringSave()
+        public void TryContinueLatest_DefersSaveRestoreUntilDeferredTravelCompletion()
         {
             var repository = new SaveFileRepository();
             var savePath = Path.Combine(_saveDir, "slot01.json");
@@ -80,7 +95,8 @@ namespace Reloader.Startup.Tests.EditMode
             var bootstrapper = new TestRuntimeBootstrapper();
             var travel = new TestSceneTravel(bootstrapper);
             var loader = new TestSaveLoader(travel);
-            var flow = new StartupMenuFlow(repository, travel, loader, bootstrapper, _saveDir);
+            var deferredLoad = new TestDeferredContinueLoad(travel);
+            var flow = new StartupMenuFlow(repository, travel, loader, bootstrapper, deferredLoad, _saveDir);
 
             var continued = flow.TryContinueLatest();
 
@@ -89,8 +105,69 @@ namespace Reloader.Startup.Tests.EditMode
             Assert.That(travel.WasCalledAfterBootstrapper, Is.True);
             Assert.That(travel.SceneName, Is.EqualTo("MainTown"));
             Assert.That(travel.EntryPointId, Is.EqualTo("entry.maintown.spawn"));
+            Assert.That(loader.LoadedPath, Is.Null);
+            Assert.That(deferredLoad.WasScheduledAfterTravel, Is.True);
+            Assert.That(deferredLoad.SceneName, Is.EqualTo("MainTown"));
+            Assert.That(deferredLoad.EntryPointId, Is.EqualTo("entry.maintown.spawn"));
+
+            deferredLoad.Complete();
+
             Assert.That(loader.LoadedPath, Is.EqualTo(savePath));
             Assert.That(loader.LoadCalledAfterTravel, Is.True);
+        }
+
+        [Test]
+        public void TryContinueLatest_WhenDeferredSaveRestoreThrows_LogsWarningAndDoesNotBubble()
+        {
+            var repository = new SaveFileRepository();
+            var savePath = Path.Combine(_saveDir, "slot01.json");
+            repository.WriteEnvelope(savePath, CreateEnvelope("Assets/_Project/World/Scenes/MainTown.unity", "entry.maintown.spawn"));
+
+            var deferredLoad = new TestDeferredContinueLoad();
+            var loader = new ThrowingTestSaveLoader("save restore failed");
+            var flow = new StartupMenuFlow(
+                repository,
+                new TestSceneTravel(),
+                loader,
+                new TestRuntimeBootstrapper(),
+                deferredLoad,
+                _saveDir);
+
+            var continued = flow.TryContinueLatest();
+
+            Assert.That(continued, Is.True);
+            LogAssert.Expect(LogType.Warning, new Regex("Startup menu failed to continue from save"));
+            Assert.That(() => deferredLoad.Complete(), Throws.Nothing);
+            Assert.That(loader.CallCount, Is.EqualTo(1));
+        }
+
+        private sealed class TestDeferredContinueLoad : IStartupDeferredContinueLoad
+        {
+            private readonly TestSceneTravel _travel;
+            private Action _restoreAction;
+
+            public TestDeferredContinueLoad(TestSceneTravel travel = null)
+            {
+                _travel = travel;
+            }
+
+            public string SceneName { get; private set; }
+            public string EntryPointId { get; private set; }
+            public bool WasScheduledAfterTravel { get; private set; }
+
+            public void Schedule(string sceneName, string entryPointId, Action restoreAction)
+            {
+                WasScheduledAfterTravel = _travel == null || !string.IsNullOrWhiteSpace(_travel.SceneName);
+                SceneName = sceneName;
+                EntryPointId = entryPointId;
+                _restoreAction = restoreAction;
+            }
+
+            public void Complete()
+            {
+                Assert.That(_restoreAction, Is.Not.Null, "Expected deferred continue restore action.");
+                _restoreAction.Invoke();
+            }
         }
 
         private static SaveEnvelope CreateEnvelope(string scenePath, string anchorId)
@@ -169,6 +246,24 @@ namespace Reloader.Startup.Tests.EditMode
             {
                 LoadCalledAfterTravel = _travel == null || !string.IsNullOrWhiteSpace(_travel.SceneName);
                 LoadedPath = absolutePath;
+            }
+        }
+
+        private sealed class ThrowingTestSaveLoader : IStartupSaveLoader
+        {
+            private readonly string _message;
+
+            public ThrowingTestSaveLoader(string message)
+            {
+                _message = message;
+            }
+
+            public int CallCount { get; private set; }
+
+            public void Load(string absolutePath)
+            {
+                CallCount++;
+                throw new InvalidOperationException(_message);
             }
         }
     }

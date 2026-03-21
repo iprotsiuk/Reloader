@@ -244,6 +244,13 @@ namespace Reloader.Player
                 return;
             }
 
+            if (selectedBeltSlotIndex < 0)
+            {
+                var clearMethod = inventoryRuntime.GetType().GetMethod("ClearSelectedBeltSlot", BindingFlags.Instance | BindingFlags.Public);
+                clearMethod?.Invoke(inventoryRuntime, null);
+                return;
+            }
+
             var method = inventoryRuntime.GetType().GetMethod("SelectBeltSlot", BindingFlags.Instance | BindingFlags.Public);
             method?.Invoke(inventoryRuntime, new object[] { selectedBeltSlotIndex });
         }

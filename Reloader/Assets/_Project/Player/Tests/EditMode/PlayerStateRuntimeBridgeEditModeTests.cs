@@ -87,6 +87,32 @@ namespace Reloader.Player.Tests.EditMode
         }
 
         [Test]
+        public void RestoreFromModule_WhenSelectedBeltSlotIsMinusOne_ClearsExistingSelection()
+        {
+            var bridgeType = ResolveBridgeType();
+            var moduleType = ResolveModuleType();
+            var root = new GameObject("PlayerRoot");
+            var bridge = root.AddComponent(bridgeType);
+            var module = Activator.CreateInstance(moduleType);
+            var inventoryRuntime = new InventoryRuntimeProbe { SelectedBeltIndex = 3 };
+
+            SetProperty(module, "CurrentScenePath", "Assets/_Project/World/Scenes/MainTown.unity");
+            SetProperty(module, "CurrentAnchorId", "entry.maintown.return");
+            SetProperty(module, "RotationW", 1f);
+            SetProperty(module, "SelectedBeltSlotIndex", -1);
+
+            Invoke(bridge, "SetPlayerStateModuleForRuntime", module);
+            Invoke(bridge, "SetInventoryRuntimeForRuntime", inventoryRuntime);
+            Invoke(bridge, "RestoreFromModule");
+
+            Assert.That(inventoryRuntime.SelectedBeltIndex, Is.EqualTo(-1));
+            Assert.That(inventoryRuntime.ClearSelectedBeltSlotCallCount, Is.EqualTo(1));
+            Assert.That(inventoryRuntime.SelectBeltSlotCallCount, Is.EqualTo(0));
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void CaptureToModule_WhenCurrentAndResolvedAnchorsAreEmpty_ThrowsInsteadOfPersistingInvalidAnchor()
         {
             var bridgeType = ResolveBridgeType();
@@ -144,10 +170,19 @@ namespace Reloader.Player.Tests.EditMode
         private sealed class InventoryRuntimeProbe
         {
             public int SelectedBeltIndex { get; set; }
+            public int SelectBeltSlotCallCount { get; private set; }
+            public int ClearSelectedBeltSlotCallCount { get; private set; }
 
             public void SelectBeltSlot(int beltSlotIndex)
             {
+                SelectBeltSlotCallCount++;
                 SelectedBeltIndex = beltSlotIndex;
+            }
+
+            public void ClearSelectedBeltSlot()
+            {
+                ClearSelectedBeltSlotCallCount++;
+                SelectedBeltIndex = -1;
             }
         }
     }
