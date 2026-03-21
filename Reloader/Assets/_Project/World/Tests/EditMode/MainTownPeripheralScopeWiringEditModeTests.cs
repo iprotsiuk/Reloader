@@ -16,6 +16,7 @@ namespace Reloader.World.Tests.EditMode
         private static readonly Type RenderTextureScopeControllerType = FindType("Reloader.Game.Weapons.RenderTextureScopeController");
         private static readonly Type PeripheralScopeEffectsType = FindType("Reloader.Game.Weapons.PeripheralScopeEffects");
         private static readonly Type PeripheralScopeScreenMaskType = FindType("Reloader.Game.Weapons.PeripheralScopeScreenMask");
+        private static readonly Type WeaponAimAlignerType = FindType("Reloader.Weapons.Runtime.WeaponAimAligner");
         private static readonly Type ScopeAdjustmentTooltipOverlayType = FindType("Reloader.Game.Weapons.ScopeAdjustmentTooltipOverlay");
         private static readonly Type CinemachineBrainType = FindType("Unity.Cinemachine.CinemachineBrain");
         private static readonly Type CinemachineCameraType = FindType("Unity.Cinemachine.CinemachineCamera");
@@ -27,7 +28,7 @@ namespace Reloader.World.Tests.EditMode
         private static readonly Type UniversalAdditionalCameraDataType = FindType("UnityEngine.Rendering.Universal.UniversalAdditionalCameraData");
 
         [Test]
-        public void PlayerRootPrefab_WiresPeripheralScopeEffectsToScreenMask()
+        public void PlayerRootPrefab_WiresScopedAimAlignerAndUsesPeripheralBlurRuntimeState()
         {
             var prefabRoot = PrefabUtility.LoadPrefabContents(PlayerRootPrefabPath);
 
@@ -93,20 +94,21 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(root, Is.Not.Null, $"{context} should exist.");
             Assert.That(PeripheralScopeEffectsType, Is.Not.Null, "Expected PeripheralScopeEffects type.");
             Assert.That(PeripheralScopeScreenMaskType, Is.Not.Null, "Expected PeripheralScopeScreenMask type.");
+            Assert.That(WeaponAimAlignerType, Is.Not.Null, "Expected WeaponAimAligner type.");
 
             var peripheralEffects = root.GetComponent(PeripheralScopeEffectsType);
             Assert.That(peripheralEffects, Is.Not.Null, $"{context} should include PeripheralScopeEffects.");
 
+            var weaponAimAligner = root.GetComponent(WeaponAimAlignerType);
+            Assert.That(weaponAimAligner, Is.Not.Null, $"{context} should include WeaponAimAligner as the canonical scoped owner.");
+
             var screenMask = root.GetComponent(PeripheralScopeScreenMaskType);
-            Assert.That(screenMask, Is.Not.Null, $"{context} should include PeripheralScopeScreenMask.");
+            Assert.That(screenMask, Is.Null, $"{context} should not keep PeripheralScopeScreenMask on the canonical scoped path.");
 
             var serializedEffects = new SerializedObject(peripheralEffects);
             var scopedBehaviours = serializedEffects.FindProperty("_scopedBehaviours");
             Assert.That(scopedBehaviours, Is.Not.Null, $"{context} should serialize scoped behaviours.");
-            Assert.That(scopedBehaviours.arraySize, Is.GreaterThan(0), $"{context} should author at least one scoped behaviour.");
-
-            var firstBehaviour = scopedBehaviours.GetArrayElementAtIndex(0).objectReferenceValue as Behaviour;
-            Assert.That(firstBehaviour, Is.SameAs(screenMask), $"{context} should route PeripheralScopeEffects to the authored screen mask.");
+            Assert.That(scopedBehaviours.arraySize, Is.EqualTo(0), $"{context} should not author the old screen-mask scoped behaviour path.");
         }
 
         private static void AssertScopedAdsBridgeWiring(GameObject root, string context)

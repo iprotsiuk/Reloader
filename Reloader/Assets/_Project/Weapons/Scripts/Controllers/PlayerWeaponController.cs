@@ -145,6 +145,7 @@ namespace Reloader.Weapons.Controllers
         private GameRenderTextureScopeController _renderTextureScopeRuntimeBridge;
         private GamePeripheralScopeEffects _peripheralScopeEffectsRuntimeBridge;
         private GameScopeAdjustmentTooltipOverlay _scopeAdjustmentTooltipRuntimeBridge;
+        private WeaponAimAligner _weaponAimAlignerRuntimeBridge;
         private PlayerLookController _playerLookControllerRuntimeBridge;
         private FpsViewmodelAnimatorDriver _viewmodelAnimatorDriver;
         private float _cachedScopeMagnification = 1f;
@@ -2358,6 +2359,7 @@ namespace Reloader.Weapons.Controllers
                 _renderTextureScopeRuntimeBridge = null;
                 _peripheralScopeEffectsRuntimeBridge = null;
                 _scopeAdjustmentTooltipRuntimeBridge = null;
+                ClearWeaponAimAlignerRuntimeBridge();
                 return;
             }
 
@@ -2392,6 +2394,7 @@ namespace Reloader.Weapons.Controllers
                 _renderTextureScopeRuntimeBridge,
                 _peripheralScopeEffectsRuntimeBridge,
                 _scopeAdjustmentTooltipRuntimeBridge);
+            EnsureWeaponAimAlignerRuntimeBridge(worldCamera, attachmentManager);
             TryAssignScopedAdsWeaponDefinition();
             _adsStateRuntimeBridge.RefreshVisualMode();
             _adsStateRuntimeBridge.SetUseLegacyInput(false);
@@ -2432,6 +2435,37 @@ namespace Reloader.Weapons.Controllers
             }
 
             _scopeAdjustmentTooltipRuntimeBridge = gameObject.GetComponent<GameScopeAdjustmentTooltipOverlay>();
+        }
+
+        private void EnsureWeaponAimAlignerRuntimeBridge(Camera worldCamera, GameAttachmentManager attachmentManager)
+        {
+            if (_adsStateRuntimeBridge == null || attachmentManager == null || _equippedViewMounts == null)
+            {
+                ClearWeaponAimAlignerRuntimeBridge();
+                return;
+            }
+
+            _weaponAimAlignerRuntimeBridge ??= gameObject.GetComponent<WeaponAimAligner>();
+            if (_weaponAimAlignerRuntimeBridge == null)
+            {
+                return;
+            }
+
+            _weaponAimAlignerRuntimeBridge.BindRuntimeReferences(
+                worldCamera,
+                attachmentManager,
+                _adsStateRuntimeBridge,
+                _equippedViewMounts);
+        }
+
+        private void ClearWeaponAimAlignerRuntimeBridge()
+        {
+            if (_weaponAimAlignerRuntimeBridge == null)
+            {
+                return;
+            }
+
+            _weaponAimAlignerRuntimeBridge.ClearRuntimeReferences();
         }
 
         private void TryAssignScopedAdsWeaponDefinition()
@@ -2603,6 +2637,7 @@ namespace Reloader.Weapons.Controllers
         {
             ResetStableMagnifiedScopedAdsState();
             ResetScopedViewmodelStabilization();
+            ClearWeaponAimAlignerRuntimeBridge();
             DestroyScopedBridgeComponent(_adsStateRuntimeBridge);
             DestroyScopedBridgeComponent(_renderTextureScopeRuntimeBridge);
             DestroyScopedBridgeComponent(_scopeAdjustmentTooltipRuntimeBridge);

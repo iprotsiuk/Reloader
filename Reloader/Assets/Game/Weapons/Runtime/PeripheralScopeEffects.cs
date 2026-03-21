@@ -70,27 +70,8 @@ namespace Reloader.Game.Weapons
 
             if (!updatedBlurRuntimeState)
             {
-                if (TryUpdateSiblingMaskRuntimeState(isActive))
-                {
-                    return;
-                }
-
                 UpdateDefaultBlurRuntimeState(isActive);
             }
-        }
-
-        private bool TryUpdateSiblingMaskRuntimeState(bool isActive)
-        {
-            var mask = GetComponent<PeripheralScopeScreenMask>();
-            if (mask == null)
-            {
-                return false;
-            }
-
-            mask.SetScopedState(isActive, CurrentAlpha);
-            mask.SetPeripheralBlur(CurrentPeripheralBlur);
-            mask.UpdateBlurRuntimeState(isActive, CurrentAlpha, CurrentPeripheralBlur);
-            return true;
         }
 
         private void UpdateDefaultBlurRuntimeState(bool isActive)
