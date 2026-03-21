@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Rendering;
+using Reloader.Game.Weapons.Rendering;
 
 namespace Reloader.Game.Weapons
 {
