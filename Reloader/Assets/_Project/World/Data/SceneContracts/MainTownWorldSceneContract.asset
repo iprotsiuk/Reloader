@@ -15,11 +15,11 @@ MonoBehaviour:
   _scenePath: Assets/_Project/World/Scenes/MainTown.unity
   _sceneRole: 1
   _requiredObjectPaths:
-  - PlayerRoot
-  - PlayerRoot/CameraPivot
-  - PlayerRoot/CameraPivot/CameraLookTarget
-  - PlayerRoot/CameraPivot/WeaponMuzzle
   - WeaponRegistry
+  - MainTownEntry_Spawn
+  - MainTownEntry_Return
+  - MainTownRespawn_Hospital
+  - MainTownRespawn_Police
   - ReloadingWorkbench
   - MainTown_SmokeToIndoor_Trigger
   _requiredComponentContracts:
@@ -31,19 +31,6 @@ MonoBehaviour:
     _requiredNonEmptyArrayFields:
     - _definitions
     _requiredNonEmptyStringFields: []
-  - _objectPath: PlayerRoot
-    _componentScriptAsset: {fileID: 11500000, guid: 29f65bd28bff74eb1b31709470453ced, type: 3}
-    _componentTypeName: Reloader.Weapons.Controllers.PlayerWeaponController, Reloader.Weapons,
-      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    _requiredNonNullObjectReferenceFields:
-    - _inputSourceBehaviour
-    - _inventoryController
-    - _weaponRegistry
-    - _muzzleTransform
-    - _cameraDefaults
-    - _projectilePrefab
-    _requiredNonEmptyArrayFields: []
-    _requiredNonEmptyStringFields: []
   - _objectPath: MainTownEntry_Spawn
     _componentScriptAsset: {fileID: 11500000, guid: 52cd80be86124d7aa463a5be22eeebf3, type: 3}
     _componentTypeName: Reloader.World.Travel.SceneEntryPoint, Reloader.World, Version=0.0.0.0,
@@ -52,6 +39,38 @@ MonoBehaviour:
     _requiredNonEmptyArrayFields: []
     _requiredNonEmptyStringFields:
     - _entryPointId
+  - _objectPath: MainTownEntry_Spawn
+    _componentScriptAsset: {fileID: 11500000, guid: ed037f91d63174ec892f7b4f5261cec5, type: 3}
+    _componentTypeName: Reloader.World.Travel.PlayerSpawnAnchor, Reloader.World,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    _requiredNonNullObjectReferenceFields: []
+    _requiredNonEmptyArrayFields: []
+    _requiredNonEmptyStringFields:
+    - _anchorId
+  - _objectPath: MainTownEntry_Return
+    _componentScriptAsset: {fileID: 11500000, guid: ed037f91d63174ec892f7b4f5261cec5, type: 3}
+    _componentTypeName: Reloader.World.Travel.PlayerSpawnAnchor, Reloader.World,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    _requiredNonNullObjectReferenceFields: []
+    _requiredNonEmptyArrayFields: []
+    _requiredNonEmptyStringFields:
+    - _anchorId
+  - _objectPath: MainTownRespawn_Hospital
+    _componentScriptAsset: {fileID: 11500000, guid: ed037f91d63174ec892f7b4f5261cec5, type: 3}
+    _componentTypeName: Reloader.World.Travel.PlayerSpawnAnchor, Reloader.World,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    _requiredNonNullObjectReferenceFields: []
+    _requiredNonEmptyArrayFields: []
+    _requiredNonEmptyStringFields:
+    - _anchorId
+  - _objectPath: MainTownRespawn_Police
+    _componentScriptAsset: {fileID: 11500000, guid: ed037f91d63174ec892f7b4f5261cec5, type: 3}
+    _componentTypeName: Reloader.World.Travel.PlayerSpawnAnchor, Reloader.World,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    _requiredNonNullObjectReferenceFields: []
+    _requiredNonEmptyArrayFields: []
+    _requiredNonEmptyStringFields:
+    - _anchorId
   _validateRequiredSceneEntryPointIds: 1
   _requiredSceneEntryPointIds:
   - entry.maintown.spawn

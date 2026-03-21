@@ -8,8 +8,18 @@ namespace Reloader.World.Travel
     public sealed class SceneEntryPoint : MonoBehaviour
     {
         [SerializeField] private string _entryPointId = "";
+        [SerializeField] private PlayerSpawnAnchorKind _playerSpawnAnchorKind = PlayerSpawnAnchorKind.Spawn;
+        [SerializeField] private PlayerSpawnAnchor _playerSpawnAnchor;
 
         public string EntryPointId => _entryPointId;
+        public PlayerSpawnAnchor PlayerSpawnAnchor => _playerSpawnAnchor;
+
+        public void Configure(string entryPointId, PlayerSpawnAnchorKind playerSpawnAnchorKind)
+        {
+            _entryPointId = entryPointId ?? string.Empty;
+            _playerSpawnAnchorKind = playerSpawnAnchorKind;
+            EnsureSpawnAnchorContract();
+        }
 
         public void EnsureStableId()
         {
@@ -20,6 +30,17 @@ namespace Reloader.World.Travel
             }
 
             _entryPointId = _entryPointId.Trim();
+        }
+
+        public void EnsureSpawnAnchorContract()
+        {
+            EnsureStableId();
+            _playerSpawnAnchor = GetComponent<PlayerSpawnAnchor>();
+
+            if (_playerSpawnAnchor != null)
+            {
+                _playerSpawnAnchor.Configure(_entryPointId, _playerSpawnAnchorKind);
+            }
         }
 
         public static bool TryFindById(
@@ -53,12 +74,12 @@ namespace Reloader.World.Travel
 
         private void Reset()
         {
-            EnsureStableId();
+            EnsureSpawnAnchorContract();
         }
 
         private void OnValidate()
         {
-            EnsureStableId();
+            EnsureSpawnAnchorContract();
         }
     }
 }

@@ -3,88 +3,83 @@
 ## Scope
 
 - Plan: `docs/plans/2026-03-20-persistent-player-reset-implementation-plan.md`
-- Current slice: Task 2
-- Status: Follow-up verification complete; commit/push pending
+- Current slice: Task 3
+- Status: Verification complete; commit/push pending
 
 ## Task Checklist
 
-- [x] Review Task 2 plan requirements and local agent guidance
-- [x] Write the failing runtime-owner EditMode coverage
-- [x] Record the focused red verification for bootstrap/runtime-player ownership
-- [x] Implement the canonical runtime-player ownership cutover
-- [x] Re-run the focused Task 2 suite to green
-- [ ] Commit and push the scoped Task 2 changes
+- [x] Review Task 3 plan requirements, local agent guidance, and the in-progress scene/player cutover worktree state
+- [x] Write the failing anchor-contract and validator coverage for entry-point anchor ownership
+- [x] Record the focused red verification for anchor-only scenes and validator fail-closed behavior
+- [x] Implement the anchor-only scene/validator contract and fix authored entry-point anchor wiring
+- [x] Re-run the focused Task 3 suite to green
+- [x] Widen to the nearest player/world editmode tests that still encoded scene-owned player assumptions
+- [ ] Commit and push the scoped Task 3 changes
 
 ## Changed Files
 
 - `docs/plans/progress/2026-03-20-persistent-player-reset-progress.md`
-- `Reloader/Assets/_Project/Player/Prefabs/PlayerRoot.prefab`
-- `Reloader/Assets/_Project/World/Scripts/Runtime/PersistentPlayerRoot.cs`
-- `Reloader/Assets/_Project/World/Scripts/Runtime/BootstrapWorldRoot.cs`
-- `Reloader/Assets/_Project/World/Scripts/Runtime/Travel/WorldTravelCoordinator.cs`
-- `Reloader/Assets/Scenes/Bootstrap.unity`
-- `Reloader/Assets/_Project/World/Tests/EditMode/PersistentPlayerRootEditModeTests.cs`
-- `Reloader/Assets/_Project/World/Tests/EditMode/WorldTravelCoordinatorEditModeTests.cs`
-- `Reloader/Assets/_Project/Player/Prefabs/PlayerRoot.prefab.meta`
-- `Reloader/Assets/_Project/World/Tests/EditMode/WorldTravelCoordinatorEditModeTests.cs.meta`
+- `Reloader/Assets/_Project/World/Scripts/Runtime/Travel/PlayerSpawnAnchor.cs`
+- `Reloader/Assets/_Project/World/Scripts/Runtime/Travel/PlayerSpawnAnchorKind.cs`
+- `Reloader/Assets/_Project/World/Scripts/Runtime/Travel/SceneEntryPoint.cs`
+- `Reloader/Assets/_Project/World/Editor/WorldSceneContractValidator.cs`
+- `Reloader/Assets/_Project/World/Data/SceneContracts/MainTownWorldSceneContract.asset`
+- `Reloader/Assets/_Project/World/Data/SceneContracts/IndoorRangeInstanceWorldSceneContract.asset`
+- `Reloader/Assets/_Project/World/Scenes/MainTown.unity`
+- `Reloader/Assets/_Project/World/Scenes/IndoorRangeInstance.unity`
+- `Reloader/Assets/_Project/World/Tests/EditMode/PlayerSpawnAnchorEditModeTests.cs`
+- `Reloader/Assets/_Project/World/Tests/EditMode/WorldScenePlayerAnchorContractEditModeTests.cs`
+- `Reloader/Assets/_Project/World/Tests/EditMode/MainTownCombatWiringEditModeTests.cs`
+- `Reloader/Assets/_Project/World/Tests/EditMode/MainTownPeripheralScopeWiringEditModeTests.cs`
+- `Reloader/Assets/_Project/World/Scripts/Runtime/Travel/PlayerSpawnAnchor.cs.meta`
+- `Reloader/Assets/_Project/World/Scripts/Runtime/Travel/PlayerSpawnAnchorKind.cs.meta`
+- `Reloader/Assets/_Project/World/Tests/EditMode/PlayerSpawnAnchorEditModeTests.cs.meta`
+- `Reloader/Assets/_Project/World/Tests/EditMode/WorldScenePlayerAnchorContractEditModeTests.cs.meta`
 
 ## Verification Log
 
-- `bash scripts/run-unity-tests.sh editmode "Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests|Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests" "$(pwd)/tmp/persistent-player-reset-task2-red.xml" "$(pwd)/tmp/persistent-player-reset-task2-red.log"`
-  - Result: failed before test execution because another Unity instance already had the project open.
 - Unity MCP `run_tests`
   - Mode: `EditMode`
-  - Filter: `group_names=["Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests.*","Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.*"]`
-  - Result: failed `5/7`, passed `2/7`
+  - Filter: `group_names=["Reloader.World.Tests.EditMode.PlayerSpawnAnchorEditModeTests.*","Reloader.World.Tests.EditMode.WorldScenePlayerAnchorContractEditModeTests.*","Reloader.World.Tests.EditMode.TravelContextEditModeTests.*"]`
+  - Result: failed `5/27`, passed `22/27`
   - Failing tests:
-    - `Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests.Initialize_CreatesSinglePersistentRootWithCanonicalRuntimePlayerPrefab`
-    - `Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests.MoveRuntimePlayerRootToScene_WithCanonicalRuntimePlayerRoot_DoesNotSwapToSceneAuthoredPlayerRoot`
-    - `Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests.MoveRuntimePlayerRootToScene_WithoutCanonicalRuntimePlayerRoot_FailsClosedInsteadOfAdoptingScenePlayerRoot`
-    - `Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.PreparePersistentPlayerRootForTravel_DoesNotAdoptSceneAuthoredOriginPlayerRoot`
-    - `Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.RepositionPlayerToEntryPoint_WithoutCanonicalRuntimePlayerRoot_FailsClosedAndLeavesScenePlayerRootUntouched`
-  - Interpretation: bootstrap still lacked the canonical prefab, `PersistentPlayerRoot` still exposed scene-adoption semantics, and travel still allowed non-canonical player resolution.
+    - `Reloader.World.Tests.EditMode.PlayerSpawnAnchorEditModeTests.SceneEntryPoint_EnsureSpawnAnchorContract_ReplacesForeignAnchorReferenceWithSiblingAnchor`
+    - `Reloader.World.Tests.EditMode.WorldScenePlayerAnchorContractEditModeTests.MainTownScene_UsesExplicitPlayerSpawnAnchors_AndNoSceneOwnedPlayerRoot`
+    - `Reloader.World.Tests.EditMode.WorldScenePlayerAnchorContractEditModeTests.Validator_RejectsSceneEntryPointWhenAnchorKindDoesNotMatch`
+    - `Reloader.World.Tests.EditMode.WorldScenePlayerAnchorContractEditModeTests.Validator_RejectsSceneEntryPointWithoutExplicitSpawnAnchor`
+    - `Reloader.World.Tests.EditMode.WorldScenePlayerAnchorContractEditModeTests.Validator_RejectsSceneOwnedPlayerImplementationComponents_WhenPlayerRootIsRenamed`
+  - Interpretation: `SceneEntryPoint` did not re-bind to the sibling anchor, `MainTown` still serialized its return entry-point kind incorrectly, and the validator still ignored missing/mismatched anchor wiring plus renamed scene-owned player components.
 - Unity MCP `refresh_unity`
-  - Result: refresh requested with compile requested.
+  - Parameters: `compile=request`, `wait_for_ready=true`
+  - Result: refresh and compile requested before the narrowed re-run.
 - Unity MCP `run_tests`
   - Mode: `EditMode`
-  - Filter: `group_names=["Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests.*","Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.*"]`
-  - Result: passed `7/7`
-  - Interpretation: bootstrap now owns a prefab-backed runtime player, `PersistentPlayerRoot` moves only that runtime instance, and travel fails closed when the canonical runtime player is missing.
-- Follow-up review red suite:
-  - Unity MCP `run_tests`
+  - Filter: `group_names=["Reloader.World.Tests.EditMode.PlayerSpawnAnchorEditModeTests.SceneEntryPoint_EnsureSpawnAnchorContract_ReplacesForeignAnchorReferenceWithSiblingAnchor","Reloader.World.Tests.EditMode.WorldScenePlayerAnchorContractEditModeTests.Validator_RejectsSceneEntryPointWithoutExplicitSpawnAnchor","Reloader.World.Tests.EditMode.WorldScenePlayerAnchorContractEditModeTests.Validator_RejectsSceneEntryPointWhenAnchorKindDoesNotMatch","Reloader.World.Tests.EditMode.WorldScenePlayerAnchorContractEditModeTests.Validator_RejectsSceneOwnedPlayerImplementationComponents_WhenPlayerRootIsRenamed"]`
+  - Result: passed `4/4`
+  - Interpretation: the repaired `SceneEntryPoint`/validator seams now fail closed for foreign anchor refs, missing anchors, mismatched anchor kinds, and renamed scene-owned player components.
+- Unity MCP `run_tests`
   - Mode: `EditMode`
-  - Filter: `group_names=["Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests.*","Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.*"]`
-  - Result: failed `2/8`, passed `6/8`
+  - Filter: `group_names=["Reloader.World.Tests.EditMode.PlayerSpawnAnchorEditModeTests.*","Reloader.World.Tests.EditMode.WorldScenePlayerAnchorContractEditModeTests.*","Reloader.World.Tests.EditMode.TravelContextEditModeTests.*"]`
+  - Result: passed `27/27`
+  - Interpretation: the focused Task 3 anchor-only scene contract is green.
+- Unity MCP `run_tests`
+  - Mode: `EditMode`
+  - Filter: `group_names=["Reloader.World.Tests.EditMode.MainTownCombatWiringEditModeTests.*","Reloader.World.Tests.EditMode.MainTownPeripheralScopeWiringEditModeTests.*","Reloader.Player.Tests.EditMode.PlayerLookConfigurationEditModeTests.*"]`
+  - Result: failed `2/16`, passed `14/16`
   - Failing tests:
-    - `Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests.BootstrapScene_SerializesCanonicalRuntimePlayerPrefabReference`
-    - `Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.PreparePersistentPlayerRootForTravel_WithoutCanonicalRuntimePlayer_FailsClosedWithoutRecreatingPlayer`
-  - Interpretation: bootstrap still depended on a non-runtime-safe prefab load path and travel still recreated or repaired the player path instead of failing closed.
-- Follow-up review green suite:
-  - Unity MCP `run_tests`
+    - `Reloader.World.Tests.EditMode.MainTownCombatWiringEditModeTests.MainTownScene_PlayerRoot_UsesWeaponHandRigController_AndNoSceneOwnedPoseHelper`
+    - `Reloader.World.Tests.EditMode.MainTownPeripheralScopeWiringEditModeTests.MainTownScene_PlayerRoot_WiresPeripheralScopeEffectsToScreenMask`
+  - Interpretation: the nearest tests still codified the removed scene-owned `PlayerRoot` and `PlayerRoot_MainTown.prefab` assumptions.
+- Unity MCP `run_tests`
   - Mode: `EditMode`
-  - Filter: `group_names=["Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests.*","Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.*"]`
-  - Result: passed `8/8`
-  - Interpretation: bootstrap now loads the canonical player from a serialized scene prefab reference, and travel refuses to start if the canonical runtime player is missing.
-- Missing-destination-entry red suite:
-  - Unity MCP `run_tests`
+  - Filter: `group_names=["Reloader.World.Tests.EditMode.MainTownCombatWiringEditModeTests.*","Reloader.World.Tests.EditMode.MainTownPeripheralScopeWiringEditModeTests.*","Reloader.Player.Tests.EditMode.PlayerLookConfigurationEditModeTests.*"]`
+  - Result: passed `14/14`
+  - Interpretation: the adjacent wiring tests now assert the canonical runtime `PlayerRoot.prefab` contracts instead of scene-owned player content.
+- Unity MCP `run_tests`
   - Mode: `EditMode`
-  - Filter: `group_names=["Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.*"]`
-  - Result: failed `1/3`, passed `2/3`
-  - Failing test:
-    - `Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.OnSceneLoaded_WhenDestinationEntryPointIsMissing_FailsClosedWithoutLeavingHalfTravelState`
-  - Interpretation: the loaded destination scene stayed open and pending travel cleanup relied on a warn-and-clear path, which left a half-travel state after missing entry-point validation.
-- Missing-destination-entry green suite:
-  - Unity MCP `run_tests`
-  - Mode: `EditMode`
-  - Filter: `group_names=["Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.*"]`
-  - Result: passed `3/3`
-  - Interpretation: destination validation now happens before pre-travel side effects, and a missing entry point unloads the destination scene while keeping the origin scene and runtime player intact.
-- Final Task 2 suite:
-  - Unity MCP `run_tests`
-  - Mode: `EditMode`
-  - Filter: `group_names=["Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests.*","Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests.*"]`
-  - Result: passed `9/9`
-  - Interpretation: the canonical bootstrap player path and all current Task 2 fail-closed travel cases are green together.
+  - Filter: `group_names=["Reloader.World.Tests.EditMode.PlayerSpawnAnchorEditModeTests.*","Reloader.World.Tests.EditMode.WorldScenePlayerAnchorContractEditModeTests.*","Reloader.World.Tests.EditMode.TravelContextEditModeTests.*","Reloader.World.Tests.EditMode.WorldSceneContractValidatorEditModeTests.*","Reloader.World.Tests.EditMode.WorldPlayerRootContractEditModeTests.*","Reloader.World.Tests.EditMode.MainTownCombatWiringEditModeTests.*","Reloader.World.Tests.EditMode.MainTownPeripheralScopeWiringEditModeTests.*","Reloader.Player.Tests.EditMode.PlayerLookConfigurationEditModeTests.*"]`
+  - Result: passed `48/48`
+  - Interpretation: the Task 3 seam plus adjacent player-root/validator/wiring coverage is green together.
 
 ## Commit / Push
 
@@ -93,18 +88,17 @@
 
 ## Open Risks / Blockers
 
-- The exact shell command from the plan is blocked while another Unity editor instance holds the project lock.
-- `MainTown` and `IndoorRangeInstance` still author `PlayerRoot` scene objects and player look/controller ownership; removing those scene-authored implementations must wait for Task 3.
+- The exact shell command from the plan was not used in this slice; verification ran through the active Unity MCP editor instance so the scene/prefab changes could be validated without fighting project-lock/editor-state churn.
+- No Task 3 blockers remain. Later tasks still need the save/respawn/runtime restore path that consumes the new respawn anchors.
 
 ## Review Findings
 
-- Fixed in Task 2: bootstrap now creates and retains one canonical runtime player prefab instance.
-- Fixed in follow-up: bootstrap now sources that prefab from serialized `Bootstrap.unity` data instead of editor-only asset loading.
-- Fixed in Task 2: `PersistentPlayerRoot` no longer adopts or swaps to scene-authored player roots.
-- Fixed in follow-up: travel now fails closed when the canonical runtime player is missing and does not recreate a fresh default player mid-session.
-- Fixed in follow-up: destination entry-point validation now fails closed after scene load without leaving the destination scene loaded or pending travel state behind.
-- Deferred to Task 3: scene assets still author legacy player roots and related controller wiring.
+- Fixed in Task 3: `MainTown` and `IndoorRangeInstance` now serialize only anchors/entry points for player placement and no longer author scene-owned `PlayerRoot` content.
+- Fixed in Task 3: `SceneEntryPoint` now re-binds to the sibling `PlayerSpawnAnchor` instead of preserving stale foreign references.
+- Fixed in Task 3: `WorldSceneContractValidator` now rejects missing/mismatched entry-point anchor contracts and renamed scene-owned player implementation components, not just a root object literally named `PlayerRoot`.
+- Fixed in Task 3 follow-up: the nearest player/world editmode tests now assert the canonical runtime `PlayerRoot.prefab` ownership contracts instead of stale `PlayerRoot_MainTown` / scene-owned player assumptions.
 
 ## Deletion Log
 
-- Deleted from runtime behavior: `PersistentPlayerRoot` scene-adoption / `preferSceneRoot` semantics and `WorldTravelCoordinator` scene-root fallback resolution.
+- Deleted from scene content in this slice: authored `PlayerRoot` implementations and their scene-local first-person/combat/player-controller wiring from `MainTown` and `IndoorRangeInstance`.
+- Deleted from local test assumptions in this slice: `MainTown` scene-owned `PlayerRoot` expectations and `PlayerRoot_MainTown.prefab` assertions in the nearest world wiring suites.

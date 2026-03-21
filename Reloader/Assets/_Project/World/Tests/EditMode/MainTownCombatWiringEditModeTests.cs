@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Player;
@@ -16,7 +15,7 @@ namespace Reloader.World.Tests.EditMode
     public class MainTownCombatWiringEditModeTests
     {
         private const string MainTownScenePath = "Assets/_Project/World/Scenes/MainTown.unity";
-        private const string PlayerRootPrefabPath = "Assets/_Project/Player/Prefabs/PlayerRoot_MainTown.prefab";
+        private const string PlayerRootPrefabPath = "Assets/_Project/Player/Prefabs/PlayerRoot.prefab";
 
         [Test]
         public void MainTownScene_RemovesStarterFloorPickups_InFavorOfVendorAndChestAuthority()
@@ -121,22 +120,6 @@ namespace Reloader.World.Tests.EditMode
                     SceneManager.SetActiveScene(originalScene);
                 }
             }
-        }
-
-        [Test]
-        public void MainTownScene_PlayerRoot_UsesWeaponHandRigController_AndNoSceneOwnedPoseHelper()
-        {
-            var scenePath = Path.Combine(Application.dataPath, "_Project", "World", "Scenes", "MainTown.unity");
-            var sceneText = File.ReadAllText(scenePath);
-
-            Assert.That(sceneText, Does.Contain("m_Name: PlayerRoot"), "Expected authored PlayerRoot in MainTown scene file.");
-            Assert.That(sceneText, Does.Contain("m_EditorClassIdentifier: Reloader.Weapons::Reloader.Player.Viewmodel.WeaponHandRigController"), "MainTown scene should keep the hand rig controller authored on PlayerRoot.");
-            Assert.That(sceneText, Does.Contain("_handTargetRoot: {fileID: 2662114487113379158}"), "MainTown scene should serialize the explicit WeaponHandRigTargets root.");
-            Assert.That(sceneText, Does.Contain("m_Name: WeaponHandRigTargets"), "MainTown scene should author the hand-target root as a first-person child.");
-            Assert.That(sceneText, Does.Contain("m_Father: {fileID: 936686685}"), "MainTown scene should keep WeaponHandRigTargets under CameraPivot.");
-            Assert.That(sceneText, Does.Contain("_viewmodelCamera: {fileID: 1178895432109876544}"), "MainTown scene should serialize the explicit viewmodel camera reference.");
-            Assert.That(sceneText, Does.Contain("m_Name: ViewmodelCamera"), "MainTown scene should keep the explicit viewmodel camera child authored.");
-            Assert.That(sceneText, Does.Contain("m_Father: {fileID: 936686685}"), "MainTown scene should keep ViewmodelCamera under CameraPivot.");
         }
 
         [Test]
@@ -366,14 +349,14 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void PlayerRootMainTownPrefab_UsesWeaponHandRigController_AndNoSceneOwnedPoseHelper()
+        public void PlayerRootPrefab_UsesWeaponHandRigController_AndNoSceneOwnedPoseHelper()
         {
             var prefabRoot = PrefabUtility.LoadPrefabContents(PlayerRootPrefabPath);
 
             try
             {
-                AssertWeaponHandRigOwner(prefabRoot, "PlayerRoot_MainTown prefab");
-                AssertPlayerCameraDefaultsOwnership(prefabRoot, "PlayerRoot_MainTown prefab");
+                AssertWeaponHandRigOwner(prefabRoot, "PlayerRoot prefab");
+                AssertPlayerCameraDefaultsOwnership(prefabRoot, "PlayerRoot prefab");
             }
             finally
             {

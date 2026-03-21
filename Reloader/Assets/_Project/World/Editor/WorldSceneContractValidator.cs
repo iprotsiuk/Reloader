@@ -16,6 +16,20 @@ namespace Reloader.World.Editor
     public static class WorldSceneContractValidator
     {
         public const string DefaultContractFolderPath = "Assets/_Project/World/Data/SceneContracts";
+        private static readonly string[] ForbiddenSceneOwnedPlayerImplementationTypeNames =
+        {
+            "Reloader.Player.PlayerCameraDefaults, Reloader.Player",
+            "Reloader.Player.PlayerCursorLockController, Reloader.Player",
+            "Reloader.Player.PlayerInputReader, Reloader.Player",
+            "Reloader.Player.PlayerLookController, Reloader.Player",
+            "Reloader.Player.PlayerMover, Reloader.Player",
+            "Reloader.Inventory.PlayerInventoryController, Reloader.Inventory",
+            "Reloader.Weapons.Controllers.PlayerWeaponController, Reloader.Weapons",
+            "Reloader.Weapons.Animations.PlayerWeaponAnimationBinder, Reloader.Weapons",
+            "Reloader.Player.FpsViewmodelAnimatorDriver, Reloader.Player",
+            "Reloader.Player.Viewmodel.ViewmodelAnimationAdapter, Reloader.Player",
+            "Reloader.Player.Viewmodel.WeaponHandRigController, Reloader.Weapons"
+        };
 
         [MenuItem("Reloader/World/Validate All Scene Contracts")]
         public static void ValidateAllSceneContractsMenu()
@@ -129,6 +143,8 @@ namespace Reloader.World.Editor
                 ValidateRequiredObjectPaths(contract, report, scene, contractAssetPath, scenePath);
                 ValidateRequiredComponentContracts(contract, report, scene, contractAssetPath, scenePath);
                 ValidateSceneEntryPoints(contract, report, scene, contractAssetPath, scenePath);
+                ValidateNoSceneOwnedPlayerRoot(contract, report, scene, contractAssetPath, scenePath);
+                ValidateNoSceneOwnedPlayerImplementationComponents(contract, report, scene, contractAssetPath, scenePath);
             }
             finally
             {
@@ -174,6 +190,27 @@ namespace Reloader.World.Editor
                         "Required object path not found in scene."));
                 }
             }
+        }
+
+        private static void ValidateNoSceneOwnedPlayerRoot(
+            WorldSceneContract contract,
+            WorldSceneContractValidationReport report,
+            Scene scene,
+            string contractAssetPath,
+            string scenePath)
+        {
+            var playerRoot = FindRootGameObject(scene, "PlayerRoot");
+            if (playerRoot == null)
+            {
+                return;
+            }
+
+            report.AddIssue(WorldSceneContractValidationIssue.ForObjectPath(
+                contract,
+                contractAssetPath,
+                scenePath,
+                "PlayerRoot",
+                "Scene-owned PlayerRoot is forbidden. Scenes must expose anchors and local services only; player ownership is runtime-owned."));
         }
 
         private static void ValidateRequiredComponentContracts(
@@ -242,6 +279,38 @@ namespace Reloader.World.Editor
                 ValidateObjectReferenceFields(componentContract, report, contract, contractAssetPath, scenePath, objectPath, componentType.FullName, so);
                 ValidateStringFields(componentContract, report, contract, contractAssetPath, scenePath, objectPath, componentType.FullName, so);
                 ValidateArrayFields(componentContract, report, contract, contractAssetPath, scenePath, objectPath, componentType.FullName, so);
+            }
+        }
+
+        private static void ValidateNoSceneOwnedPlayerImplementationComponents(
+            WorldSceneContract contract,
+            WorldSceneContractValidationReport report,
+            Scene scene,
+            string contractAssetPath,
+            string scenePath)
+        {
+            var behaviours = Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < behaviours.Length; i++)
+            {
+                var behaviour = behaviours[i];
+                if (behaviour == null || behaviour.gameObject.scene != scene)
+                {
+                    continue;
+                }
+
+                var componentType = behaviour.GetType();
+                if (!IsForbiddenSceneOwnedPlayerImplementationType(componentType))
+                {
+                    continue;
+                }
+
+                report.AddIssue(WorldSceneContractValidationIssue.ForComponent(
+                    contract,
+                    contractAssetPath,
+                    scenePath,
+                    BuildPath(behaviour.transform),
+                    componentType.FullName,
+                    "Scene-owned player implementation component is forbidden. The canonical runtime player prefab must own player implementation components."));
             }
         }
 
@@ -429,11 +498,6 @@ namespace Reloader.World.Editor
             string contractAssetPath,
             string scenePath)
         {
-            if (!contract.ValidateRequiredSceneEntryPointIds)
-            {
-                return;
-            }
-
             var entryPoints = Object.FindObjectsByType<SceneEntryPoint>(FindObjectsInactive.Include, FindObjectsSortMode.None)
                 .Where(entry => entry != null && entry.gameObject.scene == scene)
                 .ToList();
@@ -471,6 +535,19 @@ namespace Reloader.World.Editor
                 }
 
                 ids[id] = entryPoint;
+                ValidateSceneEntryPointSpawnAnchorContract(
+                    contract,
+                    report,
+                    contractAssetPath,
+                    scenePath,
+                    objectPath,
+                    entryPoint,
+                    id);
+            }
+
+            if (!contract.ValidateRequiredSceneEntryPointIds)
+            {
+                return;
             }
 
             foreach (var requiredIdRaw in contract.RequiredSceneEntryPointIds)
@@ -492,6 +569,97 @@ namespace Reloader.World.Editor
                         "_entryPointId",
                         $"Required SceneEntryPoint id '{requiredId}' was not found."));
                 }
+            }
+        }
+
+        private static void ValidateSceneEntryPointSpawnAnchorContract(
+            WorldSceneContract contract,
+            WorldSceneContractValidationReport report,
+            string contractAssetPath,
+            string scenePath,
+            string objectPath,
+            SceneEntryPoint entryPoint,
+            string entryPointId)
+        {
+            var serializedEntryPoint = new SerializedObject(entryPoint);
+            var anchorReferenceProperty = serializedEntryPoint.FindProperty("_playerSpawnAnchor");
+            var anchorKindProperty = serializedEntryPoint.FindProperty("_playerSpawnAnchorKind");
+            var anchor = entryPoint.PlayerSpawnAnchor;
+
+            if (anchorReferenceProperty == null)
+            {
+                report.AddIssue(WorldSceneContractValidationIssue.ForField(
+                    contract,
+                    contractAssetPath,
+                    scenePath,
+                    objectPath,
+                    typeof(SceneEntryPoint).FullName,
+                    "_playerSpawnAnchor",
+                    "SceneEntryPoint is missing the serialized PlayerSpawnAnchor reference field."));
+                return;
+            }
+
+            if (anchor == null)
+            {
+                report.AddIssue(WorldSceneContractValidationIssue.ForField(
+                    contract,
+                    contractAssetPath,
+                    scenePath,
+                    objectPath,
+                    typeof(SceneEntryPoint).FullName,
+                    "_playerSpawnAnchor",
+                    "SceneEntryPoint must reference a PlayerSpawnAnchor on the same GameObject."));
+                return;
+            }
+
+            if (anchor.gameObject != entryPoint.gameObject)
+            {
+                report.AddIssue(WorldSceneContractValidationIssue.ForField(
+                    contract,
+                    contractAssetPath,
+                    scenePath,
+                    objectPath,
+                    typeof(SceneEntryPoint).FullName,
+                    "_playerSpawnAnchor",
+                    "SceneEntryPoint must reference the PlayerSpawnAnchor on the same GameObject."));
+            }
+
+            if (!string.Equals((anchor.AnchorId ?? string.Empty).Trim(), entryPointId, StringComparison.Ordinal))
+            {
+                report.AddIssue(WorldSceneContractValidationIssue.ForField(
+                    contract,
+                    contractAssetPath,
+                    scenePath,
+                    objectPath,
+                    typeof(PlayerSpawnAnchor).FullName,
+                    "_anchorId",
+                    $"PlayerSpawnAnchor id '{anchor.AnchorId}' does not match SceneEntryPoint id '{entryPointId}'."));
+            }
+
+            if (anchorKindProperty == null)
+            {
+                report.AddIssue(WorldSceneContractValidationIssue.ForField(
+                    contract,
+                    contractAssetPath,
+                    scenePath,
+                    objectPath,
+                    typeof(SceneEntryPoint).FullName,
+                    "_playerSpawnAnchorKind",
+                    "SceneEntryPoint is missing the serialized PlayerSpawnAnchorKind field."));
+                return;
+            }
+
+            var entryPointAnchorKind = (PlayerSpawnAnchorKind)anchorKindProperty.enumValueIndex;
+            if (anchor.AnchorKind != entryPointAnchorKind)
+            {
+                report.AddIssue(WorldSceneContractValidationIssue.ForField(
+                    contract,
+                    contractAssetPath,
+                    scenePath,
+                    objectPath,
+                    typeof(SceneEntryPoint).FullName,
+                    "_playerSpawnAnchorKind",
+                    $"SceneEntryPoint anchor kind '{entryPointAnchorKind}' does not match PlayerSpawnAnchor kind '{anchor.AnchorKind}'."));
             }
         }
 
@@ -652,6 +820,26 @@ namespace Reloader.World.Editor
             return true;
         }
 
+        private static GameObject FindRootGameObject(Scene scene, string rootName)
+        {
+            if (!scene.IsValid() || string.IsNullOrWhiteSpace(rootName))
+            {
+                return null;
+            }
+
+            var roots = scene.GetRootGameObjects();
+            for (var i = 0; i < roots.Length; i++)
+            {
+                var candidate = roots[i];
+                if (candidate != null && string.Equals(candidate.name, rootName, StringComparison.Ordinal))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
         private static string BuildPath(Transform transform)
         {
             if (transform == null)
@@ -668,6 +856,29 @@ namespace Reloader.World.Editor
             }
 
             return string.Join("/", names.ToArray());
+        }
+
+        private static bool IsForbiddenSceneOwnedPlayerImplementationType(Type componentType)
+        {
+            if (componentType == null)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < ForbiddenSceneOwnedPlayerImplementationTypeNames.Length; i++)
+            {
+                if (!TryResolveTypeName(ForbiddenSceneOwnedPlayerImplementationTypeNames[i], out var forbiddenType))
+                {
+                    continue;
+                }
+
+                if (forbiddenType == componentType)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 

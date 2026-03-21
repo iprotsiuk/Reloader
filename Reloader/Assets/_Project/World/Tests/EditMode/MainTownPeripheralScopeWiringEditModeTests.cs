@@ -1,53 +1,29 @@
 using System;
 using NUnit.Framework;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace Reloader.World.Tests.EditMode
 {
     public class MainTownPeripheralScopeWiringEditModeTests
     {
-        private const string MainTownScenePath = "Assets/_Project/World/Scenes/MainTown.unity";
-        private const string PlayerRootPrefabPath = "Assets/_Project/Player/Prefabs/PlayerRoot_MainTown.prefab";
+        private const string PlayerRootPrefabPath = "Assets/_Project/Player/Prefabs/PlayerRoot.prefab";
 
         private static readonly Type PeripheralScopeEffectsType = FindType("Reloader.Game.Weapons.PeripheralScopeEffects");
         private static readonly Type PeripheralScopeScreenMaskType = FindType("Reloader.Game.Weapons.PeripheralScopeScreenMask");
 
         [Test]
-        public void PlayerRootMainTownPrefab_WiresPeripheralScopeEffectsToScreenMask()
+        public void PlayerRootPrefab_WiresPeripheralScopeEffectsToScreenMask()
         {
             var prefabRoot = PrefabUtility.LoadPrefabContents(PlayerRootPrefabPath);
 
             try
             {
-                AssertPeripheralScopeWiring(prefabRoot, "PlayerRoot_MainTown prefab");
+                AssertPeripheralScopeWiring(prefabRoot, "PlayerRoot prefab");
             }
             finally
             {
                 PrefabUtility.UnloadPrefabContents(prefabRoot);
-            }
-        }
-
-        [Test]
-        public void MainTownScene_PlayerRoot_WiresPeripheralScopeEffectsToScreenMask()
-        {
-            var originalScene = SceneManager.GetActiveScene();
-            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
-
-            try
-            {
-                var playerRoot = FindRoot(scene, "PlayerRoot");
-                AssertPeripheralScopeWiring(playerRoot, "MainTown scene PlayerRoot");
-            }
-            finally
-            {
-                EditorSceneManager.CloseScene(scene, true);
-                if (originalScene.IsValid())
-                {
-                    SceneManager.SetActiveScene(originalScene);
-                }
             }
         }
 
@@ -80,19 +56,6 @@ namespace Reloader.World.Tests.EditMode
                 if (type != null)
                 {
                     return type;
-                }
-            }
-
-            return null;
-        }
-
-        private static GameObject FindRoot(Scene scene, string rootName)
-        {
-            foreach (var root in scene.GetRootGameObjects())
-            {
-                if (root.name == rootName)
-                {
-                    return root;
                 }
             }
 
