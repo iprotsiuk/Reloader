@@ -926,7 +926,7 @@ MonoBehaviour:
     _attachmentDefinition: {fileID: 11400000, guid: 83914ec7921b4e109c6e0510f971249d, type: 2}
   _shotCameraRuntimeBehaviour: {fileID: 0}
   _shotCameraSettings:
-    _enabled: 1
+    _enabled: 0
     _minimumPredictedDistanceMeters: 100
     _slowMotionTimeScale: 0.1
     _speedUpTimeScale: 0.25

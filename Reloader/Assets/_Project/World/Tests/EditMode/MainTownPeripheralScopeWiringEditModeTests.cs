@@ -107,6 +107,8 @@ namespace Reloader.World.Tests.EditMode
             var playerWeaponSerialized = new SerializedObject(playerWeaponController);
             Assert.That(playerWeaponSerialized.FindProperty("_scopeCamera")?.objectReferenceValue, Is.SameAs(scopeCamera), $"{context} should serialize PlayerWeaponController._scopeCamera to the authored ScopeCamera.");
             Assert.That(playerWeaponSerialized.FindProperty("_adsCamera")?.objectReferenceValue, Is.Null, $"{context} should keep PlayerWeaponController._adsCamera null.");
+            Assert.That(playerWeaponSerialized.FindProperty("_shotCameraSettings")?.FindPropertyRelative("_enabled")?.boolValue, Is.False, $"{context} should explicitly disable shot camera on the canonical prefab for this branch.");
+            Assert.That(playerWeaponSerialized.FindProperty("_shotCameraRuntimeBehaviour")?.objectReferenceValue, Is.Null, $"{context} should keep shot camera runtime unauthored while the feature is disabled.");
 
             var adsStateSerialized = new SerializedObject(adsStateController);
             Assert.That(adsStateSerialized.FindProperty("_worldCamera")?.objectReferenceValue, Is.SameAs(worldCameraTransform.GetComponent<Camera>()), $"{context} should wire AdsStateController._worldCamera.");
