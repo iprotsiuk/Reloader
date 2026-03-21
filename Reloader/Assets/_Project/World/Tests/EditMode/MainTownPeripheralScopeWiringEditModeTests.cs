@@ -9,12 +9,17 @@ namespace Reloader.World.Tests.EditMode
     {
         private const string PlayerRootPrefabPath = "Assets/_Project/Player/Prefabs/PlayerRoot.prefab";
 
+        private static readonly Type PlayerCameraDefaultsType = FindType("Reloader.Player.PlayerCameraDefaults");
         private static readonly Type PlayerWeaponControllerType = FindType("Reloader.Weapons.Controllers.PlayerWeaponController");
         private static readonly Type AdsStateControllerType = FindType("Reloader.Game.Weapons.AdsStateController");
         private static readonly Type RenderTextureScopeControllerType = FindType("Reloader.Game.Weapons.RenderTextureScopeController");
         private static readonly Type PeripheralScopeEffectsType = FindType("Reloader.Game.Weapons.PeripheralScopeEffects");
         private static readonly Type PeripheralScopeScreenMaskType = FindType("Reloader.Game.Weapons.PeripheralScopeScreenMask");
         private static readonly Type ScopeAdjustmentTooltipOverlayType = FindType("Reloader.Game.Weapons.ScopeAdjustmentTooltipOverlay");
+        private static readonly Type CinemachineBrainType = FindType("Unity.Cinemachine.CinemachineBrain");
+        private static readonly Type CinemachineCameraType = FindType("Unity.Cinemachine.CinemachineCamera");
+        private static readonly Type CinemachineHardLockToTargetType = FindType("Unity.Cinemachine.CinemachineHardLockToTarget");
+        private static readonly Type CinemachineHardLookAtType = FindType("Unity.Cinemachine.CinemachineHardLookAt");
         private static readonly Type UniversalAdditionalCameraDataType = FindType("UnityEngine.Rendering.Universal.UniversalAdditionalCameraData");
 
         [Test]
@@ -40,6 +45,22 @@ namespace Reloader.World.Tests.EditMode
             try
             {
                 AssertScopedAdsBridgeWiring(prefabRoot, "PlayerRoot prefab");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(prefabRoot);
+            }
+        }
+
+        [Test]
+        [Category("PlayerPrefabContract")]
+        public void PlayerRootPrefab_AuthorsWorldCameraCinemachineContract()
+        {
+            var prefabRoot = PrefabUtility.LoadPrefabContents(PlayerRootPrefabPath);
+
+            try
+            {
+                AssertWorldCameraCinemachineContract(prefabRoot, "PlayerRoot prefab");
             }
             finally
             {
@@ -119,6 +140,59 @@ namespace Reloader.World.Tests.EditMode
 
             var renderTextureSerialized = new SerializedObject(renderTextureScopeController);
             Assert.That(renderTextureSerialized.FindProperty("_scopeCamera")?.objectReferenceValue, Is.SameAs(scopeCamera), $"{context} should wire RenderTextureScopeController._scopeCamera.");
+        }
+
+        private static void AssertWorldCameraCinemachineContract(GameObject root, string context)
+        {
+            Assert.That(root, Is.Not.Null, $"{context} should exist.");
+            Assert.That(PlayerCameraDefaultsType, Is.Not.Null, "Expected PlayerCameraDefaults type.");
+            Assert.That(CinemachineBrainType, Is.Not.Null, "Expected CinemachineBrain type.");
+            Assert.That(CinemachineCameraType, Is.Not.Null, "Expected CinemachineCamera type.");
+            Assert.That(CinemachineHardLockToTargetType, Is.Not.Null, "Expected CinemachineHardLockToTarget type.");
+            Assert.That(CinemachineHardLookAtType, Is.Not.Null, "Expected CinemachineHardLookAt type.");
+
+            var cameraPivot = root.transform.Find("CameraPivot");
+            Assert.That(cameraPivot, Is.Not.Null, $"{context} should author CameraPivot.");
+
+            var cameraLookTarget = root.transform.Find("CameraPivot/CameraLookTarget");
+            Assert.That(cameraLookTarget, Is.Not.Null, $"{context} should author CameraPivot/CameraLookTarget.");
+
+            var worldCameraTransform = root.transform.Find("CameraPivot/Camera");
+            Assert.That(worldCameraTransform, Is.Not.Null, $"{context} should author the world camera under CameraPivot.");
+
+            var worldCamera = worldCameraTransform.GetComponent<Camera>();
+            Assert.That(worldCamera, Is.Not.Null, $"{context} should author a Camera component on the world camera.");
+            Assert.That(worldCameraTransform.GetComponent(CinemachineBrainType), Is.Not.Null, $"{context} should author a CinemachineBrain on the world camera.");
+
+            var cinemachineCameraTransform = root.transform.Find("CM_PlayerCamera");
+            Assert.That(cinemachineCameraTransform, Is.Not.Null, $"{context} should author a CM_PlayerCamera child.");
+            Assert.That(cinemachineCameraTransform.parent, Is.SameAs(root.transform), $"{context} should keep CM_PlayerCamera under the player root.");
+
+            var cinemachineCamera = cinemachineCameraTransform.GetComponent(CinemachineCameraType);
+            Assert.That(cinemachineCamera, Is.Not.Null, $"{context} should author a CinemachineCamera component.");
+            Assert.That(cinemachineCameraTransform.GetComponent(CinemachineHardLockToTargetType), Is.Not.Null, $"{context} should author CinemachineHardLockToTarget on the virtual camera.");
+            Assert.That(cinemachineCameraTransform.GetComponent(CinemachineHardLookAtType), Is.Not.Null, $"{context} should author CinemachineHardLookAt on the virtual camera.");
+
+            var cinemachineSerialized = new SerializedObject(cinemachineCamera);
+            var target = cinemachineSerialized.FindProperty("Target");
+            Assert.That(target, Is.Not.Null, $"{context} should serialize CinemachineCamera.Target.");
+            Assert.That(target.FindPropertyRelative("TrackingTarget")?.objectReferenceValue, Is.SameAs(cameraPivot), $"{context} should follow CameraPivot.");
+            Assert.That(target.FindPropertyRelative("LookAtTarget")?.objectReferenceValue, Is.SameAs(cameraLookTarget), $"{context} should look at CameraLookTarget.");
+            Assert.That(target.FindPropertyRelative("CustomLookAtTarget")?.boolValue, Is.True, $"{context} should author a custom look-at target.");
+
+            var defaults = root.GetComponent(PlayerCameraDefaultsType);
+            Assert.That(defaults, Is.Not.Null, $"{context} should author PlayerCameraDefaults.");
+
+            var defaultsSerialized = new SerializedObject(defaults);
+            Assert.That(defaultsSerialized.FindProperty("_mainCamera")?.objectReferenceValue, Is.SameAs(worldCamera), $"{context} should wire PlayerCameraDefaults._mainCamera.");
+            Assert.That(defaultsSerialized.FindProperty("_brain")?.objectReferenceValue, Is.SameAs(worldCameraTransform.GetComponent(CinemachineBrainType)), $"{context} should wire PlayerCameraDefaults._brain.");
+            Assert.That(defaultsSerialized.FindProperty("_cinemachineCamera")?.objectReferenceValue, Is.SameAs(cinemachineCamera), $"{context} should wire PlayerCameraDefaults._cinemachineCamera.");
+            Assert.That(defaultsSerialized.FindProperty("_cameraFollowTarget")?.objectReferenceValue, Is.SameAs(cameraPivot), $"{context} should wire PlayerCameraDefaults._cameraFollowTarget.");
+            Assert.That(defaultsSerialized.FindProperty("_cameraLookTarget")?.objectReferenceValue, Is.SameAs(cameraLookTarget), $"{context} should wire PlayerCameraDefaults._cameraLookTarget.");
+            Assert.That(defaultsSerialized.FindProperty("_viewmodelCameraParent")?.objectReferenceValue, Is.SameAs(cameraPivot), $"{context} should keep the viewmodel camera parent intact.");
+            Assert.That(defaultsSerialized.FindProperty("_viewmodelCamera")?.objectReferenceValue, Is.SameAs(root.transform.Find("CameraPivot/ViewmodelCamera")?.GetComponent<Camera>()), $"{context} should keep the viewmodel camera intact.");
+            Assert.That(root.transform.Find("CameraPivot/Camera/ScopeCamera"), Is.Not.Null, $"{context} should keep the authored ScopeCamera under the world camera.");
+            Assert.That(root.transform.Find("CameraPivot/ViewmodelCamera"), Is.Not.Null, $"{context} should keep the authored ViewmodelCamera under CameraPivot.");
         }
 
         private static Type FindType(string fullName)
