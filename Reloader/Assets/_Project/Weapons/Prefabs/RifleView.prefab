@@ -527,6 +527,7 @@ GameObject:
   - component: {fileID: 6560500694826268764}
   - component: {fileID: 776500000000000005}
   - component: {fileID: 776500000000000011}
+  - component: {fileID: 776500000000000014}
   m_Layer: 0
   m_Name: Kar98kView
   m_TagString: Untagged
@@ -882,3 +883,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Runtime.WeaponViewHandAnchors
   _leftHandGrip: {fileID: 776500000000000009}
   _rightHandGrip: {fileID: 776500000000000010}
+--- !u!114 &776500000000000014
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5782696911360418534}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a2728012b2324c42bfa88eb32861063, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _scopeSlot: {fileID: 776500000000000002}
+  _muzzleSlot: {fileID: 8932569725151510662}
+  _muzzleRuntime: {fileID: 0}
+  _ironSightAnchor: {fileID: 776500000000000004}
+  _verboseOpticLogs: 0
