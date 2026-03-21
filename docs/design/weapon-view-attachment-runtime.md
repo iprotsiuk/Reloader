@@ -135,7 +135,6 @@ Kar98k runtime wiring must point to `Assets/_Project/Weapons/Prefabs/RifleView.p
 - `PlayerRoot.prefab`
 - `MainTown.unity`
 - `IndoorRangeInstance.unity`
-- `FPArmsTuning.unity`
 - `MainTownCombatWiring.cs`
 
 This keeps the runtime rifle empty on spawn and removes the need to strip third-party authored scope art during play.
