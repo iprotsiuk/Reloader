@@ -43,7 +43,7 @@ namespace Reloader.Startup.Tests.EditMode
             File.SetLastWriteTimeUtc(olderPath, DateTime.UtcNow.AddMinutes(-15));
             File.SetLastWriteTimeUtc(newerPath, DateTime.UtcNow);
 
-            var flow = new StartupMenuFlow(repository, new TestSceneTravel(), new TestSaveLoader(), _saveDir);
+            var flow = new StartupMenuFlow(repository, new TestSceneTravel(), new TestSaveLoader(), new TestRuntimeBootstrapper(), _saveDir);
             var state = flow.RefreshState();
 
             Assert.That(state.CanContinue, Is.True);
@@ -57,12 +57,15 @@ namespace Reloader.Startup.Tests.EditMode
         [Test]
         public void TryStartNewGame_RoutesToMainTownSpawn()
         {
-            var travel = new TestSceneTravel();
-            var flow = new StartupMenuFlow(new SaveFileRepository(), travel, new TestSaveLoader(), _saveDir);
+            var bootstrapper = new TestRuntimeBootstrapper();
+            var travel = new TestSceneTravel(bootstrapper);
+            var flow = new StartupMenuFlow(new SaveFileRepository(), travel, new TestSaveLoader(), bootstrapper, _saveDir);
 
             var started = flow.TryStartNewGame();
 
             Assert.That(started, Is.True);
+            Assert.That(bootstrapper.CallCount, Is.EqualTo(1));
+            Assert.That(travel.WasCalledAfterBootstrapper, Is.True);
             Assert.That(travel.SceneName, Is.EqualTo("MainTown"));
             Assert.That(travel.EntryPointId, Is.EqualTo("entry.maintown.spawn"));
         }
@@ -74,13 +77,16 @@ namespace Reloader.Startup.Tests.EditMode
             var savePath = Path.Combine(_saveDir, "slot01.json");
             repository.WriteEnvelope(savePath, CreateEnvelope("Assets/_Project/World/Scenes/MainTown.unity", "entry.maintown.spawn"));
 
-            var travel = new TestSceneTravel();
+            var bootstrapper = new TestRuntimeBootstrapper();
+            var travel = new TestSceneTravel(bootstrapper);
             var loader = new TestSaveLoader(travel);
-            var flow = new StartupMenuFlow(repository, travel, loader, _saveDir);
+            var flow = new StartupMenuFlow(repository, travel, loader, bootstrapper, _saveDir);
 
             var continued = flow.TryContinueLatest();
 
             Assert.That(continued, Is.True);
+            Assert.That(bootstrapper.CallCount, Is.EqualTo(1));
+            Assert.That(travel.WasCalledAfterBootstrapper, Is.True);
             Assert.That(travel.SceneName, Is.EqualTo("MainTown"));
             Assert.That(travel.EntryPointId, Is.EqualTo("entry.maintown.spawn"));
             Assert.That(loader.LoadedPath, Is.EqualTo(savePath));
@@ -117,14 +123,33 @@ namespace Reloader.Startup.Tests.EditMode
 
         private sealed class TestSceneTravel : IStartupMenuSceneTravel
         {
+            private readonly TestRuntimeBootstrapper _bootstrapper;
+
+            public TestSceneTravel(TestRuntimeBootstrapper bootstrapper = null)
+            {
+                _bootstrapper = bootstrapper;
+            }
+
             public string SceneName { get; private set; }
             public string EntryPointId { get; private set; }
+            public bool WasCalledAfterBootstrapper { get; private set; }
 
             public bool TryLoadSceneAtEntry(string sceneName, string entryPointId)
             {
+                WasCalledAfterBootstrapper = _bootstrapper == null || _bootstrapper.CallCount > 0;
                 SceneName = sceneName;
                 EntryPointId = entryPointId;
                 return true;
+            }
+        }
+
+        private sealed class TestRuntimeBootstrapper : IStartupRuntimeBootstrapper
+        {
+            public int CallCount { get; private set; }
+
+            public void EnsureCanonicalRuntimePlayerRoot()
+            {
+                CallCount++;
             }
         }
 

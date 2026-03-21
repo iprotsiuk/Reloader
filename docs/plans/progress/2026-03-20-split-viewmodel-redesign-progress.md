@@ -167,6 +167,10 @@
   - accepted MainTown explicit-contract follow-up
   - active MainTown wiring no longer uses `Camera.main` or render-tree `Transform.Find(...)` recovery for camera/pivot/arms/look-target/presentation-root resolution
   - `tmp/main-town-explicit-contract.xml` verifies the three new fail-closed tests passed
+- `STARTUP-FRONTDOOR-BOOTSTRAP-ROOT`
+  - `StartupMenuFlow` now explicitly ensures the canonical runtime player root before `New Game` or `Continue` hands off into travel/restore
+  - edit-mode coverage now proves bootstrapper invocation order and the existing startup menu flow tests still pass
+  - live editor evidence to recheck: `New Game` should no longer fail with `canonical runtime player root is missing`
 - This tracker should record each landed slice with:
   - commit SHA
   - short description

@@ -25,6 +25,11 @@ namespace Reloader.Startup.Runtime
         void Load(string absolutePath);
     }
 
+    public interface IStartupRuntimeBootstrapper
+    {
+        void EnsureCanonicalRuntimePlayerRoot();
+    }
+
     public sealed class StartupMenuFlow : IStartupMenuFlow
     {
         private const string NewGameSceneName = "MainTown";
@@ -35,6 +40,7 @@ namespace Reloader.Startup.Runtime
         private readonly SaveFileRepository _fileRepository;
         private readonly IStartupMenuSceneTravel _sceneTravel;
         private readonly IStartupSaveLoader _saveLoader;
+        private readonly IStartupRuntimeBootstrapper _runtimeBootstrapper;
         private readonly string _saveDirectoryPath;
 
         public StartupMenuFlow()
@@ -42,6 +48,7 @@ namespace Reloader.Startup.Runtime
                 new SaveFileRepository(),
                 new UnityStartupMenuSceneTravel(),
                 new SaveCoordinatorSaveLoader(SaveBootstrapper.CreateDefaultCoordinator()),
+                new UnityStartupRuntimeBootstrapper(),
                 GetDefaultSaveDirectoryPath())
         {
         }
@@ -50,11 +57,13 @@ namespace Reloader.Startup.Runtime
             SaveFileRepository fileRepository,
             IStartupMenuSceneTravel sceneTravel,
             IStartupSaveLoader saveLoader,
+            IStartupRuntimeBootstrapper runtimeBootstrapper,
             string saveDirectoryPath)
         {
             _fileRepository = fileRepository ?? throw new ArgumentNullException(nameof(fileRepository));
             _sceneTravel = sceneTravel ?? throw new ArgumentNullException(nameof(sceneTravel));
             _saveLoader = saveLoader ?? throw new ArgumentNullException(nameof(saveLoader));
+            _runtimeBootstrapper = runtimeBootstrapper ?? throw new ArgumentNullException(nameof(runtimeBootstrapper));
             _saveDirectoryPath = string.IsNullOrWhiteSpace(saveDirectoryPath)
                 ? throw new ArgumentException("Save directory path is required.", nameof(saveDirectoryPath))
                 : saveDirectoryPath;
@@ -81,6 +90,7 @@ namespace Reloader.Startup.Runtime
 
         public bool TryStartNewGame()
         {
+            _runtimeBootstrapper.EnsureCanonicalRuntimePlayerRoot();
             return _sceneTravel.TryLoadSceneAtEntry(NewGameSceneName, NewGameEntryPointId);
         }
 
@@ -92,6 +102,7 @@ namespace Reloader.Startup.Runtime
                 return false;
             }
 
+            _runtimeBootstrapper.EnsureCanonicalRuntimePlayerRoot();
             if (!_sceneTravel.TryLoadSceneAtEntry(state.CurrentSceneName, state.CurrentAnchorId))
             {
                 return false;
@@ -156,6 +167,14 @@ namespace Reloader.Startup.Runtime
         public void Load(string absolutePath)
         {
             _saveCoordinator.Load(absolutePath);
+        }
+    }
+
+    internal sealed class UnityStartupRuntimeBootstrapper : IStartupRuntimeBootstrapper
+    {
+        public void EnsureCanonicalRuntimePlayerRoot()
+        {
+            Reloader.World.Runtime.BootstrapWorldRoot.Initialize();
         }
     }
 }
