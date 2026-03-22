@@ -60,7 +60,7 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
-        public void TryResolveLensViewportRectNormalized_UsesAuthoredLensSurfaceBounds()
+        public void TryResolvePipDisplayViewportRectNormalized_PrefersExplicitApertureRendererBounds()
         {
             var controllerType = System.Type.GetType("Reloader.Game.Weapons.RenderTextureScopeController, Reloader.Game.Weapons");
             var scopeLensDisplayType = System.Type.GetType("Reloader.Game.Weapons.ScopeLensDisplay, Reloader.Game.Weapons");
@@ -68,10 +68,10 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(scopeLensDisplayType, Is.Not.Null, "ScopeLensDisplay type should exist.");
 
             var method = controllerType!.GetMethod(
-                "TryResolveLensViewportRectNormalized",
+                "TryResolvePipDisplayViewportRectNormalized",
                 BindingFlags.Static | BindingFlags.NonPublic);
 
-            Assert.That(method, Is.Not.Null, "Expected a private lens-aperture viewport helper for the scoped blur contract.");
+            Assert.That(method, Is.Not.Null, "Expected a private PiP display viewport helper for the scoped blur contract.");
 
             var cameraGo = new GameObject("ViewmodelCamera");
             var camera = cameraGo.AddComponent<Camera>();
@@ -81,36 +81,48 @@ namespace Reloader.Core.Tests.EditMode
             camera.orthographicSize = 1f;
             camera.aspect = 1f;
 
-            var lensGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            lensGo.transform.position = Vector3.zero;
-            lensGo.transform.localScale = new Vector3(0.6f, 0.4f, 1f);
-            var renderer = lensGo.GetComponent<Renderer>();
-            var lensDisplay = lensGo.AddComponent(scopeLensDisplayType!);
+            var opticGo = new GameObject("Optic");
+            var displayGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            displayGo.transform.SetParent(opticGo.transform, false);
+            displayGo.transform.position = Vector3.zero;
+            displayGo.transform.localScale = new Vector3(1.2f, 0.8f, 1f);
+            var displayRenderer = displayGo.GetComponent<Renderer>();
+
+            var apertureGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            apertureGo.transform.SetParent(opticGo.transform, false);
+            apertureGo.transform.position = Vector3.zero;
+            apertureGo.transform.localScale = new Vector3(0.4f, 0.3f, 1f);
+            var apertureRenderer = apertureGo.GetComponent<Renderer>();
+
+            var lensDisplay = opticGo.AddComponent(scopeLensDisplayType!);
             var targetRendererField = scopeLensDisplayType.GetField("_targetRenderer", BindingFlags.Instance | BindingFlags.NonPublic);
+            var apertureRendererField = scopeLensDisplayType.GetField("_apertureRenderer", BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(targetRendererField, Is.Not.Null);
-            targetRendererField!.SetValue(lensDisplay, renderer);
+            Assert.That(apertureRendererField, Is.Not.Null);
+            targetRendererField!.SetValue(lensDisplay, displayRenderer);
+            apertureRendererField!.SetValue(lensDisplay, apertureRenderer);
 
             try
             {
                 var args = new object[] { camera, lensDisplay, null };
                 var resolved = (bool)method!.Invoke(null, args);
-                Assert.That(resolved, Is.True, "Expected authored lens-display bounds to produce a normalized blur aperture.");
+                Assert.That(resolved, Is.True, "Expected authored optic aperture bounds to produce a normalized unblurred window.");
 
                 var viewportRect = (Rect)args[2]!;
                 Assert.That(viewportRect.center.x, Is.EqualTo(0.5f).Within(0.0001f));
                 Assert.That(viewportRect.center.y, Is.EqualTo(0.5f).Within(0.0001f));
-                Assert.That(viewportRect.width, Is.EqualTo(0.3f).Within(0.0001f));
-                Assert.That(viewportRect.height, Is.EqualTo(0.2f).Within(0.0001f));
+                Assert.That(viewportRect.width, Is.EqualTo(0.2f).Within(0.0001f));
+                Assert.That(viewportRect.height, Is.EqualTo(0.15f).Within(0.0001f));
             }
             finally
             {
-                Object.DestroyImmediate(lensGo);
+                Object.DestroyImmediate(opticGo);
                 Object.DestroyImmediate(cameraGo);
             }
         }
 
         [Test]
-        public void PeripheralScopeBlurRendererFeature_ShouldEnqueueForOverlayGameplayCamera()
+        public void PeripheralScopeBlurRendererFeature_DoesNotEnqueueForOverlayGameplayCamera()
         {
             var featureType = System.Type.GetType("Reloader.Game.Weapons.Rendering.PeripheralScopeBlurRendererFeature, Reloader.Game.Weapons");
             Assert.That(featureType, Is.Not.Null, "PeripheralScopeBlurRendererFeature type should exist.");
@@ -127,8 +139,8 @@ namespace Reloader.Core.Tests.EditMode
             try
             {
                 var result = (bool)method!.Invoke(null, new object[] { camera, CameraType.Game, false });
-                Assert.That(result, Is.True,
-                    "Peripheral blur should run for overlay gameplay cameras too so the composed player view blurs outside the authored optic lens.");
+                Assert.That(result, Is.False,
+                    "Peripheral blur should remain restricted to the explicit base gameplay camera so the PiP camera stays unblurred.");
             }
             finally
             {

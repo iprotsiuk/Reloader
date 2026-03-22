@@ -39,6 +39,9 @@ namespace Reloader.Player
         [ContextMenu("Apply Camera Defaults")]
         public void ApplyDefaults()
         {
+            var desiredNearClipPlane = GetDesiredNearClipPlane();
+            var desiredFarClipPlane = GetDesiredFarClipPlane(desiredNearClipPlane);
+
             if (_enableVSync)
             {
                 QualitySettings.vSyncCount = 1;
@@ -51,6 +54,14 @@ namespace Reloader.Player
                 _brain.BlendUpdateMethod = CinemachineBrain.BrainUpdateMethods.LateUpdate;
             }
 
+            if (_cinemachineCamera != null)
+            {
+                var lens = _cinemachineCamera.Lens;
+                lens.NearClipPlane = desiredNearClipPlane;
+                lens.FarClipPlane = desiredFarClipPlane;
+                _cinemachineCamera.Lens = lens;
+            }
+
             if (_cinemachineCamera != null && _cameraFollowTarget != null)
             {
                 var lookTarget = _cameraLookTarget != null ? _cameraLookTarget : _cameraFollowTarget;
@@ -60,8 +71,8 @@ namespace Reloader.Player
 
             if (_mainCamera != null)
             {
-                _mainCamera.nearClipPlane = Mathf.Clamp(_nearClipPlane, 0.001f, 1f);
-                _mainCamera.farClipPlane = Mathf.Max(_mainCamera.nearClipPlane + 0.01f, _farClipPlane);
+                _mainCamera.nearClipPlane = desiredNearClipPlane;
+                _mainCamera.farClipPlane = desiredFarClipPlane;
                 var cameraData = _mainCamera.GetUniversalAdditionalCameraData();
                 cameraData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
                 cameraData.antialiasingQuality = AntialiasingQuality.High;
@@ -227,8 +238,9 @@ namespace Reloader.Player
                 return;
             }
 
-            _viewmodelCamera.nearClipPlane = _mainCamera.nearClipPlane;
-            _viewmodelCamera.farClipPlane = Mathf.Max(_viewmodelCamera.nearClipPlane + 0.01f, 10f);
+            var desiredNearClipPlane = GetDesiredNearClipPlane();
+            _viewmodelCamera.nearClipPlane = desiredNearClipPlane;
+            _viewmodelCamera.farClipPlane = Mathf.Max(desiredNearClipPlane + 0.01f, 10f);
             _viewmodelCamera.depth = _mainCamera.depth + 1f;
             _viewmodelCamera.fieldOfView = fieldOfView;
             _viewmodelCamera.allowHDR = _mainCamera.allowHDR;
@@ -341,6 +353,16 @@ namespace Reloader.Player
             }
 
             return _weaponPresentationRoot;
+        }
+
+        private float GetDesiredNearClipPlane()
+        {
+            return Mathf.Clamp(_nearClipPlane, 0.001f, 1f);
+        }
+
+        private float GetDesiredFarClipPlane(float desiredNearClipPlane)
+        {
+            return Mathf.Max(desiredNearClipPlane + 0.01f, _farClipPlane);
         }
 
         private bool IsUsableHierarchyReference(Transform candidate)

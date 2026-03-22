@@ -90,6 +90,47 @@ namespace Reloader.Player.Tests.EditMode
         }
 
         [Test]
+        public void ApplyDefaults_PushesAuthoredClipPlanesIntoCinemachineLens()
+        {
+            var (root, cameraPivot, mainCamera) = CreateRigRoot();
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+            var cinemachineCameraType = System.Type.GetType("Unity.Cinemachine.CinemachineCamera, Unity.Cinemachine");
+            Assert.That(cinemachineCameraType, Is.Not.Null);
+            var cinemachineCamera = new GameObject("CinemachineCamera").AddComponent(cinemachineCameraType);
+            cinemachineCamera.transform.SetParent(cameraPivot, false);
+            var authoredViewmodelCamera = new GameObject("ViewmodelCamera").AddComponent<Camera>();
+            authoredViewmodelCamera.transform.SetParent(cameraPivot, false);
+
+            typeof(PlayerCameraDefaults)
+                .GetField("_mainCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, mainCamera);
+            typeof(PlayerCameraDefaults)
+                .GetField("_cinemachineCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, cinemachineCamera);
+            typeof(PlayerCameraDefaults)
+                .GetField("_cameraPivot", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, cameraPivot);
+            typeof(PlayerCameraDefaults)
+                .GetField("_viewmodelCameraParent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, cameraPivot);
+            typeof(PlayerCameraDefaults)
+                .GetField("_viewmodelCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, authoredViewmodelCamera);
+            typeof(PlayerCameraDefaults)
+                .GetField("_cameraFollowTarget", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, cameraPivot);
+
+            defaults.ApplyDefaults();
+
+            var lens = cinemachineCameraType!.GetProperty("Lens")!.GetValue(cinemachineCamera);
+            Assert.That((float)lens!.GetType().GetProperty("NearClipPlane")!.GetValue(lens), Is.EqualTo(0.001f).Within(0.0001f));
+            Assert.That((float)lens.GetType().GetProperty("FarClipPlane")!.GetValue(lens), Is.EqualTo(2828f).Within(0.001f));
+            Assert.That(authoredViewmodelCamera.nearClipPlane, Is.EqualTo(0.001f).Within(0.0001f));
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void ApplyDefaults_DoesNotRecoverViewmodelCameraFromLegacyWorldCameraChild_WhenExplicitFieldMissing()
         {
             var (root, cameraPivot, mainCamera) = CreateRigRoot();

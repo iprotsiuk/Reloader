@@ -33,6 +33,7 @@ namespace Reloader.DevTools.Editor
         private const float HipReadyBlendThreshold = 0.005f;
         private const float AdsReadyMagnification = 25f;
         private const float HipReadyMagnification = 1f;
+        private const string StarterWeaponItemId = "weapon-kar98k";
 
         private static readonly BindingFlags InstanceFlags = BindingFlags.Instance | BindingFlags.NonPublic;
 
@@ -131,6 +132,11 @@ namespace Reloader.DevTools.Editor
                 return;
             }
 
+            if (!s_starterKitGranted && !IsStarterWeaponRuntimeResolvable(weaponController))
+            {
+                return;
+            }
+
             if (!s_starterKitGranted)
             {
                 using var runtime = new DevToolsRuntime();
@@ -185,6 +191,23 @@ namespace Reloader.DevTools.Editor
             }
 
             CompleteAction();
+        }
+
+        private static bool IsStarterWeaponRuntimeResolvable(PlayerWeaponController weaponController)
+        {
+            if (weaponController == null)
+            {
+                return false;
+            }
+
+            if (weaponController.TryGetRuntimeState(StarterWeaponItemId, out var state) && state != null)
+            {
+                return true;
+            }
+
+            var resolveWeaponDefinition = typeof(PlayerWeaponController)
+                .GetMethod("ResolveWeaponDefinition", InstanceFlags);
+            return resolveWeaponDefinition?.Invoke(weaponController, new object[] { StarterWeaponItemId }) != null;
         }
 
         private static StepResult TryApplyHipReady(PlayerWeaponController weaponController, out string message)

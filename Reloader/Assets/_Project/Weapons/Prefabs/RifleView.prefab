@@ -900,3 +900,4 @@ MonoBehaviour:
   _muzzleRuntime: {fileID: 0}
   _ironSightAnchor: {fileID: 776500000000000004}
   _verboseOpticLogs: 0
+  _scopedAdsEyeReliefBackOffset: 0.0425

@@ -572,11 +572,134 @@ namespace Reloader.DevTools.Tests.PlayMode
 #endif
         }
 
+        [UnityTest]
+        public IEnumerator McpBridgeGiveTest_WaitsUntilStarterWeaponIsResolvable()
+        {
+#if UNITY_EDITOR
+            var root = new GameObject("DevBridgeGiveTestRoot");
+            var inputSource = root.AddComponent<StubInputSource>();
+            var inventoryRuntime = new PlayerInventoryRuntime();
+            inventoryRuntime.SetBackpackCapacity(8);
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            inventoryController.Configure(inputSource, null, inventoryRuntime);
+
+            var starterWeapon = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterWeapon.SetValuesForTests(
+                "weapon-kar98k",
+                ItemCategory.Weapon,
+                "Kar98k (.308)",
+                ItemStackPolicy.NonStackable,
+                maxStack: 1);
+
+            var starterScope = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterScope.SetValuesForTests(
+                "att-kar98k-scope-remote-a",
+                ItemCategory.Misc,
+                "Kar98k Scope Remote A",
+                ItemStackPolicy.NonStackable,
+                maxStack: 1);
+
+            var starterAmmo = AssetDatabase.LoadAssetAtPath<ItemDefinition>(
+                "Assets/_Project/Inventory/Data/Items/Cartridge_308_147_FMJ_PMC_Bronze.asset");
+            Assert.That(starterAmmo, Is.Not.Null);
+
+            SetPrivateField(
+                typeof(PlayerInventoryController),
+                inventoryController,
+                "_itemDefinitionRegistry",
+                new List<ItemDefinition> { starterWeapon, starterScope, starterAmmo });
+
+            var weaponController = root.AddComponent(ResolveRequiredType("Reloader.Weapons.Controllers.PlayerWeaponController"));
+            var worldCameraGo = ConfigureScopedKar98kViewRuntime(weaponController);
+            Component weaponRegistry = null;
+
+            try
+            {
+                yield return null;
+                SetPrivateField(weaponController.GetType(), weaponController, "_weaponRegistry", null);
+
+                InvokeBridgeMenuAction("GiveTest");
+                InvokeBridgeTickAction();
+
+                Assert.That(
+                    GetBridgeActiveActionName(),
+                    Is.EqualTo("GiveTest"),
+                    "Bridge should keep waiting instead of executing give test before the starter weapon can be resolved by the weapon controller.");
+                Assert.That(inventoryRuntime.GetItemQuantity("weapon-kar98k"), Is.EqualTo(0));
+                Assert.That(GetPropertyValue<string>(weaponController, "EquippedItemId"), Is.Empty);
+
+                weaponRegistry = CreateWeaponRegistry();
+                SetPrivateField(weaponController.GetType(), weaponController, "_weaponRegistry", weaponRegistry);
+
+                InvokeBridgeTickAction();
+                yield return null;
+
+                Assert.That(GetBridgeActiveActionName(), Is.EqualTo("None"));
+                Assert.That(inventoryRuntime.GetItemQuantity("weapon-kar98k"), Is.EqualTo(1));
+                Assert.That(inventoryRuntime.GetItemQuantity("att-kar98k-scope-remote-a"), Is.EqualTo(0));
+                Assert.That(inventoryRuntime.GetItemQuantity(StarterAmmoItemId), Is.EqualTo(500));
+                Assert.That(GetPropertyValue<string>(weaponController, "EquippedItemId"), Is.EqualTo("weapon-kar98k"));
+            }
+            finally
+            {
+                CompleteBridgeAction();
+                UnityEngine.Object.DestroyImmediate(starterWeapon);
+                UnityEngine.Object.DestroyImmediate(starterScope);
+                if (worldCameraGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(worldCameraGo);
+                }
+
+                if (weaponRegistry != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(weaponRegistry.gameObject);
+                }
+
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+#else
+            Assert.Ignore("Requires UnityEditor bridge menu.");
+            yield break;
+#endif
+        }
+
         private static void SetPrivateField(System.Type ownerType, object instance, string fieldName, object value)
         {
             var field = ownerType.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {ownerType.Name}.");
             field.SetValue(instance, value);
+        }
+
+        private static void InvokeBridgeMenuAction(string methodName)
+        {
+            var menuType = ResolveRequiredType("Reloader.DevTools.Editor.DevPlayModeBridgeMenu");
+            var method = menuType.GetMethod(methodName, BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, $"Expected bridge menu method '{methodName}'.");
+            method!.Invoke(null, null);
+        }
+
+        private static void InvokeBridgeTickAction()
+        {
+            var menuType = ResolveRequiredType("Reloader.DevTools.Editor.DevPlayModeBridgeMenu");
+            var method = menuType.GetMethod("TickAction", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, "Expected bridge menu TickAction.");
+            method!.Invoke(null, null);
+        }
+
+        private static string GetBridgeActiveActionName()
+        {
+            var menuType = ResolveRequiredType("Reloader.DevTools.Editor.DevPlayModeBridgeMenu");
+            var field = menuType.GetField("s_activeAction", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, "Expected bridge menu active action field.");
+            return field!.GetValue(null)?.ToString() ?? string.Empty;
+        }
+
+        private static void CompleteBridgeAction()
+        {
+            var menuType = ResolveRequiredType("Reloader.DevTools.Editor.DevPlayModeBridgeMenu");
+            var method = menuType.GetMethod("CompleteAction", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, "Expected bridge menu CompleteAction.");
+            method!.Invoke(null, null);
         }
 
         private static Component CreateWeaponRegistry()

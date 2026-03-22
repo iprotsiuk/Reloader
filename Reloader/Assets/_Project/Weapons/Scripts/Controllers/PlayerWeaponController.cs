@@ -138,6 +138,9 @@ namespace Reloader.Weapons.Controllers
         private float _baseCameraFieldOfView = DefaultFov;
         private bool _baseCameraFieldOfViewCaptured;
         private Camera _cachedAdsCamera;
+        private Camera _boundScopedAdsWorldCamera;
+        private Camera _boundScopedAdsViewmodelCamera;
+        private Camera _boundScopedAdsScopeCamera;
         private GameObject _equippedWeaponView;
         private WeaponViewAttachmentMounts _equippedViewMounts;
         private bool _activationResyncReady;
@@ -559,6 +562,7 @@ namespace Reloader.Weapons.Controllers
             }
 
             _shotCameraRuntime = _shotCameraRuntimeBehaviour as IShotCameraRuntime;
+            RefreshScopedAdsRuntimeBridge();
         }
 
         private void ResyncAfterActivation()
@@ -2395,8 +2399,60 @@ namespace Reloader.Weapons.Controllers
                 _renderTextureScopeRuntimeBridge,
                 _peripheralScopeEffectsRuntimeBridge,
                 _scopeAdjustmentTooltipRuntimeBridge);
+            _boundScopedAdsWorldCamera = worldCamera;
+            _boundScopedAdsViewmodelCamera = viewmodelCamera;
+            _boundScopedAdsScopeCamera = _scopeCamera;
             EnsureWeaponAimAlignerRuntimeBridge(worldCamera, attachmentManager);
             TryAssignScopedAdsWeaponDefinition();
+            _adsStateRuntimeBridge.RefreshVisualMode();
+            _adsStateRuntimeBridge.SetUseLegacyInput(false);
+        }
+
+        private void RefreshScopedAdsRuntimeBridge()
+        {
+            if (_equippedWeaponView == null
+                || _adsAttachmentManagerRuntimeBridge == null
+                || !ReferenceEquals(_adsAttachmentManagerRuntimeBridge.gameObject, _equippedWeaponView))
+            {
+                return;
+            }
+
+            _adsStateRuntimeBridge ??= gameObject.GetComponent<GameAdsStateController>();
+            _renderTextureScopeRuntimeBridge ??= gameObject.GetComponent<GameRenderTextureScopeController>();
+            _peripheralScopeEffectsRuntimeBridge ??= gameObject.GetComponent<GamePeripheralScopeEffects>();
+            _scopeAdjustmentTooltipRuntimeBridge ??= gameObject.GetComponent<GameScopeAdjustmentTooltipOverlay>();
+            if (_adsStateRuntimeBridge == null
+                || _renderTextureScopeRuntimeBridge == null
+                || _peripheralScopeEffectsRuntimeBridge == null
+                || _scopeAdjustmentTooltipRuntimeBridge == null)
+            {
+                return;
+            }
+
+            var worldCamera = ResolveAdsCamera();
+            var viewmodelCamera = ResolveRuntimeViewmodelCamera(worldCamera);
+            var scopeCamera = ResolveCanonicalScopedAdsCamera(worldCamera);
+            if (ReferenceEquals(_boundScopedAdsWorldCamera, worldCamera)
+                && ReferenceEquals(_boundScopedAdsViewmodelCamera, viewmodelCamera)
+                && ReferenceEquals(_boundScopedAdsScopeCamera, scopeCamera))
+            {
+                return;
+            }
+
+            EnsureRenderTextureScopeRuntimeBridge(worldCamera);
+            EnsurePeripheralScopeEffectsRuntimeBridge();
+            EnsureScopeAdjustmentTooltipRuntimeBridge();
+            _adsStateRuntimeBridge.BindRuntimeReferences(
+                worldCamera,
+                viewmodelCamera,
+                _adsAttachmentManagerRuntimeBridge,
+                _renderTextureScopeRuntimeBridge,
+                _peripheralScopeEffectsRuntimeBridge,
+                _scopeAdjustmentTooltipRuntimeBridge);
+            _boundScopedAdsWorldCamera = worldCamera;
+            _boundScopedAdsViewmodelCamera = viewmodelCamera;
+            _boundScopedAdsScopeCamera = _scopeCamera;
+            EnsureWeaponAimAlignerRuntimeBridge(worldCamera, _adsAttachmentManagerRuntimeBridge);
             _adsStateRuntimeBridge.RefreshVisualMode();
             _adsStateRuntimeBridge.SetUseLegacyInput(false);
         }
@@ -2707,6 +2763,9 @@ namespace Reloader.Weapons.Controllers
             _renderTextureScopeRuntimeBridge = null;
             _peripheralScopeEffectsRuntimeBridge = null;
             _scopeAdjustmentTooltipRuntimeBridge = null;
+            _boundScopedAdsWorldCamera = null;
+            _boundScopedAdsViewmodelCamera = null;
+            _boundScopedAdsScopeCamera = null;
             ResetScopedAdsLookSensitivityBridge();
         }
 
