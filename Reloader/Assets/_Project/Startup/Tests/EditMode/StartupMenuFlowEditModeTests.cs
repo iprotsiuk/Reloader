@@ -270,6 +270,57 @@ namespace Reloader.Startup.Tests.EditMode
             }
         }
 
+        [Test]
+        public void BootstrapScene_EventSystemUiModule_UsesProjectInputActions()
+        {
+            const string actionsAssetPath = "Assets/_Project/Player/InputSystem_Actions.inputactions";
+
+            var originalScene = SceneManager.GetActiveScene();
+            EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Single);
+
+            try
+            {
+                var eventSystem = GameObject.Find("EventSystem");
+                Assert.That(eventSystem, Is.Not.Null, "Expected EventSystem root in Bootstrap.");
+
+                var inputSystemUiModuleType = Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
+                Assert.That(inputSystemUiModuleType, Is.Not.Null, "Expected InputSystemUIInputModule type to resolve.");
+
+                var uiModule = eventSystem!.GetComponent(inputSystemUiModuleType!);
+                Assert.That(uiModule, Is.Not.Null, "Expected InputSystemUIInputModule on Bootstrap EventSystem.");
+
+                var projectActions = UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(actionsAssetPath);
+                Assert.That(projectActions, Is.Not.Null, $"Expected project input actions asset at {actionsAssetPath}.");
+
+                var actionsAssetProperty = inputSystemUiModuleType!.GetProperty("actionsAsset", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(actionsAssetProperty, Is.Not.Null, "Expected InputSystemUIInputModule.actionsAsset property.");
+                Assert.That(actionsAssetProperty!.GetValue(uiModule), Is.SameAs(projectActions),
+                    "Expected Bootstrap EventSystem UI actions to use the shared project input actions asset.");
+
+                var pointProperty = inputSystemUiModuleType.GetProperty("point", BindingFlags.Instance | BindingFlags.Public);
+                var leftClickProperty = inputSystemUiModuleType.GetProperty("leftClick", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(pointProperty, Is.Not.Null, "Expected InputSystemUIInputModule.point property.");
+                Assert.That(leftClickProperty, Is.Not.Null, "Expected InputSystemUIInputModule.leftClick property.");
+
+                var pointReference = pointProperty!.GetValue(uiModule);
+                var leftClickReference = leftClickProperty!.GetValue(uiModule);
+                Assert.That(pointReference, Is.Not.Null, "Expected Bootstrap UI point action reference to be assigned.");
+                Assert.That(leftClickReference, Is.Not.Null, "Expected Bootstrap UI left-click action reference to be assigned.");
+
+                var actionProperty = pointReference!.GetType().GetProperty("action", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(actionProperty, Is.Not.Null, "Expected InputActionReference.action property.");
+                Assert.That(actionProperty!.GetValue(pointReference), Is.Not.Null, "Expected Bootstrap UI point action to resolve to a real input action.");
+                Assert.That(actionProperty.GetValue(leftClickReference), Is.Not.Null, "Expected Bootstrap UI left-click action to resolve to a real input action.");
+            }
+            finally
+            {
+                if (originalScene.IsValid() && !string.IsNullOrWhiteSpace(originalScene.path))
+                {
+                    EditorSceneManager.OpenScene(originalScene.path, OpenSceneMode.Single);
+                }
+            }
+        }
+
         private sealed class TestDeferredContinueLoad : IStartupDeferredContinueLoad
         {
             private readonly TestSceneTravel _travel;
