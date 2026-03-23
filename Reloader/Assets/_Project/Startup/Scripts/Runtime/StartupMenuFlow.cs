@@ -229,6 +229,7 @@ namespace Reloader.Startup.Runtime
             _pendingEntryPointId = entryPointId?.Trim() ?? string.Empty;
             _restoreAction = restoreAction;
             SceneManager.sceneLoaded += OnSceneLoaded;
+            SceneManager.activeSceneChanged += OnActiveSceneChanged;
         }
 
         public void CancelPending()
@@ -244,12 +245,27 @@ namespace Reloader.Startup.Runtime
             }
 
             var shouldRestore = string.Equals(WorldTravelCoordinator.LastResolvedEntryPointId, _pendingEntryPointId, StringComparison.Ordinal);
-            var restoreAction = _restoreAction;
-            ClearPending();
             if (shouldRestore)
             {
-                restoreAction.Invoke();
+                InvokeRestoreAndClear();
             }
+        }
+
+        private void OnActiveSceneChanged(Scene previousScene, Scene nextScene)
+        {
+            if (_restoreAction == null || !IsMatchingPendingScene(nextScene, _pendingSceneName))
+            {
+                return;
+            }
+
+            InvokeRestoreAndClear();
+        }
+
+        private void InvokeRestoreAndClear()
+        {
+            var restoreAction = _restoreAction;
+            ClearPending();
+            restoreAction?.Invoke();
         }
 
         private void ClearPending()
@@ -257,6 +273,7 @@ namespace Reloader.Startup.Runtime
             if (_restoreAction != null)
             {
                 SceneManager.sceneLoaded -= OnSceneLoaded;
+                SceneManager.activeSceneChanged -= OnActiveSceneChanged;
             }
 
             _pendingSceneName = string.Empty;

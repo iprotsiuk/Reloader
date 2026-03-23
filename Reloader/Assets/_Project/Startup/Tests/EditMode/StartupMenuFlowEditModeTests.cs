@@ -1,18 +1,23 @@
 using System;
 using System.IO;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using Reloader.Core.Save;
 using Reloader.Core.Save.IO;
 using Reloader.Core.Save.Modules;
 using Reloader.Startup.Runtime;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 
 namespace Reloader.Startup.Tests.EditMode
 {
     public sealed class StartupMenuFlowEditModeTests
     {
+        private const string BootstrapScenePath = "Assets/Scenes/Bootstrap.unity";
+        private const string MainTownScenePath = "Assets/_Project/World/Scenes/MainTown.unity";
         private string _tempDir;
         private string _saveDir;
 
@@ -219,6 +224,52 @@ namespace Reloader.Startup.Tests.EditMode
             Assert.That(loader.CallCount, Is.EqualTo(1));
         }
 
+        [Test]
+        public void UnityStartupDeferredContinueLoad_WaitsForTravelResolutionBeforeInvokingRestore()
+        {
+            var deferredType = typeof(StartupMenuFlow).Assembly.GetType("Reloader.Startup.Runtime.UnityStartupDeferredContinueLoad");
+            Assert.That(deferredType, Is.Not.Null, "Expected UnityStartupDeferredContinueLoad type.");
+
+            var deferred = Activator.CreateInstance(deferredType!);
+            var restored = false;
+            var originalScene = SceneManager.GetActiveScene();
+            var originScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Single);
+            var destinationScene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SetInstanceField(deferred, "_pendingSceneName", destinationScene.name);
+                SetInstanceField(deferred, "_pendingEntryPointId", "entry.maintown.spawn");
+                SetInstanceField(deferred, "_restoreAction", (Action)(() => restored = true));
+
+                SetWorldTravelCoordinatorLastResolvedEntryPointId(null);
+                InvokeInstanceMethod(deferred, "OnSceneLoaded", destinationScene, LoadSceneMode.Additive);
+
+                Assert.That(restored, Is.False,
+                    "Deferred continue restore should not fire before travel resolution has published the resolved entry id.");
+                Assert.That(GetInstanceField<Action>(deferred, "_restoreAction"), Is.Not.Null,
+                    "Pending restore should remain armed until the travel coordinator finishes resolving the destination entry.");
+                Assert.That(InvokeStaticMethod<bool>(deferredType, "IsMatchingPendingScene", destinationScene, destinationScene.name), Is.True,
+                    "Deferred continue harness should be driving the same scene identity path that the runtime callback uses.");
+
+                SetWorldTravelCoordinatorLastResolvedEntryPointId("entry.maintown.spawn");
+                InvokeInstanceMethod(deferred, "OnActiveSceneChanged", originScene, destinationScene);
+
+                Assert.That(restored, Is.True);
+                Assert.That(GetInstanceField<Action>(deferred, "_restoreAction"), Is.Null,
+                    "Successful deferred restore should clear the pending callback after it runs.");
+            }
+            finally
+            {
+                SetWorldTravelCoordinatorLastResolvedEntryPointId(null);
+                EditorSceneManager.CloseScene(destinationScene, true);
+                if (originalScene.IsValid() && !string.IsNullOrWhiteSpace(originalScene.path))
+                {
+                    EditorSceneManager.OpenScene(originalScene.path, OpenSceneMode.Single);
+                }
+            }
+        }
+
         private sealed class TestDeferredContinueLoad : IStartupDeferredContinueLoad
         {
             private readonly TestSceneTravel _travel;
@@ -355,6 +406,45 @@ namespace Reloader.Startup.Tests.EditMode
                 CallCount++;
                 throw new InvalidOperationException(_message);
             }
+        }
+
+        private static void InvokeInstanceMethod(object target, string methodName, params object[] args)
+        {
+            var method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            Assert.That(method, Is.Not.Null, $"Expected method '{methodName}' on {target.GetType().Name}.");
+            method!.Invoke(target, args);
+        }
+
+        private static T GetInstanceField<T>(object target, string fieldName)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {target.GetType().Name}.");
+            return (T)field!.GetValue(target);
+        }
+
+        private static void SetInstanceField(object target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {target.GetType().Name}.");
+            field!.SetValue(target, value);
+        }
+
+        private static void SetWorldTravelCoordinatorLastResolvedEntryPointId(string entryPointId)
+        {
+            var coordinatorType = typeof(StartupMenuFlow).Assembly.GetType("Reloader.World.Travel.WorldTravelCoordinator")
+                ?? Type.GetType("Reloader.World.Travel.WorldTravelCoordinator, Reloader.World");
+            Assert.That(coordinatorType, Is.Not.Null, "Expected WorldTravelCoordinator type.");
+
+            var field = coordinatorType!.GetField("<LastResolvedEntryPointId>k__BackingField", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, "Expected WorldTravelCoordinator.LastResolvedEntryPointId backing field.");
+            field!.SetValue(null, entryPointId);
+        }
+
+        private static T InvokeStaticMethod<T>(Type type, string methodName, params object[] args)
+        {
+            var method = type.GetMethod(methodName, BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
+            Assert.That(method, Is.Not.Null, $"Expected static method '{methodName}' on {type.Name}.");
+            return (T)method!.Invoke(null, args);
         }
     }
 }
