@@ -8,14 +8,23 @@
 
 **Tech Stack:** Unity 6 C#, prefab-authored `PlayerRoot`, `PersistentPlayerRoot`, `BootstrapWorldRoot`, targeted EditMode and PlayMode tests, scene/prefab contract checks.
 
+## Execution Guardrails
+
+- After every Unity test command, inspect the produced XML and log before proceeding. Red runs must fail only for the intended contract seams; green runs must report zero test failures and no compile, batchmode, or setup errors.
+- Create and maintain `docs/plans/progress/2026-03-21-floating-origin-progress.md` starting in Task 1. Update it before each commit with commands run, failing/passing suite names, read-back evidence, blockers, and touched files.
+- Stop for explicit review checkpoints after Task 2, Task 4, and Task 5 instead of carrying all six tasks straight through on assumptions.
+
 ---
 
 ### Task 1: Freeze The Floating-Origin Contract In Tests
 
 **Files:**
 - Create: `Reloader/Assets/_Project/World/Tests/EditMode/DynamicOriginRebaseControllerEditModeTests.cs`
+- Create: `docs/plans/progress/2026-03-21-floating-origin-progress.md`
 - Modify: `Reloader/Assets/_Project/World/Tests/EditMode/PersistentPlayerRootEditModeTests.cs`
 - Modify: `Reloader/Assets/_Project/World/Tests/EditMode/WorldTravelCoordinatorEditModeTests.cs`
+- Modify: `Reloader/Assets/_Project/World/Tests/EditMode/WorldPlayerRootContractEditModeTests.cs`
+- Modify: `Reloader/Assets/_Project/World/Tests/EditMode/WorldScenePlayerAnchorContractEditModeTests.cs`
 - Modify: `Reloader/Assets/_Project/Player/Tests/EditMode/PlayerCameraDefaultsEditModeTests.cs`
 
 **Step 1: Write the failing tests**
@@ -27,6 +36,7 @@ Add tests that require:
 - rebasing to use one cooldown-backed canonical trigger instead of ADS-specific rules
 - persistent player root identity to survive rebasing
 - travel/player seams to expose explicit rebase-safe ownership with no scene adoption fallback
+- destination scenes to remain anchor-only and never author `DynamicOriginRebaseController`, `StableWorldCoordinateBridge`, or `DynamicOriginRebaseState` owners outside Bootstrap/runtime-owned seams
 
 **Step 2: Run the focused red suite**
 
@@ -50,7 +60,7 @@ Expected: failures should now point at the missing runtime seams only.
 **Step 5: Commit**
 
 ```bash
-git add Reloader/Assets/_Project/World/Tests/EditMode/DynamicOriginRebaseControllerEditModeTests.cs Reloader/Assets/_Project/World/Tests/EditMode/PersistentPlayerRootEditModeTests.cs Reloader/Assets/_Project/World/Tests/EditMode/WorldTravelCoordinatorEditModeTests.cs Reloader/Assets/_Project/Player/Tests/EditMode/PlayerCameraDefaultsEditModeTests.cs
+git add Reloader/Assets/_Project/World/Tests/EditMode/DynamicOriginRebaseControllerEditModeTests.cs Reloader/Assets/_Project/World/Tests/EditMode/PersistentPlayerRootEditModeTests.cs Reloader/Assets/_Project/World/Tests/EditMode/WorldTravelCoordinatorEditModeTests.cs Reloader/Assets/_Project/World/Tests/EditMode/WorldPlayerRootContractEditModeTests.cs Reloader/Assets/_Project/World/Tests/EditMode/WorldScenePlayerAnchorContractEditModeTests.cs Reloader/Assets/_Project/Player/Tests/EditMode/PlayerCameraDefaultsEditModeTests.cs docs/plans/progress/2026-03-21-floating-origin-progress.md
 git commit -m "test(world): lock floating origin slice one contract"
 ```
 
@@ -74,6 +84,7 @@ Add tests for:
 - round-trip conversion staying within tolerance
 - offset updates after rebase preserving stable truth
 - `BootstrapWorldRoot.Initialize()` creating exactly one canonical origin-state / bridge / controller seam and reusing it across repeated initialization
+- fresh startup zeroing origin offsets and cleared rebase cooldown / last-rebase state, and repeated initialization proving deterministic reset behavior
 - travel preparation and entry placement preserving or explicitly updating the active stable/local mapping instead of silently recreating or zeroing it
 
 **Step 2: Run the focused red suite**
@@ -187,6 +198,7 @@ git commit -m "feat(world): add dynamic origin rebase controller"
 - Modify: `Reloader/Assets/_Project/Player/Prefabs/PlayerRoot.prefab`
 - Modify: `Reloader/Assets/Scenes/Bootstrap.unity`
 - Create: `Reloader/Assets/_Project/World/Tests/PlayMode/DynamicOriginRebasePlayModeTests.cs`
+- Modify: `Reloader/Assets/_Project/World/Tests/PlayMode/RoundTripTravelPlayModeTests.cs`
 
 **Step 1: Write the failing continuity test**
 
@@ -199,6 +211,11 @@ Add a PlayMode test that:
 - verifies no duplicate player root is created
 - performs `rebase -> travel -> verify -> travel back -> verify` so travel entry placement stays coherent with the active stable/local mapping
 - verifies the camera/arms/viewmodel stack is still bound on the canonical runtime player after rebase and after each travel hop
+
+Keep ownership explicit:
+
+- `DynamicOriginRebasePlayModeTests` owns rebase trigger, relative-offset continuity, and origin-mapping assertions
+- `RoundTripTravelPlayModeTests` owns post-travel rig healing and re-entry continuity while an origin mapping is active
 
 **Step 2: Run the focused red suite**
 
@@ -225,6 +242,7 @@ Run:
 ```bash
 bash scripts/run-unity-tests.sh editmode "Reloader.World.Tests.EditMode.DynamicOriginRebaseControllerEditModeTests|Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests|Reloader.Player.Tests.EditMode.PlayerCameraDefaultsEditModeTests" "$(pwd)/tmp/floating-origin-task4-edit.xml" "$(pwd)/tmp/floating-origin-task4-edit.log"
 bash scripts/run-unity-tests.sh playmode "Reloader.World.Tests.PlayMode.DynamicOriginRebasePlayModeTests" "$(pwd)/tmp/floating-origin-task4-play.xml" "$(pwd)/tmp/floating-origin-task4-play.log"
+bash scripts/run-unity-tests.sh playmode "Reloader.World.Tests.PlayMode.RoundTripTravelPlayModeTests|Reloader.Player.Tests.PlayMode.PlayerControllerPlayModeTests|Reloader.Player.Tests.PlayMode.PlayerDevNoclipPlayModeTests" "$(pwd)/tmp/floating-origin-task4-regressions.xml" "$(pwd)/tmp/floating-origin-task4-regressions.log"
 ```
 
 Expected: PASS.
@@ -234,7 +252,7 @@ After the runtime suites pass, read back the mutated `PlayerRoot.prefab` and `Bo
 **Step 5: Commit**
 
 ```bash
-git add Reloader/Assets/_Project/Player/Scripts/PlayerMover.cs Reloader/Assets/_Project/Player/Scripts/PlayerLookController.cs Reloader/Assets/_Project/Player/Scripts/PlayerCameraDefaults.cs Reloader/Assets/_Project/World/Scripts/Runtime/Travel/WorldTravelCoordinator.cs Reloader/Assets/_Project/Player/Prefabs/PlayerRoot.prefab Reloader/Assets/Scenes/Bootstrap.unity Reloader/Assets/_Project/World/Tests/PlayMode/DynamicOriginRebasePlayModeTests.cs
+git add Reloader/Assets/_Project/Player/Scripts/PlayerMover.cs Reloader/Assets/_Project/Player/Scripts/PlayerLookController.cs Reloader/Assets/_Project/Player/Scripts/PlayerCameraDefaults.cs Reloader/Assets/_Project/World/Scripts/Runtime/Travel/WorldTravelCoordinator.cs Reloader/Assets/_Project/Player/Prefabs/PlayerRoot.prefab Reloader/Assets/Scenes/Bootstrap.unity Reloader/Assets/_Project/World/Tests/PlayMode/DynamicOriginRebasePlayModeTests.cs Reloader/Assets/_Project/World/Tests/PlayMode/RoundTripTravelPlayModeTests.cs
 git commit -m "feat(player): make player and cameras rebase safe"
 ```
 
@@ -263,7 +281,8 @@ Run:
 
 ```bash
 bash scripts/run-unity-tests.sh editmode "Reloader.World.Tests.EditMode.StableWorldCoordinateBridgeEditModeTests|Reloader.World.Tests.EditMode.DynamicOriginRebaseControllerEditModeTests|Reloader.World.Tests.EditMode.OriginRebaseParticipantEditModeTests|Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests|Reloader.World.Tests.EditMode.StableWorldSliceOneContractEditModeTests|Reloader.Player.Tests.EditMode.PlayerCameraDefaultsEditModeTests" "$(pwd)/tmp/floating-origin-final-edit.xml" "$(pwd)/tmp/floating-origin-final-edit.log"
-bash scripts/run-unity-tests.sh playmode "Reloader.World.Tests.PlayMode.DynamicOriginRebasePlayModeTests" "$(pwd)/tmp/floating-origin-final-play.xml" "$(pwd)/tmp/floating-origin-final-play.log"
+bash scripts/run-unity-tests.sh editmode "Reloader.World.Tests.EditMode.WorldPlayerRootContractEditModeTests|Reloader.World.Tests.EditMode.WorldScenePlayerAnchorContractEditModeTests" "$(pwd)/tmp/floating-origin-final-scene-contracts.xml" "$(pwd)/tmp/floating-origin-final-scene-contracts.log"
+bash scripts/run-unity-tests.sh playmode "Reloader.World.Tests.PlayMode.DynamicOriginRebasePlayModeTests|Reloader.World.Tests.PlayMode.RoundTripTravelPlayModeTests|Reloader.World.Tests.PlayMode.SceneTopologySmokeTests|Reloader.Player.Tests.PlayMode.PlayerControllerPlayModeTests|Reloader.Player.Tests.PlayMode.PlayerDevNoclipPlayModeTests" "$(pwd)/tmp/floating-origin-final-play.xml" "$(pwd)/tmp/floating-origin-final-play.log"
 ```
 
 Expected: PASS.
@@ -283,7 +302,7 @@ git commit -m "test(world): lock floating origin slice one acceptance"
 ### Task 6: Queue The Next Slice Without Implementing It Here
 
 **Files:**
-- Create: `docs/plans/progress/2026-03-21-floating-origin-progress.md`
+- Modify: `docs/plans/progress/2026-03-21-floating-origin-progress.md`
 - Modify: `docs/plans/2026-03-21-floating-origin-design.md`
 
 **Step 1: Write the follow-on queue**
