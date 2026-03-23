@@ -3,6 +3,7 @@ using UnityEngine.SceneManagement;
 
 namespace Reloader.World.Runtime.Origin
 {
+    [DefaultExecutionOrder(10000)]
     public sealed class DynamicOriginRebaseController : MonoBehaviour
     {
         [SerializeField] private PersistentPlayerRoot _persistentPlayerRoot;
@@ -11,6 +12,7 @@ namespace Reloader.World.Runtime.Origin
         [SerializeField] private float _rebaseDistanceMeters = 500f;
         [SerializeField] private float _rebaseCooldownSeconds = 1f;
         [SerializeField] private float _lastRebaseTime = float.NegativeInfinity;
+        [SerializeField] private Vector3 _playerHorizontalBaseline;
 
         public PersistentPlayerRoot PersistentPlayerRoot => _persistentPlayerRoot;
         public DynamicOriginRebaseState RebaseState => _rebaseState;
@@ -28,7 +30,18 @@ namespace Reloader.World.Runtime.Origin
 
         public void ResetState()
         {
+            CapturePlayerHorizontalBaseline();
             _lastRebaseTime = float.NegativeInfinity;
+        }
+
+        private void LateUpdate()
+        {
+            if (!Application.isPlaying)
+            {
+                return;
+            }
+
+            TryRebaseIfNeeded(Time.unscaledTime);
         }
 
         public bool TryRebaseIfNeeded(float currentTimeSeconds)
@@ -49,7 +62,10 @@ namespace Reloader.World.Runtime.Origin
                 return false;
             }
 
-            var localShift = new Vector3(-playerRoot.position.x, 0f, -playerRoot.position.z);
+            var localShift = new Vector3(
+                _playerHorizontalBaseline.x - playerRoot.position.x,
+                0f,
+                _playerHorizontalBaseline.z - playerRoot.position.z);
             if (new Vector2(localShift.x, localShift.z).sqrMagnitude <= 0f)
             {
                 return false;
@@ -74,6 +90,18 @@ namespace Reloader.World.Runtime.Origin
             }
 
             return PersistentPlayerRoot.Instance?.PlayerRootTransform;
+        }
+
+        private void CapturePlayerHorizontalBaseline()
+        {
+            var playerRoot = ResolveCanonicalPlayerRoot();
+            if (playerRoot == null)
+            {
+                _playerHorizontalBaseline = Vector3.zero;
+                return;
+            }
+
+            _playerHorizontalBaseline = new Vector3(playerRoot.position.x, 0f, playerRoot.position.z);
         }
 
         private bool IsOutsideRebaseDistance(Vector3 localPosition)
