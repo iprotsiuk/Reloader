@@ -24,18 +24,26 @@ namespace Reloader.World.Tests.PlayMode
         private const float SceneSwitchTimeoutSeconds = 5f;
 
         [UnityTest]
-        public IEnumerator BootstrapLoad_DoesNotAutoTravelToIndoorRange()
+        public IEnumerator BootstrapLoad_StaysOnExplicitFrontDoorWithoutAutoTravel()
         {
             SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
-            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            yield return WaitForActiveScene(BootstrapSceneName, SceneSwitchTimeoutSeconds);
 
             var elapsed = 0f;
             while (elapsed < 1.5f)
             {
                 Assert.That(
                     SceneManager.GetActiveScene().name,
-                    Is.EqualTo(MainTownSceneName),
-                    "MainTown should remain active after bootstrap load and must not auto-travel.");
+                    Is.EqualTo(BootstrapSceneName),
+                    "Bootstrap should remain the explicit front door until an authored startup action routes into gameplay.");
+                Assert.That(
+                    SceneManager.GetSceneByName(MainTownSceneName).isLoaded,
+                    Is.False,
+                    "Bootstrap front door should not auto-load MainTown.");
+                Assert.That(
+                    SceneManager.GetSceneByName(IndoorRangeSceneName).isLoaded,
+                    Is.False,
+                    "Bootstrap front door should not auto-load IndoorRange.");
                 elapsed += Time.unscaledDeltaTime;
                 yield return null;
             }
