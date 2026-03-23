@@ -21,3 +21,13 @@
 - Green command: `bash scripts/run-unity-tests.sh editmode "Reloader.World.Tests.EditMode.StableWorldCoordinateBridgeEditModeTests|Reloader.World.Tests.EditMode.BootstrapWorldRootEditModeTests|Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests|Reloader.World.Tests.EditMode.DynamicOriginRebaseControllerEditModeTests" "$(pwd)/tmp/floating-origin-task2-green.xml" "$(pwd)/tmp/floating-origin-task2-green.log"`
 - Green evidence: `tmp/floating-origin-task2-green.xml` reports `passed="14" failed="0"` and the log exits with `code 0 (Ok)`.
 - Remaining out-of-scope workspace dirt: `Reloader/Assets/_Project/World/Terrain/MainTown/MainTownTerrainData.asset` and earlier non-Task-2 edit in `WorldPlayerRootContractEditModeTests.cs`, both left unstaged for this commit.
+
+## Task 3
+
+- Added focused controller/participant tests for horizontal threshold, cooldown, coherent scene shift, canonical player identity, and notification-only participant callbacks.
+- Next command: `bash scripts/run-unity-tests.sh editmode "Reloader.World.Tests.EditMode.DynamicOriginRebaseControllerEditModeTests|Reloader.World.Tests.EditMode.OriginRebaseParticipantEditModeTests|Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests" "$(pwd)/tmp/floating-origin-task3-red.xml" "$(pwd)/tmp/floating-origin-task3-red.log"`
+- Red evidence: `tmp/floating-origin-task3-red.log` stopped at local compile errors because `DynamicOriginRebaseController.TryRebaseIfNeeded` did not exist yet.
+- Implemented the canonical controller rebase path and notification-only participant callbacks in `Origin/DynamicOriginRebaseController.cs`.
+- Green command: `bash scripts/run-unity-tests.sh editmode "Reloader.World.Tests.EditMode.DynamicOriginRebaseControllerEditModeTests|Reloader.World.Tests.EditMode.OriginRebaseParticipantEditModeTests|Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests" "$(pwd)/tmp/floating-origin-task3-green.xml" "$(pwd)/tmp/floating-origin-task3-green.log"`
+- Green evidence: `tmp/floating-origin-task3-green.xml` reports `passed="13" failed="0"` and the log exits with `code 0 (Ok)`.
+- Remaining out-of-scope workspace dirt still left unstaged: `Reloader/Assets/_Project/World/Terrain/MainTown/MainTownTerrainData.asset` and earlier `WorldPlayerRootContractEditModeTests.cs` change.
