@@ -1,6 +1,7 @@
 using Reloader.Player;
 using UnityEngine;
 using Reloader.World.Travel;
+using Reloader.World.Runtime.Origin;
 
 namespace Reloader.World.Runtime
 {
@@ -13,19 +14,16 @@ namespace Reloader.World.Runtime
 
         public static PersistentPlayerRoot Initialize()
         {
-            var persistentRoot = PersistentPlayerRoot.EnsureInstance();
             var bootstrapWorldRoot = FindBootstrapWorldRoot();
             if (bootstrapWorldRoot == null)
             {
-                if (persistentRoot.PlayerRootTransform == null)
-                {
-                    Debug.LogError("BootstrapWorldRoot failed: no loaded BootstrapWorldRoot instance is available to provide the canonical runtime player prefab.");
-                }
-
-                return persistentRoot;
+                Debug.LogError("BootstrapWorldRoot failed: no loaded BootstrapWorldRoot instance is available to provide the canonical runtime player prefab.");
+                return null;
             }
 
+            var persistentRoot = PersistentPlayerRoot.EnsureInstance();
             bootstrapWorldRoot.EnsureRuntimePlayerRoot(persistentRoot);
+            bootstrapWorldRoot.EnsureOriginSeams(persistentRoot);
             return persistentRoot;
         }
 
@@ -57,6 +55,18 @@ namespace Reloader.World.Runtime
             }
         }
 
+        private void EnsureOriginSeams(PersistentPlayerRoot persistentRoot)
+        {
+            var rebaseState = EnsureSingleComponent<DynamicOriginRebaseState>(gameObject);
+            var coordinateBridge = EnsureSingleComponent<StableWorldCoordinateBridge>(gameObject);
+            var rebaseController = EnsureSingleComponent<DynamicOriginRebaseController>(gameObject);
+
+            rebaseState.ResetState();
+            coordinateBridge.Initialize(rebaseState);
+            rebaseController.Configure(persistentRoot, rebaseState, coordinateBridge);
+            rebaseController.ResetState();
+        }
+
         private static BootstrapWorldRoot FindBootstrapWorldRoot()
         {
             return Object.FindFirstObjectByType<BootstrapWorldRoot>(FindObjectsInactive.Include);
@@ -70,6 +80,39 @@ namespace Reloader.World.Runtime
             }
 
             return Instantiate(playerRootPrefab);
+        }
+
+        private static T EnsureSingleComponent<T>(GameObject owner) where T : Component
+        {
+            var components = owner.GetComponents<T>();
+            if (components.Length == 0)
+            {
+                return owner.AddComponent<T>();
+            }
+
+            var canonical = components[0];
+            for (var i = 1; i < components.Length; i++)
+            {
+                DestroyComponent(components[i]);
+            }
+
+            return canonical;
+        }
+
+        private static void DestroyComponent(Component component)
+        {
+            if (component == null)
+            {
+                return;
+            }
+
+            if (Application.isPlaying)
+            {
+                Destroy(component);
+                return;
+            }
+
+            DestroyImmediate(component);
         }
     }
 }

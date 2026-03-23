@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Reloader.World.Runtime;
 using Reloader.World.Travel;
+using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -196,6 +197,44 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
+        [Test]
+        public void PreparePersistentPlayerRootForTravel_PreservesActiveStableLocalMapping()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SceneManager.SetActiveScene(scene);
+
+                BootstrapWorldRoot.Initialize();
+                var bootstrapRoot = FindBootstrapWorldRoot(scene);
+                var state = bootstrapRoot.GetComponent(GetOriginType("DynamicOriginRebaseState"));
+
+                Assert.That(state, Is.Not.Null, "Bootstrap should own the canonical floating-origin state.");
+
+                Invoke(state, "ApplyRebase", new Vector3(-420f, 0f, 160f), new Vector3(420f, 0f, -160f), 14f);
+                var stableOffsetBefore = GetVector3Property(state, "StableOriginOffset");
+                var localOffsetBefore = GetVector3Property(state, "LocalOriginOffset");
+
+                var prepared = InvokePrivateStatic<bool>("PreparePersistentPlayerRootForTravel");
+                var stateAfter = bootstrapRoot.GetComponent(GetOriginType("DynamicOriginRebaseState"));
+
+                Assert.That(prepared, Is.True);
+                Assert.That(stateAfter, Is.SameAs(state));
+                Assert.That(GetVector3Property(stateAfter, "StableOriginOffset"), Is.EqualTo(stableOffsetBefore));
+                Assert.That(GetVector3Property(stateAfter, "LocalOriginOffset"), Is.EqualTo(localOffsetBefore));
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
         private static void AssignPlayerRootTransform(PersistentPlayerRoot persistentRoot, Transform playerRootTransform)
         {
             var serialized = new UnityEditor.SerializedObject(persistentRoot);
@@ -252,6 +291,43 @@ namespace Reloader.World.Tests.EditMode
             {
                 EditorSceneManager.CloseScene(scene, true);
             }
+        }
+
+        private static BootstrapWorldRoot FindBootstrapWorldRoot(Scene scene)
+        {
+            var roots = scene.GetRootGameObjects();
+            for (var i = 0; i < roots.Length; i++)
+            {
+                var bootstrapRoot = roots[i].GetComponent<BootstrapWorldRoot>();
+                if (bootstrapRoot != null)
+                {
+                    return bootstrapRoot;
+                }
+            }
+
+            Assert.Fail($"Expected BootstrapWorldRoot in scene '{scene.path}'.");
+            return null;
+        }
+
+        private static System.Type GetOriginType(string typeName)
+        {
+            var resolvedType = System.Type.GetType($"Reloader.World.Runtime.Origin.{typeName}, Reloader.World");
+            Assert.That(resolvedType, Is.Not.Null, $"Expected origin runtime type '{typeName}' in assembly 'Reloader.World'.");
+            return resolvedType;
+        }
+
+        private static void Invoke(object target, string methodName, params object[] args)
+        {
+            var method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, $"Expected {target.GetType().Name}.{methodName} to exist.");
+            method.Invoke(target, args);
+        }
+
+        private static Vector3 GetVector3Property(object target, string propertyName)
+        {
+            var property = target.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(property, Is.Not.Null, $"Expected {target.GetType().Name}.{propertyName} property to exist.");
+            return (Vector3)property.GetValue(target);
         }
     }
 }
