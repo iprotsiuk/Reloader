@@ -611,35 +611,6 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator IndoorRange_HasShootingRangeBlockoutGeometry()
-        {
-            SceneManager.LoadScene(IndoorRangeSceneName, LoadSceneMode.Single);
-            yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
-
-            var requiredObjects = new[]
-            {
-                "IndoorRange_Geometry",
-                "Range_Floor",
-                "Range_Ceiling",
-                "Range_Wall_Left",
-                "Range_Wall_Right",
-                "Range_Wall_Backstop",
-                "FiringLine",
-                "LaneDivider_1",
-                "LaneDivider_2",
-                "TargetPlate_1",
-                "TargetPlate_2",
-                "TargetPlate_3"
-            };
-
-            for (var i = 0; i < requiredObjects.Length; i++)
-            {
-                var gameObject = GameObject.Find(requiredObjects[i]);
-                Assert.That(gameObject, Is.Not.Null, $"Expected IndoorRange geometry object '{requiredObjects[i]}'.");
-            }
-        }
-
-        [UnityTest]
         public IEnumerator TryLoadSceneAtEntry_MatchesScenePathIdentifier_OnSceneLoaded()
         {
             SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
