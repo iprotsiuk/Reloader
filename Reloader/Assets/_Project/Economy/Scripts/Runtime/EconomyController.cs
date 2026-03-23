@@ -33,7 +33,6 @@ namespace Reloader.Economy
         private IShopEvents _subscribedShopEvents;
         private bool _useRuntimeKernelShopEvents = true;
         private bool _useRuntimeKernelInventoryEvents = true;
-        private bool _attemptedInventoryResolution;
         private bool _loggedMissingInventoryController;
 
         public EconomyRuntime Runtime => _runtime;
@@ -380,10 +379,10 @@ public bool TryAwardMoney(int amount)
         private void ResolveReferences()
         {
             _inventoryController ??= _inventoryControllerBehaviour as PlayerInventoryController;
-            DependencyResolutionGuard.ResolveOnce(
-                ref _inventoryController,
-                ref _attemptedInventoryResolution,
-                FindFirstObjectByType<PlayerInventoryController>);
+            if (_inventoryController == null)
+            {
+                _inventoryController = FindFirstObjectByType<PlayerInventoryController>(FindObjectsInactive.Include);
+            }
             DependencyResolutionGuard.HasRequiredReferences(
                 ref _loggedMissingInventoryController,
                 this,

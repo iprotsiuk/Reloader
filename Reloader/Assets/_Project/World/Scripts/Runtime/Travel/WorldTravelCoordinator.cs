@@ -34,6 +34,7 @@ namespace Reloader.World.Travel
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetState()
         {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
             _pendingSceneName = null;
             _pendingEntryPointId = null;
             LastResolvedEntryPointId = null;

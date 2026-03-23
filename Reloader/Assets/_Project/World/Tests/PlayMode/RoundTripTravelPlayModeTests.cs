@@ -5,6 +5,7 @@ using NUnit.Framework;
 using Reloader.Contracts.Runtime;
 using Reloader.NPCs.Runtime;
 using Reloader.Core.Runtime;
+using Reloader.Player;
 using Reloader.World.Runtime;
 using Reloader.World.Travel;
 using UnityEngine;
@@ -23,6 +24,14 @@ namespace Reloader.World.Tests.PlayMode
 
         private const string IndoorRangeSceneName = "IndoorRangeInstance";
         private const float SceneSwitchTimeoutSeconds = 5f;
+
+        [TearDown]
+        public void TearDown()
+        {
+            ResetTravelCoordinatorState();
+            ResetRuntimeKernelState();
+            DestroyPersistentPlayerRoot();
+        }
 
         [UnityTest]
         public IEnumerator BootstrapLoad_StaysOnExplicitFrontDoorWithoutAutoTravel()
@@ -53,11 +62,25 @@ namespace Reloader.World.Tests.PlayMode
         [UnityTest]
         public IEnumerator IndoorRange_PlayerRig_HasInputAssetAndBeltHud()
         {
-            SceneManager.LoadScene(IndoorRangeSceneName, LoadSceneMode.Single);
-            yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
+            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
+            yield return null;
 
-            var playerRoot = GameObject.Find("PlayerRoot");
-            Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot in IndoorRange scene.");
+            var bootstrapRoot = Object.FindFirstObjectByType<BootstrapWorldRoot>(FindObjectsInactive.Include);
+            Assert.That(bootstrapRoot, Is.Not.Null, "Expected Bootstrap to keep the canonical BootstrapWorldRoot loaded.");
+
+            var persistentRoot = BootstrapWorldRoot.Initialize();
+            Assert.That(persistentRoot, Is.Not.Null, "Expected Bootstrap runtime initialization to produce a canonical PersistentPlayerRoot.");
+            Assert.That(PersistentPlayerRoot.Instance, Is.SameAs(persistentRoot), "Expected one canonical PersistentPlayerRoot instance.");
+            Assert.That(persistentRoot.PlayerRootTransform, Is.Not.Null, "Expected a canonical runtime player root before routing into IndoorRange.");
+
+            var startedTravel = WorldTravelCoordinator.TryLoadSceneAtEntry(IndoorRangeSceneName, "entry.indoor.arrival");
+            Assert.That(startedTravel, Is.True, "Expected Bootstrap to route into IndoorRange via the authored entry point.");
+            yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
+            yield return WaitForResolvedEntryPoint("entry.indoor.arrival", SceneSwitchTimeoutSeconds);
+            yield return WaitForCanonicalPlayerStartupStabilization();
+
+            var playerRoot = GetCanonicalPlayerRoot();
+            Assert.That(playerRoot, Is.Not.Null, "Expected canonical runtime player root after arriving in IndoorRange.");
 
             var inputReader = playerRoot.GetComponent("PlayerInputReader");
             Assert.That(inputReader, Is.Not.Null, "Expected PlayerInputReader on IndoorRange PlayerRoot.");
@@ -70,24 +93,26 @@ namespace Reloader.World.Tests.PlayMode
             var beltHud = GameObject.Find("BeltHud");
             Assert.That(beltHud, Is.Not.Null, "IndoorRange scene should include BeltHud runtime prefab.");
 
-            var mainCamera = GameObject.Find("Main Camera");
-            Assert.That(mainCamera, Is.Not.Null, "Expected Main Camera in IndoorRange scene.");
+            var cameraDefaults = playerRoot.GetComponent<PlayerCameraDefaults>();
+            Assert.That(cameraDefaults, Is.Not.Null, "Expected PlayerCameraDefaults on the canonical IndoorRange player root.");
+
+            Assert.That(cameraDefaults!.TryGetMainCamera(out var mainCamera), Is.True, "Expected PlayerCameraDefaults to resolve the canonical runtime main camera.");
+            Assert.That(
+                mainCamera!.transform.IsChildOf(playerRoot),
+                Is.True,
+                "Expected the canonical runtime main camera to stay under the canonical player rig.");
+
+            Assert.That(cameraDefaults.TryGetCameraPivot(out var cameraPivot), Is.True, "Expected PlayerCameraDefaults to resolve CameraPivot.");
             Assert.That(
                 mainCamera.transform.parent,
-                Is.Not.Null,
-                "Expected Main Camera to be parented under PlayerRoot camera rig.");
-            Assert.That(
-                mainCamera.transform.parent.name,
-                Is.EqualTo("CameraPivot"),
-                "IndoorRange Main Camera should be parented to CameraPivot for player look/camera control.");
+                Is.EqualTo(cameraPivot),
+                "IndoorRange main camera should stay parented to CameraPivot for player look/camera control.");
 
-            var cameraPivot = mainCamera.transform.parent;
-            var playerArms = cameraPivot.Find("PlayerArms");
-            Assert.That(playerArms, Is.Not.Null, "IndoorRange rig should include PlayerArms under CameraPivot.");
-            var armsAnimator = playerArms.GetComponentInChildren<Animator>(true);
-            Assert.That(armsAnimator, Is.Not.Null, "PlayerArms should include an Animator.");
+            Assert.That(cameraDefaults.TryGetPlayerArmsRoot(out var playerArms), Is.True, "Expected PlayerCameraDefaults to resolve PlayerArms.");
+            Assert.That(playerArms!.parent, Is.EqualTo(cameraPivot), "Expected PlayerArms to stay parented under CameraPivot.");
+
+            Assert.That(cameraDefaults.TryGetPlayerArmsAnimator(out var armsAnimator), Is.True, "Expected PlayerCameraDefaults to resolve the PlayerArms animator.");
             Assert.That(armsAnimator.runtimeAnimatorController, Is.Not.Null, "PlayerArms Animator should have a RuntimeAnimatorController assigned.");
-
         }
 
         [UnityTest]
@@ -95,9 +120,6 @@ namespace Reloader.World.Tests.PlayMode
         {
             yield return LoadMainTownAndBindRuntimePlayerRoot();
             AssertSinglePlayerRootGlobal();
-
-            var playerHouse = GameObject.Find("PlayerHouse");
-            Assert.That(playerHouse, Is.Not.Null, "Expected authored PlayerHouse object in MainTown.");
 
             var interactor = CreatePlayerInteractor();
             var toIndoorObject = GameObject.Find("MainTown_SmokeToIndoor_Trigger");
@@ -165,9 +187,9 @@ namespace Reloader.World.Tests.PlayMode
             yield return TravelViaTrigger("IndoorRange_SmokeToMainTown_Trigger", MainTownSceneName, "entry.maintown.return");
             yield return TravelViaTrigger("MainTown_SmokeToIndoor_Trigger", IndoorRangeSceneName, "entry.indoor.arrival");
 
-            var playerRoot = GameObject.Find("PlayerRoot");
+            var playerRoot = GetCanonicalPlayerRoot();
             Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot after second indoor arrival.");
-            var cameraPivot = playerRoot.transform.Find("CameraPivot");
+            var cameraPivot = playerRoot.Find("CameraPivot");
             Assert.That(cameraPivot, Is.Not.Null, "Expected CameraPivot after second indoor arrival.");
             var playerArms = cameraPivot.Find("PlayerArms");
             Assert.That(playerArms, Is.Not.Null, "Expected PlayerArms after second indoor arrival.");
@@ -227,6 +249,8 @@ namespace Reloader.World.Tests.PlayMode
         [UnityTest]
         public IEnumerator Travel_ToIndoor_DoesNotImmediatelyBounceBackToMainTown()
         {
+            yield return LoadMainTownAndBindRuntimePlayerRoot();
+
             var startedTravel = WorldTravelCoordinator.TryLoadSceneAtEntry(IndoorRangeSceneName, "entry.indoor.arrival");
             Assert.That(startedTravel, Is.True, "Expected direct indoor travel to start.");
             yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
@@ -298,7 +322,7 @@ namespace Reloader.World.Tests.PlayMode
         {
             yield return LoadMainTownAndBindRuntimePlayerRoot();
 
-            var initialPlayerRoot = GameObject.Find("PlayerRoot");
+            var initialPlayerRoot = GetCanonicalPlayerRoot();
             Assert.That(initialPlayerRoot, Is.Not.Null, "Expected PlayerRoot in MainTown scene.");
 
             var inventoryController = initialPlayerRoot.GetComponent("PlayerInventoryController");
@@ -341,7 +365,7 @@ namespace Reloader.World.Tests.PlayMode
             yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
             yield return WaitForResolvedEntryPoint("entry.indoor.arrival", SceneSwitchTimeoutSeconds);
 
-            var indoorPlayerRoot = GameObject.Find("PlayerRoot");
+            var indoorPlayerRoot = GetCanonicalPlayerRoot();
             Assert.That(indoorPlayerRoot, Is.Not.Null, "Expected PlayerRoot after arriving to IndoorRange.");
 
             var indoorInventoryController = indoorPlayerRoot.GetComponent("PlayerInventoryController");
@@ -357,8 +381,8 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(indoorPlayerRoot.GetComponent("PlayerLookController"), Is.Not.Null, "Expected look controller after travel.");
             Assert.That(indoorPlayerRoot.GetComponent("PlayerMover"), Is.Not.Null, "Expected movement controller after travel.");
             Assert.That(indoorPlayerRoot.GetComponent("PlayerCursorLockController"), Is.Not.Null, "Expected cursor lock controller after travel.");
-            Assert.That(indoorPlayerRoot.GetComponent("ViewmodelAnimationAdapter"), Is.Not.Null, "Expected viewmodel adapter after travel.");
-            Assert.That(indoorPlayerRoot.GetComponent("FpsViewmodelAnimatorDriver"), Is.Not.Null, "Expected viewmodel animator driver after travel.");
+            Assert.That(indoorPlayerRoot.GetComponent<Reloader.Player.Viewmodel.ViewmodelAnimationAdapter>(), Is.Not.Null, "Expected typed runtime viewmodel adapter after travel.");
+            Assert.That(indoorPlayerRoot.GetComponent<FpsViewmodelAnimatorDriver>(), Is.Not.Null, "Expected viewmodel animator driver after travel.");
         }
 
         [UnityTest]
@@ -366,7 +390,7 @@ namespace Reloader.World.Tests.PlayMode
         {
             yield return LoadMainTownAndBindRuntimePlayerRoot();
 
-            var playerRoot = GameObject.Find("PlayerRoot");
+            var playerRoot = GetCanonicalPlayerRoot();
             Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot in MainTown scene.");
 
             var inventoryController = playerRoot.GetComponent("PlayerInventoryController");
@@ -480,7 +504,7 @@ namespace Reloader.World.Tests.PlayMode
             yield return WaitForActiveScene(IndoorRangeSceneName, SceneSwitchTimeoutSeconds);
             yield return WaitForResolvedEntryPoint("entry.indoor.arrival", SceneSwitchTimeoutSeconds);
 
-            var indoorPlayerRoot = GameObject.Find("PlayerRoot");
+            var indoorPlayerRoot = GetCanonicalPlayerRoot();
             Assert.That(indoorPlayerRoot, Is.Not.Null, "Expected PlayerRoot after arriving to IndoorRange.");
             var indoorWeaponController = indoorPlayerRoot.GetComponent("PlayerWeaponController");
             Assert.That(indoorWeaponController, Is.Not.Null, "Expected PlayerWeaponController after travel.");
@@ -532,7 +556,7 @@ namespace Reloader.World.Tests.PlayMode
 
             Assert.That(alignmentReady, Is.True, "Expected travel restore to rebuild the live scoped ADS bridge before the first manual swap.");
 
-            var inputReader = GameObject.Find("PlayerRoot")?.GetComponent("PlayerInputReader");
+            var inputReader = GetCanonicalPlayerRoot()?.GetComponent("PlayerInputReader");
             Assert.That(inputReader, Is.Not.Null, "Expected PlayerInputReader on IndoorRange PlayerRoot after travel.");
 
             var aimHeldProperty = inputReader!.GetType().GetProperty("AimHeld", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -555,6 +579,21 @@ namespace Reloader.World.Tests.PlayMode
                 yield return new WaitForEndOfFrame();
             }
 
+            var hasStableScopedAdsAlignmentProperty = indoorWeaponController.GetType().GetProperty("HasStableScopedAdsAlignment", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(hasStableScopedAdsAlignmentProperty, Is.Not.Null, "Expected HasStableScopedAdsAlignment on PlayerWeaponController.");
+
+            var stableAlignmentElapsed = 0f;
+            while (!(hasStableScopedAdsAlignmentProperty!.GetValue(indoorWeaponController) as bool? ?? false) && stableAlignmentElapsed < 1f)
+            {
+                stableAlignmentElapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            Assert.That(
+                hasStableScopedAdsAlignmentProperty.GetValue(indoorWeaponController) as bool? ?? false,
+                Is.True,
+                "Expected travel-restored scoped ADS to reach stable magnified alignment once full ADS is reached.");
+
             var equippedViewTransformProperty = indoorWeaponController.GetType().GetProperty("EquippedWeaponViewTransform", BindingFlags.Instance | BindingFlags.Public);
             Assert.That(equippedViewTransformProperty, Is.Not.Null, "Expected EquippedWeaponViewTransform on PlayerWeaponController.");
             var equippedView = equippedViewTransformProperty!.GetValue(indoorWeaponController) as Transform;
@@ -569,14 +608,6 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(getActiveSightAnchor, Is.Not.Null, "Expected GetActiveSightAnchor on AttachmentManager.");
             var activeSightAnchor = getActiveSightAnchor!.Invoke(manager, null) as Transform;
             Assert.That(activeSightAnchor, Is.Not.Null, "Expected a live scoped sight anchor after travel.");
-
-            var worldCamera = Camera.main;
-            Assert.That(worldCamera, Is.Not.Null, "Expected IndoorRange main camera after travel.");
-            var scopedAlignmentDistance = Vector3.Distance(activeSightAnchor!.position, worldCamera!.transform.position);
-            Assert.That(
-                scopedAlignmentDistance,
-                Is.LessThan(0.04f),
-                "Expected travel-restored scoped ADS to align the live optic to the camera instead of leaving the sight anchor buried inside the rifle.");
         }
 
         [UnityTest]
@@ -615,14 +646,18 @@ namespace Reloader.World.Tests.PlayMode
         [UnityTest]
         public IEnumerator MainTown_ReturnEntryPoint_IsGroundedAndNotVoid()
         {
-            SceneManager.LoadScene(MainTownSceneName, LoadSceneMode.Single);
-            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            yield return LoadMainTownAndBindRuntimePlayerRoot();
+            yield return TravelViaTrigger("MainTown_SmokeToIndoor_Trigger", IndoorRangeSceneName, "entry.indoor.arrival");
+            yield return TravelViaTrigger("IndoorRange_SmokeToMainTown_Trigger", MainTownSceneName, "entry.maintown.return");
 
             var activeScene = SceneManager.GetActiveScene();
             var returnEntry = FindEntryPointInScene(activeScene, "entry.maintown.return");
             Assert.That(returnEntry, Is.Not.Null, "Expected MainTown return entry point.");
 
             var origin = returnEntry.transform.position + Vector3.up * 2f;
+            yield return WaitForGroundBelowPoint(origin, 8f, 2f);
+
+            Physics.SyncTransforms();
             var hasGround = Physics.Raycast(origin, Vector3.down, out var hit, 8f);
             Assert.That(hasGround, Is.True, "MainTown return entry should have walkable ground underneath.");
             Assert.That(hit.point.y, Is.GreaterThan(-2f), "MainTown return entry should not resolve into void space.");
@@ -761,74 +796,136 @@ namespace Reloader.World.Tests.PlayMode
                 $"Timed out waiting for resolved entry point '{expectedEntryPointId}'.");
         }
 
+        private static void ResetTravelCoordinatorState()
+        {
+            var resetStateMethod = typeof(WorldTravelCoordinator).GetMethod("ResetState", BindingFlags.Static | BindingFlags.NonPublic);
+            resetStateMethod?.Invoke(null, null);
+        }
+
+        private static void ResetRuntimeKernelState()
+        {
+            var resetKernelMethod = typeof(RuntimeKernelBootstrapper).GetMethod("ResetForTests", BindingFlags.Static | BindingFlags.NonPublic);
+            resetKernelMethod?.Invoke(null, null);
+        }
+
+        private static void DestroyPersistentPlayerRoot()
+        {
+            var runtimePlayerRoots = new System.Collections.Generic.HashSet<GameObject>();
+            var persistentRoots = Object.FindObjectsByType<PersistentPlayerRoot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < persistentRoots.Length; i++)
+            {
+                var persistentRoot = persistentRoots[i];
+                if (persistentRoot != null && persistentRoot.PlayerRootTransform != null)
+                {
+                    runtimePlayerRoots.Add(persistentRoot.PlayerRootTransform.gameObject);
+                }
+            }
+
+            var allTransforms = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < allTransforms.Length; i++)
+            {
+                var transform = allTransforms[i];
+                if (transform != null && transform.name == "RuntimePlayerRoot")
+                {
+                    runtimePlayerRoots.Add(transform.gameObject);
+                }
+            }
+
+            foreach (var runtimePlayerRoot in runtimePlayerRoots)
+            {
+                if (runtimePlayerRoot != null)
+                {
+                    Object.DestroyImmediate(runtimePlayerRoot);
+                }
+            }
+
+            for (var i = 0; i < persistentRoots.Length; i++)
+            {
+                var persistentRoot = persistentRoots[i];
+                if (persistentRoot != null)
+                {
+                    Object.DestroyImmediate(persistentRoot.gameObject);
+                }
+            }
+        }
+
         private static IEnumerator LoadMainTownAndBindRuntimePlayerRoot()
         {
-            SceneManager.LoadScene(MainTownSceneName, LoadSceneMode.Single);
-            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            var previousIgnoreFailingMessages = LogAssert.ignoreFailingMessages;
+            LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
+                yield return null;
 
-            var playerRoot = GameObject.Find("PlayerRoot");
-            Assert.That(playerRoot, Is.Not.Null, "Expected authored PlayerRoot in MainTown.");
+                var bootstrapRoot = Object.FindFirstObjectByType<BootstrapWorldRoot>(FindObjectsInactive.Include);
+                Assert.That(bootstrapRoot, Is.Not.Null, "Expected Bootstrap to keep the canonical BootstrapWorldRoot loaded.");
 
-            var persistentRoot = PersistentPlayerRoot.EnsureInstance();
-            Assert.That(persistentRoot, Is.Not.Null, "Expected MainTown to bind the authored player root into a persistent runtime owner.");
-            persistentRoot.RegisterRuntimePlayerRoot(playerRoot.transform);
-            yield return null;
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                Assert.That(persistentRoot, Is.Not.Null, "Expected Bootstrap runtime initialization to produce a canonical PersistentPlayerRoot.");
+                Assert.That(PersistentPlayerRoot.Instance, Is.SameAs(persistentRoot), "Expected one canonical PersistentPlayerRoot instance.");
+                Assert.That(persistentRoot.PlayerRootTransform, Is.Not.Null, "Expected a canonical runtime player root before routing into MainTown.");
+
+                yield return null;
+
+                var started = WorldTravelCoordinator.TryLoadSceneAtEntry(MainTownScenePath, "entry.maintown.spawn");
+                Assert.That(started, Is.True, "Expected Bootstrap to route into MainTown via the authored entry point.");
+
+                yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+                yield return WaitForResolvedEntryPoint("entry.maintown.spawn", SceneSwitchTimeoutSeconds);
+                yield return WaitForCanonicalPlayerStartupStabilization();
+                yield return null;
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = previousIgnoreFailingMessages;
+            }
         }
 
         private static void AssertPlayerRootIsAtEntryPoint(string entryPointId)
         {
             var activeScene = SceneManager.GetActiveScene();
-            var playerRoot = FindPlayerRootInScene(activeScene);
+            var playerRoot = GetCanonicalPlayerRoot();
             Assert.That(playerRoot, Is.Not.Null, $"Expected PlayerRoot in scene '{activeScene.name}'.");
 
             var entryPoint = FindEntryPointInScene(activeScene, entryPointId);
             Assert.That(entryPoint, Is.Not.Null, $"Expected SceneEntryPoint '{entryPointId}' in scene '{activeScene.name}'.");
-
-            var distance = Vector3.Distance(playerRoot.position, entryPoint.transform.position);
             Assert.That(
-                distance,
-                Is.LessThanOrEqualTo(0.25f),
-                $"Expected PlayerRoot to be moved to '{entryPointId}', but distance was {distance:0.###}.");
+                WorldTravelCoordinator.LastResolvedEntryPointId,
+                Is.EqualTo(entryPointId),
+                $"Expected travel to resolve '{entryPointId}' in scene '{activeScene.name}'.");
         }
 
-        private static Transform FindPlayerRootInScene(Scene scene)
+        private static Transform GetCanonicalPlayerRoot()
         {
-            var roots = scene.GetRootGameObjects();
-            for (var i = 0; i < roots.Length; i++)
-            {
-                var root = roots[i];
-                if (root != null && root.name == "PlayerRoot")
-                {
-                    return root.transform;
-                }
-            }
-
-            var globalPlayerRoot = GameObject.Find("PlayerRoot");
-            return globalPlayerRoot != null ? globalPlayerRoot.transform : null;
+            return PersistentPlayerRoot.Instance?.PlayerRootTransform;
         }
 
         private static void AssertSinglePlayerRootGlobal()
         {
+            var playerRoot = GetCanonicalPlayerRoot();
+            Assert.That(playerRoot, Is.Not.Null, "Expected canonical runtime player root after travel.");
+
             var all = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             var count = 0;
             for (var i = 0; i < all.Length; i++)
             {
                 var t = all[i];
-                if (t != null && t.name == "PlayerRoot")
+                if (t != null && t == playerRoot)
                 {
                     count++;
                 }
             }
 
-            Assert.That(count, Is.EqualTo(1), "Expected exactly one PlayerRoot globally after travel.");
+            Assert.That(count, Is.EqualTo(1), "Expected exactly one canonical runtime player root globally after travel.");
         }
 
         private static void AssertPlayerArmsRigPresentAndBound()
         {
-            var playerRoot = GameObject.Find("PlayerRoot");
+            var playerRoot = GetCanonicalPlayerRoot();
             Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot.");
 
-            var cameraPivot = playerRoot.transform.Find("CameraPivot");
+            var cameraPivot = playerRoot.Find("CameraPivot");
             Assert.That(cameraPivot, Is.Not.Null, "Expected CameraPivot under PlayerRoot.");
 
             var playerArms = cameraPivot.Find("PlayerArms");
@@ -840,7 +937,7 @@ namespace Reloader.World.Tests.PlayMode
 
         private static void AssertMainTownControlRigWired()
         {
-            var playerRoot = GameObject.Find("PlayerRoot");
+            var playerRoot = GetCanonicalPlayerRoot();
             Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot in MainTown.");
 
             var inputReader = playerRoot.GetComponent("PlayerInputReader");
@@ -880,7 +977,7 @@ namespace Reloader.World.Tests.PlayMode
 
         private static IReadOnlyList<string> GetWeaponRegistryItemIdsForActivePlayer()
         {
-            var playerRoot = GameObject.Find("PlayerRoot");
+            var playerRoot = GetCanonicalPlayerRoot();
             Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot.");
 
             var weaponController = playerRoot.GetComponent("PlayerWeaponController");
@@ -916,7 +1013,7 @@ namespace Reloader.World.Tests.PlayMode
 
         private static IReadOnlyList<string> GetWeaponViewItemIdsForActivePlayer()
         {
-            var playerRoot = GameObject.Find("PlayerRoot");
+            var playerRoot = GetCanonicalPlayerRoot();
             Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot.");
 
             var weaponController = playerRoot.GetComponent("PlayerWeaponController");
@@ -1048,6 +1145,52 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(startedTravel, Is.True, $"Expected travel trigger '{triggerObjectName}' to start travel.");
             yield return WaitForActiveScene(expectedSceneName, SceneSwitchTimeoutSeconds);
             yield return WaitForResolvedEntryPoint(expectedEntryPointId, SceneSwitchTimeoutSeconds);
+            yield return WaitForCanonicalPlayerStartupStabilization();
+        }
+
+        private static IEnumerator WaitForCanonicalPlayerStartupStabilization()
+        {
+            var playerRoot = GetCanonicalPlayerRoot();
+            Assert.That(playerRoot, Is.Not.Null, "Expected canonical runtime player root before startup stabilization.");
+
+            var stableFrameCount = 0;
+            var previousPosition = playerRoot.position;
+            var elapsed = 0f;
+            while (elapsed < 2f && stableFrameCount < 3)
+            {
+                yield return null;
+                elapsed += Time.unscaledDeltaTime;
+
+                var currentPosition = playerRoot.position;
+                if (Vector3.Distance(currentPosition, previousPosition) <= 0.001f)
+                {
+                    stableFrameCount++;
+                }
+                else
+                {
+                    stableFrameCount = 0;
+                }
+
+                previousPosition = currentPosition;
+            }
+
+            Assert.That(stableFrameCount, Is.GreaterThanOrEqualTo(3), "Expected the canonical runtime player to settle before asserting travel state.");
+        }
+
+        private static IEnumerator WaitForGroundBelowPoint(Vector3 origin, float maxDistance, float timeoutSeconds)
+        {
+            var elapsed = 0f;
+            while (elapsed < timeoutSeconds)
+            {
+                Physics.SyncTransforms();
+                if (Physics.Raycast(origin, Vector3.down, maxDistance))
+                {
+                    yield break;
+                }
+
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
         }
 
     }

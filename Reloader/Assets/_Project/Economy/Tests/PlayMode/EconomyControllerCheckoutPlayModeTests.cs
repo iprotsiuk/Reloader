@@ -577,6 +577,56 @@ namespace Reloader.Economy.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator MissingInventoryAtAwake_LaterAvailable_RebindsAndProcessesBuyRequest()
+        {
+            var economyGo = new GameObject("EconomyController");
+            var controller = economyGo.AddComponent<EconomyController>();
+            SetPrivateField(controller, "_startingMoney", 500);
+
+            var catalog = ScriptableObject.CreateInstance<ShopCatalogDefinition>();
+            JsonUtility.FromJsonOverwrite(
+                "{\"_items\":[{\"_itemId\":\"ammo-22lr\",\"_displayName\":\"22LR\",\"_category\":\"ammo\",\"_unitPrice\":2,\"_startingStock\":500}]}",
+                catalog);
+            SetVendorBindings(controller, "vendor-1", catalog);
+
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
+            GameObject inventoryGo = null;
+            try
+            {
+                LogAssert.Expect(LogType.Error, "EconomyController requires a PlayerInventoryController reference.");
+                yield return null;
+
+                inventoryGo = new GameObject("InventoryController");
+                var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
+                var input = inventoryGo.AddComponent<TestInputSource>();
+                var runtime = new PlayerInventoryRuntime();
+                runtime.SetBackpackCapacity(4);
+                inventoryController.Configure(input, null, runtime);
+
+                yield return null;
+
+                runtimeHub.RaiseShopTradeOpenRequested("vendor-1");
+                runtimeHub.RaiseShopBuyRequested("ammo-22lr", 1);
+
+                Assert.That(runtime.GetItemQuantity("ammo-22lr"), Is.EqualTo(1));
+                Assert.That(controller.Runtime.Money, Is.EqualTo(498));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(catalog);
+                UnityEngine.Object.DestroyImmediate(economyGo);
+                if (inventoryGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(inventoryGo);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator Reenable_WhenRuntimeWasCleared_ReinitializesRuntimeWithoutThrowing()
         {
             var inventoryGo = new GameObject("InventoryController");
