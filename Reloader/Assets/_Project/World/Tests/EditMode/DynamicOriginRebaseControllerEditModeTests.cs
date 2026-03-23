@@ -10,6 +10,7 @@ namespace Reloader.World.Tests.EditMode
 {
     public sealed class DynamicOriginRebaseControllerEditModeTests
     {
+        private const string BootstrapScenePath = "Assets/Scenes/Bootstrap.unity";
         private const float Epsilon = 0.0001f;
 
         private Scene _scene;
@@ -104,6 +105,58 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
+        public void DynamicOriginRebaseController_RemainsAvailableAfterOwnedSceneHandoff()
+        {
+            Object.DestroyImmediate(_controllerObject);
+            Object.DestroyImmediate(_propObject);
+
+            var sourceScene = _scene;
+            var handoffScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var state = _persistentRootObject.AddComponent<DynamicOriginRebaseState>();
+                var bridge = _persistentRootObject.AddComponent<StableWorldCoordinateBridge>();
+                var controller = _persistentRootObject.AddComponent<DynamicOriginRebaseController>();
+                bridge.Initialize(state);
+                controller.Configure(_persistentRoot, state, bridge);
+                controller.ResetState();
+
+                var persistentRoot = _persistentRoot;
+                Assert.That(controller, Is.Not.Null, "Expected the persistent runtime root to own the canonical floating-origin controller before handoff.");
+
+                persistentRoot.MoveRuntimePlayerRootToScene(handoffScene);
+                SceneManager.SetActiveScene(handoffScene);
+                if (sourceScene.IsValid() && sourceScene.isLoaded)
+                {
+                    EditorSceneManager.CloseScene(sourceScene, true);
+                }
+
+                var survivingControllers = Object.FindObjectsByType<DynamicOriginRebaseController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                Assert.That(
+                    survivingControllers,
+                    Has.Length.EqualTo(1),
+                    "Expected floating-origin runtime to remain available after the runtime root hands off and the source scene unloads.");
+                Assert.That(survivingControllers[0], Is.SameAs(controller));
+                Assert.That(survivingControllers[0].PersistentPlayerRoot, Is.SameAs(persistentRoot));
+                Assert.That(survivingControllers[0].PersistentPlayerRoot.gameObject.scene, Is.EqualTo(handoffScene));
+                Assert.That(survivingControllers[0].gameObject.scene, Is.EqualTo(handoffScene));
+                Assert.That(controller.gameObject.scene, Is.EqualTo(handoffScene));
+            }
+            finally
+            {
+                if (sourceScene.IsValid() && sourceScene.isLoaded)
+                {
+                    EditorSceneManager.CloseScene(sourceScene, false);
+                }
+                if (handoffScene.IsValid() && handoffScene.isLoaded)
+                {
+                    EditorSceneManager.CloseScene(handoffScene, false);
+                }
+            }
+        }
+
+        [Test]
         public void TryRebaseIfNeeded_WhenThresholdCrossed_ShiftsSceneOnceAndReturnsPlayerToBoundedBaselineWindow()
         {
             var participant = _propObject.AddComponent<RecordingParticipant>();
@@ -153,6 +206,46 @@ namespace Reloader.World.Tests.EditMode
             _playerRootObject.transform.position = new Vector3(510f, 4f, 0f);
             Assert.That(_controller.TryRebaseIfNeeded(6.1f), Is.True);
             Assert.That(_controller.LastRebaseTime, Is.EqualTo(6.1f));
+        }
+
+        [Test]
+        public void TryRebaseIfNeeded_WhenMultipleScenesAreLoaded_ShiftsLoadedScenesAndParticipantsCoherently()
+        {
+            var secondaryScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+            try
+            {
+                var remotePropObject = new GameObject("RemoteProp");
+                var remoteParticipant = remotePropObject.AddComponent<RecordingParticipant>();
+                SceneManager.MoveGameObjectToScene(remotePropObject, secondaryScene);
+
+                var localParticipant = _propObject.AddComponent<RecordingParticipant>();
+                var startupHorizontalBaseline = new Vector2(_playerRootObject.transform.position.x, _playerRootObject.transform.position.z);
+                _playerRootObject.transform.position = new Vector3(630f, 12f, -245f);
+                _propObject.transform.position = new Vector3(645f, 2f, -240f);
+                remotePropObject.transform.position = new Vector3(700f, 6f, -210f);
+
+                var localOffsetBefore = _propObject.transform.position - _playerRootObject.transform.position;
+                var remoteStableBefore = _bridge.LocalToStable(remotePropObject.transform.position);
+                var expectedLocalShift = new Vector3(startupHorizontalBaseline.x - 630f, 0f, startupHorizontalBaseline.y - -245f);
+
+                var rebased = _controller.TryRebaseIfNeeded(10f);
+
+                Assert.That(rebased, Is.True);
+                Assert.That(_propObject.transform.position - _playerRootObject.transform.position, Is.EqualTo(localOffsetBefore));
+                Assert.That(remotePropObject.transform.position, Is.EqualTo(new Vector3(700f, 6f, -210f) + expectedLocalShift));
+                Assert.That(_bridge.LocalToStable(remotePropObject.transform.position), Is.EqualTo(remoteStableBefore));
+                Assert.That(localParticipant.BeforeCount, Is.EqualTo(1));
+                Assert.That(localParticipant.AfterCount, Is.EqualTo(1));
+                Assert.That(remoteParticipant.BeforeCount, Is.EqualTo(1));
+                Assert.That(remoteParticipant.AfterCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                if (secondaryScene.IsValid() && secondaryScene.isLoaded)
+                {
+                    EditorSceneManager.CloseScene(secondaryScene, true);
+                }
+            }
         }
 
         private static System.Type AssertFloatingOriginTypeExists(string fullTypeName)

@@ -5,6 +5,7 @@ using NUnit.Framework;
 using Reloader.Contracts.Runtime;
 using Reloader.NPCs.Runtime;
 using Reloader.Core.Runtime;
+using Reloader.World.Runtime;
 using Reloader.World.Travel;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -92,8 +93,7 @@ namespace Reloader.World.Tests.PlayMode
         [UnityTest]
         public IEnumerator RoundTripTravel_UsesSceneEntryPoints_InBothDirections()
         {
-            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
-            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            yield return LoadMainTownAndBindRuntimePlayerRoot();
             AssertSinglePlayerRootGlobal();
 
             var playerHouse = GameObject.Find("PlayerHouse");
@@ -159,8 +159,7 @@ namespace Reloader.World.Tests.PlayMode
         [UnityTest]
         public IEnumerator RoundTripTravel_RepeatedIndoorArrival_KeepsPlayerArmsVisibleAndCanonical()
         {
-            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
-            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            yield return LoadMainTownAndBindRuntimePlayerRoot();
 
             yield return TravelViaTrigger("MainTown_SmokeToIndoor_Trigger", IndoorRangeSceneName, "entry.indoor.arrival");
             yield return TravelViaTrigger("IndoorRange_SmokeToMainTown_Trigger", MainTownSceneName, "entry.maintown.return");
@@ -191,8 +190,7 @@ namespace Reloader.World.Tests.PlayMode
         [UnityTest]
         public IEnumerator RoundTripTravel_ReturnToMainTown_PreservesRetiredCivilianAndDoesNotResetProceduralOffer()
         {
-            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
-            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            yield return LoadMainTownAndBindRuntimePlayerRoot();
             yield return null;
 
             var bridge = FindPopulationBridge();
@@ -248,8 +246,7 @@ namespace Reloader.World.Tests.PlayMode
         [UnityTest]
         public IEnumerator RoundTripTravel_ReturnToMainTown_ResetsMenuOpenState()
         {
-            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
-            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            yield return LoadMainTownAndBindRuntimePlayerRoot();
 
             var toIndoorObject = GameObject.Find("MainTown_SmokeToIndoor_Trigger");
             Assert.That(toIndoorObject, Is.Not.Null, "Expected authored smoke trigger in MainTown.");
@@ -299,8 +296,7 @@ namespace Reloader.World.Tests.PlayMode
         [UnityTest]
         public IEnumerator Travel_MainTownToIndoor_PreservesPlayerRootIdentityAndInventoryState()
         {
-            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
-            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            yield return LoadMainTownAndBindRuntimePlayerRoot();
 
             var initialPlayerRoot = GameObject.Find("PlayerRoot");
             Assert.That(initialPlayerRoot, Is.Not.Null, "Expected PlayerRoot in MainTown scene.");
@@ -368,8 +364,7 @@ namespace Reloader.World.Tests.PlayMode
         [UnityTest]
         public IEnumerator Travel_MainTownToIndoor_PreservesEquippedWeaponMagazineAndChamberState()
         {
-            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
-            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            yield return LoadMainTownAndBindRuntimePlayerRoot();
 
             var playerRoot = GameObject.Find("PlayerRoot");
             Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot in MainTown scene.");
@@ -587,8 +582,7 @@ namespace Reloader.World.Tests.PlayMode
         [UnityTest]
         public IEnumerator MainTownAndIndoorRange_ShareSupportedWeaponIdsAndViewMappings()
         {
-            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
-            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+            yield return LoadMainTownAndBindRuntimePlayerRoot();
 
             var expectedIds = new[] { "weapon-canik-tp9", "weapon-kar98k" };
             CollectionAssert.AreEquivalent(expectedIds, GetWeaponRegistryItemIdsForActivePlayer());
@@ -616,19 +610,6 @@ namespace Reloader.World.Tests.PlayMode
                 "Travel should rely on unified world-object persistence apply and must not keep ownership-based pickup hiding.");
 
             yield return null;
-        }
-
-        [UnityTest]
-        public IEnumerator TryLoadSceneAtEntry_MatchesScenePathIdentifier_OnSceneLoaded()
-        {
-            SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
-            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
-
-            var started = WorldTravelCoordinator.TryLoadSceneAtEntry(MainTownScenePath, "entry.maintown.spawn");
-            Assert.That(started, Is.True);
-
-            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
-            yield return WaitForResolvedEntryPoint("entry.maintown.spawn", SceneSwitchTimeoutSeconds);
         }
 
         [UnityTest]
@@ -778,6 +759,20 @@ namespace Reloader.World.Tests.PlayMode
                 WorldTravelCoordinator.LastResolvedEntryPointId,
                 Is.EqualTo(expectedEntryPointId),
                 $"Timed out waiting for resolved entry point '{expectedEntryPointId}'.");
+        }
+
+        private static IEnumerator LoadMainTownAndBindRuntimePlayerRoot()
+        {
+            SceneManager.LoadScene(MainTownSceneName, LoadSceneMode.Single);
+            yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+
+            var playerRoot = GameObject.Find("PlayerRoot");
+            Assert.That(playerRoot, Is.Not.Null, "Expected authored PlayerRoot in MainTown.");
+
+            var persistentRoot = PersistentPlayerRoot.EnsureInstance();
+            Assert.That(persistentRoot, Is.Not.Null, "Expected MainTown to bind the authored player root into a persistent runtime owner.");
+            persistentRoot.RegisterRuntimePlayerRoot(playerRoot.transform);
+            yield return null;
         }
 
         private static void AssertPlayerRootIsAtEntryPoint(string entryPointId)

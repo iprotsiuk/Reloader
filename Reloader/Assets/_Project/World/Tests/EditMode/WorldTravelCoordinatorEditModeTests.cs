@@ -207,18 +207,17 @@ namespace Reloader.World.Tests.EditMode
             {
                 SceneManager.SetActiveScene(scene);
 
-                BootstrapWorldRoot.Initialize();
-                var bootstrapRoot = FindBootstrapWorldRoot(scene);
-                var state = bootstrapRoot.GetComponent(GetOriginType("DynamicOriginRebaseState"));
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                var state = persistentRoot.GetComponent(GetOriginType("DynamicOriginRebaseState"));
 
-                Assert.That(state, Is.Not.Null, "Bootstrap should own the canonical floating-origin state.");
+                Assert.That(state, Is.Not.Null, "Bootstrap initialization should provision the canonical floating-origin state on the persistent runtime owner.");
 
                 Invoke(state, "ApplyRebase", new Vector3(-420f, 0f, 160f), new Vector3(420f, 0f, -160f), 14f);
                 var stableOffsetBefore = GetVector3Property(state, "StableOriginOffset");
                 var localOffsetBefore = GetVector3Property(state, "LocalOriginOffset");
 
                 var prepared = InvokePrivateStatic<bool>("PreparePersistentPlayerRootForTravel");
-                var stateAfter = bootstrapRoot.GetComponent(GetOriginType("DynamicOriginRebaseState"));
+                var stateAfter = persistentRoot.GetComponent(GetOriginType("DynamicOriginRebaseState"));
 
                 Assert.That(prepared, Is.True);
                 Assert.That(stateAfter, Is.SameAs(state));
@@ -228,6 +227,52 @@ namespace Reloader.World.Tests.EditMode
             finally
             {
                 EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void OnSceneLoaded_WhenTravelSucceeds_PreservesPersistentOriginSeamsAndStableLocalMapping()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var bootstrapScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+            var destinationScene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SceneManager.SetActiveScene(bootstrapScene);
+
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                var stateType = GetOriginType("DynamicOriginRebaseState");
+                var bridgeType = GetOriginType("StableWorldCoordinateBridge");
+                var controllerType = GetOriginType("DynamicOriginRebaseController");
+
+                var state = persistentRoot.GetComponent(stateType);
+                Assert.That(state, Is.Not.Null, "Expected the canonical floating-origin state on the persistent runtime owner before travel.");
+
+                Invoke(state, "ApplyRebase", new Vector3(-420f, 0f, 160f), new Vector3(420f, 0f, -160f), 14f);
+                var stableOffsetBefore = GetVector3Property(state, "StableOriginOffset");
+                var localOffsetBefore = GetVector3Property(state, "LocalOriginOffset");
+
+                SetPrivateStaticField("_pendingSceneName", MainTownSceneName);
+                SetPrivateStaticField("_pendingEntryPointId", "entry.maintown.spawn");
+                InvokePrivateStatic("OnSceneLoaded", destinationScene, LoadSceneMode.Additive);
+
+                Assert.That(SceneManager.GetActiveScene(), Is.EqualTo(destinationScene));
+                Assert.That(bootstrapScene.isLoaded, Is.False, "Successful travel should unload the previous world scene.");
+                Assert.That(persistentRoot.GetComponent(stateType), Is.SameAs(state));
+                Assert.That(persistentRoot.GetComponent(bridgeType), Is.Not.Null);
+                Assert.That(persistentRoot.GetComponent(controllerType), Is.Not.Null);
+                Assert.That(GetVector3Property(state, "StableOriginOffset"), Is.EqualTo(stableOffsetBefore));
+                Assert.That(GetVector3Property(state, "LocalOriginOffset"), Is.EqualTo(localOffsetBefore));
+            }
+            finally
+            {
+                CloseSceneIfLoaded(destinationScene);
+                CloseSceneIfLoaded(bootstrapScene);
                 if (originalScene.IsValid())
                 {
                     SceneManager.SetActiveScene(originalScene);
@@ -291,22 +336,6 @@ namespace Reloader.World.Tests.EditMode
             {
                 EditorSceneManager.CloseScene(scene, true);
             }
-        }
-
-        private static BootstrapWorldRoot FindBootstrapWorldRoot(Scene scene)
-        {
-            var roots = scene.GetRootGameObjects();
-            for (var i = 0; i < roots.Length; i++)
-            {
-                var bootstrapRoot = roots[i].GetComponent<BootstrapWorldRoot>();
-                if (bootstrapRoot != null)
-                {
-                    return bootstrapRoot;
-                }
-            }
-
-            Assert.Fail($"Expected BootstrapWorldRoot in scene '{scene.path}'.");
-            return null;
         }
 
         private static System.Type GetOriginType(string typeName)

@@ -13,6 +13,7 @@ namespace Reloader.World.Tests.EditMode
 {
     public sealed class StableWorldSliceOneContractEditModeTests
     {
+        private const string BootstrapScenePath = "Assets/Scenes/Bootstrap.unity";
         private const float Epsilon = 0.0001f;
 
         private Scene _scene;
@@ -119,6 +120,50 @@ namespace Reloader.World.Tests.EditMode
                         _bridge.LocalToStable(nearbyObjects[i].position),
                         Is.EqualTo(stablePositionsBefore[i + 1]),
                         $"Expected step {step} to preserve stable-space truth for nearby object {nearbyObjects[i].name}.");
+                }
+            }
+        }
+
+        [Test]
+        public void SliceOne_Rebase_PreservesWorldSceneMarkerContinuityWithoutMovingMarkerIntoPlayerScene()
+        {
+            var markerScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SceneManager.MoveGameObjectToScene(_anchorObject, markerScene);
+                Assert.That(_anchorObject.scene, Is.EqualTo(markerScene));
+
+                var startupHorizontalBaseline = new Vector2(_playerRootObject.transform.position.x, _playerRootObject.transform.position.z);
+                var relativeOffset = new Vector3(4f, 0.5f, 7f);
+
+                _playerRootObject.transform.position = new Vector3(540f, 10f, 32f);
+                _anchorObject.transform.position = _playerRootObject.transform.position + relativeOffset;
+
+                var stablePlayerBefore = _bridge.LocalToStable(_playerRootObject.transform.position);
+                var stableMarkerBefore = _bridge.LocalToStable(_anchorObject.transform.position);
+
+                var rebased = _controller.TryRebaseIfNeeded(10f);
+
+                Assert.That(rebased, Is.True);
+                Assert.That(_anchorObject.scene, Is.EqualTo(markerScene));
+                Assert.That(
+                    Vector2.Distance(new Vector2(_playerRootObject.transform.position.x, _playerRootObject.transform.position.z), startupHorizontalBaseline),
+                    Is.LessThanOrEqualTo(Epsilon),
+                    "Expected the canonical player to return to its startup baseline while the world marker stays in its own scene.");
+                Assert.That(_bridge.LocalToStable(_playerRootObject.transform.position), Is.EqualTo(stablePlayerBefore));
+                Assert.That(_bridge.LocalToStable(_anchorObject.transform.position), Is.EqualTo(stableMarkerBefore));
+                Assert.That(_anchorObject.transform.position - _playerRootObject.transform.position, Is.EqualTo(relativeOffset));
+            }
+            catch (System.Exception ex)
+            {
+                Assert.Fail($"World-scene marker continuity regression should not throw before the continuity assertion: {ex}");
+            }
+            finally
+            {
+                if (markerScene.IsValid() && markerScene.isLoaded)
+                {
+                    EditorSceneManager.CloseScene(markerScene, false);
                 }
             }
         }

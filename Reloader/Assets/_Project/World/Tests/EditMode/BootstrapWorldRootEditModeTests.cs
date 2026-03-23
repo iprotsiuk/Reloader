@@ -29,7 +29,7 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void Initialize_CreatesSingleCanonicalOriginSeams_AndReusesThemAcrossRepeatedCalls()
+        public void Initialize_CreatesSingleCanonicalOriginSeamsOnPersistentRuntimeOwner_AndReusesThemAcrossRepeatedCalls()
         {
             var originalScene = SceneManager.GetActiveScene();
             var scene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
@@ -43,23 +43,26 @@ namespace Reloader.World.Tests.EditMode
                 var bridgeType = GetOriginType("StableWorldCoordinateBridge");
                 var controllerType = GetOriginType("DynamicOriginRebaseController");
 
-                var firstState = bootstrapRoot.GetComponent(stateType);
-                var firstBridge = bootstrapRoot.GetComponent(bridgeType);
-                var firstController = bootstrapRoot.GetComponent(controllerType);
+                var firstState = persistentRoot.GetComponent(stateType);
+                var firstBridge = persistentRoot.GetComponent(bridgeType);
+                var firstController = persistentRoot.GetComponent(controllerType);
 
                 Assert.That(persistentRoot, Is.Not.Null);
                 Assert.That(firstState, Is.Not.Null);
                 Assert.That(firstBridge, Is.Not.Null);
                 Assert.That(firstController, Is.Not.Null);
+                Assert.That(bootstrapRoot.GetComponent(stateType), Is.Null);
+                Assert.That(bootstrapRoot.GetComponent(bridgeType), Is.Null);
+                Assert.That(bootstrapRoot.GetComponent(controllerType), Is.Null);
 
                 BootstrapWorldRoot.Initialize();
 
-                Assert.That(bootstrapRoot.GetComponents(stateType).Length, Is.EqualTo(1));
-                Assert.That(bootstrapRoot.GetComponents(bridgeType).Length, Is.EqualTo(1));
-                Assert.That(bootstrapRoot.GetComponents(controllerType).Length, Is.EqualTo(1));
-                Assert.That(bootstrapRoot.GetComponent(stateType), Is.SameAs(firstState));
-                Assert.That(bootstrapRoot.GetComponent(bridgeType), Is.SameAs(firstBridge));
-                Assert.That(bootstrapRoot.GetComponent(controllerType), Is.SameAs(firstController));
+                Assert.That(persistentRoot.GetComponents(stateType).Length, Is.EqualTo(1));
+                Assert.That(persistentRoot.GetComponents(bridgeType).Length, Is.EqualTo(1));
+                Assert.That(persistentRoot.GetComponents(controllerType).Length, Is.EqualTo(1));
+                Assert.That(persistentRoot.GetComponent(stateType), Is.SameAs(firstState));
+                Assert.That(persistentRoot.GetComponent(bridgeType), Is.SameAs(firstBridge));
+                Assert.That(persistentRoot.GetComponent(controllerType), Is.SameAs(firstController));
             }
             finally
             {
@@ -79,11 +82,9 @@ namespace Reloader.World.Tests.EditMode
 
             try
             {
-                var bootstrapRoot = FindBootstrapWorldRoot(scene);
-                BootstrapWorldRoot.Initialize();
-
-                var state = bootstrapRoot.GetComponent(GetOriginType("DynamicOriginRebaseState"));
-                var controller = bootstrapRoot.GetComponent(GetOriginType("DynamicOriginRebaseController"));
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                var state = persistentRoot.GetComponent(GetOriginType("DynamicOriginRebaseState"));
+                var controller = persistentRoot.GetComponent(GetOriginType("DynamicOriginRebaseController"));
 
                 Invoke(state, "ApplyRebase", new Vector3(-120f, 0f, 45f), new Vector3(120f, 0f, -45f), 8f);
                 SetSerializedField(controller, "_lastRebaseTime", 8f);

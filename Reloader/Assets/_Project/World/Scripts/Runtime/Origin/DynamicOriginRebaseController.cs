@@ -72,10 +72,11 @@ namespace Reloader.World.Runtime.Origin
             }
 
             var stableShift = -localShift;
-            var participants = CollectParticipants(playerRoot.gameObject.scene);
+            var affectedScenes = CollectAffectedScenes(playerRoot.gameObject.scene);
+            var participants = CollectParticipants(affectedScenes);
 
             NotifyBefore(participants, localShift, stableShift);
-            ShiftSceneRoots(playerRoot.gameObject.scene, localShift);
+            ShiftSceneRoots(affectedScenes, localShift);
             _rebaseState.ApplyRebase(localShift, stableShift, currentTimeSeconds);
             _lastRebaseTime = currentTimeSeconds;
             NotifyAfter(participants, localShift, stableShift);
@@ -119,14 +120,37 @@ namespace Reloader.World.Runtime.Origin
             return currentTimeSeconds - _lastRebaseTime >= _rebaseCooldownSeconds;
         }
 
-        private static IOriginRebaseParticipant[] CollectParticipants(Scene scene)
+        private static Scene[] CollectAffectedScenes(Scene playerScene)
         {
+            var handles = new System.Collections.Generic.HashSet<int>();
+            var scenes = new System.Collections.Generic.List<Scene>();
+
+            AddScene(playerScene, scenes, handles);
+            for (var i = 0; i < SceneManager.sceneCount; i++)
+            {
+                AddScene(SceneManager.GetSceneAt(i), scenes, handles);
+            }
+
+            return scenes.ToArray();
+        }
+
+        private static IOriginRebaseParticipant[] CollectParticipants(Scene[] scenes)
+        {
+            var sceneHandles = new System.Collections.Generic.HashSet<int>();
+            for (var i = 0; i < scenes.Length; i++)
+            {
+                if (scenes[i].IsValid())
+                {
+                    sceneHandles.Add(scenes[i].handle);
+                }
+            }
+
             var behaviours = Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             var participants = new System.Collections.Generic.List<IOriginRebaseParticipant>();
             for (var i = 0; i < behaviours.Length; i++)
             {
                 var behaviour = behaviours[i];
-                if (behaviour == null || behaviour.gameObject.scene != scene)
+                if (behaviour == null || !sceneHandles.Contains(behaviour.gameObject.scene.handle))
                 {
                     continue;
                 }
@@ -138,6 +162,16 @@ namespace Reloader.World.Runtime.Origin
             }
 
             return participants.ToArray();
+        }
+
+        private static void AddScene(Scene scene, System.Collections.Generic.List<Scene> scenes, System.Collections.Generic.HashSet<int> handles)
+        {
+            if (!scene.IsValid() || !scene.isLoaded || !handles.Add(scene.handle))
+            {
+                return;
+            }
+
+            scenes.Add(scene);
         }
 
         private static void NotifyBefore(IOriginRebaseParticipant[] participants, Vector3 localShift, Vector3 stableShift)
@@ -156,17 +190,21 @@ namespace Reloader.World.Runtime.Origin
             }
         }
 
-        private static void ShiftSceneRoots(Scene scene, Vector3 localShift)
+        private static void ShiftSceneRoots(Scene[] scenes, Vector3 localShift)
         {
-            if (!scene.IsValid() || !scene.isLoaded)
+            for (var i = 0; i < scenes.Length; i++)
             {
-                return;
-            }
+                var scene = scenes[i];
+                if (!scene.IsValid() || !scene.isLoaded)
+                {
+                    continue;
+                }
 
-            var roots = scene.GetRootGameObjects();
-            for (var i = 0; i < roots.Length; i++)
-            {
-                roots[i].transform.position += localShift;
+                var roots = scene.GetRootGameObjects();
+                for (var rootIndex = 0; rootIndex < roots.Length; rootIndex++)
+                {
+                    roots[rootIndex].transform.position += localShift;
+                }
             }
         }
     }

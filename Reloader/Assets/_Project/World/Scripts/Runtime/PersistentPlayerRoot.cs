@@ -71,6 +71,8 @@ namespace Reloader.World.Runtime
                 return null;
             }
 
+            MoveRuntimeOwnerToScene(scene);
+
             if (!scene.IsValid() || !scene.isLoaded || _playerRootTransform.gameObject.scene == scene)
             {
                 return _playerRootTransform;
@@ -78,6 +80,16 @@ namespace Reloader.World.Runtime
 
             SceneManager.MoveGameObjectToScene(_playerRootTransform.gameObject, scene);
             return _playerRootTransform;
+        }
+
+        private void MoveRuntimeOwnerToScene(Scene scene)
+        {
+            if (Application.isPlaying || !scene.IsValid() || !scene.isLoaded || gameObject.scene == scene)
+            {
+                return;
+            }
+
+            SceneManager.MoveGameObjectToScene(gameObject, scene);
         }
 
         private void InitializeSingleton()

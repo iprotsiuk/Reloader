@@ -57,9 +57,15 @@ namespace Reloader.World.Runtime
 
         private void EnsureOriginSeams(PersistentPlayerRoot persistentRoot)
         {
-            var rebaseState = EnsureSingleComponent<DynamicOriginRebaseState>(gameObject);
-            var coordinateBridge = EnsureSingleComponent<StableWorldCoordinateBridge>(gameObject);
-            var rebaseController = EnsureSingleComponent<DynamicOriginRebaseController>(gameObject);
+            if (persistentRoot == null)
+            {
+                return;
+            }
+
+            var owner = persistentRoot.gameObject;
+            var rebaseState = EnsureSingleComponent<DynamicOriginRebaseState>(owner);
+            var coordinateBridge = EnsureSingleComponent<StableWorldCoordinateBridge>(owner);
+            var rebaseController = EnsureSingleComponent<DynamicOriginRebaseController>(owner);
 
             rebaseState.ResetState();
             coordinateBridge.Initialize(rebaseState);

@@ -34,15 +34,15 @@ namespace Reloader.World.Tests.PlayMode
                 var playerRoot = persistentRoot.PlayerRootTransform;
                 Assert.That(playerRoot, Is.Not.Null, "Expected a canonical runtime player root before exercising rebase flow.");
 
-                var controller = bootstrapRoot.GetComponent<DynamicOriginRebaseController>();
-                Assert.That(controller, Is.Not.Null, "Expected BootstrapWorldRoot to own the canonical DynamicOriginRebaseController seam.");
+                var controller = persistentRoot.GetComponent<DynamicOriginRebaseController>();
+                Assert.That(controller, Is.Not.Null, "Expected the persistent runtime owner to keep the canonical DynamicOriginRebaseController seam.");
 
                 yield return WaitForPlayerStartupStabilization(playerRoot);
                 var startupHorizontalBaseline = new Vector2(playerRoot.position.x, playerRoot.position.z);
 
                 marker = new GameObject("DynamicOriginRebasePlayModeMarker");
-                MoveMarkerToPlayerScene(marker, playerRoot.gameObject.scene);
-                Assert.That(marker.scene, Is.EqualTo(playerRoot.gameObject.scene), "Expected the nearby continuity marker to live in the same scene roots as the canonical runtime player.");
+                Assert.That(marker.scene.name, Is.EqualTo(BootstrapSceneName), "Expected the continuity marker to stay in the world scene instead of being moved into the DDOL player scene.");
+                Assert.That(marker.scene, Is.Not.EqualTo(playerRoot.gameObject.scene), "Expected the continuity marker to remain outside the canonical player scene.");
 
                 var relativeOffset = new Vector3(3f, 0f, 7f);
                 var farLocalPosition = new Vector3(540f, playerRoot.position.y, 32f);
@@ -63,7 +63,8 @@ namespace Reloader.World.Tests.PlayMode
                 Assert.That(
                     Vector3.Distance(actualRelativeOffset, relativeOffset),
                     Is.LessThanOrEqualTo(0.05f),
-                    "Expected rebase to preserve the relative local offset between the player and nearby scene marker.");
+                    "Expected rebase to preserve the relative local offset between the DDOL player root and the world-scene marker without reparenting the marker into the player scene.");
+                Assert.That(marker.scene.name, Is.EqualTo(BootstrapSceneName), "Expected the world-scene marker to stay in the Bootstrap scene throughout the rebase.");
 
                 Assert.That(Object.FindObjectsByType<PersistentPlayerRoot>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length, Is.EqualTo(1));
                 AssertSingletonCameraAndAudioIdentity(playerRoot);
@@ -112,24 +113,6 @@ namespace Reloader.World.Tests.PlayMode
 
             var currentHorizontal = new Vector2(playerRoot.position.x, playerRoot.position.z);
             Assert.That(Vector2.Distance(currentHorizontal, startupHorizontalBaseline), Is.LessThanOrEqualTo(BaselineWindowToleranceMeters), message);
-        }
-
-        private static void MoveMarkerToPlayerScene(GameObject marker, Scene playerScene)
-        {
-            Assert.That(marker, Is.Not.Null);
-
-            if (!playerScene.IsValid())
-            {
-                return;
-            }
-
-            if (playerScene.name == "DontDestroyOnLoad")
-            {
-                Object.DontDestroyOnLoad(marker);
-                return;
-            }
-
-            SceneManager.MoveGameObjectToScene(marker, playerScene);
         }
 
         private static void AssertSingletonCameraAndAudioIdentity(Transform playerRoot)
