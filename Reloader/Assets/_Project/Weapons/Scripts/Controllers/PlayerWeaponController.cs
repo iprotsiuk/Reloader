@@ -692,8 +692,10 @@ namespace Reloader.Weapons.Controllers
 
             state.IsEquipped = true;
             ResyncEquippedViewFromRuntimeState(state, rebuildView: true);
-            GetOrCreatePackDriver(_equippedItemId).SetEquipped(true);
+            var packDriver = GetOrCreatePackDriver(_equippedItemId);
+            packDriver.SetEquipped(true);
             ResolveWeaponEvents()?.RaiseWeaponEquipped(_equippedItemId);
+            packDriver.SetEquipped(true);
         }
 
         private void ProcessPendingEquip()

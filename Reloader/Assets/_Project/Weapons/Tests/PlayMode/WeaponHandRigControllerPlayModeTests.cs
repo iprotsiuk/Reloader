@@ -276,6 +276,38 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(controller.LeftHandConstraint.data.tip, Is.SameAs(hand));
                 Assert.That(controller.LeftHandConstraint.data.target, Is.SameAs(controller.LeftHandTarget));
                 Assert.That(controller.LeftHandConstraint.data.hint, Is.SameAs(controller.LeftHandHint));
+                Assert.That(controller.RigGraphRebuildRequestCount, Is.EqualTo(1),
+                    "Initial runtime IK binding assignment should request one RigBuilder graph rebuild.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void SyncHandTargets_RebuildsRigGraphOnlyWhenConstraintBindingsChange()
+        {
+            var root = CreateWeaponHandRigTestRoot(out var controller, out _, out _, out _);
+
+            try
+            {
+                controller.SyncHandTargets();
+                Assert.That(controller.RigGraphRebuildRequestCount, Is.EqualTo(1));
+
+                controller.SyncHandTargets();
+                Assert.That(controller.RigGraphRebuildRequestCount, Is.EqualTo(1),
+                    "Repeated sync with unchanged runtime IK bindings should not rebuild the rig graph again.");
+
+                var replacementLeftTarget = new GameObject("ReplacementLeftHandTarget").transform;
+                replacementLeftTarget.SetParent(controller.LeftHandTarget.parent, false);
+                SetPrivateField(controller, "_leftHandTarget", replacementLeftTarget);
+
+                controller.SyncHandTargets();
+
+                Assert.That(controller.LeftHandConstraint.data.target, Is.SameAs(replacementLeftTarget));
+                Assert.That(controller.RigGraphRebuildRequestCount, Is.EqualTo(2),
+                    "Changing a runtime constraint binding should request another rig graph rebuild.");
             }
             finally
             {
@@ -381,6 +413,13 @@ namespace Reloader.Weapons.Tests.PlayMode
                 controller.SetReloadingOverrideForTests(false);
                 controller.SyncHandTargets();
                 Assert.That(controller.LeftHandConstraint, Is.Not.Null);
+                Assert.That(controller.LeftHandConstraint.weight, Is.EqualTo(0f).Within(0.0001f));
+
+                var adsStateController = root.AddComponent<Reloader.Game.Weapons.AdsStateController>();
+                SetPrivateField(adsStateController, "_isAdsHeld", true);
+                SetPrivateField(adsStateController, "<AdsT>k__BackingField", 1f);
+
+                controller.SyncHandTargets();
                 Assert.That(controller.LeftHandConstraint.weight, Is.EqualTo(1f).Within(0.0001f));
 
                 controller.SetReloadingOverrideForTests(true);
@@ -418,7 +457,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(controller.LeftHandConstraint.data.root, Is.SameAs(upperArm));
                 Assert.That(controller.LeftHandConstraint.data.mid, Is.SameAs(lowerArm));
                 Assert.That(controller.LeftHandConstraint.data.tip, Is.SameAs(hand));
-                Assert.That(controller.LeftHandConstraint.weight, Is.GreaterThan(0.01f));
+                Assert.That(controller.LeftHandConstraint.weight, Is.EqualTo(0f).Within(0.0001f),
+                    "HIP ownership should stay on authored arm animation until ADS begins blending support-hand IK in.");
                 Assert.That(Vector3.Distance(controller.LeftHandTarget.position, leftGrip.position), Is.LessThan(0.0001f));
                 Assert.That(Quaternion.Angle(controller.LeftHandTarget.rotation, leftGrip.rotation), Is.LessThan(0.01f));
             }

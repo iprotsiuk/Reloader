@@ -44,6 +44,16 @@ namespace Reloader.Reloading.World
 
         private void Start()
         {
+            TrySpawnTemporarySupplies();
+        }
+
+        private void Update()
+        {
+            TrySpawnTemporarySupplies();
+        }
+
+        private void TrySpawnTemporarySupplies()
+        {
             if (!_spawnOnStart || s_spawnedForSession)
             {
                 return;

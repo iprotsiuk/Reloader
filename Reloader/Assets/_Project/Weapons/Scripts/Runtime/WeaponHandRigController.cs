@@ -6,7 +6,7 @@ using UnityEngine.Animations.Rigging;
 
 namespace Reloader.Player.Viewmodel
 {
-    [DefaultExecutionOrder(12000)]
+    [DefaultExecutionOrder(12020)]
     [DisallowMultipleComponent]
     public sealed class WeaponHandRigController : MonoBehaviour
     {
@@ -22,6 +22,7 @@ namespace Reloader.Player.Viewmodel
         [Header("References")]
         [SerializeField] private Animator _armsAnimator;
         [SerializeField] private PlayerCameraDefaults _cameraDefaults;
+        [SerializeField] private Reloader.Game.Weapons.AdsStateController _adsStateController;
         [SerializeField] private RigBuilder _rigBuilder;
         [SerializeField] private Rig _weaponHandRig;
         [SerializeField] private TwoBoneIKConstraint _leftHandConstraint;
@@ -56,6 +57,7 @@ namespace Reloader.Player.Viewmodel
         private Quaternion _leftHandRestLocalRotation = Quaternion.identity;
         private Vector3 _rightHandRestLocalPosition;
         private Quaternion _rightHandRestLocalRotation = Quaternion.identity;
+        private int _rigGraphRebuildRequestCount;
         private bool _hasCapturedRestPose;
         private bool? _reloadingOverrideForTests;
 
@@ -65,6 +67,7 @@ namespace Reloader.Player.Viewmodel
         public Transform RightHandTarget => _rightHandTarget;
         public TwoBoneIKConstraint LeftHandConstraint => _leftHandConstraint;
         public RigBuilder RigBuilder => _rigBuilder;
+        public int RigGraphRebuildRequestCount => _rigGraphRebuildRequestCount;
 
         private void Awake()
         {
@@ -112,6 +115,7 @@ namespace Reloader.Player.Viewmodel
         public void SyncHandTargets()
         {
             ResolveLocalDependencies();
+            var weaponView = ResolveEquippedWeaponView();
             if (!TryEnsureRigSetup())
             {
                 ClearRuntimeState();
@@ -120,7 +124,6 @@ namespace Reloader.Player.Viewmodel
                 return;
             }
 
-            var weaponView = ResolveEquippedWeaponView();
             if (weaponView == null)
             {
                 ClearRuntimeState();
@@ -175,6 +178,7 @@ namespace Reloader.Player.Viewmodel
             _weaponController ??= GetComponent<PlayerWeaponController>();
             _viewmodelAnimationAdapter ??= GetComponent<ViewmodelAnimationAdapter>();
             _cameraDefaults ??= GetComponent<PlayerCameraDefaults>();
+            _adsStateController ??= GetComponent<Reloader.Game.Weapons.AdsStateController>();
 
             if (!IsAnimatorOnPlayerHierarchy(_armsAnimator))
             {
@@ -227,6 +231,8 @@ namespace Reloader.Player.Viewmodel
                 return false;
             }
 
+            var requiresRigGraphRebuild = false;
+
             if (_driveLeftHand)
             {
                 if (_leftHandTarget == null)
@@ -249,16 +255,19 @@ namespace Reloader.Player.Viewmodel
                     return false;
                 }
 
-                if (!ConfigureConstraint(
+                if (!TryConfigureConstraint(
                         _leftHandConstraint,
                         rootBoneName: "upperarm_l",
                         midBoneName: "lowerarm_l",
                         tipBoneName: "hand_l",
                         _leftHandTarget,
-                        _leftHandHint))
+                        _leftHandHint,
+                        out var leftConstraintChanged))
                 {
                     return false;
                 }
+
+                requiresRigGraphRebuild |= leftConstraintChanged;
             }
 
             if (_driveRightHand)
@@ -283,21 +292,29 @@ namespace Reloader.Player.Viewmodel
                     return false;
                 }
 
-                if (!ConfigureConstraint(
+                if (!TryConfigureConstraint(
                         _rightHandConstraint,
                         rootBoneName: "upperarm_r",
                         midBoneName: "lowerarm_r",
                         tipBoneName: "hand_r",
                         _rightHandTarget,
-                        _rightHandHint))
+                        _rightHandHint,
+                        out var rightConstraintChanged))
                 {
                     return false;
                 }
+
+                requiresRigGraphRebuild |= rightConstraintChanged;
             }
 
             if (!HasRigLayer(_rigBuilder, _weaponHandRig))
             {
                 return false;
+            }
+
+            if (requiresRigGraphRebuild)
+            {
+                RebuildRigGraph();
             }
 
             return true;
@@ -325,16 +342,18 @@ namespace Reloader.Player.Viewmodel
                 && (animator.transform == transform || animator.transform.IsChildOf(transform));
         }
 
-        private bool ConfigureConstraint(
+        private bool TryConfigureConstraint(
             TwoBoneIKConstraint constraint,
             string rootBoneName,
             string midBoneName,
             string tipBoneName,
             Transform target,
-            Transform hint)
+            Transform hint,
+            out bool changed)
         {
             if (constraint == null || target == null || hint == null || _armsAnimator == null)
             {
+                changed = false;
                 return false;
             }
 
@@ -343,10 +362,12 @@ namespace Reloader.Player.Viewmodel
             var tipBone = FindDescendantByName(_armsAnimator.transform, tipBoneName);
             if (rootBone == null || midBone == null || tipBone == null)
             {
+                changed = false;
                 return false;
             }
 
             var data = constraint.data;
+            changed = ConstraintBindingsDiffer(data, rootBone, midBone, tipBone, target, hint);
             data.root = rootBone;
             data.mid = midBone;
             data.tip = tipBone;
@@ -376,11 +397,33 @@ namespace Reloader.Player.Viewmodel
 
             if (_armsAnimator == null || _armsAnimator.avatar == null)
             {
+                _rigGraphRebuildRequestCount++;
                 return;
             }
 
+            _rigGraphRebuildRequestCount++;
             _rigBuilder.Clear();
             _rigBuilder.Build();
+        }
+
+        private static bool ConstraintBindingsDiffer(
+            in TwoBoneIKConstraintData data,
+            Transform rootBone,
+            Transform midBone,
+            Transform tipBone,
+            Transform target,
+            Transform hint)
+        {
+            return data.root != rootBone
+                || data.mid != midBone
+                || data.tip != tipBone
+                || data.target != target
+                || data.hint != hint
+                || !Mathf.Approximately(data.targetPositionWeight, 1f)
+                || !Mathf.Approximately(data.targetRotationWeight, 1f)
+                || !Mathf.Approximately(data.hintWeight, 1f)
+                || data.maintainTargetPositionOffset
+                || data.maintainTargetRotationOffset;
         }
 
         private static bool HasRigLayer(RigBuilder rigBuilder, Rig rig)
@@ -451,8 +494,9 @@ namespace Reloader.Player.Viewmodel
         private void ApplyConstraintWeights(bool hasWeaponAnchors)
         {
             var isReloading = ResolveIsReloading();
+            var leftAdsWeight = ResolveLeftHandAdsWeight();
             var leftWeight = hasWeaponAnchors && _driveLeftHand
-                ? (isReloading && _releaseLeftHandDuringReload ? _leftHandReloadWeight : _leftHandActiveWeight)
+                ? (isReloading && _releaseLeftHandDuringReload ? _leftHandReloadWeight : _leftHandActiveWeight * leftAdsWeight)
                 : 0f;
             var rightWeight = hasWeaponAnchors && _driveRightHand
                 ? (isReloading ? _rightHandReloadWeight : _rightHandActiveWeight)
@@ -482,6 +526,21 @@ namespace Reloader.Player.Viewmodel
             }
 
             return _viewmodelAnimationAdapter != null && _viewmodelAnimationAdapter.IsReloadingDebug;
+        }
+
+        private float ResolveLeftHandAdsWeight()
+        {
+            if (_adsStateController != null)
+            {
+                return Mathf.Clamp01(_adsStateController.AdsT);
+            }
+
+            if (_viewmodelAnimationAdapter != null)
+            {
+                return _viewmodelAnimationAdapter.IsAimingDebug ? 1f : 0f;
+            }
+
+            return 0f;
         }
 
         private static void RestoreTargetPose(Transform target, Vector3 localPosition, Quaternion localRotation)

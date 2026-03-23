@@ -14,6 +14,7 @@ namespace Reloader.World.Tests.EditMode
         private const string BootstrapScenePath = "Assets/Scenes/Bootstrap.unity";
         private const string MainTownSceneName = "MainTown";
         private const string MainTownScenePath = "Assets/_Project/World/Scenes/MainTown.unity";
+        private const string IndoorRangeScenePath = "Assets/_Project/World/Scenes/IndoorRangeInstance.unity";
 
         [TearDown]
         public void TearDown()
@@ -153,6 +154,48 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
+        [Test]
+        public void TryLoadSceneAtEntry_WhileAnotherTravelIsPending_FailsClosedAndPreservesFirstRequest()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var bootstrapScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SceneManager.SetActiveScene(bootstrapScene);
+
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                Assert.That(persistentRoot.PlayerRootTransform, Is.Not.Null,
+                    "Expected canonical runtime player before starting travel.");
+
+                SetPrivateStaticField("_pendingSceneName", MainTownScenePath);
+                SetPrivateStaticField("_pendingEntryPointId", "entry.maintown.spawn");
+
+                var started = InvokePrivateStatic<bool>(
+                    "TryLoadSceneAtEntry",
+                    IndoorRangeScenePath,
+                    "entry.indoor.arrival");
+
+                Assert.That(started, Is.False, "Overlapping travel requests should be rejected while the first one is still pending.");
+                Assert.That(GetPrivateStaticField<string>("_pendingSceneName"), Is.EqualTo(MainTownScenePath));
+                Assert.That(GetPrivateStaticField<string>("_pendingEntryPointId"), Is.EqualTo("entry.maintown.spawn"));
+                Assert.That(SceneManager.GetSceneByPath(IndoorRangeScenePath).isLoaded, Is.False,
+                    "Rejected overlapping travel request should not load a replacement scene.");
+            }
+            finally
+            {
+                CloseSceneIfLoaded(SceneManager.GetSceneByPath(IndoorRangeScenePath));
+                CloseSceneIfLoaded(bootstrapScene);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+
+                SetPrivateStaticField<string>("_pendingSceneName", null);
+                SetPrivateStaticField<string>("_pendingEntryPointId", null);
+            }
+        }
+
         private static void AssignPlayerRootTransform(PersistentPlayerRoot persistentRoot, Transform playerRootTransform)
         {
             var serialized = new UnityEditor.SerializedObject(persistentRoot);
@@ -162,14 +205,14 @@ namespace Reloader.World.Tests.EditMode
 
         private static void InvokePrivateStatic(string methodName, params object[] parameters)
         {
-            var method = typeof(WorldTravelCoordinator).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Static);
+            var method = typeof(WorldTravelCoordinator).GetMethod(methodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
             Assert.That(method, Is.Not.Null, $"Expected WorldTravelCoordinator.{methodName} to exist.");
             method.Invoke(null, parameters);
         }
 
         private static T InvokePrivateStatic<T>(string methodName, params object[] parameters)
         {
-            var method = typeof(WorldTravelCoordinator).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Static);
+            var method = typeof(WorldTravelCoordinator).GetMethod(methodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
             Assert.That(method, Is.Not.Null, $"Expected WorldTravelCoordinator.{methodName} to exist.");
             return (T)method.Invoke(null, parameters);
         }

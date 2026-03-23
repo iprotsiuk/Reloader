@@ -96,6 +96,7 @@ namespace Reloader.Player
             _cameraDefaults ??= GetComponent<PlayerCameraDefaults>();
             _animator = ResolveViewmodelAnimator();
             _viewmodelRoot = ResolveViewmodelRoot();
+            EnsureViewmodelAnimatorRuntimeState();
 
             _characterController ??= GetComponent<CharacterController>();
         }
@@ -125,6 +126,24 @@ namespace Reloader.Player
         private bool IsTransformOnPlayerHierarchy(Transform candidate)
         {
             return candidate != null && (candidate == transform || candidate.IsChildOf(transform));
+        }
+
+        private void EnsureViewmodelAnimatorRuntimeState()
+        {
+            if (_animator == null)
+            {
+                return;
+            }
+
+            if (_animator.applyRootMotion)
+            {
+                _animator.applyRootMotion = false;
+            }
+
+            if (_animator.cullingMode != AnimatorCullingMode.AlwaysAnimate)
+            {
+                _animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+            }
         }
 
         private void StabilizeViewmodelRootPose()

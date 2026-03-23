@@ -77,6 +77,11 @@ namespace Reloader.World.Travel
                 return false;
             }
 
+            if (!string.IsNullOrWhiteSpace(_pendingSceneName) || !string.IsNullOrWhiteSpace(_pendingEntryPointId))
+            {
+                return false;
+            }
+
             if (!Application.CanStreamedLevelBeLoaded(sceneName))
             {
                 Debug.LogWarning($"Travel scene '{sceneName}' is not available in build settings.");

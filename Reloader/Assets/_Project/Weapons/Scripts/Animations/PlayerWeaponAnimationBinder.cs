@@ -132,12 +132,27 @@ namespace Reloader.Weapons.Animations
             }
 
             var controller = _animationProfile.ResolveController(itemId);
-            if (controller == null || _animator.runtimeAnimatorController == controller)
+            if (controller == null)
             {
                 return;
             }
 
-            _animator.runtimeAnimatorController = controller;
+            if (_animator.runtimeAnimatorController != controller)
+            {
+                _animator.runtimeAnimatorController = controller;
+            }
+
+            ForceAnimatorEvaluation();
+        }
+
+        private void ForceAnimatorEvaluation()
+        {
+            if (_animator == null || !_animator.isActiveAndEnabled || !_animator.gameObject.activeInHierarchy)
+            {
+                return;
+            }
+
+            _animator.Update(0f);
         }
 
         private Animator ResolveViewmodelAnimator()
