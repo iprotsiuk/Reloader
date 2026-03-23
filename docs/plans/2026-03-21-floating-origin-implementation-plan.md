@@ -80,12 +80,15 @@ Add tests for:
 
 - `LocalToStable`
 - `StableToLocal`
+- `LocalDirectionToStable`
 - horizontal distance calculation from the player root
 - round-trip conversion staying within tolerance
 - offset updates after rebase preserving stable truth
 - `BootstrapWorldRoot.Initialize()` creating exactly one canonical origin-state / bridge / controller seam and reusing it across repeated initialization
 - fresh startup zeroing origin offsets and cleared rebase cooldown / last-rebase state, and repeated initialization proving deterministic reset behavior
 - travel preparation and entry placement preserving or explicitly updating the active stable/local mapping instead of silently recreating or zeroing it
+
+Require the bridge tests to prove that direction conversion is offset-invariant, preserves heading/magnitude through rebases, and round-trips consistently with the approved position bridge.
 
 **Step 2: Run the focused red suite**
 
@@ -146,6 +149,7 @@ Add tests for:
 - cooldown prevents immediate retrigger
 - participants are notified exactly once per rebase
 - player root ownership remains canonical
+- after each rebase, the canonical runtime player root is brought back inside an explicit near-zero horizontal tolerance in local space
 - rebasing happens as one coherent global local-scene shift with one `localShift` / `stableShift` pair per trigger
 - `IOriginRebaseParticipant` remains notification-only and is not used as per-object catch-up or fallback reposition logic
 
@@ -211,6 +215,18 @@ Add a PlayMode test that:
 - verifies no duplicate player root is created
 - performs `rebase -> travel -> verify -> travel back -> verify` so travel entry placement stays coherent with the active stable/local mapping
 - verifies the camera/arms/viewmodel stack is still bound on the canonical runtime player after rebase and after each travel hop
+- verifies `PlayerArms` runtime-safety invariants after rebase and after each travel hop:
+  - canonical local pose
+  - renderers enabled
+  - `Animator.runtimeAnimatorController` non-null
+  - `applyRootMotion == false`
+  - `cullingMode == AlwaysAnimate`
+- verifies global camera/audio identity after rebase and after each travel hop:
+  - exactly one tagged main camera on the runtime player
+  - exactly one `CinemachineBrain`
+  - exactly one authored gameplay Cinemachine camera
+  - exactly one viewmodel overlay camera
+  - exactly one `AudioListener`
 
 Keep ownership explicit:
 
@@ -240,7 +256,7 @@ Expected: FAIL because player/camera/travel seams are not yet rebase-aware.
 Run:
 
 ```bash
-bash scripts/run-unity-tests.sh editmode "Reloader.World.Tests.EditMode.DynamicOriginRebaseControllerEditModeTests|Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests|Reloader.Player.Tests.EditMode.PlayerCameraDefaultsEditModeTests" "$(pwd)/tmp/floating-origin-task4-edit.xml" "$(pwd)/tmp/floating-origin-task4-edit.log"
+bash scripts/run-unity-tests.sh editmode "Reloader.World.Tests.EditMode.BootstrapWorldRootEditModeTests|Reloader.World.Tests.EditMode.DynamicOriginRebaseControllerEditModeTests|Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests|Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests|Reloader.Player.Tests.EditMode.PlayerCameraDefaultsEditModeTests" "$(pwd)/tmp/floating-origin-task4-edit.xml" "$(pwd)/tmp/floating-origin-task4-edit.log"
 bash scripts/run-unity-tests.sh playmode "Reloader.World.Tests.PlayMode.DynamicOriginRebasePlayModeTests" "$(pwd)/tmp/floating-origin-task4-play.xml" "$(pwd)/tmp/floating-origin-task4-play.log"
 bash scripts/run-unity-tests.sh playmode "Reloader.World.Tests.PlayMode.RoundTripTravelPlayModeTests|Reloader.Player.Tests.PlayMode.PlayerControllerPlayModeTests|Reloader.Player.Tests.PlayMode.PlayerDevNoclipPlayModeTests" "$(pwd)/tmp/floating-origin-task4-regressions.xml" "$(pwd)/tmp/floating-origin-task4-regressions.log"
 ```
@@ -274,13 +290,16 @@ Require:
 - one canonical rebase path exists
 - no ADS-triggered rebase path exists
 - stable/local coordinate bridge remains the only approved conversion seam
+- `LocalDirectionToStable` remains an approved, verified projection seam
+- each rebase returns the canonical runtime player root to the bounded near-zero local-origin window
+- `PlayerArms` runtime-safety invariants and camera/audio singleton identity survive rebase and travel
 
 **Step 2: Run the final focused verification ladder**
 
 Run:
 
 ```bash
-bash scripts/run-unity-tests.sh editmode "Reloader.World.Tests.EditMode.StableWorldCoordinateBridgeEditModeTests|Reloader.World.Tests.EditMode.DynamicOriginRebaseControllerEditModeTests|Reloader.World.Tests.EditMode.OriginRebaseParticipantEditModeTests|Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests|Reloader.World.Tests.EditMode.StableWorldSliceOneContractEditModeTests|Reloader.Player.Tests.EditMode.PlayerCameraDefaultsEditModeTests" "$(pwd)/tmp/floating-origin-final-edit.xml" "$(pwd)/tmp/floating-origin-final-edit.log"
+bash scripts/run-unity-tests.sh editmode "Reloader.World.Tests.EditMode.StableWorldCoordinateBridgeEditModeTests|Reloader.World.Tests.EditMode.BootstrapWorldRootEditModeTests|Reloader.World.Tests.EditMode.DynamicOriginRebaseControllerEditModeTests|Reloader.World.Tests.EditMode.OriginRebaseParticipantEditModeTests|Reloader.World.Tests.EditMode.PersistentPlayerRootEditModeTests|Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests|Reloader.World.Tests.EditMode.StableWorldSliceOneContractEditModeTests|Reloader.Player.Tests.EditMode.PlayerCameraDefaultsEditModeTests" "$(pwd)/tmp/floating-origin-final-edit.xml" "$(pwd)/tmp/floating-origin-final-edit.log"
 bash scripts/run-unity-tests.sh editmode "Reloader.World.Tests.EditMode.WorldPlayerRootContractEditModeTests|Reloader.World.Tests.EditMode.WorldScenePlayerAnchorContractEditModeTests" "$(pwd)/tmp/floating-origin-final-scene-contracts.xml" "$(pwd)/tmp/floating-origin-final-scene-contracts.log"
 bash scripts/run-unity-tests.sh playmode "Reloader.World.Tests.PlayMode.DynamicOriginRebasePlayModeTests|Reloader.World.Tests.PlayMode.RoundTripTravelPlayModeTests|Reloader.World.Tests.PlayMode.SceneTopologySmokeTests|Reloader.Player.Tests.PlayMode.PlayerControllerPlayModeTests|Reloader.Player.Tests.PlayMode.PlayerDevNoclipPlayModeTests" "$(pwd)/tmp/floating-origin-final-play.xml" "$(pwd)/tmp/floating-origin-final-play.log"
 ```
@@ -295,7 +314,7 @@ Expected: PASS.
 **Step 4: Commit**
 
 ```bash
-git add Reloader/Assets/_Project/World/Tests/EditMode/WorldTravelCoordinatorEditModeTests.cs Reloader/Assets/_Project/World/Tests/EditMode/DynamicOriginRebaseControllerEditModeTests.cs Reloader/Assets/_Project/World/Tests/PlayMode/DynamicOriginRebasePlayModeTests.cs Reloader/Assets/_Project/World/Tests/EditMode/StableWorldSliceOneContractEditModeTests.cs docs/plans/2026-03-21-floating-origin-design.md
+git add Reloader/Assets/_Project/World/Tests/EditMode/WorldTravelCoordinatorEditModeTests.cs Reloader/Assets/_Project/World/Tests/EditMode/DynamicOriginRebaseControllerEditModeTests.cs Reloader/Assets/_Project/World/Tests/PlayMode/DynamicOriginRebasePlayModeTests.cs Reloader/Assets/_Project/World/Tests/EditMode/StableWorldSliceOneContractEditModeTests.cs Reloader/Assets/_Project/World/Tests/EditMode/BootstrapWorldRootEditModeTests.cs Reloader/Assets/_Project/World/Tests/EditMode/PersistentPlayerRootEditModeTests.cs docs/plans/2026-03-21-floating-origin-design.md
 git commit -m "test(world): lock floating origin slice one acceptance"
 ```
 
