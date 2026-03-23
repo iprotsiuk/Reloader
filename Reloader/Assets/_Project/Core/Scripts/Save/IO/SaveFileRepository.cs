@@ -103,38 +103,44 @@ namespace Reloader.Core.Save.IO
         {
             latestSavePath = string.Empty;
 
-            if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+            var files = GetSavePathsNewestFirst(directoryPath);
+            if (files.Length == 0)
             {
                 return false;
+            }
+
+            latestSavePath = files[0];
+            return true;
+        }
+
+        public string[] GetSavePathsNewestFirst(string directoryPath)
+        {
+            if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+            {
+                return Array.Empty<string>();
             }
 
             var files = Directory.GetFiles(directoryPath, "*.json", SearchOption.TopDirectoryOnly);
             if (files == null || files.Length == 0)
             {
-                return false;
+                return Array.Empty<string>();
             }
 
-            var newestWriteTime = DateTime.MinValue;
-            var newestPath = string.Empty;
-            for (var i = 0; i < files.Length; i++)
+            Array.Sort(files, CompareSavePathsByRecencyDescending);
+            return files;
+        }
+
+        private static int CompareSavePathsByRecencyDescending(string left, string right)
+        {
+            var leftWriteTime = File.GetLastWriteTimeUtc(left);
+            var rightWriteTime = File.GetLastWriteTimeUtc(right);
+            var timeComparison = rightWriteTime.CompareTo(leftWriteTime);
+            if (timeComparison != 0)
             {
-                var candidate = files[i];
-                var candidateWriteTime = File.GetLastWriteTimeUtc(candidate);
-                if (candidateWriteTime > newestWriteTime
-                    || (candidateWriteTime == newestWriteTime && string.CompareOrdinal(candidate, newestPath) > 0))
-                {
-                    newestWriteTime = candidateWriteTime;
-                    newestPath = candidate;
-                }
+                return timeComparison;
             }
 
-            if (string.IsNullOrWhiteSpace(newestPath))
-            {
-                return false;
-            }
-
-            latestSavePath = newestPath;
-            return true;
+            return string.CompareOrdinal(right, left);
         }
     }
 }

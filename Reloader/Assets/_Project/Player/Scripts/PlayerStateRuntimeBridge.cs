@@ -111,18 +111,16 @@ namespace Reloader.Player
                 return;
             }
 
-            var scenePath = Normalize(_currentScenePath);
+            var scenePath = ResolveLiveScenePath(_playerRootTransform);
             if (string.IsNullOrWhiteSpace(scenePath))
             {
-                scenePath = _playerRootTransform.gameObject.scene.IsValid()
-                    ? Normalize(_playerRootTransform.gameObject.scene.path)
-                    : string.Empty;
+                scenePath = Normalize(_currentScenePath);
             }
 
-            var anchorId = Normalize(_currentAnchorId);
+            var anchorId = ResolveLastResolvedEntryPointId();
             if (string.IsNullOrWhiteSpace(anchorId))
             {
-                anchorId = ResolveLastResolvedEntryPointId();
+                anchorId = Normalize(_currentAnchorId);
             }
 
             if (string.IsNullOrWhiteSpace(anchorId))
@@ -130,6 +128,8 @@ namespace Reloader.Player
                 throw new InvalidOperationException("PlayerState CurrentAnchorId could not be resolved for save capture.");
             }
 
+            _currentScenePath = scenePath;
+            _currentAnchorId = anchorId;
             _playerStateModule.CurrentScenePath = scenePath;
             _playerStateModule.CurrentAnchorId = anchorId;
             _playerStateModule.PositionX = _playerRootTransform.position.x;
@@ -315,6 +315,22 @@ namespace Reloader.Player
             }
 
             return null;
+        }
+
+        private static string ResolveLiveScenePath(Transform playerRootTransform)
+        {
+            if (playerRootTransform == null)
+            {
+                return string.Empty;
+            }
+
+            var scene = playerRootTransform.gameObject.scene;
+            if (!scene.IsValid())
+            {
+                return string.Empty;
+            }
+
+            return Normalize(scene.path);
         }
 
         private static string ResolveLastResolvedEntryPointId()

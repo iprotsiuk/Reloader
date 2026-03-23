@@ -34,6 +34,7 @@ namespace Reloader.Startup.Runtime
     public interface IStartupDeferredContinueLoad
     {
         void Schedule(string sceneName, string entryPointId, Action restoreAction);
+        void CancelPending();
     }
 
     public sealed class StartupMenuFlow : IStartupMenuFlow
@@ -81,21 +82,17 @@ namespace Reloader.Startup.Runtime
 
         public StartupMenuState RefreshState()
         {
-            if (!_fileRepository.TryFindLatestSavePath(_saveDirectoryPath, out var latestSavePath))
+            var savePaths = _fileRepository.GetSavePathsNewestFirst(_saveDirectoryPath);
+            for (var i = 0; i < savePaths.Length; i++)
             {
-                return StartupMenuState.Empty;
+                var state = TryBuildStateFromSave(savePaths[i]);
+                if (state.CanContinue)
+                {
+                    return state;
+                }
             }
 
-            try
-            {
-                var envelope = _fileRepository.ReadEnvelope(latestSavePath);
-                return BuildStateFromEnvelope(latestSavePath, envelope);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"Startup menu failed to read latest save '{latestSavePath}': {ex.Message}");
-                return StartupMenuState.Empty;
-            }
+            return StartupMenuState.Empty;
         }
 
         public bool TryStartNewGame()
@@ -113,11 +110,6 @@ namespace Reloader.Startup.Runtime
             }
 
             _runtimeBootstrapper.EnsureCanonicalRuntimePlayerRoot();
-            if (!_sceneTravel.TryLoadSceneAtEntry(state.CurrentSceneName, state.CurrentAnchorId))
-            {
-                return false;
-            }
-
             _deferredContinueLoad.Schedule(state.CurrentSceneName, state.CurrentAnchorId, () =>
             {
                 try
@@ -129,7 +121,28 @@ namespace Reloader.Startup.Runtime
                     Debug.LogWarning($"Startup menu failed to continue from save '{state.LatestSavePath}': {ex.Message}");
                 }
             });
+
+            if (!_sceneTravel.TryLoadSceneAtEntry(state.CurrentSceneName, state.CurrentAnchorId))
+            {
+                _deferredContinueLoad.CancelPending();
+                return false;
+            }
+
             return true;
+        }
+
+        private StartupMenuState TryBuildStateFromSave(string savePath)
+        {
+            try
+            {
+                var envelope = _fileRepository.ReadEnvelope(savePath);
+                return BuildStateFromEnvelope(savePath, envelope);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"Startup menu failed to read save '{savePath}': {ex.Message}");
+                return StartupMenuState.Empty;
+            }
         }
 
         private static StartupMenuState BuildStateFromEnvelope(string latestSavePath, SaveEnvelope envelope)
@@ -216,6 +229,11 @@ namespace Reloader.Startup.Runtime
             _pendingEntryPointId = entryPointId?.Trim() ?? string.Empty;
             _restoreAction = restoreAction;
             SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        public void CancelPending()
+        {
+            ClearPending();
         }
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)

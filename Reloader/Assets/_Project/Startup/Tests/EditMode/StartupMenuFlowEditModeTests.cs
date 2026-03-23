@@ -64,6 +64,35 @@ namespace Reloader.Startup.Tests.EditMode
         }
 
         [Test]
+        public void RefreshState_WhenLatestSaveIsUnreadable_FallsBackToNextNewestReadableSave()
+        {
+            var repository = new SaveFileRepository();
+            var olderPath = Path.Combine(_saveDir, "slot01.json");
+            var newerPath = Path.Combine(_saveDir, "slot02.json");
+
+            repository.WriteEnvelope(olderPath, CreateEnvelope("Assets/_Project/World/Scenes/MainTown.unity", "entry.maintown.return"));
+            File.WriteAllText(newerPath, "{ definitely-not-valid-json");
+            File.SetLastWriteTimeUtc(olderPath, DateTime.UtcNow.AddMinutes(-15));
+            File.SetLastWriteTimeUtc(newerPath, DateTime.UtcNow);
+
+            var flow = new StartupMenuFlow(
+                repository,
+                new TestSceneTravel(),
+                new TestSaveLoader(),
+                new TestRuntimeBootstrapper(),
+                new TestDeferredContinueLoad(),
+                _saveDir);
+
+            LogAssert.Expect(LogType.Warning, new Regex("Startup menu failed to read save"));
+            var state = flow.RefreshState();
+
+            Assert.That(state.CanContinue, Is.True);
+            Assert.That(state.LatestSavePath, Is.EqualTo(olderPath));
+            Assert.That(state.CurrentSceneName, Is.EqualTo("MainTown"));
+            Assert.That(state.CurrentAnchorId, Is.EqualTo("entry.maintown.return"));
+        }
+
+        [Test]
         public void TryStartNewGame_RoutesToMainTownSpawn()
         {
             var bootstrapper = new TestRuntimeBootstrapper();
@@ -106,7 +135,8 @@ namespace Reloader.Startup.Tests.EditMode
             Assert.That(travel.SceneName, Is.EqualTo("MainTown"));
             Assert.That(travel.EntryPointId, Is.EqualTo("entry.maintown.spawn"));
             Assert.That(loader.LoadedPath, Is.Null);
-            Assert.That(deferredLoad.WasScheduledAfterTravel, Is.True);
+            Assert.That(deferredLoad.WasScheduledAfterTravel, Is.False,
+                "Deferred continue restore must be armed before travel starts so synchronous scene load completion cannot miss the restore callback.");
             Assert.That(deferredLoad.SceneName, Is.EqualTo("MainTown"));
             Assert.That(deferredLoad.EntryPointId, Is.EqualTo("entry.maintown.spawn"));
 
@@ -114,6 +144,54 @@ namespace Reloader.Startup.Tests.EditMode
 
             Assert.That(loader.LoadedPath, Is.EqualTo(savePath));
             Assert.That(loader.LoadCalledAfterTravel, Is.True);
+        }
+
+        [Test]
+        public void TryContinueLatest_SchedulesDeferredRestoreBeforeStartingTravel()
+        {
+            var repository = new SaveFileRepository();
+            var savePath = Path.Combine(_saveDir, "slot01.json");
+            repository.WriteEnvelope(savePath, CreateEnvelope("Assets/_Project/World/Scenes/MainTown.unity", "entry.maintown.spawn"));
+
+            var bootstrapper = new TestRuntimeBootstrapper();
+            var deferredLoad = new TestDeferredContinueLoad();
+            var travel = new TestSceneTravel(bootstrapper, deferredLoad);
+            var loader = new TestSaveLoader(travel);
+            var flow = new StartupMenuFlow(repository, travel, loader, bootstrapper, deferredLoad, _saveDir);
+
+            var continued = flow.TryContinueLatest();
+
+            Assert.That(continued, Is.True);
+            Assert.That(travel.WasCalledAfterBootstrapper, Is.True);
+            Assert.That(travel.WasCalledAfterDeferredSchedule, Is.True,
+                "Deferred continue restore should already be registered before travel starts so an immediate sceneLoaded callback cannot drop the restore.");
+            Assert.That(loader.LoadedPath, Is.Null);
+            deferredLoad.Complete();
+            Assert.That(loader.LoadedPath, Is.EqualTo(savePath));
+        }
+
+        [Test]
+        public void TryContinueLatest_WhenTravelStartFails_CancelsDeferredRestore()
+        {
+            var repository = new SaveFileRepository();
+            var savePath = Path.Combine(_saveDir, "slot01.json");
+            repository.WriteEnvelope(savePath, CreateEnvelope("Assets/_Project/World/Scenes/MainTown.unity", "entry.maintown.spawn"));
+
+            var deferredLoad = new TestDeferredContinueLoad();
+            var travel = new TestSceneTravel(shouldSucceed: false);
+            var flow = new StartupMenuFlow(
+                repository,
+                travel,
+                new TestSaveLoader(),
+                new TestRuntimeBootstrapper(),
+                deferredLoad,
+                _saveDir);
+
+            var continued = flow.TryContinueLatest();
+
+            Assert.That(continued, Is.False);
+            Assert.That(deferredLoad.HasPendingRestore, Is.False,
+                "Failed travel start should clear the deferred restore instead of leaving a stale continue callback armed.");
         }
 
         [Test]
@@ -154,6 +232,7 @@ namespace Reloader.Startup.Tests.EditMode
             public string SceneName { get; private set; }
             public string EntryPointId { get; private set; }
             public bool WasScheduledAfterTravel { get; private set; }
+            public bool HasPendingRestore => _restoreAction != null;
 
             public void Schedule(string sceneName, string entryPointId, Action restoreAction)
             {
@@ -161,6 +240,11 @@ namespace Reloader.Startup.Tests.EditMode
                 SceneName = sceneName;
                 EntryPointId = entryPointId;
                 _restoreAction = restoreAction;
+            }
+
+            public void CancelPending()
+            {
+                _restoreAction = null;
             }
 
             public void Complete()
@@ -201,22 +285,28 @@ namespace Reloader.Startup.Tests.EditMode
         private sealed class TestSceneTravel : IStartupMenuSceneTravel
         {
             private readonly TestRuntimeBootstrapper _bootstrapper;
+            private readonly TestDeferredContinueLoad _deferredLoad;
+            private readonly bool _shouldSucceed;
 
-            public TestSceneTravel(TestRuntimeBootstrapper bootstrapper = null)
+            public TestSceneTravel(TestRuntimeBootstrapper bootstrapper = null, TestDeferredContinueLoad deferredLoad = null, bool shouldSucceed = true)
             {
                 _bootstrapper = bootstrapper;
+                _deferredLoad = deferredLoad;
+                _shouldSucceed = shouldSucceed;
             }
 
             public string SceneName { get; private set; }
             public string EntryPointId { get; private set; }
             public bool WasCalledAfterBootstrapper { get; private set; }
+            public bool WasCalledAfterDeferredSchedule { get; private set; }
 
             public bool TryLoadSceneAtEntry(string sceneName, string entryPointId)
             {
                 WasCalledAfterBootstrapper = _bootstrapper == null || _bootstrapper.CallCount > 0;
+                WasCalledAfterDeferredSchedule = _deferredLoad == null || _deferredLoad.HasPendingRestore;
                 SceneName = sceneName;
                 EntryPointId = entryPointId;
-                return true;
+                return _shouldSucceed;
             }
         }
 

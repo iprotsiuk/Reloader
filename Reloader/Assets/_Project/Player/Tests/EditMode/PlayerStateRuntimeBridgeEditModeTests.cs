@@ -1,13 +1,17 @@
 using System;
 using System.Reflection;
 using NUnit.Framework;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
 
 namespace Reloader.Player.Tests.EditMode
 {
     public sealed class PlayerStateRuntimeBridgeEditModeTests
     {
+        private const string IndoorRangeScenePath = "Assets/_Project/World/Scenes/IndoorRangeInstance.unity";
+
         [Test]
         public void CaptureToModule_CopiesTransformSceneAnchorSelectedSlotAndRecoveryMetadata()
         {
@@ -132,6 +136,46 @@ namespace Reloader.Player.Tests.EditMode
             Object.DestroyImmediate(root);
         }
 
+        [Test]
+        public void CaptureToModule_PrefersLiveTravelSceneAndAnchorOverRestoredSaveState()
+        {
+            var bridgeType = ResolveBridgeType();
+            var moduleType = ResolveModuleType();
+            var originalScene = SceneManager.GetActiveScene();
+            var travelScene = EditorSceneManager.OpenScene(IndoorRangeScenePath, OpenSceneMode.Additive);
+            var root = new GameObject("RuntimePlayerRoot");
+            SceneManager.MoveGameObjectToScene(root, travelScene);
+            var bridge = root.AddComponent(bridgeType);
+            var module = Activator.CreateInstance(moduleType);
+
+            try
+            {
+                SetProperty(module, "CurrentScenePath", "Assets/_Project/World/Scenes/MainTown.unity");
+                SetProperty(module, "CurrentAnchorId", "entry.maintown.spawn");
+                SetProperty(module, "RotationW", 1f);
+                Invoke(bridge, "SetPlayerStateModuleForRuntime", module);
+                Invoke(bridge, "SetPlayerRootTransformForRuntime", root.transform);
+                Invoke(bridge, "RestoreFromModule");
+
+                SetWorldTravelCoordinatorLastResolvedEntryPointId("entry.indoor.arrival");
+
+                Invoke(bridge, "CaptureToModule");
+
+                Assert.That(GetProperty<string>(module, "CurrentScenePath"), Is.EqualTo(IndoorRangeScenePath));
+                Assert.That(GetProperty<string>(module, "CurrentAnchorId"), Is.EqualTo("entry.indoor.arrival"));
+            }
+            finally
+            {
+                SetWorldTravelCoordinatorLastResolvedEntryPointId(string.Empty);
+                Object.DestroyImmediate(root);
+                EditorSceneManager.CloseScene(travelScene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
         private static Type ResolveBridgeType()
         {
             var type = Type.GetType("Reloader.Player.PlayerStateRuntimeBridge, Reloader.Player");
@@ -165,6 +209,16 @@ namespace Reloader.Player.Tests.EditMode
             var property = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
             Assert.That(property, Is.Not.Null, $"Expected property '{propertyName}'.");
             property!.SetValue(instance, value);
+        }
+
+        private static void SetWorldTravelCoordinatorLastResolvedEntryPointId(string entryPointId)
+        {
+            var coordinatorType = Type.GetType("Reloader.World.Travel.WorldTravelCoordinator, Reloader.World");
+            Assert.That(coordinatorType, Is.Not.Null, "Expected WorldTravelCoordinator type.");
+
+            var field = coordinatorType!.GetField("<LastResolvedEntryPointId>k__BackingField", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, "Expected WorldTravelCoordinator.LastResolvedEntryPointId backing field.");
+            field!.SetValue(null, string.IsNullOrWhiteSpace(entryPointId) ? null : entryPointId);
         }
 
         private sealed class InventoryRuntimeProbe
