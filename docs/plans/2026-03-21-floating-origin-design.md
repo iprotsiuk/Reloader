@@ -216,7 +216,12 @@ Slice 1 acceptance:
 - visible far-from-origin jitter is removed
 - multiple rebases do not accumulate drift
 - canonical runtime player root remains authoritative
+- each rebase returns the canonical runtime player root to its bounded startup local-baseline window
 - props/NPCs/anchors do not appear to teleport relative to the player
+- one canonical rebase operator exists, with no ADS-specific trigger path
+- stable/local conversion remains centralized in `StableWorldCoordinateBridge`
+- `LocalDirectionToStable` remains a verified projection seam
+- player camera/audio singleton identity survives rebases and travel
 
 ### Later Slices
 
@@ -240,6 +245,15 @@ Later slices add:
 - stable projectile continuity tests
 - moving-target ELR hit tests
 - rebase-during-flight bullet-cam continuity tests
+
+## Follow-On Queue
+
+The next floating-origin slice should stay out of Slice 1 runtime and focus on stable-world combat authority:
+
+- stable projectile authority
+- stable target authority for all shootable NPCs
+- bullet-cam projection from stable projectile state
+- ELR hit resolution using stable projectile state against stable target state
 
 ## Summary
 

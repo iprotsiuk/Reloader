@@ -15,7 +15,7 @@ namespace Reloader.World.Tests.PlayMode
         private const float BaselineWindowToleranceMeters = 0.25f;
 
         [UnityTest]
-        public IEnumerator RuntimePlayer_BeyondThreshold_RebasesWithoutBreakingRelativeOffsetsOrCameraIdentity()
+        public IEnumerator RuntimePlayer_BeyondThreshold_RebasesToStartupBaselineWithoutBreakingRelativeOffsetsOrCameraIdentity()
         {
             GameObject marker = null;
             LogAssert.ignoreFailingMessages = true;

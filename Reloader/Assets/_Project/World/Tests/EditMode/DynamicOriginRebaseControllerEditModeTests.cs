@@ -104,9 +104,10 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void TryRebaseIfNeeded_WhenThresholdCrossed_ShiftsSceneOnceAndBringsPlayerNearZero()
+        public void TryRebaseIfNeeded_WhenThresholdCrossed_ShiftsSceneOnceAndReturnsPlayerToBoundedBaselineWindow()
         {
             var participant = _propObject.AddComponent<RecordingParticipant>();
+            var startupHorizontalBaseline = new Vector2(_playerRootObject.transform.position.x, _playerRootObject.transform.position.z);
             _playerRootObject.transform.position = new Vector3(630f, 12f, -245f);
             _propObject.transform.position = new Vector3(645f, 2f, -240f);
             var initialOffset = _propObject.transform.position - _playerRootObject.transform.position;
@@ -116,7 +117,10 @@ namespace Reloader.World.Tests.EditMode
 
             Assert.That(rebased, Is.True);
             Assert.That(_persistentRoot.PlayerRootTransform, Is.SameAs(canonicalPlayer));
-            Assert.That(new Vector2(canonicalPlayer.position.x, canonicalPlayer.position.z).magnitude, Is.LessThanOrEqualTo(Epsilon));
+            Assert.That(
+                Vector2.Distance(new Vector2(canonicalPlayer.position.x, canonicalPlayer.position.z), startupHorizontalBaseline),
+                Is.LessThanOrEqualTo(Epsilon),
+                "Canonical rebasing should return the runtime player to its bounded startup baseline window.");
             Assert.That(canonicalPlayer.position.y, Is.EqualTo(12f));
             Assert.That(_propObject.transform.position - canonicalPlayer.position, Is.EqualTo(initialOffset));
             Assert.That(_state.StableOriginOffset, Is.EqualTo(new Vector3(630f, 0f, -245f)));

@@ -45,3 +45,17 @@
 - Nearest controller regression: `bash scripts/run-unity-tests.sh editmode "Reloader.World.Tests.EditMode.DynamicOriginRebaseControllerEditModeTests" "$(pwd)/tmp/floating-origin-task4-edit.xml" "$(pwd)/tmp/floating-origin-task4-edit.log"` passed with `5/5`.
 - Wider world-only travel regression remains red and looks pre-existing/out-of-scope for this slice: `bash scripts/run-unity-tests.sh playmode "Reloader.World.Tests.PlayMode.RoundTripTravelPlayModeTests" "$(pwd)/tmp/floating-origin-task4-regressions.xml" "$(pwd)/tmp/floating-origin-task4-regressions.log"` failed mainly because Bootstrap never advanced to `MainTown`, plus existing authored-scene/object/runtime issues under `RoundTripTravelPlayModeTests`.
 - Out-of-scope dirt remains untouched: `Reloader/Assets/_Project/World/Terrain/MainTown/MainTownTerrainData.asset` and `Reloader/Assets/_Project/World/Tests/EditMode/WorldPlayerRootContractEditModeTests.cs`.
+
+## Task 5
+
+- Added slice-one acceptance coverage for repeated rebases preserving stable truth and nearby offsets, baseline-window return semantics, and `StableWorldCoordinateBridge` staying the only approved stable/local conversion seam.
+- Kept PlayMode acceptance wording aligned with the canonical startup-baseline contract instead of an incorrect absolute-near-zero assumption.
+- Final focused ladder for this slice stays on world-owned floating-origin tests only; broader stale travel harness failures remain out of scope for this acceptance lock.
+
+## Task 6
+
+- Queued the next floating-origin slice in the design doc only:
+  - stable projectile authority
+  - stable target authority for all shootable NPCs
+  - bullet-cam projection from stable projectile state
+  - ELR hit resolution using stable projectile state against stable target state
