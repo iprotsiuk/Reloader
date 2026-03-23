@@ -60,6 +60,8 @@ git commit -m "test(world): lock floating origin slice one contract"
 - Create: `Reloader/Assets/_Project/World/Scripts/Runtime/Origin/DynamicOriginRebaseState.cs`
 - Create: `Reloader/Assets/_Project/World/Scripts/Runtime/Origin/StableWorldCoordinateBridge.cs`
 - Create: `Reloader/Assets/_Project/World/Tests/EditMode/StableWorldCoordinateBridgeEditModeTests.cs`
+- Create: `Reloader/Assets/_Project/World/Tests/EditMode/BootstrapWorldRootEditModeTests.cs`
+- Modify: `Reloader/Assets/_Project/World/Tests/EditMode/WorldTravelCoordinatorEditModeTests.cs`
 - Modify: `Reloader/Assets/_Project/World/Scripts/Runtime/BootstrapWorldRoot.cs`
 
 **Step 1: Write the failing bridge tests**
@@ -71,13 +73,15 @@ Add tests for:
 - horizontal distance calculation from the player root
 - round-trip conversion staying within tolerance
 - offset updates after rebase preserving stable truth
+- `BootstrapWorldRoot.Initialize()` creating exactly one canonical origin-state / bridge / controller seam and reusing it across repeated initialization
+- travel preparation and entry placement preserving or explicitly updating the active stable/local mapping instead of silently recreating or zeroing it
 
 **Step 2: Run the focused red suite**
 
 Run:
 
 ```bash
-bash scripts/run-unity-tests.sh editmode "Reloader.World.Tests.EditMode.StableWorldCoordinateBridgeEditModeTests|Reloader.World.Tests.EditMode.DynamicOriginRebaseControllerEditModeTests" "$(pwd)/tmp/floating-origin-task2-red.xml" "$(pwd)/tmp/floating-origin-task2-red.log"
+bash scripts/run-unity-tests.sh editmode "Reloader.World.Tests.EditMode.StableWorldCoordinateBridgeEditModeTests|Reloader.World.Tests.EditMode.BootstrapWorldRootEditModeTests|Reloader.World.Tests.EditMode.WorldTravelCoordinatorEditModeTests|Reloader.World.Tests.EditMode.DynamicOriginRebaseControllerEditModeTests" "$(pwd)/tmp/floating-origin-task2-red.xml" "$(pwd)/tmp/floating-origin-task2-red.log"
 ```
 
 Expected: FAIL because no stable/local bridge exists yet.
@@ -98,6 +102,8 @@ Create:
 
 Update `BootstrapWorldRoot` to ensure one canonical instance exists at runtime.
 
+Also require the bootstrap seam to fail closed when no valid bootstrap root can own the origin mapping, instead of inventing ad-hoc instances from fallback paths.
+
 **Step 4: Re-run the suite**
 
 Expected: PASS.
@@ -105,7 +111,7 @@ Expected: PASS.
 **Step 5: Commit**
 
 ```bash
-git add Reloader/Assets/_Project/World/Scripts/Runtime/Origin/DynamicOriginRebaseState.cs Reloader/Assets/_Project/World/Scripts/Runtime/Origin/StableWorldCoordinateBridge.cs Reloader/Assets/_Project/World/Tests/EditMode/StableWorldCoordinateBridgeEditModeTests.cs Reloader/Assets/_Project/World/Scripts/Runtime/BootstrapWorldRoot.cs
+git add Reloader/Assets/_Project/World/Scripts/Runtime/Origin/DynamicOriginRebaseState.cs Reloader/Assets/_Project/World/Scripts/Runtime/Origin/StableWorldCoordinateBridge.cs Reloader/Assets/_Project/World/Tests/EditMode/StableWorldCoordinateBridgeEditModeTests.cs Reloader/Assets/_Project/World/Tests/EditMode/BootstrapWorldRootEditModeTests.cs Reloader/Assets/_Project/World/Tests/EditMode/WorldTravelCoordinatorEditModeTests.cs Reloader/Assets/_Project/World/Scripts/Runtime/BootstrapWorldRoot.cs
 git commit -m "feat(world): add stable local coordinate bridge"
 ```
 
@@ -129,6 +135,8 @@ Add tests for:
 - cooldown prevents immediate retrigger
 - participants are notified exactly once per rebase
 - player root ownership remains canonical
+- rebasing happens as one coherent global local-scene shift with one `localShift` / `stableShift` pair per trigger
+- `IOriginRebaseParticipant` remains notification-only and is not used as per-object catch-up or fallback reposition logic
 
 **Step 2: Run the focused red suite**
 
@@ -153,6 +161,8 @@ Create:
   - serialized `RebaseCooldownSeconds`
   - computes horizontal player distance
   - triggers one coherent local-scene shift when threshold is crossed
+
+Make the controller own the single canonical rebase operation. Participants may react to that shift, but they must not become a hidden second path for moving scene objects independently.
 
 Update `PersistentPlayerRoot` only as needed so the controller always resolves the canonical runtime player root, never a scene-owned substitute.
 
@@ -187,6 +197,8 @@ Add a PlayMode test that:
 - forces the rebase controller to tick
 - verifies the relative offset from player to selected nearby prop/NPC/anchor remains unchanged
 - verifies no duplicate player root is created
+- performs `rebase -> travel -> verify -> travel back -> verify` so travel entry placement stays coherent with the active stable/local mapping
+- verifies the camera/arms/viewmodel stack is still bound on the canonical runtime player after rebase and after each travel hop
 
 **Step 2: Run the focused red suite**
 
@@ -202,6 +214,7 @@ Expected: FAIL because player/camera/travel seams are not yet rebase-aware.
 
 - update player movement/look code only where world-position assumptions break under rebasing
 - ensure camera defaults and runtime camera stack continue to resolve correctly after rebase
+- add an explicit post-rebase validation/rebind path for the runtime camera/viewmodel references rather than assuming the existing travel-only repair path is sufficient
 - wire the controller into `PlayerRoot.prefab` and `Bootstrap.unity`
 - ensure travel keeps the canonical player root and origin bridge coherent after scene moves
 
@@ -215,6 +228,8 @@ bash scripts/run-unity-tests.sh playmode "Reloader.World.Tests.PlayMode.DynamicO
 ```
 
 Expected: PASS.
+
+After the runtime suites pass, read back the mutated `PlayerRoot.prefab` and `Bootstrap.unity` wiring in Unity and verify the serialized reference chain for the runtime camera stack plus any new origin controller/bridge references. Do not rely on runtime green tests alone for prefab/scene authoring safety.
 
 **Step 5: Commit**
 
