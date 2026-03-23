@@ -1,7 +1,10 @@
 using System;
 using NUnit.Framework;
 using Reloader.World.Travel;
+using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 
 namespace Reloader.World.Tests.EditMode
@@ -212,6 +215,157 @@ namespace Reloader.World.Tests.EditMode
                 UnityEngine.Object.DestroyImmediate(triggerObject);
                 UnityEngine.Object.DestroyImmediate(interactor);
             }
+        }
+
+        [Test]
+        public void TravelSceneTrigger_Contract_DoesNotSerializePlayerRootReference()
+        {
+            var triggerObject = new GameObject("trigger");
+            var trigger = triggerObject.AddComponent<TravelSceneTrigger>();
+
+            try
+            {
+                var serialized = new SerializedObject(trigger);
+                Assert.That(serialized.FindProperty("_travelContext"), Is.Not.Null);
+                Assert.That(serialized.FindProperty("_requiredInteractorTag"), Is.Not.Null);
+                Assert.That(serialized.FindProperty("_playerRoot"), Is.Null);
+                Assert.That(serialized.FindProperty("_scenePlayerRoot"), Is.Null);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(triggerObject);
+            }
+        }
+
+        [TestCase("Assets/_Project/World/Scenes/MainTown.unity", "entry.maintown.spawn", "entry.maintown.return")]
+        [TestCase("Assets/_Project/World/Scenes/IndoorRangeInstance.unity", "entry.indoor.arrival")]
+        public void SceneEntryPoints_ProvideExplicitAnchorIds(string scenePath, params string[] expectedEntryPointIds)
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                for (var i = 0; i < expectedEntryPointIds.Length; i++)
+                {
+                    var expectedEntryPointId = expectedEntryPointIds[i];
+                    Assert.That(HasEntryPoint(scene, expectedEntryPointId), Is.True,
+                        $"Scene '{scenePath}' should expose explicit anchor id '{expectedEntryPointId}' for spawn resolution.");
+                }
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [TestCase(
+            "Assets/_Project/World/Scenes/MainTown.unity",
+            "Assets/_Project/World/Scenes/IndoorRangeInstance.unity",
+            "entry.indoor.arrival",
+            "entry.maintown.return")]
+        [TestCase(
+            "Assets/_Project/World/Scenes/IndoorRangeInstance.unity",
+            "Assets/_Project/World/Scenes/MainTown.unity",
+            "entry.maintown.return",
+            "entry.indoor.arrival")]
+        public void TravelSceneTrigger_UsesAnchorIdsThatResolveInDestinationScenes(
+            string originScenePath,
+            string destinationScenePath,
+            string expectedDestinationEntryPointId,
+            string expectedReturnEntryPointId)
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var destinationScene = EditorSceneManager.OpenScene(destinationScenePath, OpenSceneMode.Additive);
+            var originScene = EditorSceneManager.OpenScene(originScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var trigger = FindComponentInScene<TravelSceneTrigger>(originScene);
+                Assert.That(trigger, Is.Not.Null, $"Expected TravelSceneTrigger in scene '{originScenePath}'.");
+
+                var serializedTrigger = new SerializedObject(trigger);
+                var travelContextProperty = serializedTrigger.FindProperty("_travelContext");
+                Assert.That(travelContextProperty, Is.Not.Null);
+
+                var destinationSceneName = travelContextProperty.FindPropertyRelative("_destinationSceneName")?.stringValue;
+                var destinationEntryPointId = travelContextProperty.FindPropertyRelative("_destinationEntryPointId")?.stringValue;
+                var returnEntryPointId = travelContextProperty.FindPropertyRelative("_returnEntryPointId")?.stringValue;
+
+                Assert.That(destinationSceneName, Is.EqualTo(System.IO.Path.GetFileNameWithoutExtension(destinationScenePath)));
+                Assert.That(destinationEntryPointId, Is.EqualTo(expectedDestinationEntryPointId));
+                Assert.That(returnEntryPointId, Is.EqualTo(expectedReturnEntryPointId));
+                Assert.That(HasEntryPoint(destinationScene, destinationEntryPointId), Is.True,
+                    $"Travel trigger in '{originScenePath}' should resolve destination entry point '{destinationEntryPointId}' via explicit scene anchors.");
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(originScene, true);
+                EditorSceneManager.CloseScene(destinationScene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        private static bool HasEntryPoint(Scene scene, string entryPointId)
+        {
+            if (!scene.IsValid() || string.IsNullOrWhiteSpace(entryPointId))
+            {
+                return false;
+            }
+
+            var entryPoint = FindEntryPoint(scene, entryPointId);
+            return entryPoint != null;
+        }
+
+        private static SceneEntryPoint FindEntryPoint(Scene scene, string entryPointId)
+        {
+            if (!scene.IsValid())
+            {
+                return null;
+            }
+
+            var roots = scene.GetRootGameObjects();
+            for (var i = 0; i < roots.Length; i++)
+            {
+                var entryPoints = roots[i].GetComponentsInChildren<SceneEntryPoint>(true);
+                for (var j = 0; j < entryPoints.Length; j++)
+                {
+                    var candidate = entryPoints[j];
+                    if (candidate != null && candidate.EntryPointId == entryPointId)
+                    {
+                        return candidate;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private static T FindComponentInScene<T>(Scene scene) where T : Component
+        {
+            if (!scene.IsValid())
+            {
+                return null;
+            }
+
+            var roots = scene.GetRootGameObjects();
+            for (var i = 0; i < roots.Length; i++)
+            {
+                var candidate = roots[i].GetComponentInChildren<T>(true);
+                if (candidate != null)
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
         }
     }
 }

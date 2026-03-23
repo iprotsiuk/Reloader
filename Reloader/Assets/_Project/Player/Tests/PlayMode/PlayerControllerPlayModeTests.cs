@@ -392,6 +392,135 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerLookController_Tick_Aiming_UsesRuntimeAdsSensitivityMultiplier()
+        {
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Look = new Vector2(4f, 0f);
+            input.AimHeldValue = true;
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            look.LookSensitivity = Vector2.one;
+            look.AdsSensitivityMultiplier = Vector2.one;
+            look.RuntimeAdsSensitivityMultiplier = new Vector2(0.25f, 0.25f);
+
+            look.Tick(1f);
+
+            Assert.That(root.transform.eulerAngles.y, Is.EqualTo(1f).Within(0.05f));
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void PlayerLookController_Tick_Hipfire_AppliesUserLookSensitivityMultiplier()
+        {
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Look = new Vector2(4f, 0f);
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            look.LookSensitivity = Vector2.one;
+            look.UserLookSensitivityMultiplier = 1.5f;
+
+            look.Tick(1f);
+
+            Assert.That(root.transform.eulerAngles.y, Is.EqualTo(6f).Within(0.05f));
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void PlayerLookController_Tick_Aiming_AppliesUserLookAndUserAdsSensitivityMultipliers()
+        {
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Look = new Vector2(4f, 0f);
+            input.AimHeldValue = true;
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            look.LookSensitivity = Vector2.one;
+            look.AdsSensitivityMultiplier = new Vector2(0.25f, 0.25f);
+            look.RuntimeAdsSensitivityMultiplier = new Vector2(0.5f, 0.5f);
+            look.UserLookSensitivityMultiplier = 2f;
+            look.UserAdsSensitivityMultiplier = 1.5f;
+
+            look.Tick(1f);
+
+            Assert.That(root.transform.eulerAngles.y, Is.EqualTo(1.5f).Within(0.05f));
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void PlayerLookController_Tick_PipScopedAds_CanDisableFovSensitivityScaling()
+        {
+            var root = new GameObject("PlayerRoot");
+            var camera = root.AddComponent<Camera>();
+            camera.tag = "MainCamera";
+            camera.fieldOfView = 60f;
+
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Look = new Vector2(4f, 0f);
+            input.AimHeldValue = true;
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            look.LookSensitivity = Vector2.one;
+            look.AdsSensitivityMultiplier = Vector2.one;
+            look.RuntimeAdsSensitivityMultiplier = Vector2.one;
+            look.AllowFovSensitivityScaling = false;
+
+            look.Tick(1f);
+            var yawAtSixtyFov = root.transform.eulerAngles.y;
+
+            root.transform.rotation = Quaternion.identity;
+            look.Configure(input, cameraPivot.transform);
+            look.AllowFovSensitivityScaling = false;
+            camera.fieldOfView = 30f;
+            look.Tick(1f);
+            var yawAtThirtyFov = root.transform.eulerAngles.y;
+
+            Assert.That(yawAtSixtyFov, Is.EqualTo(4f).Within(0.05f));
+            Assert.That(yawAtThirtyFov, Is.EqualTo(yawAtSixtyFov).Within(0.05f));
+
+            Object.DestroyImmediate(root);
+            Object.DestroyImmediate(cameraPivot);
+        }
+
+        [Test]
+        public void PlayerLookController_Configure_ResetsAllowFovSensitivityScalingToDefault()
+        {
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var input = root.AddComponent<TestInputSource>();
+            var look = root.AddComponent<PlayerLookController>();
+            look.AllowFovSensitivityScaling = false;
+
+            look.Configure(input, cameraPivot.transform);
+
+            Assert.That(look.AllowFovSensitivityScaling, Is.True);
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void PlayerLookController_Tick_WithLookSmoothingEnabled_SpreadsStepAcrossFrames()
         {
             var smoothRoot = new GameObject("SmoothPlayerRoot");
@@ -436,14 +565,26 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
-        public void PlayerLookController_Tick_LowerMainCameraFov_ReducesYawDeltaForSameInput()
+        public void PlayerLookController_Tick_LowerExplicitCameraDefaultsFov_ReducesYawDeltaForSameInput()
         {
+            var mainCameraRoot = new GameObject("MainCameraRoot");
+            var mainCamera = mainCameraRoot.AddComponent<Camera>();
+            mainCamera.tag = "MainCamera";
+            mainCamera.fieldOfView = 60f;
+
             var root = new GameObject("PlayerRoot");
             var cameraPivot = new GameObject("CameraPivot");
             cameraPivot.transform.SetParent(root.transform);
-            var camera = root.AddComponent<Camera>();
-            camera.tag = "MainCamera";
-            camera.fieldOfView = 60f;
+
+            var defaultsCameraRoot = new GameObject("DefaultsCameraRoot");
+            defaultsCameraRoot.transform.SetParent(root.transform);
+            var defaultsCamera = defaultsCameraRoot.AddComponent<Camera>();
+            defaultsCamera.fieldOfView = 60f;
+
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+            typeof(PlayerCameraDefaults)
+                .GetField("_mainCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(defaults, defaultsCamera);
 
             var input = root.AddComponent<TestInputSource>();
             input.Look = new Vector2(4f, 0f);
@@ -456,8 +597,8 @@ namespace Reloader.Player.Tests.PlayMode
             var hipFireYaw = root.transform.eulerAngles.y;
 
             root.transform.rotation = Quaternion.identity;
+            defaultsCamera.fieldOfView = 30f;
             look.Configure(input, cameraPivot.transform);
-            camera.fieldOfView = 30f;
             look.Tick(1f);
             var zoomYaw = root.transform.eulerAngles.y;
 
@@ -466,10 +607,37 @@ namespace Reloader.Player.Tests.PlayMode
             Assert.That(zoomYaw, Is.LessThan(hipFireYaw));
 
             Object.DestroyImmediate(root);
+            Object.DestroyImmediate(mainCameraRoot);
         }
 
         [Test]
-        public void PlayerLookController_Tick_PlayerCameraDefaultsFov_OverridesMainCameraFallback()
+        public void PlayerLookController_Tick_DoesNotUseCameraMain_WhenCameraDefaultsAreMissing()
+        {
+            var mainCameraRoot = new GameObject("MainCameraRoot");
+            var mainCamera = mainCameraRoot.AddComponent<Camera>();
+            mainCamera.tag = "MainCamera";
+            mainCamera.fieldOfView = 30f;
+
+            var root = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot");
+            cameraPivot.transform.SetParent(root.transform);
+
+            var input = root.AddComponent<TestInputSource>();
+            input.Look = new Vector2(4f, 0f);
+
+            var look = root.AddComponent<PlayerLookController>();
+            look.Configure(input, cameraPivot.transform);
+            look.LookSensitivity = Vector2.one;
+            look.Tick(1f);
+
+            Assert.That(root.transform.eulerAngles.y, Is.EqualTo(4f).Within(0.05f));
+
+            Object.DestroyImmediate(root);
+            Object.DestroyImmediate(mainCameraRoot);
+        }
+
+        [Test]
+        public void PlayerLookController_Tick_ExplicitCameraDefaultsFov_OverridesMainCamera()
         {
             var mainCameraRoot = new GameObject("MainCameraRoot");
             var mainCamera = mainCameraRoot.AddComponent<Camera>();
@@ -699,6 +867,25 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void LookInputNormalization_NormalizeLookDelta_AppliesMouseScale()
+        {
+            var normalized = LookInputNormalization.NormalizeLookDelta(new Vector2(10f, -5f), "<Pointer>/delta");
+
+            Assert.That(normalized.x, Is.EqualTo(0.5f).Within(0.001f));
+            Assert.That(normalized.y, Is.EqualTo(-0.25f).Within(0.001f));
+        }
+
+        [Test]
+        public void LookInputNormalization_NormalizeLookDelta_DoesNotScaleGamepadInput()
+        {
+            var raw = new Vector2(0.5f, -0.25f);
+            var normalized = LookInputNormalization.NormalizeLookDelta(raw, "<Gamepad>/rightStick");
+
+            Assert.That(normalized.x, Is.EqualTo(raw.x).Within(0.001f));
+            Assert.That(normalized.y, Is.EqualTo(raw.y).Within(0.001f));
+        }
+
+        [Test]
         public void PlayerInputReader_Update_UsesDefaultScrollWheelActionName_WhenSerializedFieldIsMissing()
         {
             var actionsAsset = CreatePlayerZoomActionsAsset();
@@ -770,10 +957,11 @@ namespace Reloader.Player.Tests.PlayMode
             var go = new GameObject("InputReader");
             var reader = go.AddComponent<PlayerInputReader>();
             reader.SetActionsAsset(actionsAsset);
+            reader.EnsureActionMapEnabled();
 
             try
             {
-                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F2));
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Space));
                 InputSystem.Update();
 
                 reader.SendMessage("Update");
@@ -788,6 +976,32 @@ namespace Reloader.Player.Tests.PlayMode
                 RuntimeKernelBootstrapper.Events = previousEvents;
                 InputSystem.RemoveDevice(keyboard);
             }
+        }
+
+        [Test]
+        public void PlayerInputReader_ResolveAimState_TogglesHeldStateOnPress()
+        {
+            var resolveAimStateMethod = typeof(PlayerInputReader).GetMethod(
+                "ResolveAimState",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(resolveAimStateMethod, Is.Not.Null, "Expected PlayerInputReader to expose a private aim-state resolver.");
+
+            var pressArgs = new object[] { false, false, true, true, false, null };
+            resolveAimStateMethod!.Invoke(null, pressArgs);
+            Assert.That((bool)pressArgs[4], Is.True);
+            Assert.That((bool)pressArgs[5], Is.True);
+
+            var releaseArgs = new object[] { false, false, false, false, true, null };
+            resolveAimStateMethod.Invoke(null, releaseArgs);
+            Assert.That((bool)releaseArgs[4], Is.True,
+                "Expected releasing aim to keep ADS latched until the next toggle press.");
+            Assert.That((bool)releaseArgs[5], Is.False);
+
+            var secondPressArgs = new object[] { false, false, true, true, true, null };
+            resolveAimStateMethod.Invoke(null, secondPressArgs);
+            Assert.That((bool)secondPressArgs[4], Is.False,
+                "Expected a second aim press to toggle ADS back off.");
+            Assert.That((bool)secondPressArgs[5], Is.True);
         }
 
         [Test]
@@ -1287,7 +1501,7 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
-        public void PlayerCameraDefaults_ApplyDefaults_AddsMissingBrainToMainCamera()
+        public void PlayerCameraDefaults_ApplyDefaults_DoesNotAddMissingBrainToMainCamera()
         {
             var root = new GameObject("CameraDefaultsRoot");
             var camera = root.AddComponent<Camera>();
@@ -1304,13 +1518,9 @@ namespace Reloader.Player.Tests.PlayMode
             defaults.ApplyDefaults();
 
             var brain = camera.GetComponent(brainType);
-            Assert.That(brain, Is.Not.Null, "Expected PlayerCameraDefaults to self-heal a missing CinemachineBrain on the main camera.");
-            Assert.That(
-                brainType.GetProperty("UpdateMethod")?.GetValue(brain)?.ToString(),
-                Is.EqualTo("LateUpdate"));
-            Assert.That(
-                brainType.GetProperty("BlendUpdateMethod")?.GetValue(brain)?.ToString(),
-                Is.EqualTo("LateUpdate"));
+            Assert.That(brain, Is.Null, "Expected PlayerCameraDefaults to leave a missing CinemachineBrain missing.");
+            Assert.That(camera.nearClipPlane, Is.EqualTo(0.001f).Within(0.0001f));
+            Assert.That(camera.farClipPlane, Is.EqualTo(2828f).Within(0.0001f));
 
             Object.DestroyImmediate(root);
         }
@@ -1573,7 +1783,7 @@ namespace Reloader.Player.Tests.PlayMode
         {
             var asset = ScriptableObject.CreateInstance<InputActionAsset>();
             var playerMap = new InputActionMap("Player");
-            playerMap.AddAction("Aim", binding: "<Keyboard>/f2");
+            playerMap.AddAction("Aim", binding: "<Keyboard>/space");
             asset.AddActionMap(playerMap);
             return asset;
         }

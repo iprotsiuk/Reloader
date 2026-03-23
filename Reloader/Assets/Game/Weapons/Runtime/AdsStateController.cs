@@ -1,5 +1,7 @@
 using UnityEngine;
 using System;
+using System.Reflection;
+using Reloader.Game.Weapons.Rendering;
 
 namespace Reloader.Game.Weapons
 {
@@ -7,6 +9,22 @@ namespace Reloader.Game.Weapons
     {
         private const float MinMagnification = 1f;
         private const float MaxMagnification = 40f;
+        private const int FallbackScopedPipResolutionPercent = 100;
+        private const int FallbackPeripheralBlurPercent = 50;
+        private const int ScopedOpticsSettingsMinPipResolutionPercent = 10;
+        private const int ScopedOpticsSettingsMaxPipResolutionPercent = 400;
+        private const int ScopedOpticsSettingsMinPeripheralBlurPercent = 0;
+        private const int ScopedOpticsSettingsMaxPeripheralBlurPercent = 100;
+        private const string ScopedOpticsSettingsSourceTypeName = "Reloader.UI.Toolkit.EscMenu.IScopedOpticsSettingsSource";
+        private const string ScopedOpticsSettingsSnapshotTypeName = "Reloader.UI.Toolkit.EscMenu.ScopedOpticsSettingsSnapshot";
+        private const string ScopedOpticsSettingsContractTypeName = "Reloader.UI.Toolkit.EscMenu.ScopedOpticsSettings";
+        private const string ShotCameraGameplayStateTypeName = "Reloader.Player.ShotCameraGameplayState";
+        private const string ScopedPipResolutionPlayerPrefKey = "esc-menu.scoped-pip-resolution-percent";
+        private const string PeripheralBlurPlayerPrefKey = "esc-menu.peripheral-blur-percent";
+        private const int ScopedOpticsSettingsSourceInitialRetryFrameInterval = 30;
+        private const int ScopedOpticsSettingsSourceMaxRetryFrameInterval = 600;
+
+        private static PropertyInfo s_shotCameraIsActiveProperty;
 
         [Header("References")]
         [SerializeField] private Camera _worldCamera;
@@ -42,6 +60,13 @@ namespace Reloader.Game.Weapons
             new Keyframe(25f, 0.18f),
             new Keyframe(40f, 0.1f));
 
+        [SerializeField] private AnimationCurve _pipPrecisionScaleByMagnification = new AnimationCurve(
+            new Keyframe(1f, 1f),
+            new Keyframe(4f, 0.4f),
+            new Keyframe(10f, 0.12f),
+            new Keyframe(25f, 0.04f),
+            new Keyframe(40f, 0.03f));
+
         [SerializeField] private AnimationCurve _swayScaleByMagnification = new AnimationCurve(
             new Keyframe(1f, 1f),
             new Keyframe(4f, 0.6f),
@@ -72,11 +97,19 @@ namespace Reloader.Game.Weapons
         private OpticDefinition _lastMaskOpticDefinition;
         private AttachmentManager _subscribedAttachmentManager;
         private AdsVisualMode _lastMaskPolicy = AdsVisualMode.Auto;
+        private object _scopedOpticsSettingsSource;
+        private Type _scopedOpticsSettingsSourceType;
+        private Type _scopedOpticsSettingsSnapshotType;
+        private Type _scopedOpticsSettingsContractType;
+        private bool _hasResolvedScopedOpticsSettingsSource;
+        private int _nextScopedOpticsSettingsSourceLookupFrame;
+        private int _scopedOpticsSettingsSourceRetryFrameInterval = ScopedOpticsSettingsSourceInitialRetryFrameInterval;
 
         public bool IsAdsActive => _isAdsHeld;
         public float AdsT { get; private set; }
         public float CurrentMagnification { get; private set; } = 1f;
         public float CurrentSensitivityScale { get; private set; } = 1f;
+        public float CurrentPipPrecisionScale { get; private set; } = 1f;
         public float CurrentSwayScale { get; private set; } = 1f;
         public float TargetWorldFov { get; private set; }
 
@@ -125,6 +158,7 @@ namespace Reloader.Game.Weapons
             _targetMagnification = 1f;
             CurrentMagnification = 1f;
             CurrentSensitivityScale = 1f;
+            CurrentPipPrecisionScale = 1f;
             CurrentSwayScale = 1f;
             _maskLatch = false;
             _externalAdsControlActive = false;
@@ -136,6 +170,8 @@ namespace Reloader.Game.Weapons
             _lastMaskOpticDefinition = null;
             _lastMaskPolicy = AdsVisualMode.Auto;
             _capturedRuntimeCameraDefaults = false;
+            _nextScopedOpticsSettingsSourceLookupFrame = 0;
+            _scopedOpticsSettingsSourceRetryFrameInterval = ScopedOpticsSettingsSourceInitialRetryFrameInterval;
 
             if (_worldCamera != null)
             {
@@ -161,6 +197,12 @@ namespace Reloader.Game.Weapons
             {
                 _peripheralScopeEffects.SetState(false, 0f);
             }
+            else
+            {
+                PeripheralScopeBlurRuntimeState.Reset();
+            }
+
+            ScopedPeripheralWorldRenderScaleRuntime.Reset();
 
             if (_scopeAdjustmentTooltipOverlay != null)
             {
@@ -171,6 +213,8 @@ namespace Reloader.Game.Weapons
         private void OnDestroy()
         {
             UnsubscribeAttachmentManagerEvents();
+            PeripheralScopeBlurRuntimeState.Reset();
+            ScopedPeripheralWorldRenderScaleRuntime.Reset();
         }
 
         public void SetAdsHeld(bool held)
@@ -205,6 +249,40 @@ namespace Reloader.Game.Weapons
                 _baseWorldFov = _weaponDefinition.DefaultWorldFov;
                 _baseViewmodelFov = _weaponDefinition.DefaultViewmodelFov;
             }
+        }
+
+        public void BindRuntimeReferences(
+            Camera worldCamera,
+            Camera viewmodelCamera,
+            AttachmentManager attachmentManager,
+            RenderTextureScopeController renderTextureScopeController,
+            PeripheralScopeEffects peripheralScopeEffects,
+            ScopeAdjustmentTooltipOverlay scopeAdjustmentTooltipOverlay)
+        {
+            _worldCamera = worldCamera;
+            _viewmodelCamera = viewmodelCamera;
+            _renderTextureScopeController = renderTextureScopeController;
+            _peripheralScopeEffects = peripheralScopeEffects;
+            _scopeAdjustmentTooltipOverlay = scopeAdjustmentTooltipOverlay;
+
+            if (ReferenceEquals(_attachmentManager, attachmentManager))
+            {
+                return;
+            }
+
+            UnsubscribeAttachmentManagerEvents();
+            _attachmentManager = attachmentManager;
+            SubscribeAttachmentManagerEvents();
+        }
+
+        public void SetUseLegacyInput(bool useLegacyInput)
+        {
+            _useLegacyInput = useLegacyInput;
+        }
+
+        public void RefreshVisualMode()
+        {
+            TickVisualMode();
         }
 
         public bool ApplyScopeAdjustmentInput(int windageClicks, int elevationClicks)
@@ -351,15 +429,21 @@ namespace Reloader.Game.Weapons
 
         private void TickScaling()
         {
+            var optic = _attachmentManager != null ? _attachmentManager.ActiveOpticDefinition : null;
+            var usePipPrecision = UsesScopedPip(optic);
             var baseSensitivity = _weaponDefinition != null ? _weaponDefinition.BaseAdsSensitivityScale : 1f;
             var baseSway = _weaponDefinition != null ? _weaponDefinition.BaseAdsSwayScale : 1f;
 
             var sensitivityCurve = Mathf.Max(0.01f, _sensitivityScaleByMagnification.Evaluate(CurrentMagnification));
+            var pipPrecisionCurve = Mathf.Max(0.01f, _pipPrecisionScaleByMagnification.Evaluate(CurrentMagnification));
             var swayCurve = Mathf.Max(0.01f, _swayScaleByMagnification.Evaluate(CurrentMagnification));
 
             var targetAdsSensitivity = baseSensitivity * sensitivityCurve;
+            // PiP scopes keep the gameplay FOV fixed, so they need a dedicated precision path.
+            var targetPipPrecision = usePipPrecision ? pipPrecisionCurve : 1f;
             var targetAdsSway = baseSway * swayCurve;
             CurrentSensitivityScale = Mathf.Lerp(1f, targetAdsSensitivity, AdsT);
+            CurrentPipPrecisionScale = Mathf.Lerp(1f, targetPipPrecision, AdsT);
             CurrentSwayScale = Mathf.Lerp(1f, targetAdsSway, AdsT);
         }
 
@@ -376,6 +460,23 @@ namespace Reloader.Game.Weapons
 
             var useMask = ResolveMaskMode(policy, CurrentMagnification);
             var adsVisible = AdsT > 0.01f;
+            var scopedOpticsSettings = ResolveScopedOpticsSettings();
+            var usePip = adsVisible
+                && !IsShotCameraActive()
+                && policy == AdsVisualMode.RenderTexturePiP;
+            var pipResolutionMin = ResolveScopedOpticsMinPipResolutionPercent();
+            var pipResolutionMax = ResolveScopedOpticsMaxPipResolutionPercent();
+            var peripheralBlurMin = ResolveScopedOpticsMinPeripheralBlurPercent();
+            var peripheralBlurMax = ResolveScopedOpticsMaxPeripheralBlurPercent();
+            var pipResolutionPercent = Mathf.Clamp(
+                scopedOpticsSettings.PipResolutionPercent,
+                pipResolutionMin,
+                pipResolutionMax);
+            var peripheralBlurPercent = Mathf.Clamp(
+                scopedOpticsSettings.PeripheralBlurPercent,
+                peripheralBlurMin,
+                peripheralBlurMax);
+            var normalizedPeripheralBlur = peripheralBlurPercent / 100f;
 
             if (_scopeMaskController != null)
             {
@@ -383,9 +484,21 @@ namespace Reloader.Game.Weapons
                 _scopeMaskController.SetState(adsVisible && useMask, CurrentMagnification, AdsT);
             }
 
+            if (_peripheralScopeEffects != null)
+            {
+                _peripheralScopeEffects.SetState(usePip, AdsT, normalizedPeripheralBlur);
+            }
+            else
+            {
+                PeripheralScopeBlurRuntimeState.Reset();
+            }
+
+            ScopedPeripheralWorldRenderScaleRuntime.Apply(usePip, normalizedPeripheralBlur);
+
             if (_renderTextureScopeController != null)
             {
-                var usePip = adsVisible && policy == AdsVisualMode.RenderTexturePiP;
+                _renderTextureScopeController.SetScopedPipResolutionPercent(pipResolutionPercent);
+                _renderTextureScopeController.SetApertureCamera(_viewmodelCamera != null ? _viewmodelCamera : _worldCamera);
                 var scopeReferenceFov = _baseWorldFov;
                 var scopeMagnification = Mathf.Max(MinMagnification, CurrentMagnification);
                 var activeOpticInstance = _attachmentManager != null ? _attachmentManager.ActiveOpticInstance : null;
@@ -400,11 +513,6 @@ namespace Reloader.Game.Weapons
                     scopeMagnification,
                     windageClicks,
                     elevationClicks);
-
-                if (_peripheralScopeEffects != null)
-                {
-                    _peripheralScopeEffects.SetState(usePip, AdsT);
-                }
             }
 
             UpdateScopeAdjustmentTooltip(
@@ -550,6 +658,340 @@ namespace Reloader.Game.Weapons
             return optic != null && optic.VisualModePolicy == AdsVisualMode.RenderTexturePiP;
         }
 
+        private ScopedOpticsSettings ResolveScopedOpticsSettings()
+        {
+            if (_hasResolvedScopedOpticsSettingsSource == false)
+            {
+                _scopedOpticsSettingsSourceType = ResolveType(ScopedOpticsSettingsSourceTypeName);
+                _scopedOpticsSettingsSnapshotType = ResolveType(ScopedOpticsSettingsSnapshotTypeName);
+                _scopedOpticsSettingsContractType = ResolveType(ScopedOpticsSettingsContractTypeName);
+                _scopedOpticsSettingsSource = ResolveScopedOpticsSettingsSource(_scopedOpticsSettingsSourceType);
+                _hasResolvedScopedOpticsSettingsSource = true;
+                ScheduleScopedOpticsSettingsSourceLookupRetry(_scopedOpticsSettingsSource);
+            }
+            else if (_scopedOpticsSettingsSourceType != null
+                && Time.frameCount >= _nextScopedOpticsSettingsSourceLookupFrame)
+            {
+                _scopedOpticsSettingsSource = ResolveScopedOpticsSettingsSource(_scopedOpticsSettingsSourceType);
+                ScheduleScopedOpticsSettingsSourceLookupRetry(_scopedOpticsSettingsSource);
+            }
+
+            var minPip = ResolveScopedOpticsMinPipResolutionPercent();
+            var maxPip = ResolveScopedOpticsMaxPipResolutionPercent();
+            var minBlur = ResolveScopedOpticsMinPeripheralBlurPercent();
+            var maxBlur = ResolveScopedOpticsMaxPeripheralBlurPercent();
+            var source = _scopedOpticsSettingsSource;
+            var fallback = new ScopedOpticsSettings(
+                ReadIntegerSettingFromPlayerPrefs(ScopedPipResolutionPlayerPrefKey, FallbackScopedPipResolutionPercent, minPip, maxPip),
+                ReadIntegerSettingFromPlayerPrefs(PeripheralBlurPlayerPrefKey, FallbackPeripheralBlurPercent, minBlur, maxBlur));
+
+            if (source == null || _scopedOpticsSettingsSourceType == null)
+            {
+                return fallback;
+            }
+
+            var settingsFromSource = TryGetSettingsFromSource(
+                source,
+                _scopedOpticsSettingsSourceType,
+                _scopedOpticsSettingsSnapshotType,
+                fallback);
+
+            if (settingsFromSource != null)
+            {
+                return settingsFromSource.Value;
+            }
+
+            var pipPercent = ReadIntegerSettingFromSource(
+                source,
+                _scopedOpticsSettingsSourceType,
+                "GetScopedPipResolutionPercent",
+                fallback.PipResolutionPercent);
+            var blurPercent = ReadIntegerSettingFromSource(
+                source,
+                _scopedOpticsSettingsSourceType,
+                "GetPeripheralBlurPercent",
+                fallback.PeripheralBlurPercent);
+
+            return new ScopedOpticsSettings(
+                Mathf.Clamp(pipPercent, minPip, maxPip),
+                Mathf.Clamp(blurPercent, minBlur, maxBlur));
+        }
+
+        private void ScheduleScopedOpticsSettingsSourceLookupRetry(object source)
+        {
+            if (source != null)
+            {
+                _nextScopedOpticsSettingsSourceLookupFrame = Time.frameCount + ScopedOpticsSettingsSourceInitialRetryFrameInterval;
+                _scopedOpticsSettingsSourceRetryFrameInterval = ScopedOpticsSettingsSourceInitialRetryFrameInterval;
+                return;
+            }
+
+            _nextScopedOpticsSettingsSourceLookupFrame = Time.frameCount + _scopedOpticsSettingsSourceRetryFrameInterval;
+            _scopedOpticsSettingsSourceRetryFrameInterval = Mathf.Min(
+                _scopedOpticsSettingsSourceRetryFrameInterval * 2,
+                ScopedOpticsSettingsSourceMaxRetryFrameInterval);
+        }
+
+        private object ResolveScopedOpticsSettingsSource(Type sourceType)
+        {
+            if (sourceType == null)
+            {
+                return null;
+            }
+
+            var settingsObjects = Resources.FindObjectsOfTypeAll<MonoBehaviour>();
+            if (settingsObjects == null || settingsObjects.Length == 0)
+            {
+                return null;
+            }
+
+            for (var i = 0; i < settingsObjects.Length; i++)
+            {
+                var candidate = settingsObjects[i];
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                if (sourceType.IsInstanceOfType(candidate))
+                {
+                    return candidate;
+                }
+
+                var providerFromMember = ResolveScopedOpticsSettingsSourceFromMembers(candidate, sourceType);
+                if (providerFromMember != null)
+                {
+                    return providerFromMember;
+                }
+            }
+
+            return null;
+        }
+
+        private static object ResolveScopedOpticsSettingsSourceFromMembers(object host, Type sourceType)
+        {
+            if (host == null || sourceType == null)
+            {
+                return null;
+            }
+
+            var hostType = host.GetType();
+            var flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            var fields = hostType.GetFields(flags);
+            for (var i = 0; i < fields.Length; i++)
+            {
+                object value;
+                try
+                {
+                    value = fields[i].GetValue(host);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (value != null && sourceType.IsInstanceOfType(value))
+                {
+                    return value;
+                }
+            }
+
+            var properties = hostType.GetProperties(flags);
+            for (var i = 0; i < properties.Length; i++)
+            {
+                var property = properties[i];
+                if (!property.CanRead || property.GetIndexParameters().Length != 0)
+                {
+                    continue;
+                }
+
+                object value;
+                try
+                {
+                    value = property.GetValue(host, null);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (value != null && sourceType.IsInstanceOfType(value))
+                {
+                    return value;
+                }
+            }
+
+            return null;
+        }
+
+        private ScopedOpticsSettings? TryGetSettingsFromSource(
+            object source,
+            Type sourceType,
+            Type snapshotType,
+            ScopedOpticsSettings fallback)
+        {
+            if (snapshotType == null)
+            {
+                return null;
+            }
+
+            var snapshotMethod = sourceType.GetMethod("GetScopedOpticsSettingsSnapshot", BindingFlags.Instance | BindingFlags.Public);
+            if (snapshotMethod == null || snapshotMethod.ReturnType != snapshotType || snapshotMethod.GetParameters().Length != 0)
+            {
+                return null;
+            }
+
+            object snapshot;
+            try
+            {
+                snapshot = snapshotMethod.Invoke(source, null);
+            }
+            catch (TargetInvocationException ex)
+            {
+                Debug.LogWarning($"AdsStateController: Unable to read scoped optics snapshot from source contract. {ex.InnerException?.Message}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"AdsStateController: Unable to read scoped optics snapshot from source contract. {ex.Message}");
+                return null;
+            }
+
+            if (snapshot == null)
+            {
+                return null;
+            }
+
+            var pipProperty = snapshotType.GetProperty("PipResolutionPercent", BindingFlags.Instance | BindingFlags.Public);
+            var blurProperty = snapshotType.GetProperty("PeripheralBlurPercent", BindingFlags.Instance | BindingFlags.Public);
+            if (pipProperty == null || blurProperty == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                var pipPercent = Convert.ToInt32(pipProperty.GetValue(snapshot, null));
+                var blurPercent = Convert.ToInt32(blurProperty.GetValue(snapshot, null));
+                return new ScopedOpticsSettings(
+                    Mathf.Clamp(
+                        pipPercent,
+                        ResolveScopedOpticsMinPipResolutionPercent(),
+                        ResolveScopedOpticsMaxPipResolutionPercent()),
+                    Mathf.Clamp(
+                        blurPercent,
+                        ResolveScopedOpticsMinPeripheralBlurPercent(),
+                        ResolveScopedOpticsMaxPeripheralBlurPercent()));
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"AdsStateController: Unable to parse scoped optics snapshot values. {ex.Message}");
+                return null;
+            }
+        }
+
+        private int ReadIntegerSettingFromSource(object source, Type sourceType, string methodName, int fallback)
+        {
+            try
+            {
+                var method = sourceType.GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public);
+                if (method == null || method.ReturnType != typeof(int) || method.GetParameters().Length != 0)
+                {
+                    return fallback;
+                }
+
+                return Convert.ToInt32(method.Invoke(source, null));
+            }
+            catch (TargetInvocationException ex)
+            {
+                Debug.LogWarning($"AdsStateController: Failed to read {methodName} from scoped optics source. {ex.InnerException?.Message}");
+                return fallback;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"AdsStateController: Failed to read {methodName} from scoped optics source. {ex.Message}");
+                return fallback;
+            }
+        }
+
+        private static int ReadIntegerSettingFromPlayerPrefs(string key, int fallback, int minValue, int maxValue)
+        {
+            return Mathf.Clamp(PlayerPrefs.GetInt(key, fallback), minValue, maxValue);
+        }
+
+        private static Type ResolveType(string fullyQualifiedTypeName)
+        {
+            var type = Type.GetType(fullyQualifiedTypeName);
+            if (type != null)
+            {
+                return type;
+            }
+
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                type = assembly.GetType(fullyQualifiedTypeName);
+                if (type != null)
+                {
+                    return type;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool IsShotCameraActive()
+        {
+            if (s_shotCameraIsActiveProperty == null)
+            {
+                s_shotCameraIsActiveProperty = ResolveType(ShotCameraGameplayStateTypeName)?.GetProperty(
+                    "IsActive",
+                    BindingFlags.Public | BindingFlags.Static);
+            }
+
+            return s_shotCameraIsActiveProperty?.GetValue(null) is true;
+        }
+
+        private int ResolveScopedOpticsMinPipResolutionPercent()
+        {
+            return _scopedOpticsSettingsContractType != null
+                ? ReadContractInt(_scopedOpticsSettingsContractType, "MinPipResolutionPercent", ScopedOpticsSettingsMinPipResolutionPercent)
+                : ScopedOpticsSettingsMinPipResolutionPercent;
+        }
+
+        private int ResolveScopedOpticsMaxPipResolutionPercent()
+        {
+            return _scopedOpticsSettingsContractType != null
+                ? ReadContractInt(_scopedOpticsSettingsContractType, "MaxPipResolutionPercent", ScopedOpticsSettingsMaxPipResolutionPercent)
+                : ScopedOpticsSettingsMaxPipResolutionPercent;
+        }
+
+        private int ResolveScopedOpticsMinPeripheralBlurPercent()
+        {
+            return _scopedOpticsSettingsContractType != null
+                ? ReadContractInt(_scopedOpticsSettingsContractType, "MinPeripheralBlurPercent", ScopedOpticsSettingsMinPeripheralBlurPercent)
+                : ScopedOpticsSettingsMinPeripheralBlurPercent;
+        }
+
+        private int ResolveScopedOpticsMaxPeripheralBlurPercent()
+        {
+            return _scopedOpticsSettingsContractType != null
+                ? ReadContractInt(_scopedOpticsSettingsContractType, "MaxPeripheralBlurPercent", ScopedOpticsSettingsMaxPeripheralBlurPercent)
+                : ScopedOpticsSettingsMaxPeripheralBlurPercent;
+        }
+
+        private static int ReadContractInt(Type contractType, string fieldName, int fallback)
+        {
+            try
+            {
+                var field = contractType.GetField(fieldName, BindingFlags.Public | BindingFlags.Static);
+                return field == null ? fallback : Convert.ToInt32(field.GetValue(null));
+            }
+            catch (Exception)
+            {
+                return fallback;
+            }
+        }
+
         private void UpdateScopeAdjustmentTooltip(bool isVisible, ScopeAdjustmentController controller)
         {
             if (_scopeAdjustmentTooltipOverlay == null)
@@ -659,6 +1101,18 @@ namespace Reloader.Game.Weapons
             }
 
             return Mathf.Clamp(optic.ClampMagnification(requested), MinMagnification, MaxMagnification);
+        }
+
+        private readonly struct ScopedOpticsSettings
+        {
+            public ScopedOpticsSettings(int pipResolutionPercent, int peripheralBlurPercent)
+            {
+                PipResolutionPercent = pipResolutionPercent;
+                PeripheralBlurPercent = peripheralBlurPercent;
+            }
+
+            public int PipResolutionPercent { get; }
+            public int PeripheralBlurPercent { get; }
         }
     }
 }

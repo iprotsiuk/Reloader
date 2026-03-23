@@ -366,6 +366,16 @@ namespace Reloader.Inventory
             SelectedBeltIndex = beltIndex;
         }
 
+        public void ClearSelectedBeltSlot()
+        {
+            if (SelectedBeltIndex < 0)
+            {
+                return;
+            }
+
+            SelectedBeltIndex = -1;
+        }
+
         public void ClearCarriedItems()
         {
             for (var i = 0; i < BeltSlotCount; i++)

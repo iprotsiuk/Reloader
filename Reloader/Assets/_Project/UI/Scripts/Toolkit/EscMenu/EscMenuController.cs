@@ -177,6 +177,34 @@ namespace Reloader.UI.Toolkit.EscMenu
                 return;
             }
 
+            if (intent.Key == "esc.menu.settings.game.look-sensitivity.changed" && TryGetFloat(intent.Payload, out var lookSensitivity))
+            {
+                ResolveSettingsStore().SetLookSensitivity(lookSensitivity);
+                Refresh();
+                return;
+            }
+
+            if (intent.Key == "esc.menu.settings.game.ads-sensitivity.changed" && TryGetFloat(intent.Payload, out var adsSensitivity))
+            {
+                ResolveSettingsStore().SetAdsSensitivity(adsSensitivity);
+                Refresh();
+                return;
+            }
+
+            if (intent.Key == "esc.menu.settings.video.scoped-pip-resolution.changed" && TryGetFloat(intent.Payload, out var pipResolutionPercent))
+            {
+                ResolveSettingsStore().SetScopedPipResolutionPercent(Mathf.RoundToInt(pipResolutionPercent));
+                Refresh();
+                return;
+            }
+
+            if (intent.Key == "esc.menu.settings.video.peripheral-blur.changed" && TryGetFloat(intent.Payload, out var peripheralBlurPercent))
+            {
+                ResolveSettingsStore().SetPeripheralBlurPercent(Mathf.RoundToInt(peripheralBlurPercent));
+                Refresh();
+                return;
+            }
+
             if (intent.Key == "esc.menu.settings.audio.global.changed" && TryGetFloat(intent.Payload, out var globalVolume))
             {
                 ResolveSettingsStore().SetGlobalVolume(globalVolume);
@@ -221,6 +249,10 @@ namespace Reloader.UI.Toolkit.EscMenu
                 resolutionOptions: snapshot.ResolutionOptions,
                 selectedResolutionIndex: snapshot.SelectedResolutionIndex,
                 fov: snapshot.Fov,
+                lookSensitivity: snapshot.LookSensitivity,
+                adsSensitivity: snapshot.AdsSensitivity,
+                scopedPipResolutionPercent: snapshot.ScopedPipResolutionPercent,
+                peripheralBlurPercent: snapshot.PeripheralBlurPercent,
                 globalVolume: snapshot.GlobalVolume,
                 musicVolume: snapshot.MusicVolume,
                 soundsVolume: snapshot.SoundsVolume));

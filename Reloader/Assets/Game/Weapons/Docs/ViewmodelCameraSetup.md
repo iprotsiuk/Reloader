@@ -2,7 +2,7 @@
 
 This setup uses a strict two-camera FPS pipeline:
 - `WorldCamera`: renders world geometry.
-- `ViewmodelCamera`: renders only weapon/arms on `Viewmodel` layer.
+- `ViewmodelCamera`: renders only weapon/arms on `Viewmodel` layer and shares the `CameraPivot` presentation basis with `PlayerArms` and `WeaponPresentationRoot`.
 - `ScopeCamera`: renders PiP scope imagery and must exclude `Viewmodel`.
 
 ADS alignment is camera-driven:
@@ -21,6 +21,7 @@ ADS alignment is camera-driven:
 - Depth: higher than `WorldCamera`.
 - Near clip: small (for weapon clipping safety).
 - FOV: from `WeaponDefinition.defaultViewmodelFov`.
+- Parent: `CameraPivot`, not `WorldCamera`.
 
 3. Put weapon and arms meshes on `Viewmodel` layer.
 
@@ -33,6 +34,7 @@ ADS alignment is camera-driven:
 
 Strict rule:
 - if `ScopeCamera` renders `Viewmodel`, the PiP setup is broken
+- if stable magnified ADS has more than one live transform owner for the scoped solve, scoped jitter is expected
 
 ## 2. Required Weapon Prefab Layout
 
@@ -88,6 +90,8 @@ For PiP optics also author:
 - `AttachmentManager` -> same object reference
 - `AdsStateController` -> same object reference
 - applies `OpticDefinition.eyeReliefBackOffset`
+- stable magnified ADS is a hold state; do not keep rewriting `AdsPivot` every frame during that state unless parent-chain ownership has been redesigned and revalidated
+- `ViewmodelCamera` should stay on the shared `CameraPivot` basis so the weapon root and viewmodel camera resolve from the same presentation frame
 
 `RenderTextureScopeController`
 - `ScopeCamera` -> dedicated scope camera
@@ -219,9 +223,37 @@ Current adjustment-state note:
 - `WeaponAimAligner` gizmos show camera axis, sight axis, and error line.
 - Error decreases to near zero when fully ADS.
 
-## 9. PiP Note
+## 9. Scoped Jitter Guardrail
+
+Regression recorded on `2026-03-19`:
+- rewriting `AdsPivot.localPosition/localRotation` every `LateUpdate` during already-stable magnified ADS reintroduced the scoped vibration bug
+- the change was reverted in commit `307bbfa8`
+
+Why it happened:
+- the scoped weapon parent chain can still move slightly from camera/body turn, viewmodel-root stabilization, and hand-rig updates
+- making `WeaponAimAligner` a continuous writer again caused the child scoped solve to fight those parent-chain systems
+
+Practical rule:
+- once magnified scoped ADS reaches its held state, do not add another continuous corrective writer to `AdsPivot` as a local fix for perceived drift
+- investigate the upstream parent-chain motion instead
+
+If scoped turning looks chunky or double-driven:
+1. check whether the rifle parent chain is still being moved during held ADS
+2. check `FpsViewmodelAnimatorDriver` and `WeaponHandRigController` timing before touching `WeaponAimAligner`
+3. validate any attempted fix in live runtime with camera turn + PiP active, not only in a seam test
+
+## 10. PiP Note
 
 `RenderTextureScopeController` is the PiP scope-image owner:
 - enabled only while ADS and when optic policy is `RenderTexturePiP`
 - owns scope-camera FOV and render-texture binding
 - depends on explicit optic prefab authoring (`SightAnchor`, `ScopeLensDisplay`, reticle wiring when needed)
+
+Current scoped render-quality runtime contract:
+- `Scoped PiP Resolution %` is a percentage of native screen baseline:
+  - `100` equals the current native/current-game square baseline, taken from the larger effective screen dimension
+  - `10` to `400` scales linearly from that baseline for all PiP optics unless profile overrides exist
+- `Peripheral Blur %` controls peripheral suppression while scoped PiP is active:
+  - increasing it increases vignette strength and shrinks the clear center
+  - world resolution is also downscaled proportionally as a low-cost fallback tradeoff while PiP is active
+  - this is intentionally not a full-screen effect pass yet; it is the progressive path for future blur quality tuning

@@ -83,7 +83,7 @@ namespace Reloader.Core.Persistence
                         continue;
                     }
 
-                    if (runtimeSpawnRestorer(scene, savedRecord))
+                    if (runtimeSpawnRestorer(scene, CloneRecord(savedRecord)))
                     {
                         existingObjectIds.Add(savedRecord.ObjectId);
                         appliedCount++;
@@ -136,6 +136,23 @@ namespace Reloader.Core.Persistence
             {
                 identity.gameObject.SetActive(false);
             }
+        }
+
+        private static WorldObjectStateRecord CloneRecord(WorldObjectStateRecord source)
+        {
+            return new WorldObjectStateRecord
+            {
+                ObjectId = source.ObjectId,
+                Consumed = source.Consumed,
+                Destroyed = source.Destroyed,
+                HasTransformOverride = source.HasTransformOverride,
+                Position = source.Position,
+                Rotation = source.Rotation,
+                LastUpdatedDay = source.LastUpdatedDay,
+                ItemInstanceId = source.ItemInstanceId,
+                ItemDefinitionId = source.ItemDefinitionId,
+                StackQuantity = source.StackQuantity
+            };
         }
     }
 }

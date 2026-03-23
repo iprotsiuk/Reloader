@@ -20,7 +20,10 @@ Use this skill for local runtime cleanup. Keep the run small, test-backed, and i
 - Start from touched code and touched tests first.
 - Do not begin with repo-wide scans, docs sweeps, or rules/skills/plans for runtime-local work.
 - Tests are in scope. If no nearby test exists, add the smallest local regression coverage that matches the seam.
-- Prefer deletion, inlining, and simplification over new abstraction.
+- Prefer deletion, inlining, simplification, and single-path cutovers over new abstraction.
+- Do not keep old and new behavior alive in parallel unless the user explicitly asks for compatibility.
+- Do not add fallback branches, adapters, wrappers, shims, or silent error suppression to avoid deleting obsolete code.
+- Remove stale helpers and legacy tests once the replacement seam is verified.
 - If the work crosses save, events, persistence, or another domain, stop and reclassify the task.
 
 ## Discovery
@@ -43,3 +46,4 @@ Use this skill for local runtime cleanup. Keep the run small, test-backed, and i
 - Tests covered the touched seam
 - No scene, prefab, or editor-state changes slipped in
 - No new abstraction replaced a simpler deletion or collapse
+- No hidden fallback or compatibility branch survived without an explicit requirement

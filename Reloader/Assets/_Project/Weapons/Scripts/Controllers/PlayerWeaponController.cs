@@ -5,6 +5,17 @@ using Reloader.Core.Runtime;
 using Reloader.Audio;
 using Reloader.Inventory;
 using Reloader.Player;
+using GameAdsStateController = Reloader.Game.Weapons.AdsStateController;
+using GameAdsVisualMode = Reloader.Game.Weapons.AdsVisualMode;
+using GameAttachmentManager = Reloader.Game.Weapons.AttachmentManager;
+using GameDetachableMagazineRuntime = Reloader.Game.Weapons.DetachableMagazineRuntime;
+using GameMuzzleAttachmentDefinition = Reloader.Game.Weapons.MuzzleAttachmentDefinition;
+using GameMuzzleAttachmentRuntime = Reloader.Game.Weapons.MuzzleAttachmentRuntime;
+using GameOpticDefinition = Reloader.Game.Weapons.OpticDefinition;
+using GamePeripheralScopeEffects = Reloader.Game.Weapons.PeripheralScopeEffects;
+using GameRenderTextureScopeController = Reloader.Game.Weapons.RenderTextureScopeController;
+using GameScopeAdjustmentTooltipOverlay = Reloader.Game.Weapons.ScopeAdjustmentTooltipOverlay;
+using GameWeaponDefinition = Reloader.Game.Weapons.WeaponDefinition;
 using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.Cinematics;
 using Reloader.Weapons.Data;
@@ -16,10 +27,6 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using URandom = UnityEngine.Random;
 using UObject = UnityEngine.Object;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
 namespace Reloader.Weapons.Controllers
 {
     [System.Serializable]
@@ -94,17 +101,16 @@ namespace Reloader.Weapons.Controllers
         private const float DefaultFov = 60f;
         private const float ScopedPresentationEnterAdsBlendT = 0.999f;
         private const float ScopedPresentationExitAdsBlendT = 0.95f;
-        private const string CameraPivotName = "CameraPivot";
-        private const string PlayerArmsRootName = "PlayerArms";
-        private const string WeaponPresentationRootName = "WeaponPresentationRoot";
-
+        private const string ScopedAdsCameraName = "ScopeCamera";
         [SerializeField] private MonoBehaviour _inputSourceBehaviour;
         [SerializeField] private PlayerInventoryController _inventoryController;
         [SerializeField] private WeaponRegistry _weaponRegistry;
         [SerializeField] private WeaponProjectile _projectilePrefab;
         [SerializeField] private Transform _muzzleTransform;
         [SerializeField] private PlayerCameraDefaults _cameraDefaults;
-        [SerializeField] private Camera _adsCamera;
+        [SerializeField] private Camera _scopeCamera;
+        [SerializeField] private Transform _cameraPivot;
+        [SerializeField] private Transform _viewmodelRoot;
         [SerializeField] private Animator _packAnimator;
         [SerializeField] private WeaponCombatAudioEmitter _combatAudioEmitter;
         [SerializeField] private PackWeaponPresentationConfig _packPresentationConfig = new PackWeaponPresentationConfig();
@@ -132,23 +138,20 @@ namespace Reloader.Weapons.Controllers
         private float _baseCameraFieldOfView = DefaultFov;
         private bool _baseCameraFieldOfViewCaptured;
         private Camera _cachedAdsCamera;
-        private bool _pendingUnequipFovBaselineRestore;
-        private Transform _defaultMuzzleTransform;
+        private Camera _boundScopedAdsWorldCamera;
+        private Camera _boundScopedAdsViewmodelCamera;
+        private Camera _boundScopedAdsScopeCamera;
         private GameObject _equippedWeaponView;
+        private WeaponViewAttachmentMounts _equippedViewMounts;
         private bool _activationResyncReady;
-        private Component _adsStateRuntimeBridge;
-        private Component _adsAttachmentManagerRuntimeBridge;
-        private Component _weaponAimAlignerRuntimeBridge;
+        private GameAdsStateController _adsStateRuntimeBridge;
+        private GameAttachmentManager _adsAttachmentManagerRuntimeBridge;
+        private GameRenderTextureScopeController _renderTextureScopeRuntimeBridge;
+        private GamePeripheralScopeEffects _peripheralScopeEffectsRuntimeBridge;
+        private GameScopeAdjustmentTooltipOverlay _scopeAdjustmentTooltipRuntimeBridge;
+        private WeaponAimAligner _weaponAimAlignerRuntimeBridge;
         private PlayerLookController _playerLookControllerRuntimeBridge;
         private FpsViewmodelAnimatorDriver _viewmodelAnimatorDriver;
-        private float _scopedAdsPresentationEyeReliefOffset;
-        private PropertyInfo _adsActiveOpticProperty;
-        private PropertyInfo _adsBlendProperty;
-        private PropertyInfo _adsCurrentSensitivityScaleProperty;
-        private MethodInfo _adsSetHeldMethod;
-        private MethodInfo _adsSetMagnificationMethod;
-        private MethodInfo _adsApplyScopeAdjustmentInputMethod;
-        private PropertyInfo _adsCurrentMagnificationProperty;
         private float _cachedScopeMagnification = 1f;
         private string _pendingEquipItemId;
         private WeaponDefinition _pendingEquipDefinition;
@@ -161,9 +164,7 @@ namespace Reloader.Weapons.Controllers
         private readonly HashSet<int> _shotCameraSuppressedRendererIds = new HashSet<int>();
         private readonly HashSet<int> _shotCameraSuppressedCameraIds = new HashSet<int>();
         private bool _isShotCameraPresentationSuppressed;
-        private bool _isScopedViewmodelAnimatorFrozen;
         private bool _isStableMagnifiedScopedAds;
-        private float _scopedViewmodelAnimatorPreviousSpeed = 1f;
         private string _appliedScopeAttachmentItemId = string.Empty;
         private string _appliedMuzzleAttachmentItemId = string.Empty;
         private static readonly Bounds ViewmodelSkinnedBounds = new Bounds(Vector3.zero, new Vector3(8f, 8f, 8f));
@@ -172,6 +173,9 @@ namespace Reloader.Weapons.Controllers
         private static bool s_attemptedDevTraceObserverResolution;
         public string EquippedItemId => _equippedItemId;
         public Transform EquippedWeaponViewTransform => _equippedWeaponView != null ? _equippedWeaponView.transform : null;
+        public Animator PackAnimator => _packAnimator;
+        public Transform ViewmodelRoot => _viewmodelRoot;
+        public Transform WeaponViewParent => _weaponViewParent;
         public bool IsAiming => _isAiming;
         public bool IsAimInputHeld => _inputSource != null && _inputSource.AimHeld;
         public float CurrentAdsBlendT => ResolveCurrentAdsBlendT();
@@ -179,7 +183,6 @@ namespace Reloader.Weapons.Controllers
         private void Awake()
         {
             ResolveReferences();
-            _defaultMuzzleTransform = _muzzleTransform;
             RefreshPackRenderers();
             SetArmsVisible(false);
         }
@@ -227,6 +230,8 @@ namespace Reloader.Weapons.Controllers
             UpdateEquipFromSelection();
             EnsureEquippedViewMatchesRuntimeState();
             SyncEquippedReserveFromInventory();
+            UpdateStableMagnifiedScopedAdsState();
+            SyncScopedViewmodelStabilization();
             if (_inputSource == null)
             {
                 if (_allowSceneWideDependencyLookup)
@@ -241,7 +246,6 @@ namespace Reloader.Weapons.Controllers
             }
 
             TickPackPresentation();
-            SyncScopedViewmodelStabilization();
             TickReloadCancellation();
             TickReloadCompletion();
             TickFire();
@@ -310,11 +314,6 @@ namespace Reloader.Weapons.Controllers
             }
 
             state.SetAmmoCounts(magazineCount, reserveCount, chamberLoaded);
-            if (string.Equals(_equippedItemId, normalizedItemId, StringComparison.Ordinal))
-            {
-                ResyncEquippedViewFromRuntimeState(state, rebuildView: _equippedWeaponView == null);
-            }
-
             return true;
         }
 
@@ -364,18 +363,6 @@ namespace Reloader.Weapons.Controllers
                 foreach (var entry in equippedAttachmentItemIdsBySlot)
                 {
                     state.SetEquippedAttachmentItemId(entry.Key, entry.Value);
-                }
-            }
-
-            if (string.Equals(_equippedItemId, normalizedItemId, StringComparison.Ordinal))
-            {
-                if (_equippedWeaponView == null)
-                {
-                    ResyncEquippedViewFromRuntimeState(state, rebuildView: true);
-                }
-                else
-                {
-                    ApplyEquippedAttachmentStateToViewRuntime(state);
                 }
             }
 
@@ -513,16 +500,35 @@ namespace Reloader.Weapons.Controllers
                 _weaponRegistry = FindFirstObjectByType<WeaponRegistry>();
             }
 
-            if (_muzzleTransform == null)
-            {
-                _muzzleTransform = transform;
-            }
-
-            _defaultMuzzleTransform ??= _muzzleTransform;
-
             if (_cameraDefaults == null)
             {
                 _cameraDefaults = GetComponent<PlayerCameraDefaults>();
+            }
+
+            if (_cameraDefaults != null)
+            {
+                if (!IsReferenceOnPlayerHierarchy(_cameraPivot) && _cameraDefaults.TryGetCameraPivot(out var cameraPivot))
+                {
+                    _cameraPivot = cameraPivot;
+                }
+
+                if (!IsReferenceOnPlayerHierarchy(_viewmodelRoot) && _cameraDefaults.TryGetPlayerArmsRoot(out var viewmodelRootFromDefaults))
+                {
+                    _viewmodelRoot = viewmodelRootFromDefaults;
+                }
+
+                if (!IsReferenceOnPlayerHierarchy(_packAnimator != null ? _packAnimator.transform : null)
+                    && _cameraDefaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator))
+                {
+                    _packAnimator = playerArmsAnimator;
+                    RefreshPackRenderers();
+                }
+
+                if (!IsWeaponViewParentUsable(_weaponViewParent)
+                    && _cameraDefaults.TryGetWeaponPresentationRoot(out var weaponPresentationRoot))
+                {
+                    _weaponViewParent = weaponPresentationRoot;
+                }
             }
 
             _playerLookControllerRuntimeBridge ??= GetComponent<PlayerLookController>();
@@ -542,16 +548,12 @@ namespace Reloader.Weapons.Controllers
 
             if (!IsWeaponViewParentUsable(_weaponViewParent))
             {
-                _weaponViewParent = ResolveDefaultWeaponViewParent(viewmodelRoot);
+                _weaponViewParent = null;
             }
 
             if (_shotCameraRuntimeBehaviour == null && _shotCameraSettings.Enabled)
             {
                 _shotCameraRuntimeBehaviour = GetComponent<ShotCameraRuntime>();
-                if (_shotCameraRuntimeBehaviour == null)
-                {
-                    _shotCameraRuntimeBehaviour = gameObject.AddComponent<ShotCameraRuntime>();
-                }
             }
 
             if (_shotCameraRuntimeBehaviour is ShotCameraRuntime shotCameraRuntime)
@@ -560,6 +562,7 @@ namespace Reloader.Weapons.Controllers
             }
 
             _shotCameraRuntime = _shotCameraRuntimeBehaviour as IShotCameraRuntime;
+            RefreshScopedAdsRuntimeBridge();
         }
 
         private void ResyncAfterActivation()
@@ -653,17 +656,12 @@ namespace Reloader.Weapons.Controllers
                 CancelReload(previousItemId, WeaponReloadCancelReason.Unequip);
                 if (_packDriversByItemId.TryGetValue(previousItemId, out var previousDriver) && previousDriver != null)
                 {
-                    _pendingUnequipFovBaselineRestore =
-                        previousDriver.State.IsAiming || Mathf.Abs(previousDriver.State.AimFovVelocity) > 0.01f;
                     previousDriver.SetEquipped(false);
                 }
             }
 
             DestroyEquippedWeaponView();
-            if (_defaultMuzzleTransform != null)
-            {
-                _muzzleTransform = _defaultMuzzleTransform;
-            }
+            _muzzleTransform = null;
 
             _equippedItemId = itemId;
             _equippedDefinition = definition;
@@ -694,8 +692,10 @@ namespace Reloader.Weapons.Controllers
 
             state.IsEquipped = true;
             ResyncEquippedViewFromRuntimeState(state, rebuildView: true);
-            GetOrCreatePackDriver(_equippedItemId).SetEquipped(true);
+            var packDriver = GetOrCreatePackDriver(_equippedItemId);
+            packDriver.SetEquipped(true);
             ResolveWeaponEvents()?.RaiseWeaponEquipped(_equippedItemId);
+            packDriver.SetEquipped(true);
         }
 
         private void ProcessPendingEquip()
@@ -735,18 +735,7 @@ namespace Reloader.Weapons.Controllers
 
             if (_equippedWeaponView == null)
             {
-                ResyncEquippedViewFromRuntimeState(state, rebuildView: true);
                 return;
-            }
-
-            if (ShouldRepairScopedRuntimePresentation(
-                    !string.IsNullOrWhiteSpace(state.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope)),
-                    _adsStateRuntimeBridge != null,
-                    _adsAttachmentManagerRuntimeBridge != null,
-                    _weaponAimAlignerRuntimeBridge != null,
-                    HasActiveScopedAdsAlignment))
-            {
-                _appliedScopeAttachmentItemId = string.Empty;
             }
 
             ApplyEquippedAttachmentStateToViewRuntime(state);
@@ -874,8 +863,8 @@ namespace Reloader.Weapons.Controllers
             CaptureAndDisableRenderers(_equippedWeaponView != null ? _equippedWeaponView.GetComponentsInChildren<Renderer>(true) : System.Array.Empty<Renderer>());
 
             var worldCamera = ResolveAdsCamera();
-            CaptureAndDisableCamera(ResolveViewmodelCamera(worldCamera));
-            CaptureAndDisableCamera(worldCamera != null ? worldCamera.transform.Find("ScopeCamera")?.GetComponent<Camera>() : null);
+            CaptureAndDisableCamera(ResolveRuntimeViewmodelCamera(worldCamera));
+            CaptureAndDisableCamera(ResolveScopedAdsCamera(worldCamera));
         }
 
         private void RestoreShotCameraPresentation()
@@ -963,6 +952,11 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
+            if (_muzzleTransform == null)
+            {
+                return;
+            }
+
             if (!state.TryFire(Time.time, out var fireData))
             {
                 return;
@@ -975,7 +969,8 @@ namespace Reloader.Weapons.Controllers
             var projectile = SpawnProjectile();
             projectile?.Configure(_useRuntimeKernelWeaponEvents ? null : _weaponEvents);
             projectile?.SetPathObserver(TryCreateActiveTracePathObserver());
-            var firedDirection = ApplyDispersion(_muzzleTransform.forward, ballisticSpec.DispersionMoa, URandom.value, URandom.value);
+            var muzzleTransform = _muzzleTransform;
+            var firedDirection = ApplyDispersion(muzzleTransform.forward, ballisticSpec.DispersionMoa, URandom.value, URandom.value);
             projectile?.Initialize(
                 _equippedItemId,
                 firedDirection,
@@ -992,8 +987,8 @@ namespace Reloader.Weapons.Controllers
 
             NotifyViewWeaponFired(_equippedItemId);
             var muzzleAudioOverride = ResolveMuzzleAudioOverride();
-            ResolveWeaponEvents()?.RaiseWeaponFired(_equippedItemId, _muzzleTransform.position, firedDirection);
-            ResolveCombatAudioEmitter()?.EmitWeaponFire(_equippedItemId, _muzzleTransform.position, muzzleAudioOverride);
+            ResolveWeaponEvents()?.RaiseWeaponFired(_equippedItemId, muzzleTransform.position, firedDirection);
+            ResolveCombatAudioEmitter()?.EmitWeaponFire(_equippedItemId, muzzleTransform.position, muzzleAudioOverride);
         }
 
         private static bool IsFireInputBlocked()
@@ -1124,6 +1119,11 @@ namespace Reloader.Weapons.Controllers
             predictedImpactPoint = default;
             predictedDistanceMeters = 0f;
 
+            if (_muzzleTransform == null)
+            {
+                return false;
+            }
+
             var camera = ResolveAdsCamera();
             if (camera == null)
             {
@@ -1150,8 +1150,7 @@ namespace Reloader.Weapons.Controllers
                 }
 
                 predictedImpactPoint = candidate.point;
-                var origin = _muzzleTransform != null ? _muzzleTransform.position : transform.position;
-                predictedDistanceMeters = Vector3.Distance(origin, predictedImpactPoint);
+                predictedDistanceMeters = Vector3.Distance(_muzzleTransform.position, predictedImpactPoint);
                 return true;
             }
 
@@ -1203,7 +1202,10 @@ namespace Reloader.Weapons.Controllers
 
             state.IsReloading = true;
             ResolveWeaponEvents()?.RaiseWeaponReloadStarted(_equippedItemId);
-            ResolveCombatAudioEmitter()?.EmitReloadStarted(_equippedItemId, _muzzleTransform.position);
+            if (_muzzleTransform != null)
+            {
+                ResolveCombatAudioEmitter()?.EmitReloadStarted(_equippedItemId, _muzzleTransform.position);
+            }
             NotifyViewReloadStarted(_equippedItemId);
         }
 
@@ -1262,7 +1264,10 @@ namespace Reloader.Weapons.Controllers
 
             state.SetReserveCount(_inventoryController.Runtime.GetItemQuantity(ammoItemId));
             ResolveWeaponEvents()?.RaiseWeaponReloaded(_equippedItemId, state.MagazineCount, state.ReserveCount);
-            ResolveCombatAudioEmitter()?.EmitReloadCompleted(_equippedItemId, _muzzleTransform.position);
+            if (_muzzleTransform != null)
+            {
+                ResolveCombatAudioEmitter()?.EmitReloadCompleted(_equippedItemId, _muzzleTransform.position);
+            }
             NotifyViewReloadCompleted(_equippedItemId);
         }
 
@@ -1275,23 +1280,8 @@ namespace Reloader.Weapons.Controllers
                 ResetScopedAdsLookSensitivityBridge();
                 if (hasFieldOfView)
                 {
-                    var baselineFieldOfView = Mathf.Clamp(_baseCameraFieldOfView, 1f, 179f);
-                    if (_pendingUnequipFovBaselineRestore)
-                    {
-                        if (Mathf.Abs(currentFieldOfView - baselineFieldOfView) > 0.01f)
-                        {
-                            TrySetCurrentFieldOfView(baselineFieldOfView);
-                        }
-
-                        _pendingUnequipFovBaselineRestore = false;
-                    }
-                    else
-                    {
-                        // Preserve external FOV changes (e.g. settings menu) while unarmed.
-                        _baseCameraFieldOfView = baselineFieldOfView = Mathf.Clamp(currentFieldOfView, 1f, 179f);
-                    }
+                    _baseCameraFieldOfView = Mathf.Clamp(currentFieldOfView, 1f, 179f);
                 }
-
                 return;
             }
 
@@ -1328,35 +1318,12 @@ namespace Reloader.Weapons.Controllers
 
         private void SyncScopedViewmodelStabilization()
         {
-            var shouldStabilize = HasStableScopedAdsAlignment;
+            var shouldStabilize = _isStableMagnifiedScopedAds;
 
             if (_viewmodelAnimatorDriver != null)
             {
                 _viewmodelAnimatorDriver.LockViewmodelRootPose = shouldStabilize;
             }
-
-            if (_packAnimator == null)
-            {
-                return;
-            }
-
-            if (shouldStabilize)
-            {
-                if (!_isScopedViewmodelAnimatorFrozen)
-                {
-                    _scopedViewmodelAnimatorPreviousSpeed = _packAnimator.speed;
-                    _isScopedViewmodelAnimatorFrozen = true;
-                }
-
-                if (!Mathf.Approximately(_packAnimator.speed, 0f))
-                {
-                    _packAnimator.speed = 0f;
-                }
-
-                return;
-            }
-
-            ResetScopedViewmodelStabilization();
         }
 
         private void ResetScopedViewmodelStabilization()
@@ -1365,15 +1332,6 @@ namespace Reloader.Weapons.Controllers
             {
                 _viewmodelAnimatorDriver.LockViewmodelRootPose = false;
             }
-
-            if (_packAnimator == null || !_isScopedViewmodelAnimatorFrozen)
-            {
-                _isScopedViewmodelAnimatorFrozen = false;
-                return;
-            }
-
-            _packAnimator.speed = _scopedViewmodelAnimatorPreviousSpeed;
-            _isScopedViewmodelAnimatorFrozen = false;
         }
 
         private static bool ShouldStabilizeScopedViewmodelPresentation(
@@ -1395,72 +1353,31 @@ namespace Reloader.Weapons.Controllers
             return adsBlendT >= threshold;
         }
 
-        private static bool ShouldRepairScopedRuntimePresentation(
-            bool hasEquippedScopedAttachment,
-            bool hasScopedAdsStateBridge,
-            bool hasScopedAttachmentManagerBridge,
-            bool hasWeaponAimAlignerBridge,
-            bool hasScopedAdsAlignment)
-        {
-            return hasEquippedScopedAttachment
-                && (!hasScopedAdsStateBridge
-                    || !hasScopedAttachmentManagerBridge
-                    || !hasWeaponAimAlignerBridge
-                    || !hasScopedAdsAlignment);
-        }
-
         private bool HasScopedAdsBridgeActive()
         {
-            if (_adsStateRuntimeBridge == null || _adsAttachmentManagerRuntimeBridge == null)
-            {
-                return false;
-            }
-
-            var managerType = _adsAttachmentManagerRuntimeBridge.GetType();
-            _adsActiveOpticProperty ??= managerType.GetProperty("ActiveOpticDefinition", BindingFlags.Instance | BindingFlags.Public);
-            if (_adsActiveOpticProperty == null)
-            {
-                return false;
-            }
-
-            return _adsActiveOpticProperty.GetValue(_adsAttachmentManagerRuntimeBridge) != null;
+            return _adsStateRuntimeBridge != null
+                && _adsAttachmentManagerRuntimeBridge != null
+                && _adsAttachmentManagerRuntimeBridge.ActiveOpticDefinition != null;
         }
 
-        public bool HasActiveScopedAdsAlignment => HasScopedAdsBridgeActive() && _weaponAimAlignerRuntimeBridge != null;
-        public bool HasStableScopedAdsAlignment => ResolveStableMagnifiedScopedAdsState();
-        public float ScopedAdsPresentationEyeReliefOffset => _scopedAdsPresentationEyeReliefOffset;
-
-        public void SetScopedAdsPresentationEyeReliefOffset(float value)
-        {
-            _scopedAdsPresentationEyeReliefOffset = value;
-            ApplyScopedAdsPresentationEyeReliefOffset();
-        }
+        public bool HasActiveScopedAdsAlignment => HasScopedAdsBridgeActive();
+        public bool HasStableScopedAdsAlignment => _isStableMagnifiedScopedAds;
 
         private float ResolveCurrentAdsBlendT()
         {
-            if (_adsStateRuntimeBridge != null)
-            {
-                var bridgeType = _adsStateRuntimeBridge.GetType();
-                _adsBlendProperty ??= bridgeType.GetProperty("AdsT", BindingFlags.Instance | BindingFlags.Public);
-                if (_adsBlendProperty != null && _adsBlendProperty.GetValue(_adsStateRuntimeBridge) is float adsBlend)
-                {
-                    return Mathf.Clamp01(adsBlend);
-                }
-            }
-
-            return 0f;
+            return _adsStateRuntimeBridge != null
+                ? Mathf.Clamp01(_adsStateRuntimeBridge.AdsT)
+                : 0f;
         }
 
-        private bool ResolveStableMagnifiedScopedAdsState()
+        private void UpdateStableMagnifiedScopedAdsState()
         {
             _isStableMagnifiedScopedAds = ShouldStabilizeScopedViewmodelPresentation(
                 _isStableMagnifiedScopedAds,
-                _adsStateRuntimeBridge != null && _weaponAimAlignerRuntimeBridge != null,
+                HasScopedAdsBridgeActive(),
                 HasMagnifiedOpticEquipped(),
-                CurrentAdsBlendT,
+                ResolveCurrentAdsBlendT(),
                 _equippedWeaponView != null);
-
-            return _isStableMagnifiedScopedAds;
         }
 
         private void ResetStableMagnifiedScopedAdsState()
@@ -1487,19 +1404,14 @@ namespace Reloader.Weapons.Controllers
             return TryReadOpticMagnification(activeOptic, out minMagnification, out maxMagnification);
         }
 
-        private UObject ResolveActiveOpticDefinition()
+        private GameOpticDefinition ResolveActiveOpticDefinition()
         {
-            if (_adsAttachmentManagerRuntimeBridge == null)
-            {
-                return null;
-            }
-
-            var managerType = _adsAttachmentManagerRuntimeBridge.GetType();
-            _adsActiveOpticProperty ??= managerType.GetProperty("ActiveOpticDefinition", BindingFlags.Instance | BindingFlags.Public);
-            return _adsActiveOpticProperty?.GetValue(_adsAttachmentManagerRuntimeBridge) as UObject;
+            return _adsAttachmentManagerRuntimeBridge != null
+                ? _adsAttachmentManagerRuntimeBridge.ActiveOpticDefinition
+                : null;
         }
 
-        private UObject ResolveEquippedScopeDefinitionFromState()
+        private GameOpticDefinition ResolveEquippedScopeDefinitionFromState()
         {
             if (string.IsNullOrWhiteSpace(_equippedItemId)
                 || !TryGetRuntimeState(_equippedItemId, out var runtimeState)
@@ -1517,7 +1429,7 @@ namespace Reloader.Weapons.Controllers
             return ResolveOpticDefinition(attachmentItemId);
         }
 
-        private static bool TryReadOpticMagnification(UObject opticDefinition, out float minMagnification, out float maxMagnification)
+        private static bool TryReadOpticMagnification(GameOpticDefinition opticDefinition, out float minMagnification, out float maxMagnification)
         {
             minMagnification = 1f;
             maxMagnification = 1f;
@@ -1526,22 +1438,8 @@ namespace Reloader.Weapons.Controllers
                 return false;
             }
 
-            var opticType = opticDefinition.GetType();
-            var minProperty = opticType.GetProperty("MagnificationMin", BindingFlags.Instance | BindingFlags.Public);
-            var maxProperty = opticType.GetProperty("MagnificationMax", BindingFlags.Instance | BindingFlags.Public);
-            if (minProperty == null || maxProperty == null)
-            {
-                return false;
-            }
-
-            if (minProperty.GetValue(opticDefinition) is not float minValue
-                || maxProperty.GetValue(opticDefinition) is not float maxValue)
-            {
-                return false;
-            }
-
-            minMagnification = minValue;
-            maxMagnification = maxValue;
+            minMagnification = opticDefinition.MagnificationMin;
+            maxMagnification = opticDefinition.MagnificationMax;
             return true;
         }
 
@@ -1552,21 +1450,8 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
-            _adsSetHeldMethod ??= _adsStateRuntimeBridge.GetType().GetMethod("SetAdsHeld", BindingFlags.Instance | BindingFlags.Public);
-            _adsSetMagnificationMethod ??= _adsStateRuntimeBridge.GetType().GetMethod("SetMagnification", BindingFlags.Instance | BindingFlags.Public);
-            _adsApplyScopeAdjustmentInputMethod ??= _adsStateRuntimeBridge.GetType().GetMethod("ApplyScopeAdjustmentInput", BindingFlags.Instance | BindingFlags.Public);
-            _adsCurrentMagnificationProperty ??= _adsStateRuntimeBridge.GetType().GetProperty("CurrentMagnification", BindingFlags.Instance | BindingFlags.Public);
-
-            _adsSetHeldMethod?.Invoke(_adsStateRuntimeBridge, new object[] { _inputSource != null && _inputSource.AimHeld });
-            if (_adsSetMagnificationMethod == null || _adsCurrentMagnificationProperty == null)
-            {
-                return;
-            }
-
-            if (_adsCurrentMagnificationProperty.GetValue(_adsStateRuntimeBridge) is float currentMagnification)
-            {
-                _cachedScopeMagnification = currentMagnification;
-            }
+            _adsStateRuntimeBridge.SetAdsHeld(_inputSource != null && _inputSource.AimHeld);
+            _cachedScopeMagnification = _adsStateRuntimeBridge.CurrentMagnification;
 
             TryApplyScopedAdjustmentInput();
 
@@ -1577,7 +1462,7 @@ namespace Reloader.Weapons.Controllers
             }
 
             var nextMagnification = _cachedScopeMagnification + scrollY;
-            _adsSetMagnificationMethod.Invoke(_adsStateRuntimeBridge, new object[] { nextMagnification });
+            _adsStateRuntimeBridge.SetMagnification(nextMagnification);
         }
 
         private void SyncScopedAdsLookSensitivityBridge()
@@ -1601,16 +1486,9 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
-            _adsCurrentSensitivityScaleProperty ??= _adsStateRuntimeBridge.GetType()
-                .GetProperty("CurrentSensitivityScale", BindingFlags.Instance | BindingFlags.Public);
-            if (_adsCurrentSensitivityScaleProperty?.GetValue(_adsStateRuntimeBridge) is not float sensitivityScale)
-            {
-                ResetScopedAdsLookSensitivityBridge();
-                return;
-            }
-
-            var clampedScale = Mathf.Max(0.001f, sensitivityScale);
+            var clampedScale = Mathf.Max(0.001f, _adsStateRuntimeBridge.CurrentPipPrecisionScale);
             _playerLookControllerRuntimeBridge.RuntimeAdsSensitivityMultiplier = new Vector2(clampedScale, clampedScale);
+            _playerLookControllerRuntimeBridge.AllowFovSensitivityScaling = false;
         }
 
         private void ResetScopedAdsLookSensitivityBridge()
@@ -1622,23 +1500,17 @@ namespace Reloader.Weapons.Controllers
             }
 
             _playerLookControllerRuntimeBridge.RuntimeAdsSensitivityMultiplier = Vector2.one;
+            _playerLookControllerRuntimeBridge.AllowFovSensitivityScaling = true;
         }
 
-        private static bool UsesRenderTexturePipOptic(UObject opticDefinition)
+        private static bool UsesRenderTexturePipOptic(GameOpticDefinition opticDefinition)
         {
-            if (opticDefinition == null)
-            {
-                return false;
-            }
-
-            var property = opticDefinition.GetType().GetProperty("VisualModePolicy", BindingFlags.Instance | BindingFlags.Public);
-            var value = property?.GetValue(opticDefinition);
-            return string.Equals(value?.ToString(), "RenderTexturePiP", StringComparison.Ordinal);
+            return opticDefinition != null && opticDefinition.VisualModePolicy == GameAdsVisualMode.RenderTexturePiP;
         }
 
         private void TryApplyScopedAdjustmentInput()
         {
-            if (_adsStateRuntimeBridge == null || _adsApplyScopeAdjustmentInputMethod == null)
+            if (_adsStateRuntimeBridge == null)
             {
                 return;
             }
@@ -1648,7 +1520,7 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
-            _adsApplyScopeAdjustmentInputMethod.Invoke(_adsStateRuntimeBridge, new object[] { windageClicks, elevationClicks });
+            _adsStateRuntimeBridge.ApplyScopeAdjustmentInput(windageClicks, elevationClicks);
         }
 
         private static bool TryReadScopedAdjustmentKeyInput(out int windageClicks, out int elevationClicks)
@@ -1846,34 +1718,10 @@ namespace Reloader.Weapons.Controllers
 
         private AudioClip ResolveMuzzleAudioOverride()
         {
-            if (_equippedWeaponView == null)
-            {
-                return null;
-            }
-
-            var behaviors = _equippedWeaponView.GetComponentsInChildren<MonoBehaviour>(true);
-            for (var i = 0; i < behaviors.Length; i++)
-            {
-                var behavior = behaviors[i];
-                if (behavior == null || behavior.GetType().Name != "MuzzleAttachmentRuntime")
-                {
-                    continue;
-                }
-
-                var method = behavior.GetType().GetMethod("TryGetFireClipOverride", BindingFlags.Instance | BindingFlags.Public);
-                if (method == null)
-                {
-                    continue;
-                }
-
-                var result = method.Invoke(behavior, null);
-                if (result is AudioClip clip)
-                {
-                    return clip;
-                }
-            }
-
-            return null;
+            var muzzleRuntime = _equippedWeaponView != null
+                ? _equippedWeaponView.GetComponentInChildren<GameMuzzleAttachmentRuntime>(true)
+                : null;
+            return muzzleRuntime != null ? muzzleRuntime.TryGetFireClipOverride() : null;
         }
 
         private void EnsureMuzzleRuntimeBridge(
@@ -1886,33 +1734,15 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
-            var muzzleRuntimeType = ResolveTypeByName("Reloader.Game.Weapons.MuzzleAttachmentRuntime");
-            if (muzzleRuntimeType == null)
-            {
-                return;
-            }
-
-            var runtimeComponent = viewRoot.GetComponent(muzzleRuntimeType) ?? viewRoot.AddComponent(muzzleRuntimeType);
+            var runtimeComponent = viewRoot.GetComponent<GameMuzzleAttachmentRuntime>() ?? viewRoot.AddComponent<GameMuzzleAttachmentRuntime>();
             Transform attachmentSlot = null;
             if (mounts != null)
             {
                 mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Muzzle, out attachmentSlot);
             }
 
-            attachmentSlot ??= FindDescendantByName(viewRoot.transform, "MuzzleAttachmentSlot")
-                ?? viewMuzzle;
-
-            var muzzleSocketField = muzzleRuntimeType.GetField("_muzzleSocket", BindingFlags.Instance | BindingFlags.NonPublic);
-            muzzleSocketField?.SetValue(runtimeComponent, viewMuzzle);
-
-            var attachmentSlotField = muzzleRuntimeType.GetField("_attachmentSlot", BindingFlags.Instance | BindingFlags.NonPublic);
-            attachmentSlotField?.SetValue(runtimeComponent, attachmentSlot);
-
-            var defaultAttachmentField = muzzleRuntimeType.GetField("_defaultAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
-            defaultAttachmentField?.SetValue(runtimeComponent, null);
-
-            var unequipMethod = muzzleRuntimeType.GetMethod("Unequip", BindingFlags.Instance | BindingFlags.Public);
-            unequipMethod?.Invoke(runtimeComponent, null);
+            runtimeComponent.ConfigureRuntimeReferences(viewMuzzle, attachmentSlot);
+            runtimeComponent.Unequip();
         }
 
         private void EnsureDetachableMagazineRuntimeBridge(GameObject viewRoot, WeaponViewAttachmentMounts mounts)
@@ -1922,37 +1752,17 @@ namespace Reloader.Weapons.Controllers
                 return;
             }
 
-            var runtimeType = ResolveTypeByName("Reloader.Game.Weapons.DetachableMagazineRuntime");
-            if (runtimeType == null)
-            {
-                return;
-            }
-
-            var runtimeComponent = viewRoot.GetComponent(runtimeType) ?? viewRoot.AddComponent(runtimeType);
-            var magazineSocket = mounts != null
-                ? mounts.MagazineSocket
-                : FindDescendantByName(viewRoot.transform, "MagazineSocket")
-                    ?? FindDescendantByName(viewRoot.transform, "SOCKET_Magazine")
-                    ?? FindDescendantByName(viewRoot.transform, "Muzzle");
+            var runtimeComponent = viewRoot.GetComponent<GameDetachableMagazineRuntime>() ?? viewRoot.AddComponent<GameDetachableMagazineRuntime>();
+            var magazineSocket = mounts != null ? mounts.MagazineSocket : null;
             var dropSocket = mounts != null && mounts.MagazineDropSocket != null
                 ? mounts.MagazineDropSocket
-                : FindDescendantByName(viewRoot.transform, "MagazineDropSocket") ?? magazineSocket;
+                : magazineSocket;
             if (magazineSocket == null)
             {
                 return;
             }
-
-            var magazineSocketField = runtimeType.GetField("_magazineSocket", BindingFlags.Instance | BindingFlags.NonPublic);
-            magazineSocketField?.SetValue(runtimeComponent, magazineSocket);
-
-            var dropSocketField = runtimeType.GetField("_magazineDropSocket", BindingFlags.Instance | BindingFlags.NonPublic);
-            dropSocketField?.SetValue(runtimeComponent, dropSocket);
-
-            var defaultAttachmentField = runtimeType.GetField("_defaultAttachment", BindingFlags.Instance | BindingFlags.NonPublic);
-            defaultAttachmentField?.SetValue(runtimeComponent, null);
-
-            var setAttachmentMethod = runtimeType.GetMethod("SetAttachment", BindingFlags.Instance | BindingFlags.Public);
-            setAttachmentMethod?.Invoke(runtimeComponent, new object[] { null });
+            runtimeComponent.ConfigureRuntimeReferences(magazineSocket, dropSocket);
+            runtimeComponent.SetAttachment(null);
         }
 
         private static Type ResolveTypeByName(string fullTypeName)
@@ -2023,33 +1833,6 @@ namespace Reloader.Weapons.Controllers
             }
 
             return lookup;
-        }
-
-        private UObject ResolveAttachmentDefinitionByMetadata(
-            string attachmentItemId,
-            Type expectedDefinitionType,
-            string idPropertyName)
-        {
-            if (string.IsNullOrWhiteSpace(attachmentItemId) || expectedDefinitionType == null)
-            {
-                return null;
-            }
-
-            var metadataLookup = BuildAttachmentMetadataLookup();
-            if (metadataLookup.TryGetValue(attachmentItemId, out var metadata)
-                && metadata != null
-                && metadata.AttachmentDefinition != null
-                && expectedDefinitionType.IsInstanceOfType(metadata.AttachmentDefinition)
-                && IsDefinitionPrefabReferenceUsable(metadata.AttachmentDefinition, expectedDefinitionType, idPropertyName))
-            {
-                return metadata.AttachmentDefinition;
-            }
-
-            return ResolveAttachmentDefinitionById(
-                expectedDefinitionType,
-                idPropertyName,
-                attachmentItemId,
-                GetPrefabPropertyNameForDefinition(expectedDefinitionType, idPropertyName));
         }
 
         private IWeaponEvents ResolveWeaponEvents()
@@ -2246,7 +2029,8 @@ namespace Reloader.Weapons.Controllers
             var parent = IsWeaponViewParentUsable(_weaponViewParent) ? _weaponViewParent : null;
             if (parent == null)
             {
-                parent = ResolveDefaultWeaponViewParent();
+                ResolveReferences();
+                parent = IsWeaponViewParentUsable(_weaponViewParent) ? _weaponViewParent : null;
             }
 
             if (parent == null)
@@ -2263,9 +2047,9 @@ namespace Reloader.Weapons.Controllers
             }
 
             _equippedWeaponView.name = $"EquippedView_{itemId}";
-            _equippedWeaponView.transform.localPosition = Vector3.zero;
-            _equippedWeaponView.transform.localRotation = Quaternion.identity;
-            _equippedWeaponView.transform.localScale = Vector3.one;
+            _equippedWeaponView.transform.localPosition = viewPrefab.transform.localPosition;
+            _equippedWeaponView.transform.localRotation = viewPrefab.transform.localRotation;
+            _equippedWeaponView.transform.localScale = viewPrefab.transform.localScale;
             ResetAppliedAttachmentViewState();
             ApplyViewmodelLayer(_equippedWeaponView.transform);
             StripViewPhysicsComponents(_equippedWeaponView);
@@ -2273,18 +2057,14 @@ namespace Reloader.Weapons.Controllers
             NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
 
             var mounts = _equippedWeaponView.GetComponent<WeaponViewAttachmentMounts>();
+            _equippedViewMounts = mounts;
             if (mounts == null)
             {
                 Debug.LogWarning($"PlayerWeaponController: View '{_equippedWeaponView.name}' is missing WeaponViewAttachmentMounts.", this);
             }
 
-            var viewMuzzle = mounts?.MuzzleTransform
-                ?? FindDescendantByName(_equippedWeaponView.transform, "Muzzle")
-                ?? FindDescendantByName(_equippedWeaponView.transform, "SOCKET_Muzzle");
-            if (viewMuzzle != null)
-            {
-                _muzzleTransform = viewMuzzle;
-            }
+            var viewMuzzle = mounts != null ? mounts.MuzzleTransform : null;
+            _muzzleTransform = viewMuzzle;
 
             EnsureMuzzleRuntimeBridge(_equippedWeaponView, mounts, viewMuzzle);
             EnsureDetachableMagazineRuntimeBridge(_equippedWeaponView, mounts);
@@ -2304,10 +2084,7 @@ namespace Reloader.Weapons.Controllers
             if (rebuildView && _equippedWeaponView != null)
             {
                 DestroyEquippedWeaponView();
-                if (_defaultMuzzleTransform != null)
-                {
-                    _muzzleTransform = _defaultMuzzleTransform;
-                }
+                _muzzleTransform = null;
             }
 
             if (_equippedWeaponView == null)
@@ -2331,7 +2108,7 @@ namespace Reloader.Weapons.Controllers
 
             if (!IsWeaponViewParentUsable(_weaponViewParent))
             {
-                _weaponViewParent = ResolveDefaultWeaponViewParent();
+                ResolveReferences();
             }
 
             if (_weaponViewParent == null || _equippedWeaponView.transform.parent == _weaponViewParent)
@@ -2340,9 +2117,6 @@ namespace Reloader.Weapons.Controllers
             }
 
             _equippedWeaponView.transform.SetParent(_weaponViewParent, false);
-            _equippedWeaponView.transform.localPosition = Vector3.zero;
-            _equippedWeaponView.transform.localRotation = Quaternion.identity;
-            _equippedWeaponView.transform.localScale = Vector3.one;
         }
 
         private void ApplyEquippedAttachmentStateToViewRuntime(WeaponRuntimeState state)
@@ -2408,11 +2182,18 @@ namespace Reloader.Weapons.Controllers
                 return false;
             }
 
-            var managerType = ResolveTypeByName("Reloader.Game.Weapons.AttachmentManager");
-            var opticDefinitionType = ResolveTypeByName("Reloader.Game.Weapons.OpticDefinition");
-            if (managerType == null || opticDefinitionType == null)
+            if (string.IsNullOrWhiteSpace(attachmentItemId))
             {
-                return false;
+                var attachmentManager = _equippedWeaponView.GetComponent<GameAttachmentManager>();
+                if (attachmentManager == null)
+                {
+                    return true;
+                }
+
+                attachmentManager.UnequipOptic();
+                EnsureScopedAdsRuntimeBridge(_equippedWeaponView, attachmentManager);
+                NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
+                return true;
             }
 
             var manager = EnsureAttachmentManagerRuntimeBridge(_equippedWeaponView);
@@ -2421,24 +2202,9 @@ namespace Reloader.Weapons.Controllers
                 return false;
             }
 
-            var activeOpticProperty = managerType.GetProperty("ActiveOpticDefinition", BindingFlags.Instance | BindingFlags.Public);
-            var getActiveSightAnchorMethod = managerType.GetMethod("GetActiveSightAnchor", BindingFlags.Instance | BindingFlags.Public);
-            var unequipMethod = managerType.GetMethod("UnequipOptic", BindingFlags.Instance | BindingFlags.Public);
-            var equipMethod = managerType.GetMethod("EquipOptic", BindingFlags.Instance | BindingFlags.Public);
-            var setPendingAdjustmentStateKeyMethod = managerType.GetMethod("SetPendingOpticAdjustmentStateKey", BindingFlags.Instance | BindingFlags.Public);
-            if (unequipMethod == null || equipMethod == null)
+            if (!HasScopedAttachmentRuntimeAuthoring(_equippedWeaponView))
             {
                 return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(attachmentItemId))
-            {
-                var authoredOpticVisualName = ResolveOpticPrefabName(activeOpticProperty?.GetValue(manager) as UObject);
-                unequipMethod.Invoke(manager, null);
-                RemoveDetachedAuthoredAttachmentVisuals(_equippedWeaponView, authoredOpticVisualName);
-                EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
-                NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
-                return true;
             }
 
             var definition = ResolveOpticDefinition(attachmentItemId);
@@ -2447,87 +2213,40 @@ namespace Reloader.Weapons.Controllers
                 Debug.LogWarning(
                     $"PlayerWeaponController: Scope definition resolve failed for attachmentItemId='{attachmentItemId}'.",
                     this);
-                unequipMethod.Invoke(manager, null);
+                manager.UnequipOptic();
                 EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
                 NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
                 return true;
             }
 
-            var opticPrefabProperty = opticDefinitionType.GetProperty("OpticPrefab", BindingFlags.Instance | BindingFlags.Public);
-            var opticPrefabObject = opticPrefabProperty?.GetValue(definition) as UObject;
+            var opticPrefabObject = definition.OpticPrefab;
             if (opticPrefabObject == null)
             {
                 Debug.LogWarning(
-                    $"PlayerWeaponController: Scope definition '{definition.name}' ({definition.GetType().FullName}) has null OpticPrefab for attachmentItemId='{attachmentItemId}'.",
+                    $"PlayerWeaponController: Scope definition '{definition.name}' ({typeof(GameOpticDefinition).FullName}) has null OpticPrefab for attachmentItemId='{attachmentItemId}'.",
                     this);
             }
 
-            if (activeOpticProperty?.GetValue(manager) is UObject activeOpticDefinition
-                && string.Equals(GetOpticDefinitionId(activeOpticDefinition), attachmentItemId, StringComparison.Ordinal)
-                && getActiveSightAnchorMethod?.Invoke(manager, null) is Transform)
+            if (manager.ActiveOpticDefinition == definition
+                && manager.GetActiveSightAnchor() != null)
             {
                 EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
                 NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
                 return true;
             }
 
-            setPendingAdjustmentStateKeyMethod?.Invoke(manager, new object[] { attachmentItemId });
-            var equipSucceeded = equipMethod.Invoke(manager, new object[] { definition }) is bool equipResult && equipResult;
+            manager.SetPendingOpticAdjustmentStateKey(attachmentItemId);
+            var equipSucceeded = manager.EquipOptic(definition);
             if (!equipSucceeded)
             {
                 Debug.LogWarning(
-                    $"PlayerWeaponController: EquipOptic returned failure for attachmentItemId='{attachmentItemId}', definition='{definition.name}' ({definition.GetType().FullName}), opticPrefab='{opticPrefabObject?.name ?? "<null>"}' ({opticPrefabObject?.GetType().FullName ?? "<null>"}).",
+                    $"PlayerWeaponController: EquipOptic returned failure for attachmentItemId='{attachmentItemId}', definition='{definition.name}' ({typeof(GameOpticDefinition).FullName}), opticPrefab='{opticPrefabObject?.name ?? "<null>"}' ({opticPrefabObject?.GetType().FullName ?? "<null>"}).",
                     this);
             }
 
             EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
             NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
             return equipSucceeded;
-        }
-
-        private static string GetOpticDefinitionId(UObject opticDefinition)
-        {
-            if (opticDefinition == null)
-            {
-                return string.Empty;
-            }
-
-            var opticIdProperty = opticDefinition.GetType().GetProperty("OpticId", BindingFlags.Instance | BindingFlags.Public);
-            return opticIdProperty?.GetValue(opticDefinition) as string ?? string.Empty;
-        }
-
-        private static string ResolveOpticPrefabName(UObject opticDefinition)
-        {
-            if (opticDefinition == null)
-            {
-                return string.Empty;
-            }
-
-            var opticPrefabProperty = opticDefinition.GetType().GetProperty("OpticPrefab", BindingFlags.Instance | BindingFlags.Public);
-            return opticPrefabProperty?.GetValue(opticDefinition) is GameObject prefab ? prefab.name : string.Empty;
-        }
-
-        private static void RemoveDetachedAuthoredAttachmentVisuals(GameObject viewRoot, string visualRootName)
-        {
-            if (viewRoot == null || string.IsNullOrWhiteSpace(visualRootName))
-            {
-                return;
-            }
-
-            var transforms = viewRoot.GetComponentsInChildren<Transform>(true);
-            for (var i = 0; i < transforms.Length; i++)
-            {
-                var candidate = transforms[i];
-                if (candidate == null
-                    || candidate == viewRoot.transform
-                    || !string.Equals(candidate.name, visualRootName, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                candidate.SetParent(null, false);
-                Destroy(candidate.gameObject);
-            }
         }
 
         private bool ApplyMuzzleAttachmentToViewRuntime(string attachmentItemId)
@@ -2537,28 +2256,15 @@ namespace Reloader.Weapons.Controllers
                 return false;
             }
 
-            var managerType = ResolveTypeByName("Reloader.Game.Weapons.AttachmentManager");
-            if (managerType == null)
-            {
-                return false;
-            }
-
             var manager = EnsureAttachmentManagerRuntimeBridge(_equippedWeaponView);
             if (manager == null)
             {
                 return false;
             }
 
-            var unequipMethod = managerType.GetMethod("UnequipMuzzle", BindingFlags.Instance | BindingFlags.Public);
-            var equipMethod = managerType.GetMethod("EquipMuzzle", BindingFlags.Instance | BindingFlags.Public);
-            if (unequipMethod == null || equipMethod == null)
-            {
-                return false;
-            }
-
             if (string.IsNullOrWhiteSpace(attachmentItemId))
             {
-                unequipMethod.Invoke(manager, null);
+                manager.UnequipMuzzle();
                 EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
                 NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
                 return true;
@@ -2567,35 +2273,30 @@ namespace Reloader.Weapons.Controllers
             var definition = ResolveMuzzleAttachmentDefinition(attachmentItemId);
             if (definition == null)
             {
-                unequipMethod.Invoke(manager, null);
+                manager.UnequipMuzzle();
                 EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
                 NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
                 return true;
             }
 
-            var equipSucceeded = equipMethod.Invoke(manager, new object[] { definition }) is bool equipResult && equipResult;
+            var equipSucceeded = manager.EquipMuzzle(definition);
             EnsureScopedAdsRuntimeBridge(_equippedWeaponView, manager);
             NormalizeViewMaterialsForActiveRenderPipeline(_equippedWeaponView);
             return equipSucceeded;
         }
 
-        private Component EnsureAttachmentManagerRuntimeBridge(GameObject viewRoot)
+        private GameAttachmentManager EnsureAttachmentManagerRuntimeBridge(GameObject viewRoot)
         {
             if (viewRoot == null)
             {
                 return null;
             }
 
-            var managerType = ResolveTypeByName("Reloader.Game.Weapons.AttachmentManager");
-            if (managerType == null)
-            {
-                return null;
-            }
-
-            var manager = viewRoot.GetComponent(managerType);
+            var manager = viewRoot.GetComponent<GameAttachmentManager>();
             if (manager == null)
             {
-                manager = viewRoot.AddComponent(managerType);
+                Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing a preauthored AttachmentManager.", this);
+                return null;
             }
 
             var mounts = viewRoot.GetComponent<WeaponViewAttachmentMounts>();
@@ -2616,259 +2317,241 @@ namespace Reloader.Weapons.Controllers
                 return null;
             }
 
-            var ironSightAnchor = mounts.IronSightAnchor != null ? mounts.IronSightAnchor : viewRoot.transform;
-            if (mounts.IronSightAnchor == null && scopeSlot != null)
-            {
-                Debug.LogWarning(
-                    $"PlayerWeaponController: View '{viewRoot.name}' is missing an authored IronSightAnchor. Falling back to the view root for attachment manager runtime.",
-                    this);
-            }
-
-            var configureMethod = managerType.GetMethod("ConfigureMounts", BindingFlags.Instance | BindingFlags.Public);
-            if (configureMethod == null)
-            {
-                return null;
-            }
-
-            var muzzleRuntimeType = ResolveTypeByName("Reloader.Game.Weapons.MuzzleAttachmentRuntime");
-            var muzzleRuntime = muzzleRuntimeType != null ? viewRoot.GetComponent(muzzleRuntimeType) : null;
-            configureMethod.Invoke(manager, new object[] { scopeSlot, ironSightAnchor, muzzleSlot, muzzleRuntime });
+            var ironSightAnchor = mounts.IronSightAnchor;
+            var muzzleRuntime = viewRoot.GetComponent<GameMuzzleAttachmentRuntime>();
+            manager.ConfigureMounts(scopeSlot, ironSightAnchor, muzzleSlot, muzzleRuntime);
             return manager;
         }
 
-        private void EnsureScopedAdsRuntimeBridge(GameObject viewRoot, Component attachmentManager)
+        private bool HasScopedAttachmentRuntimeAuthoring(GameObject viewRoot)
+        {
+            if (viewRoot == null)
+            {
+                return false;
+            }
+
+            var mounts = viewRoot.GetComponent<WeaponViewAttachmentMounts>();
+            if (mounts == null)
+            {
+                Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing WeaponViewAttachmentMounts.", this);
+                return false;
+            }
+
+            mounts.TryGetAttachmentSlot(WeaponAttachmentSlotType.Scope, out var scopeSlot);
+            if (scopeSlot == null)
+            {
+                Debug.LogWarning(
+                    $"PlayerWeaponController: View '{viewRoot.name}' is missing an authored scope attachment slot required for scoped attachment runtime.",
+                    this);
+                return false;
+            }
+
+            if (mounts.IronSightAnchor == null)
+            {
+                Debug.LogWarning(
+                    $"PlayerWeaponController: View '{viewRoot.name}' is missing an authored IronSightAnchor required for scoped attachment runtime.",
+                    this);
+                return false;
+            }
+
+            return true;
+        }
+
+        private void EnsureScopedAdsRuntimeBridge(GameObject viewRoot, GameAttachmentManager attachmentManager)
         {
             if (viewRoot == null || attachmentManager == null)
             {
                 _adsStateRuntimeBridge = null;
-                _weaponAimAlignerRuntimeBridge = null;
-                _scopedAdsPresentationEyeReliefOffset = 0f;
-                _adsActiveOpticProperty = null;
+                _adsAttachmentManagerRuntimeBridge = null;
+                _renderTextureScopeRuntimeBridge = null;
+                _peripheralScopeEffectsRuntimeBridge = null;
+                _scopeAdjustmentTooltipRuntimeBridge = null;
+                ClearWeaponAimAlignerRuntimeBridge();
                 return;
             }
 
-            var adsType = ResolveTypeByName("Reloader.Game.Weapons.AdsStateController");
-            if (adsType == null)
+            _adsStateRuntimeBridge = gameObject.GetComponent<GameAdsStateController>();
+            _renderTextureScopeRuntimeBridge = gameObject.GetComponent<GameRenderTextureScopeController>();
+            _peripheralScopeEffectsRuntimeBridge = gameObject.GetComponent<GamePeripheralScopeEffects>();
+            _scopeAdjustmentTooltipRuntimeBridge = gameObject.GetComponent<GameScopeAdjustmentTooltipOverlay>();
+            if (_adsStateRuntimeBridge == null
+                || _renderTextureScopeRuntimeBridge == null
+                || _peripheralScopeEffectsRuntimeBridge == null
+                || _scopeAdjustmentTooltipRuntimeBridge == null)
             {
                 _adsStateRuntimeBridge = null;
-                _weaponAimAlignerRuntimeBridge = null;
-                _scopedAdsPresentationEyeReliefOffset = 0f;
-                _adsActiveOpticProperty = null;
+                _adsAttachmentManagerRuntimeBridge = null;
+                _renderTextureScopeRuntimeBridge = null;
+                _peripheralScopeEffectsRuntimeBridge = null;
+                _scopeAdjustmentTooltipRuntimeBridge = null;
                 return;
             }
 
-            _adsStateRuntimeBridge = gameObject.GetComponent(adsType) ?? gameObject.AddComponent(adsType);
-            if (_adsStateRuntimeBridge == null)
+            var worldCamera = ResolveAdsCamera();
+            var viewmodelCamera = ResolveRuntimeViewmodelCamera(worldCamera);
+            _adsAttachmentManagerRuntimeBridge = attachmentManager;
+
+            EnsureRenderTextureScopeRuntimeBridge(worldCamera);
+            EnsurePeripheralScopeEffectsRuntimeBridge();
+            EnsureScopeAdjustmentTooltipRuntimeBridge();
+            _adsStateRuntimeBridge.BindRuntimeReferences(
+                worldCamera,
+                viewmodelCamera,
+                attachmentManager,
+                _renderTextureScopeRuntimeBridge,
+                _peripheralScopeEffectsRuntimeBridge,
+                _scopeAdjustmentTooltipRuntimeBridge);
+            _boundScopedAdsWorldCamera = worldCamera;
+            _boundScopedAdsViewmodelCamera = viewmodelCamera;
+            _boundScopedAdsScopeCamera = _scopeCamera;
+            EnsureWeaponAimAlignerRuntimeBridge(worldCamera, attachmentManager);
+            TryAssignScopedAdsWeaponDefinition();
+            _adsStateRuntimeBridge.RefreshVisualMode();
+            _adsStateRuntimeBridge.SetUseLegacyInput(false);
+        }
+
+        private void RefreshScopedAdsRuntimeBridge()
+        {
+            if (_equippedWeaponView == null
+                || _adsAttachmentManagerRuntimeBridge == null
+                || !ReferenceEquals(_adsAttachmentManagerRuntimeBridge.gameObject, _equippedWeaponView))
+            {
+                return;
+            }
+
+            _adsStateRuntimeBridge ??= gameObject.GetComponent<GameAdsStateController>();
+            _renderTextureScopeRuntimeBridge ??= gameObject.GetComponent<GameRenderTextureScopeController>();
+            _peripheralScopeEffectsRuntimeBridge ??= gameObject.GetComponent<GamePeripheralScopeEffects>();
+            _scopeAdjustmentTooltipRuntimeBridge ??= gameObject.GetComponent<GameScopeAdjustmentTooltipOverlay>();
+            if (_adsStateRuntimeBridge == null
+                || _renderTextureScopeRuntimeBridge == null
+                || _peripheralScopeEffectsRuntimeBridge == null
+                || _scopeAdjustmentTooltipRuntimeBridge == null)
             {
                 return;
             }
 
             var worldCamera = ResolveAdsCamera();
-            var viewmodelCamera = ResolveViewmodelCamera(worldCamera);
+            var viewmodelCamera = ResolveRuntimeViewmodelCamera(worldCamera);
+            var scopeCamera = ResolveCanonicalScopedAdsCamera(worldCamera);
+            if (ReferenceEquals(_boundScopedAdsWorldCamera, worldCamera)
+                && ReferenceEquals(_boundScopedAdsViewmodelCamera, viewmodelCamera)
+                && ReferenceEquals(_boundScopedAdsScopeCamera, scopeCamera))
+            {
+                return;
+            }
 
-            var worldField = adsType.GetField("_worldCamera", BindingFlags.Instance | BindingFlags.NonPublic);
-            worldField?.SetValue(_adsStateRuntimeBridge, worldCamera);
-
-            var viewmodelField = adsType.GetField("_viewmodelCamera", BindingFlags.Instance | BindingFlags.NonPublic);
-            viewmodelField?.SetValue(_adsStateRuntimeBridge, viewmodelCamera);
-
-            var managerField = adsType.GetField("_attachmentManager", BindingFlags.Instance | BindingFlags.NonPublic);
-            managerField?.SetValue(_adsStateRuntimeBridge, attachmentManager);
-            _adsAttachmentManagerRuntimeBridge = attachmentManager;
-            _adsActiveOpticProperty = null;
-
-            EnsureWeaponAimAlignerRuntimeBridge(viewRoot, attachmentManager, adsType, worldCamera);
-            EnsureRenderTextureScopeRuntimeBridge(adsType, worldCamera);
-            EnsurePeripheralScopeEffectsRuntimeBridge(adsType);
-            EnsureScopeAdjustmentTooltipRuntimeBridge(adsType);
-            TryAssignScopedAdsWeaponDefinition(adsType);
-            adsType.GetMethod("TickVisualMode", BindingFlags.Instance | BindingFlags.NonPublic)
-                ?.Invoke(_adsStateRuntimeBridge, null);
-
-            var legacyInputField = adsType.GetField("_useLegacyInput", BindingFlags.Instance | BindingFlags.NonPublic);
-            legacyInputField?.SetValue(_adsStateRuntimeBridge, false);
+            EnsureRenderTextureScopeRuntimeBridge(worldCamera);
+            EnsurePeripheralScopeEffectsRuntimeBridge();
+            EnsureScopeAdjustmentTooltipRuntimeBridge();
+            _adsStateRuntimeBridge.BindRuntimeReferences(
+                worldCamera,
+                viewmodelCamera,
+                _adsAttachmentManagerRuntimeBridge,
+                _renderTextureScopeRuntimeBridge,
+                _peripheralScopeEffectsRuntimeBridge,
+                _scopeAdjustmentTooltipRuntimeBridge);
+            _boundScopedAdsWorldCamera = worldCamera;
+            _boundScopedAdsViewmodelCamera = viewmodelCamera;
+            _boundScopedAdsScopeCamera = _scopeCamera;
+            EnsureWeaponAimAlignerRuntimeBridge(worldCamera, _adsAttachmentManagerRuntimeBridge);
+            _adsStateRuntimeBridge.RefreshVisualMode();
+            _adsStateRuntimeBridge.SetUseLegacyInput(false);
         }
 
-        private void EnsureWeaponAimAlignerRuntimeBridge(GameObject viewRoot, Component attachmentManager, Type adsType, Camera worldCamera)
+        private void EnsureRenderTextureScopeRuntimeBridge(Camera worldCamera)
         {
-            _weaponAimAlignerRuntimeBridge = null;
-            if (viewRoot == null || attachmentManager == null || adsType == null)
+            if (_adsStateRuntimeBridge == null)
             {
                 return;
             }
 
-            var alignerType = ResolveTypeByName("Reloader.Game.Weapons.WeaponAimAligner");
-            if (alignerType == null)
+            _renderTextureScopeRuntimeBridge = gameObject.GetComponent<GameRenderTextureScopeController>();
+            if (_renderTextureScopeRuntimeBridge == null)
             {
                 return;
             }
 
-            var mounts = viewRoot.GetComponent<WeaponViewAttachmentMounts>();
-            var adsPivot = mounts != null ? mounts.AdsPivot : null;
-            if (adsPivot == null)
+            var scopeCamera = ResolveScopedAdsCamera(worldCamera);
+            if (scopeCamera != null)
             {
-                Debug.LogWarning($"PlayerWeaponController: View '{viewRoot.name}' is missing an authored AdsPivot required for scoped ADS alignment.", this);
-                return;
+                _renderTextureScopeRuntimeBridge.SetScopeCamera(scopeCamera);
             }
-
-            var aligner = gameObject.GetComponent(alignerType) ?? gameObject.AddComponent(alignerType);
-            if (aligner == null)
-            {
-                return;
-            }
-
-            var cameraTransform = worldCamera != null ? worldCamera.transform : null;
-            var bindRuntimeReferences = alignerType.GetMethod("BindRuntimeReferences", BindingFlags.Instance | BindingFlags.Public);
-            if (bindRuntimeReferences != null)
-            {
-                bindRuntimeReferences.Invoke(aligner, new object[]
-                {
-                    adsPivot,
-                    cameraTransform,
-                    attachmentManager,
-                    _adsStateRuntimeBridge
-                });
-            }
-            else
-            {
-                alignerType.GetField("_adsPivot", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, adsPivot);
-                alignerType.GetField("_cameraTransform", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, cameraTransform);
-                alignerType.GetField("_attachmentManager", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, attachmentManager);
-                alignerType.GetField("_adsStateController", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(aligner, _adsStateRuntimeBridge);
-            }
-
-            _weaponAimAlignerRuntimeBridge = aligner;
-            ApplyScopedAdsPresentationEyeReliefOffset();
         }
 
-        private void EnsureRenderTextureScopeRuntimeBridge(Type adsType, Camera worldCamera)
+        private void EnsurePeripheralScopeEffectsRuntimeBridge()
         {
-            if (adsType == null || _adsStateRuntimeBridge == null)
+            if (_adsStateRuntimeBridge == null)
             {
                 return;
             }
 
-            var renderScopeType = ResolveTypeByName("Reloader.Game.Weapons.RenderTextureScopeController");
-            if (renderScopeType == null)
-            {
-                return;
-            }
-
-            var renderScopeController = gameObject.GetComponent(renderScopeType) ?? gameObject.AddComponent(renderScopeType);
-            if (renderScopeController == null)
-            {
-                return;
-            }
-
-            var scopeCamera = EnsureScopeCamera(worldCamera);
-            var scopeCameraField = renderScopeType.GetField("_scopeCamera", BindingFlags.Instance | BindingFlags.NonPublic);
-            scopeCameraField?.SetValue(renderScopeController, scopeCamera);
-
-            var renderScopeField = adsType.GetField("_renderTextureScopeController", BindingFlags.Instance | BindingFlags.NonPublic);
-            renderScopeField?.SetValue(_adsStateRuntimeBridge, renderScopeController);
+            _peripheralScopeEffectsRuntimeBridge = gameObject.GetComponent<GamePeripheralScopeEffects>();
         }
 
-        private void EnsurePeripheralScopeEffectsRuntimeBridge(Type adsType)
+        private void EnsureScopeAdjustmentTooltipRuntimeBridge()
         {
-            if (adsType == null || _adsStateRuntimeBridge == null)
+            if (_adsStateRuntimeBridge == null)
             {
                 return;
             }
 
-            var peripheralEffectsType = ResolveTypeByName("Reloader.Game.Weapons.PeripheralScopeEffects");
-            if (peripheralEffectsType == null)
-            {
-                return;
-            }
-
-            var peripheralEffects = gameObject.GetComponent(peripheralEffectsType) ?? gameObject.AddComponent(peripheralEffectsType);
-            if (peripheralEffects == null)
-            {
-                return;
-            }
-
-            var peripheralEffectsField = adsType.GetField("_peripheralScopeEffects", BindingFlags.Instance | BindingFlags.NonPublic);
-            peripheralEffectsField?.SetValue(_adsStateRuntimeBridge, peripheralEffects);
+            _scopeAdjustmentTooltipRuntimeBridge = gameObject.GetComponent<GameScopeAdjustmentTooltipOverlay>();
         }
 
-        private void EnsureScopeAdjustmentTooltipRuntimeBridge(Type adsType)
+        private void EnsureWeaponAimAlignerRuntimeBridge(Camera worldCamera, GameAttachmentManager attachmentManager)
         {
-            if (adsType == null || _adsStateRuntimeBridge == null)
+            if (_adsStateRuntimeBridge == null || attachmentManager == null || _equippedViewMounts == null)
+            {
+                ClearWeaponAimAlignerRuntimeBridge();
+                return;
+            }
+
+            _weaponAimAlignerRuntimeBridge ??= gameObject.GetComponent<WeaponAimAligner>();
+            if (_weaponAimAlignerRuntimeBridge == null)
             {
                 return;
             }
 
-            var tooltipType = ResolveTypeByName("Reloader.Game.Weapons.ScopeAdjustmentTooltipOverlay");
-            if (tooltipType == null)
-            {
-                return;
-            }
-
-            var tooltipOverlay = gameObject.GetComponent(tooltipType) ?? gameObject.AddComponent(tooltipType);
-            if (tooltipOverlay == null)
-            {
-                return;
-            }
-
-            var tooltipField = adsType.GetField("_scopeAdjustmentTooltipOverlay", BindingFlags.Instance | BindingFlags.NonPublic);
-            tooltipField?.SetValue(_adsStateRuntimeBridge, tooltipOverlay);
+            _weaponAimAlignerRuntimeBridge.BindRuntimeReferences(
+                worldCamera,
+                attachmentManager,
+                _adsStateRuntimeBridge,
+                _equippedViewMounts);
         }
 
-        private void TryAssignScopedAdsWeaponDefinition(Type adsType)
+        private void ClearWeaponAimAlignerRuntimeBridge()
         {
-            if (adsType == null || _adsStateRuntimeBridge == null)
+            if (_weaponAimAlignerRuntimeBridge == null)
             {
                 return;
             }
 
-            var definitionField = adsType.GetField("_weaponDefinition", BindingFlags.Instance | BindingFlags.NonPublic);
-            var setDefinitionMethod = adsType.GetMethod("SetWeaponDefinition", BindingFlags.Instance | BindingFlags.Public);
-            var targetDefinitionType = definitionField?.FieldType
-                ?? (setDefinitionMethod?.GetParameters().Length == 1 ? setDefinitionMethod.GetParameters()[0].ParameterType : null);
-            if (targetDefinitionType == null)
-            {
-                return;
-            }
-
-            UObject resolvedDefinition = null;
-            if (_equippedDefinition != null && targetDefinitionType.IsInstanceOfType(_equippedDefinition))
-            {
-                resolvedDefinition = _equippedDefinition;
-            }
-            else
-            {
-                resolvedDefinition = ResolveGameWeaponDefinition(targetDefinitionType, _equippedItemId);
-            }
-
-            if (resolvedDefinition == null)
-            {
-                return;
-            }
-
-            if (setDefinitionMethod != null)
-            {
-                setDefinitionMethod.Invoke(_adsStateRuntimeBridge, new object[] { resolvedDefinition });
-                return;
-            }
-
-            definitionField?.SetValue(_adsStateRuntimeBridge, resolvedDefinition);
+            _weaponAimAlignerRuntimeBridge.ClearRuntimeReferences();
         }
 
-        private static UObject ResolveGameWeaponDefinition(Type definitionType, string weaponId)
+        private void TryAssignScopedAdsWeaponDefinition()
         {
-            if (definitionType == null || string.IsNullOrWhiteSpace(weaponId))
+            if (_adsStateRuntimeBridge == null)
+            {
+                return;
+            }
+
+            var resolvedDefinition = ResolveGameWeaponDefinition(_equippedItemId);
+            if (resolvedDefinition != null)
+            {
+                _adsStateRuntimeBridge.SetWeaponDefinition(resolvedDefinition);
+            }
+        }
+
+        private static GameWeaponDefinition ResolveGameWeaponDefinition(string weaponId)
+        {
+            if (string.IsNullOrWhiteSpace(weaponId))
             {
                 return null;
             }
 
-            var idProperty = definitionType.GetProperty("WeaponId", BindingFlags.Instance | BindingFlags.Public)
-                ?? definitionType.GetProperty("ItemId", BindingFlags.Instance | BindingFlags.Public);
-            if (idProperty == null)
-            {
-                return null;
-            }
-
-            var definitions = Resources.FindObjectsOfTypeAll(definitionType);
+            var definitions = Resources.FindObjectsOfTypeAll<GameWeaponDefinition>();
             if (definitions == null || definitions.Length == 0)
             {
                 return null;
@@ -2877,13 +2560,8 @@ namespace Reloader.Weapons.Controllers
             Array.Sort(definitions, CompareObjectsDeterministically);
             for (var i = 0; i < definitions.Length; i++)
             {
-                if (definitions[i] is not UObject candidate)
-                {
-                    continue;
-                }
-
-                if (idProperty.GetValue(candidate) is string candidateId
-                    && string.Equals(candidateId, weaponId, StringComparison.Ordinal))
+                var candidate = definitions[i];
+                if (candidate != null && string.Equals(candidate.WeaponId, weaponId, StringComparison.Ordinal))
                 {
                     return candidate;
                 }
@@ -2892,45 +2570,32 @@ namespace Reloader.Weapons.Controllers
             return null;
         }
 
-        private static Camera ResolveViewmodelCamera(Camera worldCamera)
+        private Camera ResolveRuntimeViewmodelCamera(Camera worldCamera)
         {
-            if (worldCamera == null)
+            if (_cameraDefaults != null && _cameraDefaults.TryGetViewmodelCamera(out var viewmodelCamera))
             {
-                return null;
+                return viewmodelCamera;
             }
 
-            var child = worldCamera.transform.Find("ViewmodelCamera");
-            return child != null ? child.GetComponent<Camera>() : null;
+            return null;
         }
 
-        private static Camera EnsureScopeCamera(Camera worldCamera)
+        private Camera ResolveScopedAdsCamera(Camera worldCamera)
         {
             if (worldCamera == null)
             {
                 return null;
             }
 
-            var scopeTransform = worldCamera.transform.Find("ScopeCamera");
-            Camera scopeCamera;
-            var createdScopeCamera = false;
-            if (scopeTransform != null)
-            {
-                scopeCamera = scopeTransform.GetComponent<Camera>();
-            }
-            else
-            {
-                var scopeCameraGo = new GameObject("ScopeCamera");
-                scopeTransform = scopeCameraGo.transform;
-                scopeTransform.SetParent(worldCamera.transform, false);
-                scopeCamera = scopeCameraGo.AddComponent<Camera>();
-                createdScopeCamera = true;
-            }
-
+            var scopeCamera = ResolveCanonicalScopedAdsCamera(worldCamera);
             if (scopeCamera == null)
             {
                 return null;
             }
 
+            _scopeCamera = scopeCamera;
+
+            var scopeTransform = scopeCamera.transform;
             scopeTransform.localPosition = Vector3.zero;
             scopeTransform.localRotation = Quaternion.identity;
             scopeTransform.localScale = Vector3.one;
@@ -2944,14 +2609,32 @@ namespace Reloader.Weapons.Controllers
             scopeCamera.allowMSAA = worldCamera.allowMSAA;
             scopeCamera.orthographic = worldCamera.orthographic;
             scopeCamera.depthTextureMode = worldCamera.depthTextureMode;
-            if (createdScopeCamera)
-            {
-                scopeCamera.enabled = false;
-                scopeCamera.fieldOfView = worldCamera.fieldOfView;
-                scopeCamera.targetTexture = null;
-            }
             EnsureScopeCameraUniversalRenderPipelineData(scopeCamera);
             return scopeCamera;
+        }
+
+        private Camera ResolveCanonicalScopedAdsCamera(Camera worldCamera)
+        {
+            if (IsScopedAdsCameraUsable(worldCamera, _scopeCamera))
+            {
+                return _scopeCamera;
+            }
+
+            var canonicalScopeTransform = worldCamera.transform.Find(ScopedAdsCameraName);
+            var canonicalScopeCamera = canonicalScopeTransform != null
+                ? canonicalScopeTransform.GetComponent<Camera>()
+                : null;
+            return IsScopedAdsCameraUsable(worldCamera, canonicalScopeCamera)
+                ? canonicalScopeCamera
+                : null;
+        }
+
+        private bool IsScopedAdsCameraUsable(Camera worldCamera, Camera scopeCamera)
+        {
+            return worldCamera != null
+                && scopeCamera != null
+                && IsReferenceOnPlayerHierarchy(scopeCamera.transform)
+                && scopeCamera.transform.parent == worldCamera.transform;
         }
 
         private static void EnsureScopeCameraUniversalRenderPipelineData(Camera scopeCamera)
@@ -3016,186 +2699,12 @@ namespace Reloader.Weapons.Controllers
             }
         }
 
-        private static UObject ResolveAttachmentDefinitionById(
-            Type definitionType,
-            string idPropertyName,
-            string itemId,
-            string requiredPrefabPropertyName = null)
-        {
-            if (definitionType == null || string.IsNullOrWhiteSpace(idPropertyName) || string.IsNullOrWhiteSpace(itemId))
-            {
-                return null;
-            }
-
-            var definitions = Resources.FindObjectsOfTypeAll(definitionType);
-            if (definitions == null || definitions.Length == 0)
-            {
-                return null;
-            }
-
-            var idProperty = definitionType.GetProperty(idPropertyName, BindingFlags.Instance | BindingFlags.Public);
-            if (idProperty == null)
-            {
-                return null;
-            }
-
-            PropertyInfo requiredPrefabProperty = null;
-            if (!string.IsNullOrWhiteSpace(requiredPrefabPropertyName))
-            {
-                requiredPrefabProperty = definitionType.GetProperty(requiredPrefabPropertyName, BindingFlags.Instance | BindingFlags.Public);
-            }
-
-            Array.Sort(definitions, CompareObjectsDeterministically);
-            for (var i = 0; i < definitions.Length; i++)
-            {
-                if (definitions[i] is not UObject candidate)
-                {
-                    continue;
-                }
-
-                if (idProperty.GetValue(candidate) is string candidateId
-                    && string.Equals(candidateId, itemId, StringComparison.Ordinal))
-                {
-                    if (requiredPrefabProperty != null)
-                    {
-                        if (requiredPrefabProperty.GetValue(candidate) is not GameObject requiredPrefab
-                            || requiredPrefab == null)
-                        {
-                            continue;
-                        }
-                    }
-
-                    return candidate;
-                }
-            }
-
-#if UNITY_EDITOR
-            var fromAssetDatabase = ResolveAttachmentDefinitionFromAssetDatabase(
-                definitionType,
-                idPropertyName,
-                itemId,
-                requiredPrefabPropertyName);
-            if (fromAssetDatabase != null)
-            {
-                return fromAssetDatabase;
-            }
-#endif
-
-            return null;
-        }
-
-#if UNITY_EDITOR
-        private static UObject ResolveAttachmentDefinitionFromAssetDatabase(
-            Type definitionType,
-            string idPropertyName,
-            string itemId,
-            string requiredPrefabPropertyName)
-        {
-            if (definitionType == null || string.IsNullOrWhiteSpace(idPropertyName) || string.IsNullOrWhiteSpace(itemId))
-            {
-                return null;
-            }
-
-            var idProperty = definitionType.GetProperty(idPropertyName, BindingFlags.Instance | BindingFlags.Public);
-            if (idProperty == null)
-            {
-                return null;
-            }
-
-            PropertyInfo requiredPrefabProperty = null;
-            if (!string.IsNullOrWhiteSpace(requiredPrefabPropertyName))
-            {
-                requiredPrefabProperty = definitionType.GetProperty(requiredPrefabPropertyName, BindingFlags.Instance | BindingFlags.Public);
-            }
-
-            var searchFilter = $"t:{definitionType.Name}";
-            var guids = AssetDatabase.FindAssets(searchFilter);
-            for (var i = 0; i < guids.Length; i++)
-            {
-                var assetPath = AssetDatabase.GUIDToAssetPath(guids[i]);
-                var candidate = AssetDatabase.LoadAssetAtPath(assetPath, definitionType);
-                if (candidate == null)
-                {
-                    continue;
-                }
-
-                if (idProperty.GetValue(candidate) is not string candidateId
-                    || !string.Equals(candidateId, itemId, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                if (requiredPrefabProperty != null)
-                {
-                    if (requiredPrefabProperty.GetValue(candidate) is not GameObject prefab
-                        || prefab == null)
-                    {
-                        continue;
-                    }
-                }
-
-                return candidate as UObject;
-            }
-
-            return null;
-        }
-#endif
-
-        private static bool IsDefinitionPrefabReferenceUsable(
-            UObject definition,
-            Type expectedDefinitionType,
-            string idPropertyName)
-        {
-            if (definition == null || expectedDefinitionType == null)
-            {
-                return false;
-            }
-
-            var prefabPropertyName = GetPrefabPropertyNameForDefinition(expectedDefinitionType, idPropertyName);
-            if (string.IsNullOrWhiteSpace(prefabPropertyName))
-            {
-                return true;
-            }
-
-            var prefabProperty = expectedDefinitionType.GetProperty(prefabPropertyName, BindingFlags.Instance | BindingFlags.Public);
-            if (prefabProperty == null)
-            {
-                return false;
-            }
-
-            if (prefabProperty.GetValue(definition) is not GameObject prefab)
-            {
-                return false;
-            }
-
-            return prefab != null;
-        }
-
-        private static string GetPrefabPropertyNameForDefinition(Type expectedDefinitionType, string idPropertyName)
-        {
-            if (expectedDefinitionType == null)
-            {
-                return null;
-            }
-
-            if (string.Equals(idPropertyName, "OpticId", StringComparison.Ordinal))
-            {
-                return "OpticPrefab";
-            }
-
-            if (string.Equals(idPropertyName, "AttachmentId", StringComparison.Ordinal))
-            {
-                return "MuzzlePrefab";
-            }
-
-            return null;
-        }
-
         private void DestroyEquippedWeaponView()
         {
             ResetStableMagnifiedScopedAdsState();
             ResetScopedViewmodelStabilization();
             ResetAppliedAttachmentViewState();
+            _equippedViewMounts = null;
 
             if (_equippedWeaponView == null)
             {
@@ -3216,49 +2725,50 @@ namespace Reloader.Weapons.Controllers
         private void DestroyScopedAdsRuntimeBridgeComponents()
         {
             ResetStableMagnifiedScopedAdsState();
-            DestroyScopedBridgeComponent(_adsStateRuntimeBridge);
-            DestroyScopedBridgeComponent(_weaponAimAlignerRuntimeBridge);
-            DestroyScopedBridgeComponent(ResolveComponentByTypeName("Reloader.Game.Weapons.RenderTextureScopeController"));
-            DestroyScopedBridgeComponent(ResolveComponentByTypeName("Reloader.Game.Weapons.ScopeAdjustmentTooltipOverlay"));
+            ResetScopedViewmodelStabilization();
+            ClearWeaponAimAlignerRuntimeBridge();
+
+            if (_renderTextureScopeRuntimeBridge != null)
+            {
+                _renderTextureScopeRuntimeBridge.SetApertureCamera(null);
+                var scopeReferenceFov = _baseCameraFieldOfViewCaptured ? _baseCameraFieldOfView : DefaultFov;
+                _renderTextureScopeRuntimeBridge.SetScopeActive(false, null, null, scopeReferenceFov, 1f, 0, 0);
+            }
+
+            if (_peripheralScopeEffectsRuntimeBridge != null)
+            {
+                _peripheralScopeEffectsRuntimeBridge.SetState(false, 0f);
+            }
+
+            if (_scopeAdjustmentTooltipRuntimeBridge != null)
+            {
+                _scopeAdjustmentTooltipRuntimeBridge.SetState(false, 0, 0);
+            }
+
+            if (_adsStateRuntimeBridge != null)
+            {
+                var worldCamera = ResolveAdsCamera();
+                var viewmodelCamera = ResolveRuntimeViewmodelCamera(worldCamera);
+                _adsStateRuntimeBridge.SetAdsHeld(false);
+                _adsStateRuntimeBridge.BindRuntimeReferences(
+                    worldCamera,
+                    viewmodelCamera,
+                    null,
+                    _renderTextureScopeRuntimeBridge,
+                    _peripheralScopeEffectsRuntimeBridge,
+                    _scopeAdjustmentTooltipRuntimeBridge);
+                _adsStateRuntimeBridge.RefreshVisualMode();
+            }
 
             _adsStateRuntimeBridge = null;
             _adsAttachmentManagerRuntimeBridge = null;
-            _weaponAimAlignerRuntimeBridge = null;
-            _scopedAdsPresentationEyeReliefOffset = 0f;
-            _adsActiveOpticProperty = null;
-            _adsBlendProperty = null;
-            _adsCurrentSensitivityScaleProperty = null;
-            _adsSetHeldMethod = null;
-            _adsSetMagnificationMethod = null;
-            _adsApplyScopeAdjustmentInputMethod = null;
-            _adsCurrentMagnificationProperty = null;
+            _renderTextureScopeRuntimeBridge = null;
+            _peripheralScopeEffectsRuntimeBridge = null;
+            _scopeAdjustmentTooltipRuntimeBridge = null;
+            _boundScopedAdsWorldCamera = null;
+            _boundScopedAdsViewmodelCamera = null;
+            _boundScopedAdsScopeCamera = null;
             ResetScopedAdsLookSensitivityBridge();
-        }
-
-        private Component ResolveComponentByTypeName(string fullTypeName)
-        {
-            var type = ResolveTypeByName(fullTypeName);
-            return type != null ? gameObject.GetComponent(type) : null;
-        }
-
-        private static void DestroyScopedBridgeComponent(Component component)
-        {
-            if (component != null)
-            {
-                Destroy(component);
-            }
-        }
-
-        private void ApplyScopedAdsPresentationEyeReliefOffset()
-        {
-            if (_weaponAimAlignerRuntimeBridge == null)
-            {
-                return;
-            }
-
-            var alignerType = _weaponAimAlignerRuntimeBridge.GetType();
-            var setter = alignerType.GetMethod("SetRuntimeEyeReliefBackOffset", BindingFlags.Instance | BindingFlags.Public);
-            setter?.Invoke(_weaponAimAlignerRuntimeBridge, new object[] { _scopedAdsPresentationEyeReliefOffset });
         }
 
         private static void ClearAttachmentSlots(WeaponRuntimeState state)
@@ -3285,7 +2795,7 @@ namespace Reloader.Weapons.Controllers
             UObject instance;
             try
             {
-                instance = Instantiate((UObject)source, parent);
+                instance = Instantiate((UObject)source);
             }
             catch (System.Exception)
             {
@@ -3294,11 +2804,21 @@ namespace Reloader.Weapons.Controllers
 
             if (instance is GameObject gameObjectInstance)
             {
+                if (parent != null)
+                {
+                    gameObjectInstance.transform.SetParent(parent, false);
+                }
+
                 return gameObjectInstance;
             }
 
             if (instance is Component componentInstance)
             {
+                if (parent != null)
+                {
+                    componentInstance.transform.SetParent(parent, false);
+                }
+
                 return componentInstance.gameObject;
             }
 
@@ -3330,7 +2850,7 @@ namespace Reloader.Weapons.Controllers
             return null;
         }
 
-        private UObject ResolveOpticDefinition(string attachmentItemId)
+        private GameOpticDefinition ResolveOpticDefinition(string attachmentItemId)
         {
             if (string.IsNullOrWhiteSpace(attachmentItemId))
             {
@@ -3339,23 +2859,47 @@ namespace Reloader.Weapons.Controllers
 
             var metadataLookup = BuildAttachmentMetadataLookup();
             if (metadataLookup.TryGetValue(attachmentItemId, out var metadata)
-                && metadata?.AttachmentDefinition != null)
+                && metadata != null)
             {
-                var metadataType = ResolveTypeByName("Reloader.Game.Weapons.OpticDefinition");
-                if (metadataType != null && metadataType.IsInstanceOfType(metadata.AttachmentDefinition))
+                if (metadata.SlotType != WeaponAttachmentSlotType.Scope)
                 {
-                    return metadata.AttachmentDefinition;
+                    Debug.LogWarning(
+                        $"PlayerWeaponController: Attachment metadata for '{attachmentItemId}' is bound to slot '{metadata.SlotType}' instead of Scope.",
+                        this);
+                    return null;
                 }
+
+                if (metadata.AttachmentDefinition is not GameOpticDefinition opticDefinition)
+                {
+                    Debug.LogWarning(
+                        $"PlayerWeaponController: Attachment metadata for '{attachmentItemId}' is missing a typed {typeof(GameOpticDefinition).Name} definition.",
+                        this);
+                    return null;
+                }
+
+                if (!string.Equals(opticDefinition.OpticId, attachmentItemId, StringComparison.Ordinal))
+                {
+                    Debug.LogWarning(
+                        $"PlayerWeaponController: Optic definition '{opticDefinition.name}' has OpticId '{opticDefinition.OpticId}' but metadata expects '{attachmentItemId}'.",
+                        opticDefinition);
+                    return null;
+                }
+
+                if (opticDefinition.OpticPrefab == null)
+                {
+                    Debug.LogWarning(
+                        $"PlayerWeaponController: Optic definition '{opticDefinition.name}' for '{attachmentItemId}' is missing OpticPrefab.",
+                        opticDefinition);
+                    return null;
+                }
+
+                return opticDefinition;
             }
 
-            return ResolveAttachmentDefinitionById(
-                ResolveTypeByName("Reloader.Game.Weapons.OpticDefinition"),
-                "OpticId",
-                attachmentItemId,
-                "OpticPrefab");
+            return null;
         }
 
-        private UObject ResolveMuzzleAttachmentDefinition(string attachmentItemId)
+        private GameMuzzleAttachmentDefinition ResolveMuzzleAttachmentDefinition(string attachmentItemId)
         {
             if (string.IsNullOrWhiteSpace(attachmentItemId))
             {
@@ -3364,20 +2908,44 @@ namespace Reloader.Weapons.Controllers
 
             var metadataLookup = BuildAttachmentMetadataLookup();
             if (metadataLookup.TryGetValue(attachmentItemId, out var metadata)
-                && metadata?.AttachmentDefinition != null)
+                && metadata != null)
             {
-                var metadataType = ResolveTypeByName("Reloader.Game.Weapons.MuzzleAttachmentDefinition");
-                if (metadataType != null && metadataType.IsInstanceOfType(metadata.AttachmentDefinition))
+                if (metadata.SlotType != WeaponAttachmentSlotType.Muzzle)
                 {
-                    return metadata.AttachmentDefinition;
+                    Debug.LogWarning(
+                        $"PlayerWeaponController: Attachment metadata for '{attachmentItemId}' is bound to slot '{metadata.SlotType}' instead of Muzzle.",
+                        this);
+                    return null;
                 }
+
+                if (metadata.AttachmentDefinition is not GameMuzzleAttachmentDefinition muzzleDefinition)
+                {
+                    Debug.LogWarning(
+                        $"PlayerWeaponController: Attachment metadata for '{attachmentItemId}' is missing a typed {typeof(GameMuzzleAttachmentDefinition).Name} definition.",
+                        this);
+                    return null;
+                }
+
+                if (!string.Equals(muzzleDefinition.AttachmentId, attachmentItemId, StringComparison.Ordinal))
+                {
+                    Debug.LogWarning(
+                        $"PlayerWeaponController: Muzzle definition '{muzzleDefinition.name}' has AttachmentId '{muzzleDefinition.AttachmentId}' but metadata expects '{attachmentItemId}'.",
+                        muzzleDefinition);
+                    return null;
+                }
+
+                if (muzzleDefinition.MuzzlePrefab == null)
+                {
+                    Debug.LogWarning(
+                        $"PlayerWeaponController: Muzzle definition '{muzzleDefinition.name}' for '{attachmentItemId}' is missing MuzzlePrefab.",
+                        muzzleDefinition);
+                    return null;
+                }
+
+                return muzzleDefinition;
             }
 
-            return ResolveAttachmentDefinitionById(
-                ResolveTypeByName("Reloader.Game.Weapons.MuzzleAttachmentDefinition"),
-                "AttachmentId",
-                attachmentItemId,
-                "MuzzlePrefab");
+            return null;
         }
 
         private bool TryResolveWeaponDefinition(string itemId, out WeaponDefinition definition)
@@ -3387,101 +2955,36 @@ namespace Reloader.Weapons.Controllers
             return definition != null;
         }
 
-        private Transform ResolveDefaultWeaponViewParent()
-        {
-            return ResolveDefaultWeaponViewParent(null);
-        }
-
-        private Transform ResolveDefaultWeaponViewParent(Transform resolvedViewmodelRoot)
-        {
-            var cameraPivot = ResolveCameraPivot(resolvedViewmodelRoot);
-            if (cameraPivot == null)
-            {
-                return null;
-            }
-
-            var weaponPresentationRoot = cameraPivot.Find(WeaponPresentationRootName);
-            if (weaponPresentationRoot == null)
-            {
-                var rootGo = new GameObject(WeaponPresentationRootName);
-                weaponPresentationRoot = rootGo.transform;
-                weaponPresentationRoot.SetParent(cameraPivot, false);
-                weaponPresentationRoot.localPosition = Vector3.zero;
-                weaponPresentationRoot.localRotation = Quaternion.identity;
-                weaponPresentationRoot.localScale = Vector3.one;
-            }
-
-            ApplyViewmodelLayer(weaponPresentationRoot);
-            return weaponPresentationRoot;
-        }
-
         private Transform ResolveCameraPivot(Transform resolvedViewmodelRoot)
         {
-            var explicitPath = transform.Find(CameraPivotName);
-            if (explicitPath != null)
+            if (_cameraDefaults != null && _cameraDefaults.TryGetCameraPivot(out var cameraPivotFromDefaults))
             {
-                return explicitPath;
+                _cameraPivot = cameraPivotFromDefaults;
+                return _cameraPivot;
             }
 
-            var viewmodelRoot = resolvedViewmodelRoot != null && IsReferenceOnPlayerHierarchy(resolvedViewmodelRoot)
-                ? resolvedViewmodelRoot
-                : ResolveViewmodelRoot();
-
-            return viewmodelRoot != null && string.Equals(viewmodelRoot.parent?.name, CameraPivotName, StringComparison.Ordinal)
-                ? viewmodelRoot.parent
-                : null;
+            return null;
         }
 
         private Transform ResolveViewmodelRoot()
         {
-            var explicitPath = transform.Find("CameraPivot/PlayerArms");
-            if (explicitPath != null)
+            if (_cameraDefaults != null && _cameraDefaults.TryGetPlayerArmsRoot(out var viewmodelRootFromDefaults))
             {
-                return explicitPath;
+                _viewmodelRoot = viewmodelRootFromDefaults;
+                return _viewmodelRoot;
             }
 
-            if (_packAnimator == null)
-            {
-                _packAnimator = ResolvePackAnimator();
-            }
-
-            var current = _packAnimator != null ? _packAnimator.transform : null;
-            while (current != null)
-            {
-                if (string.Equals(current.name, PlayerArmsRootName, StringComparison.Ordinal))
-                {
-                    return current;
-                }
-
-                current = current.parent;
-            }
-
-            return FindDescendantByName(transform, PlayerArmsRootName);
+            return null;
         }
 
         private Animator ResolvePackAnimator()
         {
-            var explicitPath = transform.Find("CameraPivot/PlayerArms/PlayerArmsVisual");
-            if (explicitPath != null)
+            if (_cameraDefaults != null && _cameraDefaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator))
             {
-                var explicitAnimator = explicitPath.GetComponent<Animator>() ?? explicitPath.GetComponentInChildren<Animator>(true);
-                if (explicitAnimator != null)
-                {
-                    return explicitAnimator;
-                }
+                return playerArmsAnimator;
             }
 
-            var byName = FindDescendantByName(transform, "PlayerArmsVisual");
-            if (byName != null)
-            {
-                var namedAnimator = byName.GetComponent<Animator>() ?? byName.GetComponentInChildren<Animator>(true);
-                if (namedAnimator != null)
-                {
-                    return namedAnimator;
-                }
-            }
-
-            return GetComponentInChildren<Animator>(true);
+            return null;
         }
 
         private bool IsReferenceOnPlayerHierarchy(Transform candidate)
@@ -3491,33 +2994,18 @@ namespace Reloader.Weapons.Controllers
 
         private bool IsWeaponViewParentUsable(Transform candidate)
         {
-            return IsReferenceOnPlayerHierarchy(candidate)
-                && string.Equals(candidate.name, WeaponPresentationRootName, StringComparison.Ordinal)
-                && string.Equals(candidate.parent?.name, CameraPivotName, StringComparison.Ordinal);
-        }
-
-        private static Transform FindDescendantByName(Transform root, string targetName)
-        {
-            if (root == null || string.IsNullOrWhiteSpace(targetName))
+            if (!IsReferenceOnPlayerHierarchy(candidate) || _cameraDefaults == null)
             {
-                return null;
+                return false;
             }
 
-            if (root.name == targetName)
+            if (!_cameraDefaults.TryGetWeaponPresentationRoot(out var configuredPresentationRoot)
+                || !IsReferenceOnPlayerHierarchy(configuredPresentationRoot))
             {
-                return root;
+                return false;
             }
 
-            for (var i = 0; i < root.childCount; i++)
-            {
-                var found = FindDescendantByName(root.GetChild(i), targetName);
-                if (found != null)
-                {
-                    return found;
-                }
-            }
-
-            return null;
+            return candidate == configuredPresentationRoot;
         }
 
         private static void StripViewPhysicsComponents(GameObject root)
@@ -3580,15 +3068,11 @@ namespace Reloader.Weapons.Controllers
                     continue;
                 }
 
-                if (behaviour is WeaponViewAttachmentMounts)
-                {
-                    continue;
-                }
-
-                var fullTypeName = behaviour.GetType().FullName;
-                if (string.Equals(fullTypeName, "Reloader.Game.Weapons.MuzzleAttachmentRuntime", StringComparison.Ordinal)
-                    || string.Equals(fullTypeName, "Reloader.Game.Weapons.DetachableMagazineRuntime", StringComparison.Ordinal)
-                    || string.Equals(fullTypeName, "Reloader.Game.Weapons.AttachmentManager", StringComparison.Ordinal))
+                if (behaviour is WeaponViewAttachmentMounts
+                    || behaviour is WeaponViewHandAnchors
+                    || behaviour is GameMuzzleAttachmentRuntime
+                    || behaviour is GameDetachableMagazineRuntime
+                    || behaviour is GameAttachmentManager)
                 {
                     continue;
                 }
@@ -3755,8 +3239,7 @@ namespace Reloader.Weapons.Controllers
 
         private Camera ResolveAdsCamera()
         {
-            var activeCamera = _adsCamera != null ? _adsCamera : Camera.main;
-            if (activeCamera == null && (_cameraDefaults == null || !_cameraDefaults.TryGetEffectiveFieldOfView(out _)))
+            if (_cameraDefaults == null || !_cameraDefaults.TryGetAuthoredMainCamera(out var activeCamera))
             {
                 return null;
             }
@@ -3770,7 +3253,7 @@ namespace Reloader.Weapons.Controllers
                 }
                 else
                 {
-                    _baseCameraFieldOfView = activeCamera != null && activeCamera.fieldOfView > 1f ? activeCamera.fieldOfView : DefaultFov;
+                    _baseCameraFieldOfView = DefaultFov;
                 }
                 _baseCameraFieldOfViewCaptured = true;
             }
@@ -3780,38 +3263,23 @@ namespace Reloader.Weapons.Controllers
 
         private bool TryGetCurrentFieldOfView(out float fieldOfView)
         {
-            ResolveAdsCamera();
-            if (_cameraDefaults != null && _cameraDefaults.TryGetEffectiveFieldOfView(out fieldOfView))
+            if (_cameraDefaults == null)
             {
-                return true;
+                fieldOfView = default;
+                return false;
             }
 
-            var camera = _cachedAdsCamera ?? _adsCamera ?? Camera.main;
-            if (camera != null)
-            {
-                fieldOfView = camera.fieldOfView;
-                return true;
-            }
-
-            fieldOfView = default;
-            return false;
+            return _cameraDefaults.TryGetEffectiveFieldOfView(out fieldOfView);
         }
 
         private bool TrySetCurrentFieldOfView(float fieldOfView)
         {
-            if (_cameraDefaults != null && _cameraDefaults.TrySetEffectiveFieldOfView(fieldOfView))
-            {
-                return true;
-            }
-
-            var camera = _cachedAdsCamera ?? _adsCamera ?? Camera.main;
-            if (camera == null)
+            if (_cameraDefaults == null)
             {
                 return false;
             }
 
-            camera.fieldOfView = fieldOfView;
-            return true;
+            return _cameraDefaults.TrySetEffectiveFieldOfView(fieldOfView);
         }
 
         private WeaponDefinition ResolveWeaponDefinition(string itemId)

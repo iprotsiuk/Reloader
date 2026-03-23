@@ -153,6 +153,17 @@ namespace Reloader.DevTools.Tests.PlayMode
             Assert.That(GetPropertyValue<bool>(weaponController, "HasActiveScopedAdsAlignment"), Is.True,
                 "give test should mount the scoped runtime view from state instead of only mutating the saved attachment snapshot.");
 
+            var equippedView = GetPropertyValue<Transform>(weaponController, "EquippedWeaponViewTransform");
+            Assert.That(equippedView, Is.Not.Null);
+            Assert.That(equippedView.localPosition, Is.EqualTo(Vector3.zero),
+                "Kar98k runtime view should keep the prefab root as an identity seam.");
+            Assert.That(equippedView.localRotation, Is.EqualTo(Quaternion.identity),
+                "Kar98k runtime view should keep the prefab root as an identity seam.");
+            Assert.That(equippedView.GetComponent<WeaponViewHandAnchors>(), Is.Not.Null,
+                "give test should keep the explicit runtime hand anchors on the spawned rifle view.");
+            Assert.That(equippedView.GetComponent<WeaponViewAttachmentMounts>(), Is.Not.Null,
+                "give test should keep the explicit runtime attachment mounts on the spawned rifle view.");
+
             inputSource.AimHeldValue = true;
             var adsBridge = GetPrivateFieldValue<Component>(weaponController, "_adsStateRuntimeBridge");
             Assert.That(adsBridge, Is.Not.Null);
@@ -174,7 +185,7 @@ namespace Reloader.DevTools.Tests.PlayMode
                 yield return new WaitForEndOfFrame();
             }
 
-            var equippedView = GetPropertyValue<Transform>(weaponController, "EquippedWeaponViewTransform");
+            equippedView = GetPropertyValue<Transform>(weaponController, "EquippedWeaponViewTransform");
             Assert.That(equippedView, Is.Not.Null);
             var attachmentManagerType = ResolveRequiredType("Reloader.Game.Weapons.AttachmentManager");
             var manager = equippedView.GetComponent(attachmentManagerType);
@@ -565,11 +576,136 @@ namespace Reloader.DevTools.Tests.PlayMode
 #endif
         }
 
+        [UnityTest]
+        public IEnumerator McpBridgeGiveTest_WaitsUntilStarterWeaponIsResolvable()
+        {
+#if UNITY_EDITOR
+            var root = new GameObject("DevBridgeGiveTestRoot");
+            var inputSource = root.AddComponent<StubInputSource>();
+            var inventoryRuntime = new PlayerInventoryRuntime();
+            inventoryRuntime.SetBackpackCapacity(8);
+            var inventoryController = root.AddComponent<PlayerInventoryController>();
+            inventoryController.Configure(inputSource, null, inventoryRuntime);
+
+            var starterWeapon = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterWeapon.SetValuesForTests(
+                "weapon-kar98k",
+                ItemCategory.Weapon,
+                "Kar98k (.308)",
+                ItemStackPolicy.NonStackable,
+                maxStack: 1);
+
+            var starterScope = ScriptableObject.CreateInstance<ItemDefinition>();
+            starterScope.SetValuesForTests(
+                "att-kar98k-scope-remote-a",
+                ItemCategory.Misc,
+                "Kar98k Scope Remote A",
+                ItemStackPolicy.NonStackable,
+                maxStack: 1);
+
+            var starterAmmo = AssetDatabase.LoadAssetAtPath<ItemDefinition>(
+                "Assets/_Project/Inventory/Data/Items/Cartridge_308_147_FMJ_PMC_Bronze.asset");
+            Assert.That(starterAmmo, Is.Not.Null);
+
+            SetPrivateField(
+                typeof(PlayerInventoryController),
+                inventoryController,
+                "_itemDefinitionRegistry",
+                new List<ItemDefinition> { starterWeapon, starterScope, starterAmmo });
+
+            var weaponController = root.AddComponent(ResolveRequiredType("Reloader.Weapons.Controllers.PlayerWeaponController"));
+            var weaponRegistry = CreateWeaponRegistry();
+            SetPrivateField(weaponController.GetType(), weaponController, "_weaponRegistry", weaponRegistry);
+            var worldCameraGo = ConfigureScopedKar98kViewRuntime(weaponController);
+
+            try
+            {
+                yield return null;
+                SetPrivateField(weaponController.GetType(), weaponController, "_weaponRegistry", null);
+
+                InvokeBridgeMenuAction("GiveTest");
+                InvokeBridgeTickAction();
+
+                Assert.That(
+                    GetBridgeActiveActionName(),
+                    Is.EqualTo("GiveTest"),
+                    "Bridge should keep waiting instead of executing give test before the starter weapon can be resolved by the weapon controller.");
+                Assert.That(inventoryRuntime.GetItemQuantity("weapon-kar98k"), Is.EqualTo(0));
+                Assert.That(GetPropertyValue<string>(weaponController, "EquippedItemId"), Is.Empty);
+
+                UnityEngine.Object.DestroyImmediate(weaponRegistry.gameObject);
+                weaponRegistry = CreateWeaponRegistry();
+                SetPrivateField(weaponController.GetType(), weaponController, "_weaponRegistry", weaponRegistry);
+
+                InvokeBridgeTickAction();
+                yield return null;
+
+                Assert.That(GetBridgeActiveActionName(), Is.EqualTo("None"));
+                Assert.That(inventoryRuntime.GetItemQuantity("weapon-kar98k"), Is.EqualTo(1));
+                Assert.That(inventoryRuntime.GetItemQuantity("att-kar98k-scope-remote-a"), Is.EqualTo(0));
+                Assert.That(inventoryRuntime.GetItemQuantity(StarterAmmoItemId), Is.EqualTo(500));
+                Assert.That(GetPropertyValue<string>(weaponController, "EquippedItemId"), Is.EqualTo("weapon-kar98k"));
+            }
+            finally
+            {
+                CompleteBridgeAction();
+                UnityEngine.Object.DestroyImmediate(starterWeapon);
+                UnityEngine.Object.DestroyImmediate(starterScope);
+                if (worldCameraGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(worldCameraGo);
+                }
+
+                if (weaponRegistry != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(weaponRegistry.gameObject);
+                }
+
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+#else
+            Assert.Ignore("Requires UnityEditor bridge menu.");
+            yield break;
+#endif
+        }
+
         private static void SetPrivateField(System.Type ownerType, object instance, string fieldName, object value)
         {
             var field = ownerType.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {ownerType.Name}.");
             field.SetValue(instance, value);
+        }
+
+        private static void InvokeBridgeMenuAction(string methodName)
+        {
+            var menuType = ResolveRequiredType("Reloader.DevTools.Editor.DevPlayModeBridgeMenu");
+            var method = menuType.GetMethod(methodName, BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, $"Expected bridge menu method '{methodName}'.");
+            method!.Invoke(null, null);
+        }
+
+        private static void InvokeBridgeTickAction()
+        {
+            var menuType = ResolveRequiredType("Reloader.DevTools.Editor.DevPlayModeBridgeMenu");
+            var method = menuType.GetMethod("TickAction", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, "Expected bridge menu TickAction.");
+            method!.Invoke(null, null);
+        }
+
+        private static string GetBridgeActiveActionName()
+        {
+            var menuType = ResolveRequiredType("Reloader.DevTools.Editor.DevPlayModeBridgeMenu");
+            var field = menuType.GetField("s_activeAction", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, "Expected bridge menu active action field.");
+            return field!.GetValue(null)?.ToString() ?? string.Empty;
+        }
+
+        private static void CompleteBridgeAction()
+        {
+            var menuType = ResolveRequiredType("Reloader.DevTools.Editor.DevPlayModeBridgeMenu");
+            var method = menuType.GetMethod("CompleteAction", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, "Expected bridge menu CompleteAction.");
+            method!.Invoke(null, null);
         }
 
         private static Component CreateWeaponRegistry()
@@ -635,14 +771,71 @@ namespace Reloader.DevTools.Tests.PlayMode
             Assert.That(rifleViewPrefab, Is.Not.Null);
             Assert.That(opticDefinition, Is.Not.Null);
 
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(weaponController.transform, false);
+
+            var playerArms = new GameObject("PlayerArms").transform;
+            playerArms.SetParent(cameraPivot, false);
+
+            var playerArmsVisual = new GameObject("PlayerArmsVisual").transform;
+            playerArmsVisual.SetParent(playerArms, false);
+            var packAnimator = playerArmsVisual.gameObject.AddComponent<Animator>();
+
+            var weaponPresentationRoot = new GameObject("WeaponPresentationRoot").transform;
+            weaponPresentationRoot.SetParent(cameraPivot, false);
+
             var worldCameraGo = new GameObject("WorldCam");
+            worldCameraGo.transform.SetParent(cameraPivot, false);
             var worldCamera = worldCameraGo.AddComponent<Camera>();
             worldCamera.tag = "MainCamera";
             var viewmodelCameraGo = new GameObject("ViewmodelCamera");
-            viewmodelCameraGo.transform.SetParent(worldCamera.transform, false);
+            viewmodelCameraGo.transform.SetParent(cameraPivot, false);
             viewmodelCameraGo.AddComponent<Camera>();
+            var scopeCameraGo = new GameObject("ScopeCamera");
+            scopeCameraGo.transform.SetParent(worldCamera.transform, false);
+            var scopeCamera = scopeCameraGo.AddComponent<Camera>();
 
-            SetPrivateField(weaponController.GetType(), weaponController, "_adsCamera", worldCamera);
+            var cameraDefaults = weaponController.GetComponent<PlayerCameraDefaults>();
+            if (cameraDefaults == null)
+            {
+                cameraDefaults = weaponController.gameObject.AddComponent<PlayerCameraDefaults>();
+            }
+
+            SetPrivateField(typeof(PlayerCameraDefaults), cameraDefaults, "_cameraPivot", cameraPivot);
+            SetPrivateField(typeof(PlayerCameraDefaults), cameraDefaults, "_cameraFollowTarget", cameraPivot);
+            SetPrivateField(typeof(PlayerCameraDefaults), cameraDefaults, "_viewmodelCameraParent", cameraPivot);
+            SetPrivateField(typeof(PlayerCameraDefaults), cameraDefaults, "_mainCamera", worldCamera);
+            SetPrivateField(typeof(PlayerCameraDefaults), cameraDefaults, "_viewmodelCamera", viewmodelCameraGo.GetComponent<Camera>());
+            SetPrivateField(typeof(PlayerCameraDefaults), cameraDefaults, "_playerArmsRoot", playerArms);
+            SetPrivateField(typeof(PlayerCameraDefaults), cameraDefaults, "_playerArmsAnimator", packAnimator);
+            SetPrivateField(typeof(PlayerCameraDefaults), cameraDefaults, "_weaponPresentationRoot", weaponPresentationRoot);
+
+            SetPrivateField(weaponController.GetType(), weaponController, "_cameraDefaults", cameraDefaults);
+            SetPrivateField(weaponController.GetType(), weaponController, "_cameraPivot", cameraPivot);
+            SetPrivateField(weaponController.GetType(), weaponController, "_viewmodelRoot", playerArms);
+            SetPrivateField(weaponController.GetType(), weaponController, "_packAnimator", packAnimator);
+            SetPrivateField(weaponController.GetType(), weaponController, "_weaponViewParent", weaponPresentationRoot);
+            SetPrivateField(weaponController.GetType(), weaponController, "_scopeCamera", scopeCamera);
+
+            if (weaponController.GetComponent(ResolveRequiredType("Reloader.Game.Weapons.AdsStateController")) == null)
+            {
+                weaponController.gameObject.AddComponent(ResolveRequiredType("Reloader.Game.Weapons.AdsStateController"));
+            }
+
+            if (weaponController.GetComponent(ResolveRequiredType("Reloader.Game.Weapons.RenderTextureScopeController")) == null)
+            {
+                weaponController.gameObject.AddComponent(ResolveRequiredType("Reloader.Game.Weapons.RenderTextureScopeController"));
+            }
+
+            if (weaponController.GetComponent(ResolveRequiredType("Reloader.Game.Weapons.PeripheralScopeEffects")) == null)
+            {
+                weaponController.gameObject.AddComponent(ResolveRequiredType("Reloader.Game.Weapons.PeripheralScopeEffects"));
+            }
+
+            if (weaponController.GetComponent(ResolveRequiredType("Reloader.Game.Weapons.ScopeAdjustmentTooltipOverlay")) == null)
+            {
+                weaponController.gameObject.AddComponent(ResolveRequiredType("Reloader.Game.Weapons.ScopeAdjustmentTooltipOverlay"));
+            }
 
             var metadataType = ResolveRequiredType("Reloader.Weapons.Runtime.WeaponAttachmentItemMetadata");
             var slotType = ResolveRequiredType("Reloader.Weapons.Data.WeaponAttachmentSlotType");
@@ -660,32 +853,6 @@ namespace Reloader.DevTools.Tests.PlayMode
             metadataArray.SetValue(metadata, 0);
             SetPrivateField(weaponController.GetType(), weaponController, "_attachmentItemMetadata", metadataArray);
             SetControllerWeaponViewBinding(weaponController, "weapon-kar98k", rifleViewPrefab);
-
-            var poseHelper = weaponController.gameObject.AddComponent<WeaponViewPoseTuningHelper>();
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_weaponController", weaponController);
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_targetWeaponItemId", "weapon-kar98k");
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_hipLocalPosition", new Vector3(0.015f, 0.15f, 0.005f));
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_adsLocalPosition", new Vector3(0f, 0.2f, 0.077f));
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_hipLocalEuler", Vector3.zero);
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_adsLocalEuler", Vector3.zero);
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_rifleLocalEulerOffset", new Vector3(90f, 0f, 0f));
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_blendSpeed", 24f);
-
-            var overrideType = typeof(WeaponViewPoseTuningHelper).GetNestedType("AttachmentPoseOverride", BindingFlags.NonPublic);
-            Assert.That(overrideType, Is.Not.Null);
-            var overrides = Array.CreateInstance(overrideType!, 1);
-            var entry = Activator.CreateInstance(overrideType!);
-            SetPrivateField(overrideType!, entry, "_slotType", scopeSlot);
-            SetPrivateField(overrideType!, entry, "_attachmentItemId", "att-kar98k-scope-remote-a");
-            SetPrivateField(overrideType!, entry, "_hipLocalPosition", new Vector3(0.015f, 0.15f, 0.005f));
-            SetPrivateField(overrideType!, entry, "_hipLocalEuler", Vector3.zero);
-            SetPrivateField(overrideType!, entry, "_adsLocalPosition", new Vector3(0f, 0.2f, 0.05f));
-            SetPrivateField(overrideType!, entry, "_adsLocalEuler", Vector3.zero);
-            SetPrivateField(overrideType!, entry, "_rifleLocalEulerOffset", new Vector3(90f, 0f, 0f));
-            SetPrivateField(overrideType!, entry, "_blendSpeed", 24f);
-            SetPrivateField(overrideType!, entry, "_scopedAdsEyeReliefBackOffset", 0f);
-            overrides.SetValue(entry, 0);
-            SetPrivateField(typeof(WeaponViewPoseTuningHelper), poseHelper, "_attachmentPoseOverrides", overrides);
 
             return worldCameraGo;
         }

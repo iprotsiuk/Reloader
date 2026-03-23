@@ -7,6 +7,9 @@ using Reloader.Player.Viewmodel;
 using Reloader.World.Runtime;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+#if UNITY_EDITOR
+using UnityEditor.SceneManagement;
+#endif
 
 namespace Reloader.World.Travel
 {
@@ -74,6 +77,11 @@ namespace Reloader.World.Travel
                 return false;
             }
 
+            if (!string.IsNullOrWhiteSpace(_pendingSceneName) || !string.IsNullOrWhiteSpace(_pendingEntryPointId))
+            {
+                return false;
+            }
+
             if (!Application.CanStreamedLevelBeLoaded(sceneName))
             {
                 Debug.LogWarning($"Travel scene '{sceneName}' is not available in build settings.");
@@ -81,23 +89,24 @@ namespace Reloader.World.Travel
             }
 
             EnsureSubscribed();
-            CaptureCivilianPopulationStateForTravel();
-            PreparePersistentPlayerRootForTravel();
-            CaptureInventorySnapshotForTravel();
-            CaptureWeaponRuntimeSnapshotForTravel();
+            if (!PreparePersistentPlayerRootForTravel())
+            {
+                Debug.LogWarning("Travel failed: canonical runtime player root is missing.");
+                return false;
+            }
+
             _pendingSceneName = sceneName.Trim();
             _pendingEntryPointId = entryPointId.Trim();
             LastResolvedEntryPointId = null;
             try
             {
-                SceneManager.LoadScene(_pendingSceneName, LoadSceneMode.Single);
+                SceneManager.LoadScene(_pendingSceneName, LoadSceneMode.Additive);
                 return true;
             }
             catch (Exception ex)
             {
                 Debug.LogWarning($"Failed to load travel scene '{_pendingSceneName}': {ex.Message}");
-                _pendingSceneName = null;
-                _pendingEntryPointId = null;
+                ClearPendingTravelRequest(applySuppression: false);
                 return false;
             }
         }
@@ -138,18 +147,22 @@ namespace Reloader.World.Travel
 
             if (SceneEntryPoint.TryFindById(candidates, _pendingEntryPointId, out var resolvedEntryPoint))
             {
+                CaptureCivilianPopulationStateForTravel();
+                CaptureInventorySnapshotForTravel();
+                CaptureWeaponRuntimeSnapshotForTravel();
                 LastResolvedEntryPointId = resolvedEntryPoint.EntryPointId;
+                SceneManager.SetActiveScene(scene);
                 RestoreCivilianPopulationStateAfterTravel(scene);
                 RepositionPlayerToEntryPoint(scene, resolvedEntryPoint.transform);
+                UnloadLoadedScenesExcept(scene);
+                ClearPendingTravelRequest(applySuppression: true);
             }
             else
             {
                 Debug.LogWarning($"Travel entry point '{_pendingEntryPointId}' was not found in scene '{scene.name}'.");
+                UnloadSceneForFailedTravel(scene);
+                ClearPendingTravelRequest(applySuppression: false);
             }
-
-            _pendingSceneName = null;
-            _pendingEntryPointId = null;
-            _travelSuppressedUntilRealtime = Time.realtimeSinceStartup + 1f;
         }
 
         private static void CaptureCivilianPopulationStateForTravel()
@@ -324,35 +337,73 @@ namespace Reloader.World.Travel
 
         }
 
-        private static void PreparePersistentPlayerRootForTravel()
+        private static bool PreparePersistentPlayerRootForTravel()
         {
-            var persistentRoot = PersistentPlayerRoot.EnsureInstance();
-            if (persistentRoot == null)
+            var persistentRoot = PersistentPlayerRoot.Instance;
+            if (persistentRoot == null || persistentRoot.PlayerRootTransform == null)
             {
-                return;
+                return false;
             }
 
             var activeScene = SceneManager.GetActiveScene();
             if (!activeScene.IsValid() || !activeScene.isLoaded)
             {
+                return false;
+            }
+
+            return persistentRoot.MoveRuntimePlayerRootToScene(activeScene) != null;
+        }
+
+        private static void ClearPendingTravelRequest(bool applySuppression)
+        {
+            _pendingSceneName = null;
+            _pendingEntryPointId = null;
+            if (applySuppression)
+            {
+                _travelSuppressedUntilRealtime = Time.realtimeSinceStartup + 1f;
+            }
+        }
+
+        private static void UnloadLoadedScenesExcept(Scene sceneToKeep)
+        {
+            var scenesToUnload = new List<Scene>();
+            for (var i = 0; i < SceneManager.sceneCount; i++)
+            {
+                var loadedScene = SceneManager.GetSceneAt(i);
+                if (!loadedScene.IsValid() || !loadedScene.isLoaded || loadedScene == sceneToKeep)
+                {
+                    continue;
+                }
+
+                scenesToUnload.Add(loadedScene);
+            }
+
+            for (var i = 0; i < scenesToUnload.Count; i++)
+            {
+                UnloadSceneForFailedTravel(scenesToUnload[i]);
+            }
+        }
+
+        private static void UnloadSceneForFailedTravel(Scene scene)
+        {
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
                 return;
             }
 
-            persistentRoot.CaptureOrAdoptPlayerRootForScene(activeScene, preferSceneRoot: true);
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                return;
+            }
+#endif
+            SceneManager.UnloadSceneAsync(scene);
         }
 
         private static Transform ResolveTravelPlayerRoot(Scene destinationScene)
         {
-            if (destinationScene.IsValid() && destinationScene.isLoaded && PersistentPlayerRoot.Instance != null)
-            {
-                var adopted = PersistentPlayerRoot.Instance.CaptureOrAdoptPlayerRootForScene(destinationScene, preferSceneRoot: false);
-                if (adopted != null)
-                {
-                    return adopted;
-                }
-            }
-
-            return FindPlayerRootInScene(destinationScene);
+            return PersistentPlayerRoot.Instance?.MoveRuntimePlayerRootToScene(destinationScene);
         }
 
         private static void CaptureInventorySnapshotForTravel()
@@ -360,8 +411,7 @@ namespace Reloader.World.Travel
             _pendingInventoryQuantities.Clear();
             _pendingSelectedBeltIndex = -1;
 
-            var activeScene = SceneManager.GetActiveScene();
-            var playerRoot = FindPlayerRootInScene(activeScene);
+            var playerRoot = PersistentPlayerRoot.Instance?.PlayerRootTransform;
             if (playerRoot == null)
             {
                 return;
@@ -500,8 +550,7 @@ namespace Reloader.World.Travel
         {
             _pendingWeaponSnapshots.Clear();
 
-            var activeScene = SceneManager.GetActiveScene();
-            var playerRoot = FindPlayerRootInScene(activeScene);
+            var playerRoot = PersistentPlayerRoot.Instance?.PlayerRootTransform;
             if (playerRoot == null)
             {
                 return;
@@ -712,26 +761,6 @@ namespace Reloader.World.Travel
                     sink.Add(itemId);
                 }
             }
-        }
-
-        private static Transform FindPlayerRootInScene(Scene scene)
-        {
-            if (!scene.IsValid() || !scene.isLoaded)
-            {
-                return null;
-            }
-
-            var rootObjects = scene.GetRootGameObjects();
-            for (var i = 0; i < rootObjects.Length; i++)
-            {
-                var root = rootObjects[i];
-                if (root != null && root.name == "PlayerRoot")
-                {
-                    return root.transform;
-                }
-            }
-
-            return null;
         }
 
         private static void EnsureViewmodelRigAfterTravel(Transform playerRootTransform)

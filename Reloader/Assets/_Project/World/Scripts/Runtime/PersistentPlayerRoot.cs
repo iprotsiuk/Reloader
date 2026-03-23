@@ -41,68 +41,39 @@ namespace Reloader.World.Runtime
             }
         }
 
-        public Transform CaptureOrAdoptPlayerRootForScene(Scene scene, bool preferSceneRoot = false)
+        public Transform RegisterRuntimePlayerRoot(Transform playerRootTransform)
         {
-            if (!scene.IsValid() || !scene.isLoaded)
+            if (playerRootTransform == null)
             {
                 return _playerRootTransform;
             }
 
-            var scenePlayerRoot = FindPlayerRootInScene(scene);
-            if (preferSceneRoot && scenePlayerRoot != null && scenePlayerRoot != _playerRootTransform)
+            if (_playerRootTransform != null && _playerRootTransform != playerRootTransform)
             {
-                if (_playerRootTransform != null)
-                {
-                    if (Application.isPlaying)
-                    {
-                        Destroy(_playerRootTransform.gameObject);
-                    }
-                    else
-                    {
-                        DestroyImmediate(_playerRootTransform.gameObject);
-                    }
-                }
-
-                _playerRootTransform = scenePlayerRoot;
-                if (Application.isPlaying)
-                {
-                    DontDestroyOnLoad(_playerRootTransform.gameObject);
-                }
-
+                DestroyGameObject(playerRootTransform.gameObject);
                 return _playerRootTransform;
             }
 
+            _playerRootTransform = playerRootTransform;
+
+            if (Application.isPlaying)
+            {
+                DontDestroyOnLoad(_playerRootTransform.gameObject);
+            }
+
+            return _playerRootTransform;
+        }
+
+        public Transform MoveRuntimePlayerRootToScene(Scene scene)
+        {
             if (_playerRootTransform == null)
             {
-                _playerRootTransform = scenePlayerRoot;
-                if (_playerRootTransform == null)
-                {
-                    return null;
-                }
-
-                if (Application.isPlaying)
-                {
-                    DontDestroyOnLoad(_playerRootTransform.gameObject);
-                }
-
-                return _playerRootTransform;
+                return null;
             }
 
-            if (_playerRootTransform.gameObject.scene == scene)
+            if (!scene.IsValid() || !scene.isLoaded || _playerRootTransform.gameObject.scene == scene)
             {
                 return _playerRootTransform;
-            }
-
-            if (scenePlayerRoot != null && scenePlayerRoot != _playerRootTransform)
-            {
-                if (Application.isPlaying)
-                {
-                    Destroy(scenePlayerRoot.gameObject);
-                }
-                else
-                {
-                    DestroyImmediate(scenePlayerRoot.gameObject);
-                }
             }
 
             SceneManager.MoveGameObjectToScene(_playerRootTransform.gameObject, scene);
@@ -127,34 +98,27 @@ namespace Reloader.World.Runtime
         {
             if (Instance != null && Instance != this)
             {
-                if (Application.isPlaying)
-                {
-                    Destroy(gameObject);
-                }
-                else
-                {
-                    DestroyImmediate(gameObject);
-                }
-
+                DestroyGameObject(gameObject);
                 return;
             }
 
             InitializeSingleton();
         }
 
-        private static Transform FindPlayerRootInScene(Scene scene)
+        private static void DestroyGameObject(GameObject target)
         {
-            var roots = scene.GetRootGameObjects();
-            for (var i = 0; i < roots.Length; i++)
+            if (target == null)
             {
-                var root = roots[i];
-                if (root != null && root.name == "PlayerRoot")
-                {
-                    return root.transform;
-                }
+                return;
             }
 
-            return null;
+            if (Application.isPlaying)
+            {
+                Destroy(target);
+                return;
+            }
+
+            DestroyImmediate(target);
         }
     }
 }

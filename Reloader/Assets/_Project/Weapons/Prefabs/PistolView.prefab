@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8912925845023556728}
   - component: {fileID: 776500000000000105}
+  - component: {fileID: 776500000000000106}
   m_Layer: 0
   m_Name: PistolView
   m_TagString: Untagged
@@ -57,6 +58,23 @@ MonoBehaviour:
   _attachmentSlots:
   - _slotType: 1
     _slotTransform: {fileID: 2280447949852161331}
+--- !u!114 &776500000000000106
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 850772559695530675}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a2728012b2324c42bfa88eb32861063, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _scopeSlot: {fileID: 0}
+  _muzzleSlot: {fileID: 2280447949852161331}
+  _muzzleRuntime: {fileID: 0}
+  _ironSightAnchor: {fileID: 776500000000000102}
+  _verboseOpticLogs: 0
 --- !u!1 &3180016798595929174
 GameObject:
   m_ObjectHideFlags: 0

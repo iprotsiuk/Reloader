@@ -1,0 +1,17 @@
+{
+  "name": "Reloader.Startup",
+  "rootNamespace": "Reloader.Startup",
+  "references": [
+    "Reloader.Core",
+    "Reloader.World"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

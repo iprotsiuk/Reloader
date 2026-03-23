@@ -15,11 +15,6 @@ namespace Reloader.Weapons.World
             target = null;
             if (_playerCamera == null)
             {
-                _playerCamera = Camera.main;
-            }
-
-            if (_playerCamera == null)
-            {
                 return false;
             }
 

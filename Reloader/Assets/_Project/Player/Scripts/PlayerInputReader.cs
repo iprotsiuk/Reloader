@@ -4,6 +4,7 @@ using Reloader.Core.Runtime;
 
 namespace Reloader.Player
 {
+    [DefaultExecutionOrder(-100)]
     public sealed class PlayerInputReader : MonoBehaviour, IPlayerInputSource, IShotCameraInputSource
     {
         private const string DefaultScrollWheelActionName = "ScrollWheel";
@@ -110,9 +111,7 @@ namespace Reloader.Player
                 ? _moveAction.ReadValue<Vector2>()
                 : Vector2.zero;
 
-            LookInput = !isDevConsoleVisible && _lookAction != null
-                ? _lookAction.ReadValue<Vector2>()
-                : Vector2.zero;
+            LookInput = ResolveLookInput(isDevConsoleVisible);
 
             SprintHeld = !isGameplayInputSuppressed && _sprintAction != null && _sprintAction.IsPressed();
 
@@ -164,14 +163,18 @@ namespace Reloader.Player
                 AimHeld = false;
                 AimToggleQueued = false;
             }
-            else if (isShotCameraActive)
+            else
             {
-                AimToggleQueued = false;
-            }
-            else if (_aimAction != null && _aimAction.WasPressedThisFrame())
-            {
-                AimHeld = !AimHeld;
-                AimToggleQueued = true;
+                var nextAimHeld = AimHeld;
+                ResolveAimState(
+                    isAnyMenuOpen,
+                    isShotCameraActive,
+                    _aimAction != null && _aimAction.IsPressed(),
+                    _aimAction != null && _aimAction.WasPressedThisFrame(),
+                    ref nextAimHeld,
+                    out var aimToggleQueued);
+                AimHeld = nextAimHeld;
+                AimToggleQueued = aimToggleQueued;
             }
 
             if (!isGameplayInputSuppressed && !isAnyMenuOpen && keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
@@ -275,6 +278,49 @@ namespace Reloader.Player
                     }
                 }
             }
+        }
+
+        private Vector2 ResolveLookInput(bool isDevConsoleVisible)
+        {
+            if (isDevConsoleVisible || _lookAction == null)
+            {
+                return Vector2.zero;
+            }
+
+            var lookInput = _lookAction.ReadValue<Vector2>();
+            var activeControl = _lookAction.activeControl;
+            return LookInputNormalization.NormalizeLookDelta(lookInput, activeControl != null ? activeControl.path : null);
+        }
+
+        private static void ResolveAimState(
+            bool isAnyMenuOpen,
+            bool isShotCameraActive,
+            bool aimPressed,
+            bool aimPressedThisFrame,
+            ref bool aimHeld,
+            out bool aimToggleQueued)
+        {
+            if (isAnyMenuOpen)
+            {
+                aimHeld = false;
+                aimToggleQueued = false;
+                return;
+            }
+
+            if (isShotCameraActive)
+            {
+                aimToggleQueued = false;
+                return;
+            }
+
+            if (!aimPressedThisFrame)
+            {
+                aimToggleQueued = false;
+                return;
+            }
+
+            aimHeld = !aimHeld;
+            aimToggleQueued = true;
         }
 
         public bool ConsumeJumpPressed()

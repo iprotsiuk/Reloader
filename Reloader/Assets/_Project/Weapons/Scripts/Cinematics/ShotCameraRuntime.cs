@@ -134,6 +134,11 @@ namespace Reloader.Weapons.Cinematics
 
             ResolveInputSource();
 
+            if (!TryResolveGameplayRenderCamera(out _gameplayRenderCamera))
+            {
+                return false;
+            }
+
             if (_isShotActive)
             {
                 EndShotCamera();
@@ -214,8 +219,6 @@ namespace Reloader.Weapons.Cinematics
 
         private void EnsureCinematicCamera()
         {
-            _gameplayRenderCamera = ResolveRenderCamera();
-
             if (_cameraFollowTarget == null)
             {
                 var followTargetGo = new GameObject(FollowTargetName);
@@ -272,15 +275,17 @@ namespace Reloader.Weapons.Cinematics
             _cinematicRenderCamera.fieldOfView = CinematicFieldOfView;
         }
 
-        private Camera ResolveRenderCamera()
+        private bool TryResolveGameplayRenderCamera(out Camera gameplayRenderCamera)
         {
             var cameraDefaults = GetComponent<PlayerCameraDefaults>();
-            if (cameraDefaults != null && cameraDefaults.TryGetMainCamera(out var configuredCamera))
+            if (cameraDefaults != null && cameraDefaults.TryGetAuthoredMainCamera(out var configuredCamera))
             {
-                return configuredCamera;
+                gameplayRenderCamera = configuredCamera;
+                return true;
             }
 
-            return Camera.main;
+            gameplayRenderCamera = null;
+            return false;
         }
 
         private void UpdateCinematicCameraTarget()

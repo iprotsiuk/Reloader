@@ -13,7 +13,7 @@ namespace Reloader.Game.Weapons
         [SerializeField] private Transform _muzzleSlot;
         [SerializeField] private MuzzleAttachmentRuntime _muzzleRuntime;
 
-        [Header("Fallback")]
+        [Header("Iron Sight Anchor")]
         [SerializeField] private Transform _ironSightAnchor;
         [Header("Debug")]
         [SerializeField] private bool _verboseOpticLogs;
@@ -74,7 +74,7 @@ namespace Reloader.Game.Weapons
                 RefreshSightAnchor();
                 if (_verboseOpticLogs)
                 {
-                    Debug.Log("AttachmentManager: EquipOptic(null) -> unequipped optic, using fallback sight anchor.", this);
+                    Debug.Log("AttachmentManager: EquipOptic(null) -> unequipped optic, using iron sight anchor.", this);
                 }
                 return _activeSightAnchor != null;
             }
@@ -314,13 +314,7 @@ namespace Reloader.Game.Weapons
 
         private static Transform ResolveRuntimeAttachmentSlot(MuzzleAttachmentRuntime runtime)
         {
-            if (runtime == null)
-            {
-                return null;
-            }
-
-            var slotField = typeof(MuzzleAttachmentRuntime).GetField("_attachmentSlot", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            return slotField?.GetValue(runtime) as Transform;
+            return runtime != null ? runtime.AttachmentSlot : null;
         }
 
         private void RefreshSightAnchor()
@@ -424,16 +418,7 @@ namespace Reloader.Game.Weapons
                 return null;
             }
 
-            var transforms = root.GetComponentsInChildren<Transform>(true);
-            for (var i = 0; i < transforms.Length; i++)
-            {
-                if (transforms[i].name == SightAnchorName)
-                {
-                    return transforms[i];
-                }
-            }
-
-            return null;
+            return root.Find(SightAnchorName);
         }
 
         private static void ApplySlotLayer(Transform slot)

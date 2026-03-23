@@ -15,11 +15,8 @@ MonoBehaviour:
   _scenePath: Assets/_Project/World/Scenes/IndoorRangeInstance.unity
   _sceneRole: 2
   _requiredObjectPaths:
-  - PlayerRoot
-  - PlayerRoot/CameraPivot
-  - PlayerRoot/CameraPivot/CameraLookTarget
-  - PlayerRoot/CameraPivot/WeaponMuzzle
   - WeaponRegistry
+  - IndoorRangeEntry_Arrival
   - IndoorRange_SmokeToMainTown_Trigger
   - IndoorRange_Geometry
   - IndoorRange_Geometry/Range_Floor
@@ -40,19 +37,6 @@ MonoBehaviour:
     _requiredNonEmptyArrayFields:
     - _definitions
     _requiredNonEmptyStringFields: []
-  - _objectPath: PlayerRoot
-    _componentScriptAsset: {fileID: 11500000, guid: 29f65bd28bff74eb1b31709470453ced, type: 3}
-    _componentTypeName: Reloader.Weapons.Controllers.PlayerWeaponController, Reloader.Weapons,
-      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    _requiredNonNullObjectReferenceFields:
-    - _inputSourceBehaviour
-    - _inventoryController
-    - _weaponRegistry
-    - _muzzleTransform
-    - _cameraDefaults
-    - _projectilePrefab
-    _requiredNonEmptyArrayFields: []
-    _requiredNonEmptyStringFields: []
   - _objectPath: IndoorRangeEntry_Arrival
     _componentScriptAsset: {fileID: 11500000, guid: 52cd80be86124d7aa463a5be22eeebf3, type: 3}
     _componentTypeName: Reloader.World.Travel.SceneEntryPoint, Reloader.World, Version=0.0.0.0,
@@ -61,6 +45,14 @@ MonoBehaviour:
     _requiredNonEmptyArrayFields: []
     _requiredNonEmptyStringFields:
     - _entryPointId
+  - _objectPath: IndoorRangeEntry_Arrival
+    _componentScriptAsset: {fileID: 11500000, guid: ed037f91d63174ec892f7b4f5261cec5, type: 3}
+    _componentTypeName: Reloader.World.Travel.PlayerSpawnAnchor, Reloader.World,
+      Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    _requiredNonNullObjectReferenceFields: []
+    _requiredNonEmptyArrayFields: []
+    _requiredNonEmptyStringFields:
+    - _anchorId
   _validateRequiredSceneEntryPointIds: 1
   _requiredSceneEntryPointIds:
   - entry.indoor.arrival

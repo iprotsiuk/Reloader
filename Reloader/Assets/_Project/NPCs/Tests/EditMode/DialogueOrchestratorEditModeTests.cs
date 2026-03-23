@@ -4,6 +4,7 @@ using Reloader.NPCs.Data;
 using Reloader.NPCs.Runtime.Dialogue;
 using Reloader.NPCs.World;
 using UnityEngine;
+using Reloader.World.Runtime;
 
 namespace Reloader.NPCs.Tests.EditMode
 {
@@ -204,6 +205,41 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
+        [Test]
+        public void EnsureRuntimeForPlayerHost_WithoutRequester_UsesCanonicalPersistentPlayerRoot()
+        {
+            DestroyAllDialogueRuntimeState();
+
+            if (PersistentPlayerRoot.Instance != null)
+            {
+                Object.DestroyImmediate(PersistentPlayerRoot.Instance.gameObject);
+            }
+
+            var persistentRoot = PersistentPlayerRoot.EnsureInstance();
+            var persistentRootGo = persistentRoot.gameObject;
+            var runtimePlayerRootGo = new GameObject("RuntimePlayerRoot");
+            persistentRoot.RegisterRuntimePlayerRoot(runtimePlayerRootGo.transform);
+            Assert.That(PersistentPlayerRoot.Instance, Is.SameAs(persistentRoot));
+            Assert.That(PersistentPlayerRoot.Instance.PlayerRootTransform, Is.SameAs(runtimePlayerRootGo.transform));
+            var resolvedRuntime = DialogueRuntimeLocator.EnsureRuntimeForPlayerHost(null);
+
+            try
+            {
+                Assert.That(resolvedRuntime, Is.Not.Null, "Expected the canonical persistent player root to provision dialogue runtime.");
+                Assert.That(resolvedRuntime, Is.SameAs(runtimePlayerRootGo.GetComponent<DialogueRuntimeController>()));
+                Assert.That(resolvedRuntime.gameObject, Is.SameAs(runtimePlayerRootGo));
+                Assert.That(runtimePlayerRootGo.GetComponent<DialogueConversationModeController>(), Is.Not.Null);
+                Assert.That(runtimePlayerRootGo.GetComponent<DialogueOutcomeContractRuntimeBridge>(), Is.Not.Null);
+                Assert.That(Object.FindFirstObjectByType<DialogueRuntimeController>(FindObjectsInactive.Include), Is.SameAs(runtimePlayerRootGo.GetComponent<DialogueRuntimeController>()));
+                Assert.That(GameObject.Find("PlayerRoot"), Is.Null);
+            }
+            finally
+            {
+                Object.DestroyImmediate(runtimePlayerRootGo);
+                Object.DestroyImmediate(persistentRootGo);
+            }
+        }
+
         private static DialogueDefinition CreateDefinition(string dialogueId, string entryNodeId, params DialogueNodeDefinition[] nodes)
         {
             var definition = ScriptableObject.CreateInstance<DialogueDefinition>();
@@ -218,6 +254,22 @@ namespace Reloader.NPCs.Tests.EditMode
             var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {target.GetType().Name}.");
             field.SetValue(target, value);
+        }
+
+        private static void DestroyAllDialogueRuntimeState()
+        {
+            DestroyAllOfType<DialogueRuntimeController>();
+            DestroyAllOfType<DialogueConversationModeController>();
+            DestroyAllOfType<DialogueOutcomeContractRuntimeBridge>();
+        }
+
+        private static void DestroyAllOfType<T>() where T : Object
+        {
+            var objects = Object.FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var obj in objects)
+            {
+                Object.DestroyImmediate(obj);
+            }
         }
     }
 }

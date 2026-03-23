@@ -1,13 +1,22 @@
 using UnityEngine;
 using UnityEngine.Rendering;
+using Reloader.Game.Weapons.Rendering;
 
 namespace Reloader.Game.Weapons
 {
     public sealed class RenderTextureScopeController : MonoBehaviour
     {
+        private const int DefaultPipResolutionPercent = 100;
+        private const int MinPipResolutionPercent = 10;
+        private const int MaxPipResolutionPercent = 400;
         private const float MaxProjectionAxisOffset = 0.45f;
+        private const int DefaultScopeRenderTextureResolution = 1024;
+        private const int MinimumAdaptiveScopeRenderTextureResolution = 256;
+        private const int MaximumAdaptiveScopeRenderTextureResolution = 8192;
+        private const float NearSquareReticleAspectTolerance = 0.01f;
 
         [SerializeField] private Camera _scopeCamera;
+        [SerializeField] private Camera _apertureCamera;
         [SerializeField] private Behaviour[] _expensiveScopeBehaviours;
         [Header("Inspector Calibration Overrides")]
         [SerializeField] private bool _useInspectorCalibrationOverrides;
@@ -23,6 +32,8 @@ namespace Reloader.Game.Weapons
         private RenderTexture _scopeRenderTexture;
         private ScopeLensDisplay _lastLensDisplay;
         private ScopeReticleController _lastReticleController;
+        private GameObject _lastMissingLensDisplayOpticInstance;
+        private GameObject _lastMissingScopeCameraOpticInstance;
         private int _lastResolution = -1;
         private float _lastMagnification = -1f;
         private int _lastWindageClicks;
@@ -43,6 +54,7 @@ namespace Reloader.Game.Weapons
         private float _currentProjectionCalibrationMultiplier = 1f;
         private float _currentMradPerClick = 0.1f;
         private Vector2 _currentMechanicalZeroOffsetMrad;
+        private int _scopedPipResolutionPercent = DefaultPipResolutionPercent;
 
         public bool IsCompositeReticleActive => _isCompositeReticleActive;
         public Sprite CurrentCompositeReticleSprite => _currentCompositeReticleSprite;
@@ -53,6 +65,7 @@ namespace Reloader.Game.Weapons
         public float CurrentProjectionCalibrationMultiplier => _currentProjectionCalibrationMultiplier;
         public float CurrentMradPerClick => _currentMradPerClick;
         public Vector2 CurrentMechanicalZeroOffsetMrad => _currentMechanicalZeroOffsetMrad;
+        public int ScopedPipResolutionPercent => _scopedPipResolutionPercent;
 
         private void Awake()
         {
@@ -83,6 +96,40 @@ namespace Reloader.Game.Weapons
             ReleaseRenderTexture();
         }
 
+        public void SetScopeCamera(Camera scopeCamera)
+        {
+            if (ReferenceEquals(_scopeCamera, scopeCamera))
+            {
+                if (_scopeCamera != null)
+                {
+                    _defaultScopeCameraFov = _scopeCamera.fieldOfView;
+                }
+
+                return;
+            }
+
+            if (_scopeCamera != null)
+            {
+                FailClosedScopePresentation();
+            }
+
+            _scopeCamera = scopeCamera;
+            if (_scopeCamera != null)
+            {
+                _defaultScopeCameraFov = _scopeCamera.fieldOfView;
+            }
+        }
+
+        public void SetApertureCamera(Camera apertureCamera)
+        {
+            _apertureCamera = apertureCamera;
+        }
+
+        public void SetScopedPipResolutionPercent(int pipResolutionPercent)
+        {
+            _scopedPipResolutionPercent = Mathf.Clamp(pipResolutionPercent, MinPipResolutionPercent, MaxPipResolutionPercent);
+        }
+
         public void SetScopeActive(
             bool isActive,
             OpticDefinition optic,
@@ -93,21 +140,27 @@ namespace Reloader.Game.Weapons
             int elevationClicks)
         {
             var requestedFov = ResolveRequestedFov(isActive, optic, referenceFieldOfView, magnification);
-            var requestedResolution = ResolveRequestedResolution(optic);
+            var requestedResolution = ResolveRequestedResolution(optic, requestedFov);
             var lensDisplay = ResolveLensDisplay(activeOpticInstance);
             var reticleController = ResolveReticleController(activeOpticInstance);
+            var requiresPipPresentation = isActive && optic != null && optic.VisualModePolicy == AdsVisualMode.RenderTexturePiP;
+            var missingScopeCamera = requiresPipPresentation && _scopeCamera == null;
+            var missingLensDisplay = requiresPipPresentation && lensDisplay == null;
             var mradPerClick = ResolveMradPerClick(optic);
             var mechanicalZeroOffsetMrad = ResolveMechanicalZeroOffsetMrad(optic);
             var effectiveAdjustmentMrad = ResolveEffectiveAdjustmentMrad(mechanicalZeroOffsetMrad, mradPerClick, windageClicks, elevationClicks);
             var projectionCalibrationMultiplier = ResolveProjectionCalibrationMultiplier(optic);
             var compositeReticleScale = ResolveCompositeReticleScale(optic);
             var compositeReticleOffset = ResolveCompositeReticleOffset(optic);
-            var renderTextureStateMatches = !isActive || ScopeRenderTextureMatches(requestedResolution);
-            var scopeCameraStateMatches = ScopeCameraStateMatches(isActive, requestedFov);
-            var lensDisplayStateMatches = !isActive || (lensDisplay != null && ReferenceEquals(lensDisplay.CurrentTexture, _scopeRenderTexture));
+            var effectiveIsActive = isActive && !missingScopeCamera && !missingLensDisplay;
+            var renderTextureStateMatches = !effectiveIsActive || ScopeRenderTextureMatches(requestedResolution);
+            var scopeCameraStateMatches = ScopeCameraStateMatches(effectiveIsActive, requestedFov);
+            var lensDisplayStateMatches = !effectiveIsActive || LensDisplayStateMatches(lensDisplay);
+
+            UpdatePeripheralBlurDisplayWindow(effectiveIsActive, lensDisplay);
 
             if (_initialized
-                && _lastIsActive == isActive
+                && _lastIsActive == effectiveIsActive
                 && Mathf.Approximately(_lastAppliedFov, requestedFov)
                 && _lastResolution == requestedResolution
                 && Mathf.Approximately(_lastMagnification, magnification)
@@ -119,8 +172,10 @@ namespace Reloader.Game.Weapons
                 && Approximately(_lastMechanicalZeroOffsetMrad, mechanicalZeroOffsetMrad)
                 && Mathf.Approximately(_lastCompositeReticleScale, compositeReticleScale)
                 && Approximately(_lastCompositeReticleOffset, compositeReticleOffset)
+                && ReferenceEquals(_lastMissingScopeCameraOpticInstance, missingScopeCamera ? activeOpticInstance : null)
                 && ReferenceEquals(_lastLensDisplay, lensDisplay)
                 && ReferenceEquals(_lastReticleController, reticleController)
+                && ReferenceEquals(_lastMissingLensDisplayOpticInstance, missingLensDisplay ? activeOpticInstance : null)
                 && renderTextureStateMatches
                 && scopeCameraStateMatches
                 && lensDisplayStateMatches)
@@ -128,25 +183,37 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
-            if (isActive)
+            if (missingScopeCamera && !ReferenceEquals(_lastMissingScopeCameraOpticInstance, activeOpticInstance))
+            {
+                Debug.LogWarning("RenderTextureScopeController: Active scoped optic is missing a scope camera binding.", this);
+            }
+
+            if (missingLensDisplay && !ReferenceEquals(_lastMissingLensDisplayOpticInstance, activeOpticInstance))
+            {
+                Debug.LogWarning("RenderTextureScopeController: Active scoped optic is missing an authored optic-root ScopeLensDisplay binding.", this);
+            }
+
+            if (effectiveIsActive)
             {
                 EnsureRenderTexture(requestedResolution);
+                effectiveIsActive = _scopeRenderTexture != null && _scopeRenderTexture.IsCreated();
             }
-            else
+
+            if (!effectiveIsActive)
             {
                 ReleaseRenderTexture();
             }
 
-            BindLensDisplay(isActive, lensDisplay);
-            BindReticle(isActive, reticleController, optic, magnification, compositeReticleScale, compositeReticleOffset);
+            BindLensDisplay(effectiveIsActive, lensDisplay);
+            BindReticle(effectiveIsActive, reticleController, optic, magnification, compositeReticleScale, compositeReticleOffset);
             ApplyState(
-                isActive,
+                effectiveIsActive,
                 requestedFov,
                 effectiveAdjustmentMrad,
                 projectionCalibrationMultiplier,
                 mradPerClick,
                 mechanicalZeroOffsetMrad);
-            _lastIsActive = isActive;
+            _lastIsActive = effectiveIsActive;
             _lastAppliedFov = requestedFov;
             _lastResolution = requestedResolution;
             _lastMagnification = magnification;
@@ -160,6 +227,8 @@ namespace Reloader.Game.Weapons
             _lastCompositeReticleOffset = compositeReticleOffset;
             _lastLensDisplay = lensDisplay;
             _lastReticleController = reticleController;
+            _lastMissingScopeCameraOpticInstance = missingScopeCamera ? activeOpticInstance : null;
+            _lastMissingLensDisplayOpticInstance = missingLensDisplay ? activeOpticInstance : null;
             _initialized = true;
         }
 
@@ -211,14 +280,19 @@ namespace Reloader.Game.Weapons
             return MagnificationToFieldOfView(referenceFieldOfView, magnification);
         }
 
-        private int ResolveRequestedResolution(OpticDefinition optic)
+        private int ResolveRequestedResolution(OpticDefinition optic, float requestedFov)
         {
             if (optic != null && optic.HasScopeRenderProfile)
             {
                 return optic.RenderProfile.RenderTextureResolution;
             }
 
-            return 1024;
+            if (optic == null || optic.VisualModePolicy != AdsVisualMode.RenderTexturePiP)
+            {
+                return DefaultScopeRenderTextureResolution;
+            }
+
+            return ResolveAdaptiveResolution(ResolveAdaptiveResolutionBaseline(), _scopedPipResolutionPercent);
         }
 
         private ScopeLensDisplay ResolveLensDisplay(GameObject activeOpticInstance)
@@ -228,7 +302,7 @@ namespace Reloader.Game.Weapons
                 return null;
             }
 
-            return activeOpticInstance.GetComponentInChildren<ScopeLensDisplay>(true);
+            return FindDirectChildComponent<ScopeLensDisplay>(activeOpticInstance.transform);
         }
 
         private ScopeReticleController ResolveReticleController(GameObject activeOpticInstance)
@@ -241,9 +315,177 @@ namespace Reloader.Game.Weapons
             return activeOpticInstance.GetComponentInChildren<ScopeReticleController>(true);
         }
 
+        private void UpdatePeripheralBlurDisplayWindow(bool isActive, ScopeLensDisplay lensDisplay)
+        {
+            if (!isActive)
+            {
+                PeripheralScopeBlurRuntimeState.ClearAperture();
+                return;
+            }
+
+            if (!TryResolvePipDisplayViewportRectNormalized(_apertureCamera, lensDisplay, out var viewportRect))
+            {
+                PeripheralScopeBlurRuntimeState.ClearAperture();
+                return;
+            }
+
+            PeripheralScopeBlurRuntimeState.UpdateAperture(
+                viewportRect.center.x,
+                viewportRect.center.y,
+                viewportRect.width,
+                viewportRect.height,
+                0.04f);
+        }
+
+        private static T FindDirectChildComponent<T>(Transform root) where T : Component
+        {
+            if (root == null)
+            {
+                return null;
+            }
+
+            var componentOnRoot = root.GetComponent<T>();
+            if (componentOnRoot != null)
+            {
+                return componentOnRoot;
+            }
+
+            for (var i = 0; i < root.childCount; i++)
+            {
+                var component = root.GetChild(i).GetComponent<T>();
+                if (component != null)
+                {
+                    return component;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool TryResolvePipDisplayViewportRectNormalized(Camera apertureCamera, ScopeLensDisplay lensDisplay, out Rect viewportRect)
+        {
+            viewportRect = default;
+            var targetRenderer = lensDisplay != null
+                ? (lensDisplay.ApertureRenderer != null ? lensDisplay.ApertureRenderer : lensDisplay.TargetRenderer)
+                : null;
+            if (apertureCamera == null || targetRenderer == null)
+            {
+                return false;
+            }
+
+            if (!TryGetRendererViewportBounds(apertureCamera, targetRenderer, out var minX, out var minY, out var maxX, out var maxY))
+            {
+                return false;
+            }
+
+            minX = Mathf.Clamp01(minX);
+            minY = Mathf.Clamp01(minY);
+            maxX = Mathf.Clamp01(maxX);
+            maxY = Mathf.Clamp01(maxY);
+            if (maxX <= minX || maxY <= minY)
+            {
+                return false;
+            }
+
+            viewportRect = Rect.MinMaxRect(minX, minY, maxX, maxY);
+            return true;
+        }
+
+        private static bool TryGetRendererViewportBounds(
+            Camera apertureCamera,
+            Renderer targetRenderer,
+            out float minX,
+            out float minY,
+            out float maxX,
+            out float maxY)
+        {
+            minX = float.PositiveInfinity;
+            minY = float.PositiveInfinity;
+            maxX = float.NegativeInfinity;
+            maxY = float.NegativeInfinity;
+
+            if (apertureCamera == null || targetRenderer == null)
+            {
+                return false;
+            }
+
+            var localBounds = ResolveRendererLocalBounds(targetRenderer);
+            if (localBounds.size.sqrMagnitude <= 0.000001f)
+            {
+                return false;
+            }
+
+            var center = localBounds.center;
+            var extents = localBounds.extents;
+            var localToWorld = targetRenderer.localToWorldMatrix;
+            var resolvedVisiblePoint = false;
+
+            for (var x = -1; x <= 1; x += 2)
+            {
+                for (var y = -1; y <= 1; y += 2)
+                {
+                    for (var z = -1; z <= 1; z += 2)
+                    {
+                        var localCorner = center + Vector3.Scale(extents, new Vector3(x, y, z));
+                        var worldCorner = localToWorld.MultiplyPoint3x4(localCorner);
+                        var viewportPoint = apertureCamera.WorldToViewportPoint(worldCorner);
+                        if (viewportPoint.z <= 0f)
+                        {
+                            continue;
+                        }
+
+                        resolvedVisiblePoint = true;
+                        minX = Mathf.Min(minX, viewportPoint.x);
+                        minY = Mathf.Min(minY, viewportPoint.y);
+                        maxX = Mathf.Max(maxX, viewportPoint.x);
+                        maxY = Mathf.Max(maxY, viewportPoint.y);
+                    }
+                }
+            }
+
+            return resolvedVisiblePoint;
+        }
+
+        private static Bounds ResolveRendererLocalBounds(Renderer targetRenderer)
+        {
+            if (targetRenderer == null)
+            {
+                return default;
+            }
+
+            var meshFilter = targetRenderer.GetComponent<MeshFilter>();
+            if (meshFilter != null && meshFilter.sharedMesh != null)
+            {
+                return meshFilter.sharedMesh.bounds;
+            }
+
+            return targetRenderer.localBounds;
+        }
+
+        private bool LensDisplayStateMatches(ScopeLensDisplay lensDisplay)
+        {
+            if (lensDisplay == null || !ReferenceEquals(lensDisplay.CurrentTexture, _scopeRenderTexture))
+            {
+                return false;
+            }
+
+            var targetRenderer = lensDisplay.TargetRenderer;
+            if (targetRenderer == null || !targetRenderer.enabled)
+            {
+                return false;
+            }
+
+            var activeMaterial = targetRenderer.sharedMaterial;
+            return activeMaterial != null
+                && activeMaterial.name.IndexOf("Runtime", System.StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         private void EnsureRenderTexture(int resolution)
         {
-            var safeResolution = Mathf.Clamp(resolution, 128, 4096);
+            var safeResolution = Mathf.Clamp(
+                resolution,
+                MinimumAdaptiveScopeRenderTextureResolution,
+                MaximumAdaptiveScopeRenderTextureResolution);
             if (_scopeRenderTexture != null
                 && _scopeRenderTexture.width == safeResolution
                 && _scopeRenderTexture.height == safeResolution)
@@ -281,11 +523,45 @@ namespace Reloader.Game.Weapons
                 && Mathf.Approximately(_scopeCamera.fieldOfView, expectedFieldOfView);
         }
 
+        private static int ResolveAdaptiveResolution(int nativeSquareBaseline, int pipResolutionPercent)
+        {
+            var scopedPipResolutionPercent = Mathf.Clamp(pipResolutionPercent, MinPipResolutionPercent, MaxPipResolutionPercent);
+            var scopedResolutionScale = scopedPipResolutionPercent / 100f;
+
+            var baseline = nativeSquareBaseline;
+            if (baseline <= 0)
+            {
+                baseline = DefaultScopeRenderTextureResolution;
+            }
+
+            var scaledResolution = Mathf.CeilToInt(baseline * scopedResolutionScale);
+            return Mathf.Clamp(
+                scaledResolution,
+                MinimumAdaptiveScopeRenderTextureResolution,
+                MaximumAdaptiveScopeRenderTextureResolution);
+        }
+
+        private static int ResolveAdaptiveResolutionBaseline()
+        {
+            var nativeSquareBaseline = Mathf.Max(Screen.width, Screen.height);
+            if (nativeSquareBaseline <= 0)
+            {
+                return DefaultScopeRenderTextureResolution;
+            }
+
+            return nativeSquareBaseline;
+        }
+
         private void BindLensDisplay(bool isActive, ScopeLensDisplay lensDisplay)
         {
             if (!isActive)
             {
-                if (_lastLensDisplay != null)
+                if (lensDisplay != null)
+                {
+                    lensDisplay.TrySetTexture(null);
+                }
+
+                if (_lastLensDisplay != null && !ReferenceEquals(_lastLensDisplay, lensDisplay))
                 {
                     _lastLensDisplay.TrySetTexture(null);
                 }
@@ -296,6 +572,12 @@ namespace Reloader.Game.Weapons
             if (lensDisplay == null)
             {
                 Debug.LogWarning("RenderTextureScopeController: Active scoped optic is missing a ScopeLensDisplay binding.", this);
+                return;
+            }
+
+            if (_scopeRenderTexture == null)
+            {
+                lensDisplay.TrySetTexture(null);
                 return;
             }
 
@@ -352,13 +634,31 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
+            if (_scopeCamera != null && ReferenceEquals(_scopeCamera.targetTexture, _scopeRenderTexture))
+            {
+                _scopeCamera.enabled = false;
+                _scopeCamera.targetTexture = null;
+            }
+
             if (_scopeRenderTexture.IsCreated())
             {
                 _scopeRenderTexture.Release();
             }
 
-            Destroy(_scopeRenderTexture);
+            DestroyRuntimeObject(_scopeRenderTexture);
             _scopeRenderTexture = null;
+        }
+
+        private void FailClosedScopePresentation()
+        {
+            UpdatePeripheralBlurDisplayWindow(false, null);
+            BindLensDisplay(false, null);
+            BindReticle(false, null, null, 1f, 1f, Vector2.zero);
+            ReleaseRenderTexture();
+            ApplyState(false, _defaultScopeCameraFov, Vector2.zero, 1f, 0.1f, Vector2.zero);
+            _lastIsActive = false;
+            _lastMissingScopeCameraOpticInstance = null;
+            _lastMissingLensDisplayOpticInstance = null;
         }
 
         private void ApplyProjectionOffset(bool isActive, Vector2 effectiveAdjustmentMrad, float projectionCalibrationMultiplier)
@@ -429,14 +729,12 @@ namespace Reloader.Game.Weapons
 
             var width = _scopeRenderTexture.width * _currentCompositeReticleDrawScale.x;
             var height = _scopeRenderTexture.height * _currentCompositeReticleDrawScale.y;
-            var offsetPixels = new Vector2(
-                _currentCompositeReticleOffset.x * _scopeRenderTexture.width,
-                -_currentCompositeReticleOffset.y * _scopeRenderTexture.height);
-            var destination = new Rect(
-                ((_scopeRenderTexture.width - width) * 0.5f) + offsetPixels.x,
-                ((_scopeRenderTexture.height - height) * 0.5f) + offsetPixels.y,
-                width,
-                height);
+            var destination = ResolveCompositeReticleDestination(
+                _scopeRenderTexture.width,
+                new Vector2(
+                    width / _scopeRenderTexture.width,
+                    height / _scopeRenderTexture.height),
+                _currentCompositeReticleOffset);
             var textureRect = _currentCompositeReticleSprite.textureRect;
             var source = new Rect(
                 textureRect.x / spriteTexture.width,
@@ -457,7 +755,7 @@ namespace Reloader.Game.Weapons
         {
             _currentCompositeReticleSprite = reticleDefinition != null ? reticleDefinition.ReticleSprite : null;
             _currentCompositeReticleScale = compositeReticleScale * ResolveReticleScale(reticleDefinition, magnification);
-            _currentCompositeReticleOffset = compositeReticleOffset;
+            _currentCompositeReticleOffset = ResolveEffectiveCompositeReticleOffset(reticleDefinition, magnification, compositeReticleOffset);
             _currentCompositeReticleDrawScale = ResolveCompositeReticleDrawScale(_currentCompositeReticleSprite, _currentCompositeReticleScale);
             _isCompositeReticleActive = _currentCompositeReticleSprite != null;
         }
@@ -502,12 +800,47 @@ namespace Reloader.Game.Weapons
             var textureRect = reticleSprite.textureRect;
             var width = Mathf.Max(0.0001f, textureRect.width);
             var height = Mathf.Max(0.0001f, textureRect.height);
+            if (Mathf.Abs(1f - (width / height)) <= NearSquareReticleAspectTolerance)
+            {
+                return new Vector2(safeScale, safeScale);
+            }
+
             if (width >= height)
             {
                 return new Vector2(safeScale, safeScale * (height / width));
             }
 
             return new Vector2(safeScale * (width / height), safeScale);
+        }
+
+        private static Vector2 ResolveEffectiveCompositeReticleOffset(
+            ScopeReticleDefinition reticleDefinition,
+            float magnification,
+            Vector2 compositeReticleOffset)
+        {
+            if (reticleDefinition == null || reticleDefinition.Mode == ScopeReticleMode.Sfp)
+            {
+                return compositeReticleOffset;
+            }
+
+            return compositeReticleOffset * ResolveReticleScale(reticleDefinition, magnification);
+        }
+
+        private static Rect ResolveCompositeReticleDestination(
+            int renderTextureResolution,
+            Vector2 compositeReticleDrawScale,
+            Vector2 compositeReticleOffset)
+        {
+            var safeResolution = Mathf.Max(1, renderTextureResolution);
+            var width = Mathf.Max(1f, Mathf.Round(safeResolution * compositeReticleDrawScale.x));
+            var height = Mathf.Max(1f, Mathf.Round(safeResolution * compositeReticleDrawScale.y));
+            var offsetPixels = new Vector2(
+                compositeReticleOffset.x * safeResolution,
+                -compositeReticleOffset.y * safeResolution);
+
+            var x = Mathf.Round(((safeResolution - width) * 0.5f) + offsetPixels.x);
+            var y = Mathf.Round(((safeResolution - height) * 0.5f) + offsetPixels.y);
+            return new Rect(x, y, width, height);
         }
 
         private Material EnsureCompositeReticleMaterial()
@@ -632,8 +965,24 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
-            Destroy(_compositeReticleMaterial);
+            DestroyRuntimeObject(_compositeReticleMaterial);
             _compositeReticleMaterial = null;
+        }
+
+        private static void DestroyRuntimeObject(UnityEngine.Object runtimeObject)
+        {
+            if (runtimeObject == null)
+            {
+                return;
+            }
+
+            if (Application.isPlaying)
+            {
+                Destroy(runtimeObject);
+                return;
+            }
+
+            DestroyImmediate(runtimeObject);
         }
     }
 }

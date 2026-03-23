@@ -51,13 +51,13 @@ namespace Reloader.Inventory
 
         private void Awake()
         {
-            Runtime = new PlayerInventoryRuntime();
-            Runtime.SetBackpackCapacity(ResolveStartingBackpackCapacity());
+            EnsureRuntimeInitialized();
             ResolveReferences();
         }
 
         private void OnEnable()
         {
+            EnsureRuntimeInitialized();
             ResolveReferences();
             SubscribeToRuntimeHubReconfigure();
             SubscribeToInventoryEvents(ResolveInventoryEvents());
@@ -866,6 +866,17 @@ namespace Reloader.Inventory
         private int ResolveStartingBackpackCapacity()
         {
             return _startingBackpackCapacity > 0 ? _startingBackpackCapacity : DefaultBackpackCapacity;
+        }
+
+        private void EnsureRuntimeInitialized()
+        {
+            if (Runtime != null)
+            {
+                return;
+            }
+
+            Runtime = new PlayerInventoryRuntime();
+            Runtime.SetBackpackCapacity(ResolveStartingBackpackCapacity());
         }
 
     }

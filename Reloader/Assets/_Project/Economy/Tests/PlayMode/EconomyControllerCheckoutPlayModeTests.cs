@@ -577,6 +577,45 @@ namespace Reloader.Economy.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Reenable_WhenRuntimeWasCleared_ReinitializesRuntimeWithoutThrowing()
+        {
+            var inventoryGo = new GameObject("InventoryController");
+            var inventoryController = inventoryGo.AddComponent<PlayerInventoryController>();
+            var input = inventoryGo.AddComponent<TestInputSource>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(4);
+            inventoryController.Configure(input, null, runtime);
+
+            var economyGo = new GameObject("EconomyController");
+            var controller = economyGo.AddComponent<EconomyController>();
+            SetPrivateField(controller, "_inventoryControllerBehaviour", inventoryController);
+            SetPrivateField(controller, "_startingMoney", 500);
+
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+            try
+            {
+                yield return null;
+
+                controller.enabled = false;
+                SetPrivateField(controller, "_runtime", null);
+
+                Assert.DoesNotThrow(() => controller.enabled = true);
+                yield return null;
+
+                Assert.That(controller.Runtime, Is.Not.Null);
+                Assert.That(controller.Runtime.Money, Is.EqualTo(500));
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                UnityEngine.Object.DestroyImmediate(economyGo);
+                UnityEngine.Object.DestroyImmediate(inventoryGo);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator TradeOpenRequested_WhenVendorIdMissingInBindings_UsesDefaultCatalogFallback()
         {
             var inventoryGo = new GameObject("InventoryController");

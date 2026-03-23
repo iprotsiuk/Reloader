@@ -229,6 +229,7 @@ MonoBehaviour:
   _collidersToDisableOnDeath:
   - {fileID: 8247872300487481050}
   _torsoFallbackBody: {fileID: 3941991548372324057}
+  _impactImpulseMultiplier: 100
   _impulseForceMode: 1
 --- !u!114 &8016753439919890482
 MonoBehaviour:

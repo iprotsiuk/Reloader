@@ -50,7 +50,9 @@ For `runtime-local` and `test-local` work:
 - `.agent/skills/*/SKILL.md` files are the project skill sources.
 - Use the skill that matches the active task domain before making changes.
 - Use each skill's referenced `resources/` and `scripts/` files as supporting material.
+- For explicit refactor, simplify, cleanup, or tech-debt requests, use `superpowers:refactoring` first, then the matching local skill.
 - For local runtime refactor/test cleanup inside one hotspot cluster, use `.agent/skills/refactoring-and-test-hygiene/SKILL.md` first.
+- For architecture resets, subsystem replacements, or refactors that should remove old paths before MVP, use `.agent/skills/clean-cutover-refactors/SKILL.md` first.
 - For weapon view prefab, attachment mounting, optic/muzzle runtime, or first-person weapon pose work, use `.agent/skills/weapon-view-attachment-framework/SKILL.md` before changing code/assets.
 - For architecture/docs/rules/skills audits, use `.agent/skills/reviewing-design-docs/SKILL.md` first.
 - For writing/updating architecture or design docs, use `.agent/skills/writing-agent-docs/SKILL.md` first.
@@ -68,6 +70,7 @@ For `runtime-local` and `test-local` work:
 
 - Historical contract phrase retained for guardrails: this repository started in design/planning/doc-framework phase.
 - Current delivery phase is `v0.1` demo implementation + hardening.
+- Until the user explicitly asks for compatibility, migration support, staged rollout, or preserved old behavior, treat this repository as pre-MVP cleanup territory: prefer clean replacement over compatibility scaffolding.
 - Treat `docs/design/v0.1-demo-status-and-milestones.md` as the canonical implemented-vs-planned source of truth.
 - Treat `docs/design/prototype-scope.md` as version target scope, not runtime completion truth.
 - Unless the user explicitly requests runtime implementation, default to docs/rules/skills/plan updates.
@@ -79,6 +82,8 @@ For `runtime-local` and `test-local` work:
 - Load `docs/design/core-architecture.md` only for new features, cross-domain changes, save/events/persistence work, or when local intent is unclear.
 - Keep changes data-driven and consistent with ScriptableObject + runtime-instance patterns.
 - Keep docs and skills synchronized when contracts or naming conventions change.
+- For pre-MVP architecture changes or refactors, default to one canonical path. Delete superseded code, helpers, shims, adapters, fallback lookups, and silent repair logic instead of preserving them.
+- Do not add backward-compatibility layers, dual-path routing, error-suppressing rescue behavior, or migration scaffolding unless the user explicitly asks for it or the task names a real external contract that must be preserved.
 - MCP endpoints (Codex runtime defaults):
   - Unity MCP server is configured in `~/.codex/config.toml` under `[mcp_servers.unityMCP]`.
   - Blender MCP server is configured in `~/.codex/config.toml` under `[mcp_servers.blender]` and is expected at `localhost:9876` by default.

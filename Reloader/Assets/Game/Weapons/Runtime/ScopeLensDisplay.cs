@@ -11,23 +11,34 @@ namespace Reloader.Game.Weapons
 
         [SerializeField] private Renderer _targetRenderer;
         [SerializeField] private Material _displayMaterialTemplate;
+        [SerializeField] private Renderer _apertureRenderer;
 
         private MaterialPropertyBlock _propertyBlock;
         private Material[] _originalSharedMaterials;
         private Material _runtimeDisplayMaterial;
         private bool _displayMaterialApplied;
+        private bool _capturedOriginalRendererEnabled;
+        private bool _originalRendererEnabled;
 
         public Texture CurrentTexture { get; private set; }
+        public Renderer TargetRenderer => _targetRenderer != null ? _targetRenderer : (_targetRenderer = GetComponent<Renderer>());
+        public Renderer ApertureRenderer => _apertureRenderer;
         public bool IsUsingProxySurface => false;
 
         private void Awake()
         {
             _targetRenderer ??= GetComponent<Renderer>();
+            CaptureOriginalRendererState();
+            if (_targetRenderer != null)
+            {
+                _targetRenderer.enabled = false;
+            }
         }
 
         private void OnDestroy()
         {
             RestoreOriginalMaterials();
+            RestoreOriginalRendererState();
 
             if (_runtimeDisplayMaterial != null)
             {
@@ -50,11 +61,16 @@ namespace Reloader.Game.Weapons
                 RestoreOriginalMaterials();
                 _propertyBlock.Clear();
                 _targetRenderer.SetPropertyBlock(_propertyBlock);
+                _targetRenderer.enabled = false;
                 CurrentTexture = null;
                 return true;
             }
 
-            EnsureDisplayMaterial();
+            if (!EnsureDisplayMaterial())
+            {
+                return false;
+            }
+
             ApplyTextureToRenderer(_targetRenderer, texture);
             _targetRenderer.enabled = true;
             _targetRenderer.SetPropertyBlock(_propertyBlock);
@@ -62,18 +78,24 @@ namespace Reloader.Game.Weapons
             return true;
         }
 
-        private void EnsureDisplayMaterial()
+        private bool EnsureDisplayMaterial()
         {
-            if (_displayMaterialApplied || _targetRenderer == null)
+            if (_displayMaterialApplied && _runtimeDisplayMaterial != null)
             {
-                return;
+                return true;
             }
 
+            if (_targetRenderer == null)
+            {
+                return false;
+            }
+
+            CaptureOriginalRendererState();
             _originalSharedMaterials = _targetRenderer.sharedMaterials;
-            _runtimeDisplayMaterial ??= CreateDisplayMaterial();
+            _runtimeDisplayMaterial ??= CreateDisplayMaterial(ResolveSourceMaterial());
             if (_runtimeDisplayMaterial == null)
             {
-                return;
+                return false;
             }
 
             var materialCount = _originalSharedMaterials != null && _originalSharedMaterials.Length > 0
@@ -87,6 +109,41 @@ namespace Reloader.Game.Weapons
 
             _targetRenderer.sharedMaterials = displayMaterials;
             _displayMaterialApplied = true;
+            return true;
+        }
+
+        private Material ResolveSourceMaterial()
+        {
+            if (_displayMaterialTemplate != null)
+            {
+                return _displayMaterialTemplate;
+            }
+
+            if (_originalSharedMaterials != null)
+            {
+                for (var i = 0; i < _originalSharedMaterials.Length; i++)
+                {
+                    if (_originalSharedMaterials[i] != null)
+                    {
+                        return _originalSharedMaterials[i];
+                    }
+                }
+            }
+
+            return _targetRenderer != null ? _targetRenderer.sharedMaterial : null;
+        }
+
+        private static Material CreateDisplayMaterial(Material sourceMaterial)
+        {
+            if (sourceMaterial == null)
+            {
+                return null;
+            }
+
+            return new Material(sourceMaterial)
+            {
+                name = $"{sourceMaterial.name}_RuntimeInstance"
+            };
         }
 
         private void RestoreOriginalMaterials()
@@ -104,6 +161,27 @@ namespace Reloader.Game.Weapons
             _displayMaterialApplied = false;
         }
 
+        private void CaptureOriginalRendererState()
+        {
+            if (_capturedOriginalRendererEnabled || _targetRenderer == null)
+            {
+                return;
+            }
+
+            _originalRendererEnabled = _targetRenderer.enabled;
+            _capturedOriginalRendererEnabled = true;
+        }
+
+        private void RestoreOriginalRendererState()
+        {
+            if (!_capturedOriginalRendererEnabled || _targetRenderer == null)
+            {
+                return;
+            }
+
+            _targetRenderer.enabled = _originalRendererEnabled;
+        }
+
         private void ApplyTextureToRenderer(Renderer renderer, Texture texture)
         {
             if (renderer == null)
@@ -111,36 +189,13 @@ namespace Reloader.Game.Weapons
                 return;
             }
 
+            _propertyBlock ??= new MaterialPropertyBlock();
             _propertyBlock.Clear();
             _propertyBlock.SetTexture(BaseMapId, texture);
             _propertyBlock.SetTexture(MainTexId, texture);
             _propertyBlock.SetColor(BaseColorId, Color.white);
             _propertyBlock.SetColor(ColorId, Color.white);
             renderer.SetPropertyBlock(_propertyBlock);
-        }
-
-        private Material CreateDisplayMaterial()
-        {
-            if (_displayMaterialTemplate != null)
-            {
-                return new Material(_displayMaterialTemplate)
-                {
-                    name = $"{_displayMaterialTemplate.name}_RuntimeInstance"
-                };
-            }
-
-            var shader = Shader.Find("Universal Render Pipeline/Unlit")
-                ?? Shader.Find("Unlit/Texture")
-                ?? Shader.Find("Standard");
-            if (shader == null)
-            {
-                return null;
-            }
-
-            return new Material(shader)
-            {
-                name = "ScopeLensDisplay_RuntimeMaterial"
-            };
         }
     }
 }

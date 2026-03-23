@@ -1,7 +1,6 @@
 #if UNITY_EDITOR
 using System;
 using Reloader.Weapons.Runtime;
-using Reloader.Weapons.Controllers;
 using Reloader.World.Contracts;
 using Reloader.World.Travel;
 using UnityEditor;
@@ -66,14 +65,14 @@ namespace Reloader.World.Editor
         private static void ReplaceWithBaselineObjectPaths(WorldSceneContract contract)
         {
             contract.RequiredObjectPaths.Clear();
-            contract.RequiredObjectPaths.Add("PlayerRoot");
-            contract.RequiredObjectPaths.Add("PlayerRoot/CameraPivot");
-            contract.RequiredObjectPaths.Add("PlayerRoot/CameraPivot/CameraLookTarget");
-            contract.RequiredObjectPaths.Add("PlayerRoot/CameraPivot/WeaponMuzzle");
             contract.RequiredObjectPaths.Add("WeaponRegistry");
 
             if (string.Equals(contract.ScenePath, MainTownScenePath, StringComparison.Ordinal))
             {
+                contract.RequiredObjectPaths.Add("MainTownEntry_Spawn");
+                contract.RequiredObjectPaths.Add("MainTownEntry_Return");
+                contract.RequiredObjectPaths.Add("MainTownRespawn_Hospital");
+                contract.RequiredObjectPaths.Add("MainTownRespawn_Police");
                 contract.RequiredObjectPaths.Add("ReloadingWorkbench");
                 contract.RequiredObjectPaths.Add("MainTown_SmokeToIndoor_Trigger");
                 return;
@@ -81,6 +80,7 @@ namespace Reloader.World.Editor
 
             if (string.Equals(contract.ScenePath, IndoorRangeScenePath, StringComparison.Ordinal))
             {
+                contract.RequiredObjectPaths.Add("IndoorRangeEntry_Arrival");
                 contract.RequiredObjectPaths.Add("IndoorRange_SmokeToMainTown_Trigger");
                 contract.RequiredObjectPaths.Add("IndoorRange_Geometry");
                 contract.RequiredObjectPaths.Add("IndoorRange_Geometry/Range_Floor");
@@ -107,22 +107,6 @@ namespace Reloader.World.Editor
                 RequiredNonEmptyArrayFields = { "_definitions" }
             });
 
-            contract.RequiredComponentContracts.Add(new WorldRequiredComponentContract
-            {
-                ObjectPath = "PlayerRoot",
-                ComponentScriptAsset = TryGetMonoScriptForType(typeof(PlayerWeaponController)),
-                ComponentTypeName = typeof(PlayerWeaponController).AssemblyQualifiedName,
-                RequiredNonNullObjectReferenceFields =
-                {
-                    "_inputSourceBehaviour",
-                    "_inventoryController",
-                    "_weaponRegistry",
-                    "_muzzleTransform",
-                    "_cameraDefaults",
-                    "_projectilePrefab"
-                }
-            });
-
             if (string.Equals(contract.ScenePath, MainTownScenePath, StringComparison.Ordinal))
             {
                 contract.RequiredComponentContracts.Add(new WorldRequiredComponentContract
@@ -132,6 +116,11 @@ namespace Reloader.World.Editor
                     ComponentTypeName = typeof(SceneEntryPoint).AssemblyQualifiedName,
                     RequiredNonEmptyStringFields = { "_entryPointId" }
                 });
+
+                AddPlayerSpawnAnchorContract(contract, "MainTownEntry_Spawn");
+                AddPlayerSpawnAnchorContract(contract, "MainTownEntry_Return");
+                AddPlayerSpawnAnchorContract(contract, "MainTownRespawn_Hospital");
+                AddPlayerSpawnAnchorContract(contract, "MainTownRespawn_Police");
             }
             else if (string.Equals(contract.ScenePath, IndoorRangeScenePath, StringComparison.Ordinal))
             {
@@ -142,7 +131,20 @@ namespace Reloader.World.Editor
                     ComponentTypeName = typeof(SceneEntryPoint).AssemblyQualifiedName,
                     RequiredNonEmptyStringFields = { "_entryPointId" }
                 });
+
+                AddPlayerSpawnAnchorContract(contract, "IndoorRangeEntry_Arrival");
             }
+        }
+
+        private static void AddPlayerSpawnAnchorContract(WorldSceneContract contract, string objectPath)
+        {
+            contract.RequiredComponentContracts.Add(new WorldRequiredComponentContract
+            {
+                ObjectPath = objectPath,
+                ComponentScriptAsset = TryGetMonoScriptForType(typeof(PlayerSpawnAnchor)),
+                ComponentTypeName = typeof(PlayerSpawnAnchor).AssemblyQualifiedName,
+                RequiredNonEmptyStringFields = { "_anchorId" }
+            });
         }
 
         private static WorldSceneContract EnsureContractAsset(string fileName)

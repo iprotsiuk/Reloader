@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
+using Reloader.Core.Persistence;
 using Reloader.Core.Save;
 using Reloader.Core.Save.IO;
 using Reloader.Core.Save.Modules;
@@ -36,7 +37,7 @@ namespace Reloader.Core.Tests.EditMode
             var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
             var envelope = coordinator.CaptureEnvelope("0.2.0-dev");
 
-            Assert.That(envelope.SchemaVersion, Is.EqualTo(9));
+            Assert.That(envelope.SchemaVersion, Is.EqualTo(10));
             Assert.That(envelope.Modules.ContainsKey("WorldObjectState"), Is.True);
             Assert.That(envelope.Modules["WorldObjectState"].ModuleVersion, Is.EqualTo(1));
         }
@@ -156,6 +157,133 @@ namespace Reloader.Core.Tests.EditMode
 
             Assert.That(module.SceneObjectStates.Count, Is.EqualTo(1));
             Assert.That(module.ReclaimEntries.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void SaveCoordinator_CaptureEnvelope_CopiesRuntimeWorldObjectStateIntoModule()
+        {
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+            try
+            {
+                WorldObjectPersistenceRuntimeBridge.StateStore.Upsert("Assets/_Project/World/Scenes/MainTown.unity", new WorldObjectStateRecord
+                {
+                    ObjectId = "drop.runtime.001",
+                    HasTransformOverride = true,
+                    Position = new UnityEngine.Vector3(1.5f, 0.5f, -3f),
+                    Rotation = UnityEngine.Quaternion.Euler(0f, 35f, 0f),
+                    ItemDefinitionId = "weapon-kar98k",
+                    ItemInstanceId = "drop-instance-001",
+                    StackQuantity = 2
+                });
+
+                var reclaimSeed = new WorldObjectStateRecord
+                {
+                    ObjectId = "drop.runtime.cleaned",
+                    ItemInstanceId = "drop-instance-cleaned",
+                    Consumed = true
+                };
+                WorldObjectPersistenceRuntimeBridge.ReclaimStorage.AddFromRecord(
+                    "Assets/_Project/World/Scenes/MainTown.unity",
+                    reclaimSeed,
+                    cleanedOnDay: 12);
+
+                var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
+                var envelope = coordinator.CaptureEnvelope("0.9.0-dev");
+                var module = new WorldObjectStateModule();
+                module.RestoreModuleStateFromJson(envelope.Modules["WorldObjectState"].PayloadJson);
+
+                Assert.That(module.SceneObjectStates.Count, Is.EqualTo(1));
+                Assert.That(module.SceneObjectStates[0].ScenePath, Is.EqualTo("Assets/_Project/World/Scenes/MainTown.unity"));
+                Assert.That(module.SceneObjectStates[0].Records.Count, Is.EqualTo(1));
+                Assert.That(module.SceneObjectStates[0].Records[0].ObjectId, Is.EqualTo("drop.runtime.001"));
+                Assert.That(module.SceneObjectStates[0].Records[0].ItemInstanceId, Is.EqualTo("drop-instance-001"));
+                Assert.That(module.SceneObjectStates[0].Records[0].ItemDefinitionId, Is.EqualTo("weapon-kar98k"));
+                Assert.That(module.SceneObjectStates[0].Records[0].StackQuantity, Is.EqualTo(2));
+
+                Assert.That(module.ReclaimEntries.Count, Is.EqualTo(1));
+                Assert.That(module.ReclaimEntries[0].ItemInstanceId, Is.EqualTo("drop-instance-cleaned"));
+            }
+            finally
+            {
+                WorldObjectPersistenceRuntimeBridge.ResetForTests();
+            }
+        }
+
+        [Test]
+        public void SaveCoordinator_Load_RestoresRuntimeWorldObjectState_OnSinglePersistencePath()
+        {
+            WorldObjectPersistenceRuntimeBridge.ResetForTests();
+            try
+            {
+                var module = new WorldObjectStateModule();
+                module.SceneObjectStates.Add(new WorldObjectStateModule.SceneObjectStateRecord
+                {
+                    ScenePath = "Assets/_Project/World/Scenes/MainTown.unity",
+                    Records = new List<WorldObjectStateModule.WorldObjectRecord>
+                    {
+                        new WorldObjectStateModule.WorldObjectRecord
+                        {
+                            ObjectId = "drop.runtime.002",
+                            HasTransformOverride = true,
+                            PositionX = 6f,
+                            PositionY = 0.25f,
+                            PositionZ = -9f,
+                            RotationX = 0f,
+                            RotationY = 0.258819f,
+                            RotationZ = 0f,
+                            RotationW = 0.9659258f,
+                            ItemDefinitionId = "ammo-308",
+                            ItemInstanceId = "drop-instance-002",
+                            StackQuantity = 4
+                        }
+                    }
+                });
+
+                var coordinator = SaveBootstrapper.CreateDefaultCoordinator();
+                var repository = new SaveFileRepository();
+                var envelope = coordinator.CaptureEnvelope("0.9.0-dev");
+                var playerStateModule = new PlayerStateModule
+                {
+                    CurrentScenePath = "Assets/_Project/World/Scenes/MainTown.unity",
+                    CurrentAnchorId = "entry.maintown.return",
+                    PositionX = 0f,
+                    PositionY = 0f,
+                    PositionZ = 0f,
+                    RotationX = 0f,
+                    RotationY = 0f,
+                    RotationZ = 0f,
+                    RotationW = 1f,
+                    SelectedBeltSlotIndex = -1
+                };
+
+                envelope.Modules["PlayerState"] = new ModuleSaveBlock
+                {
+                    ModuleVersion = 1,
+                    PayloadJson = playerStateModule.CaptureModuleStateJson()
+                };
+                envelope.Modules["WorldObjectState"] = new ModuleSaveBlock
+                {
+                    ModuleVersion = 1,
+                    PayloadJson = module.CaptureModuleStateJson()
+                };
+                repository.WriteEnvelope(_savePath, envelope);
+
+                coordinator.Load(_savePath);
+                coordinator.Load(_savePath);
+
+                Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.Count, Is.EqualTo(1));
+                Assert.That(WorldObjectPersistenceRuntimeBridge.StateStore.TryGet(
+                    "Assets/_Project/World/Scenes/MainTown.unity",
+                    "drop.runtime.002",
+                    out var restoredRecord), Is.True);
+                Assert.That(restoredRecord.ItemInstanceId, Is.EqualTo("drop-instance-002"));
+                Assert.That(restoredRecord.ItemDefinitionId, Is.EqualTo("ammo-308"));
+                Assert.That(restoredRecord.StackQuantity, Is.EqualTo(4));
+            }
+            finally
+            {
+                WorldObjectPersistenceRuntimeBridge.ResetForTests();
+            }
         }
     }
 }

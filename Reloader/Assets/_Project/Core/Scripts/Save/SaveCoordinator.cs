@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Reloader.Core.Persistence;
 using Reloader.Core.Save.IO;
 
 namespace Reloader.Core.Save
@@ -39,6 +40,7 @@ namespace Reloader.Core.Save
         public SaveEnvelope CaptureEnvelope(string buildVersion)
         {
             SaveRuntimeBridgeRegistry.PrepareForSave(_moduleRegistrations);
+            WorldObjectPersistenceRuntimeBridge.PrepareForSave(_moduleRegistrations);
 
             var envelope = new SaveEnvelope
             {
@@ -86,6 +88,7 @@ namespace Reloader.Core.Save
                 RestoreModules(envelope);
                 ValidateRestoredState();
                 SaveRuntimeBridgeRegistry.FinalizeAfterLoad(_moduleRegistrations);
+                WorldObjectPersistenceRuntimeBridge.FinalizeAfterLoad(_moduleRegistrations);
             }
             catch (Exception restoreEx)
             {

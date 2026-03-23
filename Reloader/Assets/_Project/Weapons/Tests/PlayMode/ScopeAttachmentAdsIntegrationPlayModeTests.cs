@@ -3,7 +3,12 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.Game.Weapons.Rendering;
+using Reloader.Player;
+using Reloader.UI.Toolkit.EscMenu;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.TestTools;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -99,7 +104,7 @@ namespace Reloader.Weapons.Tests.PlayMode
             var opticDefinition = ResolveOpticDefinitionById("att-kar98k-scope-remote-a");
             Assert.That(opticDefinition, Is.Not.Null, "Expected the real Kar98k optic definition asset to be loaded.");
 
-            Assert.That((float)GetProperty(opticDefinition, "EyeReliefBackOffset"), Is.EqualTo(0.012f).Within(0.0001f));
+            Assert.That((float)GetProperty(opticDefinition, "EyeReliefBackOffset"), Is.EqualTo(0.037f).Within(0.0001f));
             Assert.That((float)GetProperty(opticDefinition, "MagnificationMin"), Is.EqualTo(5f).Within(0.0001f));
             Assert.That((float)GetProperty(opticDefinition, "MagnificationMax"), Is.EqualTo(25f).Within(0.0001f));
             Assert.That((float)GetProperty(opticDefinition, "MradPerClick"), Is.EqualTo(0.1f).Within(0.0001f));
@@ -110,7 +115,141 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That((Vector2)GetProperty(opticDefinition, "MechanicalZeroOffsetMrad"), Is.EqualTo(Vector2.zero));
             Assert.That((float)GetProperty(opticDefinition, "ProjectionCalibrationMultiplier"), Is.EqualTo(6.3f).Within(0.0001f));
             Assert.That((float)GetProperty(opticDefinition, "CompositeReticleScale"), Is.EqualTo(1.2f).Within(0.0001f));
-            Assert.That((Vector2)GetProperty(opticDefinition, "CompositeReticleOffset"), Is.EqualTo(Vector2.zero));
+            Assert.That((Vector2)GetProperty(opticDefinition, "CompositeReticleOffset"), Is.EqualTo(new Vector2(0.0022f, 0f)));
+        }
+
+        [UnityTest]
+        public IEnumerator RealKar98kOpticAsset_PipPrecisionCurve_BridgesDedicatedScopedMultiplier()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var playerWeaponControllerType = ResolveType("Reloader.Weapons.Controllers.PlayerWeaponController");
+            var playerLookControllerType = ResolveType("Reloader.Player.PlayerLookController");
+            var opticDefinition = ResolveOpticDefinitionById("att-kar98k-scope-remote-a");
+            ScriptableObject weaponDefinition = null;
+
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(playerWeaponControllerType, Is.Not.Null);
+            Assert.That(playerLookControllerType, Is.Not.Null);
+            Assert.That(opticDefinition, Is.Not.Null, "Expected the real Kar98k optic definition asset to be loaded.");
+
+            var root = new GameObject("Kar98kScopedPrecisionRoot");
+
+            try
+            {
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", opticDefinition), Is.True);
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_useLegacyInput", false);
+                weaponDefinition = ScriptableObject.CreateInstance(ResolveType("Reloader.Game.Weapons.WeaponDefinition"));
+                SetField(weaponDefinition, "_baseAdsSensitivityScale", 0.25f);
+                SetField(ads, "_weaponDefinition", weaponDefinition);
+                SetField(ads, "<CurrentMagnification>k__BackingField", 25f);
+                SetField(ads, "<AdsT>k__BackingField", 1f);
+                Invoke(ads, "TickScaling");
+
+                Assert.That((float)GetProperty(ads, "CurrentSensitivityScale"), Is.EqualTo(0.045f).Within(0.0001f),
+                    "Expected weapon ADS tuning to affect the generic ADS curve.");
+                Assert.That((float)GetProperty(ads, "CurrentPipPrecisionScale"), Is.EqualTo(0.04f).Within(0.0001f),
+                    "Expected PiP optics to use the dedicated high-mag precision curve.");
+
+                SetField(weaponDefinition, "_baseAdsSensitivityScale", 2f);
+                Invoke(ads, "TickScaling");
+
+                Assert.That((float)GetProperty(ads, "CurrentSensitivityScale"), Is.EqualTo(0.36f).Within(0.0001f),
+                    "Expected weapon ADS tuning changes to continue affecting the generic ADS curve.");
+                Assert.That((float)GetProperty(ads, "CurrentPipPrecisionScale"), Is.EqualTo(0.04f).Within(0.0001f),
+                    "Expected the dedicated PiP precision curve to remain unchanged when weapon ADS sensitivity changes.");
+
+                var look = root.AddComponent(playerLookControllerType);
+                var weaponController = root.AddComponent(playerWeaponControllerType);
+                SetField(weaponController, "_adsStateRuntimeBridge", ads);
+                SetField(weaponController, "_adsAttachmentManagerRuntimeBridge", manager);
+                SetField(weaponController, "_playerLookControllerRuntimeBridge", look);
+                SetField(weaponController, "_isStableMagnifiedScopedAds", true);
+
+                Invoke(weaponController, "SyncScopedAdsLookSensitivityBridge");
+
+                var bridgedMultiplier = (Vector2)GetProperty(look, "RuntimeAdsSensitivityMultiplier");
+                Assert.That(
+                    Vector2.Distance(bridgedMultiplier, new Vector2(0.04f, 0.04f)),
+                    Is.LessThanOrEqualTo(0.0001f),
+                    "Expected PlayerWeaponController to bridge the dedicated PiP precision multiplier into look sensitivity.");
+                Assert.That((bool)GetProperty(look, "AllowFovSensitivityScaling"), Is.False,
+                    "Expected PiP scoped ADS to disable FOV-based look scaling while the dedicated precision bridge is active.");
+
+                Invoke(weaponController, "ResetScopedAdsLookSensitivityBridge");
+                Assert.That((bool)GetProperty(look, "AllowFovSensitivityScaling"), Is.True,
+                    "Expected scoped ADS reset to restore FOV-based look scaling.");
+            }
+            finally
+            {
+                if (weaponDefinition != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(weaponDefinition);
+                }
+                Cleanup(root);
+            }
+
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator RealKar98kOpticAsset_AdaptivePipResolution_FollowsPercent()
+        {
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+
+            var opticDefinition = ResolveOpticDefinitionById("att-kar98k-scope-remote-a");
+            Assert.That(opticDefinition, Is.Not.Null, "Expected the real Kar98k optic definition asset to be loaded.");
+
+            var root = new GameObject("RealKar98kResolutionRoot");
+            var scopeCameraGo = new GameObject("ScopeCamera");
+            var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+
+            try
+            {
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+                var setScopedPipResolutionPercentMethod = renderTextureScopeControllerType.GetMethod("SetScopedPipResolutionPercent", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(setScopedPipResolutionPercentMethod, Is.Not.Null);
+
+                SetField(scopeController, "_scopeCamera", scopeCamera);
+
+                Invoke(scopeController, "SetScopeActive", true, opticDefinition, null, 60f, 5f, 0, 0);
+                yield return null;
+                Assert.That(scopeCamera.targetTexture, Is.Not.Null);
+                var lowMagnificationResolution = scopeCamera.targetTexture!.width;
+
+                setScopedPipResolutionPercentMethod!.Invoke(scopeController, new object[] { 400 });
+                Invoke(scopeController, "SetScopeActive", true, opticDefinition, null, 60f, 25f, 0, 0);
+                yield return null;
+                Assert.That(scopeCamera.targetTexture, Is.Not.Null);
+                var highPercentResolution = scopeCamera.targetTexture!.width;
+
+                Invoke(scopeController, "SetScopeActive", true, opticDefinition, null, 60f, 25f, 0, 0);
+                yield return null;
+                Assert.That(scopeCamera.targetTexture, Is.Not.Null);
+                var highMagnificationResolution = scopeCamera.targetTexture!.width;
+
+                Assert.That(lowMagnificationResolution, Is.GreaterThan(0));
+                Assert.That(highPercentResolution, Is.GreaterThan(lowMagnificationResolution));
+                Assert.That(highMagnificationResolution, Is.EqualTo(highPercentResolution));
+                Assert.That((int)GetProperty(scopeController, "ScopedPipResolutionPercent"), Is.EqualTo(400));
+            }
+            finally
+            {
+                Cleanup(root, scopeCameraGo);
+            }
         }
 
         [Test]
@@ -143,6 +282,104 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That((bool)resolveMethod.Invoke(null, equalsShiftedArgs), Is.True);
             Assert.That((int)equalsShiftedArgs[3], Is.EqualTo(1), "Expected shifted '=' to raise windage clicks.");
             Assert.That((int)equalsShiftedArgs[4], Is.EqualTo(0));
+        }
+
+        [Test]
+        public void PlayerWeaponController_ResolveReferences_RebindsScopedAdsBridge_WhenSplitViewCameraOwnershipChanges()
+        {
+            var controllerType = ResolveType("Reloader.Weapons.Controllers.PlayerWeaponController");
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            var peripheralScopeEffectsType = ResolveType("Reloader.Game.Weapons.PeripheralScopeEffects");
+            var scopeAdjustmentTooltipType = ResolveType("Reloader.Game.Weapons.ScopeAdjustmentTooltipOverlay");
+            var gameWeaponDefinitionType = ResolveType("Reloader.Game.Weapons.WeaponDefinition");
+
+            Assert.That(controllerType, Is.Not.Null);
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+            Assert.That(peripheralScopeEffectsType, Is.Not.Null);
+            Assert.That(scopeAdjustmentTooltipType, Is.Not.Null);
+            Assert.That(gameWeaponDefinitionType, Is.Not.Null);
+
+            var root = new GameObject("SplitViewScopedBridgeRoot");
+            ScriptableObject resolvedWeaponDefinition = null;
+            ScriptableObject sentinelWeaponDefinition = null;
+
+            try
+            {
+                var controller = root.AddComponent(controllerType);
+                var adsStateController = root.AddComponent(adsStateControllerType);
+                var renderTextureScopeController = root.AddComponent(renderTextureScopeControllerType);
+                root.AddComponent(peripheralScopeEffectsType);
+                root.AddComponent(scopeAdjustmentTooltipType);
+                var cameraDefaults = root.AddComponent<PlayerCameraDefaults>();
+
+                var cameraPivot = new GameObject("CameraPivot").transform;
+                cameraPivot.SetParent(root.transform, false);
+
+                var worldCameraA = new GameObject("WorldCameraA").AddComponent<Camera>();
+                worldCameraA.transform.SetParent(cameraPivot, false);
+                var viewmodelCameraA = new GameObject("ViewmodelCameraA").AddComponent<Camera>();
+                viewmodelCameraA.transform.SetParent(cameraPivot, false);
+                var scopeCameraA = new GameObject("ScopeCamera").AddComponent<Camera>();
+                scopeCameraA.transform.SetParent(worldCameraA.transform, false);
+
+                SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_cameraPivot", cameraPivot);
+                SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_cameraFollowTarget", cameraPivot);
+                SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_viewmodelCameraParent", cameraPivot);
+                SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_mainCamera", worldCameraA);
+                SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_viewmodelCamera", viewmodelCameraA);
+                SetField(controller, "_cameraDefaults", cameraDefaults);
+                SetField(controller, "_equippedItemId", "weapon-split-view-bridge");
+
+                var equippedView = new GameObject("EquippedWeaponView");
+                equippedView.transform.SetParent(root.transform, false);
+                var attachmentManager = equippedView.AddComponent(attachmentManagerType);
+                SetField(controller, "_equippedWeaponView", equippedView);
+
+                resolvedWeaponDefinition = ScriptableObject.CreateInstance(gameWeaponDefinitionType);
+                sentinelWeaponDefinition = ScriptableObject.CreateInstance(gameWeaponDefinitionType);
+                SetField(resolvedWeaponDefinition, "_weaponId", "weapon-split-view-bridge");
+                SetField(sentinelWeaponDefinition, "_weaponId", "weapon-sentinel");
+
+                Invoke(controller, "EnsureScopedAdsRuntimeBridge", equippedView, attachmentManager);
+
+                Assert.That(GetPrivateField(adsStateController, "_worldCamera"), Is.SameAs(worldCameraA));
+                Assert.That(GetPrivateField(adsStateController, "_viewmodelCamera"), Is.SameAs(viewmodelCameraA));
+                Assert.That(GetPrivateField(renderTextureScopeController, "_scopeCamera"), Is.SameAs(scopeCameraA));
+                Assert.That(GetPrivateField(adsStateController, "_weaponDefinition"), Is.SameAs(resolvedWeaponDefinition),
+                    "Initial scoped runtime bind should exercise the explicit weapon-definition assignment path.");
+
+                Invoke(adsStateController, "SetWeaponDefinition", sentinelWeaponDefinition);
+                Assert.That(GetPrivateField(adsStateController, "_weaponDefinition"), Is.SameAs(sentinelWeaponDefinition));
+
+                var worldCameraB = new GameObject("WorldCameraB").AddComponent<Camera>();
+                worldCameraB.transform.SetParent(cameraPivot, false);
+                var viewmodelCameraB = new GameObject("ViewmodelCameraB").AddComponent<Camera>();
+                viewmodelCameraB.transform.SetParent(cameraPivot, false);
+                var scopeCameraB = new GameObject("ScopeCamera").AddComponent<Camera>();
+                scopeCameraB.transform.SetParent(worldCameraB.transform, false);
+
+                SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_mainCamera", worldCameraB);
+                SetField(typeof(PlayerCameraDefaults), cameraDefaults, "_viewmodelCamera", viewmodelCameraB);
+
+                Invoke(controller, "ResolveReferences");
+
+                Assert.That(GetPrivateField(adsStateController, "_worldCamera"), Is.SameAs(worldCameraB),
+                    "Scoped ADS runtime should rebind to the split-view handoff main camera instead of keeping the stale camera.");
+                Assert.That(GetPrivateField(adsStateController, "_viewmodelCamera"), Is.SameAs(viewmodelCameraB),
+                    "Scoped ADS runtime should rebind to the split-view handoff viewmodel camera instead of keeping the stale camera.");
+                Assert.That(GetPrivateField(renderTextureScopeController, "_scopeCamera"), Is.SameAs(scopeCameraB),
+                    "Scoped PiP runtime should rebind to the split-view handoff scope camera under the active main camera.");
+                Assert.That(GetPrivateField(adsStateController, "_weaponDefinition"), Is.SameAs(sentinelWeaponDefinition),
+                    "ResolveReferences should refresh the scoped runtime camera contract without re-running weapon-definition reassignment.");
+            }
+            finally
+            {
+                Cleanup(root, resolvedWeaponDefinition, sentinelWeaponDefinition);
+            }
         }
 
         [UnityTest]
@@ -486,6 +723,52 @@ namespace Reloader.Weapons.Tests.PlayMode
                     (bool)Invoke(manager, "EquipOptic", opticDefinition),
                     Is.False,
                     "PiP optics should reject prefabs without an authored SightAnchor instead of synthesizing one at runtime.");
+                Assert.That(scopeSlot.childCount, Is.EqualTo(0), "Rejected optics should not remain mounted in the scope slot.");
+                Assert.That(GetProperty(manager, "ActiveOpticInstance"), Is.Null);
+                Assert.That(Invoke(manager, "GetActiveSightAnchor"), Is.SameAs(ironAnchor));
+            }
+            finally
+            {
+                Cleanup(root, opticDefinition, opticPrefab);
+            }
+
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator EquipOptic_RenderTexturePipOpticWithNestedOnlySightAnchor_FailsWithoutRecursiveFallback()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+
+            var root = new GameObject("AttachmentRoot");
+            ScriptableObject opticDefinition = null;
+            GameObject opticPrefab = null;
+
+            try
+            {
+                yield return null;
+
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                opticDefinition = CreateOpticDefinition("scope-pip-nested-anchor", 4f, 12f, true, "RenderTexturePiP");
+                opticPrefab = new GameObject("OpticNestedOnlySightAnchor");
+                var housing = new GameObject("Housing").transform;
+                housing.SetParent(opticPrefab.transform, false);
+                new GameObject("SightAnchor").transform.SetParent(housing, false);
+                SetField(opticDefinition, "_opticPrefab", opticPrefab);
+
+                Assert.That(
+                    (bool)Invoke(manager, "EquipOptic", opticDefinition),
+                    Is.False,
+                    "PiP optics should reject nested-only SightAnchor authoring instead of recursively recovering it at runtime.");
                 Assert.That(scopeSlot.childCount, Is.EqualTo(0), "Rejected optics should not remain mounted in the scope slot.");
                 Assert.That(GetProperty(manager, "ActiveOpticInstance"), Is.Null);
                 Assert.That(Invoke(manager, "GetActiveSightAnchor"), Is.SameAs(ironAnchor));
@@ -1589,7 +1872,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator ScopedPipOptic_MissingLensDisplay_LogsWarning()
+        public IEnumerator ScopedPipOptic_MissingLensDisplay_FailsClosedAndLogsWarning()
         {
             var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
             var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
@@ -1662,8 +1945,208 @@ namespace Reloader.Weapons.Tests.PlayMode
                 warnings.Exists(message => message.Contains("ScopeLensDisplay", StringComparison.Ordinal)),
                 Is.True,
                 "Scoped PiP optics without lens-display wiring should fail loudly.");
+            Assert.That(scopeCamera.enabled, Is.False, "PiP should fail closed when the active optic has no authored ScopeLensDisplay.");
+            Assert.That(scopeCamera.targetTexture, Is.Null, "PiP should not keep rendering to an unbound scope camera when ScopeLensDisplay is missing.");
 
             Cleanup(root, scopedOptic, worldCamGo, viewmodelCamGo, scopeCameraGo);
+        }
+
+        [UnityTest]
+        public IEnumerator ScopedPipOptic_MissingScopeCamera_FailsClosedWithoutLensFeedOrCompositeReticle()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            var scopeLensDisplayType = ResolveType("Reloader.Game.Weapons.ScopeLensDisplay");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+            Assert.That(scopeLensDisplayType, Is.Not.Null);
+
+            var root = new GameObject("ScopedAdsRoot");
+            ScriptableObject scopedOptic = null;
+            ScriptableObject reticleDefinition = null;
+            Texture2D reticleTexture = null;
+            Sprite reticleSprite = null;
+            GameObject opticPrefab = null;
+            GameObject worldCamGo = null;
+            GameObject viewmodelCamGo = null;
+
+            var warnings = new List<string>();
+            void CaptureLog(string condition, string stackTrace, LogType type)
+            {
+                if (type == LogType.Warning)
+                {
+                    warnings.Add(condition ?? string.Empty);
+                }
+            }
+
+            Application.logMessageReceived += CaptureLog;
+            try
+            {
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                worldCamGo = new GameObject("WorldCam");
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+                worldCamera.fieldOfView = 72f;
+
+                viewmodelCamGo = new GameObject("ViewmodelCam");
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+                viewmodelCamera.fieldOfView = 55f;
+
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_worldCamera", worldCamera);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_renderTextureScopeController", scopeController);
+                SetField(ads, "_useLegacyInput", false);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-missing-camera", 4f, 12f, true, "RenderTexturePiP");
+                reticleDefinition = CreateReticleDefinition("Ffp", 4f);
+                reticleTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                reticleTexture.SetPixels(new[] { Color.white, Color.white, Color.white, Color.white });
+                reticleTexture.Apply();
+                reticleSprite = Sprite.Create(reticleTexture, new Rect(0f, 0f, 2f, 2f), new Vector2(0.5f, 0.5f));
+                SetField(reticleDefinition, "_reticleSprite", reticleSprite);
+                SetField(scopedOptic, "_scopeReticleDefinition", reticleDefinition);
+
+                opticPrefab = new GameObject("Optic_scope-pip-missing-camera");
+                new GameObject("SightAnchor").transform.SetParent(opticPrefab.transform, false);
+                var lensDisplayGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                lensDisplayGo.name = "LensDisplay";
+                lensDisplayGo.transform.SetParent(opticPrefab.transform, false);
+                var prefabLensDisplay = lensDisplayGo.AddComponent(scopeLensDisplayType);
+                SetField(prefabLensDisplay, "_targetRenderer", lensDisplayGo.GetComponent<Renderer>());
+                SetField(scopedOptic, "_opticPrefab", opticPrefab);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+                var activeOpticInstance = GetProperty(manager, "ActiveOpticInstance") as GameObject;
+                Assert.That(activeOpticInstance, Is.Not.Null);
+                var liveLensDisplay = GetComponentInChildren(activeOpticInstance, scopeLensDisplayType);
+                Assert.That(liveLensDisplay, Is.Not.Null);
+
+                Invoke(ads, "SetAdsHeld", true);
+                Invoke(ads, "SetMagnification", 8f);
+
+                yield return WaitUntil(
+                    () => warnings.Exists(message => message.Contains("scope camera", StringComparison.OrdinalIgnoreCase)),
+                    60,
+                    "Missing scope-camera authoring did not emit the expected fail-closed warning.");
+
+                Assert.That(GetProperty(liveLensDisplay, "CurrentTexture"), Is.Null,
+                    "PiP should not bind a lens texture when no live scope camera is available.");
+                Assert.That((bool)GetProperty(scopeController, "IsCompositeReticleActive"), Is.False,
+                    "PiP reticle compositing should fail closed when no live scope camera is available.");
+                Assert.That(GetProperty(scopeController, "CurrentCompositeReticleSprite"), Is.Null,
+                    "Composite reticle sprite should stay unbound when the PiP camera contract is incomplete.");
+            }
+            finally
+            {
+                Application.logMessageReceived -= CaptureLog;
+                Cleanup(root, scopedOptic, reticleDefinition, reticleSprite, reticleTexture, opticPrefab, worldCamGo, viewmodelCamGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ScopedPipOptic_NestedOnlyLensDisplay_FailsClosedWithoutRecursiveFallback()
+        {
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            var scopeLensDisplayType = ResolveType("Reloader.Game.Weapons.ScopeLensDisplay");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+            Assert.That(scopeLensDisplayType, Is.Not.Null);
+
+            var root = new GameObject("ScopedAdsRoot");
+            ScriptableObject scopedOptic = null;
+            GameObject opticPrefab = null;
+            GameObject worldCamGo = null;
+            GameObject viewmodelCamGo = null;
+            GameObject scopeCameraGo = null;
+
+            var warnings = new List<string>();
+            void CaptureLog(string condition, string stackTrace, LogType type)
+            {
+                if (type == LogType.Warning)
+                {
+                    warnings.Add(condition ?? string.Empty);
+                }
+            }
+
+            Application.logMessageReceived += CaptureLog;
+            try
+            {
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                worldCamGo = new GameObject("WorldCam");
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+                worldCamera.fieldOfView = 72f;
+
+                viewmodelCamGo = new GameObject("ViewmodelCam");
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+                viewmodelCamera.fieldOfView = 55f;
+
+                scopeCameraGo = new GameObject("ScopeCam");
+                var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+                scopeCamera.fieldOfView = 20f;
+
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+                SetField(scopeController, "_scopeCamera", scopeCamera);
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_worldCamera", worldCamera);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_renderTextureScopeController", scopeController);
+                SetField(ads, "_useLegacyInput", false);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-nested-display", 4f, 12f, true, "RenderTexturePiP");
+                opticPrefab = new GameObject("Optic_scope-pip-nested-display");
+                new GameObject("SightAnchor").transform.SetParent(opticPrefab.transform, false);
+                var housing = new GameObject("Housing").transform;
+                housing.SetParent(opticPrefab.transform, false);
+                var lensDisplayGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                lensDisplayGo.name = "LensDisplay";
+                lensDisplayGo.transform.SetParent(housing, false);
+                var nestedLensDisplay = lensDisplayGo.AddComponent(scopeLensDisplayType);
+                SetField(nestedLensDisplay, "_targetRenderer", lensDisplayGo.GetComponent<Renderer>());
+                SetField(scopedOptic, "_opticPrefab", opticPrefab);
+
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+
+                Invoke(ads, "SetAdsHeld", true);
+                Invoke(ads, "SetMagnification", 8f);
+
+                yield return WaitUntil(
+                    () => warnings.Exists(message => message.Contains("ScopeLensDisplay", StringComparison.Ordinal)),
+                    60,
+                    "Nested-only lens-display authoring did not emit the expected fail-closed warning.");
+
+                Assert.That(scopeCamera.enabled, Is.False, "PiP should fail closed when ScopeLensDisplay is not authored as an explicit optic-root child.");
+                Assert.That(scopeCamera.targetTexture, Is.Null, "PiP should not bind a render texture when recursive ScopeLensDisplay fallback is removed.");
+                Assert.That(GetProperty(nestedLensDisplay, "CurrentTexture"), Is.Null, "Nested-only lens displays should not be bound by runtime fallback discovery.");
+            }
+            finally
+            {
+                Application.logMessageReceived -= CaptureLog;
+                Cleanup(root, scopedOptic, opticPrefab, worldCamGo, viewmodelCamGo, scopeCameraGo);
+            }
         }
 
         [UnityTest]
@@ -1732,6 +2215,12 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(activeOpticInstance, Is.Not.Null);
                 var liveLensDisplay = GetComponentInChildren(activeOpticInstance, scopeLensDisplayType);
                 Assert.That(liveLensDisplay, Is.Not.Null);
+                var liveTargetRenderer = GetProperty(liveLensDisplay, "TargetRenderer") as Renderer;
+                Assert.That(liveTargetRenderer, Is.Not.Null, "Live scope lens display should expose its authored target renderer.");
+                var authoredMaterial = liveTargetRenderer!.sharedMaterial;
+                Assert.That(authoredMaterial, Is.Not.Null);
+                var authoredShader = authoredMaterial!.shader;
+                var authoredRenderQueue = authoredMaterial.renderQueue;
 
                 Invoke(ads, "SetAdsHeld", true);
                 Invoke(ads, "SetMagnification", 8f);
@@ -1742,6 +2231,10 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var currentTexture = GetProperty(liveLensDisplay, "CurrentTexture") as Texture;
                 Assert.That(scopeCamera.targetTexture, Is.Not.Null);
                 Assert.That(currentTexture, Is.SameAs(scopeCamera.targetTexture), "Lens display should receive the live scope render texture.");
+                Assert.That(liveTargetRenderer!.sharedMaterial.name, Does.Contain("Runtime"), "Live scope lens display should swap to a runtime display material while ADS is active.");
+                Assert.That(liveTargetRenderer.sharedMaterial, Is.Not.SameAs(authoredMaterial), "Live scope lens display should use a cloned runtime material instance while ADS is active.");
+                Assert.That(liveTargetRenderer.sharedMaterial.renderQueue, Is.EqualTo(authoredRenderQueue), "Live scope lens display should preserve the authored render queue while ADS is active.");
+                Assert.That(liveTargetRenderer.sharedMaterial.shader, Is.SameAs(authoredShader), "Live scope lens display should preserve the authored shader contract while ADS is active.");
             }
             finally
             {
@@ -1834,6 +2327,875 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator ScopedPipOptic_ShotCameraSuppressesPeripheralBlurWorldDownscaleAndScopeCameraUntilItEnds()
+        {
+            const string peripheralBlurKey = "esc-menu.peripheral-blur-percent";
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            var peripheralEffectsType = ResolveType("Reloader.Game.Weapons.PeripheralScopeEffects");
+            var peripheralScopeScreenMaskType = ResolveType("Reloader.Game.Weapons.PeripheralScopeScreenMask");
+            var scopeLensDisplayType = ResolveType("Reloader.Game.Weapons.ScopeLensDisplay");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+            Assert.That(peripheralEffectsType, Is.Not.Null);
+            Assert.That(peripheralScopeScreenMaskType, Is.Not.Null);
+            Assert.That(scopeLensDisplayType, Is.Not.Null);
+
+            var previousHasKey = PlayerPrefs.HasKey(peripheralBlurKey);
+            var previousValue = PlayerPrefs.GetInt(peripheralBlurKey, 50);
+            var root = new GameObject("ScopedAdsShotCameraRoot");
+            ScriptableObject scopedOptic = null;
+            ScriptableObject reticleDefinition = null;
+            GameObject opticPrefab = null;
+            GameObject worldCamGo = null;
+            GameObject viewmodelCamGo = null;
+            GameObject scopeCameraGo = null;
+            var pipelineAsset = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset
+                ?? GraphicsSettings.defaultRenderPipeline as UniversalRenderPipelineAsset;
+            Assert.That(pipelineAsset, Is.Not.Null, "Expected the scoped ADS render-state seam to run against a URP asset.");
+            var originalRenderScale = pipelineAsset.renderScale;
+            var originalUpscalingFilter = pipelineAsset.upscalingFilter;
+
+            try
+            {
+                ShotCameraGameplayState.Reset();
+                PeripheralScopeBlurRuntimeState.Reset();
+                PlayerPrefs.SetInt(peripheralBlurKey, 80);
+
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                worldCamGo = new GameObject("WorldCam");
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+                viewmodelCamGo = new GameObject("ViewmodelCam");
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+                scopeCameraGo = new GameObject("ScopeCam");
+                var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+                SetField(scopeController, "_scopeCamera", scopeCamera);
+                var peripheralEffects = root.AddComponent(peripheralEffectsType);
+                var peripheralMask = root.AddComponent(peripheralScopeScreenMaskType) as Behaviour;
+                Assert.That(peripheralMask, Is.Not.Null);
+                SetField(peripheralEffectsType, peripheralEffects, "_scopedBehaviours", new[] { peripheralMask });
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_worldCamera", worldCamera);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_renderTextureScopeController", scopeController);
+                SetField(ads, "_peripheralScopeEffects", peripheralEffects);
+                SetField(ads, "_useLegacyInput", false);
+                SetField(ads, "_fallbackAdsOutTime", 0.01f);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-shot-camera", 4f, 12f, true, "RenderTexturePiP");
+                reticleDefinition = CreateReticleDefinition("Ffp", 4f);
+                SetField(scopedOptic, "_scopeReticleDefinition", reticleDefinition);
+                opticPrefab = new GameObject("Optic_scope-pip-shot-camera");
+                new GameObject("SightAnchor").transform.SetParent(opticPrefab.transform, false);
+                var lensDisplayGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                lensDisplayGo.name = "LensDisplay";
+                lensDisplayGo.transform.SetParent(opticPrefab.transform, false);
+                var prefabLensDisplay = lensDisplayGo.AddComponent(scopeLensDisplayType);
+                SetField(prefabLensDisplay, "_targetRenderer", lensDisplayGo.GetComponent<Renderer>());
+                SetField(scopedOptic, "_opticPrefab", opticPrefab);
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+
+                Invoke(ads, "SetAdsHeld", true);
+                Invoke(ads, "SetMagnification", 6f);
+
+                yield return WaitUntil(
+                    () => (bool)GetProperty(peripheralEffects, "IsActive")
+                        && PeripheralScopeBlurRuntimeState.IsActive
+                        && scopeCamera.enabled
+                        && scopeCamera.targetTexture != null
+                        && pipelineAsset.renderScale < originalRenderScale,
+                    60,
+                    "Expected normal scoped PiP ADS to enable peripheral blur, world downscale, and the scope camera before shot camera starts.");
+
+                var adsRenderScale = pipelineAsset.renderScale;
+                Assert.That(adsRenderScale, Is.LessThan(originalRenderScale));
+                Assert.That(pipelineAsset.upscalingFilter, Is.EqualTo(UpscalingFilterSelection.Linear));
+
+                ShotCameraGameplayState.PushActive();
+
+                yield return WaitUntil(
+                    () => !(bool)GetProperty(peripheralEffects, "IsActive")
+                        && !PeripheralScopeBlurRuntimeState.IsActive
+                        && !scopeCamera.enabled
+                        && scopeCamera.targetTexture == null
+                        && Mathf.Approximately(pipelineAsset.renderScale, originalRenderScale)
+                        && pipelineAsset.upscalingFilter == originalUpscalingFilter,
+                    60,
+                    "Expected shot camera to suppress scoped peripheral blur, restore world render scale, and disable the PiP scope camera while ADS remains held.");
+
+                Assert.That(peripheralMask.enabled, Is.False, "Shot camera should disable scoped peripheral effect receivers while active.");
+
+                ShotCameraGameplayState.PopActive();
+
+                yield return WaitUntil(
+                    () => (bool)GetProperty(peripheralEffects, "IsActive")
+                        && PeripheralScopeBlurRuntimeState.IsActive
+                        && scopeCamera.enabled
+                        && scopeCamera.targetTexture != null
+                        && Mathf.Approximately(pipelineAsset.renderScale, adsRenderScale)
+                        && pipelineAsset.upscalingFilter == UpscalingFilterSelection.Linear,
+                    60,
+                    "Expected normal scoped PiP ADS visuals to resume after shot camera ends.");
+            }
+            finally
+            {
+                ShotCameraGameplayState.Reset();
+                PeripheralScopeBlurRuntimeState.Reset();
+                if (pipelineAsset != null)
+                {
+                    pipelineAsset.renderScale = originalRenderScale;
+                    pipelineAsset.upscalingFilter = originalUpscalingFilter;
+                }
+
+                if (previousHasKey)
+                {
+                    PlayerPrefs.SetInt(peripheralBlurKey, previousValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(peripheralBlurKey);
+                }
+
+                Cleanup(root, scopedOptic, reticleDefinition, opticPrefab, worldCamGo, viewmodelCamGo, scopeCameraGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ScopedPipOptic_WithoutScopedBehaviours_StillUpdatesPeripheralBlurRuntimeState()
+        {
+            const string peripheralBlurKey = "esc-menu.peripheral-blur-percent";
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            var peripheralEffectsType = ResolveType("Reloader.Game.Weapons.PeripheralScopeEffects");
+            var runtimeStateType = ResolveType("Reloader.Game.Weapons.Rendering.PeripheralScopeBlurRuntimeState");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+            Assert.That(peripheralEffectsType, Is.Not.Null);
+            Assert.That(runtimeStateType, Is.Not.Null, "Expected the new peripheral blur runtime state type to exist.");
+
+            var previousHasKey = PlayerPrefs.HasKey(peripheralBlurKey);
+            var previousValue = PlayerPrefs.GetInt(peripheralBlurKey, 50);
+            var root = new GameObject("ScopedAdsBlurRuntimeRoot_NoScopedBehaviours");
+            ScriptableObject scopedOptic = null;
+            GameObject worldCamGo = null;
+            GameObject viewmodelCamGo = null;
+            GameObject scopeCameraGo = null;
+
+            try
+            {
+                PlayerPrefs.SetInt(peripheralBlurKey, 80);
+
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                worldCamGo = new GameObject("WorldCam");
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+                viewmodelCamGo = new GameObject("ViewmodelCam");
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+                scopeCameraGo = new GameObject("ScopeCam");
+                var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+                SetField(scopeController, "_scopeCamera", scopeCamera);
+                var peripheralEffects = root.AddComponent(peripheralEffectsType);
+                Assert.That(peripheralEffects, Is.Not.Null);
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_worldCamera", worldCamera);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_renderTextureScopeController", scopeController);
+                SetField(ads, "_peripheralScopeEffects", peripheralEffects);
+                SetField(ads, "_useLegacyInput", false);
+                SetField(ads, "_fallbackAdsOutTime", 0.01f);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-blur-runtime-noscopedbehaviours", 4f, 12f, true, "RenderTexturePiP");
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+
+                Invoke(ads, "SetAdsHeld", true);
+                Invoke(ads, "SetMagnification", 6f);
+
+                var isActiveProperty = runtimeStateType!.GetProperty("IsActive", BindingFlags.Static | BindingFlags.Public);
+                var blurAmountProperty = runtimeStateType.GetProperty("BlurAmount", BindingFlags.Static | BindingFlags.Public);
+                var resetMethod = runtimeStateType.GetMethod("Reset", BindingFlags.Static | BindingFlags.Public);
+                Assert.That(isActiveProperty, Is.Not.Null);
+                Assert.That(blurAmountProperty, Is.Not.Null);
+                Assert.That(resetMethod, Is.Not.Null);
+
+                resetMethod!.Invoke(null, null);
+                Assert.That((bool)isActiveProperty!.GetValue(null), Is.False,
+                    "Expected the runtime blur state to start from a known-reset baseline for this regression.");
+                Assert.That((float)blurAmountProperty!.GetValue(null), Is.EqualTo(0f).Within(0.0001f));
+
+                yield return WaitUntil(
+                    () => (bool)isActiveProperty.GetValue(null),
+                    60,
+                    "Peripheral blur runtime state did not activate after entering PiP ADS without scoped behaviours.");
+
+                Assert.That((float)blurAmountProperty!.GetValue(null), Is.EqualTo(0.8f).Within(0.0001f),
+                    "Expected the runtime blur state to normalize the Peripheral Blur setting even when scoped behaviours are absent.");
+            }
+            finally
+            {
+                if (previousHasKey)
+                {
+                    PlayerPrefs.SetInt(peripheralBlurKey, previousValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(peripheralBlurKey);
+                }
+
+                Cleanup(root, scopedOptic, worldCamGo, viewmodelCamGo, scopeCameraGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ScopedPipOptic_UpdatesPeripheralBlurRuntimeStateFromSettings()
+        {
+            const string peripheralBlurKey = "esc-menu.peripheral-blur-percent";
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            var peripheralEffectsType = ResolveType("Reloader.Game.Weapons.PeripheralScopeEffects");
+            var peripheralScopeScreenMaskType = ResolveType("Reloader.Game.Weapons.PeripheralScopeScreenMask");
+            var runtimeStateType = ResolveType("Reloader.Game.Weapons.Rendering.PeripheralScopeBlurRuntimeState");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+            Assert.That(peripheralEffectsType, Is.Not.Null);
+            Assert.That(peripheralScopeScreenMaskType, Is.Not.Null);
+            Assert.That(runtimeStateType, Is.Not.Null, "Expected the new peripheral blur runtime state type to exist.");
+
+            var previousHasKey = PlayerPrefs.HasKey(peripheralBlurKey);
+            var previousValue = PlayerPrefs.GetInt(peripheralBlurKey, 50);
+            var root = new GameObject("ScopedAdsBlurRuntimeRoot");
+            ScriptableObject scopedOptic = null;
+            GameObject worldCamGo = null;
+            GameObject viewmodelCamGo = null;
+            GameObject scopeCameraGo = null;
+
+            try
+            {
+                PlayerPrefs.SetInt(peripheralBlurKey, 80);
+
+                var manager = root.AddComponent(attachmentManagerType);
+                var scopeSlot = new GameObject("ScopeSlot").transform;
+                scopeSlot.SetParent(root.transform, false);
+                var ironAnchor = new GameObject("IronSightAnchor").transform;
+                ironAnchor.SetParent(root.transform, false);
+                SetField(manager, "_scopeSlot", scopeSlot);
+                SetField(manager, "_ironSightAnchor", ironAnchor);
+
+                worldCamGo = new GameObject("WorldCam");
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+                viewmodelCamGo = new GameObject("ViewmodelCam");
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+                scopeCameraGo = new GameObject("ScopeCam");
+                var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+                SetField(scopeController, "_scopeCamera", scopeCamera);
+                var peripheralEffects = root.AddComponent(peripheralEffectsType);
+                var peripheralMask = root.AddComponent(peripheralScopeScreenMaskType) as Behaviour;
+                Assert.That(peripheralMask, Is.Not.Null);
+                SetField(peripheralEffectsType, peripheralEffects, "_scopedBehaviours", new[] { peripheralMask });
+
+                var ads = root.AddComponent(adsStateControllerType);
+                SetField(ads, "_worldCamera", worldCamera);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_attachmentManager", manager);
+                SetField(ads, "_renderTextureScopeController", scopeController);
+                SetField(ads, "_peripheralScopeEffects", peripheralEffects);
+                SetField(ads, "_useLegacyInput", false);
+                SetField(ads, "_fallbackAdsOutTime", 0.01f);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-blur-runtime", 4f, 12f, true, "RenderTexturePiP");
+                Assert.That((bool)Invoke(manager, "EquipOptic", scopedOptic), Is.True);
+
+                Invoke(ads, "SetAdsHeld", true);
+                Invoke(ads, "SetMagnification", 6f);
+
+                var isActiveProperty = runtimeStateType!.GetProperty("IsActive", BindingFlags.Static | BindingFlags.Public);
+                var blurAmountProperty = runtimeStateType.GetProperty("BlurAmount", BindingFlags.Static | BindingFlags.Public);
+                Assert.That(isActiveProperty, Is.Not.Null);
+                Assert.That(blurAmountProperty, Is.Not.Null);
+
+                yield return WaitUntil(
+                    () => (bool)isActiveProperty!.GetValue(null),
+                    60,
+                    "Peripheral blur runtime state did not activate after entering PiP ADS.");
+
+                Assert.That((float)blurAmountProperty!.GetValue(null), Is.EqualTo(0.8f).Within(0.0001f),
+                    "Expected the runtime blur state to normalize the Peripheral Blur setting into the render feature seam.");
+
+                Invoke(ads, "SetAdsHeld", false);
+
+                yield return WaitUntil(
+                    () => !(bool)isActiveProperty.GetValue(null),
+                    60,
+                    "Peripheral blur runtime state did not deactivate after leaving PiP ADS.");
+            }
+            finally
+            {
+                if (previousHasKey)
+                {
+                    PlayerPrefs.SetInt(peripheralBlurKey, previousValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(peripheralBlurKey);
+                }
+
+                Cleanup(root, scopedOptic, worldCamGo, viewmodelCamGo, scopeCameraGo);
+            }
+        }
+
+        [Test]
+        public void ScopedPipOptic_ResolveScopedOpticsSettingsSource_FindsNonMonoBehaviourProviderOnHost()
+        {
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            Assert.That(adsStateControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedOpticsSettingsSourceHostRoot");
+            var ads = root.AddComponent(adsStateControllerType);
+            var host = root.AddComponent<TestScopedOpticsSettingsSourceHost>();
+            var provider = new TestScopedOpticsSettingsSource(215, 67);
+            host.SetScopedOpticsSettingsSource(provider);
+
+            try
+            {
+                var resolveSourceMethod = adsStateControllerType.GetMethod("ResolveScopedOpticsSettingsSource", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveSourceMethod, Is.Not.Null, "Expected AdsStateController to expose scoped settings source lookup helper.");
+
+                var resolved = resolveSourceMethod!.Invoke(ads, new object[] { typeof(ITestScopedOpticsSettingsSource) });
+                Assert.That(resolved, Is.SameAs(provider), "Expected source lookup to resolve non-MonoBehaviour providers hosted on MonoBehaviour members.");
+            }
+            finally
+            {
+                Cleanup(root);
+            }
+        }
+
+        [Test]
+        public void ScopedPipOptic_ResolveScopedOpticsSettings_UsesSnapshotPropertiesWhenAvailable()
+        {
+            const string pipResolutionKey = "esc-menu.scoped-pip-resolution-percent";
+            const string peripheralBlurKey = "esc-menu.peripheral-blur-percent";
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            Assert.That(adsStateControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedOpticsSnapshotPropertiesRoot");
+            var ads = root.AddComponent(adsStateControllerType);
+            var previousPipHasKey = PlayerPrefs.HasKey(pipResolutionKey);
+            var previousBlurHasKey = PlayerPrefs.HasKey(peripheralBlurKey);
+            var previousPipValue = PlayerPrefs.GetInt(pipResolutionKey, 100);
+            var previousBlurValue = PlayerPrefs.GetInt(peripheralBlurKey, 50);
+
+            try
+            {
+                var resolveMethod = adsStateControllerType.GetMethod("ResolveScopedOpticsSettings", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveMethod, Is.Not.Null, "Expected AdsStateController to expose ResolveScopedOpticsSettings helper.");
+
+                SetField(ads, "_scopedOpticsSettingsSourceType", typeof(ITestScopedOpticsSettingsSnapshotSource));
+                SetField(ads, "_scopedOpticsSettingsSnapshotType", typeof(ScopedOpticsSettingsSnapshot));
+                SetField(ads, "_scopedOpticsSettingsContractType", typeof(ScopedOpticsSettings));
+                SetField(ads, "_hasResolvedScopedOpticsSettingsSource", true);
+                SetField(ads, "_scopedOpticsSettingsSource", new TestScopedOpticsSettingsSnapshotSource(215, 67));
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", int.MaxValue);
+
+                PlayerPrefs.SetInt(pipResolutionKey, 111);
+                PlayerPrefs.SetInt(peripheralBlurKey, 22);
+
+                var settings = resolveMethod!.Invoke(ads, null);
+                Assert.That(settings, Is.Not.Null);
+                Assert.That((int)GetProperty(settings!, "PipResolutionPercent"), Is.EqualTo(215));
+                Assert.That((int)GetProperty(settings, "PeripheralBlurPercent"), Is.EqualTo(67));
+            }
+            finally
+            {
+                if (previousPipHasKey)
+                {
+                    PlayerPrefs.SetInt(pipResolutionKey, previousPipValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(pipResolutionKey);
+                }
+
+                if (previousBlurHasKey)
+                {
+                    PlayerPrefs.SetInt(peripheralBlurKey, previousBlurValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(peripheralBlurKey);
+                }
+
+                Cleanup(root);
+            }
+        }
+
+        [Test]
+        public void ScopedPipOptic_ResolveScopedOpticsSettings_RetriesLookupAfterInitialMiss()
+        {
+            const string pipResolutionKey = "esc-menu.scoped-pip-resolution-percent";
+            const string peripheralBlurKey = "esc-menu.peripheral-blur-percent";
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            Assert.That(adsStateControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedOpticsSettingsRetryLookupRoot");
+            var ads = root.AddComponent(adsStateControllerType);
+            var previousPipHasKey = PlayerPrefs.HasKey(pipResolutionKey);
+            var previousBlurHasKey = PlayerPrefs.HasKey(peripheralBlurKey);
+            var previousPipValue = PlayerPrefs.GetInt(pipResolutionKey, 100);
+            var previousBlurValue = PlayerPrefs.GetInt(peripheralBlurKey, 50);
+
+            try
+            {
+                var resolveMethod = adsStateControllerType.GetMethod("ResolveScopedOpticsSettings", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveMethod, Is.Not.Null, "Expected AdsStateController to expose ResolveScopedOpticsSettings helper.");
+
+                SetField(ads, "_scopedOpticsSettingsSourceType", typeof(ITestScopedOpticsSettingsSource));
+                SetField(ads, "_scopedOpticsSettingsSnapshotType", null);
+                SetField(ads, "_scopedOpticsSettingsContractType", null);
+                SetField(ads, "_hasResolvedScopedOpticsSettingsSource", true);
+                SetField(ads, "_scopedOpticsSettingsSource", null);
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", Time.frameCount);
+
+                PlayerPrefs.SetInt(pipResolutionKey, 111);
+                PlayerPrefs.SetInt(peripheralBlurKey, 22);
+
+                var firstSettings = resolveMethod!.Invoke(ads, null);
+                Assert.That(firstSettings, Is.Not.Null);
+                Assert.That((int)GetProperty(firstSettings!, "PipResolutionPercent"), Is.EqualTo(111));
+                Assert.That((int)GetProperty(firstSettings, "PeripheralBlurPercent"), Is.EqualTo(22));
+
+                var host = root.AddComponent<TestScopedOpticsSettingsSourceHost>();
+                host.SetScopedOpticsSettingsSource(new TestScopedOpticsSettingsSource(333, 77));
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", Time.frameCount);
+
+                var secondSettings = resolveMethod.Invoke(ads, null);
+                Assert.That(secondSettings, Is.Not.Null);
+                Assert.That((int)GetProperty(secondSettings!, "PipResolutionPercent"), Is.EqualTo(333),
+                    "Expected scoped settings lookup to retry after an initial miss once a provider appears.");
+                Assert.That((int)GetProperty(secondSettings, "PeripheralBlurPercent"), Is.EqualTo(77));
+            }
+            finally
+            {
+                if (previousPipHasKey)
+                {
+                    PlayerPrefs.SetInt(pipResolutionKey, previousPipValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(pipResolutionKey);
+                }
+
+                if (previousBlurHasKey)
+                {
+                    PlayerPrefs.SetInt(peripheralBlurKey, previousBlurValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(peripheralBlurKey);
+                }
+
+                Cleanup(root);
+            }
+        }
+
+        [Test]
+        public void ScopedPipOptic_ResolveScopedOpticsSettings_MissingSource_DoesNotRescanBeforeRetryFrame()
+        {
+            const string pipResolutionKey = "esc-menu.scoped-pip-resolution-percent";
+            const string peripheralBlurKey = "esc-menu.peripheral-blur-percent";
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            Assert.That(adsStateControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedOpticsSettingsNoRescanRoot");
+            var ads = root.AddComponent(adsStateControllerType);
+            root.AddComponent<TestScopedOpticsSettingsProbeHost>();
+            var previousPipHasKey = PlayerPrefs.HasKey(pipResolutionKey);
+            var previousBlurHasKey = PlayerPrefs.HasKey(peripheralBlurKey);
+            var previousPipValue = PlayerPrefs.GetInt(pipResolutionKey, 100);
+            var previousBlurValue = PlayerPrefs.GetInt(peripheralBlurKey, 50);
+
+            try
+            {
+                var resolveMethod = adsStateControllerType.GetMethod("ResolveScopedOpticsSettings", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveMethod, Is.Not.Null, "Expected AdsStateController to expose ResolveScopedOpticsSettings helper.");
+
+                SetField(ads, "_scopedOpticsSettingsSourceType", typeof(ITestScopedOpticsSettingsSource));
+                SetField(ads, "_scopedOpticsSettingsSnapshotType", null);
+                SetField(ads, "_scopedOpticsSettingsContractType", null);
+                SetField(ads, "_hasResolvedScopedOpticsSettingsSource", true);
+                SetField(ads, "_scopedOpticsSettingsSource", null);
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", Time.frameCount);
+
+                PlayerPrefs.SetInt(pipResolutionKey, 111);
+                PlayerPrefs.SetInt(peripheralBlurKey, 22);
+                TestScopedOpticsSettingsProbeHost.GetterCallCount = 0;
+
+                var firstSettings = resolveMethod!.Invoke(ads, null);
+                Assert.That(firstSettings, Is.Not.Null);
+                Assert.That((int)GetProperty(firstSettings!, "PipResolutionPercent"), Is.EqualTo(111));
+                Assert.That((int)GetProperty(firstSettings, "PeripheralBlurPercent"), Is.EqualTo(22));
+
+                var getterCallsAfterFirstResolve = TestScopedOpticsSettingsProbeHost.GetterCallCount;
+                Assert.That(getterCallsAfterFirstResolve, Is.GreaterThan(0), "Expected first lookup attempt to inspect probe host members.");
+
+                var secondSettings = resolveMethod.Invoke(ads, null);
+                Assert.That(secondSettings, Is.Not.Null);
+                Assert.That((int)GetProperty(secondSettings!, "PipResolutionPercent"), Is.EqualTo(111));
+                Assert.That((int)GetProperty(secondSettings, "PeripheralBlurPercent"), Is.EqualTo(22));
+                Assert.That(
+                    TestScopedOpticsSettingsProbeHost.GetterCallCount,
+                    Is.EqualTo(getterCallsAfterFirstResolve),
+                    "Expected lookup miss to be throttled so scoped settings source scanning does not rerun immediately.");
+            }
+            finally
+            {
+                TestScopedOpticsSettingsProbeHost.GetterCallCount = 0;
+
+                if (previousPipHasKey)
+                {
+                    PlayerPrefs.SetInt(pipResolutionKey, previousPipValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(pipResolutionKey);
+                }
+
+                if (previousBlurHasKey)
+                {
+                    PlayerPrefs.SetInt(peripheralBlurKey, previousBlurValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(peripheralBlurKey);
+                }
+
+                Cleanup(root);
+            }
+        }
+
+        [Test]
+        public void ScopedPipOptic_ResolveScopedOpticsSettings_MissingSource_UsesRetryBackoff()
+        {
+            const string pipResolutionKey = "esc-menu.scoped-pip-resolution-percent";
+            const string peripheralBlurKey = "esc-menu.peripheral-blur-percent";
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            Assert.That(adsStateControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedOpticsSettingsRetryBackoffRoot");
+            var ads = root.AddComponent(adsStateControllerType);
+            root.AddComponent<TestScopedOpticsSettingsProbeHost>();
+            var previousPipHasKey = PlayerPrefs.HasKey(pipResolutionKey);
+            var previousBlurHasKey = PlayerPrefs.HasKey(peripheralBlurKey);
+            var previousPipValue = PlayerPrefs.GetInt(pipResolutionKey, 100);
+            var previousBlurValue = PlayerPrefs.GetInt(peripheralBlurKey, 50);
+
+            try
+            {
+                var resolveMethod = adsStateControllerType.GetMethod("ResolveScopedOpticsSettings", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveMethod, Is.Not.Null, "Expected AdsStateController to expose ResolveScopedOpticsSettings helper.");
+
+                SetField(ads, "_scopedOpticsSettingsSourceType", typeof(ITestScopedOpticsSettingsSource));
+                SetField(ads, "_scopedOpticsSettingsSnapshotType", null);
+                SetField(ads, "_scopedOpticsSettingsContractType", null);
+                SetField(ads, "_hasResolvedScopedOpticsSettingsSource", true);
+                SetField(ads, "_scopedOpticsSettingsSource", null);
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", Time.frameCount);
+                SetField(ads, "_scopedOpticsSettingsSourceRetryFrameInterval", 30);
+
+                PlayerPrefs.SetInt(pipResolutionKey, 111);
+                PlayerPrefs.SetInt(peripheralBlurKey, 22);
+                TestScopedOpticsSettingsProbeHost.GetterCallCount = 0;
+
+                var firstSettings = resolveMethod!.Invoke(ads, null);
+                Assert.That(firstSettings, Is.Not.Null);
+                var getterCallsAfterFirstResolve = TestScopedOpticsSettingsProbeHost.GetterCallCount;
+                Assert.That(getterCallsAfterFirstResolve, Is.GreaterThan(0), "Expected first lookup attempt to inspect probe host members.");
+
+                var nextLookupAfterFirstResolve = (int)GetPrivateField(ads, "_nextScopedOpticsSettingsSourceLookupFrame");
+                var retryIntervalAfterFirstResolve = (int)GetPrivateField(ads, "_scopedOpticsSettingsSourceRetryFrameInterval");
+
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", Time.frameCount);
+
+                var secondSettings = resolveMethod.Invoke(ads, null);
+                Assert.That(secondSettings, Is.Not.Null);
+                var getterCallsAfterSecondResolve = TestScopedOpticsSettingsProbeHost.GetterCallCount;
+                Assert.That(getterCallsAfterSecondResolve, Is.GreaterThan(getterCallsAfterFirstResolve), "Expected retry frame to trigger another lookup.");
+
+                var nextLookupAfterSecondResolve = (int)GetPrivateField(ads, "_nextScopedOpticsSettingsSourceLookupFrame");
+                var retryIntervalAfterSecondResolve = (int)GetPrivateField(ads, "_scopedOpticsSettingsSourceRetryFrameInterval");
+                Assert.That(nextLookupAfterSecondResolve, Is.GreaterThan(nextLookupAfterFirstResolve),
+                    "Expected repeated misses to push the next lookup farther out instead of rescanning every frame.");
+                Assert.That(retryIntervalAfterSecondResolve, Is.GreaterThan(retryIntervalAfterFirstResolve),
+                    "Expected missing-source retry interval to back off between repeated misses.");
+
+                var thirdSettings = resolveMethod.Invoke(ads, null);
+                Assert.That(thirdSettings, Is.Not.Null);
+                Assert.That(
+                    TestScopedOpticsSettingsProbeHost.GetterCallCount,
+                    Is.EqualTo(getterCallsAfterSecondResolve),
+                    "Expected no additional member scan before the next scheduled retry frame.");
+            }
+            finally
+            {
+                TestScopedOpticsSettingsProbeHost.GetterCallCount = 0;
+
+                if (previousPipHasKey)
+                {
+                    PlayerPrefs.SetInt(pipResolutionKey, previousPipValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(pipResolutionKey);
+                }
+
+                if (previousBlurHasKey)
+                {
+                    PlayerPrefs.SetInt(peripheralBlurKey, previousBlurValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(peripheralBlurKey);
+                }
+
+                Cleanup(root);
+            }
+        }
+
+        [Test]
+        public void ScopedPipOptic_ResolveScopedOpticsSettings_RebindsCachedProviderAfterHostSwap()
+        {
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            Assert.That(adsStateControllerType, Is.Not.Null);
+
+            var root = new GameObject("ScopedOpticsProviderRebindRoot");
+            var ads = root.AddComponent(adsStateControllerType);
+            var host = root.AddComponent<TestScopedOpticsSettingsSourceHost>();
+
+            try
+            {
+                var resolveMethod = adsStateControllerType.GetMethod("ResolveScopedOpticsSettings", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveMethod, Is.Not.Null, "Expected AdsStateController to expose ResolveScopedOpticsSettings helper.");
+
+                var cachedProvider = new TestScopedOpticsSettingsSource(215, 67);
+                var refreshedProvider = new TestScopedOpticsSettingsSource(333, 77);
+                host.SetScopedOpticsSettingsSource(cachedProvider);
+
+                SetField(ads, "_scopedOpticsSettingsSourceType", typeof(ITestScopedOpticsSettingsSource));
+                SetField(ads, "_scopedOpticsSettingsSnapshotType", null);
+                SetField(ads, "_scopedOpticsSettingsContractType", null);
+                SetField(ads, "_hasResolvedScopedOpticsSettingsSource", true);
+                SetField(ads, "_scopedOpticsSettingsSource", cachedProvider);
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", Time.frameCount);
+
+                var firstSettings = resolveMethod!.Invoke(ads, null);
+                Assert.That(firstSettings, Is.Not.Null);
+                Assert.That((int)GetProperty(firstSettings!, "PipResolutionPercent"), Is.EqualTo(215));
+                Assert.That((int)GetProperty(firstSettings, "PeripheralBlurPercent"), Is.EqualTo(67));
+
+                host.SetScopedOpticsSettingsSource(refreshedProvider);
+                SetField(ads, "_nextScopedOpticsSettingsSourceLookupFrame", Time.frameCount);
+
+                var secondSettings = resolveMethod.Invoke(ads, null);
+                Assert.That(secondSettings, Is.Not.Null);
+                Assert.That((int)GetProperty(secondSettings!, "PipResolutionPercent"), Is.EqualTo(333));
+                Assert.That((int)GetProperty(secondSettings, "PeripheralBlurPercent"), Is.EqualTo(77));
+            }
+            finally
+            {
+                Cleanup(root);
+            }
+        }
+
+        [Test]
+        public void ScopedPipOptic_UsesPlayerPrefsFallbackForScopedOpticsSettings()
+        {
+            const string pipResolutionKey = "esc-menu.scoped-pip-resolution-percent";
+            const string peripheralBlurKey = "esc-menu.peripheral-blur-percent";
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            Assert.That(adsStateControllerType, Is.Not.Null);
+
+            var sourceType = System.Type.GetType("Reloader.UI.Toolkit.EscMenu.IScopedOpticsSettingsSource");
+            if (sourceType != null)
+            {
+                var sourceObjects = Resources.FindObjectsOfTypeAll<MonoBehaviour>();
+                if (sourceObjects != null && System.Array.Exists(sourceObjects, candidate => candidate != null && sourceType.IsInstanceOfType(candidate)))
+                {
+                    Assert.Ignore("Scoped optics settings source already exists in runtime; skipping PlayerPrefs fallback assertion.");
+                }
+            }
+
+            var root = new GameObject("ScopedPipOpticPrefsFallbackRoot");
+            var ads = root.AddComponent(adsStateControllerType);
+            var previousPipHasKey = PlayerPrefs.HasKey(pipResolutionKey);
+            var previousBlurHasKey = PlayerPrefs.HasKey(peripheralBlurKey);
+            var previousPipValue = PlayerPrefs.GetInt(pipResolutionKey, 100);
+            var previousBlurValue = PlayerPrefs.GetInt(peripheralBlurKey, 50);
+
+            try
+            {
+                var worldCamGo = new GameObject("WorldCam");
+                var worldCamera = worldCamGo.AddComponent<Camera>();
+                worldCamGo.transform.SetParent(root.transform, false);
+                SetField(ads, "_worldCamera", worldCamera);
+                var viewmodelCamGo = new GameObject("ViewmodelCam");
+                var viewmodelCamera = viewmodelCamGo.AddComponent<Camera>();
+                viewmodelCamGo.transform.SetParent(root.transform, false);
+                SetField(ads, "_viewmodelCamera", viewmodelCamera);
+                SetField(ads, "_useLegacyInput", false);
+                PlayerPrefs.SetInt(pipResolutionKey, 250);
+                PlayerPrefs.SetInt(peripheralBlurKey, 75);
+
+                var resolveMethod = adsStateControllerType.GetMethod("ResolveScopedOpticsSettings", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(resolveMethod, Is.Not.Null, "Expected AdsStateController to expose ResolveScopedOpticsSettings helper.");
+                var settings = resolveMethod!.Invoke(ads, null);
+                Assert.That(settings, Is.Not.Null);
+                var settingsType = settings!.GetType();
+                var pipProperty = settingsType.GetProperty("PipResolutionPercent");
+                var blurProperty = settingsType.GetProperty("PeripheralBlurPercent");
+                Assert.That(pipProperty, Is.Not.Null);
+                Assert.That(blurProperty, Is.Not.Null);
+                Assert.That((int)pipProperty!.GetValue(settings), Is.EqualTo(250));
+                Assert.That((int)blurProperty!.GetValue(settings), Is.EqualTo(75));
+
+                PlayerPrefs.SetInt(pipResolutionKey, 999);
+                PlayerPrefs.SetInt(peripheralBlurKey, -1);
+
+                var clampedSettings = resolveMethod.Invoke(ads, null);
+                Assert.That(clampedSettings, Is.Not.Null);
+                Assert.That((int)settingsType.GetProperty("PipResolutionPercent")!.GetValue(clampedSettings), Is.EqualTo(400));
+                Assert.That((int)settingsType.GetProperty("PeripheralBlurPercent")!.GetValue(clampedSettings), Is.EqualTo(0));
+            }
+            finally
+            {
+                if (previousPipHasKey)
+                {
+                    PlayerPrefs.SetInt(pipResolutionKey, previousPipValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(pipResolutionKey);
+                }
+
+                if (previousBlurHasKey)
+                {
+                    PlayerPrefs.SetInt(peripheralBlurKey, previousBlurValue);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(peripheralBlurKey);
+                }
+
+                Cleanup(root);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ScopedPipOptic_BlurAperture_UsesExplicitApertureRendererInsteadOfDisplaySurfaceBounds()
+        {
+            var renderTextureScopeControllerType = ResolveType("Reloader.Game.Weapons.RenderTextureScopeController");
+            var scopeLensDisplayType = ResolveType("Reloader.Game.Weapons.ScopeLensDisplay");
+            Assert.That(renderTextureScopeControllerType, Is.Not.Null);
+            Assert.That(scopeLensDisplayType, Is.Not.Null);
+
+            var apertureRendererProperty = scopeLensDisplayType!.GetProperty("ApertureRenderer", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(apertureRendererProperty, Is.Not.Null, "ScopeLensDisplay should expose an explicit aperture renderer contract for scoped peripheral blur.");
+
+            var root = new GameObject("ScopedBlurApertureRoot");
+            ScriptableObject scopedOptic = null;
+            GameObject opticInstance = null;
+            GameObject scopeCameraGo = null;
+            GameObject apertureCameraGo = null;
+
+            try
+            {
+                PeripheralScopeBlurRuntimeState.Reset();
+
+                scopeCameraGo = new GameObject("ScopeCam");
+                var scopeCamera = scopeCameraGo.AddComponent<Camera>();
+                scopeCamera.fieldOfView = 20f;
+
+                apertureCameraGo = new GameObject("ApertureCam");
+                var apertureCamera = apertureCameraGo.AddComponent<Camera>();
+                apertureCamera.fieldOfView = 60f;
+                apertureCamera.aspect = 1f;
+
+                var scopeController = root.AddComponent(renderTextureScopeControllerType);
+                Invoke(scopeController, "SetScopeCamera", scopeCamera);
+                Invoke(scopeController, "SetApertureCamera", apertureCamera);
+
+                scopedOptic = CreateOpticDefinition("scope-pip-aperture-source", 4f, 12f, true, "RenderTexturePiP");
+                opticInstance = new GameObject("Optic_scope-pip-aperture-source");
+                var lensBinding = new GameObject("LensBinding");
+                lensBinding.transform.SetParent(opticInstance.transform, false);
+                new GameObject("SightAnchor").transform.SetParent(opticInstance.transform, false);
+
+                var displaySurface = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                displaySurface.name = "DisplaySurface";
+                displaySurface.transform.SetParent(opticInstance.transform, false);
+                displaySurface.transform.localPosition = new Vector3(0f, 0f, 3f);
+                displaySurface.transform.localScale = new Vector3(2.4f, 1.6f, 1f);
+
+                var apertureSurface = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                apertureSurface.name = "ApertureSurface";
+                apertureSurface.transform.SetParent(opticInstance.transform, false);
+                apertureSurface.transform.localPosition = new Vector3(0f, 0f, 3f);
+                apertureSurface.transform.localScale = new Vector3(0.3f, 0.3f, 1f);
+
+                var lensDisplay = lensBinding.AddComponent(scopeLensDisplayType);
+                SetField(lensDisplay, "_targetRenderer", displaySurface.GetComponent<Renderer>());
+                SetField(lensDisplay, "_apertureRenderer", apertureSurface.GetComponent<Renderer>());
+                Assert.That(apertureRendererProperty!.GetValue(lensDisplay), Is.SameAs(apertureSurface.GetComponent<Renderer>()));
+                SetField(scopedOptic, "_opticPrefab", opticInstance);
+
+                Invoke(scopeController, "SetScopeActive", true, scopedOptic, opticInstance, 60f, 8f, 0, 0);
+                yield return null;
+
+                Assert.That(PeripheralScopeBlurRuntimeState.CenterWidthNormalized, Is.GreaterThan(0f));
+                Assert.That(PeripheralScopeBlurRuntimeState.CenterHeightNormalized, Is.GreaterThan(0f));
+                Assert.That(
+                    PeripheralScopeBlurRuntimeState.CenterWidthNormalized,
+                    Is.LessThan(0.2f),
+                    "Peripheral blur aperture should follow the explicit optic opening, not the much larger PiP display surface.");
+                Assert.That(
+                    PeripheralScopeBlurRuntimeState.CenterHeightNormalized,
+                    Is.LessThan(0.2f),
+                    "Peripheral blur aperture should follow the explicit optic opening, not the much larger PiP display surface.");
+            }
+            finally
+            {
+                PeripheralScopeBlurRuntimeState.Reset();
+                Cleanup(root, scopedOptic, opticInstance, scopeCameraGo, apertureCameraGo);
+            }
+        }
+
         private static ScriptableObject CreateOpticDefinition(string id, float minMag, float maxMag, bool variableZoom, string visualMode)
         {
             var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
@@ -1893,6 +3255,18 @@ namespace Reloader.Weapons.Tests.PlayMode
             return Mathf.Clamp(zoomedHalfAngle * 2f * Mathf.Rad2Deg, 1f, safeReferenceFov);
         }
 
+        private static bool SightAnchorMatchesCameraEyeRelief(Transform cameraTransform, Transform sightAnchor, float expectedEyeRelief)
+        {
+            if (cameraTransform == null || sightAnchor == null)
+            {
+                return false;
+            }
+
+            var expectedPosition = cameraTransform.position - (cameraTransform.forward * expectedEyeRelief);
+            return Vector3.Distance(sightAnchor.position, expectedPosition) <= 0.0001f
+                && Quaternion.Angle(sightAnchor.rotation, cameraTransform.rotation) <= 0.05f;
+        }
+
         private static ScriptableObject ResolveOpticDefinitionById(string opticId)
         {
 #if UNITY_EDITOR
@@ -1950,6 +3324,90 @@ namespace Reloader.Weapons.Tests.PlayMode
             }
 
             return null;
+        }
+
+        private interface ITestScopedOpticsSettingsSource
+        {
+            int GetScopedPipResolutionPercent();
+            int GetPeripheralBlurPercent();
+        }
+
+        private interface ITestScopedOpticsSettingsSnapshotSource
+        {
+            ScopedOpticsSettingsSnapshot GetScopedOpticsSettingsSnapshot();
+            int GetScopedPipResolutionPercent();
+            int GetPeripheralBlurPercent();
+        }
+
+        private sealed class TestScopedOpticsSettingsSource : ITestScopedOpticsSettingsSource
+        {
+            private readonly int _pipResolutionPercent;
+            private readonly int _peripheralBlurPercent;
+
+            public TestScopedOpticsSettingsSource(int pipResolutionPercent, int peripheralBlurPercent)
+            {
+                _pipResolutionPercent = pipResolutionPercent;
+                _peripheralBlurPercent = peripheralBlurPercent;
+            }
+
+            public int GetScopedPipResolutionPercent()
+            {
+                return _pipResolutionPercent;
+            }
+
+            public int GetPeripheralBlurPercent()
+            {
+                return _peripheralBlurPercent;
+            }
+        }
+
+        private sealed class TestScopedOpticsSettingsSnapshotSource : ITestScopedOpticsSettingsSnapshotSource
+        {
+            private readonly int _snapshotPipResolutionPercent;
+            private readonly int _snapshotPeripheralBlurPercent;
+
+            public TestScopedOpticsSettingsSnapshotSource(int snapshotPipResolutionPercent, int snapshotPeripheralBlurPercent)
+            {
+                _snapshotPipResolutionPercent = snapshotPipResolutionPercent;
+                _snapshotPeripheralBlurPercent = snapshotPeripheralBlurPercent;
+            }
+
+            public ScopedOpticsSettingsSnapshot GetScopedOpticsSettingsSnapshot()
+            {
+                return new ScopedOpticsSettingsSnapshot(_snapshotPipResolutionPercent, _snapshotPeripheralBlurPercent);
+            }
+
+            public int GetScopedPipResolutionPercent()
+            {
+                throw new InvalidOperationException("Snapshot contract should be used instead of per-field methods.");
+            }
+
+            public int GetPeripheralBlurPercent()
+            {
+                throw new InvalidOperationException("Snapshot contract should be used instead of per-field methods.");
+            }
+        }
+
+        private sealed class TestScopedOpticsSettingsSourceHost : MonoBehaviour
+        {
+            [SerializeField] private object _scopedOpticsSettingsSource;
+
+            public void SetScopedOpticsSettingsSource(object scopedOpticsSettingsSource)
+            {
+                _scopedOpticsSettingsSource = scopedOpticsSettingsSource;
+            }
+        }
+
+        private sealed class TestScopedOpticsSettingsProbeHost : MonoBehaviour
+        {
+            public static int GetterCallCount { get; set; }
+            private object ScopedOpticsSettingsProbe => CountAccessAndReturnNull();
+
+            private static object CountAccessAndReturnNull()
+            {
+                GetterCallCount++;
+                return null;
+            }
         }
 
         private static object Invoke(object instance, string methodName, params object[] args)
@@ -2053,5 +3511,31 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(field, Is.Not.Null, $"Field '{fieldName}' was not found on {type.Name}.");
             field.SetValue(instance, value);
         }
+    }
+}
+
+namespace Reloader.UI.Toolkit.EscMenu
+{
+    public static class ScopedOpticsSettings
+    {
+        public const int MinPipResolutionPercent = 10;
+        public const int MaxPipResolutionPercent = 400;
+        public const int DefaultPipResolutionPercent = 100;
+
+        public const int MinPeripheralBlurPercent = 0;
+        public const int MaxPeripheralBlurPercent = 100;
+        public const int DefaultPeripheralBlurPercent = 50;
+    }
+
+    public readonly struct ScopedOpticsSettingsSnapshot
+    {
+        public ScopedOpticsSettingsSnapshot(int pipResolutionPercent, int peripheralBlurPercent)
+        {
+            PipResolutionPercent = pipResolutionPercent;
+            PeripheralBlurPercent = peripheralBlurPercent;
+        }
+
+        public int PipResolutionPercent { get; }
+        public int PeripheralBlurPercent { get; }
     }
 }

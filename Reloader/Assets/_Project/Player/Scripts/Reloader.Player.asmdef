@@ -3,6 +3,7 @@
   "rootNamespace": "Reloader.Player",
   "references": [
     "Reloader.Core",
+    "Reloader.Game.Weapons",
     "Unity.InputSystem",
     "Unity.Cinemachine",
     "Unity.RenderPipelines.Universal.Runtime"
