@@ -28,6 +28,11 @@ namespace Reloader.Core.Persistence
                 return 0;
             }
 
+            if (IsBackupScenePath(scene.path))
+            {
+                return 0;
+            }
+
             var policy = policyRegistry.ResolvePolicy(scene.path);
             var appliedCount = 0;
             var existingObjectIds = new HashSet<string>(StringComparer.Ordinal);
@@ -136,6 +141,18 @@ namespace Reloader.Core.Persistence
             {
                 identity.gameObject.SetActive(false);
             }
+        }
+
+        private static bool IsBackupScenePath(string scenePath)
+        {
+            if (string.IsNullOrWhiteSpace(scenePath))
+            {
+                return false;
+            }
+
+            var normalizedPath = scenePath.Replace('\\', '/');
+            return normalizedPath.IndexOf("Temp/__Backupscenes/", StringComparison.OrdinalIgnoreCase) >= 0
+                || normalizedPath.EndsWith(".backup", StringComparison.OrdinalIgnoreCase);
         }
 
         private static WorldObjectStateRecord CloneRecord(WorldObjectStateRecord source)

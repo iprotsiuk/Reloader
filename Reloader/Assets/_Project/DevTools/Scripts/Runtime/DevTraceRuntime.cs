@@ -74,9 +74,9 @@ namespace Reloader.DevTools.Runtime
         private readonly float _pendingCleanupLifetimeSeconds = 10f;
         private readonly GameObject _root;
         private readonly Driver _driver;
+        private readonly Queue<int> _pendingObserverShotClaimFrames = new();
         private IWeaponEvents _weaponEvents;
         private bool _disposed;
-        private int _pendingObserverShotClaims;
 
         public DevTraceRuntime(DevToolsState state, IWeaponEvents weaponEvents = null)
         {
@@ -119,7 +119,7 @@ namespace Reloader.DevTools.Runtime
             _state.TraceTtlSeconds = ttlSeconds;
             if (!AreTracesEnabled())
             {
-                _pendingObserverShotClaims = 0;
+                _pendingObserverShotClaimFrames.Clear();
                 _pendingShotsByItemId.Clear();
                 ClearVisibleSegments();
             }
@@ -132,7 +132,7 @@ namespace Reloader.DevTools.Runtime
                 return null;
             }
 
-            _pendingObserverShotClaims++;
+            _pendingObserverShotClaimFrames.Enqueue(Time.frameCount);
             return new ProjectilePathObserver(this);
         }
 
@@ -184,9 +184,11 @@ namespace Reloader.DevTools.Runtime
                 return;
             }
 
-            if (_pendingObserverShotClaims > 0)
+            PruneExpiredObserverShotClaims(Time.frameCount);
+            if (_pendingObserverShotClaimFrames.Count > 0
+                && _pendingObserverShotClaimFrames.Peek() == Time.frameCount)
             {
-                _pendingObserverShotClaims--;
+                _pendingObserverShotClaimFrames.Dequeue();
                 return;
             }
 
@@ -235,6 +237,7 @@ namespace Reloader.DevTools.Runtime
                 return;
             }
 
+            PruneExpiredObserverShotClaims(Time.frameCount);
             if (_pendingShotsByItemId.Count == 0)
             {
                 return;
@@ -271,6 +274,15 @@ namespace Reloader.DevTools.Runtime
             for (var i = 0; i < expiredKeys.Count; i++)
             {
                 _pendingShotsByItemId.Remove(expiredKeys[i]);
+            }
+        }
+
+        private void PruneExpiredObserverShotClaims(int currentFrame)
+        {
+            while (_pendingObserverShotClaimFrames.Count > 0
+                   && _pendingObserverShotClaimFrames.Peek() < currentFrame)
+            {
+                _pendingObserverShotClaimFrames.Dequeue();
             }
         }
 

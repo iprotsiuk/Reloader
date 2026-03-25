@@ -47,7 +47,9 @@ namespace Reloader.Audio.Tests.PlayMode
             var group = System.Activator.CreateInstance(groupType);
             SetPrivateField(group, "_surfaceId", "Default");
             SetPrivateField(group, "_clips", new[] { clipA, clipB });
-            SetPrivateField(catalog, "_footstepGroups", new[] { group });
+            var groups = System.Array.CreateInstance(groupType, 1);
+            groups.SetValue(group, 0);
+            SetPrivateField(catalog, "_footstepGroups", groups);
 
             var first = catalog.GetRandomFootstepClip("Default");
             var second = catalog.GetRandomFootstepClip("Default");

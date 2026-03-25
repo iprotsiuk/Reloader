@@ -494,9 +494,8 @@ namespace Reloader.Player.Viewmodel
         private void ApplyConstraintWeights(bool hasWeaponAnchors)
         {
             var isReloading = ResolveIsReloading();
-            var leftAdsWeight = ResolveLeftHandAdsWeight();
             var leftWeight = hasWeaponAnchors && _driveLeftHand
-                ? (isReloading && _releaseLeftHandDuringReload ? _leftHandReloadWeight : _leftHandActiveWeight * leftAdsWeight)
+                ? (isReloading && _releaseLeftHandDuringReload ? _leftHandReloadWeight : _leftHandActiveWeight)
                 : 0f;
             var rightWeight = hasWeaponAnchors && _driveRightHand
                 ? (isReloading ? _rightHandReloadWeight : _rightHandActiveWeight)
@@ -526,21 +525,6 @@ namespace Reloader.Player.Viewmodel
             }
 
             return _viewmodelAnimationAdapter != null && _viewmodelAnimationAdapter.IsReloadingDebug;
-        }
-
-        private float ResolveLeftHandAdsWeight()
-        {
-            if (_adsStateController != null)
-            {
-                return Mathf.Clamp01(_adsStateController.AdsT);
-            }
-
-            if (_viewmodelAnimationAdapter != null)
-            {
-                return _viewmodelAnimationAdapter.IsAimingDebug ? 1f : 0f;
-            }
-
-            return 0f;
         }
 
         private static void RestoreTargetPose(Transform target, Vector3 localPosition, Quaternion localRotation)

@@ -58,9 +58,11 @@ namespace Reloader.Player.Tests.EditMode
                 Assert.That(cameraPivot.IsChildOf(createdRoot.transform), Is.True);
                 Assert.That(mainCamera.transform.parent, Is.SameAs(cameraPivot));
                 Assert.That(viewmodelCamera.transform.parent, Is.SameAs(cameraPivot));
-                Assert.That(playerArmsRoot.parent, Is.SameAs(cameraPivot));
+                var viewmodelPresentationRoot = cameraPivot.Find("ViewmodelPresentationRoot");
+                Assert.That(viewmodelPresentationRoot, Is.Not.Null);
+                Assert.That(playerArmsRoot.parent, Is.SameAs(viewmodelPresentationRoot));
                 Assert.That(playerArmsAnimator.transform.IsChildOf(playerArmsRoot), Is.True);
-                Assert.That(weaponPresentationRoot.parent, Is.SameAs(cameraPivot));
+                Assert.That(weaponPresentationRoot.parent, Is.SameAs(viewmodelPresentationRoot));
                 Assert.That(mainCamera, Is.Not.SameAs(viewmodelCamera));
             }
             finally

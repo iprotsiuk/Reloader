@@ -510,6 +510,11 @@ namespace Reloader.Core.Tests.PlayMode
 
         private static IEnumerator LoadScene(string sceneName)
         {
+            if (sceneName == MainTownSceneName)
+            {
+                LogAssert.Expect(LogType.Error, "EconomyController requires a PlayerInventoryController reference.");
+            }
+
             SceneManager.LoadScene(sceneName, LoadSceneMode.Single);
 
             var elapsed = 0f;

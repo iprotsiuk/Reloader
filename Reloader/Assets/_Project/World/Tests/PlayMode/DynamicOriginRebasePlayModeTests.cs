@@ -92,7 +92,9 @@ namespace Reloader.World.Tests.PlayMode
                 elapsed += Time.unscaledDeltaTime;
 
                 var currentPosition = playerRoot.position;
-                if (Vector3.Distance(currentPosition, previousPosition) <= 0.001f)
+                var currentHorizontal = new Vector2(currentPosition.x, currentPosition.z);
+                var previousHorizontal = new Vector2(previousPosition.x, previousPosition.z);
+                if (Vector2.Distance(currentHorizontal, previousHorizontal) <= 0.001f)
                 {
                     stableFrameCount++;
                 }

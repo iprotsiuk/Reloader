@@ -23,6 +23,10 @@ namespace Reloader.UI.Toolkit.CompassHud
         public void Initialize(VisualElement root)
         {
             TearDownResponsiveCallbacks();
+            if (root != null)
+            {
+                root.pickingMode = PickingMode.Ignore;
+            }
             _root = root?.Q<VisualElement>("compass-hud__root") ?? root;
             _entriesRoot = root?.Q<VisualElement>("compass-hud__entries");
             RegisterRelayoutCallbacks();

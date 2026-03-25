@@ -750,6 +750,222 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Fire_WithAmmoSpecificProjectileVisualBinding_UsesCustomVisualForFactory308Round()
+        {
+#if UNITY_EDITOR
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                root.transform.position = new Vector3(0f, 1000f, 0f);
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests(
+                    "weapon-kar98k",
+                    "Rifle",
+                    5,
+                    0f,
+                    80f,
+                    0f,
+                    20f,
+                    120f,
+                    1,
+                    0,
+                    true,
+                    ammoItemId: "ammo-equipment-default");
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                AttachDefaultWeaponHarness(root, controller, includeProjectilePrefab: true, includeViewBinding: true);
+
+                var visualPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                    "Assets/ThirdParty/Polygon-Mega Weapone Kit/Prefabs/AdditionalAmmo/SM_Bullet_7_62_54_FMG_ONE.prefab");
+                Assert.That(visualPrefab, Is.Not.Null, "Expected the authored .308 FMJ projectile visual prefab to exist.");
+
+                var field = typeof(PlayerWeaponController).GetField("_projectileVisualPrefabs", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(field, Is.Not.Null,
+                    "Expected PlayerWeaponController to expose ammo-specific projectile visual bindings so .308 FMJ can use an authored bullet model without changing other ammo visuals.");
+
+                var bindingType = field!.FieldType.GetElementType();
+                Assert.That(bindingType, Is.Not.Null);
+
+                var bindings = Array.CreateInstance(bindingType!, 1);
+                var binding = Activator.CreateInstance(bindingType!);
+                var localEulerAnglesField = bindingType!.GetField("_localEulerAngles", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(localEulerAnglesField, Is.Not.Null,
+                    "Expected projectile visual bindings to expose a local Euler offset so authored bullet meshes can be aligned to the projectile path.");
+                SetField(bindingType!, binding!, "_ammoItemId", "ammo-factory-308-147-fmj");
+                SetField(bindingType!, binding!, "_visualPrefab", visualPrefab);
+                localEulerAnglesField!.SetValue(binding, new Vector3(90f, 0f, 0f));
+                bindings.SetValue(binding, 0);
+                field.SetValue(controller, bindings);
+
+                yield return null;
+
+                var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
+                Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 1, 0, true), Is.True);
+                Assert.That(controller.ApplyRuntimeBallistics("weapon-kar98k", chamberRound, Array.Empty<AmmoBallisticSnapshot>()), Is.True);
+
+                input.FirePressedThisFrame = true;
+                yield return null;
+                yield return null;
+
+                var projectile = Object.FindFirstObjectByType<WeaponProjectile>();
+                Assert.That(projectile, Is.Not.Null, "Expected the fired projectile to exist.");
+                var visual = projectile!.transform.Find("SM_Bullet_7_62_54_FMG_ONE");
+                Assert.That(visual, Is.Not.Null,
+                    "Expected factory .308 FMJ rounds to instantiate the authored projectile visual prefab.");
+                Assert.That(Vector3.Dot(visual!.up, projectile.transform.forward), Is.GreaterThan(0.99f),
+                    "Expected the authored .308 FMJ projectile visual to be rotated 90 degrees so the bullet points forward along its flight path.");
+                Assert.That(projectile.transform.Find("ProjectileVisual"), Is.Null,
+                    "Expected the authored .308 FMJ projectile visual to replace the fallback yellow sphere.");
+            }
+            finally
+            {
+                foreach (var projectile in Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(projectile.gameObject);
+                }
+
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
+#else
+            Assert.Ignore("Requires UnityEditor AssetDatabase.");
+            yield break;
+#endif
+        }
+
+        [UnityTest]
+        public IEnumerator Fire_WithConfiguredBarrelTwistRate_SpinsProjectileVisualInFlight()
+        {
+#if UNITY_EDITOR
+            GameObject root = null;
+            GameObject registryGo = null;
+            WeaponDefinition definition = null;
+
+            try
+            {
+                root = new GameObject("PlayerRoot");
+                root.transform.position = new Vector3(0f, 1000f, 0f);
+                var input = root.AddComponent<TestInputSource>();
+                var resolver = root.AddComponent<TestPickupResolver>();
+                var inventoryController = root.AddComponent<PlayerInventoryController>();
+                var runtime = new PlayerInventoryRuntime();
+                inventoryController.Configure(input, resolver, runtime);
+                runtime.BeltSlotItemIds[0] = "weapon-kar98k";
+                runtime.SelectBeltSlot(0);
+
+                registryGo = new GameObject("Registry");
+                var registry = registryGo.AddComponent<WeaponRegistry>();
+                definition = ScriptableObject.CreateInstance<WeaponDefinition>();
+                definition.SetRuntimeValuesForTests("weapon-kar98k", "Rifle", 5, 0f, 80f, 0f, 20f, 120f, 1, 0, true);
+
+                var twistRateField = typeof(WeaponDefinition).GetField("_barrelTwistRateInchesPerTurn", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(twistRateField, Is.Not.Null,
+                    "Expected WeaponDefinition to expose a barrel twist-rate field so projectile spin comes from the equipped rifle configuration.");
+                twistRateField!.SetValue(definition, 12f);
+
+                registry.SetDefinitionsForTests(new[] { definition });
+
+                var controller = root.AddComponent<PlayerWeaponController>();
+                SetControllerField(controller, "_weaponRegistry", registry);
+                AttachDefaultWeaponHarness(root, controller, includeProjectilePrefab: true, includeViewBinding: true);
+
+                var visualPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                    "Assets/ThirdParty/Polygon-Mega Weapone Kit/Prefabs/AdditionalAmmo/SM_Bullet_7_62_54_FMG_ONE.prefab");
+                Assert.That(visualPrefab, Is.Not.Null);
+
+                var field = typeof(PlayerWeaponController).GetField("_projectileVisualPrefabs", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(field, Is.Not.Null);
+
+                var bindingType = field!.FieldType.GetElementType();
+                Assert.That(bindingType, Is.Not.Null);
+
+                var bindings = Array.CreateInstance(bindingType!, 1);
+                var binding = Activator.CreateInstance(bindingType!);
+                SetField(bindingType!, binding!, "_ammoItemId", "ammo-factory-308-147-fmj");
+                SetField(bindingType!, binding!, "_visualPrefab", visualPrefab);
+                SetField(bindingType!, binding!, "_localEulerAngles", new Vector3(90f, 0f, 0f));
+                bindings.SetValue(binding, 0);
+                field.SetValue(controller, bindings);
+
+                yield return null;
+
+                var chamberRound = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
+                Assert.That(controller.ApplyRuntimeState("weapon-kar98k", 1, 0, true), Is.True);
+                Assert.That(controller.ApplyRuntimeBallistics("weapon-kar98k", chamberRound, Array.Empty<AmmoBallisticSnapshot>()), Is.True);
+
+                input.FirePressedThisFrame = true;
+                yield return null;
+                yield return null;
+
+                var projectile = Object.FindFirstObjectByType<WeaponProjectile>();
+                Assert.That(projectile, Is.Not.Null);
+                var visual = projectile!.transform.Find("SM_Bullet_7_62_54_FMG_ONE");
+                Assert.That(visual, Is.Not.Null);
+
+                var initialRotation = visual!.localRotation;
+                yield return null;
+                yield return null;
+
+                Assert.That(Quaternion.Angle(initialRotation, visual.localRotation), Is.GreaterThan(0.1f),
+                    "Expected the projectile visual to accumulate visible spin from the equipped rifle's 1:12 barrel twist rate.");
+            }
+            finally
+            {
+                foreach (var projectile in Object.FindObjectsByType<WeaponProjectile>(FindObjectsSortMode.None))
+                {
+                    Object.Destroy(projectile.gameObject);
+                }
+
+                if (root != null)
+                {
+                    Object.Destroy(root);
+                }
+
+                if (registryGo != null)
+                {
+                    Object.Destroy(registryGo);
+                }
+
+                if (definition != null)
+                {
+                    Object.Destroy(definition);
+                }
+            }
+#else
+            Assert.Ignore("Requires UnityEditor AssetDatabase.");
+            yield break;
+#endif
+        }
+
+        [UnityTest]
         public IEnumerator ShotCameraRuntime_CancelInput_RestoresRealtimeAndKeepsProjectileAlive()
         {
             GameObject root = null;
@@ -2181,6 +2397,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 });
 
                 viewPrefab = new GameObject("Kar98kView");
+                viewPrefab.AddComponent<GameAttachmentManager>();
                 var adsPivot = new GameObject("AdsPivot").transform;
                 adsPivot.SetParent(viewPrefab.transform, false);
                 var scopeSlot = new GameObject("ScopeSlot").transform;
@@ -4403,14 +4620,16 @@ namespace Reloader.Weapons.Tests.PlayMode
                 SetField(typeof(PlayerWeaponController), controller, "_cameraPivot", cameraPivot);
             }
 
+            var viewmodelPresentationRoot = EnsureViewmodelPresentationRoot(cameraPivot);
+
             var viewmodelRoot = GetControllerField<Transform>(controller, "_viewmodelRoot");
             if (viewmodelRoot == null)
             {
-                viewmodelRoot = cameraPivot.Find("PlayerArms");
+                viewmodelRoot = viewmodelPresentationRoot.Find("PlayerArms");
                 if (viewmodelRoot == null)
                 {
                     viewmodelRoot = new GameObject("PlayerArms").transform;
-                    viewmodelRoot.SetParent(cameraPivot, false);
+                    viewmodelRoot.SetParent(viewmodelPresentationRoot, false);
                 }
 
                 SetField(typeof(PlayerWeaponController), controller, "_viewmodelRoot", viewmodelRoot);
@@ -4438,11 +4657,11 @@ namespace Reloader.Weapons.Tests.PlayMode
             var weaponViewParent = GetControllerField<Transform>(controller, "_weaponViewParent");
             if (weaponViewParent == null)
             {
-                weaponViewParent = cameraPivot.Find("WeaponPresentationRoot");
+                weaponViewParent = viewmodelPresentationRoot.Find("WeaponPresentationRoot");
                 if (weaponViewParent == null)
                 {
                     weaponViewParent = new GameObject("WeaponPresentationRoot").transform;
-                    weaponViewParent.SetParent(cameraPivot, false);
+                    weaponViewParent.SetParent(viewmodelPresentationRoot, false);
                 }
 
                 SetField(typeof(PlayerWeaponController), controller, "_weaponViewParent", weaponViewParent);
@@ -4593,13 +4812,27 @@ namespace Reloader.Weapons.Tests.PlayMode
 
         private static Transform EnsureWeaponPresentationRoot(Transform cameraPivot)
         {
-            var existing = cameraPivot.Find("WeaponPresentationRoot");
+            var viewmodelPresentationRoot = EnsureViewmodelPresentationRoot(cameraPivot);
+            var existing = viewmodelPresentationRoot.Find("WeaponPresentationRoot");
             if (existing != null)
             {
                 return existing;
             }
 
             var root = new GameObject("WeaponPresentationRoot").transform;
+            root.SetParent(viewmodelPresentationRoot, false);
+            return root;
+        }
+
+        private static Transform EnsureViewmodelPresentationRoot(Transform cameraPivot)
+        {
+            var existing = cameraPivot.Find("ViewmodelPresentationRoot");
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            var root = new GameObject("ViewmodelPresentationRoot").transform;
             root.SetParent(cameraPivot, false);
             return root;
         }

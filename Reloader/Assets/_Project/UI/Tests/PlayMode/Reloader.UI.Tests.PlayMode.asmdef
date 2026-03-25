@@ -4,11 +4,13 @@
   "references": [
     "Reloader.DevTools",
     "Reloader.UI",
+    "Reloader.Startup",
     "Reloader.Inventory",
     "Reloader.Core",
     "Reloader.NPCs",
     "Reloader.Player",
     "Reloader.Weapons",
+    "Unity.InputSystem",
     "Unity.TextMeshPro",
     "Unity.ugui"
   ],

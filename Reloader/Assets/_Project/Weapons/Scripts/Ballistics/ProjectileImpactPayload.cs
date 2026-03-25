@@ -9,6 +9,27 @@ namespace Reloader.Weapons.Ballistics
             Vector3 point,
             Vector3 normal,
             float damage,
+            GameObject hitObject)
+            : this(itemId, point, normal, damage, hitObject, null, null, 0f, 0f, 0f)
+        {
+        }
+
+        public ProjectileImpactPayload(
+            string itemId,
+            Vector3 point,
+            Vector3 normal,
+            float damage,
+            GameObject hitObject,
+            Vector3? sourcePoint)
+            : this(itemId, point, normal, damage, hitObject, sourcePoint, null, 0f, 0f, 0f)
+        {
+        }
+
+        public ProjectileImpactPayload(
+            string itemId,
+            Vector3 point,
+            Vector3 normal,
+            float damage,
             GameObject hitObject,
             Vector3? sourcePoint = null,
             Vector3? direction = null,

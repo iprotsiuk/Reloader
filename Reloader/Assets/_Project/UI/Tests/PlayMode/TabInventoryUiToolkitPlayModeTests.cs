@@ -46,6 +46,83 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void Render_ClosedInventory_DisablesFullscreenRootPicking()
+        {
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+
+            var inventoryRoot = root.Q<VisualElement>("inventory__root");
+            Assert.That(inventoryRoot, Is.Not.Null);
+
+            binder.Render(TabInventoryUiState.Create(
+                isOpen: true,
+                beltSlots: new TabInventoryUiState.SlotState[5],
+                backpackSlots: new TabInventoryUiState.SlotState[2],
+                tooltipTitle: null,
+                tooltipVisible: false));
+
+            Assert.That(inventoryRoot.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(inventoryRoot.pickingMode, Is.EqualTo(PickingMode.Position));
+
+            binder.Render(TabInventoryUiState.Create(
+                isOpen: false,
+                beltSlots: new TabInventoryUiState.SlotState[5],
+                backpackSlots: new TabInventoryUiState.SlotState[2],
+                tooltipTitle: null,
+                tooltipVisible: false));
+
+            Assert.That(inventoryRoot.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(inventoryRoot.pickingMode, Is.EqualTo(PickingMode.Ignore));
+        }
+
+        [Test]
+        public void Initialize_WithDocumentRootWrapper_TogglesWrapperPickingWithOpenState()
+        {
+            var documentRoot = new VisualElement { name = "document-root" };
+            var inventoryRoot = BuildRoot();
+            documentRoot.Add(inventoryRoot);
+
+            var binder = new TabInventoryViewBinder();
+            binder.Initialize(documentRoot, beltSlotCount: 5, backpackSlotCount: 2);
+
+            binder.Render(TabInventoryUiState.Create(
+                isOpen: true,
+                beltSlots: new TabInventoryUiState.SlotState[5],
+                backpackSlots: new TabInventoryUiState.SlotState[2],
+                tooltipTitle: null,
+                tooltipVisible: false));
+
+            Assert.That(documentRoot.pickingMode, Is.EqualTo(PickingMode.Position));
+            Assert.That(inventoryRoot.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(inventoryRoot.pickingMode, Is.EqualTo(PickingMode.Position));
+
+            binder.Render(TabInventoryUiState.Create(
+                isOpen: false,
+                beltSlots: new TabInventoryUiState.SlotState[5],
+                backpackSlots: new TabInventoryUiState.SlotState[2],
+                tooltipTitle: null,
+                tooltipVisible: false));
+
+            Assert.That(documentRoot.pickingMode, Is.EqualTo(PickingMode.Ignore));
+            Assert.That(inventoryRoot.style.display.value, Is.EqualTo(DisplayStyle.None));
+        }
+
+        [Test]
+        public void Initialize_DefaultsInventoryRootToHiddenAndNonInteractive()
+        {
+            var root = BuildRoot();
+            var binder = new TabInventoryViewBinder();
+
+            binder.Initialize(root, beltSlotCount: 5, backpackSlotCount: 2);
+
+            var inventoryRoot = root.Q<VisualElement>("inventory__root");
+            Assert.That(inventoryRoot, Is.Not.Null);
+            Assert.That(inventoryRoot.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(inventoryRoot.pickingMode, Is.EqualTo(PickingMode.Ignore));
+        }
+
+        [Test]
         public void Render_OccupiedSlots_RenderInCellItemVisuals()
         {
             var root = BuildRoot();

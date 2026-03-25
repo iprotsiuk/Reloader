@@ -746,7 +746,7 @@ GameObject:
   - component: {fileID: 7999892636887377833}
   m_Layer: 10
   m_Name: P_LPSP_FP_CH
-  m_TagString: Player
+  m_TagString: Untagged
   m_Icon: {fileID: 2974397684917235467, guid: 0000000000000000d000000000000000, type: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

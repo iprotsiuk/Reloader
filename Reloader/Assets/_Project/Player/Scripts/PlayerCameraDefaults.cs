@@ -347,7 +347,10 @@ namespace Reloader.Player
         private Transform ResolveWeaponPresentationRoot()
         {
             var cameraPivot = ResolveCameraPivot();
-            if (!IsUsableHierarchyReference(_weaponPresentationRoot) || _weaponPresentationRoot.parent != cameraPivot)
+            if (!IsUsableHierarchyReference(_weaponPresentationRoot)
+                || cameraPivot == null
+                || _weaponPresentationRoot == cameraPivot
+                || !_weaponPresentationRoot.IsChildOf(cameraPivot))
             {
                 return null;
             }

@@ -27,6 +27,7 @@ namespace Reloader.Player
         private PlayerStateModule _playerStateModule;
         private Transform _playerRootTransform;
         private object _inventoryRuntime;
+        private bool _hasExplicitPlayerRootTransform;
         private string _currentScenePath = string.Empty;
         private string _currentAnchorId = string.Empty;
         private string _recoveryReasonId = string.Empty;
@@ -72,6 +73,7 @@ namespace Reloader.Player
         public void SetPlayerRootTransformForRuntime(Transform playerRootTransform)
         {
             _playerRootTransform = playerRootTransform != null ? playerRootTransform : transform;
+            _hasExplicitPlayerRootTransform = playerRootTransform != null;
         }
 
         public void SetInventoryRuntimeForRuntime(object inventoryRuntime)
@@ -111,13 +113,14 @@ namespace Reloader.Player
                 return;
             }
 
-            var scenePath = ResolveLiveScenePath(_playerRootTransform);
+            var scenePath = _hasExplicitPlayerRootTransform ? ResolveLiveScenePath(_playerRootTransform) : string.Empty;
+            var hasLiveScenePath = !string.IsNullOrWhiteSpace(scenePath);
             if (string.IsNullOrWhiteSpace(scenePath))
             {
                 scenePath = Normalize(_currentScenePath);
             }
 
-            var anchorId = ResolveLastResolvedEntryPointId();
+            var anchorId = hasLiveScenePath ? ResolveLastResolvedEntryPointId() : string.Empty;
             if (string.IsNullOrWhiteSpace(anchorId))
             {
                 anchorId = Normalize(_currentAnchorId);
@@ -208,7 +211,12 @@ namespace Reloader.Player
 
             if (_playerRootTransform == null)
             {
-                _playerRootTransform = ResolveRuntimePlayerRootTransform() ?? transform;
+                _playerRootTransform = transform;
+            }
+
+            if (_playerRootTransform == null)
+            {
+                _playerRootTransform = ResolveRuntimePlayerRootTransform();
             }
 
             if (_inventoryRuntime == null)

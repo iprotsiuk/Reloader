@@ -61,6 +61,22 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
+        public void PlayerRootPrefab_LeavesThePlayerTagUnused()
+        {
+            var prefab = PrefabUtility.LoadPrefabContents(PlayerRootPrefabPath);
+
+            try
+            {
+                Assert.That(prefab.tag, Is.EqualTo("Untagged"),
+                    "The canonical runtime player root should not register the project-wide Player tag.");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(prefab);
+            }
+        }
+
+        [Test]
         public void BootstrapWorldRoot_DoesNotDeclareAutomaticMainTownLoadPath()
         {
             var loaderMethod = typeof(BootstrapWorldRoot).GetMethod("TryLoadMainTownFromBootstrap", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Static);

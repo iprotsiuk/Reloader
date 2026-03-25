@@ -29,6 +29,10 @@ namespace Reloader.UI.Toolkit.BeltHud
         public void Initialize(VisualElement root, int slotCount)
         {
             TearDownResponsiveCallbacks();
+            if (root != null)
+            {
+                root.pickingMode = PickingMode.Ignore;
+            }
             _root = root;
             var safeCount = Math.Max(0, slotCount);
             _slotElements = new VisualElement[safeCount];

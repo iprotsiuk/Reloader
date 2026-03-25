@@ -29,9 +29,9 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 393772354762719187}
+  m_Father: {fileID: 556677889900112234}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1462797826206653987
+--- !u!1 &556677889900112233
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -39,27 +39,30 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1462797826206653988}
+  - component: {fileID: 556677889900112234}
   m_Layer: 0
-  m_Name: WeaponPresentationMount
+  m_Name: ViewmodelPresentationRoot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &1462797826206653988
+--- !u!4 &556677889900112234
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1462797826206653987}
+  m_GameObject: {fileID: 556677889900112233}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.08, z: 0.45}
+  m_LocalPosition: {x: 0.06, y: -0.09, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 6046686744160355134}
+  - {fileID: 7349667363605887490}
+  - {fileID: 1462797826206653988}
   m_Father: {fileID: 393772354762719187}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &961288400644348711
@@ -156,7 +159,7 @@ Camera:
     y: 0
     width: 1
     height: 1
-  near clip plane: 0.001
+  near clip plane: 0.01
   far clip plane: 10
   field of view: 60
   orthographic: 0
@@ -240,7 +243,7 @@ Camera:
     y: 0
     width: 1
     height: 1
-  near clip plane: 0.001
+  near clip plane: 0.01
   far clip plane: 2828
   field of view: 60
   orthographic: 0
@@ -331,8 +334,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1234500000000000006}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: -0, y: 0.0000000039723282, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.8, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -355,7 +358,7 @@ MonoBehaviour:
     m_Value: 0
   OutputChannel: 1
   StandbyUpdate: 2
-  m_StreamingVersion: 0
+  m_StreamingVersion: 20241001
   m_LegacyPriority: 0
   Target:
     TrackingTarget: {fileID: 393772354762719187}
@@ -407,6 +410,37 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineHardLookAt
   LookAtOffset: {x: 0, y: 0, z: 0}
+--- !u!1 &1462797826206653987
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1462797826206653988}
+  m_Layer: 0
+  m_Name: WeaponPresentationMount
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1462797826206653988
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1462797826206653987}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: -0.08, z: 0.45}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 556677889900112234}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1772918561743512849
 GameObject:
   m_ObjectHideFlags: 0
@@ -466,7 +500,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1832402776064000669}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: 0.0000000039723282, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -505,11 +539,11 @@ Camera:
     y: 0
     width: 1
     height: 1
-  near clip plane: 0.3
-  far clip plane: 1000
-  field of view: 60
+  near clip plane: 0.01
+  far clip plane: 2828
+  field of view: 40
   orthographic: 0
-  orthographic size: 5
+  orthographic size: 10
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
@@ -759,9 +793,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8851480171723198591}
-  - {fileID: 6046686744160355134}
-  - {fileID: 7349667363605887490}
-  - {fileID: 1462797826206653988}
+  - {fileID: 556677889900112234}
   - {fileID: 1799004325867949257}
   - {fileID: 1178895432109876545}
   - {fileID: 2662114487113379158}
@@ -871,12 +903,12 @@ Transform:
   m_GameObject: {fileID: 6523244509639276205}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.027, z: 0.1}
+  m_LocalPosition: {x: 0, y: 0, z: 0.1}
   m_LocalScale: {x: 0.42, y: 0.42, z: 0.42}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 4473395564738350641}
-  m_Father: {fileID: 393772354762719187}
+  m_Father: {fileID: 556677889900112234}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8805273355277606564
 GameObject:
@@ -915,7 +947,7 @@ GameObject:
   - component: {fileID: 7999831991638637010}
   m_Layer: 0
   m_Name: PlayerRoot
-  m_TagString: Player
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1221,6 +1253,10 @@ MonoBehaviour:
   _inventoryController: {fileID: 4970814328597397124}
   _weaponRegistry: {fileID: 0}
   _projectilePrefab: {fileID: 535419807739027440, guid: 6cec8663a00344efea11cf2c3ab321ce, type: 3}
+  _projectileVisualPrefabs:
+  - _ammoItemId: ammo-factory-308-147-fmj
+    _visualPrefab: {fileID: 7387286155446773124, guid: f8a62cdc8decd40bd82e7b4327f08680, type: 3}
+    _localEulerAngles: {x: 90, y: 0, z: 0}
   _muzzleTransform: {fileID: 3282642832389094783}
   _cameraDefaults: {fileID: 8804757470899672677}
   _scopeCamera: {fileID: 1234500000000000003}
@@ -1404,6 +1440,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Player.Viewmodel.WeaponHandRigController
   _armsAnimator: {fileID: 7562842590407840843}
   _cameraDefaults: {fileID: 0}
+  _adsStateController: {fileID: 0}
   _rigBuilder: {fileID: 3684589723829173635}
   _weaponHandRig: {fileID: 5045281958235539297}
   _leftHandConstraint: {fileID: 771925861864529545}
@@ -1664,7 +1701,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.Player::Reloader.Player.Viewmodel.WeaponPresentationMountDriver
   _weaponPresentationRoot: {fileID: 7349667363605887490}
   _weaponPresentationMount: {fileID: 0}
-  _weaponPresentationMountPath: CameraPivot/WeaponPresentationMount
+  _weaponPresentationMountPath: CameraPivot/ViewmodelPresentationRoot/WeaponPresentationMount
+  _cameraDefaults: {fileID: 0}
+  _armsAnimator: {fileID: 0}
+  _adsStateController: {fileID: 0}
+  _viewmodelAnimationAdapter: {fileID: 0}
 --- !u!114 &7999831991638637010
 MonoBehaviour:
   m_ObjectHideFlags: 0

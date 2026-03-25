@@ -6,6 +6,11 @@ namespace Reloader.Weapons.Runtime
     public sealed class WeaponAimAligner : MonoBehaviour
     {
         [SerializeField] private bool _logMissingReferenceWarnings;
+        [Header("Scoped Recoil")]
+        [SerializeField, Min(0f)] private float _scopedRecoilPitchDegrees = 1.1f;
+        [SerializeField, Min(0f)] private float _scopedRecoilYawDegrees = 0.18f;
+        [SerializeField, Min(0f)] private float _scopedRecoilRollDegrees = 0.08f;
+        [SerializeField, Min(0.01f)] private float _scopedRecoilReturnDegreesPerSecond = 8f;
 
         private Reloader.Game.Weapons.AttachmentManager _attachmentManager;
         private Reloader.Game.Weapons.AdsStateController _adsStateController;
@@ -21,6 +26,7 @@ namespace Reloader.Weapons.Runtime
         private bool _wasAdsActiveLastFrame;
         private bool _warnedMissingBindings;
         private bool _warnedMissingSightAnchor;
+        private Vector3 _scopedRecoilEuler;
 
         public void BindRuntimeReferences(
             Camera worldCamera,
@@ -47,6 +53,20 @@ namespace Reloader.Weapons.Runtime
             _wasAdsActiveLastFrame = false;
             _warnedMissingBindings = false;
             _warnedMissingSightAnchor = false;
+            _scopedRecoilEuler = Vector3.zero;
+        }
+
+        public void ApplyScopedRecoilImpulse()
+        {
+            if (_adsStateController == null || !_adsStateController.IsAdsActive)
+            {
+                return;
+            }
+
+            _scopedRecoilEuler += new Vector3(
+                -_scopedRecoilPitchDegrees,
+                _scopedRecoilYawDegrees,
+                -_scopedRecoilRollDegrees);
         }
 
         public void AlignNow()
@@ -63,6 +83,7 @@ namespace Reloader.Weapons.Runtime
                     RefreshViewPivotCache();
                     RestoreCanonicalPose();
                     _wasAdsActiveLastFrame = false;
+                    _scopedRecoilEuler = Vector3.zero;
                 }
 
                 return;
@@ -184,10 +205,11 @@ namespace Reloader.Weapons.Runtime
                 return;
             }
 
-            var eyeReliefBackOffset = _attachmentManager.ActiveOpticDefinition != null
-                ? _attachmentManager.ActiveOpticDefinition.EyeReliefBackOffset
-                : 0f;
-            eyeReliefBackOffset += _viewMounts != null ? _viewMounts.ScopedAdsEyeReliefBackOffset : 0f;
+            var eyeReliefBackOffset = _viewMounts != null ? _viewMounts.ScopedAdsEyeReliefBackOffset : 0f;
+            if (eyeReliefBackOffset <= 0f && _attachmentManager.ActiveOpticDefinition != null)
+            {
+                eyeReliefBackOffset = _attachmentManager.ActiveOpticDefinition.EyeReliefBackOffset;
+            }
 
             var cameraTransform = _worldCamera.transform;
             var targetRotation = cameraTransform.rotation;
@@ -197,8 +219,23 @@ namespace Reloader.Weapons.Runtime
             var deltaPosition = targetPosition - (deltaRotation * activeSightAnchor.position);
 
             var pivotWorldPosition = deltaRotation * _adsPivot.position + deltaPosition;
-            var pivotWorldRotation = deltaRotation * _adsPivot.rotation;
+            var pivotWorldRotation = deltaRotation * _adsPivot.rotation * Quaternion.Euler(_scopedRecoilEuler);
             _adsPivot.SetPositionAndRotation(pivotWorldPosition, pivotWorldRotation);
+
+            AdvanceScopedRecoil(Time.deltaTime);
+        }
+
+        private void AdvanceScopedRecoil(float deltaTime)
+        {
+            if (deltaTime <= 0f)
+            {
+                return;
+            }
+
+            _scopedRecoilEuler = Vector3.MoveTowards(
+                _scopedRecoilEuler,
+                Vector3.zero,
+                _scopedRecoilReturnDegreesPerSecond * deltaTime);
         }
     }
 }

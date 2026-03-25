@@ -1,12 +1,15 @@
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Player;
+using System;
+using System.Reflection;
 using UnityEngine;
 
 namespace Reloader.Player.Viewmodel
 {
     public sealed class ViewmodelAnimationAdapter : MonoBehaviour
     {
+        private const string PlayerArmsAnimationEventReceiverTypeName = "Reloader.Weapons.Animations.PlayerArmsAnimationEventReceiver, Reloader.Weapons";
         [SerializeField] private Animator _animator;
         [SerializeField] private AnimationContractProfile _contractProfile;
         [SerializeField] private PlayerCameraDefaults _cameraDefaults;
@@ -20,6 +23,7 @@ namespace Reloader.Player.Viewmodel
         private IWeaponEvents _weaponEvents;
         private IWeaponEvents _subscribedWeaponEvents;
         private bool _useRuntimeKernelWeaponEvents = true;
+        private static MethodInfo s_ensurePlayerArmsReceiverMethod;
 
         public bool IsReloadingDebug { get; private set; }
         public bool IsAimingDebug { get; private set; }
@@ -224,20 +228,21 @@ namespace Reloader.Player.Viewmodel
         private void ResolveAnimator()
         {
             _cameraDefaults ??= GetComponent<PlayerCameraDefaults>();
-            if (!IsAnimatorOnPlayerHierarchy(_animator))
-            {
-                _animator = ResolveViewmodelAnimator();
-            }
+            _animator = ResolveViewmodelAnimator();
+
+            EnsureLegacyAnimationEventReceiver(_animator);
         }
 
         private Animator ResolveViewmodelAnimator()
         {
-            if (_cameraDefaults != null && _cameraDefaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator))
+            if (_cameraDefaults != null
+                && _cameraDefaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator)
+                && IsAnimatorOnPlayerHierarchy(playerArmsAnimator))
             {
                 return playerArmsAnimator;
             }
 
-            return null;
+            return IsAnimatorOnPlayerHierarchy(_animator) ? _animator : null;
         }
 
         private bool IsAnimatorOnPlayerHierarchy(Animator animator)
@@ -245,6 +250,29 @@ namespace Reloader.Player.Viewmodel
             return animator != null
                 && animator.transform != null
                 && (animator.transform == transform || animator.transform.IsChildOf(transform));
+        }
+
+        private static void EnsureLegacyAnimationEventReceiver(Animator animator)
+        {
+            if (animator == null)
+            {
+                return;
+            }
+
+            var receiverType = Type.GetType(PlayerArmsAnimationEventReceiverTypeName);
+            if (receiverType == null)
+            {
+                return;
+            }
+
+            s_ensurePlayerArmsReceiverMethod ??= receiverType.GetMethod(
+                "EnsureReceiver",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[] { typeof(Animator) },
+                null);
+
+            s_ensurePlayerArmsReceiverMethod?.Invoke(null, new object[] { animator });
         }
 
         private void CacheHashes()

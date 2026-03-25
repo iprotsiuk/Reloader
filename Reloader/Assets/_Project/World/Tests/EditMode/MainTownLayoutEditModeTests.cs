@@ -1,5 +1,5 @@
+using System;
 using NUnit.Framework;
-using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -11,7 +11,7 @@ namespace Reloader.World.Tests.EditMode
         private const string MainTownScenePath = "Assets/_Project/World/Scenes/MainTown.unity";
 
         [Test]
-        public void MainTownScene_HasPlanningShellAndApprovedDistrictRoots()
+        public void MainTownScene_HasTerrainShellAndRuntimeAnchors()
         {
             var originalScene = SceneManager.GetActiveScene();
             var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
@@ -19,56 +19,39 @@ namespace Reloader.World.Tests.EditMode
             try
             {
                 var worldShell = FindRoot(scene, "MainTownWorldShell");
-                Assert.That(worldShell, Is.Not.Null, "Expected a dedicated world shell root for the literal-mile rebuild.");
+                Assert.That(worldShell, Is.Not.Null, "Expected a dedicated world shell root for the authored island terrain.");
+
+                var terrainGeneratorType = Type.GetType("Reloader.World.MainTownTerrainGenerator, Reloader.World");
+                Assert.That(terrainGeneratorType, Is.Not.Null, "Expected MainTownTerrainGenerator type in the world runtime assembly.");
+                Assert.That(worldShell!.GetComponent(terrainGeneratorType!), Is.Not.Null, "Expected MainTownWorldShell to host the authored terrain generator.");
 
                 var basinFloor = FindChild(worldShell!.transform, "BasinFloor");
                 Assert.That(basinFloor, Is.Not.Null, "Expected BasinFloor under MainTownWorldShell.");
-                Assert.That(basinFloor!.localScale.x, Is.GreaterThanOrEqualTo(1900f), "Basin floor should now read as a roughly 2km planning-map shell in X.");
-                Assert.That(basinFloor.localScale.z, Is.GreaterThanOrEqualTo(1900f), "Basin floor should now read as a roughly 2km planning-map shell in Z.");
+                Assert.That(basinFloor!.gameObject.activeSelf, Is.False, "Expected the basin floor to stay hidden in the island scene.");
 
-                AssertChildExists(worldShell.transform, "District_TownCore");
-                AssertChildExists(worldShell.transform, "District_PlayerCompound");
-                AssertChildExists(worldShell.transform, "District_ChurchHill");
-                AssertChildExists(worldShell.transform, "District_QuarryBasin");
-                AssertChildExists(worldShell.transform, "District_ForestBelt");
-                AssertChildExists(worldShell.transform, "District_UtilityLandmarks");
-                AssertChildExists(worldShell.transform, "District_MotelStrip");
-                AssertChildExists(worldShell.transform, "District_IndustrialYard");
-                AssertChildExists(worldShell.transform, "District_TrailerPark");
-                AssertChildExists(worldShell.transform, "District_ServiceDepot");
-                AssertChildExists(worldShell.transform, "District_TruckStop");
-                AssertChildExists(worldShell.transform, "District_WaterTreatment");
-                AssertChildExists(worldShell.transform, "District_StorageYard");
-                AssertChildExists(worldShell.transform, "District_MunicipalBlock");
-                AssertChildExists(worldShell.transform, "District_FreightYard");
-                AssertChildExists(worldShell.transform, "District_RoadsideMarket");
-                AssertChildExists(worldShell.transform, "District_RadioTower");
+                Assert.That(FindChild(worldShell.transform, "MainTownTerrain"), Is.Not.Null, "Expected MainTownTerrain under MainTownWorldShell.");
+                Assert.That(FindChild(worldShell.transform, "Water_OceanHorizon"), Is.Not.Null, "Expected horizon ocean presentation in the island scene.");
 
-                AssertChildExists(worldShell.transform, "PerimeterLoopRoad");
-                AssertChildExists(worldShell.transform, "MainStreetSpine");
-                AssertChildExists(worldShell.transform, "Landmark_Church");
-                AssertChildExists(worldShell.transform, "Landmark_WaterTower");
-                AssertChildExists(worldShell.transform, "Landmark_QuarryTerraces");
-                AssertChildExists(worldShell.transform, "Landmark_PoliceStation");
-                AssertChildExists(worldShell.transform, "Landmark_Hospital");
-                AssertChildExists(worldShell.transform, "Landmark_GunStore");
-                AssertChildExists(worldShell.transform, "Landmark_ReloadingSupply");
-                AssertChildExists(worldShell.transform, "Landmark_PlayerHouse");
-                AssertChildExists(worldShell.transform, "Landmark_Motel");
-                Assert.That(FindChild(worldShell.transform, "PlayerHouse"), Is.Not.Null, "Expected an exact PlayerHouse object for round-trip travel coverage.");
+                var oceanBoundary = FindChild(worldShell.transform, "Water_OceanBoundary");
+                Assert.That(oceanBoundary, Is.Not.Null, "Expected invisible ocean blockers in the island scene.");
+                Assert.That(oceanBoundary!.GetComponentsInChildren<BoxCollider>(true).Length, Is.GreaterThan(0), "Expected the ocean boundary to carry blocker colliders.");
 
-                AssertNamedScaleAtLeast(worldShell.transform, "House_Body", minX: 10f, minY: 4.5f, minZ: 8f);
-                AssertNamedScaleAtLeast(worldShell.transform, "Workshop_Body", minX: 8f, minY: 4.5f, minZ: 6f);
-                AssertNamedScaleAtLeast(worldShell.transform, "SupplyStore_Body", minX: 10f, minY: 5f, minZ: 8f);
-                AssertNamedScaleAtLeast(worldShell.transform, "GunStore_Body", minX: 12f, minY: 5f, minZ: 10f);
-                AssertNamedScaleAtLeast(worldShell.transform, "PoliceStation_Body", minX: 16f, minY: 5f, minZ: 10f);
-                AssertNamedScaleAtLeast(worldShell.transform, "Hospital_Body", minX: 20f, minY: 6f, minZ: 12f);
-                AssertNamedScaleAtLeast(worldShell.transform, "Church_Nave", minX: 12f, minY: 6f, minZ: 20f);
-                AssertNamedScaleAtLeast(worldShell.transform, "Church_Tower", minX: 4f, minY: 18f, minZ: 4f);
-                AssertNamedScaleAtLeast(worldShell.transform, "WaterTower_Stem", minX: 2f, minY: 20f, minZ: 2f);
-                AssertNamedScaleAtLeast(worldShell.transform, "WaterTower_Tank", minX: 10f, minY: 6f, minZ: 10f);
-                AssertNamedScaleAtLeast(worldShell.transform, "Motel_Block", minX: 30f, minY: 5f, minZ: 8f);
-                AssertNamedScaleAtLeast(worldShell.transform, "MotelLot", minX: 60f, minZ: 30f);
+                AssertSceneRootExists(scene, "MainTownContractRuntime");
+                AssertSceneRootExists(scene, "MainTownPopulationRuntime");
+                AssertSceneRootExists(scene, "MainTownEntry_Spawn");
+                AssertSceneRootExists(scene, "MainTownEntry_Return");
+                AssertSceneRootExists(scene, "MainTown_SmokeToIndoor_Trigger");
+                AssertSceneRootExists(scene, "ReloadingWorkbench");
+                AssertSceneRootExists(scene, "StorageChest");
+                AssertSceneRootExists(scene, "WeaponRegistry");
+                AssertSceneRootExists(scene, "CoreWorldController");
+
+                var populationRuntime = FindRoot(scene, "MainTownPopulationRuntime");
+                Assert.That(populationRuntime, Is.Not.Null, "Expected MainTownPopulationRuntime root to remain authored.");
+                AssertChildExists(populationRuntime!.transform, "Anchor_Townsfolk_01");
+                AssertChildExists(populationRuntime.transform, "Anchor_QuarryWorker_01");
+                AssertChildExists(populationRuntime.transform, "Anchor_Hobo_01");
+                AssertChildExists(populationRuntime.transform, "Anchor_Cop_01");
             }
             finally
             {
@@ -81,7 +64,7 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void MainTownScene_UsesPlanningModeWithoutLandscapePresentationLayer()
+        public void MainTownScene_UsesIslandTerrainWithoutLegacyLandscapePresentationLayer()
         {
             var originalScene = SceneManager.GetActiveScene();
             var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
@@ -89,75 +72,44 @@ namespace Reloader.World.Tests.EditMode
             try
             {
                 var worldShell = FindRoot(scene, "MainTownWorldShell");
-                Assert.That(worldShell, Is.Not.Null, "Expected a dedicated world shell root for the literal-mile rebuild.");
+                Assert.That(worldShell, Is.Not.Null, "Expected a dedicated world shell root for the authored island terrain.");
 
-                var playerCompound = FindChild(worldShell!.transform, "District_PlayerCompound");
-                var townCore = FindChild(worldShell.transform, "District_TownCore");
-                var churchHill = FindChild(worldShell.transform, "District_ChurchHill");
-                var utilityLandmarks = FindChild(worldShell.transform, "District_UtilityLandmarks");
-                var quarryBasin = FindChild(worldShell.transform, "District_QuarryBasin");
-                var waterTreatment = FindChild(worldShell.transform, "District_WaterTreatment");
-                var storageYard = FindChild(worldShell.transform, "District_StorageYard");
-                var municipalBlock = FindChild(worldShell.transform, "District_MunicipalBlock");
-                var freightYard = FindChild(worldShell.transform, "District_FreightYard");
-                var roadsideMarket = FindChild(worldShell.transform, "District_RoadsideMarket");
-                var radioTower = FindChild(worldShell.transform, "District_RadioTower");
-                var mainStreet = FindChild(worldShell.transform, "MainStreetSpine");
-
-                AssertScaleYBetween(playerCompound, "HouseShell", 4.5f, 7.5f);
-                AssertScaleYBetween(playerCompound, "WorkshopWing", 4.5f, 7.5f);
-
-                AssertScaleYBetween(townCore, "GunStoreBlock", 5f, 8f);
-                AssertScaleYBetween(townCore, "ReloadingSupplyBlock", 5f, 8f);
-                AssertScaleYBetween(townCore, "TownBlock_A", 4.5f, 8f);
-                AssertScaleYBetween(townCore, "TownBlock_B", 4.5f, 8f);
-                AssertScaleYBetween(townCore, "PoliceBlock", 8f, 14f);
-                AssertScaleYBetween(townCore, "HospitalBlock", 10f, 18f);
-
-                AssertScaleYBetween(churchHill, "ChurchBody", 10f, 18f);
-                AssertScaleYBetween(churchHill, "ChurchTowerMass", 30f, 60f);
-                AssertScaleYBetween(waterTreatment, "PumpHouse", 8f, 14f);
-                AssertScaleYBetween(waterTreatment, "ClarifierTank_A", 6f, 10f);
-                AssertScaleYBetween(storageYard, "StorageOffice", 8f, 14f);
-                AssertScaleYBetween(storageYard, "LockerRow_A", 6f, 12f);
-                AssertScaleYBetween(storageYard, "LockerRow_B", 6f, 12f);
-                AssertScaleYBetween(municipalBlock, "TownHallBlock", 8f, 14f);
-                AssertScaleYBetween(freightYard, "FreightWarehouse", 8f, 14f);
-                AssertScaleYBetween(roadsideMarket, "RoadsideDiner", 6f, 12f);
-                AssertScaleYBetween(radioTower, "RadioTowerMass", 26f, 70f);
-
-                AssertScaleYBetween(mainStreet, "MainStreet_EastWest", 0.05f, 0.2f);
-                AssertScaleZBetween(mainStreet, "MainStreet_EastWest", 14f, 20f);
-                AssertScaleXBetween(mainStreet, "MainStreet_NorthSouth", 14f, 20f);
-
-                AssertScaleXBetween(worldShell.transform, "MarkerPad_IndustrialYard", 120f, 180f);
-                AssertScaleXBetween(worldShell.transform, "MarkerPad_TrailerPark", 110f, 170f);
-                AssertScaleXBetween(worldShell.transform, "MarkerPad_ServiceDepot", 120f, 180f);
-                AssertScaleXBetween(worldShell.transform, "MarkerPad_TruckStop", 120f, 180f);
-                AssertScaleXBetween(worldShell.transform, "MarkerPad_WaterTreatment", 110f, 170f);
-                AssertScaleXBetween(worldShell.transform, "MarkerPad_StorageYard", 130f, 190f);
-
-                var waterTowerTank = FindChild(utilityLandmarks, "WaterTowerTank");
-                Assert.That(waterTowerTank, Is.Not.Null, "Expected WaterTowerTank under District_UtilityLandmarks.");
-                Assert.That(waterTowerTank!.localPosition.y, Is.GreaterThanOrEqualTo(20f), "Water tower tank should still sit well above street level for landmark visibility after the island scale-up.");
-
-                AssertChildMissing(worldShell.transform, "Water_RiverWest");
-                AssertChildMissing(worldShell.transform, "Water_RiverCentral");
-                AssertChildMissing(worldShell.transform, "Water_ReservoirNorth");
-                AssertChildMissing(worldShell.transform, "Landmark_RiverBridge");
+                AssertChildMissing(worldShell!.transform, "District_TownCore");
+                AssertChildMissing(worldShell.transform, "District_PlayerCompound");
+                AssertChildMissing(worldShell.transform, "District_ChurchHill");
+                AssertChildMissing(worldShell.transform, "District_QuarryBasin");
+                AssertChildMissing(worldShell.transform, "District_ForestBelt");
+                AssertChildMissing(worldShell.transform, "District_UtilityLandmarks");
+                AssertChildMissing(worldShell.transform, "District_MotelStrip");
+                AssertChildMissing(worldShell.transform, "District_IndustrialYard");
+                AssertChildMissing(worldShell.transform, "District_TrailerPark");
+                AssertChildMissing(worldShell.transform, "District_ServiceDepot");
+                AssertChildMissing(worldShell.transform, "District_TruckStop");
+                AssertChildMissing(worldShell.transform, "District_WaterTreatment");
+                AssertChildMissing(worldShell.transform, "District_StorageYard");
+                AssertChildMissing(worldShell.transform, "District_MunicipalBlock");
+                AssertChildMissing(worldShell.transform, "District_FreightYard");
+                AssertChildMissing(worldShell.transform, "District_RoadsideMarket");
+                AssertChildMissing(worldShell.transform, "District_RadioTower");
+                AssertChildMissing(worldShell.transform, "PerimeterLoopRoad");
+                AssertChildMissing(worldShell.transform, "MainStreetSpine");
+                AssertChildMissing(worldShell.transform, "Road_MainStreet");
+                AssertChildMissing(worldShell.transform, "Road_North");
+                AssertChildMissing(worldShell.transform, "Road_South");
+                AssertChildMissing(worldShell.transform, "Road_East");
+                AssertChildMissing(worldShell.transform, "Road_West");
+                AssertChildMissing(worldShell.transform, "Landmark_PlayerHouse");
+                AssertChildMissing(worldShell.transform, "Landmark_Church");
+                AssertChildMissing(worldShell.transform, "Landmark_QuarryTerraces");
+                AssertChildMissing(worldShell.transform, "Landmark_PoliceStation");
+                AssertChildMissing(worldShell.transform, "Landmark_Hospital");
+                AssertChildMissing(worldShell.transform, "Landmark_GunStore");
+                AssertChildMissing(worldShell.transform, "Landmark_ReloadingSupply");
+                AssertChildMissing(worldShell.transform, "Landmark_Motel");
                 AssertChildMissing(worldShell.transform, "MountainRim");
-                AssertChildMissing(worldShell.transform, "ForestDensityLayer_West");
-                AssertChildMissing(worldShell.transform, "ForestDensityLayer_SouthEast");
-                AssertChildMissing(worldShell.transform, "ForestDensityLayer_NorthEast");
-                AssertChildMissing(worldShell.transform, "ForestGapCluster_West");
-                AssertChildMissing(worldShell.transform, "ForestGapCluster_East");
-                AssertChildMissing(worldShell.transform, "ForestGapCluster_North");
-
-                Assert.That(TryGetLargestLocalScale(worldShell.transform, "ForestTree_01", out _), Is.False, "Expected planning mode to remove forest tree presentation objects.");
-                Assert.That(TryGetLargestLocalScale(worldShell.transform, "Ridge_North", out _), Is.False, "Expected planning mode to remove ridge presentation objects.");
-                Assert.That(TryGetLargestLocalScale(worldShell.transform, "PlayerOverlookHill", out _), Is.False, "Expected planning mode to remove hill presentation objects.");
-                Assert.That(TryGetLargestLocalScale(worldShell.transform, "WaterTowerHill", out _), Is.False, "Expected planning mode to remove hill presentation objects.");
-                Assert.That(TryGetLargestLocalScale(worldShell.transform, "ChurchSlope", out _), Is.False, "Expected planning mode to remove slope presentation objects.");
+                Assert.That(TryGetLargestLocalScale(worldShell.transform, "ForestTree_01", out _), Is.False, "Expected the island scene to leave legacy forest-tree presentation out of the saved shell.");
+                Assert.That(TryGetLargestLocalScale(worldShell.transform, "ForestDensityLayer_West", out _), Is.False, "Expected the island scene to leave legacy forest density layers out of the saved shell.");
+                Assert.That(TryGetLargestLocalScale(worldShell.transform, "ForestGapCluster_West", out _), Is.False, "Expected the island scene to leave legacy forest gap clusters out of the saved shell.");
             }
             finally
             {
@@ -170,7 +122,7 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void MainTownScene_HasRoadNetworkForPlanningPass()
+        public void MainTownScene_LeavesLegacyRoadBlockoutsOutOfTheIslandScene()
         {
             var originalScene = SceneManager.GetActiveScene();
             var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
@@ -178,28 +130,15 @@ namespace Reloader.World.Tests.EditMode
             try
             {
                 var worldShell = FindRoot(scene, "MainTownWorldShell");
-                Assert.That(worldShell, Is.Not.Null, "Expected a dedicated world shell root for the literal-mile rebuild.");
+                Assert.That(worldShell, Is.Not.Null, "Expected a dedicated world shell root for the authored island terrain.");
 
-                var perimeterLoopRoad = FindChild(worldShell!.transform, "PerimeterLoopRoad");
-                var roadMainStreet = FindChild(worldShell.transform, "Road_MainStreet");
-                var roadNorth = FindChild(worldShell.transform, "Road_North");
-                var roadSouth = FindChild(worldShell.transform, "Road_South");
-                var roadEast = FindChild(worldShell.transform, "Road_East");
-                var roadWest = FindChild(worldShell.transform, "Road_West");
-                Assert.That(perimeterLoopRoad, Is.Not.Null, "Expected PerimeterLoopRoad before connector authoring.");
-                Assert.That(roadMainStreet, Is.Not.Null, "Expected authored MainStreet road coverage in the planning shell.");
-                Assert.That(roadNorth, Is.Not.Null, "Expected northbound road coverage in the planning shell.");
-                Assert.That(roadSouth, Is.Not.Null, "Expected southbound road coverage in the planning shell.");
-                Assert.That(roadEast, Is.Not.Null, "Expected eastbound road coverage in the planning shell.");
-                Assert.That(roadWest, Is.Not.Null, "Expected westbound road coverage in the planning shell.");
-
-                AssertRoadUsesReplacementSurface(worldShell.transform, "MainStreet_EastWest", expectDirt: false);
-                AssertRoadUsesReplacementSurface(worldShell.transform, "MainStreet_NorthSouth", expectDirt: false);
-                AssertRoadUsesReplacementSurface(worldShell.transform, "Road_MainStreet", expectDirt: false);
-                AssertRoadUsesReplacementSurface(worldShell.transform, "Road_North", expectDirt: false);
-                AssertRoadUsesReplacementSurface(worldShell.transform, "Road_South", expectDirt: false);
-                AssertRoadUsesReplacementSurface(worldShell.transform, "Road_East", expectDirt: false);
-                AssertRoadUsesReplacementSurface(worldShell.transform, "Road_West", expectDirt: false);
+                AssertChildMissing(worldShell!.transform, "PerimeterLoopRoad");
+                AssertChildMissing(worldShell.transform, "MainStreetSpine");
+                AssertChildMissing(worldShell.transform, "Road_MainStreet");
+                AssertChildMissing(worldShell.transform, "Road_North");
+                AssertChildMissing(worldShell.transform, "Road_South");
+                AssertChildMissing(worldShell.transform, "Road_East");
+                AssertChildMissing(worldShell.transform, "Road_West");
             }
             finally
             {
@@ -212,7 +151,7 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void MainTownScene_HasPaintReadyTerrainBootstrap()
+        public void MainTownScene_HasThreeLayerIslandTerrainBootstrap()
         {
             var originalScene = SceneManager.GetActiveScene();
             var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
@@ -221,9 +160,13 @@ namespace Reloader.World.Tests.EditMode
             {
                 var worldShell = FindRoot(scene, "MainTownWorldShell");
                 Assert.That(worldShell, Is.Not.Null, "Expected a dedicated world shell root for the literal-mile rebuild.");
+
+                var terrainGeneratorType = Type.GetType("Reloader.World.MainTownTerrainGenerator, Reloader.World");
+                Assert.That(terrainGeneratorType, Is.Not.Null, "Expected MainTownTerrainGenerator type in the world runtime assembly.");
+                Assert.That(worldShell!.GetComponent(terrainGeneratorType!), Is.Not.Null, "Expected MainTownWorldShell to keep the authored terrain generator component.");
 
                 var terrainRoot = FindChild(worldShell!.transform, "MainTownTerrain");
-                Assert.That(terrainRoot, Is.Not.Null, "Expected MainTownTerrain under MainTownWorldShell for Terrain Tools paint workflows.");
+                Assert.That(terrainRoot, Is.Not.Null, "Expected MainTownTerrain under MainTownWorldShell.");
 
                 var terrain = terrainRoot!.GetComponent<Terrain>();
                 var terrainCollider = terrainRoot.GetComponent<TerrainCollider>();
@@ -233,10 +176,18 @@ namespace Reloader.World.Tests.EditMode
                 Assert.That(terrainCollider!.terrainData, Is.SameAs(terrain.terrainData), "Expected TerrainCollider to reference the same TerrainData as Terrain.");
 
                 var terrainData = terrain.terrainData;
-                Assert.That(terrainData.size.x, Is.GreaterThanOrEqualTo(2900f), "Expected terrain width to expand by roughly 50% so the island footprint can breathe.");
-                Assert.That(terrainData.size.z, Is.GreaterThanOrEqualTo(2900f), "Expected terrain depth to expand by roughly 50% so the island footprint can breathe.");
-                Assert.That(terrainData.size.y, Is.GreaterThanOrEqualTo(100f), "Expected enough terrain height range for future sculpting.");
-                Assert.That(terrainData.terrainLayers.Length, Is.GreaterThanOrEqualTo(4), "Expected at least four starter terrain layers for grass, dirt, road, and quarry paint.");
+                Assert.That(terrainData.size.x, Is.EqualTo(4333f).Within(0.1f), "Expected the island terrain width to match the authored MainTown terrain footprint.");
+                Assert.That(terrainData.size.z, Is.EqualTo(5111f).Within(0.1f), "Expected the island terrain depth to match the authored MainTown terrain footprint.");
+                Assert.That(terrainData.size.y, Is.EqualTo(1100f).Within(0.1f), "Expected the island terrain height budget to match the authored generator settings.");
+                Assert.That(terrainData.terrainLayers.Length, Is.EqualTo(3), "Expected the authored island bootstrap to keep the sand, grass, and stone terrain layers.");
+
+                var terrainLayerNames = new string[terrainData.terrainLayers.Length];
+                for (var index = 0; index < terrainData.terrainLayers.Length; index++)
+                {
+                    terrainLayerNames[index] = terrainData.terrainLayers[index].name;
+                }
+
+                CollectionAssert.AreEqual(new[] { "MainTown_Sand", "MainTown_Grass", "MainTown_Stone" }, terrainLayerNames);
             }
             finally
             {
@@ -346,7 +297,7 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void MainTownScene_KeepsAuthoredContentAboveIslandTerrain()
+        public void MainTownScene_KeepsRuntimeRootsAboveIslandTerrain()
         {
             var originalScene = SceneManager.GetActiveScene();
             var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
@@ -362,20 +313,34 @@ namespace Reloader.World.Tests.EditMode
                 var terrain = terrainRoot!.GetComponent<Terrain>();
                 Assert.That(terrain, Is.Not.Null, "Expected Terrain component on MainTownTerrain.");
 
-                AssertRootContentClearsTerrain(terrain!, FindChild(worldShell.transform, "Landmark_PlayerHouse"), "Landmark_PlayerHouse");
-                AssertRootContentClearsTerrain(terrain, FindChild(worldShell.transform, "GunStoreBlock"), "GunStoreBlock");
-                AssertRootContentClearsTerrain(terrain, FindChild(worldShell.transform, "ReloadingSupplyBlock"), "ReloadingSupplyBlock");
-                AssertRootContentClearsTerrain(terrain, FindChild(worldShell.transform, "PoliceBlock"), "PoliceBlock");
-                AssertRootContentClearsTerrain(terrain, FindChild(worldShell.transform, "HospitalBlock"), "HospitalBlock");
-                AssertRootContentClearsTerrain(terrain, FindChild(worldShell.transform, "ChurchBody"), "ChurchBody");
-                AssertRootContentClearsTerrain(terrain, FindChild(worldShell.transform, "Landmark_QuarryTerraces"), "Landmark_QuarryTerraces");
-
-                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "PlayerRoot")?.transform, "PlayerRoot");
                 AssertRootContentClearsTerrain(terrain, FindRoot(scene, "ReloadingWorkbench")?.transform, "ReloadingWorkbench");
                 AssertRootContentClearsTerrain(terrain, FindRoot(scene, "StorageChest")?.transform, "StorageChest");
-                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "AmmoVendor")?.transform, "AmmoVendor");
-                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "WeaponVendor")?.transform, "WeaponVendor");
-                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "ReloadingVendor_House")?.transform, "ReloadingVendor_House");
+
+                var entrySpawn = FindRoot(scene, "MainTownEntry_Spawn");
+                Assert.That(entrySpawn, Is.Not.Null, "Expected MainTownEntry_Spawn to remain authored.");
+                Assert.That(
+                    entrySpawn!.transform.position.y,
+                    Is.GreaterThanOrEqualTo(SampleTerrainHeight(terrain, entrySpawn.transform.position) - 1f),
+                    "Expected MainTownEntry_Spawn to sit on or above the island terrain.");
+
+                var entryReturn = FindRoot(scene, "MainTownEntry_Return");
+                Assert.That(entryReturn, Is.Not.Null, "Expected MainTownEntry_Return to remain authored.");
+                Assert.That(
+                    entryReturn!.transform.position.y,
+                    Is.GreaterThanOrEqualTo(SampleTerrainHeight(terrain, entryReturn.transform.position) - 1f),
+                    "Expected MainTownEntry_Return to sit on or above the island terrain.");
+
+                AssertSceneRootExists(scene, "MainTown_SmokeToIndoor_Trigger");
+                AssertSceneRootExists(scene, "MainTownContractRuntime");
+                AssertSceneRootExists(scene, "MainTownPopulationRuntime");
+                AssertSceneRootExists(scene, "WeaponRegistry");
+
+                var populationRuntime = FindRoot(scene, "MainTownPopulationRuntime");
+                Assert.That(populationRuntime, Is.Not.Null, "Expected MainTownPopulationRuntime root to remain authored.");
+                AssertChildExists(populationRuntime!.transform, "Anchor_Townsfolk_01");
+                AssertChildExists(populationRuntime.transform, "Anchor_QuarryWorker_01");
+                AssertChildExists(populationRuntime.transform, "Anchor_Hobo_01");
+                AssertChildExists(populationRuntime.transform, "Anchor_Cop_01");
             }
             finally
             {
@@ -421,37 +386,6 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
-        private static void AssertScaleYBetween(Transform parent, string childName, float min, float max)
-        {
-            var child = FindChild(parent, childName);
-            Assert.That(child, Is.Not.Null, $"Expected child '{childName}' under '{parent?.name}'.");
-            Assert.That(child!.localScale.y, Is.InRange(min, max), $"Expected '{childName}' height to be between {min}m and {max}m for believable blockout scale.");
-        }
-
-        private static void AssertScaleXBetween(Transform parent, string childName, float min, float max)
-        {
-            var child = FindChild(parent, childName);
-            Assert.That(child, Is.Not.Null, $"Expected child '{childName}' under '{parent?.name}'.");
-            Assert.That(child!.localScale.x, Is.InRange(min, max), $"Expected '{childName}' X scale to be between {min}m and {max}m.");
-        }
-
-        private static void AssertScaleZBetween(Transform parent, string childName, float min, float max)
-        {
-            var child = FindChild(parent, childName);
-            Assert.That(child, Is.Not.Null, $"Expected child '{childName}' under '{parent?.name}'.");
-            Assert.That(child!.localScale.z, Is.InRange(min, max), $"Expected '{childName}' Z scale to be between {min}m and {max}m.");
-        }
-
-        private static void AssertThatRendererHeightIsBetween(Transform parent, string childName, float min, float max)
-        {
-            var child = FindChild(parent, childName);
-            Assert.That(child, Is.Not.Null, $"Expected child '{childName}' under '{parent?.name}'.");
-
-            var renderer = child!.GetComponent<Renderer>();
-            Assert.That(renderer, Is.Not.Null, $"Expected renderer on '{childName}' so tree height can be evaluated.");
-            Assert.That(renderer!.bounds.size.y, Is.InRange(min, max), $"Expected '{childName}' rendered height to be between {min}m and {max}m.");
-        }
-
         private static void AssertChildExists(Transform parent, string childName)
         {
             Assert.That(FindChild(parent, childName), Is.Not.Null, $"Expected child '{childName}' under '{parent.name}'.");
@@ -460,53 +394,6 @@ namespace Reloader.World.Tests.EditMode
         private static void AssertChildMissing(Transform parent, string childName)
         {
             Assert.That(FindChild(parent, childName), Is.Null, $"Expected child '{childName}' to be removed from '{parent.name}'.");
-        }
-
-        private static void AssertRoadUsesReplacementSurface(Transform parent, string childName, bool expectDirt)
-        {
-            var child = FindChild(parent, childName);
-            Assert.That(child, Is.Not.Null, $"Expected road child '{childName}' under '{parent?.name}'.");
-
-            var meshFilter = child!.GetComponent<MeshFilter>();
-            Assert.That(meshFilter, Is.Not.Null, $"Expected MeshFilter on road '{childName}'.");
-            Assert.That(meshFilter!.sharedMesh, Is.Not.Null, $"Expected shared mesh on road '{childName}'.");
-            Assert.That(meshFilter.sharedMesh!.name, Is.Not.EqualTo("Cube"), $"Expected '{childName}' to stop using the cube blockout mesh.");
-
-            var renderer = child.GetComponent<MeshRenderer>();
-            Assert.That(renderer, Is.Not.Null, $"Expected MeshRenderer on road '{childName}'.");
-            Assert.That(renderer!.sharedMaterial, Is.Not.Null, $"Expected shared material on road '{childName}'.");
-
-            var materialPath = AssetDatabase.GetAssetPath(renderer.sharedMaterial);
-            Assert.That(materialPath, Does.Not.EndWith("sptp_Main_Mat.mat"), $"Expected '{childName}' to stop using the atlas road material.");
-
-            if (expectDirt)
-            {
-                Assert.That(materialPath, Does.Contain("/dirt material.mat"), $"Expected '{childName}' to use the dirt road material.");
-            }
-            else
-            {
-                Assert.That(materialPath, Does.Contain("/road material.mat"), $"Expected '{childName}' to use the paved road material.");
-            }
-        }
-
-        private static void AssertNamedScaleAtLeast(Transform parent, string childName, float minX = 0f, float minY = 0f, float minZ = 0f)
-        {
-            Assert.That(TryGetLargestLocalScale(parent, childName, out var scale), Is.True, $"Expected at least one '{childName}' blockout object.");
-
-            if (minX > 0f)
-            {
-                Assert.That(scale.x, Is.GreaterThanOrEqualTo(minX), $"Expected '{childName}' scale.x >= {minX}.");
-            }
-
-            if (minY > 0f)
-            {
-                Assert.That(scale.y, Is.GreaterThanOrEqualTo(minY), $"Expected '{childName}' scale.y >= {minY}.");
-            }
-
-            if (minZ > 0f)
-            {
-                Assert.That(scale.z, Is.GreaterThanOrEqualTo(minZ), $"Expected '{childName}' scale.z >= {minZ}.");
-            }
         }
 
         private static GameObject FindRoot(Scene scene, string rootName)

@@ -23,6 +23,24 @@ namespace Reloader.Game.Weapons
         private float _alpha;
         private float _peripheralBlurPercent;
 
+        private void Reset()
+        {
+            enabled = false;
+        }
+
+        private void Awake()
+        {
+            enabled = false;
+        }
+
+        private void OnValidate()
+        {
+            if (!Application.isPlaying)
+            {
+                enabled = false;
+            }
+        }
+
         private void OnEnable()
         {
             EnsureFillTexture();

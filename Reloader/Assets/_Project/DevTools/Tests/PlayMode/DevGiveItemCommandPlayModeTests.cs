@@ -737,7 +737,8 @@ namespace Reloader.DevTools.Tests.PlayMode
                 0.7f,
                 null,
                 null,
-                StarterAmmoItemId
+                StarterAmmoItemId,
+                0f
             });
 
             var scopeSlot = Enum.Parse(slotType, "Scope");

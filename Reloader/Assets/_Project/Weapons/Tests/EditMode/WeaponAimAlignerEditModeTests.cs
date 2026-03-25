@@ -125,7 +125,7 @@ namespace Reloader.Weapons.Tests.EditMode
             adsPivot.localRotation = Quaternion.Euler(90f, 0f, 0f);
 
             var scopeSlot = new GameObject("ScopeSlot").transform;
-            scopeSlot.SetParent(viewRoot.transform, false);
+            scopeSlot.SetParent(adsPivot, false);
             scopeSlot.localPosition = new Vector3(0.08f, -0.04f, 0.36f);
             scopeSlot.localRotation = Quaternion.Euler(2f, -3f, 1f);
 
@@ -290,6 +290,122 @@ namespace Reloader.Weapons.Tests.EditMode
                 Assert.That(activeSightAnchor, Is.Not.Null);
                 Assert.That(SightAnchorMatchesCameraEyeRelief(worldCamera.transform, activeSightAnchor, 0.015f), Is.True,
                     "WeaponAimAligner should apply the view-authored scoped eye-relief correction on top of the optic baseline eye relief.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+                UnityEngine.Object.DestroyImmediate(worldCameraGo);
+                UnityEngine.Object.DestroyImmediate(viewmodelCameraGo);
+                UnityEngine.Object.DestroyImmediate(opticPrefab);
+                UnityEngine.Object.DestroyImmediate(opticDefinition);
+            }
+        }
+
+        [Test]
+        public void WeaponAimAligner_ApplyScopedRecoilImpulse_PerturbsSightPictureAndDecaysTowardEyeRelief()
+        {
+            var alignerType = ResolveType("Reloader.Weapons.Runtime.WeaponAimAligner");
+            var attachmentManagerType = ResolveType("Reloader.Game.Weapons.AttachmentManager");
+            var adsStateControllerType = ResolveType("Reloader.Game.Weapons.AdsStateController");
+            var viewMountsType = ResolveType("Reloader.Weapons.Runtime.WeaponViewAttachmentMounts");
+            var opticDefinitionType = ResolveType("Reloader.Game.Weapons.OpticDefinition");
+            var adsVisualModeType = ResolveType("Reloader.Game.Weapons.AdsVisualMode");
+
+            Assert.That(alignerType, Is.Not.Null);
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            Assert.That(adsStateControllerType, Is.Not.Null);
+            Assert.That(viewMountsType, Is.Not.Null);
+            Assert.That(opticDefinitionType, Is.Not.Null);
+            Assert.That(adsVisualModeType, Is.Not.Null);
+
+            var root = new GameObject("WeaponAimAlignerRoot_ScopedRecoil");
+            var viewRoot = new GameObject("ViewRoot");
+            viewRoot.transform.SetParent(root.transform, false);
+            var adsPivot = new GameObject("AdsPivot").transform;
+            adsPivot.SetParent(viewRoot.transform, false);
+            adsPivot.localPosition = Vector3.zero;
+            adsPivot.localRotation = Quaternion.identity;
+
+            var scopeSlot = new GameObject("ScopeSlot").transform;
+            scopeSlot.SetParent(adsPivot, false);
+            scopeSlot.localPosition = new Vector3(0.08f, -0.04f, 0.36f);
+            scopeSlot.localRotation = Quaternion.Euler(2f, -3f, 1f);
+
+            var ironSightAnchor = new GameObject("IronSightAnchor").transform;
+            ironSightAnchor.SetParent(adsPivot, false);
+            ironSightAnchor.localPosition = new Vector3(0f, 0.085f, 0.24f);
+
+            var mounts = viewRoot.AddComponent(viewMountsType);
+            SetField(mounts, "_adsPivot", adsPivot);
+            SetField(mounts, "_ironSightAnchor", ironSightAnchor);
+            SetField(mounts, "_hasScopedPoseAuthoring", true);
+            SetField(mounts, "_scopedHipLocalPosition", Vector3.zero);
+            SetField(mounts, "_scopedAdsLocalPosition", new Vector3(0f, 0.2f, 0.05f));
+
+            var manager = viewRoot.AddComponent(attachmentManagerType);
+            SetField(manager, "_scopeSlot", scopeSlot);
+            SetField(manager, "_ironSightAnchor", ironSightAnchor);
+
+            var worldCameraGo = new GameObject("WorldCamera");
+            worldCameraGo.tag = "MainCamera";
+            var worldCamera = worldCameraGo.AddComponent<Camera>();
+            worldCamera.transform.position = new Vector3(4f, 2f, -3f);
+            worldCamera.transform.rotation = Quaternion.Euler(8f, 24f, 0f);
+
+            var viewmodelCameraGo = new GameObject("ViewmodelCamera");
+            var viewmodelCamera = viewmodelCameraGo.AddComponent<Camera>();
+
+            var adsState = root.AddComponent(adsStateControllerType);
+            SetField(adsState, "_worldCamera", worldCamera);
+            SetField(adsState, "_viewmodelCamera", viewmodelCamera);
+            SetField(adsState, "_attachmentManager", manager);
+            SetField(adsState, "_useLegacyInput", false);
+            SetField(adsState, "_allowExternalAdsControl", true);
+
+            var aligner = root.AddComponent(alignerType);
+
+            var opticDefinition = ScriptableObject.CreateInstance(opticDefinitionType);
+            SetField(opticDefinition, "_opticId", "scope-aligner-scoped-recoil");
+            SetField(opticDefinition, "_magnificationMin", 4f);
+            SetField(opticDefinition, "_magnificationMax", 8f);
+            SetField(opticDefinition, "_magnificationStep", 1f);
+            SetField(opticDefinition, "_visualModePolicy", Enum.Parse(adsVisualModeType, "RenderTexturePiP"));
+            SetField(opticDefinition, "_eyeReliefBackOffset", 0.037f);
+
+            var opticPrefab = new GameObject("OpticPrefab");
+            var sightAnchor = new GameObject("SightAnchor").transform;
+            sightAnchor.SetParent(opticPrefab.transform, false);
+            sightAnchor.localPosition = new Vector3(0.013f, -0.009f, -0.041f);
+            sightAnchor.localRotation = Quaternion.Euler(4f, -6f, 1.5f);
+            SetField(opticDefinition, "_opticPrefab", opticPrefab);
+
+            try
+            {
+                Assert.That((bool)Invoke(manager, "EquipOptic", opticDefinition), Is.True);
+                Invoke(adsState, "SetAdsHeld", true);
+                Invoke(aligner, "BindRuntimeReferences", worldCamera, manager, adsState, mounts);
+
+                Invoke(aligner, "AlignNow");
+
+                var activeSightAnchor = Invoke(manager, "GetActiveSightAnchor") as Transform;
+                Assert.That(activeSightAnchor, Is.Not.Null);
+                Assert.That(SightAnchorMatchesCameraEyeRelief(worldCamera.transform, activeSightAnchor, 0.037f), Is.True);
+
+                Invoke(aligner, "ApplyScopedRecoilImpulse");
+                Invoke(aligner, "AlignNow");
+
+                var immediateAngularError = Quaternion.Angle(activeSightAnchor!.rotation, worldCamera.transform.rotation);
+                Assert.That(immediateAngularError, Is.GreaterThan(0.15f),
+                    "Scoped recoil should knock the sight picture off the perfect ADS eye-relief solution for at least one frame.");
+
+                Invoke(aligner, "AdvanceScopedRecoil", 0.5f);
+                Invoke(aligner, "AlignNow");
+
+                var settledAngularError = Quaternion.Angle(activeSightAnchor.rotation, worldCamera.transform.rotation);
+                Assert.That(settledAngularError, Is.LessThan(immediateAngularError),
+                    "Scoped recoil should decay back toward the camera-aligned sight picture instead of staying permanently offset.");
+                Assert.That(settledAngularError, Is.LessThan(0.05f),
+                    "Scoped recoil should settle back close to the authored ADS eye-relief alignment.");
             }
             finally
             {
@@ -477,18 +593,26 @@ namespace Reloader.Weapons.Tests.EditMode
             {
                 Assert.That(playerRootPrefab, Is.Not.Null);
 
-                var weaponPresentationMount = playerRootPrefab!.transform.Find("CameraPivot/WeaponPresentationMount");
+                var viewmodelPresentationRoot = playerRootPrefab!.transform.Find("CameraPivot/ViewmodelPresentationRoot");
+                Assert.That(viewmodelPresentationRoot, Is.Not.Null,
+                    "PlayerRoot should author a shared ViewmodelPresentationRoot so coarse Y/Z tuning moves both arms and weapon together.");
+                var weaponPresentationMount = playerRootPrefab.transform.Find("CameraPivot/ViewmodelPresentationRoot/WeaponPresentationMount");
                 Assert.That(weaponPresentationMount, Is.Not.Null,
                     "PlayerRoot should author an explicit static WeaponPresentationMount used by the runtime driver.");
-                var weaponPresentationRoot = playerRootPrefab!.transform.Find("CameraPivot/WeaponPresentationRoot");
+                var weaponPresentationRoot = playerRootPrefab.transform.Find("CameraPivot/ViewmodelPresentationRoot/WeaponPresentationRoot");
                 Assert.That(weaponPresentationRoot, Is.Not.Null,
                     "PlayerRoot should keep WeaponPresentationRoot authored as the identity presentation seam root.");
+                var playerArmsRoot = playerRootPrefab.transform.Find("CameraPivot/ViewmodelPresentationRoot/PlayerArms");
+                Assert.That(playerArmsRoot, Is.Not.Null,
+                    "PlayerRoot should keep PlayerArms under the shared viewmodel presentation root.");
                 Assert.That(weaponPresentationRoot!.localPosition, Is.EqualTo(Vector3.zero).Within(0.0001f),
                     "WeaponPresentationRoot should remain identity so the authored hip pose lives only on WeaponPresentationMount.");
                 Assert.That(Quaternion.Angle(weaponPresentationRoot.localRotation, Quaternion.identity), Is.LessThan(0.0001f),
                     "WeaponPresentationRoot should remain identity so the authored hip pose lives only on WeaponPresentationMount.");
-                Assert.That(weaponPresentationMount!.parent, Is.SameAs(playerRootPrefab.transform.Find("CameraPivot")),
-                    "The live PlayerRoot mount should be a direct authored child of CameraPivot instead of the animated armature chain.");
+                Assert.That(weaponPresentationMount!.parent, Is.SameAs(viewmodelPresentationRoot),
+                    "The live PlayerRoot mount should live under the shared viewmodel presentation root instead of a separate CameraPivot seam.");
+                Assert.That(weaponPresentationRoot.parent, Is.SameAs(viewmodelPresentationRoot));
+                Assert.That(playerArmsRoot!.parent, Is.SameAs(viewmodelPresentationRoot));
                 Assert.That(weaponPresentationMount.localPosition, Is.EqualTo(new Vector3(0f, -0.08f, 0.45f)).Within(0.0001f),
                     "The static weapon presentation mount should preserve the authored hip carry offset.");
                 Assert.That(Quaternion.Angle(weaponPresentationMount.localRotation, Quaternion.identity), Is.LessThan(0.0001f),

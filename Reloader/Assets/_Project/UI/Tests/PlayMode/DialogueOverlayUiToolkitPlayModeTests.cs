@@ -154,6 +154,23 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(overlay.style.display.value, Is.EqualTo(DisplayStyle.None));
         }
 
+        [Test]
+        public void Binder_Initialize_DefaultsScreenToHiddenAndNonInteractive()
+        {
+            var binder = new DialogueOverlayViewBinder();
+            var root = BuildRoot();
+
+            binder.Initialize(root);
+
+            var screen = root.Q<VisualElement>("dialogue-overlay__screen");
+            var overlay = root.Q<VisualElement>("dialogue-overlay__root");
+            Assert.That(screen, Is.Not.Null);
+            Assert.That(overlay, Is.Not.Null);
+            Assert.That(screen.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(screen.pickingMode, Is.EqualTo(PickingMode.Ignore));
+            Assert.That(overlay.style.display.value, Is.EqualTo(DisplayStyle.None));
+        }
+
 #if UNITY_EDITOR
         [Test]
         public void RenderedReplyButtonClick_SubmitsAuthoredDialogueOutcomeThroughRealRuntimeBridge()

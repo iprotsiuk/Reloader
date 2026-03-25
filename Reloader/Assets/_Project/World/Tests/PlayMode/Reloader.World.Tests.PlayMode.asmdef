@@ -5,7 +5,9 @@
     "Reloader.World",
     "Reloader.Core",
     "Reloader.Player",
-    "Reloader.NPCs"
+    "Reloader.NPCs",
+    "Reloader.UI",
+    "Unity.InputSystem"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

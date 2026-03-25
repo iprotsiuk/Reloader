@@ -54,7 +54,7 @@ namespace Reloader.Player.Tests.EditMode
         }
 
         [Test]
-        public void ResolveAnimator_PreservesExplicitAnimator_WhenItRemainsValidOnPlayerHierarchy()
+        public void ResolveAnimator_PrefersExplicitPlayerCameraDefaultsAnimator_OverOtherHierarchyChildren()
         {
             var root = new GameObject("PlayerRoot");
             var presentationPivot = new GameObject("PresentationPivot").transform;
@@ -83,7 +83,33 @@ namespace Reloader.Player.Tests.EditMode
 
             Invoke(adapter, "ResolveAnimator");
 
-            Assert.That(GetField(adapter, "_animator"), Is.SameAs(explicitAnimator));
+            Assert.That(GetField(adapter, "_animator"), Is.SameAs(defaultsAnimator));
+        }
+
+        [Test]
+        public void ResolveAnimator_EnsuresLegacyAnimationEventReceiverOnResolvedAnimatorHost()
+        {
+            var root = new GameObject("PlayerRoot");
+            var presentationPivot = new GameObject("PresentationPivot").transform;
+            presentationPivot.SetParent(root.transform, false);
+
+            var playerArmsRoot = new GameObject("PlayerArms").transform;
+            playerArmsRoot.SetParent(presentationPivot, false);
+            var animator = playerArmsRoot.gameObject.AddComponent<Animator>();
+
+            var defaults = root.AddComponent<PlayerCameraDefaults>();
+            SetField(defaults, "_cameraPivot", presentationPivot);
+            SetField(defaults, "_playerArmsRoot", playerArmsRoot);
+            SetField(defaults, "_playerArmsAnimator", animator);
+
+            var adapter = root.AddComponent<ViewmodelAnimationAdapter>();
+
+            Invoke(adapter, "ResolveAnimator");
+
+            var receiverType = System.Type.GetType("Reloader.Weapons.Animations.PlayerArmsAnimationEventReceiver, Reloader.Weapons");
+            Assert.That(receiverType, Is.Not.Null, "Expected legacy arms animation event receiver type.");
+            Assert.That(animator.GetComponent(receiverType!), Is.Not.Null,
+                "Resolving the live arms animator should also ensure the animation-event receiver on that exact animator host.");
         }
 
         private static void Invoke(object instance, string methodName)

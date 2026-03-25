@@ -6,13 +6,19 @@ using Reloader.Contracts.Runtime;
 using Reloader.NPCs.Runtime;
 using Reloader.Core.Runtime;
 using Reloader.Player;
+using Reloader.UI.Toolkit.Runtime;
+using Reloader.UI.Toolkit.TabInventory;
 using Reloader.World.Runtime;
 using Reloader.World.Travel;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.TestTools;
 using UnityEngine.SceneManagement;
 using System.Reflection;
 using Object = UnityEngine.Object;
+using UnityEngine.UIElements;
+using Cursor = UnityEngine.Cursor;
+using UnityEngine.InputSystem.LowLevel;
 
 namespace Reloader.World.Tests.PlayMode
 {
@@ -109,10 +115,110 @@ namespace Reloader.World.Tests.PlayMode
                 "IndoorRange main camera should stay parented to CameraPivot for player look/camera control.");
 
             Assert.That(cameraDefaults.TryGetPlayerArmsRoot(out var playerArms), Is.True, "Expected PlayerCameraDefaults to resolve PlayerArms.");
-            Assert.That(playerArms!.parent, Is.EqualTo(cameraPivot), "Expected PlayerArms to stay parented under CameraPivot.");
+            Assert.That(playerArms!.parent, Is.EqualTo(cameraPivot.Find("ViewmodelPresentationRoot")), "Expected PlayerArms to stay parented under ViewmodelPresentationRoot.");
 
             Assert.That(cameraDefaults.TryGetPlayerArmsAnimator(out var armsAnimator), Is.True, "Expected PlayerCameraDefaults to resolve the PlayerArms animator.");
             Assert.That(armsAnimator.runtimeAnimatorController, Is.Not.Null, "PlayerArms Animator should have a RuntimeAnimatorController assigned.");
+        }
+
+        [UnityTest]
+        public IEnumerator BootstrapTravel_ActivatesGameplayEventSystemInputModule()
+        {
+            yield return LoadMainTownAndBindRuntimePlayerRoot();
+
+            var inputSystemUiModuleType = Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
+            Assert.That(inputSystemUiModuleType, Is.Not.Null, "Expected InputSystemUIInputModule type to resolve.");
+
+            var activeEventSystems = Object.FindObjectsByType<UnityEngine.EventSystems.EventSystem>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            Assert.That(activeEventSystems.Length, Is.EqualTo(1), "Expected exactly one active EventSystem after Bootstrap travel into gameplay.");
+
+            var eventSystem = activeEventSystems[0];
+            Assert.That(eventSystem, Is.Not.Null, "Expected an active gameplay EventSystem after Bootstrap travel.");
+
+            var uiModule = eventSystem.GetComponent(inputSystemUiModuleType!);
+            Assert.That(uiModule, Is.Not.Null, "Expected gameplay EventSystem to carry InputSystemUIInputModule after Bootstrap travel.");
+
+            var currentInputModuleProperty = typeof(UnityEngine.EventSystems.EventSystem).GetProperty("currentInputModule", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(currentInputModuleProperty, Is.Not.Null, "Expected EventSystem.currentInputModule property.");
+
+            var currentInputModule = currentInputModuleProperty!.GetValue(eventSystem);
+            Assert.That(currentInputModule, Is.SameAs(uiModule), "Expected gameplay EventSystem to promote InputSystemUIInputModule as the active current input module after Bootstrap travel.");
+        }
+
+        [UnityTest]
+        public IEnumerator BootstrapTravel_GameplayEventSystem_RemainsFocusedForUiInput()
+        {
+            yield return LoadMainTownAndBindRuntimePlayerRoot();
+
+            var activeEventSystems = Object.FindObjectsByType<UnityEngine.EventSystems.EventSystem>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            Assert.That(activeEventSystems.Length, Is.EqualTo(1), "Expected exactly one active EventSystem after Bootstrap travel into gameplay.");
+
+            var eventSystem = activeEventSystems[0];
+            Assert.That(eventSystem, Is.Not.Null, "Expected an active gameplay EventSystem after Bootstrap travel.");
+            Assert.That(eventSystem.isFocused, Is.True, "Expected gameplay EventSystem to remain focused after Bootstrap travel so UI clicks continue to process in MainTown.");
+        }
+
+        [UnityTest]
+        public IEnumerator BootstrapTravel_MainTown_ReleasesCursorForUiClicks()
+        {
+            yield return LoadMainTownAndBindRuntimePlayerRoot();
+
+            var playerRoot = GetCanonicalPlayerRoot();
+            Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot after Bootstrap travel into MainTown.");
+
+            var cursorLockController = playerRoot!.GetComponent<PlayerCursorLockController>();
+            Assert.That(cursorLockController, Is.Not.Null, "Expected cursor lock controller after Bootstrap travel into MainTown.");
+            Assert.That(cursorLockController!.IsCursorLockRequested, Is.False, "Expected MainTown travel to release the cursor so UI clicks can reach the screen.");
+            Assert.That(Cursor.lockState, Is.EqualTo(CursorLockMode.None), "Expected MainTown travel to leave the cursor unlocked for UI interaction.");
+            Assert.That(Cursor.visible, Is.True, "Expected MainTown travel to show the cursor for UI interaction.");
+        }
+
+        [UnityTest]
+        public IEnumerator BootstrapTravel_MainTown_QueuesAndConsumesTabMenuToggleInput()
+        {
+            yield return LoadMainTownAndBindRuntimePlayerRoot();
+
+            var playerRoot = GetCanonicalPlayerRoot();
+            Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot after Bootstrap travel into MainTown.");
+
+            var inputReader = playerRoot!.GetComponent<PlayerInputReader>();
+            Assert.That(inputReader, Is.Not.Null, "Expected PlayerInputReader after Bootstrap travel into MainTown.");
+
+            var runtimeRoot = Object.FindFirstObjectByType<UiToolkitRuntimeRoot>(FindObjectsInactive.Include);
+            Assert.That(runtimeRoot, Is.Not.Null, "Expected UiToolkitRuntimeRoot after Bootstrap travel into MainTown.");
+
+            var tabController = runtimeRoot!.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
+            Assert.That(tabController, Is.Not.Null, "Expected TabInventoryController after Bootstrap travel into MainTown.");
+
+            var inputSourceField = typeof(TabInventoryController).GetField("_inputSource", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(inputSourceField, Is.Not.Null, "Expected TabInventoryController to expose an input source field.");
+            Assert.That(inputSourceField!.GetValue(tabController), Is.Not.Null, "Expected TabInventoryController input source to be bound after Bootstrap travel into MainTown.");
+            Assert.That(ShotCameraGameplayState.IsActive, Is.False, "Expected shot camera state to be cleared after Bootstrap travel into MainTown.");
+
+            var tabDocument = runtimeRoot.transform.Find(UiRuntimeCompositionIds.ScreenIds.TabInventory)?.GetComponent<UIDocument>();
+            Assert.That(tabDocument, Is.Not.Null, "Expected TabInventory UIDocument after Bootstrap travel into MainTown.");
+
+            var panel = tabDocument!.rootVisualElement.Q<VisualElement>("inventory__panel");
+            Assert.That(panel, Is.Not.Null, "Expected TabInventory panel after Bootstrap travel into MainTown.");
+            Assert.That(panel!.style.display.value, Is.EqualTo(DisplayStyle.None), "Expected TabInventory panel to start closed.");
+
+            var keyboard = InputSystem.AddDevice<Keyboard>();
+            try
+            {
+                InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F1));
+                InputSystem.Update();
+
+                inputReader.SendMessage("Update");
+                Assert.That(inputReader.MenuToggleQueued, Is.True, "Expected PlayerInputReader to queue Tab after MainTown travel.");
+
+                tabController!.Tick();
+                Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.Flex), "Expected TabInventory to open when Tab is queued in MainTown.");
+                Assert.That(RuntimeKernelBootstrapper.UiStateEvents?.IsTabInventoryVisible, Is.True, "Expected TabInventory visibility to publish through runtime state in MainTown.");
+            }
+            finally
+            {
+                InputSystem.RemoveDevice(keyboard);
+            }
         }
 
         [UnityTest]
@@ -191,8 +297,11 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot after second indoor arrival.");
             var cameraPivot = playerRoot.Find("CameraPivot");
             Assert.That(cameraPivot, Is.Not.Null, "Expected CameraPivot after second indoor arrival.");
-            var playerArms = cameraPivot.Find("PlayerArms");
+            var viewmodelPresentationRoot = cameraPivot.Find("ViewmodelPresentationRoot");
+            Assert.That(viewmodelPresentationRoot, Is.Not.Null, "Expected ViewmodelPresentationRoot after second indoor arrival.");
+            var playerArms = viewmodelPresentationRoot.Find("PlayerArms");
             Assert.That(playerArms, Is.Not.Null, "Expected PlayerArms after second indoor arrival.");
+            Assert.That(cameraPivot.Find("PlayerArms"), Is.Null, "Expected repeated travel to keep the retired legacy CameraPivot/PlayerArms path absent.");
 
             Assert.That(playerArms.gameObject.activeInHierarchy, Is.True, "PlayerArms should be active after second indoor arrival.");
 
@@ -672,8 +781,12 @@ namespace Reloader.World.Tests.PlayMode
 
             InvokeEnsureViewmodelRigAfterTravel(playerRoot.transform);
 
-            var playerArms = cameraPivot.Find("PlayerArms");
-            Assert.That(playerArms, Is.Not.Null, "Expected fallback travel rig healing to recreate PlayerArms.");
+            var viewmodelPresentationRoot = cameraPivot.Find("ViewmodelPresentationRoot");
+            Assert.That(viewmodelPresentationRoot, Is.Not.Null, "Expected fallback travel rig healing to recreate ViewmodelPresentationRoot.");
+
+            var playerArms = viewmodelPresentationRoot.Find("PlayerArms");
+            Assert.That(playerArms, Is.Not.Null, "Expected fallback travel rig healing to recreate PlayerArms under ViewmodelPresentationRoot.");
+            Assert.That(cameraPivot.Find("PlayerArms"), Is.Null, "Travel rig healing should not recreate the retired legacy CameraPivot/PlayerArms branch.");
 
             var animator = playerArms.GetComponentInChildren<Animator>(true);
             Assert.That(animator, Is.Not.Null, "Expected recreated PlayerArms to include an Animator.");
@@ -693,8 +806,10 @@ namespace Reloader.World.Tests.PlayMode
             var playerRoot = new GameObject("PlayerRoot");
             var cameraPivot = new GameObject("CameraPivot").transform;
             cameraPivot.SetParent(playerRoot.transform, false);
+            var viewmodelPresentationRoot = new GameObject("ViewmodelPresentationRoot").transform;
+            viewmodelPresentationRoot.SetParent(cameraPivot, false);
             var playerArms = new GameObject("PlayerArms").transform;
-            playerArms.SetParent(cameraPivot, false);
+            playerArms.SetParent(viewmodelPresentationRoot, false);
 
             var animator = playerArms.gameObject.AddComponent<Animator>();
             animator.runtimeAnimatorController = null;
@@ -717,8 +832,10 @@ namespace Reloader.World.Tests.PlayMode
             var playerRoot = new GameObject("PlayerRoot");
             var cameraPivot = new GameObject("CameraPivot").transform;
             cameraPivot.SetParent(playerRoot.transform, false);
+            var viewmodelPresentationRoot = new GameObject("ViewmodelPresentationRoot").transform;
+            viewmodelPresentationRoot.SetParent(cameraPivot, false);
             var playerArms = new GameObject("PlayerArms").transform;
-            playerArms.SetParent(cameraPivot, false);
+            playerArms.SetParent(viewmodelPresentationRoot, false);
             var visuals = new GameObject("PlayerArmsVisual").transform;
             visuals.SetParent(playerArms, false);
 
@@ -928,8 +1045,9 @@ namespace Reloader.World.Tests.PlayMode
             var cameraPivot = playerRoot.Find("CameraPivot");
             Assert.That(cameraPivot, Is.Not.Null, "Expected CameraPivot under PlayerRoot.");
 
-            var playerArms = cameraPivot.Find("PlayerArms");
-            Assert.That(playerArms, Is.Not.Null, "Expected PlayerArms under CameraPivot.");
+            var playerArms = cameraPivot.Find("ViewmodelPresentationRoot/PlayerArms");
+            Assert.That(playerArms, Is.Not.Null, "Expected PlayerArms under ViewmodelPresentationRoot.");
+            Assert.That(cameraPivot.Find("PlayerArms"), Is.Null, "Expected no retired legacy CameraPivot/PlayerArms branch.");
             var animator = playerArms.GetComponentInChildren<Animator>(true);
             Assert.That(animator, Is.Not.Null, "Expected Animator on PlayerArms.");
             Assert.That(animator.runtimeAnimatorController, Is.Not.Null, "Expected runtime animator controller on PlayerArms animator.");

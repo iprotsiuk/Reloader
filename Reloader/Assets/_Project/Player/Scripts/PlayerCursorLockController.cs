@@ -96,22 +96,16 @@ namespace Reloader.Player
         private void Update()
         {
             _escapeKeySource ??= new KeyboardCursorEscapeKeySource();
-            var storageMenuOpen = IsStorageUiOpen();
-            if (_isStorageMenuOpen != storageMenuOpen)
-            {
-                _isStorageMenuOpen = storageMenuOpen;
-                ApplyCursorState();
-            }
+            ReconcileMenuFlagsFromCurrentEventState();
+            ApplyCursorState();
 
             if (_forcedCursorUnlock)
             {
-                ApplyCursorState();
                 return;
             }
 
             if (IsAnyMenuOpen)
             {
-                ApplyCursorState();
                 return;
             }
 
@@ -220,13 +214,13 @@ namespace Reloader.Player
             IsGameplayInputBlocked = _forcedCursorUnlock || IsAnyMenuOpen;
             if (IsGameplayInputBlocked)
             {
-                Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
+                Cursor.lockState = CursorLockMode.None;
                 return;
             }
 
-            Cursor.lockState = _isCursorLockRequested ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !_isCursorLockRequested;
+            Cursor.lockState = _isCursorLockRequested ? CursorLockMode.Locked : CursorLockMode.None;
         }
 
         private void ReconcileMenuFlagsFromCurrentEventState()

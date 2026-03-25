@@ -94,6 +94,9 @@ namespace Reloader.DevTools.Tests.PlayMode
             var observer = traceRuntime.CreateProjectilePathObserver();
             observer.RecordSegment(Vector3.zero, new Vector3(0f, 0f, 6f));
             observer.Complete(new Vector3(0f, 0f, 6f), didHit: true);
+
+            yield return null;
+
             runtimeEvents.RaiseWeaponFired("rifle-01", new Vector3(1f, 0f, 0f), Vector3.forward);
             runtimeEvents.RaiseProjectileHit("rifle-01", new Vector3(1f, 0f, 12f), 10f);
 

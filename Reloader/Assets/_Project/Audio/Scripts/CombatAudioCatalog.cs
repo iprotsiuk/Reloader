@@ -131,8 +131,23 @@ namespace Reloader.Audio
             }
 
             var resolvedKey = string.IsNullOrWhiteSpace(channelKey) ? "default" : channelKey;
-            var index = Mathf.Abs(resolvedKey.GetHashCode()) % source.Count;
+            var index = GetStableIndex(resolvedKey, source.Count);
             return source[index];
+        }
+
+        private static int GetStableIndex(string key, int count)
+        {
+            unchecked
+            {
+                uint hash = 2166136261;
+                for (var i = 0; i < key.Length; i++)
+                {
+                    hash ^= char.ToLowerInvariant(key[i]);
+                    hash *= 16777619;
+                }
+
+                return (int)(hash % (uint)count);
+            }
         }
 
         private static List<AudioClip> BuildValidClipList(AudioClip[] primary, AudioClip[] fallback)

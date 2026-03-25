@@ -13,16 +13,35 @@ using Reloader.NPCs.Runtime.Dialogue;
 using Reloader.NPCs.Runtime.Capabilities;
 using Reloader.NPCs.World;
 using Reloader.Player;
+using Reloader.World.Runtime;
+using Reloader.World.Travel;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using Object = UnityEngine.Object;
 
 namespace Reloader.World.Tests.PlayMode
 {
     public class MainTownPopulationInfrastructurePlayModeTests
     {
+        private const string BootstrapSceneName = "Bootstrap";
         private const string MainTownSceneName = "MainTown";
         private const float SceneSwitchTimeoutSeconds = 8f;
+
+        [TearDown]
+        public void TearDown()
+        {
+            var playerRoot = PersistentPlayerRoot.Instance?.PlayerRootTransform;
+            if (playerRoot != null)
+            {
+                Object.DestroyImmediate(playerRoot.gameObject);
+            }
+
+            if (PersistentPlayerRoot.Instance != null)
+            {
+                Object.DestroyImmediate(PersistentPlayerRoot.Instance.gameObject);
+            }
+        }
 
         [UnityTest]
         public IEnumerator MainTownPopulationRuntime_HasPopulationDefinitionAndStarterPoolsConfigured()
@@ -620,22 +639,96 @@ namespace Reloader.World.Tests.PlayMode
 
         private static IEnumerator LoadScene(string sceneName)
         {
-            SceneManager.LoadScene(sceneName, LoadSceneMode.Single);
+            Assert.That(sceneName, Is.EqualTo(MainTownSceneName), "MainTown population tests should bootstrap through the runtime travel path.");
 
-            var elapsed = 0f;
-            while (elapsed < SceneSwitchTimeoutSeconds)
+            var previousIgnoreFailingMessages = LogAssert.ignoreFailingMessages;
+            LogAssert.ignoreFailingMessages = true;
+            try
             {
-                var activeScene = SceneManager.GetActiveScene();
-                if (activeScene.IsValid() && activeScene.isLoaded && activeScene.name == sceneName)
-                {
-                    yield break;
-                }
+                SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
+                yield return null;
 
+                var bootstrapRoot = Object.FindFirstObjectByType<BootstrapWorldRoot>(FindObjectsInactive.Include);
+                Assert.That(bootstrapRoot, Is.Not.Null, "Expected Bootstrap to keep the canonical BootstrapWorldRoot loaded.");
+
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                Assert.That(persistentRoot, Is.Not.Null, "Expected Bootstrap runtime initialization to produce a canonical PersistentPlayerRoot.");
+                Assert.That(PersistentPlayerRoot.Instance, Is.SameAs(persistentRoot), "Expected one canonical PersistentPlayerRoot instance.");
+                Assert.That(persistentRoot.PlayerRootTransform, Is.Not.Null, "Expected a canonical runtime player root before routing into MainTown.");
+
+                yield return null;
+
+                var started = WorldTravelCoordinator.TryLoadSceneAtEntry(MainTownSceneName, "entry.maintown.spawn");
+                Assert.That(started, Is.True, "Expected Bootstrap to route into MainTown via the authored entry point.");
+
+                yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+                yield return WaitForResolvedEntryPoint("entry.maintown.spawn", SceneSwitchTimeoutSeconds);
+                yield return WaitForCanonicalPlayerStartupStabilization();
+                yield return null;
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = previousIgnoreFailingMessages;
+            }
+        }
+
+        private static IEnumerator WaitForActiveScene(string expectedSceneName, float timeoutSeconds)
+        {
+            var elapsed = 0f;
+            while (SceneManager.GetActiveScene().name != expectedSceneName && elapsed < timeoutSeconds)
+            {
                 elapsed += Time.unscaledDeltaTime;
                 yield return null;
             }
 
-            Assert.Fail($"Timed out waiting for active scene '{sceneName}'.");
+            Assert.That(
+                SceneManager.GetActiveScene().name,
+                Is.EqualTo(expectedSceneName),
+                $"Timed out waiting for scene '{expectedSceneName}'.");
+        }
+
+        private static IEnumerator WaitForResolvedEntryPoint(string expectedEntryPointId, float timeoutSeconds)
+        {
+            var elapsed = 0f;
+            while (WorldTravelCoordinator.LastResolvedEntryPointId != expectedEntryPointId && elapsed < timeoutSeconds)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            Assert.That(
+                WorldTravelCoordinator.LastResolvedEntryPointId,
+                Is.EqualTo(expectedEntryPointId),
+                $"Timed out waiting for resolved entry point '{expectedEntryPointId}'.");
+        }
+
+        private static IEnumerator WaitForCanonicalPlayerStartupStabilization()
+        {
+            var playerRoot = PersistentPlayerRoot.Instance?.PlayerRootTransform;
+            Assert.That(playerRoot, Is.Not.Null, "Expected canonical runtime player root before startup stabilization.");
+
+            var stableFrameCount = 0;
+            var previousPosition = playerRoot.position;
+            var elapsed = 0f;
+            while (elapsed < 2f && stableFrameCount < 3)
+            {
+                yield return null;
+                elapsed += Time.unscaledDeltaTime;
+
+                var currentPosition = playerRoot.position;
+                if (Vector3.Distance(currentPosition, previousPosition) <= 0.001f)
+                {
+                    stableFrameCount++;
+                }
+                else
+                {
+                    stableFrameCount = 0;
+                }
+
+                previousPosition = currentPosition;
+            }
+
+            Assert.That(stableFrameCount, Is.GreaterThanOrEqualTo(3), "Expected the canonical runtime player to settle before asserting travel state.");
         }
 
         private static CivilianPopulationRecord CreateRecord(

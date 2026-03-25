@@ -17,11 +17,26 @@ namespace Reloader.UI.Toolkit.Dialogue
 
         public void Initialize(VisualElement root)
         {
+            if (root != null)
+            {
+                root.pickingMode = PickingMode.Ignore;
+            }
             _screenRoot = root?.Q<VisualElement>("dialogue-overlay__screen") ?? root;
             _root = root?.Q<VisualElement>("dialogue-overlay__root") ?? _screenRoot;
             _speakerLabel = root?.Q<Label>("dialogue-overlay__speaker");
             _lineLabel = root?.Q<Label>("dialogue-overlay__line");
             _repliesRoot = root?.Q<VisualElement>("dialogue-overlay__replies");
+
+            if (_screenRoot != null)
+            {
+                _screenRoot.style.display = DisplayStyle.None;
+                _screenRoot.pickingMode = PickingMode.Ignore;
+            }
+
+            if (_root != null)
+            {
+                _root.style.display = DisplayStyle.None;
+            }
         }
 
         public void Render(UiRenderState state)

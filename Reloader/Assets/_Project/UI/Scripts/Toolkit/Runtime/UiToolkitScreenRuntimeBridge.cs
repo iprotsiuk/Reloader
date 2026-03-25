@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Reflection;
 using Reloader.Contracts.Runtime;
 using Reloader.Core;
 using Reloader.Core.Items;
@@ -26,6 +27,9 @@ using Reloader.UI.Toolkit.TabInventory;
 using Reloader.UI.Toolkit.Trade;
 using Reloader.Weapons.Controllers;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
+using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
 namespace Reloader.UI.Toolkit.Runtime
@@ -92,6 +96,7 @@ namespace Reloader.UI.Toolkit.Runtime
 
             if (Time.unscaledTime < _nextSelfHealAt)
             {
+                EnsureEventSystemPanelBridge();
                 return;
             }
 
@@ -143,7 +148,165 @@ namespace Reloader.UI.Toolkit.Runtime
                 EnsureBinding(ScreenBindings[i], dependencies, force);
             }
 
+            EnsureEventSystemPanelBridge();
+
             _nextSelfHealAt = Time.unscaledTime + Mathf.Max(MinSelfHealIntervalSeconds, _selfHealIntervalSeconds);
+        }
+
+        private void EnsureEventSystemPanelBridge()
+        {
+            if (_runtimeRoot == null)
+            {
+                return;
+            }
+
+            if (_runtimeRoot.GetComponentsInChildren<UIDocument>(true).Length == 0)
+            {
+                return;
+            }
+
+            var requiredPanelBridgeNames = CollectRuntimePanelBridgeNames();
+            var eventSystem = ResolveTargetEventSystem();
+            if (eventSystem == null || !eventSystem.isActiveAndEnabled)
+            {
+                return;
+            }
+
+            if (HasActivePanelBridgeForEventSystem(eventSystem, requiredPanelBridgeNames))
+            {
+                RearmEventSystem(eventSystem);
+                return;
+            }
+
+#pragma warning disable 618
+            EventSystem.SetUITookitEventSystemOverride(eventSystem, false, false);
+            EventSystem.SetUITookitEventSystemOverride(eventSystem, true, true);
+#pragma warning restore 618
+            RearmEventSystem(eventSystem);
+        }
+
+        private static void RearmEventSystem(EventSystem eventSystem)
+        {
+            if (eventSystem == null || !eventSystem.isActiveAndEnabled)
+            {
+                return;
+            }
+
+            EnsureUiInputModuleActionsEnabled(eventSystem);
+            var onApplicationFocus = typeof(EventSystem).GetMethod("OnApplicationFocus", BindingFlags.Instance | BindingFlags.NonPublic);
+            onApplicationFocus?.Invoke(eventSystem, new object[] { true });
+            eventSystem.UpdateModules();
+        }
+
+        private static void EnsureUiInputModuleActionsEnabled(EventSystem eventSystem)
+        {
+            var uiModule = eventSystem.GetComponent<InputSystemUIInputModule>();
+            if (uiModule == null)
+            {
+                return;
+            }
+
+            uiModule.actionsAsset?.Enable();
+        }
+
+        private HashSet<string> CollectRuntimePanelBridgeNames()
+        {
+            var requiredNames = new HashSet<string>(StringComparer.Ordinal);
+            if (_runtimeRoot == null)
+            {
+                return requiredNames;
+            }
+
+            var documents = _runtimeRoot.GetComponentsInChildren<UIDocument>(true);
+            for (var i = 0; i < documents.Length; i++)
+            {
+                var panelSettings = documents[i]?.panelSettings;
+                if (panelSettings == null || string.IsNullOrWhiteSpace(panelSettings.name))
+                {
+                    continue;
+                }
+
+                requiredNames.Add(panelSettings.name);
+            }
+
+            return requiredNames;
+        }
+
+        private static bool HasActivePanelBridgeForEventSystem(
+            EventSystem eventSystem,
+            HashSet<string> requiredPanelBridgeNames)
+        {
+            if (eventSystem == null)
+            {
+                return false;
+            }
+
+            var matchedBridgeNames = requiredPanelBridgeNames != null && requiredPanelBridgeNames.Count > 0
+                ? new HashSet<string>(StringComparer.Ordinal)
+                : null;
+            var panelRaycasters = FindObjectsByType<PanelRaycaster>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < panelRaycasters.Length; i++)
+            {
+                var raycaster = panelRaycasters[i];
+                if (raycaster == null)
+                {
+                    continue;
+                }
+
+                var owner = raycaster.GetComponentInParent<EventSystem>();
+                if (owner == null || !owner.isActiveAndEnabled || !raycaster.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                if (owner == eventSystem)
+                {
+                    if (matchedBridgeNames == null)
+                    {
+                        return true;
+                    }
+
+                    var bridgeName = raycaster.gameObject.name;
+                    if (!string.IsNullOrWhiteSpace(bridgeName)
+                        && requiredPanelBridgeNames.Contains(bridgeName))
+                    {
+                        matchedBridgeNames.Add(bridgeName);
+                    }
+                }
+            }
+
+            return matchedBridgeNames != null && matchedBridgeNames.Count >= requiredPanelBridgeNames.Count;
+        }
+
+        private static EventSystem ResolveTargetEventSystem()
+        {
+            var activeScene = SceneManager.GetActiveScene();
+            var current = EventSystem.current;
+            if (current != null
+                && current.isActiveAndEnabled
+                && current.gameObject.scene == activeScene)
+            {
+                return current;
+            }
+
+            var eventSystems = FindObjectsByType<EventSystem>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            EventSystem fallback = null;
+            for (var i = 0; i < eventSystems.Length; i++)
+            {
+                var eventSystem = eventSystems[i];
+                if (eventSystem == null || !eventSystem.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                fallback ??= eventSystem;
+                if (eventSystem.gameObject.scene == activeScene)
+                {
+                    return eventSystem;
+                }
+            }
+
+            return fallback;
         }
 
         private void EnsureBinding(ScreenBindingDefinition definition, ResolvedDependencies dependencies, bool force)

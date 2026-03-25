@@ -334,6 +334,7 @@ MonoBehaviour:
   _targetRenderer: {fileID: 2627140457226339215}
   _displayMaterialTemplate: {fileID: 0}
   _apertureRenderer: {fileID: 6379749452625415218}
+  _hipLensRenderer: {fileID: 6379749452625415218}
 --- !u!1 &9098247942822831858
 GameObject:
   m_ObjectHideFlags: 0

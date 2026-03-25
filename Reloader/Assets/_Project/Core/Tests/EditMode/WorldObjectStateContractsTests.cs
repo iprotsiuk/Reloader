@@ -1,11 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Persistence;
 using Reloader.Core.Save;
 using Reloader.Core.Save.IO;
 using Reloader.Core.Save.Modules;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Reloader.Core.Tests.EditMode
 {
@@ -221,6 +226,59 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(record.ItemInstanceId, Is.EqualTo("drop-instance-001"));
 
             WorldObjectPersistenceRuntimeBridge.ResetForTests();
+        }
+
+        [Test]
+        public void WorldObjectStateApplyService_ApplyForScene_SkipsBackupScenePathsThroughPublicPath()
+        {
+            const string tempScenePath = "Assets/_Project/Core/Tests/EditMode/Temp/__Backupscenes/WorldObjectStateBackupScene.unity";
+            const string tempRootPath = "Assets/_Project/Core/Tests/EditMode/Temp";
+            const string backupSceneFolderPath = "Assets/_Project/Core/Tests/EditMode/Temp/__Backupscenes";
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+            try
+            {
+                if (!AssetDatabase.IsValidFolder(tempRootPath))
+                {
+                    AssetDatabase.CreateFolder("Assets/_Project/Core/Tests/EditMode", "Temp");
+                }
+
+                if (!AssetDatabase.IsValidFolder(backupSceneFolderPath))
+                {
+                    AssetDatabase.CreateFolder(tempRootPath, "__Backupscenes");
+                }
+
+                var root = new GameObject("BackupSceneRoot");
+                SceneManager.MoveGameObjectToScene(root, scene);
+                var identity = root.AddComponent<WorldObjectIdentity>();
+                var objectId = identity.ObjectId;
+
+                EditorSceneManager.SaveScene(scene, tempScenePath);
+
+                var stateStore = new WorldObjectStateStore();
+                stateStore.Upsert(tempScenePath, new WorldObjectStateRecord
+                {
+                    ObjectId = objectId,
+                    Consumed = true
+                });
+
+                var appliedCount = new WorldObjectStateApplyService().ApplyForScene(scene, stateStore, new WorldScenePolicyRegistry());
+
+                Assert.That(appliedCount, Is.EqualTo(0), "Backup scenes should be skipped by the public apply path.");
+                Assert.That(root.activeSelf, Is.True, "Backup scenes should not have saved state applied to scene objects.");
+            }
+            finally
+            {
+                if (scene.IsValid())
+                {
+                    EditorSceneManager.CloseScene(scene, true);
+                }
+
+                AssetDatabase.DeleteAsset(tempScenePath);
+                AssetDatabase.DeleteAsset("Assets/_Project/Core/Tests/EditMode/Temp/__Backupscenes");
+                AssetDatabase.DeleteAsset("Assets/_Project/Core/Tests/EditMode/Temp");
+                AssetDatabase.Refresh();
+            }
         }
 
         [Test]

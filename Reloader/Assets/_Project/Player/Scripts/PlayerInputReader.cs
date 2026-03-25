@@ -68,8 +68,7 @@ namespace Reloader.Player
 
         private void OnEnable()
         {
-            ResolveActions();
-            _playerMap?.Enable();
+            EnsureActionMapEnabled();
         }
 
         private void OnDisable()
@@ -98,7 +97,7 @@ namespace Reloader.Player
         {
             if (_playerMap != null && !_playerMap.enabled)
             {
-                _playerMap.Enable();
+                EnsureActionMapEnabled();
             }
 
             var keyboard = Keyboard.current;
@@ -485,7 +484,7 @@ namespace Reloader.Player
         public void SetActionsAsset(InputActionAsset actionsAsset)
         {
             _actionsAsset = actionsAsset;
-            ResolveActions();
+            EnsureActionMapEnabled();
         }
 
         public void EnsureActionMapEnabled()

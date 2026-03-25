@@ -191,7 +191,24 @@ namespace Reloader.Core.Persistence
                 return;
             }
 
+            if (IsBackupScenePath(scene.path))
+            {
+                return;
+            }
+
             _applyService.ApplyForScene(scene, _stateStore, _policyRegistry, _runtimeSpawnRestorer);
+        }
+
+        private static bool IsBackupScenePath(string scenePath)
+        {
+            if (string.IsNullOrWhiteSpace(scenePath))
+            {
+                return false;
+            }
+
+            var normalizedPath = scenePath.Replace('\\', '/');
+            return normalizedPath.IndexOf("Temp/__Backupscenes/", StringComparison.OrdinalIgnoreCase) >= 0
+                || normalizedPath.EndsWith(".backup", StringComparison.OrdinalIgnoreCase);
         }
 
         private static WorldObjectStateModule ResolveModule(IReadOnlyList<SaveModuleRegistration> moduleRegistrations)
