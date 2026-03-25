@@ -21,6 +21,7 @@ MonoBehaviour:
   _projectileGravityMultiplier: 1
   _baseDamage: 35
   _maxRangeMeters: 220
+  _barrelTwistRateInchesPerTurn: 12
   _adsSpeedMultiplier: 0.7
   _startingMagazineCount: 0
   _startingReserveCount: 0

@@ -40,13 +40,13 @@ namespace Reloader.Economy
         private void Awake()
         {
             EnsureRuntimeInitialized();
-            ResolveReferences();
+            ResolveReferences(logMissing: false);
         }
 
         private void OnEnable()
         {
             EnsureRuntimeInitialized();
-            ResolveReferences();
+            ResolveReferences(logMissing: false);
             SubscribeToRuntimeHubReconfigure();
             SubscribeToShopEvents(ResolveShopEvents());
             ResolveInventoryEvents()?.RaiseMoneyChanged(_runtime.Money);
@@ -71,7 +71,7 @@ namespace Reloader.Economy
             }
         }
 
-public bool TryAwardMoney(int amount)
+        public bool TryAwardMoney(int amount)
         {
             if (_runtime == null || !_runtime.AwardMoney(amount))
             {
@@ -85,6 +85,7 @@ public bool TryAwardMoney(int amount)
 
         private void HandleTradeOpenRequested(string vendorId)
         {
+            ResolveReferences(logMissing: false);
             if (!TryGetCatalog(vendorId, out var catalog) || !_runtime.OpenVendor(vendorId, catalog))
             {
                 RaiseTradeResult(string.Empty, 0, true, false, TradeFailureReason.NoActiveVendor);
@@ -378,11 +379,22 @@ public bool TryAwardMoney(int amount)
 
         private void ResolveReferences()
         {
+            ResolveReferences(logMissing: true);
+        }
+
+        private void ResolveReferences(bool logMissing)
+        {
             _inventoryController ??= _inventoryControllerBehaviour as PlayerInventoryController;
             if (_inventoryController == null)
             {
                 _inventoryController = FindFirstObjectByType<PlayerInventoryController>(FindObjectsInactive.Include);
             }
+
+            if (!logMissing)
+            {
+                return;
+            }
+
             DependencyResolutionGuard.HasRequiredReferences(
                 ref _loggedMissingInventoryController,
                 this,
@@ -394,23 +406,7 @@ public bool TryAwardMoney(int amount)
         {
             if (_useRuntimeKernelShopEvents)
             {
-                var runtimeShopEvents = RuntimeKernelBootstrapper.ShopEvents;
-                if (!ReferenceEquals(_shopEvents, runtimeShopEvents))
-                {
-                    _shopEvents = runtimeShopEvents;
-                    SubscribeToShopEvents(_shopEvents);
-                }
-                else if (!ReferenceEquals(_subscribedShopEvents, _shopEvents))
-                {
-                    SubscribeToShopEvents(_shopEvents);
-                }
-
-                return _shopEvents;
-            }
-
-            if (!ReferenceEquals(_subscribedShopEvents, _shopEvents))
-            {
-                SubscribeToShopEvents(_shopEvents);
+                _shopEvents = RuntimeKernelBootstrapper.ShopEvents;
             }
 
             return _shopEvents;

@@ -266,6 +266,51 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void EscMenuViewBinder_Render_TogglesDocumentRootPickingWithOpenState()
+        {
+            var documentRoot = new VisualElement { name = "document-root" };
+            var escRoot = BuildEscRoot();
+            documentRoot.Add(escRoot);
+
+            var binder = new EscMenuViewBinder();
+            binder.Initialize(documentRoot);
+
+            binder.Render(EscMenuUiState.Create(
+                isOpen: true,
+                screen: EscMenuScreen.Main,
+                settingsTab: EscMenuSettingsTab.Game,
+                resolutionOptions: Array.Empty<string>(),
+                selectedResolutionIndex: 0,
+                fov: 80f,
+                lookSensitivity: 1f,
+                adsSensitivity: 1f,
+                scopedPipResolutionPercent: 100,
+                peripheralBlurPercent: 50,
+                globalVolume: 1f,
+                musicVolume: 1f,
+                soundsVolume: 1f));
+
+            Assert.That(documentRoot.pickingMode, Is.EqualTo(PickingMode.Position));
+
+            binder.Render(EscMenuUiState.Create(
+                isOpen: false,
+                screen: EscMenuScreen.Main,
+                settingsTab: EscMenuSettingsTab.Game,
+                resolutionOptions: Array.Empty<string>(),
+                selectedResolutionIndex: 0,
+                fov: 80f,
+                lookSensitivity: 1f,
+                adsSensitivity: 1f,
+                scopedPipResolutionPercent: 100,
+                peripheralBlurPercent: 50,
+                globalVolume: 1f,
+                musicVolume: 1f,
+                soundsVolume: 1f));
+
+            Assert.That(documentRoot.pickingMode, Is.EqualTo(PickingMode.Ignore));
+        }
+
+        [Test]
         public void EscMenuSettingsStore_SettingChangesApplyImmediatelyAndPersist()
         {
             var runtime = new TestSettingsRuntime();

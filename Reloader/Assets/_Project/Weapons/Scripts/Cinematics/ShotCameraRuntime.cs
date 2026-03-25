@@ -78,7 +78,7 @@ namespace Reloader.Weapons.Cinematics
             _activeSettings = settings;
         }
 
-        private void Update()
+        private void LateUpdate()
         {
             if (!_isShotActive)
             {
@@ -601,11 +601,6 @@ namespace Reloader.Weapons.Cinematics
             {
                 renderTypeProperty.SetValue(additionalCameraData, Enum.Parse(renderTypeProperty.PropertyType, "Base"));
             }
-
-            var cameraStackProperty = additionalCameraDataType.GetProperty("cameraStack");
-            var stack = cameraStackProperty?.GetValue(additionalCameraData);
-            var clearMethod = stack?.GetType().GetMethod("Clear");
-            clearMethod?.Invoke(stack, null);
         }
 
         private static Type ResolveTypeByName(string fullName)

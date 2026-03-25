@@ -12,33 +12,42 @@ namespace Reloader.Game.Weapons
         [SerializeField] private Renderer _targetRenderer;
         [SerializeField] private Material _displayMaterialTemplate;
         [SerializeField] private Renderer _apertureRenderer;
+        [SerializeField] private Renderer _hipLensRenderer;
 
         private MaterialPropertyBlock _propertyBlock;
-        private Material[] _originalSharedMaterials;
+        private Material[] _originalTargetSharedMaterials;
+        private Material[] _originalHipLensSharedMaterials;
         private Material _runtimeDisplayMaterial;
         private bool _displayMaterialApplied;
-        private bool _capturedOriginalRendererEnabled;
-        private bool _originalRendererEnabled;
+        private bool _capturedOriginalTargetRendererEnabled;
+        private bool _capturedOriginalHipLensRendererEnabled;
+        private bool _originalTargetRendererEnabled;
+        private bool _originalHipLensRendererEnabled;
 
         public Texture CurrentTexture { get; private set; }
         public Renderer TargetRenderer => _targetRenderer != null ? _targetRenderer : (_targetRenderer = GetComponent<Renderer>());
         public Renderer ApertureRenderer => _apertureRenderer;
+        public Renderer HipLensRenderer => _hipLensRenderer;
         public bool IsUsingProxySurface => false;
 
         private void Awake()
         {
             _targetRenderer ??= GetComponent<Renderer>();
-            CaptureOriginalRendererState();
-            if (_targetRenderer != null)
+            CaptureOriginalTargetRendererState();
+            CaptureOriginalHipLensRendererState();
+
+            if (CurrentTexture == null)
             {
-                _targetRenderer.enabled = false;
+                ApplyHipVisualState();
             }
         }
 
         private void OnDestroy()
         {
-            RestoreOriginalMaterials();
-            RestoreOriginalRendererState();
+            RestoreOriginalTargetMaterials();
+            RestoreOriginalHipLensMaterials();
+            RestoreOriginalTargetRendererState();
+            RestoreOriginalHipLensRendererState();
 
             if (_runtimeDisplayMaterial != null)
             {
@@ -58,10 +67,11 @@ namespace Reloader.Game.Weapons
             _propertyBlock ??= new MaterialPropertyBlock();
             if (texture == null)
             {
-                RestoreOriginalMaterials();
+                RestoreOriginalTargetMaterials();
+                RestoreOriginalHipLensMaterials();
                 _propertyBlock.Clear();
                 _targetRenderer.SetPropertyBlock(_propertyBlock);
-                _targetRenderer.enabled = false;
+                ApplyHipVisualState();
                 CurrentTexture = null;
                 return true;
             }
@@ -72,8 +82,7 @@ namespace Reloader.Game.Weapons
             }
 
             ApplyTextureToRenderer(_targetRenderer, texture);
-            _targetRenderer.enabled = true;
-            _targetRenderer.SetPropertyBlock(_propertyBlock);
+            ApplyPipVisualState();
             CurrentTexture = texture;
             return true;
         }
@@ -90,16 +99,16 @@ namespace Reloader.Game.Weapons
                 return false;
             }
 
-            CaptureOriginalRendererState();
-            _originalSharedMaterials = _targetRenderer.sharedMaterials;
+            CaptureOriginalTargetRendererState();
+            _originalTargetSharedMaterials = _targetRenderer.sharedMaterials;
             _runtimeDisplayMaterial ??= CreateDisplayMaterial(ResolveSourceMaterial());
             if (_runtimeDisplayMaterial == null)
             {
                 return false;
             }
 
-            var materialCount = _originalSharedMaterials != null && _originalSharedMaterials.Length > 0
-                ? _originalSharedMaterials.Length
+            var materialCount = _originalTargetSharedMaterials != null && _originalTargetSharedMaterials.Length > 0
+                ? _originalTargetSharedMaterials.Length
                 : 1;
             var displayMaterials = new Material[materialCount];
             for (var i = 0; i < materialCount; i++)
@@ -119,13 +128,13 @@ namespace Reloader.Game.Weapons
                 return _displayMaterialTemplate;
             }
 
-            if (_originalSharedMaterials != null)
+            if (_originalTargetSharedMaterials != null)
             {
-                for (var i = 0; i < _originalSharedMaterials.Length; i++)
+                for (var i = 0; i < _originalTargetSharedMaterials.Length; i++)
                 {
-                    if (_originalSharedMaterials[i] != null)
+                    if (_originalTargetSharedMaterials[i] != null)
                     {
-                        return _originalSharedMaterials[i];
+                        return _originalTargetSharedMaterials[i];
                     }
                 }
             }
@@ -146,40 +155,102 @@ namespace Reloader.Game.Weapons
             };
         }
 
-        private void RestoreOriginalMaterials()
+        private void RestoreOriginalTargetMaterials()
         {
             if (!_displayMaterialApplied || _targetRenderer == null)
             {
                 return;
             }
 
-            if (_originalSharedMaterials != null && _originalSharedMaterials.Length > 0)
+            if (_originalTargetSharedMaterials != null && _originalTargetSharedMaterials.Length > 0)
             {
-                _targetRenderer.sharedMaterials = _originalSharedMaterials;
+                _targetRenderer.sharedMaterials = _originalTargetSharedMaterials;
             }
 
             _displayMaterialApplied = false;
         }
 
-        private void CaptureOriginalRendererState()
+        private void RestoreOriginalHipLensMaterials()
         {
-            if (_capturedOriginalRendererEnabled || _targetRenderer == null)
+            if (_hipLensRenderer == null)
             {
                 return;
             }
 
-            _originalRendererEnabled = _targetRenderer.enabled;
-            _capturedOriginalRendererEnabled = true;
+            if (_originalHipLensSharedMaterials != null && _originalHipLensSharedMaterials.Length > 0)
+            {
+                _hipLensRenderer.sharedMaterials = _originalHipLensSharedMaterials;
+            }
         }
 
-        private void RestoreOriginalRendererState()
+        private void CaptureOriginalTargetRendererState()
         {
-            if (!_capturedOriginalRendererEnabled || _targetRenderer == null)
+            if (_capturedOriginalTargetRendererEnabled || _targetRenderer == null)
             {
                 return;
             }
 
-            _targetRenderer.enabled = _originalRendererEnabled;
+            _originalTargetRendererEnabled = _targetRenderer.enabled;
+            _capturedOriginalTargetRendererEnabled = true;
+        }
+
+        private void CaptureOriginalHipLensRendererState()
+        {
+            if (_capturedOriginalHipLensRendererEnabled || _hipLensRenderer == null)
+            {
+                return;
+            }
+
+            _originalHipLensRendererEnabled = _hipLensRenderer.enabled;
+            _originalHipLensSharedMaterials = _hipLensRenderer.sharedMaterials;
+            _capturedOriginalHipLensRendererEnabled = true;
+        }
+
+        private void RestoreOriginalTargetRendererState()
+        {
+            if (!_capturedOriginalTargetRendererEnabled || _targetRenderer == null)
+            {
+                return;
+            }
+
+            _targetRenderer.enabled = _originalTargetRendererEnabled;
+        }
+
+        private void RestoreOriginalHipLensRendererState()
+        {
+            if (!_capturedOriginalHipLensRendererEnabled || _hipLensRenderer == null)
+            {
+                return;
+            }
+
+            _hipLensRenderer.enabled = _originalHipLensRendererEnabled;
+        }
+
+        private void ApplyHipVisualState()
+        {
+            if (_targetRenderer != null)
+            {
+                _targetRenderer.enabled = false;
+            }
+
+            if (_hipLensRenderer != null)
+            {
+                _hipLensRenderer.enabled = true;
+            }
+        }
+
+        private void ApplyPipVisualState()
+        {
+            if (_targetRenderer != null)
+            {
+                _targetRenderer.enabled = true;
+                _targetRenderer.SetPropertyBlock(_propertyBlock);
+            }
+
+            if (_hipLensRenderer != null)
+            {
+                _hipLensRenderer.enabled = false;
+            }
         }
 
         private void ApplyTextureToRenderer(Renderer renderer, Texture texture)

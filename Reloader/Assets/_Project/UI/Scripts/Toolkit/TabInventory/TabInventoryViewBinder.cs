@@ -11,6 +11,8 @@ namespace Reloader.UI.Toolkit.TabInventory
 {
     public sealed class TabInventoryViewBinder : IUiViewBinder
     {
+        private VisualElement _documentRoot;
+        private VisualElement _screenRoot;
         private VisualElement _panel;
         private VisualElement _rail;
         private VisualElement _tabBar;
@@ -134,6 +136,17 @@ namespace Reloader.UI.Toolkit.TabInventory
 
         public void Initialize(VisualElement root, int beltSlotCount, int backpackSlotCount)
         {
+            _documentRoot = root;
+            _screenRoot = root?.Q<VisualElement>("inventory__root") ?? root;
+            if (root != null)
+            {
+                root.pickingMode = PickingMode.Ignore;
+            }
+            if (_screenRoot != null)
+            {
+                _screenRoot.style.display = DisplayStyle.None;
+                _screenRoot.pickingMode = PickingMode.Ignore;
+            }
             _panel = root?.Q<VisualElement>("inventory__panel");
             _rail = root?.Q<VisualElement>("inventory__rail");
             _tabBar = root?.Q<VisualElement>("inventory__tabbar");
@@ -310,6 +323,17 @@ namespace Reloader.UI.Toolkit.TabInventory
             if (state is not TabInventoryUiState inventoryState)
             {
                 return;
+            }
+
+            if (_screenRoot != null)
+            {
+                _screenRoot.style.display = inventoryState.IsOpen ? DisplayStyle.Flex : DisplayStyle.None;
+                _screenRoot.pickingMode = inventoryState.IsOpen ? PickingMode.Position : PickingMode.Ignore;
+            }
+
+            if (_documentRoot != null && !ReferenceEquals(_documentRoot, _screenRoot))
+            {
+                _documentRoot.pickingMode = inventoryState.IsOpen ? PickingMode.Position : PickingMode.Ignore;
             }
 
             if (_panel != null)
@@ -1763,5 +1787,6 @@ public bool TryInvokeTabSelectionForTests(string section)
                 slot.EnableInClassList(className, activeContainer == "backpack" && activeIndex == i);
             }
         }
+
     }
 }

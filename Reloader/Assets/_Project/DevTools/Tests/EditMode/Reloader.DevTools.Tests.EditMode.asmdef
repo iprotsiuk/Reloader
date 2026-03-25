@@ -3,7 +3,8 @@
   "rootNamespace": "Reloader.DevTools.Tests.EditMode",
   "references": [
     "Reloader.DevTools",
-    "Reloader.Core"
+    "Reloader.Core",
+    "MCPForUnity.Editor"
   ],
   "includePlatforms": [
     "Editor"

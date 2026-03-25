@@ -23,6 +23,11 @@ namespace Reloader.UI.Toolkit.Reloading
 
         public void Initialize(VisualElement root, int operationCount)
         {
+            if (root != null)
+            {
+                root.style.display = DisplayStyle.None;
+                root.pickingMode = PickingMode.Ignore;
+            }
             _root = root;
             _operationElements = new VisualElement[Math.Max(0, operationCount)];
             _operationLabels = new Label[Math.Max(0, operationCount)];
@@ -179,6 +184,7 @@ namespace Reloader.UI.Toolkit.Reloading
             }
 
             _root.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
+            _root.pickingMode = isVisible ? PickingMode.Position : PickingMode.Ignore;
         }
     }
 }

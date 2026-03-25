@@ -9,6 +9,9 @@ using Reloader.Weapons.Runtime;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Reloader.Weapons.Tests.PlayMode
 {
@@ -395,6 +398,110 @@ namespace Reloader.Weapons.Tests.PlayMode
             Assert.That(visual.localScale, Is.EqualTo(baselineScale).Using(Vector3EqualityComparer.Instance));
 
             Object.Destroy(projectileGo);
+        }
+
+        [UnityTest]
+        public IEnumerator Projectile_ConfiguredAuthoredVisual_AppliesLocalEulerOffset()
+        {
+#if UNITY_EDITOR
+            var projectileGo = new GameObject("Projectile");
+            projectileGo.transform.position = Vector3.zero;
+            projectileGo.transform.forward = Vector3.forward;
+            var projectile = projectileGo.AddComponent<WeaponProjectile>();
+
+            try
+            {
+                var method = typeof(WeaponProjectile).GetMethod(
+                    "ConfigureInFlightVisual",
+                    BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(method, Is.Not.Null,
+                    "Expected WeaponProjectile to expose an authored visual configuration seam so ammo-specific projectile visuals can define their own orientation.");
+
+                var visualPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                    "Assets/ThirdParty/Polygon-Mega Weapone Kit/Prefabs/AdditionalAmmo/SM_Bullet_7_62_54_FMG_ONE.prefab");
+                Assert.That(visualPrefab, Is.Not.Null);
+
+                method!.Invoke(projectile, new object[] { visualPrefab, new Vector3(90f, 0f, 0f), 10f });
+                yield return null;
+
+                var visual = projectileGo.transform.Find("SM_Bullet_7_62_54_FMG_ONE");
+                Assert.That(visual, Is.Not.Null);
+                Assert.That(Vector3.Dot(visual!.up, projectileGo.transform.forward), Is.GreaterThan(0.99f),
+                    "Expected the authored bullet mesh to be rotated 90 degrees so its longitudinal axis points forward along the projectile path.");
+                Assert.That(projectileGo.transform.Find("ProjectileVisual"), Is.Null);
+            }
+            finally
+            {
+                Object.Destroy(projectileGo);
+            }
+#else
+            Assert.Ignore("Requires UnityEditor AssetDatabase.");
+            yield break;
+#endif
+        }
+
+        [UnityTest]
+        public IEnumerator Projectile_ConfiguredAuthoredVisual_SpinsWhileInFlightFromTwistRate()
+        {
+#if UNITY_EDITOR
+            var projectileGo = new GameObject("Projectile");
+            projectileGo.transform.position = Vector3.zero;
+            projectileGo.transform.forward = Vector3.forward;
+            var projectile = projectileGo.AddComponent<WeaponProjectile>();
+
+            try
+            {
+                var method = typeof(WeaponProjectile).GetMethod(
+                    "ConfigureInFlightVisual",
+                    BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(method, Is.Not.Null,
+                    "Expected WeaponProjectile to expose an authored visual configuration seam so visible bullets can spin from rifling twist rate while in flight.");
+
+                var visualPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                    "Assets/ThirdParty/Polygon-Mega Weapone Kit/Prefabs/AdditionalAmmo/SM_Bullet_7_62_54_FMG_ONE.prefab");
+                Assert.That(visualPrefab, Is.Not.Null);
+
+                method!.Invoke(projectile, new object[] { visualPrefab, new Vector3(90f, 0f, 0f), 10f });
+                yield return null;
+
+                var visual = projectileGo.transform.Find("SM_Bullet_7_62_54_FMG_ONE");
+                Assert.That(visual, Is.Not.Null);
+
+                projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 0.254f, gravityMultiplier: 0f, damage: 1f);
+                var initialRotation = visual!.localRotation;
+
+                yield return null;
+                yield return null;
+
+                Assert.That(Quaternion.Angle(initialRotation, visual.localRotation), Is.GreaterThan(0.1f),
+                    "Expected the authored bullet visual to accumulate visible spin while the projectile is in flight.");
+                Assert.That(Vector3.Dot(visual.up, projectileGo.transform.forward), Is.GreaterThan(0.99f),
+                    "Expected rifling spin to preserve the bullet's forward alignment by rotating around the projectile's longitudinal axis, not a side axis.");
+            }
+            finally
+            {
+                Object.Destroy(projectileGo);
+            }
+#else
+            Assert.Ignore("Requires UnityEditor AssetDatabase.");
+            yield break;
+#endif
+        }
+
+        [Test]
+        public void ShotCameraRuntime_TracksProjectileFromLateUpdateContract()
+        {
+            var lateUpdate = typeof(ShotCameraRuntime).GetMethod(
+                "LateUpdate",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            var update = typeof(ShotCameraRuntime).GetMethod(
+                "Update",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+
+            Assert.That(lateUpdate, Is.Not.Null,
+                "Shot camera follow should update after projectile motion so the cinematic camera reads the latest projectile position each frame.");
+            Assert.That(update, Is.Null,
+                "Shot camera follow should not run from Update because that samples projectile state before normal projectile motion and produces visible jitter.");
         }
 
         [Test]

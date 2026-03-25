@@ -31,7 +31,7 @@ namespace Reloader.Weapons.PackRuntime
 
         public bool SetAiming(bool isAiming)
         {
-            var effectiveAim = IsEquipped && isAiming && !IsReloading;
+            var effectiveAim = IsEquipped && isAiming;
             if (IsAiming == effectiveAim)
             {
                 return false;
@@ -49,7 +49,6 @@ namespace Reloader.Weapons.PackRuntime
             }
 
             IsReloading = true;
-            IsAiming = false;
             ReloadCompleteTime = now + Mathf.Max(0.01f, durationSeconds);
             return true;
         }

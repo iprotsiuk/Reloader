@@ -5,7 +5,9 @@ using System.Reflection;
 using Reloader.Player;
 using Reloader.Player.Viewmodel;
 using Reloader.World.Runtime;
+using Debug = UnityEngine.Debug;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 #if UNITY_EDITOR
 using UnityEditor.SceneManagement;
@@ -22,11 +24,15 @@ namespace Reloader.World.Travel
         private static Dictionary<string, int> _pendingInventoryQuantities = new();
         private static int _pendingSelectedBeltIndex = -1;
         private static readonly List<WeaponRuntimeSnapshotCapture> _pendingWeaponSnapshots = new();
+        private static readonly List<GameObject> _temporarilyDisabledEventSystemOwners = new();
         private const string FpsArmsPrefabResourcePath = "Viewmodels/Characters/FPS_Arms";
         private const string FpsArmsControllerResourcePath = "Viewmodels/Characters/ViewmodelArms";
+        private const string ViewmodelPresentationRootName = "ViewmodelPresentationRoot";
+        private const string PlayerArmsName = "PlayerArms";
         private static readonly Vector3 FpsArmsLocalPosition = new Vector3(0f, -0.027f, 0.1f);
         private static readonly Quaternion FpsArmsLocalRotation = Quaternion.identity;
         private static readonly Vector3 FpsArmsLocalScale = new Vector3(0.42f, 0.42f, 0.42f);
+        private const string MainTownSceneName = "MainTown";
         private static object _pendingTravelPopulationModule;
 
         public static string LastResolvedEntryPointId { get; private set; }
@@ -43,6 +49,7 @@ namespace Reloader.World.Travel
             _pendingInventoryQuantities = new Dictionary<string, int>();
             _pendingSelectedBeltIndex = -1;
             _pendingWeaponSnapshots.Clear();
+            _temporarilyDisabledEventSystemOwners.Clear();
             _pendingTravelPopulationModule = null;
         }
 
@@ -96,6 +103,7 @@ namespace Reloader.World.Travel
                 return false;
             }
 
+            DisableActiveEventSystemsForTravel();
             _pendingSceneName = sceneName.Trim();
             _pendingEntryPointId = entryPointId.Trim();
             LastResolvedEntryPointId = null;
@@ -107,6 +115,7 @@ namespace Reloader.World.Travel
             catch (Exception ex)
             {
                 Debug.LogWarning($"Failed to load travel scene '{_pendingSceneName}': {ex.Message}");
+                RestoreTemporarilyDisabledEventSystems();
                 ClearPendingTravelRequest(applySuppression: false);
                 return false;
             }
@@ -155,12 +164,16 @@ namespace Reloader.World.Travel
                 SceneManager.SetActiveScene(scene);
                 RestoreCivilianPopulationStateAfterTravel(scene);
                 RepositionPlayerToEntryPoint(scene, resolvedEntryPoint.transform);
+                BindPlayerStateTravelAnchor(scene, resolvedEntryPoint.EntryPointId);
                 UnloadLoadedScenesExcept(scene);
+                RearmActiveEventSystemsAfterTravel(scene);
+                _temporarilyDisabledEventSystemOwners.Clear();
                 ClearPendingTravelRequest(applySuppression: true);
             }
             else
             {
                 Debug.LogWarning($"Travel entry point '{_pendingEntryPointId}' was not found in scene '{scene.name}'.");
+                RestoreTemporarilyDisabledEventSystems();
                 UnloadSceneForFailedTravel(scene);
                 ClearPendingTravelRequest(applySuppression: false);
             }
@@ -338,6 +351,29 @@ namespace Reloader.World.Travel
 
         }
 
+        private static void BindPlayerStateTravelAnchor(Scene scene, string entryPointId)
+        {
+            if (!scene.IsValid() || !scene.isLoaded || string.IsNullOrWhiteSpace(entryPointId))
+            {
+                return;
+            }
+
+            var playerRoot = PersistentPlayerRoot.Instance?.PlayerRootTransform;
+            if (playerRoot == null)
+            {
+                return;
+            }
+
+            var playerStateBridge = playerRoot.GetComponent<PlayerStateRuntimeBridge>();
+            if (playerStateBridge == null)
+            {
+                return;
+            }
+
+            playerStateBridge.SetPlayerRootTransformForRuntime(playerRoot);
+            playerStateBridge.SetCurrentAnchorState(scene.path, entryPointId);
+        }
+
         private static bool PreparePersistentPlayerRootForTravel()
         {
             var persistentRoot = PersistentPlayerRoot.Instance;
@@ -365,6 +401,44 @@ namespace Reloader.World.Travel
             }
         }
 
+        private static void DisableActiveEventSystemsForTravel()
+        {
+            RestoreTemporarilyDisabledEventSystems();
+
+            var activeEventSystems = UnityEngine.Object.FindObjectsByType<EventSystem>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            for (var i = 0; i < activeEventSystems.Length; i++)
+            {
+                var eventSystem = activeEventSystems[i];
+                if (eventSystem == null || !eventSystem.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                var owner = eventSystem.gameObject;
+                if (owner == null || !owner.activeSelf)
+                {
+                    continue;
+                }
+
+                _temporarilyDisabledEventSystemOwners.Add(owner);
+                owner.SetActive(false);
+            }
+        }
+
+        private static void RestoreTemporarilyDisabledEventSystems()
+        {
+            for (var i = 0; i < _temporarilyDisabledEventSystemOwners.Count; i++)
+            {
+                var owner = _temporarilyDisabledEventSystemOwners[i];
+                if (owner != null)
+                {
+                    owner.SetActive(true);
+                }
+            }
+
+            _temporarilyDisabledEventSystemOwners.Clear();
+        }
+
         private static void UnloadLoadedScenesExcept(Scene sceneToKeep)
         {
             var scenesToUnload = new List<Scene>();
@@ -383,6 +457,66 @@ namespace Reloader.World.Travel
             {
                 UnloadSceneForFailedTravel(scenesToUnload[i]);
             }
+        }
+
+        private static void RearmActiveEventSystemsAfterTravel(Scene activeScene)
+        {
+            var activeEventSystems = UnityEngine.Object.FindObjectsByType<EventSystem>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            if (activeEventSystems.Length == 0)
+            {
+                RestoreTemporarilyDisabledEventSystems();
+                return;
+            }
+
+            var onApplicationFocus = typeof(EventSystem).GetMethod("OnApplicationFocus", BindingFlags.Instance | BindingFlags.NonPublic);
+            var rearmedCount = 0;
+            for (var i = 0; i < activeEventSystems.Length; i++)
+            {
+                var eventSystem = activeEventSystems[i];
+                if (eventSystem == null || !eventSystem.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                if (activeScene.IsValid() && eventSystem.gameObject.scene != activeScene)
+                {
+                    continue;
+                }
+
+                EnableEventSystemUiActions(eventSystem);
+                onApplicationFocus?.Invoke(eventSystem, new object[] { true });
+                eventSystem.UpdateModules();
+
+#pragma warning disable 618
+                EventSystem.SetUITookitEventSystemOverride(eventSystem, false, false);
+                EventSystem.SetUITookitEventSystemOverride(eventSystem, true, true);
+#pragma warning restore 618
+                rearmedCount++;
+            }
+
+            if (rearmedCount == 0)
+            {
+                RestoreTemporarilyDisabledEventSystems();
+                return;
+            }
+        }
+
+        private static void EnableEventSystemUiActions(EventSystem eventSystem)
+        {
+            var uiModule = ResolveUiInputModule(eventSystem);
+            var actionsAsset = uiModule?.GetType().GetProperty("actionsAsset", BindingFlags.Instance | BindingFlags.Public)?.GetValue(uiModule);
+            actionsAsset?.GetType().GetMethod("Enable", BindingFlags.Instance | BindingFlags.Public)?.Invoke(actionsAsset, null);
+        }
+
+        private static Component ResolveUiInputModule(EventSystem eventSystem)
+        {
+            if (eventSystem == null)
+            {
+                return null;
+            }
+
+            var uiModuleType = Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
+            return uiModuleType != null ? eventSystem.GetComponent(uiModuleType) : null;
         }
 
         private static void UnloadSceneForFailedTravel(Scene scene)
@@ -777,15 +911,33 @@ namespace Reloader.World.Travel
                 return;
             }
 
-            var playerArms = cameraPivot.Find("PlayerArms");
-            var animator = playerArms != null ? playerArms.GetComponentInChildren<Animator>(true) : null;
+            var viewmodelPresentationRoot = cameraPivot.Find(ViewmodelPresentationRootName);
+            if (viewmodelPresentationRoot == null)
+            {
+                viewmodelPresentationRoot = new GameObject(ViewmodelPresentationRootName).transform;
+                viewmodelPresentationRoot.SetParent(cameraPivot, false);
+            }
+
+            var legacyPlayerArms = cameraPivot.Find(PlayerArmsName);
+            if (legacyPlayerArms != null)
+            {
+                DestroyTransformImmediatelyWhenPossible(legacyPlayerArms);
+            }
+
+            var cameraDefaults = playerRootTransform.GetComponent<PlayerCameraDefaults>();
+            var playerArms = cameraDefaults != null && cameraDefaults.TryGetPlayerArmsRoot(out var resolvedPlayerArms)
+                ? resolvedPlayerArms
+                : viewmodelPresentationRoot.Find(PlayerArmsName);
+            var animator = cameraDefaults != null && cameraDefaults.TryGetPlayerArmsAnimator(out var resolvedAnimator)
+                ? resolvedAnimator
+                : (playerArms != null ? playerArms.GetComponentInChildren<Animator>(true) : null);
             if (animator == null)
             {
                 var armsPrefab = Resources.Load<GameObject>(FpsArmsPrefabResourcePath);
                 if (armsPrefab != null)
                 {
-                    var instance = UnityEngine.Object.Instantiate(armsPrefab, cameraPivot);
-                    instance.name = "PlayerArms";
+                    var instance = UnityEngine.Object.Instantiate(armsPrefab, viewmodelPresentationRoot);
+                    instance.name = PlayerArmsName;
                     playerArms = instance.transform;
                     animator = playerArms.GetComponentInChildren<Animator>(true);
                 }
@@ -793,10 +945,10 @@ namespace Reloader.World.Travel
 
             if (animator == null)
             {
-                animator = cameraPivot.GetComponentInChildren<Animator>(true);
+                animator = viewmodelPresentationRoot.GetComponentInChildren<Animator>(true);
                 if (animator != null && playerArms == null)
                 {
-                    playerArms = ResolveArmsRoot(animator.transform, cameraPivot);
+                    playerArms = ResolveArmsRoot(animator.transform, viewmodelPresentationRoot);
                 }
             }
 
@@ -809,6 +961,7 @@ namespace Reloader.World.Travel
             playerArms.localPosition = FpsArmsLocalPosition;
             playerArms.localRotation = FpsArmsLocalRotation;
             playerArms.localScale = FpsArmsLocalScale;
+            viewmodelPresentationRoot.gameObject.SetActive(true);
 
             var renderers = playerArms.GetComponentsInChildren<Renderer>(true);
             for (var i = 0; i < renderers.Length; i++)
@@ -819,7 +972,7 @@ namespace Reloader.World.Travel
                 }
             }
 
-            RestoreArmsAnimatorControllerIfMissing(cameraPivot, animator);
+            RestoreArmsAnimatorControllerIfMissing(viewmodelPresentationRoot, animator);
 
             var viewmodelAdapter = playerRootTransform.GetComponent<ViewmodelAnimationAdapter>();
             if (viewmodelAdapter != null)
@@ -837,15 +990,15 @@ namespace Reloader.World.Travel
             RebindPlayerRigRuntimeReferences(playerRootTransform);
         }
 
-        private static Transform ResolveArmsRoot(Transform candidate, Transform cameraPivot)
+        private static Transform ResolveArmsRoot(Transform candidate, Transform rootTransform)
         {
-            if (candidate == null || cameraPivot == null)
+            if (candidate == null || rootTransform == null)
             {
                 return candidate;
             }
 
             var current = candidate;
-            while (current != null && current.parent != null && current.parent != cameraPivot)
+            while (current != null && current.parent != null && current.parent != rootTransform)
             {
                 current = current.parent;
             }
@@ -853,16 +1006,16 @@ namespace Reloader.World.Travel
             return current ?? candidate;
         }
 
-        private static void RestoreArmsAnimatorControllerIfMissing(Transform cameraPivot, Animator animator)
+        private static void RestoreArmsAnimatorControllerIfMissing(Transform searchRoot, Animator animator)
         {
             if (animator == null || animator.runtimeAnimatorController != null)
             {
                 return;
             }
 
-            if (cameraPivot != null)
+            if (searchRoot != null)
             {
-                var animators = cameraPivot.GetComponentsInChildren<Animator>(true);
+                var animators = searchRoot.GetComponentsInChildren<Animator>(true);
                 for (var i = 0; i < animators.Length; i++)
                 {
                     var candidate = animators[i];
@@ -884,6 +1037,26 @@ namespace Reloader.World.Travel
             {
                 animator.runtimeAnimatorController = controller;
             }
+        }
+
+        private static void DestroyTransformImmediatelyWhenPossible(Transform target)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            target.name = $"{target.name}_RetiredLegacy";
+            target.SetParent(null, false);
+            target.gameObject.SetActive(false);
+
+            if (Application.isPlaying)
+            {
+                UnityEngine.Object.Destroy(target.gameObject);
+                return;
+            }
+
+            UnityEngine.Object.DestroyImmediate(target.gameObject);
         }
 
         private static void RebindPlayerRigRuntimeReferences(Transform playerRootTransform)
@@ -1015,7 +1188,14 @@ namespace Reloader.World.Travel
                     type.GetField("_isWorkbenchMenuOpen", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(component, false);
                     type.GetField("_isTabInventoryOpen", BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(component, false);
                     type.GetMethod("ApplyCursorState", BindingFlags.Instance | BindingFlags.NonPublic)?.Invoke(component, null);
-                    type.GetMethod("LockCursor", BindingFlags.Instance | BindingFlags.Public)?.Invoke(component, null);
+                    if (string.Equals(playerRootTransform.gameObject.scene.name, MainTownSceneName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        type.GetMethod("UnlockCursor", BindingFlags.Instance | BindingFlags.Public)?.Invoke(component, null);
+                    }
+                    else
+                    {
+                        type.GetMethod("LockCursor", BindingFlags.Instance | BindingFlags.Public)?.Invoke(component, null);
+                    }
                 }
             }
         }
@@ -1044,6 +1224,7 @@ namespace Reloader.World.Travel
                     ?.Invoke(uiStateEvents, new object[] { false });
             }
 
+            ShotCameraGameplayState.Reset();
             CloseStorageUiSessionAfterTravel();
         }
 

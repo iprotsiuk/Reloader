@@ -8,6 +8,7 @@ generatedImages/
 node_modules/
 unity-*.log
 unity-*.xml
+/Library/
 _quarantine_*/
 _Recovery_quarantine_*/
 _Recovery_quarantine_*.meta
@@ -74,6 +75,7 @@ Reloader/[Aa]ssets/Addressables_Temp*
 Reloader/[Aa]ssets/AddressableAssetsData/*/*.bin*
 Reloader/[Aa]ssets/_Recovery/
 Reloader/[Aa]ssets/_Recovery/**
+Reloader/[Aa]ssets/_Recovery.meta
 Reloader/Assets/**/LightingData.asset
 Reloader/Assets/**/LightingData.asset.meta
 !Reloader/Assets/Scenes/MainWorld/LightingData.asset

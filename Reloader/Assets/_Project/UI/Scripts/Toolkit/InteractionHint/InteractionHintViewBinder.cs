@@ -14,6 +14,10 @@ namespace Reloader.UI.Toolkit.InteractionHint
 
         public void Initialize(VisualElement root)
         {
+            if (root != null)
+            {
+                root.pickingMode = PickingMode.Ignore;
+            }
             _root = root;
             _hintRoot = root?.Q<VisualElement>("interaction-hint__root");
             _textLabel = root?.Q<Label>("interaction-hint__text");

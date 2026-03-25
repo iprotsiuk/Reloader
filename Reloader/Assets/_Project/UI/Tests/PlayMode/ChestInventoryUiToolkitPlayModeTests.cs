@@ -66,6 +66,37 @@ namespace Reloader.UI.Tests.PlayMode
             Object.DestroyImmediate(catalogProviderGo);
         }
 
+        [Test]
+        public void Initialize_DefaultsChestRootToHiddenAndNonInteractive()
+        {
+            var root = BuildRoot();
+            var binder = new ChestInventoryViewBinder();
+
+            binder.Initialize(root, chestSlotCount: 1, playerSlotCount: 1);
+
+            Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(root.pickingMode, Is.EqualTo(PickingMode.Ignore));
+        }
+
+        [Test]
+        public void Render_OpenState_MakesChestRootVisible()
+        {
+            var root = BuildRoot();
+            var binder = new ChestInventoryViewBinder();
+
+            binder.Initialize(root, chestSlotCount: 1, playerSlotCount: 1);
+            binder.Render(ChestInventoryUiState.Create(
+                isOpen: true,
+                chestSlots: new[] { new ChestInventoryUiState.SlotState(0, null, false) },
+                playerSlots: new[] { new ChestInventoryUiState.SlotState(0, null, false) }));
+
+            var panel = root.Q<VisualElement>("chest__panel");
+
+            Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(root.pickingMode, Is.EqualTo(PickingMode.Position));
+            Assert.That(panel.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+        }
+
         private static VisualElement BuildRoot()
         {
             var root = new VisualElement();

@@ -1368,6 +1368,62 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerCursorLockController_Update_ReconcilesStaleLocalMenuFlagsFromCurrentRuntimeUiState()
+        {
+            var previousLockState = Cursor.lockState;
+            var previousVisible = Cursor.visible;
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var hub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = hub;
+
+            GameObject go = null;
+
+            try
+            {
+                go = new GameObject("CursorLockStaleMenuFlagRecovery");
+                var controller = go.AddComponent<PlayerCursorLockController>();
+                controller.LockCursor();
+
+                hub.RaiseEscMenuVisibilityChanged(true);
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.True);
+                Assert.That(Cursor.lockState, Is.EqualTo(CursorLockMode.None));
+                Assert.That(Cursor.visible, Is.True);
+
+                var escMenuOpenField = typeof(PlayerCursorLockController).GetField("_isEscMenuOpen", BindingFlags.Instance | BindingFlags.NonPublic);
+                var applyCursorStateMethod = typeof(PlayerCursorLockController).GetMethod("ApplyCursorState", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(escMenuOpenField, Is.Not.Null);
+                Assert.That(applyCursorStateMethod, Is.Not.Null);
+
+                escMenuOpenField!.SetValue(controller, false);
+                applyCursorStateMethod!.Invoke(controller, null);
+
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.False);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.False);
+                Assert.That(Cursor.lockState, Is.EqualTo(CursorLockMode.Locked));
+                Assert.That(Cursor.visible, Is.False);
+
+                InvokePrivateUpdate(controller);
+
+                Assert.That(PlayerCursorLockController.IsAnyMenuOpen, Is.True);
+                Assert.That(PlayerCursorLockController.IsGameplayInputBlocked, Is.True);
+                Assert.That(Cursor.lockState, Is.EqualTo(CursorLockMode.None));
+                Assert.That(Cursor.visible, Is.True);
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                if (go != null)
+                {
+                    Object.DestroyImmediate(go);
+                }
+
+                Cursor.lockState = previousLockState;
+                Cursor.visible = previousVisible;
+            }
+        }
+
+        [Test]
         public void TestInputSource_ExposesFireAndReloadConsumeMethods()
         {
             var root = new GameObject("InputSourceRoot");

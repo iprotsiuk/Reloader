@@ -13,6 +13,10 @@ namespace Reloader.UI.Toolkit.AmmoHud
 
         public void Initialize(VisualElement root)
         {
+            if (root != null)
+            {
+                root.pickingMode = PickingMode.Ignore;
+            }
             _root = root;
             _countLabel = root?.Q<Label>("ammo__count-label");
         }

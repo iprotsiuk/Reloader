@@ -6,6 +6,7 @@ using Reloader.World.Travel;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 
 namespace Reloader.World.Tests.EditMode
@@ -276,6 +277,63 @@ namespace Reloader.World.Tests.EditMode
                 if (originalScene.IsValid())
                 {
                     SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void DisableActiveEventSystemsForTravel_TemporarilyDisablesExistingEventSystems_AndRestoreReenablesThem()
+        {
+            var first = new GameObject("FirstEventSystem");
+            var second = new GameObject("SecondEventSystem");
+            first.AddComponent<EventSystem>();
+            second.AddComponent<EventSystem>();
+
+            try
+            {
+                InvokePrivateStatic("DisableActiveEventSystemsForTravel");
+
+                Assert.That(first.activeSelf, Is.False, "Travel should temporarily disable the currently active origin-scene EventSystem before additive scene load.");
+                Assert.That(second.activeSelf, Is.False, "Travel should disable every active EventSystem root to avoid duplicate-active warnings during additive load.");
+
+                InvokePrivateStatic("RestoreTemporarilyDisabledEventSystems");
+
+                Assert.That(first.activeSelf, Is.True, "Failed or cancelled travel should restore the previous EventSystem root.");
+                Assert.That(second.activeSelf, Is.True, "Failed or cancelled travel should restore all previously active EventSystem roots.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(first);
+                Object.DestroyImmediate(second);
+            }
+        }
+
+        [Test]
+        public void RearmActiveEventSystemsAfterTravel_RestoresDisabledEventSystems_WhenDestinationHasNoActiveEventSystem()
+        {
+            var originEventSystem = new GameObject("OriginEventSystem");
+            originEventSystem.AddComponent<EventSystem>();
+            var destinationScene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+
+            try
+            {
+                InvokePrivateStatic("DisableActiveEventSystemsForTravel");
+
+                Assert.That(originEventSystem.activeSelf, Is.False,
+                    "Travel should temporarily disable the origin-scene EventSystem before additive scene load.");
+
+                InvokePrivateStatic("RearmActiveEventSystemsAfterTravel", destinationScene);
+
+                Assert.That(originEventSystem.activeSelf, Is.True,
+                    "When the destination scene has no active EventSystem, travel should restore the previously disabled origin EventSystem instead of leaving it disabled.");
+            }
+            finally
+            {
+                InvokePrivateStatic("RestoreTemporarilyDisabledEventSystems");
+                Object.DestroyImmediate(originEventSystem);
+                if (destinationScene.IsValid())
+                {
+                    EditorSceneManager.CloseScene(destinationScene, true);
                 }
             }
         }

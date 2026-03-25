@@ -46,6 +46,9 @@ namespace Reloader.Weapons.Ballistics
         [SerializeField] private Color _impactVfxColor = new Color(1f, 0.92f, 0.45f, 1f);
         [SerializeField] private float _impactVfxLifetimeSeconds = 5f;
         [SerializeField] private bool _spawnInFlightVisual = true;
+        [SerializeField] private GameObject _inFlightVisualPrefab;
+        [SerializeField] private Vector3 _inFlightVisualEulerOffset;
+        [SerializeField, Min(0f)] private float _twistRateInchesPerTurn;
         [SerializeField] private Color _projectileVisualColor = new Color(1f, 0.75f, 0.2f, 1f);
         [SerializeField] private ImpactAudioRouter _impactAudioRouter;
 
@@ -57,6 +60,9 @@ namespace Reloader.Weapons.Ballistics
         private Material _runtimeVisualMaterial;
         private Transform _runtimeVisualTransform;
         private Vector3 _runtimeVisualBaseScale = Vector3.one * 0.02f;
+        private Quaternion _runtimeVisualBaseRotation = Quaternion.identity;
+        private float _runtimeVisualSpinDegrees;
+        private bool _ownsInFlightVisual;
         private Vector3 _sourcePoint;
         private IPathObserver _pathObserver;
         private bool _pathCompleted;
@@ -102,6 +108,7 @@ namespace Reloader.Weapons.Ballistics
             var stepStartVelocity = _velocity;
             _velocity += Physics.gravity * (_gravityMultiplier * stepDt);
             _velocity = ApplyDragToVelocity(_velocity, stepDt);
+            UpdateInFlightVisualSpin(stepDt);
             var start = transform.position;
             var next = start + (_velocity * stepDt);
             var delta = next - start;
@@ -198,10 +205,24 @@ namespace Reloader.Weapons.Ballistics
         {
             EnsureInFlightVisual();
             _isShotCameraPresentationActive = isActive;
-            if (_runtimeVisualTransform != null)
+            ApplyInFlightVisualTransform();
+        }
+
+        public void ConfigureInFlightVisual(GameObject inFlightVisualPrefab, Vector3 localEulerAngles, float twistRateInchesPerTurn)
+        {
+            var shouldRebuild = _inFlightVisualPrefab != inFlightVisualPrefab;
+            _inFlightVisualPrefab = inFlightVisualPrefab;
+            _inFlightVisualEulerOffset = localEulerAngles;
+            _twistRateInchesPerTurn = Mathf.Max(0f, twistRateInchesPerTurn);
+            _runtimeVisualSpinDegrees = 0f;
+
+            if (shouldRebuild)
             {
-                _runtimeVisualTransform.localScale = _runtimeVisualBaseScale * (isActive ? 2.5f : 1f);
+                RebuildInFlightVisual();
+                return;
             }
+
+            ApplyInFlightVisualTransform();
         }
 
         private IWeaponEvents ResolveWeaponEvents()
@@ -472,8 +493,21 @@ namespace Reloader.Weapons.Ballistics
 
         private void EnsureInFlightVisual()
         {
-            if (!_spawnInFlightVisual || GetComponentInChildren<Renderer>() != null)
+            if (!_spawnInFlightVisual || _runtimeVisualTransform != null)
             {
+                return;
+            }
+
+            if (_inFlightVisualPrefab != null)
+            {
+                var authoredVisual = Instantiate(_inFlightVisualPrefab, transform, false);
+                authoredVisual.name = _inFlightVisualPrefab.name;
+                _runtimeVisualTransform = authoredVisual.transform;
+                _runtimeVisualBaseScale = _runtimeVisualTransform.localScale;
+                _runtimeVisualBaseRotation = Quaternion.Euler(_inFlightVisualEulerOffset);
+                _ownsInFlightVisual = true;
+                RemoveVisualColliders(_runtimeVisualTransform);
+                ApplyInFlightVisualTransform();
                 return;
             }
 
@@ -483,6 +517,8 @@ namespace Reloader.Weapons.Ballistics
             _runtimeVisualBaseScale = Vector3.one * 0.02f;
             visual.transform.localScale = _runtimeVisualBaseScale;
             _runtimeVisualTransform = visual.transform;
+            _runtimeVisualBaseRotation = Quaternion.identity;
+            _ownsInFlightVisual = true;
             var visualCollider = visual.GetComponent<Collider>();
             if (visualCollider != null)
             {
@@ -504,6 +540,73 @@ namespace Reloader.Weapons.Ballistics
                 }
 
                 renderer.sharedMaterial = _runtimeVisualMaterial;
+            }
+
+            ApplyInFlightVisualTransform();
+        }
+
+        private void RebuildInFlightVisual()
+        {
+            if (_runtimeVisualTransform != null && _ownsInFlightVisual)
+            {
+                DestroyImmediate(_runtimeVisualTransform.gameObject);
+            }
+
+            _runtimeVisualTransform = null;
+            _runtimeVisualBaseScale = Vector3.one * 0.02f;
+            _runtimeVisualBaseRotation = Quaternion.identity;
+            _runtimeVisualSpinDegrees = 0f;
+            _ownsInFlightVisual = false;
+            EnsureInFlightVisual();
+        }
+
+        private void ApplyInFlightVisualTransform()
+        {
+            if (_runtimeVisualTransform == null)
+            {
+                return;
+            }
+
+            _runtimeVisualTransform.localScale = _runtimeVisualBaseScale * (_isShotCameraPresentationActive ? 2.5f : 1f);
+            _runtimeVisualTransform.localRotation = _runtimeVisualBaseRotation * Quaternion.AngleAxis(_runtimeVisualSpinDegrees, Vector3.up);
+        }
+
+        private void UpdateInFlightVisualSpin(float dt)
+        {
+            if (_runtimeVisualTransform == null
+                || _twistRateInchesPerTurn <= 0f
+                || dt <= 0f
+                || InitialSpeedMetersPerSecond <= 0f)
+            {
+                return;
+            }
+
+            const float metersPerInch = 0.0254f;
+            var metersPerTurn = _twistRateInchesPerTurn * metersPerInch;
+            if (metersPerTurn <= 0.0001f)
+            {
+                return;
+            }
+
+            var turnsPerSecond = _velocity.magnitude / metersPerTurn;
+            _runtimeVisualSpinDegrees = Mathf.Repeat(_runtimeVisualSpinDegrees + (turnsPerSecond * 360f * dt), 360f);
+            ApplyInFlightVisualTransform();
+        }
+
+        private static void RemoveVisualColliders(Transform visualRoot)
+        {
+            if (visualRoot == null)
+            {
+                return;
+            }
+
+            var colliders = visualRoot.GetComponentsInChildren<Collider>(true);
+            for (var i = 0; i < colliders.Length; i++)
+            {
+                if (colliders[i] != null)
+                {
+                    DestroyImmediate(colliders[i]);
+                }
             }
         }
 

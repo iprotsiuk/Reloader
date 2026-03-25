@@ -103,17 +103,14 @@ namespace Reloader.Player
 
         private Animator ResolveViewmodelAnimator()
         {
-            if (IsAnimatorOnPlayerHierarchy(_animator))
-            {
-                return _animator;
-            }
-
-            if (_cameraDefaults != null && _cameraDefaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator))
+            if (_cameraDefaults != null
+                && _cameraDefaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator)
+                && IsAnimatorOnPlayerHierarchy(playerArmsAnimator))
             {
                 return playerArmsAnimator;
             }
 
-            return null;
+            return IsAnimatorOnPlayerHierarchy(_animator) ? _animator : null;
         }
 
         private bool IsAnimatorOnPlayerHierarchy(Animator animator)
@@ -212,11 +209,6 @@ namespace Reloader.Player
 
         private Transform ResolveViewmodelRoot()
         {
-            if (IsTransformOnPlayerHierarchy(_viewmodelRoot))
-            {
-                return _viewmodelRoot;
-            }
-
             if (_cameraDefaults != null
                 && _cameraDefaults.TryGetPlayerArmsRoot(out var playerArmsRoot)
                 && IsTransformOnPlayerHierarchy(playerArmsRoot))
@@ -224,7 +216,7 @@ namespace Reloader.Player
                 return playerArmsRoot;
             }
 
-            return null;
+            return IsTransformOnPlayerHierarchy(_viewmodelRoot) ? _viewmodelRoot : null;
         }
 
         private static bool HasParameter(Animator animator, int hash, AnimatorControllerParameterType type)

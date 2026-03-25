@@ -67,6 +67,10 @@ For `MCP-first` tasks:
    - Editor/tests/console: `manage_editor`, `run_tests` + `get_test_job`, `read_console`
 3. For many independent MCP operations, use `batch_execute`
 4. If scripts must change, use `script_apply_edits`/`apply_text_edits` and then validate (`validate_script`)
+5. Transport stability:
+   - Prefer HTTP Local transport for Codex when the Unity package is configured for HTTP. Treat stdio as fallback/legacy unless the editor transport is explicitly set to stdio.
+   - Do not send multiple Unity MCP tool calls in parallel against one editor session. Use one call at a time, or `batch_execute` when the server supports a single batched request.
+   - For Unity tests, start one async run with `run_tests`, then poll with `get_test_job` using `wait_timeout` (30-60s) instead of rapid polling or repeated reruns.
 
 For `File-first` tasks:
 
@@ -138,5 +142,8 @@ When changes include travel/interactable/checkpoint/NPC/save touchpoints, read b
 |---------|-----|
 | Editing scene behavior only in code when serialized scene data is the issue | Use MCP scene/component operations first |
 | Using many sequential MCP calls for independent object operations | Use `batch_execute` |
+| Using parallel Unity MCP calls against one editor session | Keep Unity MCP calls single-flight; batch related work into one server request instead |
+| Forcing Codex onto stdio when the Unity package is configured for HTTP | Match Codex transport to the Unity package transport; prefer HTTP Local for Codex when available |
+| Polling Unity tests too aggressively or re-running before the prior job completes | Use `run_tests` once, then `get_test_job` with a real `wait_timeout` |
 | Claiming success without checking Unity-side result | Read state back and run targeted tests |
 | Using MCP for pure markdown/git tasks | Stay file-first |

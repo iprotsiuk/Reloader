@@ -125,7 +125,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(cameraPivot, Is.Not.Null);
                 var defaults = root.GetComponent<PlayerCameraDefaults>();
                 Assert.That(defaults, Is.Not.Null);
-                var playerArms = cameraPivot!.Find("PlayerArms");
+                var playerArms = cameraPivot!.Find("ViewmodelPresentationRoot/PlayerArms");
                 Assert.That(playerArms, Is.Not.Null);
                 var armsVisual = playerArms!.Find("PlayerArmsVisual");
                 Assert.That(armsVisual, Is.Not.Null);
@@ -322,8 +322,9 @@ namespace Reloader.Weapons.Tests.PlayMode
             var cameraPivot = new GameObject("CameraPivot").transform;
             cameraPivot.SetParent(root.transform, false);
 
+            var viewmodelPresentationRoot = EnsureViewmodelPresentationRoot(cameraPivot);
             var playerArms = new GameObject("PlayerArms").transform;
-            playerArms.SetParent(cameraPivot, false);
+            playerArms.SetParent(viewmodelPresentationRoot, false);
 
             var armsVisual = new GameObject("PlayerArmsVisual").transform;
             armsVisual.SetParent(playerArms, false);
@@ -354,8 +355,9 @@ namespace Reloader.Weapons.Tests.PlayMode
             var cameraPivot = new GameObject("CameraPivot").transform;
             cameraPivot.SetParent(root.transform, false);
 
+            var viewmodelPresentationRoot = EnsureViewmodelPresentationRoot(cameraPivot);
             var playerArms = new GameObject("PlayerArms").transform;
-            playerArms.SetParent(cameraPivot, false);
+            playerArms.SetParent(viewmodelPresentationRoot, false);
 
             var armsVisual = new GameObject("PlayerArmsVisual").transform;
             armsVisual.SetParent(playerArms, false);
@@ -389,7 +391,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [Test]
-        public void SyncHandTargets_ReleasesLeftHandConstraintDuringReload()
+        public void SyncHandTargets_KeepsLeftHandConstraintActiveOutsideReloadAndReleasesItDuringReload()
         {
             var root = CreateWeaponHandRigTestRoot(out var controller, out _, out _, out _);
             var weaponView = new GameObject("EquippedWeaponView");
@@ -413,14 +415,16 @@ namespace Reloader.Weapons.Tests.PlayMode
                 controller.SetReloadingOverrideForTests(false);
                 controller.SyncHandTargets();
                 Assert.That(controller.LeftHandConstraint, Is.Not.Null);
-                Assert.That(controller.LeftHandConstraint.weight, Is.EqualTo(0f).Within(0.0001f));
+                Assert.That(controller.LeftHandConstraint.weight, Is.EqualTo(1f).Within(0.0001f),
+                    "Support-hand IK should already be active in HIP when weapon hand anchors are resolved.");
 
                 var adsStateController = root.AddComponent<Reloader.Game.Weapons.AdsStateController>();
                 SetPrivateField(adsStateController, "_isAdsHeld", true);
                 SetPrivateField(adsStateController, "<AdsT>k__BackingField", 1f);
 
                 controller.SyncHandTargets();
-                Assert.That(controller.LeftHandConstraint.weight, Is.EqualTo(1f).Within(0.0001f));
+                Assert.That(controller.LeftHandConstraint.weight, Is.EqualTo(1f).Within(0.0001f),
+                    "ADS should preserve the same support-hand follow contract instead of being the only state that enables it.");
 
                 controller.SetReloadingOverrideForTests(true);
                 controller.SyncHandTargets();
@@ -434,7 +438,7 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [Test]
-        public void SyncHandTargets_UsesLeftHandAnchorWhenRightGripIsMissing()
+        public void SyncHandTargets_UsesLeftHandAnchorAsSupportHandFollowTargetWhenRightGripIsMissing()
         {
             var root = CreateWeaponHandRigTestRoot(out var controller, out var upperArm, out var lowerArm, out var hand);
             var weaponView = new GameObject("EquippedWeaponView");
@@ -457,8 +461,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                 Assert.That(controller.LeftHandConstraint.data.root, Is.SameAs(upperArm));
                 Assert.That(controller.LeftHandConstraint.data.mid, Is.SameAs(lowerArm));
                 Assert.That(controller.LeftHandConstraint.data.tip, Is.SameAs(hand));
-                Assert.That(controller.LeftHandConstraint.weight, Is.EqualTo(0f).Within(0.0001f),
-                    "HIP ownership should stay on authored arm animation until ADS begins blending support-hand IK in.");
+                Assert.That(controller.LeftHandConstraint.weight, Is.EqualTo(1f).Within(0.0001f),
+                    "When only the support-hand seam exists, the left hand should still follow it outside reload.");
                 Assert.That(Vector3.Distance(controller.LeftHandTarget.position, leftGrip.position), Is.LessThan(0.0001f));
                 Assert.That(Quaternion.Angle(controller.LeftHandTarget.rotation, leftGrip.rotation), Is.LessThan(0.01f));
             }
@@ -479,8 +483,9 @@ namespace Reloader.Weapons.Tests.PlayMode
             var cameraPivot = new GameObject("CameraPivot").transform;
             cameraPivot.SetParent(root.transform, false);
 
+            var viewmodelPresentationRoot = EnsureViewmodelPresentationRoot(cameraPivot);
             var playerArms = new GameObject("PlayerArms").transform;
-            playerArms.SetParent(cameraPivot, false);
+            playerArms.SetParent(viewmodelPresentationRoot, false);
 
             var armsVisual = new GameObject("PlayerArmsVisual").transform;
             armsVisual.SetParent(playerArms, false);
@@ -576,13 +581,27 @@ namespace Reloader.Weapons.Tests.PlayMode
 
         private static Transform EnsureWeaponPresentationRoot(Transform cameraPivot)
         {
-            var existing = cameraPivot.Find("WeaponPresentationRoot");
+            var viewmodelPresentationRoot = EnsureViewmodelPresentationRoot(cameraPivot);
+            var existing = viewmodelPresentationRoot.Find("WeaponPresentationRoot");
             if (existing != null)
             {
                 return existing;
             }
 
             var root = new GameObject("WeaponPresentationRoot").transform;
+            root.SetParent(viewmodelPresentationRoot, false);
+            return root;
+        }
+
+        private static Transform EnsureViewmodelPresentationRoot(Transform cameraPivot)
+        {
+            var existing = cameraPivot.Find("ViewmodelPresentationRoot");
+            if (existing != null)
+            {
+                return existing;
+            }
+
+            var root = new GameObject("ViewmodelPresentationRoot").transform;
             root.SetParent(cameraPivot, false);
             return root;
         }

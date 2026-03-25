@@ -43,6 +43,11 @@ namespace Reloader.UI.Toolkit.Trade
         public void Initialize(VisualElement root)
         {
             UnbindButtons();
+            if (root != null)
+            {
+                root.style.display = DisplayStyle.None;
+                root.pickingMode = PickingMode.Ignore;
+            }
             _root = root;
             _buyPanel = root?.Q<VisualElement>("trade__buy-panel");
             _sellPanel = root?.Q<VisualElement>("trade__sell-panel");
@@ -394,6 +399,7 @@ namespace Reloader.UI.Toolkit.Trade
             }
 
             _root.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
+            _root.pickingMode = isVisible ? PickingMode.Position : PickingMode.Ignore;
             if (!isVisible)
             {
                 HideTooltip();

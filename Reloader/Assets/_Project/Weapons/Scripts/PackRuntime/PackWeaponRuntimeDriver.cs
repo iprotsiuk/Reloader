@@ -273,7 +273,9 @@ namespace Reloader.Weapons.PackRuntime
 
         private bool CanDriveAnimator()
         {
-            return PresentationConfig.UseAnimatorHooks && _animator != null;
+            return PresentationConfig.UseAnimatorHooks
+                && _animator != null
+                && _animator.runtimeAnimatorController != null;
         }
     }
 }

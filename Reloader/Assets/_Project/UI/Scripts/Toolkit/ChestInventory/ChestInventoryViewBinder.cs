@@ -12,6 +12,7 @@ namespace Reloader.UI.Toolkit.ChestInventory
 {
     public sealed class ChestInventoryViewBinder : IUiViewBinder
     {
+        private VisualElement _root;
         private VisualElement _panel;
         private VisualElement _chestGrid;
         private VisualElement _playerGrid;
@@ -37,6 +38,12 @@ namespace Reloader.UI.Toolkit.ChestInventory
 
         public void Initialize(VisualElement root, int chestSlotCount, int playerSlotCount)
         {
+            _root = root;
+            if (root != null)
+            {
+                root.style.display = DisplayStyle.None;
+                root.pickingMode = PickingMode.Ignore;
+            }
             _panel = root?.Q<VisualElement>("chest__panel");
             _chestGrid = root?.Q<VisualElement>("chest__left-grid");
             _playerGrid = root?.Q<VisualElement>("chest__right-grid");
@@ -71,9 +78,19 @@ namespace Reloader.UI.Toolkit.ChestInventory
                 return;
             }
 
+            if (_root != null)
+            {
+                _root.style.display = chestState.IsOpen ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
             if (_panel != null)
             {
                 _panel.style.display = chestState.IsOpen ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (_root != null)
+            {
+                _root.pickingMode = chestState.IsOpen ? PickingMode.Position : PickingMode.Ignore;
             }
 
             ApplySlots(_chestSlots, chestState.ChestSlots, "container");

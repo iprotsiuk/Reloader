@@ -172,6 +172,14 @@ namespace Reloader.Core.Tests.EditMode
             SetField(defaults, "_weaponPresentationRoot", weaponMount);
             var handTargetRoot = new GameObject("WeaponHandRigTargets").transform;
             handTargetRoot.SetParent(presentationPivot, false);
+            var leftHandTarget = new GameObject("LeftHandTarget").transform;
+            leftHandTarget.SetParent(handTargetRoot, false);
+            var leftElbowHint = new GameObject("LeftElbowHint").transform;
+            leftElbowHint.SetParent(handTargetRoot, false);
+            var rightHandTarget = new GameObject("RightHandTarget").transform;
+            rightHandTarget.SetParent(handTargetRoot, false);
+            var rightElbowHint = new GameObject("RightElbowHint").transform;
+            rightElbowHint.SetParent(handTargetRoot, false);
 
             var binder = playerRoot.AddComponent<PlayerWeaponAnimationBinder>();
             var driver = playerRoot.AddComponent<FpsViewmodelAnimatorDriver>();
@@ -182,6 +190,42 @@ namespace Reloader.Core.Tests.EditMode
             SetField(handRigController, "_cameraDefaults", defaults);
             SetField(handRigController, "_handTargetRoot", handTargetRoot);
             SetField(handRigController, "_driveRightHand", true);
+
+            var rigBuilderType = FindType("UnityEngine.Animations.Rigging.RigBuilder");
+            var rigType = FindType("UnityEngine.Animations.Rigging.Rig");
+            var twoBoneIKConstraintType = FindType("UnityEngine.Animations.Rigging.TwoBoneIKConstraint");
+            Assert.That(rigBuilderType, Is.Not.Null, "Expected RigBuilder type.");
+            Assert.That(rigType, Is.Not.Null, "Expected Rig type.");
+            Assert.That(twoBoneIKConstraintType, Is.Not.Null, "Expected TwoBoneIKConstraint type.");
+
+            var rigBuilder = armsAnimator.gameObject.AddComponent(rigBuilderType!);
+            var weaponHandRigGo = new GameObject("WeaponHandRig");
+            weaponHandRigGo.transform.SetParent(armsAnimator.transform, false);
+            var weaponHandRig = weaponHandRigGo.AddComponent(rigType!);
+            var leftConstraintGo = new GameObject("LeftHandConstraint");
+            leftConstraintGo.transform.SetParent(weaponHandRigGo.transform, false);
+            var leftConstraint = leftConstraintGo.AddComponent(twoBoneIKConstraintType!);
+            var rightConstraintGo = new GameObject("RightHandConstraint");
+            rightConstraintGo.transform.SetParent(weaponHandRigGo.transform, false);
+            var rightConstraint = rightConstraintGo.AddComponent(twoBoneIKConstraintType!);
+            var rigBuilderSerialized = new UnityEditor.SerializedObject(rigBuilder);
+            var rigLayers = rigBuilderSerialized.FindProperty("m_RigLayers");
+            Assert.That(rigLayers, Is.Not.Null, "Expected RigBuilder.m_RigLayers.");
+            rigLayers!.arraySize = 1;
+            var firstRigLayer = rigLayers.GetArrayElementAtIndex(0);
+            Assert.That(firstRigLayer.FindPropertyRelative("m_Active"), Is.Not.Null);
+            Assert.That(firstRigLayer.FindPropertyRelative("m_Rig"), Is.Not.Null);
+            firstRigLayer.FindPropertyRelative("m_Active")!.boolValue = true;
+            firstRigLayer.FindPropertyRelative("m_Rig")!.objectReferenceValue = weaponHandRig as UnityEngine.Object;
+            rigBuilderSerialized.ApplyModifiedPropertiesWithoutUndo();
+            SetField(handRigController, "_rigBuilder", rigBuilder);
+            SetField(handRigController, "_weaponHandRig", weaponHandRig);
+            SetField(handRigController, "_leftHandTarget", leftHandTarget);
+            SetField(handRigController, "_leftHandHint", leftElbowHint);
+            SetField(handRigController, "_rightHandTarget", rightHandTarget);
+            SetField(handRigController, "_rightHandHint", rightElbowHint);
+            SetField(handRigController, "_leftHandConstraint", leftConstraint);
+            SetField(handRigController, "_rightHandConstraint", rightConstraint);
 
             var viewPrefab = new GameObject("Kar98kView");
             var adsPivot = new GameObject("AdsPivot").transform;
@@ -286,6 +330,7 @@ namespace Reloader.Core.Tests.EditMode
 
             var playerArmsVisual = new GameObject("PlayerArmsVisual").transform;
             playerArmsVisual.SetParent(playerArms, false);
+            var armsAnimator = playerArmsVisual.gameObject.AddComponent<Animator>();
 
             var armature = new GameObject("Armature").transform;
             armature.SetParent(playerArmsVisual, false);
@@ -307,6 +352,7 @@ namespace Reloader.Core.Tests.EditMode
             var driver = playerRoot.AddComponent(driverType!);
             SetField(driver, "_weaponPresentationRoot", weaponPresentationRoot);
             SetField(driver, "_weaponPresentationMount", weaponMount);
+            SetField(driver, "_armsAnimator", armsAnimator);
 
             Invoke(driver, "LateUpdate");
 
@@ -314,6 +360,124 @@ namespace Reloader.Core.Tests.EditMode
                 "WeaponPresentationRoot should follow the authored gun socket position after animator evaluation.");
             Assert.That(Quaternion.Angle(weaponPresentationRoot.rotation, weaponMount.rotation), Is.LessThan(0.01f),
                 "WeaponPresentationRoot should follow the authored gun socket rotation after animator evaluation.");
+        }
+
+        [Test]
+        public void WeaponPresentationMountDriver_HipPose_UsesRightHandGripAsWeaponOwnershipSeam()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var cameraPivot = new GameObject("CameraPivot").transform;
+            cameraPivot.SetParent(playerRoot.transform, false);
+
+            var playerArms = new GameObject("PlayerArms").transform;
+            playerArms.SetParent(cameraPivot, false);
+
+            var playerArmsVisual = new GameObject("PlayerArmsVisual").transform;
+            playerArmsVisual.SetParent(playerArms, false);
+            var armsAnimator = playerArmsVisual.gameObject.AddComponent<Animator>();
+
+            var armature = new GameObject("Armature").transform;
+            armature.SetParent(playerArmsVisual, false);
+            var ikHandRoot = new GameObject("ik_hand_root").transform;
+            ikHandRoot.SetParent(armature, false);
+            var weaponMount = new GameObject("ik_hand_gun").transform;
+            weaponMount.SetParent(ikHandRoot, false);
+            weaponMount.localPosition = new Vector3(0.41f, -0.13f, 0.27f);
+            weaponMount.localRotation = Quaternion.Euler(18f, 27f, 36f);
+
+            var animatedLeftGrip = new GameObject("ik_hand_l").transform;
+            animatedLeftGrip.SetParent(weaponMount, false);
+            animatedLeftGrip.localPosition = new Vector3(0.09f, 0.04f, 0.24f);
+            animatedLeftGrip.localRotation = Quaternion.Euler(6f, 11f, -3f);
+
+            var animatedRightGrip = new GameObject("ik_hand_r").transform;
+            animatedRightGrip.SetParent(weaponMount, false);
+            animatedRightGrip.localPosition = new Vector3(-0.03f, -0.02f, 0.11f);
+            animatedRightGrip.localRotation = Quaternion.Euler(-4f, 7f, 2f);
+
+            var weaponPresentationRoot = new GameObject("WeaponPresentationRoot").transform;
+            weaponPresentationRoot.SetParent(cameraPivot, false);
+            weaponPresentationRoot.localPosition = Vector3.zero;
+            weaponPresentationRoot.localRotation = Quaternion.identity;
+
+            var weaponView = new GameObject("Kar98kView").transform;
+            weaponView.SetParent(weaponPresentationRoot, false);
+            var leftGrip = new GameObject("LeftHandGrip").transform;
+            leftGrip.SetParent(weaponView, false);
+            leftGrip.localPosition = new Vector3(0.08f, 0.03f, 0.31f);
+            leftGrip.localRotation = Quaternion.Euler(1f, 13f, -2f);
+
+            var rightGrip = new GameObject("RightHandGrip").transform;
+            rightGrip.SetParent(weaponView, false);
+            rightGrip.localPosition = new Vector3(-0.04f, -0.03f, 0.18f);
+            rightGrip.localRotation = Quaternion.Euler(-7f, 5f, 3f);
+
+            var handAnchors = weaponView.gameObject.AddComponent<WeaponViewHandAnchors>();
+            handAnchors.SetHandTargets(leftGrip, rightGrip);
+
+            var driverType = FindType("Reloader.Player.Viewmodel.WeaponPresentationMountDriver");
+            Assert.That(driverType, Is.Not.Null, "Expected explicit weapon-presentation mount driver to exist.");
+
+            var driver = playerRoot.AddComponent(driverType!);
+            SetField(driver, "_weaponPresentationRoot", weaponPresentationRoot);
+            SetField(driver, "_weaponPresentationMount", weaponMount);
+            SetField(driver, "_armsAnimator", armsAnimator);
+            SetField(driver, "_resolvedAnimatedWeaponMount", weaponMount);
+            SetField(driver, "_resolvedAnimatedRightHandAnchor", animatedRightGrip);
+
+            Invoke(driver, "LateUpdate");
+            var initialLocalPosition = weaponPresentationRoot.localPosition;
+            var initialLocalRotation = weaponPresentationRoot.localRotation;
+
+            leftGrip.localPosition += new Vector3(0.06f, 0.02f, -0.09f);
+            leftGrip.localRotation = Quaternion.Euler(18f, -9f, 14f);
+
+            Invoke(driver, "LateUpdate");
+
+            Assert.That(Vector3.Distance(weaponPresentationRoot.localPosition, initialLocalPosition), Is.LessThan(0.0001f),
+                "Changing LeftHandGrip should not reposition the rifle. Support-hand authoring must stay IK-only.");
+            Assert.That(Quaternion.Angle(weaponPresentationRoot.localRotation, initialLocalRotation), Is.LessThan(0.01f),
+                "Changing LeftHandGrip should not rotate the rifle. Support-hand authoring must stay IK-only.");
+
+            var leftDrivenLocalPosition = weaponPresentationRoot.localPosition;
+            var leftDrivenLocalRotation = weaponPresentationRoot.localRotation;
+            rightGrip.localPosition += new Vector3(-0.08f, 0.04f, 0.03f);
+            rightGrip.localRotation = Quaternion.Euler(-16f, 12f, -9f);
+
+            Invoke(driver, "LateUpdate");
+
+            Assert.That(Vector3.Distance(weaponPresentationRoot.localPosition, leftDrivenLocalPosition), Is.GreaterThan(0.01f),
+                "Changing the weapon view's authored right-hand grip should move the HIP presentation pose.");
+            Assert.That(Quaternion.Angle(weaponPresentationRoot.localRotation, leftDrivenLocalRotation), Is.GreaterThan(0.5f),
+                "Changing the weapon view's authored right-hand grip should rotate the HIP presentation pose.");
+        }
+
+        [Test]
+        public void WeaponPresentationMountDriver_ResolvePresentationBlendT_DoesNotForceHipWhileReloadingAndStillAiming()
+        {
+            var playerRoot = new GameObject("PlayerRoot");
+            var adsStateControllerType = FindType("Reloader.Game.Weapons.AdsStateController");
+            Assert.That(adsStateControllerType, Is.Not.Null, "Expected scoped ADS runtime bridge type to exist.");
+            var adsStateController = playerRoot.AddComponent(adsStateControllerType!);
+            var viewmodelAnimationAdapter = playerRoot.AddComponent<ViewmodelAnimationAdapter>();
+
+            SetField(adsStateController, "<AdsT>k__BackingField", 1f);
+            SetField(viewmodelAnimationAdapter, "<IsReloadingDebug>k__BackingField", true);
+
+            var driverType = FindType("Reloader.Player.Viewmodel.WeaponPresentationMountDriver");
+            Assert.That(driverType, Is.Not.Null, "Expected explicit weapon-presentation mount driver to exist.");
+
+            var driver = playerRoot.AddComponent(driverType!);
+            SetField(driver, "_adsStateController", adsStateController);
+            SetField(driver, "_viewmodelAnimationAdapter", viewmodelAnimationAdapter);
+
+            var method = driverType!.GetMethod("ResolvePresentationBlendT", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, "Expected reload/ADS presentation blend helper.");
+
+            var blendT = (float)method!.Invoke(driver, null);
+
+            Assert.That(blendT, Is.EqualTo(1f).Within(0.0001f),
+                "Reloading while still aiming should keep ADS presentation ownership instead of forcing the rifle back to HIP for a frame.");
         }
 
         private static TestRig CreateRigWithLegacyHandHierarchy()
@@ -406,6 +570,9 @@ namespace Reloader.Core.Tests.EditMode
 
         private static void ConfigureTestWeaponViewMounts(GameObject viewRoot, Transform adsPivot, Transform ironSightAnchor, Transform muzzleSlot)
         {
+            var attachmentManagerType = Type.GetType("Reloader.Game.Weapons.AttachmentManager, Reloader.Game.Weapons");
+            Assert.That(attachmentManagerType, Is.Not.Null);
+            viewRoot.AddComponent(attachmentManagerType!);
             var mounts = viewRoot.AddComponent<WeaponViewAttachmentMounts>();
             SetField(mounts, "_adsPivot", adsPivot);
             SetField(mounts, "_muzzleTransform", adsPivot);

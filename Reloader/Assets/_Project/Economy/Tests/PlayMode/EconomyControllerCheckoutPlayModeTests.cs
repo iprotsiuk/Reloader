@@ -596,7 +596,6 @@ namespace Reloader.Economy.Tests.PlayMode
             GameObject inventoryGo = null;
             try
             {
-                LogAssert.Expect(LogType.Error, "EconomyController requires a PlayerInventoryController reference.");
                 yield return null;
 
                 inventoryGo = new GameObject("InventoryController");

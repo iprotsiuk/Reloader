@@ -145,6 +145,18 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(captured, Is.EqualTo("reloading.mode.operate"));
         }
 
+        [Test]
+        public void Initialize_DefaultsWorkbenchRootToHiddenAndNonInteractive()
+        {
+            var root = BuildRoot();
+            var binder = new ReloadingWorkbenchViewBinder();
+
+            binder.Initialize(root, 3);
+
+            Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(root.pickingMode, Is.EqualTo(PickingMode.Ignore));
+        }
+
         private static VisualElement BuildRoot()
         {
             var root = new VisualElement { name = "reloading__root" };

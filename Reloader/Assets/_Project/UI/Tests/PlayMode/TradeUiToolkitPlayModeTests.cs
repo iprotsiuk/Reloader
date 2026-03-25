@@ -42,6 +42,32 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void SetVisible_TogglesRootPickingWithVisibility()
+        {
+            var root = BuildRoot();
+            var binder = new TradeViewBinder();
+            binder.Initialize(root);
+
+            binder.SetVisible(true);
+            Assert.That(root.pickingMode, Is.EqualTo(PickingMode.Position));
+
+            binder.SetVisible(false);
+            Assert.That(root.pickingMode, Is.EqualTo(PickingMode.Ignore));
+        }
+
+        [Test]
+        public void Initialize_DefaultsTradeRootToHiddenAndNonInteractive()
+        {
+            var root = BuildRoot();
+            var binder = new TradeViewBinder();
+
+            binder.Initialize(root);
+
+            Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(root.pickingMode, Is.EqualTo(PickingMode.Ignore));
+        }
+
+        [Test]
         public void RaiseConfirmBuyIntent_EmitsTradeConfirmBuyKey()
         {
             var root = BuildRoot();

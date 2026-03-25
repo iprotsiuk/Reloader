@@ -62,7 +62,7 @@ namespace Reloader.Player.Tests.EditMode
         }
 
         [Test]
-        public void ResolveReferences_PreservesExplicitAnimatorAndRoot_WhenTheyRemainValidOnPlayerHierarchy()
+        public void ResolveReferences_PrefersExplicitCameraDefaultsAnimatorAndRoot_OverOtherHierarchyChildren()
         {
             var root = new GameObject("PlayerRoot");
             var presentationPivot = new GameObject("PresentationPivot").transform;
@@ -92,8 +92,8 @@ namespace Reloader.Player.Tests.EditMode
 
             Invoke(driver, "ResolveReferences");
 
-            Assert.That(GetField(driver, "_animator"), Is.SameAs(explicitAnimator));
-            Assert.That(GetField(driver, "_viewmodelRoot"), Is.SameAs(explicitRoot));
+            Assert.That(GetField(driver, "_animator"), Is.SameAs(defaultsAnimator));
+            Assert.That(GetField(driver, "_viewmodelRoot"), Is.SameAs(defaultsRoot));
         }
 
         private static void Invoke(object instance, string methodName)

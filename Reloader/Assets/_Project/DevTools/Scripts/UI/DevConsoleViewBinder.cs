@@ -17,6 +17,7 @@ namespace Reloader.UI.Toolkit.DevConsole
         private static readonly StyleColor ConsoleTextColor = new(Color.black);
         private static readonly StyleColor ConsolePanelBackgroundColor = new(new Color(0.94f, 0.96f, 0.97f, 0.97f));
 
+        private VisualElement _documentRoot;
         private VisualElement _screenRoot;
         private VisualElement _panelRoot;
         private Label _promptLabel;
@@ -31,6 +32,11 @@ namespace Reloader.UI.Toolkit.DevConsole
 
         public void Initialize(VisualElement root)
         {
+            _documentRoot = root;
+            if (root != null)
+            {
+                root.pickingMode = PickingMode.Ignore;
+            }
             _screenRoot = root?.Q<VisualElement>("dev-console__screen") ?? root;
             _panelRoot = root?.Q<VisualElement>("dev-console__panel") ?? _screenRoot;
             _promptLabel = root?.Q<Label>("dev-console__prompt");
@@ -38,6 +44,16 @@ namespace Reloader.UI.Toolkit.DevConsole
             _suggestionsRoot = root?.Q<VisualElement>("dev-console__suggestions");
             _statusLabel = root?.Q<Label>("dev-console__status");
             _commandField?.RegisterCallback<KeyDownEvent>(HandleCommandFieldKeyDown, TrickleDown.TrickleDown);
+            if (_screenRoot != null)
+            {
+                _screenRoot.style.display = DisplayStyle.None;
+                _screenRoot.pickingMode = PickingMode.Ignore;
+            }
+
+            if (_panelRoot != null)
+            {
+                _panelRoot.style.display = DisplayStyle.None;
+            }
             ApplyTheme();
         }
 
@@ -105,6 +121,11 @@ namespace Reloader.UI.Toolkit.DevConsole
             {
                 _screenRoot.style.display = consoleState.IsVisible ? DisplayStyle.Flex : DisplayStyle.None;
                 _screenRoot.pickingMode = consoleState.IsVisible ? PickingMode.Position : PickingMode.Ignore;
+            }
+
+            if (_documentRoot != null && !ReferenceEquals(_documentRoot, _screenRoot))
+            {
+                _documentRoot.pickingMode = consoleState.IsVisible ? PickingMode.Position : PickingMode.Ignore;
             }
 
             if (_panelRoot != null)

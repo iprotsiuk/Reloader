@@ -19,12 +19,15 @@ namespace Reloader.Player.Editor
         private const string IdleClipPath = "Assets/_Project/Player/Resources/Viewmodels/Characters/ViewmodelIdle.anim";
         private const string WalkClipPath = "Assets/_Project/Player/Resources/Viewmodels/Characters/ViewmodelWalk.anim";
         private const string ViewmodelLayerName = "Viewmodel";
+        private const string ViewmodelPresentationRootName = "ViewmodelPresentationRoot";
         private const string PlayerArmsRootName = "PlayerArms";
         private const string PlayerArmsVisualName = "PlayerArmsVisual";
         private const string WeaponPresentationRootName = "WeaponPresentationRoot";
+        private const string WeaponPresentationMountName = "WeaponPresentationMount";
         private static readonly Vector3 FpsArmsOffsetLocalPosition = new(0f, -0.027f, 0.1f);
         private static readonly Vector3 FpsArmsOffsetLocalEuler = Vector3.zero;
         private static readonly Vector3 FpsArmsOffsetLocalScale = new(0.42f, 0.42f, 0.42f);
+        private static readonly Vector3 WeaponPresentationMountLocalPosition = new(0f, -0.08f, 0.45f);
 
         [MenuItem("Reloader/Player/Create FPS Rig")]
         public static void CreateFpsRig()
@@ -82,15 +85,28 @@ namespace Reloader.Player.Editor
             viewmodelCameraTransform.SetParent(cameraPivot, false);
             var viewmodelCamera = viewmodelCameraGo.AddComponent<Camera>();
 
+            var viewmodelPresentationRootGo = new GameObject(ViewmodelPresentationRootName);
+            Undo.RegisterCreatedObjectUndo(viewmodelPresentationRootGo, "Create Viewmodel Presentation Root");
+            var viewmodelPresentationRoot = viewmodelPresentationRootGo.transform;
+            viewmodelPresentationRoot.SetParent(cameraPivot, false);
+
             var weaponPresentationRootGo = new GameObject(WeaponPresentationRootName);
             Undo.RegisterCreatedObjectUndo(weaponPresentationRootGo, "Create Weapon Presentation Root");
             var weaponPresentationRoot = weaponPresentationRootGo.transform;
-            weaponPresentationRoot.SetParent(cameraPivot, false);
+            weaponPresentationRoot.SetParent(viewmodelPresentationRoot, false);
+
+            var weaponPresentationMountGo = new GameObject(WeaponPresentationMountName);
+            Undo.RegisterCreatedObjectUndo(weaponPresentationMountGo, "Create Weapon Presentation Mount");
+            var weaponPresentationMount = weaponPresentationMountGo.transform;
+            weaponPresentationMount.SetParent(viewmodelPresentationRoot, false);
+            weaponPresentationMount.localPosition = WeaponPresentationMountLocalPosition;
+            weaponPresentationMount.localRotation = Quaternion.identity;
+            weaponPresentationMount.localScale = Vector3.one;
 
             var playerArmsRootGo = new GameObject(PlayerArmsRootName);
             Undo.RegisterCreatedObjectUndo(playerArmsRootGo, "Create Player Arms Root");
             var playerArmsRoot = playerArmsRootGo.transform;
-            playerArmsRoot.SetParent(cameraPivot, false);
+            playerArmsRoot.SetParent(viewmodelPresentationRoot, false);
 
             var playerArmsAnimator = CreatePlayerArmsAnimator(playerArmsRoot);
 

@@ -206,8 +206,9 @@ namespace Reloader.World.Tests.EditMode
             var leftElbowHint = weaponHandRigTargets.Find("LeftElbowHint");
             Assert.That(leftElbowHint, Is.Not.Null, $"{context} should author LeftElbowHint under WeaponHandRigTargets.");
 
-            var playerArmsVisual = root.transform.Find("CameraPivot/PlayerArms/PlayerArmsVisual");
+            var playerArmsVisual = root.transform.Find("CameraPivot/ViewmodelPresentationRoot/PlayerArms/PlayerArmsVisual");
             Assert.That(playerArmsVisual, Is.Not.Null, $"{context} should author PlayerArmsVisual on the canonical player path.");
+            Assert.That(root.transform.Find("CameraPivot/PlayerArms"), Is.Null, $"{context} should not author the retired legacy PlayerArms sibling under CameraPivot.");
 
             var animator = playerArmsVisual.GetComponent<Animator>();
             Assert.That(animator, Is.Not.Null, $"{context} should keep Animator on PlayerArmsVisual.");
@@ -306,25 +307,33 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(root, Is.Not.Null, $"{context} should exist.");
             Assert.That(WeaponPresentationMountDriverType, Is.Not.Null, "Expected WeaponPresentationMountDriver type.");
 
-            var weaponPresentationRoot = root.transform.Find("CameraPivot/WeaponPresentationRoot");
-            Assert.That(weaponPresentationRoot, Is.Not.Null, $"{context} should author WeaponPresentationRoot under CameraPivot.");
+            var viewmodelPresentationRoot = root.transform.Find("CameraPivot/ViewmodelPresentationRoot");
+            Assert.That(viewmodelPresentationRoot, Is.Not.Null, $"{context} should author ViewmodelPresentationRoot under CameraPivot.");
 
-            var explicitWeaponPresentationMount = root.transform.Find("CameraPivot/WeaponPresentationMount");
+            var weaponPresentationRoot = root.transform.Find("CameraPivot/ViewmodelPresentationRoot/WeaponPresentationRoot");
+            Assert.That(weaponPresentationRoot, Is.Not.Null, $"{context} should author WeaponPresentationRoot under ViewmodelPresentationRoot.");
+
+            var explicitWeaponPresentationMount = root.transform.Find("CameraPivot/ViewmodelPresentationRoot/WeaponPresentationMount");
             Assert.That(explicitWeaponPresentationMount, Is.Not.Null,
                 $"{context} should author WeaponPresentationMount as the explicit weapon presentation mount seam.");
-            Assert.That(explicitWeaponPresentationMount!.parent, Is.SameAs(root.transform.Find("CameraPivot")),
-                $"{context} should keep WeaponPresentationMount as a direct authored child of CameraPivot instead of an animated armature bone.");
+            Assert.That(explicitWeaponPresentationMount!.parent, Is.SameAs(viewmodelPresentationRoot),
+                $"{context} should keep WeaponPresentationMount under ViewmodelPresentationRoot instead of the retired direct CameraPivot seam.");
+
+            Assert.That(root.transform.Find("CameraPivot/WeaponPresentationRoot"), Is.Null,
+                $"{context} should not keep the retired direct CameraPivot weapon presentation root.");
+            Assert.That(root.transform.Find("CameraPivot/WeaponPresentationMount"), Is.Null,
+                $"{context} should not keep the retired direct CameraPivot weapon presentation mount seam.");
 
             var mountDriver = root.GetComponent(WeaponPresentationMountDriverType);
             Assert.That(mountDriver, Is.Not.Null, $"{context} should include WeaponPresentationMountDriver on PlayerRoot.");
 
             var serialized = new SerializedObject(mountDriver);
             Assert.That(serialized.FindProperty("_weaponPresentationRoot")?.objectReferenceValue, Is.SameAs(weaponPresentationRoot),
-                $"{context} should wire WeaponPresentationMountDriver._weaponPresentationRoot to CameraPivot/WeaponPresentationRoot.");
+                $"{context} should wire WeaponPresentationMountDriver._weaponPresentationRoot to CameraPivot/ViewmodelPresentationRoot/WeaponPresentationRoot.");
             Assert.That(serialized.FindProperty("_weaponPresentationMount")?.objectReferenceValue, Is.Null,
                 $"{context} should not rely on a fragile nested-object reference for the weapon presentation mount.");
             Assert.That(serialized.FindProperty("_weaponPresentationMountPath")?.stringValue,
-                Is.EqualTo("CameraPivot/WeaponPresentationMount"),
+                Is.EqualTo("CameraPivot/ViewmodelPresentationRoot/WeaponPresentationMount"),
                 $"{context} should wire WeaponPresentationMountDriver._weaponPresentationMountPath to the authored static weapon presentation seam.");
         }
 

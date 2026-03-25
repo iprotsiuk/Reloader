@@ -101,6 +101,7 @@ namespace Reloader.Weapons.Data
         [SerializeField] private float _projectileGravityMultiplier = 1f;
         [SerializeField] private float _baseDamage = 20f;
         [SerializeField] private float _maxRangeMeters = 150f;
+        [SerializeField, Min(0f)] private float _barrelTwistRateInchesPerTurn;
         [SerializeField, Range(0.1f, 1f)] private float _adsSpeedMultiplier = 0.7f;
         [SerializeField] private int _startingMagazineCount = 4;
         [SerializeField] private int _startingReserveCount = 24;
@@ -119,6 +120,7 @@ namespace Reloader.Weapons.Data
         public float ProjectileGravityMultiplier => Mathf.Max(0f, _projectileGravityMultiplier);
         public float BaseDamage => Mathf.Max(0f, _baseDamage);
         public float MaxRangeMeters => Mathf.Max(0f, _maxRangeMeters);
+        public float BarrelTwistRateInchesPerTurn => Mathf.Max(0f, _barrelTwistRateInchesPerTurn);
         public float AdsSpeedMultiplier => Mathf.Clamp(_adsSpeedMultiplier, 0.1f, 1f);
         public int StartingMagazineCount => Mathf.Clamp(_startingMagazineCount, 0, MagazineCapacity);
         public int StartingReserveCount => Mathf.Max(0, _startingReserveCount);
@@ -166,7 +168,8 @@ namespace Reloader.Weapons.Data
             float adsSpeedMultiplier = 0.7f,
             WeaponScopeConfiguration? scopeConfiguration = null,
             WeaponPackPresentationConfiguration? packPresentationConfiguration = null,
-            string ammoItemId = "ammo-factory-308-147-fmj")
+            string ammoItemId = "ammo-factory-308-147-fmj",
+            float barrelTwistRateInchesPerTurn = 0f)
         {
             _itemId = itemId;
             _displayName = displayName;
@@ -177,6 +180,7 @@ namespace Reloader.Weapons.Data
             _projectileGravityMultiplier = projectileGravityMultiplier;
             _baseDamage = baseDamage;
             _maxRangeMeters = maxRangeMeters;
+            _barrelTwistRateInchesPerTurn = barrelTwistRateInchesPerTurn;
             _adsSpeedMultiplier = adsSpeedMultiplier;
             _startingMagazineCount = startingMagazineCount;
             _startingReserveCount = startingReserveCount;

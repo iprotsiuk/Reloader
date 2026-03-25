@@ -1,3 +1,5 @@
+using System;
+using System.Reflection;
 using UnityEngine;
 
 namespace Reloader.Player.Viewmodel
@@ -6,7 +8,8 @@ namespace Reloader.Player.Viewmodel
     [DisallowMultipleComponent]
     public sealed class WeaponPresentationMountDriver : MonoBehaviour
     {
-        private const string AnimatedRightHandAnchorName = "ik_hand_gun";
+        private const string AnimatedWeaponMountName = "ik_hand_gun";
+        private const string AnimatedRightHandAnchorName = "ik_hand_r";
 
         [SerializeField] private Transform _weaponPresentationRoot;
         [SerializeField] private Transform _weaponPresentationMount;
@@ -17,12 +20,15 @@ namespace Reloader.Player.Viewmodel
         [SerializeField] private ViewmodelAnimationAdapter _viewmodelAnimationAdapter;
 
         private Transform _resolvedWeaponPresentationMount;
+        private Transform _resolvedAnimatedWeaponMount;
         private Transform _resolvedAnimatedRightHandAnchor;
         private RuntimeAnimatorController _resolvedAnimatorController;
         private Transform _capturedWeaponView;
         private Vector3 _animatedBaselineLocalPosition;
         private Quaternion _animatedBaselineLocalRotation = Quaternion.identity;
         private bool _hasAnimatedBaseline;
+        private static Type s_weaponViewHandAnchorsType;
+        private static MethodInfo s_tryGetHandTargetsMethod;
 
         private void Awake()
         {
@@ -48,6 +54,7 @@ namespace Reloader.Player.Viewmodel
             _weaponPresentationMount = weaponPresentationMount;
             _weaponPresentationMountPath = string.Empty;
             _resolvedWeaponPresentationMount = null;
+            _resolvedAnimatedWeaponMount = null;
             _resolvedAnimatedRightHandAnchor = null;
             ResetAnimatedBaseline();
             SyncWeaponPresentationRoot();
@@ -76,9 +83,30 @@ namespace Reloader.Player.Viewmodel
                 return;
             }
 
-            var animatedRightHandAnchor = ResolveAnimatedRightHandAnchor();
             var liveWeaponView = ResolveLiveWeaponView(weaponPresentationRoot);
-            if (liveWeaponView == null || animatedRightHandAnchor == null)
+            if (TryResolveHandGripDrivenHipPose(weaponPresentationRoot, parentFrame, liveWeaponView, out var gripDrivenHipPose))
+            {
+                var gripDrivenAdsBlendT = ResolvePresentationBlendT();
+
+                if (gripDrivenAdsBlendT <= 0f)
+                {
+                    ApplyLocalPose(weaponPresentationRoot, gripDrivenHipPose.localPosition, gripDrivenHipPose.localRotation);
+                    return;
+                }
+
+                if (gripDrivenAdsBlendT >= 1f)
+                {
+                    ApplyLocalPose(weaponPresentationRoot, staticMount.localPosition, staticMount.localRotation);
+                    return;
+                }
+
+                weaponPresentationRoot.localPosition = Vector3.Lerp(gripDrivenHipPose.localPosition, staticMount.localPosition, gripDrivenAdsBlendT);
+                weaponPresentationRoot.localRotation = Quaternion.Slerp(gripDrivenHipPose.localRotation, staticMount.localRotation, gripDrivenAdsBlendT);
+                return;
+            }
+
+            var animatedWeaponMount = ResolveAnimatedWeaponMount();
+            if (liveWeaponView == null || animatedWeaponMount == null)
             {
                 ResetAnimatedBaseline();
                 ApplyLocalPose(weaponPresentationRoot, staticMount.localPosition, staticMount.localRotation);
@@ -87,10 +115,10 @@ namespace Reloader.Player.Viewmodel
 
             if (!ReferenceEquals(_capturedWeaponView, liveWeaponView) || !_hasAnimatedBaseline)
             {
-                CaptureAnimatedBaseline(parentFrame, liveWeaponView, animatedRightHandAnchor);
+                CaptureAnimatedBaseline(parentFrame, liveWeaponView, animatedWeaponMount);
             }
 
-            var hipPose = ResolveAnimatedDeltaPose(parentFrame, animatedRightHandAnchor, staticMount);
+            var hipPose = ResolveAnimatedDeltaPose(parentFrame, animatedWeaponMount, staticMount);
             var adsBlendT = ResolvePresentationBlendT();
 
             if (adsBlendT <= 0f)
@@ -123,6 +151,8 @@ namespace Reloader.Player.Viewmodel
             if (_armsAnimator == null)
             {
                 _resolvedAnimatorController = null;
+                _resolvedAnimatedWeaponMount = null;
+                _resolvedAnimatedRightHandAnchor = null;
                 ResetAnimatedBaseline();
                 return;
             }
@@ -131,6 +161,8 @@ namespace Reloader.Player.Viewmodel
             if (!ReferenceEquals(_resolvedAnimatorController, currentController))
             {
                 _resolvedAnimatorController = currentController;
+                _resolvedAnimatedWeaponMount = null;
+                _resolvedAnimatedRightHandAnchor = null;
                 ResetAnimatedBaseline();
             }
         }
@@ -172,19 +204,134 @@ namespace Reloader.Player.Viewmodel
             return _resolvedWeaponPresentationMount;
         }
 
-        private Transform ResolveAnimatedRightHandAnchor()
+        private Transform ResolveAnimatedWeaponMount()
         {
             if (_armsAnimator != null
-                && _resolvedAnimatedRightHandAnchor != null
-                && (_resolvedAnimatedRightHandAnchor == _armsAnimator.transform || _resolvedAnimatedRightHandAnchor.IsChildOf(_armsAnimator.transform)))
+                && _resolvedAnimatedWeaponMount != null
+                && (_resolvedAnimatedWeaponMount == _armsAnimator.transform || _resolvedAnimatedWeaponMount.IsChildOf(_armsAnimator.transform)))
             {
-                return _resolvedAnimatedRightHandAnchor;
+                return _resolvedAnimatedWeaponMount;
             }
 
-            _resolvedAnimatedRightHandAnchor = _armsAnimator != null
-                ? FindDescendantByName(_armsAnimator.transform, AnimatedRightHandAnchorName)
+            _resolvedAnimatedWeaponMount = _armsAnimator != null
+                ? FindDescendantByName(_armsAnimator.transform, AnimatedWeaponMountName)
                 : null;
-            return _resolvedAnimatedRightHandAnchor;
+            return _resolvedAnimatedWeaponMount;
+        }
+
+        private bool TryResolveHandGripDrivenHipPose(
+            Transform weaponPresentationRoot,
+            Transform parentFrame,
+            Transform liveWeaponView,
+            out (Vector3 localPosition, Quaternion localRotation) gripDrivenHipPose)
+        {
+            gripDrivenHipPose = default;
+            if (weaponPresentationRoot == null || parentFrame == null || liveWeaponView == null)
+            {
+                return false;
+            }
+
+            if (!TryGetWeaponViewHandTargets(liveWeaponView, out _, out var rightHandGrip))
+            {
+                return false;
+            }
+
+            var animatedWeaponMount = ResolveAnimatedWeaponMount();
+            if (animatedWeaponMount == null)
+            {
+                return false;
+            }
+
+            var animatedRightHandAnchor = ResolveAnimatedHandAnchor(animatedWeaponMount, AnimatedRightHandAnchorName, ref _resolvedAnimatedRightHandAnchor);
+            if (animatedRightHandAnchor == null)
+            {
+                return false;
+            }
+
+            var correctionRotation = animatedRightHandAnchor.rotation * Quaternion.Inverse(rightHandGrip.rotation);
+            var correctionPosition = animatedRightHandAnchor.position - (correctionRotation * rightHandGrip.position);
+            var rootWorldPosition = (correctionRotation * weaponPresentationRoot.position) + correctionPosition;
+            var rootWorldRotation = correctionRotation * weaponPresentationRoot.rotation;
+            gripDrivenHipPose = (
+                parentFrame.InverseTransformPoint(rootWorldPosition),
+                Quaternion.Inverse(parentFrame.rotation) * rootWorldRotation);
+            return true;
+        }
+
+        private static Transform ResolveAnimatedHandAnchor(Transform animatedWeaponMount, string targetName, ref Transform cachedAnchor)
+        {
+            if (animatedWeaponMount != null
+                && cachedAnchor != null
+                && (cachedAnchor == animatedWeaponMount || cachedAnchor.IsChildOf(animatedWeaponMount)))
+            {
+                return cachedAnchor;
+            }
+
+            cachedAnchor = animatedWeaponMount != null
+                ? FindDescendantByName(animatedWeaponMount, targetName)
+                : null;
+            return cachedAnchor;
+        }
+
+        private static bool TryGetWeaponViewHandTargets(Transform liveWeaponView, out Transform leftHandGrip, out Transform rightHandGrip)
+        {
+            leftHandGrip = null;
+            rightHandGrip = null;
+            if (liveWeaponView == null)
+            {
+                return false;
+            }
+
+            var handAnchorsType = ResolveWeaponViewHandAnchorsType();
+            if (handAnchorsType == null)
+            {
+                return false;
+            }
+
+            var handAnchors = liveWeaponView.GetComponent(handAnchorsType);
+            if (handAnchors == null)
+            {
+                return false;
+            }
+
+            s_tryGetHandTargetsMethod ??= handAnchorsType.GetMethod("TryGetHandTargets", BindingFlags.Instance | BindingFlags.Public);
+            if (s_tryGetHandTargetsMethod == null)
+            {
+                return false;
+            }
+
+            var args = new object[] { null, null };
+            if (s_tryGetHandTargetsMethod.Invoke(handAnchors, args) is not bool hasHandTargets || !hasHandTargets)
+            {
+                return false;
+            }
+
+            leftHandGrip = args[0] as Transform;
+            rightHandGrip = args[1] as Transform;
+            return leftHandGrip != null && rightHandGrip != null;
+        }
+
+        private static Type ResolveWeaponViewHandAnchorsType()
+        {
+            if (s_weaponViewHandAnchorsType != null)
+            {
+                return s_weaponViewHandAnchorsType;
+            }
+
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            for (var i = 0; i < assemblies.Length; i++)
+            {
+                var candidate = assemblies[i].GetType("Reloader.Weapons.Runtime.WeaponViewHandAnchors");
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                s_weaponViewHandAnchorsType = candidate;
+                return s_weaponViewHandAnchorsType;
+            }
+
+            return null;
         }
 
         private void CaptureAnimatedBaseline(Transform parentFrame, Transform liveWeaponView, Transform animatedRightHandAnchor)
@@ -216,11 +363,6 @@ namespace Reloader.Player.Viewmodel
 
         private float ResolvePresentationBlendT()
         {
-            if (_viewmodelAnimationAdapter != null && _viewmodelAnimationAdapter.IsReloadingDebug)
-            {
-                return 0f;
-            }
-
             return _adsStateController != null ? Mathf.Clamp01(_adsStateController.AdsT) : 0f;
         }
 

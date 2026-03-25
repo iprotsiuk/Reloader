@@ -2,6 +2,7 @@ using NUnit.Framework;
 using Reloader.Player;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
+using System.Reflection;
 
 namespace Reloader.Player.Tests.EditMode
 {
@@ -122,12 +123,34 @@ namespace Reloader.Player.Tests.EditMode
 
             defaults.ApplyDefaults();
 
-            var lens = cinemachineCameraType!.GetProperty("Lens")!.GetValue(cinemachineCamera);
-            Assert.That((float)lens!.GetType().GetProperty("NearClipPlane")!.GetValue(lens), Is.EqualTo(0.001f).Within(0.0001f));
-            Assert.That((float)lens.GetType().GetProperty("FarClipPlane")!.GetValue(lens), Is.EqualTo(2828f).Within(0.001f));
+            var lensMember = (MemberInfo?)cinemachineCameraType!.GetProperty("Lens", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                ?? cinemachineCameraType.GetField("Lens", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(lensMember, Is.Not.Null, "Expected CinemachineCamera to expose a Lens member.");
+
+            var lens = lensMember is PropertyInfo lensProperty
+                ? lensProperty.GetValue(cinemachineCamera)
+                : ((FieldInfo)lensMember!).GetValue(cinemachineCamera);
+            Assert.That(lens, Is.Not.Null, "Expected CinemachineCamera.Lens to be initialized.");
+
+            Assert.That(GetSingleMemberValue(lens!, "NearClipPlane"), Is.EqualTo(0.001f).Within(0.0001f));
+            Assert.That(GetSingleMemberValue(lens!, "FarClipPlane"), Is.EqualTo(2828f).Within(0.001f));
             Assert.That(authoredViewmodelCamera.nearClipPlane, Is.EqualTo(0.001f).Within(0.0001f));
 
             Object.DestroyImmediate(root);
+        }
+
+        private static float GetSingleMemberValue(object instance, string memberName)
+        {
+            var instanceType = instance.GetType();
+            var property = instanceType.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (property != null)
+            {
+                return System.Convert.ToSingle(property.GetValue(instance));
+            }
+
+            var field = instanceType.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected {instanceType.Name} to expose {memberName}.");
+            return System.Convert.ToSingle(field!.GetValue(instance));
         }
 
         [Test]
@@ -418,10 +441,12 @@ namespace Reloader.Player.Tests.EditMode
             var mainCameraGo = new GameObject("MainCamera");
             mainCameraGo.transform.SetParent(root.transform, false);
             var mainCamera = mainCameraGo.AddComponent<Camera>();
+            var viewmodelPresentationRoot = new GameObject("ViewmodelPresentationRoot").transform;
+            viewmodelPresentationRoot.SetParent(presentationPivot, false);
             var weaponPresentationRoot = new GameObject("WeaponMount").transform;
-            weaponPresentationRoot.SetParent(presentationPivot, false);
+            weaponPresentationRoot.SetParent(viewmodelPresentationRoot, false);
             var playerArmsRoot = new GameObject("ArmsBranch").transform;
-            playerArmsRoot.SetParent(presentationPivot, false);
+            playerArmsRoot.SetParent(viewmodelPresentationRoot, false);
             var playerArmsVisual = new GameObject("ViewArmsVisual");
             playerArmsVisual.transform.SetParent(playerArmsRoot, false);
             var playerArmsAnimator = playerArmsVisual.AddComponent<Animator>();
@@ -466,7 +491,7 @@ namespace Reloader.Player.Tests.EditMode
             Assert.That(resolvedPlayerArmsAnimator, Is.SameAs(playerArmsAnimator));
             Assert.That(resolvedWeaponPresentationRoot, Is.SameAs(weaponPresentationRoot));
             Assert.That(presentationPivot.Find("WeaponPresentationRoot"), Is.Null,
-                "Explicit PlayerCameraDefaults ownership should not create the legacy CameraPivot/WeaponPresentationRoot fallback.");
+                "Explicit PlayerCameraDefaults ownership should not create the legacy direct CameraPivot/WeaponPresentationRoot fallback.");
 
             Object.DestroyImmediate(root);
         }

@@ -1,8 +1,9 @@
-using System;
 using System.Collections;
+using System;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Save.Modules;
+using Reloader.NPCs.Generation;
 using UnityEngine;
 
 namespace Reloader.NPCs.Tests.EditMode
@@ -278,11 +279,11 @@ namespace Reloader.NPCs.Tests.EditMode
 
             Assert.That(GetProperty<string>(record, "BaseBodyId"), Is.EqualTo("male.body"));
             Assert.That(GetProperty<string>(record, "HairId"), Is.EqualTo("hair.short"));
-            Assert.That(GetProperty<string>(record, "EyebrowId"), Is.EqualTo("brous1"));
-            Assert.That(GetProperty<string>(record, "BeardId"), Is.EqualTo("beard4"));
-            Assert.That(GetProperty<string>(record, "OutfitTopId"), Is.EqualTo("tshirt2"));
+            Assert.That(MainTownCuratedAppearanceRules.IsApprovedEyebrowId(GetProperty<string>(record, "EyebrowId")), Is.True);
+            Assert.That(MainTownCuratedAppearanceRules.IsMaleBeardId(GetProperty<string>(record, "BeardId")), Is.True);
+            Assert.That(MainTownCuratedAppearanceRules.IsApprovedBaseTopId(GetProperty<string>(record, "OutfitTopId")), Is.True);
             Assert.That(GetProperty<string>(record, "OutfitBottomId"), Is.EqualTo("pants1"));
-            Assert.That(GetProperty<string>(record, "OuterwearId"), Is.EqualTo("openJacket"));
+            Assert.That(MainTownCuratedAppearanceRules.IsApprovedOuterwearId(GetProperty<string>(record, "OuterwearId")), Is.True);
         }
 
         [Test]

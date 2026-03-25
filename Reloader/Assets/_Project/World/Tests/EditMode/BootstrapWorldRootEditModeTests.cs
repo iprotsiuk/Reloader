@@ -138,6 +138,29 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
+        [Test]
+        public void BootstrapScene_MainCamera_DoesNotAuthorAudioListener()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var mainCamera = FindRoot(scene, "Main Camera");
+                Assert.That(mainCamera, Is.Not.Null);
+                Assert.That(mainCamera.GetComponent<AudioListener>(), Is.Null,
+                    "Bootstrap should keep the runtime audio listener on the canonical player root, not the menu camera.");
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
         private static BootstrapWorldRoot FindBootstrapWorldRoot(Scene scene)
         {
             var roots = scene.GetRootGameObjects();
@@ -151,6 +174,26 @@ namespace Reloader.World.Tests.EditMode
             }
 
             Assert.Fail($"Expected BootstrapWorldRoot in scene '{scene.path}'.");
+            return null;
+        }
+
+        private static GameObject FindRoot(Scene scene, string rootName)
+        {
+            if (!scene.IsValid())
+            {
+                return null;
+            }
+
+            var roots = scene.GetRootGameObjects();
+            for (var i = 0; i < roots.Length; i++)
+            {
+                var candidate = roots[i];
+                if (candidate != null && candidate.name == rootName)
+                {
+                    return candidate;
+                }
+            }
+
             return null;
         }
 

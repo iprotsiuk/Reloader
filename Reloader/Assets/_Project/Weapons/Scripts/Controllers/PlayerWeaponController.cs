@@ -21,6 +21,7 @@ using Reloader.Weapons.Cinematics;
 using Reloader.Weapons.Data;
 using Reloader.Weapons.PackRuntime;
 using Reloader.Weapons.Runtime;
+using Reloader.Weapons.Animations;
 using System;
 using System.Reflection;
 using UnityEngine;
@@ -37,6 +38,18 @@ namespace Reloader.Weapons.Controllers
 
         public string ItemId => _itemId;
         public GameObject ViewPrefab => _viewPrefab;
+    }
+
+    [System.Serializable]
+    public struct ProjectileVisualPrefabBinding
+    {
+        [SerializeField] private string _ammoItemId;
+        [SerializeField] private GameObject _visualPrefab;
+        [SerializeField] private Vector3 _localEulerAngles;
+
+        public string AmmoItemId => _ammoItemId;
+        public GameObject VisualPrefab => _visualPrefab;
+        public Vector3 LocalEulerAngles => _localEulerAngles;
     }
 
     public readonly struct WeaponRuntimeSnapshot
@@ -106,6 +119,7 @@ namespace Reloader.Weapons.Controllers
         [SerializeField] private PlayerInventoryController _inventoryController;
         [SerializeField] private WeaponRegistry _weaponRegistry;
         [SerializeField] private WeaponProjectile _projectilePrefab;
+        [SerializeField] private ProjectileVisualPrefabBinding[] _projectileVisualPrefabs = System.Array.Empty<ProjectileVisualPrefabBinding>();
         [SerializeField] private Transform _muzzleTransform;
         [SerializeField] private PlayerCameraDefaults _cameraDefaults;
         [SerializeField] private Camera _scopeCamera;
@@ -521,6 +535,7 @@ namespace Reloader.Weapons.Controllers
                     && _cameraDefaults.TryGetPlayerArmsAnimator(out var playerArmsAnimator))
                 {
                     _packAnimator = playerArmsAnimator;
+                    PlayerArmsAnimationEventReceiver.EnsureReceiver(_packAnimator);
                     RefreshPackRenderers();
                 }
 
@@ -537,6 +552,7 @@ namespace Reloader.Weapons.Controllers
             if (!IsReferenceOnPlayerHierarchy(_packAnimator != null ? _packAnimator.transform : null))
             {
                 _packAnimator = ResolvePackAnimator();
+                PlayerArmsAnimationEventReceiver.EnsureReceiver(_packAnimator);
                 RefreshPackRenderers();
             }
 
@@ -963,10 +979,18 @@ namespace Reloader.Weapons.Controllers
             }
 
             packDriver.NotifyFire(Time.time, state.FireIntervalSeconds);
+            _weaponAimAlignerRuntimeBridge?.ApplyScopedRecoilImpulse();
 
             var ballisticSpec = ResolveBallisticSpec(fireData);
             var hasQualifiedShotCameraPrediction = TryBuildShotCameraPrediction(out var predictedImpactPoint, out var predictedDistanceMeters);
             var projectile = SpawnProjectile();
+            if (TryResolveProjectileVisualBinding(fireData, out var projectileVisualBinding))
+            {
+                projectile?.ConfigureInFlightVisual(
+                    projectileVisualBinding.VisualPrefab,
+                    projectileVisualBinding.LocalEulerAngles,
+                    _equippedDefinition != null ? _equippedDefinition.BarrelTwistRateInchesPerTurn : 0f);
+            }
             projectile?.Configure(_useRuntimeKernelWeaponEvents ? null : _weaponEvents);
             projectile?.SetPathObserver(TryCreateActiveTracePathObserver());
             var muzzleTransform = _muzzleTransform;
@@ -1041,6 +1065,30 @@ namespace Reloader.Weapons.Controllers
             }
 
             return s_createActiveProjectilePathObserverMethod?.Invoke(null, null) as WeaponProjectile.IPathObserver;
+        }
+
+        private bool TryResolveProjectileVisualBinding(WeaponFireData fireData, out ProjectileVisualPrefabBinding projectileVisualBinding)
+        {
+            projectileVisualBinding = default;
+            var ammoItemId = fireData.FiredRound.HasValue && !string.IsNullOrWhiteSpace(fireData.FiredRound.Value.AmmoItemId)
+                ? fireData.FiredRound.Value.AmmoItemId
+                : (_equippedDefinition != null ? _equippedDefinition.AmmoItemId : WeaponAmmoDefaults.DefaultAmmoItemId);
+            var normalizedAmmoItemId = WeaponAmmoDefaults.NormalizeAmmoItemId(ammoItemId);
+
+            for (var i = 0; i < _projectileVisualPrefabs.Length; i++)
+            {
+                var binding = _projectileVisualPrefabs[i];
+                if (binding.VisualPrefab == null
+                    || WeaponAmmoDefaults.NormalizeAmmoItemId(binding.AmmoItemId) != normalizedAmmoItemId)
+                {
+                    continue;
+                }
+
+                projectileVisualBinding = binding;
+                return true;
+            }
+
+            return false;
         }
 
         private void TryRegisterQualifiedShotCamera(WeaponProjectile projectile, Vector3 predictedImpactPoint, float predictedDistanceMeters)
@@ -2657,10 +2705,6 @@ namespace Reloader.Weapons.Controllers
             {
                 renderTypeProperty.SetValue(additionalCameraData, Enum.Parse(renderTypeProperty.PropertyType, "Base"));
             }
-
-            var cameraStackProperty = additionalCameraDataType.GetProperty("cameraStack", BindingFlags.Instance | BindingFlags.Public);
-            var clearMethod = cameraStackProperty?.GetValue(additionalCameraData)?.GetType().GetMethod("Clear", BindingFlags.Instance | BindingFlags.Public);
-            clearMethod?.Invoke(cameraStackProperty.GetValue(additionalCameraData), null);
         }
 
         private static int ExcludeViewmodelLayer(int cullingMask)

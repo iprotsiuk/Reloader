@@ -15,6 +15,15 @@ namespace Reloader.UI.Tests.PlayMode
 {
     public sealed class DevConsoleScreenPlayModeTests
     {
+        [Test]
+        public void BuildBinder_DefaultsConsoleScreenToHiddenAndNonInteractive()
+        {
+            var binder = BuildBinder();
+
+            Assert.That(binder.Root.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(binder.Root.pickingMode, Is.EqualTo(PickingMode.Ignore));
+        }
+
         [UnityTest]
         public IEnumerator OpeningConsole_RaisesUiStateAndBlocksGameplayInput()
         {
