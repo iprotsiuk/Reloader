@@ -416,6 +416,57 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void RebuildScenePopulation_WhenTerrainExists_PreservesAuthoredSpawnAnchorPose()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            var anchor = CreateAnchor(go.transform, "Anchor_A", new Vector3(12f, 5f, 18f));
+            var terrainData = new TerrainData
+            {
+                heightmapResolution = 33,
+                size = new Vector3(64f, 8f, 64f)
+            };
+            var terrainObject = Terrain.CreateTerrainGameObject(terrainData);
+
+            try
+            {
+                terrainData.SetHeights(0, 0, new float[terrainData.heightmapResolution, terrainData.heightmapResolution]);
+
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.terrain-pose",
+                    FirstName = "Anya",
+                    LastName = "Volkov",
+                    PopulationSlotId = "townsfolk.terrain-pose",
+                    PoolId = "townsfolk",
+                    SpawnAnchorId = "Anchor_A",
+                    AreaTag = "maintown.placeholder",
+                    IsAlive = true
+                });
+
+                bridge.RebuildScenePopulation();
+
+                var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(spawned.Length, Is.EqualTo(1));
+                Assert.That(spawned[0].transform.position, Is.EqualTo(anchor.position),
+                    "Expected placeholder civilian spawns to preserve their authored roster anchor pose even when temporary terrain exists in the scene.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(terrainObject);
+                Object.DestroyImmediate(terrainData);
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void RebuildScenePopulation_WhenCivilianSpawns_AssignsRuntimeDialogueWithGenericAmbientLine()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");
@@ -2226,5 +2277,6 @@ namespace Reloader.NPCs.Tests.EditMode
             anchor.localPosition = position;
             return anchor;
         }
+
     }
 }

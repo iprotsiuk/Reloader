@@ -535,7 +535,6 @@ namespace Reloader.NPCs.Runtime
             var civilian = CreateCivilianActor(record.CivilianId);
             civilian.transform.SetPositionAndRotation(anchor.position, anchor.rotation);
             InitializeSpawnedCivilian(civilian, record);
-            GroundSpawnedActor(civilian.transform);
 
             var agent = civilian.GetComponent<NpcAgent>();
             agent?.InitializeCapabilities();
@@ -558,7 +557,6 @@ namespace Reloader.NPCs.Runtime
             civilian.transform.SetPositionAndRotation(anchor.position, anchor.rotation);
             InitializeSpawnedCivilian(civilian, record);
             ConfigureContractTargetIfEligible(civilian, record);
-            GroundSpawnedActor(civilian.transform);
 
             var agent = civilian.GetComponent<NpcAgent>();
             agent?.InitializeCapabilities();
@@ -603,7 +601,6 @@ namespace Reloader.NPCs.Runtime
             civilian.transform.SetPositionAndRotation(position, rotation);
             InitializeSpawnedCivilian(civilian, record);
             ConfigureContractTargetIfEligible(civilian, record);
-            GroundSpawnedActor(civilian.transform);
 
             var agent = civilian.GetComponent<NpcAgent>();
             agent?.InitializeCapabilities();
@@ -623,110 +620,6 @@ namespace Reloader.NPCs.Runtime
             civilian.transform.localScale = Vector3.one;
             civilian.SetActive(true);
             return civilian;
-        }
-
-        private static void GroundSpawnedActor(Transform actorRoot)
-        {
-            if (actorRoot == null || !TryResolveTerrainHeight(actorRoot.position, out var terrainHeight))
-            {
-                return;
-            }
-
-            if (!TryGetPresentationBounds(actorRoot, out var bounds))
-            {
-                var groundedPosition = actorRoot.position;
-                groundedPosition.y = terrainHeight;
-                actorRoot.position = groundedPosition;
-                return;
-            }
-
-            var verticalShift = terrainHeight - bounds.min.y;
-            if (Mathf.Abs(verticalShift) <= 0.001f)
-            {
-                return;
-            }
-
-            actorRoot.position += Vector3.up * verticalShift;
-        }
-
-        private static bool TryResolveTerrainHeight(Vector3 worldPosition, out float terrainHeight)
-        {
-            terrainHeight = 0f;
-
-            var terrains = Terrain.activeTerrains;
-            if (terrains == null || terrains.Length == 0)
-            {
-                return false;
-            }
-
-            for (var i = 0; i < terrains.Length; i++)
-            {
-                var terrain = terrains[i];
-                if (terrain == null || terrain.terrainData == null)
-                {
-                    continue;
-                }
-
-                var terrainPosition = terrain.transform.position;
-                var terrainSize = terrain.terrainData.size;
-                var maxX = terrainPosition.x + terrainSize.x;
-                var maxZ = terrainPosition.z + terrainSize.z;
-                if (worldPosition.x < terrainPosition.x || worldPosition.x > maxX || worldPosition.z < terrainPosition.z || worldPosition.z > maxZ)
-                {
-                    continue;
-                }
-
-                terrainHeight = terrain.SampleHeight(worldPosition) + terrainPosition.y;
-                return true;
-            }
-
-            return false;
-        }
-
-        private static bool TryGetPresentationBounds(Transform actorRoot, out Bounds combinedBounds)
-        {
-            combinedBounds = default;
-            var found = false;
-
-            var renderers = actorRoot.GetComponentsInChildren<Renderer>(includeInactive: true);
-            for (var i = 0; i < renderers.Length; i++)
-            {
-                var renderer = renderers[i];
-                if (renderer == null || !renderer.gameObject.activeInHierarchy)
-                {
-                    continue;
-                }
-
-                if (!found)
-                {
-                    combinedBounds = renderer.bounds;
-                    found = true;
-                    continue;
-                }
-
-                combinedBounds.Encapsulate(renderer.bounds);
-            }
-
-            var colliders = actorRoot.GetComponentsInChildren<Collider>(includeInactive: true);
-            for (var i = 0; i < colliders.Length; i++)
-            {
-                var collider = colliders[i];
-                if (collider == null || !collider.enabled || collider.isTrigger || !collider.gameObject.activeInHierarchy)
-                {
-                    continue;
-                }
-
-                if (!found)
-                {
-                    combinedBounds = collider.bounds;
-                    found = true;
-                    continue;
-                }
-
-                combinedBounds.Encapsulate(collider.bounds);
-            }
-
-            return found;
         }
 
         private static void InitializeSpawnedCivilian(GameObject civilian, CivilianPopulationRecord record)
