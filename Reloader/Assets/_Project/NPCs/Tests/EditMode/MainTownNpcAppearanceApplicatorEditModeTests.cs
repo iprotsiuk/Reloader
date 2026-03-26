@@ -456,6 +456,47 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
+        [Test]
+        public void Apply_WhenPresentationHierarchyCarriesNonUnitScale_NormalizesBackToUnitScale()
+        {
+            var root = CreateTestRoot();
+            try
+            {
+                root.transform.localScale = new Vector3(1f, 3f, 0.5f);
+                var visualRoot = root.transform.Find("VisualRoot");
+                var maleRoot = root.transform.Find("VisualRoot/StyleMaleRoot");
+                var femaleRoot = root.transform.Find("VisualRoot/StyleFemaleRoot");
+                Assert.That(visualRoot, Is.Not.Null);
+                Assert.That(maleRoot, Is.Not.Null);
+                Assert.That(femaleRoot, Is.Not.Null);
+
+                visualRoot!.localScale = new Vector3(2f, 0.5f, 1.25f);
+                maleRoot!.localScale = new Vector3(1.5f, 4f, 0.8f);
+                femaleRoot!.localScale = new Vector3(0.7f, 2.2f, 1.4f);
+
+                var applicator = root.AddComponent<MainTownNpcAppearanceApplicator>();
+                applicator.Apply(new CivilianPopulationRecord
+                {
+                    BaseBodyId = "male.body",
+                    HairId = "hair.short",
+                    EyebrowId = "brous1",
+                    BeardId = "beard4",
+                    OutfitTopId = "tshirt1",
+                    OutfitBottomId = "pants1",
+                    OuterwearId = "openJacket"
+                });
+
+                Assert.That(root.transform.localScale, Is.EqualTo(Vector3.one));
+                Assert.That(visualRoot.localScale, Is.EqualTo(Vector3.one));
+                Assert.That(maleRoot.localScale, Is.EqualTo(Vector3.one));
+                Assert.That(femaleRoot.localScale, Is.EqualTo(Vector3.one));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
         private static GameObject CreateTestRoot()
         {
             var root = new GameObject("Npc");

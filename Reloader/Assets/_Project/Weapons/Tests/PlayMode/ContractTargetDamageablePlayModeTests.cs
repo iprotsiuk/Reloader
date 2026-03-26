@@ -3,6 +3,8 @@ using System.Collections;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Contracts.Runtime;
+using Reloader.Core.Events;
+using Reloader.Core.Runtime;
 using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.World;
 using UnityEngine;
@@ -74,6 +76,73 @@ namespace Reloader.Weapons.Tests.PlayMode
 
             UnityEngine.Object.Destroy(unrelatedSinkGo);
             UnityEngine.Object.Destroy(targetGo);
+        }
+
+        [UnityTest]
+        public IEnumerator ApplyDamage_WhenProviderTracksDifferentTarget_DoesNotReportUnrelatedKill()
+        {
+            var providerGo = new GameObject("ContractProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            var definitionType = ResolveType("Reloader.Contracts.Runtime.AssassinationContractDefinition", "Reloader.Contracts");
+            Assert.That(definitionType, Is.Not.Null, "Expected contract definition type.");
+
+            var definition = ScriptableObject.CreateInstance(definitionType!);
+            SetPrivateField(definition, "_contractId", "contract.alpha");
+            SetPrivateField(definition, "_targetId", "target.alpha");
+            SetPrivateField(definition, "_title", "Street contract");
+            SetPrivateField(definition, "_targetDisplayName", "Victor Hale");
+            SetPrivateField(definition, "_targetDescription", "Grey jacket, rooftop smoker.");
+            SetPrivateField(definition, "_briefingText", "Eliminate the target and clear the area.");
+            SetPrivateField(definition, "_distanceBand", 420f);
+            SetPrivateField(definition, "_payout", 1500);
+
+            var targetGo = new GameObject("ContractTarget");
+            var target = targetGo.AddComponent<ContractTargetDamageable>();
+            targetGo.AddComponent<BoxCollider>();
+
+            var setAvailableMethod = typeof(StaticContractRuntimeProvider).GetMethod("SetAvailableContract", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(setAvailableMethod, Is.Not.Null);
+
+            try
+            {
+                setAvailableMethod!.Invoke(provider, new object[] { definition });
+                Assert.That(provider.AcceptAvailableContract(), Is.True);
+
+                SetPrivateField(target, "_eliminationSinkBehaviour", provider);
+                SetPrivateField(target, "_targetId", "target.bravo");
+                SetPrivateField(target, "_displayName", "Wrong Target");
+                SetPrivateField(target, "_maxHealth", 10f);
+                target.ResetRuntime();
+
+                yield return null;
+
+                target.ApplyDamage(new ProjectileImpactPayload(
+                    itemId: "weapon-kar98k",
+                    point: Vector3.zero,
+                    normal: Vector3.up,
+                    damage: 25f,
+                    hitObject: targetGo,
+                    sourcePoint: Vector3.back * 50f));
+
+                Assert.That(targetGo.activeSelf, Is.False);
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True);
+                Assert.That(snapshot.HasActiveContract, Is.True);
+                Assert.That(snapshot.TargetId, Is.EqualTo("target.alpha"));
+                Assert.That(snapshot.StatusText, Is.EqualTo("Active contract"));
+
+                var runtimeField = typeof(StaticContractRuntimeProvider).GetField("_runtime", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(runtimeField, Is.Not.Null);
+                var runtime = runtimeField!.GetValue(provider) as ContractEscapeResolutionRuntime;
+                Assert.That(runtime, Is.Not.Null);
+                Assert.That(runtime!.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search),
+                    "Wrong-target lethal hits should keep the contract active while still raising witnessed-kill search heat.");
+            }
+            finally
+            {
+                UnityEngine.Object.Destroy(providerGo);
+                UnityEngine.Object.Destroy(definition);
+                UnityEngine.Object.Destroy(targetGo);
+            }
         }
 
         [UnityTest]

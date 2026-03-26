@@ -211,6 +211,42 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void SetAvailableContract_WhileActiveContract_IgnoresReplacementOfferInsteadOfDeferringIt()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            var replacement = CreateDefinition("contract.bravo", "target.bravo", 610f, 2400);
+            var runtime = new ContractEscapeResolutionRuntime(contract, payoutReceiver: new RecordingPayoutReceiver());
+
+            try
+            {
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+
+                runtime.SetAvailableContract(replacement);
+
+                Assert.That(runtime.ActiveContract, Is.Not.Null);
+                Assert.That(runtime.ActiveContract!.ContractId, Is.EqualTo("contract.alpha"));
+                Assert.That(runtime.ActiveDefinition, Is.SameAs(contract));
+
+                Assert.That(runtime.CancelActiveContract(), Is.True);
+
+                Assert.That(runtime.ActiveContract, Is.Null);
+                Assert.That(runtime.TryGetSnapshot(out var snapshot), Is.True);
+                Assert.That(snapshot.HasActiveContract, Is.False);
+                Assert.That(snapshot.HasAvailableContract, Is.True);
+                Assert.That(snapshot.ContractId, Is.EqualTo("contract.alpha"),
+                    "Ignoring a replacement while active must keep the original posted offer rather than deferring the replacement until cancel.");
+                Assert.That(snapshot.TargetId, Is.EqualTo("target.alpha"));
+                Assert.That(snapshot.StatusText, Is.EqualTo("Available contract"));
+                Assert.That(snapshot.CanAccept, Is.True);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+                UnityEngine.Object.DestroyImmediate(replacement);
+            }
+        }
+
+        [Test]
         public void ReportTargetEliminated_WrongTargetOnDefaultContract_KeepsContractActiveAndRaisesHeat()
         {
             var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);

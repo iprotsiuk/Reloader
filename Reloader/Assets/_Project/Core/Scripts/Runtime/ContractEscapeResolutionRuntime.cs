@@ -88,6 +88,11 @@ namespace Reloader.Contracts.Runtime
 
         public void SetAvailableContract(AssassinationContractDefinition availableContract)
         {
+            if (!CanReplaceAvailableContract())
+            {
+                return;
+            }
+
             _availableContract = availableContract;
             _offerConsumed = false;
             ResetPendingResolution();
@@ -410,6 +415,21 @@ namespace Reloader.Contracts.Runtime
         private void ClearFailedContractState()
         {
             _failedDefinition = null;
+        }
+
+        internal bool CanReplaceAvailableContract()
+        {
+            if (_contractController.ActiveContract != null)
+            {
+                return false;
+            }
+
+            if (_awaitingSearchClear || _completionPending || _pendingPayoutAmount > 0)
+            {
+                return false;
+            }
+
+            return !(_offerConsumed && _policeHeatRuntime.CurrentState.Level != PoliceHeatLevel.Clear);
         }
 
         private bool CanCancelActiveContract()

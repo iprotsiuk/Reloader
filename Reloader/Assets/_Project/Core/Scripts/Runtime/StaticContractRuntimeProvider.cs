@@ -82,8 +82,14 @@ namespace Reloader.Contracts.Runtime
 
         public void SetAvailableContract(AssassinationContractDefinition availableContract)
         {
+            var runtime = EnsureRuntime();
+            if (!runtime.CanReplaceAvailableContract())
+            {
+                return;
+            }
+
             _availableContract = availableContract;
-            EnsureRuntime().SetAvailableContract(availableContract);
+            runtime.SetAvailableContract(availableContract);
         }
 
         public void SetPayoutReceiver(IContractPayoutReceiver payoutReceiver)

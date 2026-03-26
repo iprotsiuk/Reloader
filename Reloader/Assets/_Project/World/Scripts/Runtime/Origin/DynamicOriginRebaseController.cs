@@ -102,6 +102,15 @@ namespace Reloader.World.Runtime.Origin
                 return;
             }
 
+            var horizontalDistanceFromLocalOrigin = _coordinateBridge != null
+                ? _coordinateBridge.ComputeHorizontalDistanceFromLocalOrigin(playerRoot.position)
+                : new Vector2(playerRoot.position.x, playerRoot.position.z).magnitude;
+            if (horizontalDistanceFromLocalOrigin >= _rebaseDistanceMeters)
+            {
+                _playerHorizontalBaseline = Vector3.zero;
+                return;
+            }
+
             _playerHorizontalBaseline = new Vector3(playerRoot.position.x, 0f, playerRoot.position.z);
         }
 

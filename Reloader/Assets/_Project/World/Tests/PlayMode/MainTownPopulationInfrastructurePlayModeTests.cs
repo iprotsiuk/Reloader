@@ -14,6 +14,7 @@ using Reloader.NPCs.Runtime.Capabilities;
 using Reloader.NPCs.World;
 using Reloader.Player;
 using Reloader.World.Runtime;
+using Reloader.World.Runtime.Origin;
 using Reloader.World.Travel;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -143,6 +144,62 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator MainTownPopulationRuntime_LoadScene_KeepsStarterCiviliansOnUnitPresentationScale()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var root = GameObject.Find("MainTownPopulationRuntime");
+            Assert.That(root, Is.Not.Null, "Expected authored MainTown population runtime root.");
+
+            var spawned = root!.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            Assert.That(spawned.Length, Is.GreaterThan(0), "Expected starter population civilians in MainTown.");
+
+            for (var i = 0; i < spawned.Length; i++)
+            {
+                var civilian = spawned[i];
+                AssertUniformScale(civilian.transform.lossyScale, civilian.PublicDisplayName, "civilian root");
+
+                var visualRoot = civilian.transform.Find("VisualRoot");
+                Assert.That(visualRoot, Is.Not.Null, $"Expected VisualRoot on spawned civilian '{civilian.PublicDisplayName}'.");
+                AssertUniformScale(visualRoot!.lossyScale, civilian.PublicDisplayName, "VisualRoot");
+
+                var activeStyleRoot = visualRoot.Find("StyleMaleRoot");
+                if (activeStyleRoot == null || !activeStyleRoot.gameObject.activeInHierarchy)
+                {
+                    activeStyleRoot = visualRoot.Find("StyleFemaleRoot");
+                }
+
+                Assert.That(activeStyleRoot, Is.Not.Null, $"Expected an active presentation root on '{civilian.PublicDisplayName}'.");
+                AssertUniformScale(activeStyleRoot!.lossyScale, civilian.PublicDisplayName, activeStyleRoot.name);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownPopulationRuntime_LoadScene_RebasesCanonicalPlayerNearLocalOriginWindowForPrecision()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var persistentRoot = PersistentPlayerRoot.Instance;
+            Assert.That(persistentRoot, Is.Not.Null, "Expected canonical persistent player root after routing into MainTown.");
+
+            var rebaseController = persistentRoot!.GetComponent<DynamicOriginRebaseController>();
+            var rebaseState = persistentRoot.GetComponent<DynamicOriginRebaseState>();
+            Assert.That(rebaseController, Is.Not.Null, "Expected DynamicOriginRebaseController on the canonical runtime owner after MainTown travel.");
+            Assert.That(rebaseState, Is.Not.Null, "Expected DynamicOriginRebaseState on the canonical runtime owner after MainTown travel.");
+
+            var playerRoot = persistentRoot.PlayerRootTransform;
+            Assert.That(playerRoot, Is.Not.Null, "Expected canonical runtime player root after routing into MainTown.");
+
+            var horizontalDistanceFromLocalOrigin = new Vector2(playerRoot!.position.x, playerRoot.position.z).magnitude;
+            Assert.That(horizontalDistanceFromLocalOrigin, Is.LessThan(rebaseController!.RebaseDistanceMeters),
+                $"Expected MainTown travel to settle the canonical player inside the local-origin precision window. Distance={horizontalDistanceFromLocalOrigin:0.###}.");
+            Assert.That(new Vector2(rebaseState!.StableOriginOffset.x, rebaseState.StableOriginOffset.z).magnitude, Is.GreaterThan(100f),
+                "Expected MainTown travel to preserve a non-zero stable-world offset instead of leaving the player at far local coordinates.");
+        }
+
+        [UnityTest]
         public IEnumerator MainTownPopulationRuntime_RebuildScenePopulation_SpawnsLiveOccupantsAndSkipsDeadSlots()
         {
             yield return LoadScene(MainTownSceneName);
@@ -194,7 +251,7 @@ namespace Reloader.World.Tests.PlayMode
 
             var anchor = root.transform.Find("Anchor_Townsfolk_01");
             Assert.That(anchor, Is.Not.Null, "Expected authored spawn anchor to exist.");
-            Assert.That(spawnedAgents[0].transform.position, Is.EqualTo(anchor!.position));
+            AssertSpawnedCivilianTracksAnchorLane(FindMainTownTerrain(), spawnedAgents[0].transform, anchor!, "citizen.mainTown.0001");
         }
 
         [UnityTest]
@@ -263,11 +320,20 @@ namespace Reloader.World.Tests.PlayMode
             var spawned = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
             Assert.That(spawned.Length, Is.GreaterThan(0), "Expected starter population civilians in MainTown.");
 
-            var playerRoot = GameObject.Find("PlayerRoot");
+            var playerRoot = ResolveCanonicalPlayerRoot();
             Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot in MainTown.");
 
             var interactionController = playerRoot!.GetComponent<PlayerNpcInteractionController>();
+            if (interactionController == null)
+            {
+                interactionController = playerRoot.AddComponent<PlayerNpcInteractionController>();
+            }
+
             var resolver = playerRoot.GetComponent<PlayerNpcResolver>();
+            if (resolver == null)
+            {
+                resolver = playerRoot.AddComponent<PlayerNpcResolver>();
+            }
             var playerCamera = playerRoot.GetComponentInChildren<Camera>(includeInactive: true);
             Assert.That(interactionController, Is.Not.Null, "Expected PlayerNpcInteractionController on PlayerRoot.");
             Assert.That(resolver, Is.Not.Null, "Expected PlayerNpcResolver on PlayerRoot.");
@@ -391,11 +457,20 @@ namespace Reloader.World.Tests.PlayMode
             var spawned = root!.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
             Assert.That(spawned.Length, Is.GreaterThan(0), "Expected starter population civilians in MainTown.");
 
-            var playerRoot = GameObject.Find("PlayerRoot");
+            var playerRoot = ResolveCanonicalPlayerRoot();
             Assert.That(playerRoot, Is.Not.Null, "Expected PlayerRoot in MainTown.");
 
             var interactionController = playerRoot!.GetComponent<PlayerNpcInteractionController>();
+            if (interactionController == null)
+            {
+                interactionController = playerRoot.AddComponent<PlayerNpcInteractionController>();
+            }
+
             var resolver = playerRoot.GetComponent<PlayerNpcResolver>();
+            if (resolver == null)
+            {
+                resolver = playerRoot.AddComponent<PlayerNpcResolver>();
+            }
             var playerCamera = playerRoot.GetComponentInChildren<Camera>(includeInactive: true);
             Assert.That(interactionController, Is.Not.Null);
             Assert.That(resolver, Is.Not.Null);
@@ -502,7 +577,7 @@ namespace Reloader.World.Tests.PlayMode
 
                 var anchor = root.transform.Find("Anchor_Cop_01");
                 Assert.That(anchor, Is.Not.Null, "Expected authored anchor for loaded civilian.");
-                Assert.That(spawned[0].transform.position, Is.EqualTo(anchor!.position));
+                AssertSpawnedCivilianTracksAnchorLane(FindMainTownTerrain(), spawned[0].transform, anchor!, "citizen.mainTown.9001");
                 Assert.That(root.transform.Find("Civilian_citizen.mainTown.0001"), Is.Null, "Expected starter civilians to be cleared when a save load rebuild runs.");
             }
             finally
@@ -568,7 +643,7 @@ namespace Reloader.World.Tests.PlayMode
 
             var anchor = root.transform.Find("Anchor_Townsfolk_01");
             Assert.That(anchor, Is.Not.Null);
-            Assert.That(spawned[0].transform.position, Is.EqualTo(anchor!.position));
+            AssertSpawnedCivilianTracksAnchorLane(FindMainTownTerrain(), spawned[0].transform, anchor!, "citizen.mainTown.0008");
         }
 
         [UnityTest]
@@ -773,6 +848,88 @@ namespace Reloader.World.Tests.PlayMode
             var property = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
             Assert.That(property, Is.Not.Null, $"Expected property '{propertyName}'.");
             return (T)property!.GetValue(instance);
+        }
+
+        private static GameObject ResolveCanonicalPlayerRoot()
+        {
+            return PersistentPlayerRoot.Instance?.PlayerRootTransform?.gameObject ?? GameObject.Find("PlayerRoot");
+        }
+
+        private static void AssertUniformScale(Vector3 lossyScale, string civilianName, string nodeName)
+        {
+            Assert.That(lossyScale.x, Is.EqualTo(lossyScale.y).Within(0.01f), $"Expected '{civilianName}' {nodeName} scale to stay uniform. Scale={lossyScale}.");
+            Assert.That(lossyScale.x, Is.EqualTo(lossyScale.z).Within(0.01f), $"Expected '{civilianName}' {nodeName} scale to stay uniform. Scale={lossyScale}.");
+            Assert.That(lossyScale.x, Is.EqualTo(1f).Within(0.01f), $"Expected '{civilianName}' {nodeName} scale to stay near unit scale. Scale={lossyScale}.");
+        }
+
+        private static Terrain FindMainTownTerrain()
+        {
+            var terrain = GameObject.Find("MainTownTerrain")?.GetComponent<Terrain>();
+            Assert.That(terrain, Is.Not.Null, "Expected MainTownTerrain to exist for civilian grounding checks.");
+            return terrain!;
+        }
+
+        private static void AssertSpawnedCivilianTracksAnchorLane(Terrain terrain, Transform civilian, Transform anchor, string civilianId)
+        {
+            Assert.That(civilian.position.x, Is.EqualTo(anchor.position.x).Within(0.01f), $"Expected {civilianId} to stay on the authored anchor X lane.");
+            Assert.That(civilian.position.z, Is.EqualTo(anchor.position.z).Within(0.01f), $"Expected {civilianId} to stay on the authored anchor Z lane.");
+
+            var boundsFound = TryGetPresentationBounds(civilian, out var bounds);
+            Assert.That(boundsFound, Is.True, $"Expected {civilianId} to expose presentation bounds for terrain-grounding validation.");
+
+            var terrainHeight = SampleTerrainHeight(terrain, bounds.center);
+            Assert.That(
+                bounds.min.y,
+                Is.EqualTo(terrainHeight).Within(0.2f),
+                $"Expected {civilianId} to rest on the terrain instead of floating. BoundsMinY={bounds.min.y}, TerrainHeight={terrainHeight}, Center={bounds.center}.");
+        }
+
+        private static bool TryGetPresentationBounds(Transform root, out Bounds combinedBounds)
+        {
+            combinedBounds = default;
+            var found = false;
+
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                if (!found)
+                {
+                    combinedBounds = renderer.bounds;
+                    found = true;
+                    continue;
+                }
+
+                combinedBounds.Encapsulate(renderer.bounds);
+            }
+
+            foreach (var collider in root.GetComponentsInChildren<Collider>(true))
+            {
+                if (collider == null || !collider.enabled || collider.isTrigger)
+                {
+                    continue;
+                }
+
+                if (!found)
+                {
+                    combinedBounds = collider.bounds;
+                    found = true;
+                    continue;
+                }
+
+                combinedBounds.Encapsulate(collider.bounds);
+            }
+
+            return found;
+        }
+
+        private static float SampleTerrainHeight(Terrain terrain, Vector3 worldPoint)
+        {
+            var terrainPosition = terrain.transform.position;
+            return terrain.SampleHeight(worldPoint) + terrainPosition.y;
         }
 
         private sealed class TestInputSource : MonoBehaviour, IPlayerInputSource

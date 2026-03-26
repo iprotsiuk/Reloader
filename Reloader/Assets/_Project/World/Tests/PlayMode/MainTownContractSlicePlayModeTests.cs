@@ -57,6 +57,8 @@ namespace Reloader.World.Tests.PlayMode
 
             var targetRoot = FindProceduralCivilianTarget(availableSnapshot.TargetId);
             Assert.That(targetRoot, Is.Not.Null, "Expected the available contract target to resolve to a spawned procedural civilian.");
+            Assert.That(CountSpawnedCivilianBodies(availableSnapshot.TargetId), Is.EqualTo(1),
+                "Expected MainTown to keep exactly one live target body for the offered contract id.");
 
             var startingMoney = ReadEconomyMoney();
 
@@ -68,9 +70,14 @@ namespace Reloader.World.Tests.PlayMode
 
             ApplyLethalDamage(targetRoot!);
 
+            var bridge = FindPopulationBridge();
             var runtime = GetRuntime(provider);
             Assert.That(ReadActiveContract(runtime), Is.Not.Null, "Target elimination should keep the contract active until payout resolves.");
-            Assert.That(targetRoot.activeSelf, Is.False, "Contract target should disable itself after the lethal hit.");
+            Assert.That(targetRoot.activeSelf, Is.True, "Shared death presentation should keep the target GameObject active after elimination.");
+            var retiredTarget = bridge.Runtime.Civilians.Find(record => string.Equals(record.CivilianId, activeSnapshot.TargetId, StringComparison.Ordinal));
+            Assert.That(retiredTarget, Is.Not.Null, "Expected the eliminated target to remain tracked in the civilian roster.");
+            Assert.That(retiredTarget!.IsAlive, Is.False, "Expected the eliminated target to retire from the live civilian roster.");
+            Assert.That(retiredTarget.IsContractEligible, Is.False, "Expected the retired target to stop being contract-eligible immediately after elimination.");
             Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
             Assert.That(ReadEconomyMoney(), Is.EqualTo(startingMoney), "Payout must stay gated while police heat remains active.");
 
@@ -117,8 +124,13 @@ namespace Reloader.World.Tests.PlayMode
             ApplyLethalDamage(targetRoot!);
             yield return null;
 
+            var bridge = FindPopulationBridge();
             var runtime = GetRuntime(provider);
-            Assert.That(targetRoot.activeSelf, Is.False, "Contract target should disable itself after the lethal hit.");
+            Assert.That(targetRoot.activeSelf, Is.True, "Shared death presentation should keep the target GameObject active after elimination.");
+            var retiredTarget = bridge.Runtime.Civilians.Find(record => string.Equals(record.CivilianId, availableSnapshot.TargetId, StringComparison.Ordinal));
+            Assert.That(retiredTarget, Is.Not.Null, "Expected the eliminated target to remain tracked in the civilian roster.");
+            Assert.That(retiredTarget!.IsAlive, Is.False, "Expected the eliminated target to retire from the live civilian roster.");
+            Assert.That(retiredTarget.IsContractEligible, Is.False, "Expected the retired target to stop being contract-eligible immediately after elimination.");
             Assert.That(provider.TryGetContractSnapshot(out _), Is.False, "Dead authored targets must consume the scene offer before acceptance.");
             Assert.That(provider.AcceptAvailableContract(), Is.False, "The scene offer must not remain acceptible once the authored target is dead.");
             Assert.That(ReadActiveContract(runtime), Is.Null);
@@ -132,6 +144,69 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(provider.TryGetContractSnapshot(out _), Is.False);
             Assert.That(ReadActiveContract(runtime), Is.Null);
             Assert.That(ReadEconomyMoney(), Is.EqualTo(startingMoney));
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownContractSlice_TargetElimination_KeepsDeathPresentationAliveForShortWindow()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+
+            var targetRoot = FindProceduralCivilianTarget(availableSnapshot.TargetId);
+            Assert.That(targetRoot, Is.Not.Null, "Expected the available contract target to resolve to a spawned procedural civilian.");
+
+            ApplyLethalDamage(targetRoot!);
+            for (var frame = 0; frame < 20; frame++)
+            {
+                yield return null;
+            }
+
+            Assert.That(targetRoot, Is.Not.Null, "Expected the target GameObject reference to survive long enough to present ragdoll death.");
+            Assert.That(targetRoot.activeSelf, Is.True, "Expected shared death presentation to keep the target GameObject active for a short post-kill window.");
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownContractSlice_AcceptedProceduralTarget_PreservesFinitePresentationScale()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTown contract runtime root.");
+            Assert.That(provider!.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+
+            var targetRoot = FindProceduralCivilianTarget(availableSnapshot.TargetId);
+            Assert.That(targetRoot, Is.Not.Null, "Expected the available contract target to resolve to a spawned procedural civilian.");
+
+            Assert.That(provider.AcceptAvailableContract(), Is.True, "Expected the live procedural contract to be acceptible.");
+            for (var frame = 0; frame < 10; frame++)
+            {
+                yield return null;
+            }
+
+            var visualRoot = targetRoot!.transform.Find("VisualRoot");
+            Assert.That(visualRoot, Is.Not.Null, "Expected VisualRoot on the active MainTown contract target.");
+            AssertFinitePositiveScale(targetRoot.transform.lossyScale, targetRoot.name, "contract target root");
+            AssertFinitePositiveScale(visualRoot!.lossyScale, targetRoot.name, "contract target VisualRoot");
+
+            var activeStyleRoot = visualRoot.Find("StyleMaleRoot");
+            if (activeStyleRoot == null || !activeStyleRoot.gameObject.activeInHierarchy)
+            {
+                activeStyleRoot = visualRoot.Find("StyleFemaleRoot");
+            }
+
+            Assert.That(activeStyleRoot, Is.Not.Null, "Expected an active style root on the live MainTown contract target.");
+            AssertFinitePositiveScale(activeStyleRoot!.lossyScale, targetRoot.name, activeStyleRoot.name);
         }
 
         [UnityTest]
@@ -155,6 +230,8 @@ namespace Reloader.World.Tests.PlayMode
 
             var offeredTarget = FindProceduralCivilianTarget(availableSnapshot.TargetId);
             Assert.That(offeredTarget, Is.Not.Null, "Expected the scene's available contract to target a spawned procedural civilian.");
+            Assert.That(CountSpawnedCivilianBodies(availableSnapshot.TargetId), Is.EqualTo(1),
+                "Expected the offered MainTown contract target to resolve to exactly one spawned civilian body.");
 
             var targetDamageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons");
             Assert.That(targetDamageableType, Is.Not.Null, "Expected contract target damageable type to resolve.");
@@ -393,12 +470,81 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(resolvedCivilian, Is.Not.Null, "Expected the population bridge to return the spawned civilian metadata component.");
             Assert.That(resolvedCivilian!.CivilianId, Is.EqualTo(activeSnapshot.TargetId));
             Assert.That(resolvedCivilian.PopulationSlotId, Is.Not.Empty);
+            Assert.That(CountSpawnedCivilianBodies(activeSnapshot.TargetId), Is.EqualTo(1),
+                "Expected the accepted contract target id to resolve to one dedicated live body.");
 
             var damageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons");
             Assert.That(damageableType, Is.Not.Null, "Expected contract target damageable type to resolve.");
             var damageable = resolvedCivilian.GetComponent(damageableType!);
             Assert.That(damageable, Is.Not.Null, "Expected the resolved procedural target to expose the contract-target seam.");
             Assert.That(GetProperty<string>(damageable!, "TargetId"), Is.EqualTo(activeSnapshot.TargetId));
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownContractSlice_DemoScene_StagesLiveTargetNearMultipleAuthoredLanesAndReferenceSetup()
+        {
+            yield return LoadSceneWithoutPlayerStabilization(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True, "Expected authored MainTown contract offer.");
+
+            var targetRoot = FindProceduralCivilianTarget(availableSnapshot.TargetId);
+            Assert.That(targetRoot, Is.Not.Null, "Expected the available contract target to resolve to a spawned procedural civilian.");
+            Assert.That(CountSpawnedCivilianBodies(availableSnapshot.TargetId), Is.EqualTo(1),
+                "Expected the MainTown demo scene to keep exactly one live target body near the authored lane cluster.");
+
+            var returnEntry = FindEntryPoint("entry.maintown.return");
+            var smokeTrigger = GameObject.Find("MainTown_SmokeToIndoor_Trigger");
+            Assert.That(returnEntry, Is.Not.Null, "Expected MainTown return entry point for the demo reference setup.");
+            Assert.That(smokeTrigger, Is.Not.Null, "Expected authored smoke trigger in MainTown.");
+
+            var lanes = FindTargetLanes();
+            Assert.That(lanes.Length, Is.EqualTo(3), "Expected MainTown demo slice to keep three authored firing lanes instead of one exact forced position.");
+
+            var sameFacingLanePairs = 0;
+            var closeLaneCount = 0;
+            for (var i = 0; i < lanes.Length; i++)
+            {
+                var lane = lanes[i];
+                Assert.That(lane, Is.Not.Null, "Expected every authored demo lane root to resolve.");
+
+                var metrics = GetDedicatedRangeMetrics(lane!);
+                Assert.That(GetProperty<string>(metrics, "TargetId"), Is.Not.Empty, "Expected each demo lane to expose a stable authored target id.");
+                Assert.That(GetProperty<string>(metrics, "DisplayName"), Is.Not.Empty, "Expected each demo lane to expose a stable authored display name.");
+                Assert.That(GetProperty<float>(metrics, "DistanceMeters"), Is.InRange(10f, 60f), "Expected each demo lane to publish a deterministic short-range smoke distance.");
+
+                if (Vector3.Distance(lane.transform.position, targetRoot!.transform.position) <= 65f)
+                {
+                    closeLaneCount++;
+                }
+
+                for (var j = i + 1; j < lanes.Length; j++)
+                {
+                    Assert.That(Vector3.Distance(lane.transform.position, lanes[j]!.transform.position), Is.GreaterThan(1.5f),
+                        "Expected authored firing lanes to occupy distinct sightlines.");
+
+                    if (Vector3.Angle(lane.transform.forward, lanes[j]!.transform.forward) <= 1f)
+                    {
+                        sameFacingLanePairs++;
+                    }
+                }
+            }
+
+            Assert.That(closeLaneCount, Is.GreaterThanOrEqualTo(2), "Expected the live demo target to sit inside a stable exposure cluster with multiple plausible firing lanes.");
+            Assert.That(sameFacingLanePairs, Is.EqualTo(3), "Expected all authored demo lanes to face the same exposure corridor.");
+            Assert.That(Vector3.Distance(smokeTrigger!.transform.position, returnEntry!.transform.position), Is.LessThan(25f),
+                "Expected the smoke travel trigger to stay inside the same deterministic demo reference setup as the return entry.");
+            Assert.That(Vector3.Distance(targetRoot!.transform.position, returnEntry.transform.position), Is.LessThan(70f),
+                "Expected the live contract target to stay near the arrival/reference cluster instead of a distant sandbox pocket.");
+
+            var referenceMetrics = GetDedicatedRangeMetrics(GameObject.Find("TargetLane_2"));
+            Assert.That(GetProperty<string>(referenceMetrics, "TargetId"), Does.Contain("reference"),
+                "Expected one known-good reference lane for deterministic smoke coverage without forcing one exact firing spot.");
         }
 
         private static ContractEscapeResolutionRuntime GetRuntime(StaticContractRuntimeProvider provider)
@@ -498,6 +644,23 @@ namespace Reloader.World.Tests.PlayMode
             return null;
         }
 
+        private static int CountSpawnedCivilianBodies(string targetId)
+        {
+            var bridge = FindPopulationBridge();
+            var spawned = bridge.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            var count = 0;
+            for (var i = 0; i < spawned.Length; i++)
+            {
+                var candidate = spawned[i];
+                if (candidate != null && string.Equals(candidate.CivilianId, targetId, StringComparison.Ordinal))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
         private static GameObject FindDifferentProceduralCivilianTarget(string excludedCivilianId)
         {
             var bridge = FindPopulationBridge();
@@ -523,6 +686,41 @@ namespace Reloader.World.Tests.PlayMode
             }
 
             return null;
+        }
+
+        private static SceneEntryPoint FindEntryPoint(string entryPointId)
+        {
+            var candidates = Object.FindObjectsByType<SceneEntryPoint>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < candidates.Length; i++)
+            {
+                var candidate = candidates[i];
+                if (candidate != null && string.Equals(candidate.EntryPointId, entryPointId, StringComparison.Ordinal))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        private static GameObject[] FindTargetLanes()
+        {
+            return new[]
+            {
+                GameObject.Find("TargetLane_1"),
+                GameObject.Find("TargetLane_2"),
+                GameObject.Find("TargetLane_3")
+            };
+        }
+
+        private static object GetDedicatedRangeMetrics(GameObject laneRoot)
+        {
+            var metricsType = Type.GetType("Reloader.Weapons.World.DummyTargetRangeMetrics, Reloader.Weapons");
+            Assert.That(metricsType, Is.Not.Null, "Expected DummyTargetRangeMetrics type to resolve.");
+
+            var metrics = laneRoot.GetComponent(metricsType!);
+            Assert.That(metrics, Is.Not.Null, $"Expected DummyTargetRangeMetrics on '{laneRoot.name}'.");
+            return metrics!;
         }
 
         private static IEnumerator LoadScene(string sceneName)
@@ -552,6 +750,40 @@ namespace Reloader.World.Tests.PlayMode
                 yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
                 yield return WaitForResolvedEntryPoint("entry.maintown.spawn", SceneSwitchTimeoutSeconds);
                 yield return WaitForCanonicalPlayerStartupStabilization();
+                yield return null;
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = previousIgnoreFailingMessages;
+            }
+        }
+
+        private static IEnumerator LoadSceneWithoutPlayerStabilization(string sceneName)
+        {
+            Assert.That(sceneName, Is.EqualTo(MainTownSceneName), "MainTown contract tests should bootstrap through the runtime travel path.");
+
+            var previousIgnoreFailingMessages = LogAssert.ignoreFailingMessages;
+            LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                SceneManager.LoadScene(BootstrapSceneName, LoadSceneMode.Single);
+                yield return null;
+
+                var bootstrapRoot = Object.FindFirstObjectByType<BootstrapWorldRoot>(FindObjectsInactive.Include);
+                Assert.That(bootstrapRoot, Is.Not.Null, "Expected Bootstrap to keep the canonical BootstrapWorldRoot loaded.");
+
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                Assert.That(persistentRoot, Is.Not.Null, "Expected Bootstrap runtime initialization to produce a canonical PersistentPlayerRoot.");
+                Assert.That(PersistentPlayerRoot.Instance, Is.SameAs(persistentRoot), "Expected one canonical PersistentPlayerRoot instance.");
+                Assert.That(persistentRoot.PlayerRootTransform, Is.Not.Null, "Expected a canonical runtime player root before routing into MainTown.");
+
+                yield return null;
+
+                var started = WorldTravelCoordinator.TryLoadSceneAtEntry(MainTownSceneName, "entry.maintown.spawn");
+                Assert.That(started, Is.True, "Expected Bootstrap to route into MainTown via the authored entry point.");
+
+                yield return WaitForActiveScene(MainTownSceneName, SceneSwitchTimeoutSeconds);
+                yield return WaitForResolvedEntryPoint("entry.maintown.spawn", SceneSwitchTimeoutSeconds);
                 yield return null;
             }
             finally
@@ -596,14 +828,16 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(playerRoot, Is.Not.Null, "Expected canonical runtime player root before startup stabilization.");
 
             var stableFrameCount = 0;
-            var previousPosition = playerRoot.position;
+            var startPosition = playerRoot.position;
+            var previousPosition = startPosition;
+            var currentPosition = startPosition;
             var elapsed = 0f;
             while (elapsed < 2f && stableFrameCount < 3)
             {
                 yield return null;
                 elapsed += Time.unscaledDeltaTime;
 
-                var currentPosition = playerRoot.position;
+                currentPosition = playerRoot.position;
                 if (Vector3.Distance(currentPosition, previousPosition) <= 0.001f)
                 {
                     stableFrameCount++;
@@ -616,7 +850,18 @@ namespace Reloader.World.Tests.PlayMode
                 previousPosition = currentPosition;
             }
 
-            Assert.That(stableFrameCount, Is.GreaterThanOrEqualTo(3), "Expected the canonical runtime player to settle before asserting travel state.");
+            Assert.That(stableFrameCount, Is.GreaterThanOrEqualTo(3),
+                $"Expected the canonical runtime player to settle before asserting travel state. Start={startPosition}, End={currentPosition}, Elapsed={elapsed:0.000}s.");
+        }
+
+        private static void AssertFinitePositiveScale(Vector3 lossyScale, string subjectName, string nodeName)
+        {
+            Assert.That(float.IsFinite(lossyScale.x), Is.True, $"Expected '{subjectName}' {nodeName} X scale to stay finite. Scale={lossyScale}.");
+            Assert.That(float.IsFinite(lossyScale.y), Is.True, $"Expected '{subjectName}' {nodeName} Y scale to stay finite. Scale={lossyScale}.");
+            Assert.That(float.IsFinite(lossyScale.z), Is.True, $"Expected '{subjectName}' {nodeName} Z scale to stay finite. Scale={lossyScale}.");
+            Assert.That(Mathf.Abs(lossyScale.x), Is.GreaterThan(0.0001f), $"Expected '{subjectName}' {nodeName} X scale to stay non-zero. Scale={lossyScale}.");
+            Assert.That(Mathf.Abs(lossyScale.y), Is.GreaterThan(0.0001f), $"Expected '{subjectName}' {nodeName} Y scale to stay non-zero. Scale={lossyScale}.");
+            Assert.That(Mathf.Abs(lossyScale.z), Is.GreaterThan(0.0001f), $"Expected '{subjectName}' {nodeName} Z scale to stay non-zero. Scale={lossyScale}.");
         }
     }
 }

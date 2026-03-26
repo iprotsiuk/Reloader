@@ -209,6 +209,22 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
+        public void TryRebaseIfNeeded_WhenResetStateStartsFarFromLocalOrigin_RebasesBackToLocalOriginWindow()
+        {
+            _playerRootObject.transform.position = new Vector3(1508.2319f, 51.44984f, -612.25f);
+            _controller.ResetState();
+
+            Assert.That(
+                _controller.TryRebaseIfNeeded(2f),
+                Is.True,
+                "Resetting floating-origin state at a far-from-origin runtime position should still allow the canonical controller to pull the player back toward the local-origin window.");
+            Assert.That(
+                new Vector2(_playerRootObject.transform.position.x, _playerRootObject.transform.position.z).magnitude,
+                Is.LessThanOrEqualTo(Epsilon),
+                "Expected the canonical floating-origin controller to return the runtime player to the local-origin window after a far scene handoff.");
+        }
+
+        [Test]
         public void TryRebaseIfNeeded_WhenMultipleScenesAreLoaded_ShiftsLoadedScenesAndParticipantsCoherently()
         {
             var secondaryScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);

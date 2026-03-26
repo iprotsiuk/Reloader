@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Core.Items;
+using Reloader.Core.Runtime;
 using Reloader.Inventory;
 using Reloader.Player;using Reloader.Weapons.Controllers;
 using Reloader.Weapons.Runtime;
@@ -835,6 +836,147 @@ namespace Reloader.UI.Tests.PlayMode
         }
 
         [Test]
+        public void Acceptance_DeviceFullLoop_FireWithoutExplicitTargetSelection_AutoTracksAndSavesValidationGroup()
+        {
+            var dummyTargetDamageableType = Type.GetType("Reloader.Weapons.World.DummyTargetDamageable, Reloader.Weapons");
+            Assert.That(dummyTargetDamageableType, Is.Not.Null);
+
+            var go = new GameObject("UiToolkitBridgeDeviceImplicitTracking");
+            var bridge = go.AddComponent<UiToolkitScreenRuntimeBridge>();
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var inventoryRuntime = new PlayerInventoryRuntime();
+            inventoryRuntime.SetBackpackCapacity(0);
+            inventoryController.Configure(null, null, inventoryRuntime);
+            var inputSource = go.AddComponent<TestInputSource>();
+
+            var targetParent = new GameObject("LaneImplicit");
+            var target = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            target.name = "ImplicitTarget";
+            target.transform.SetParent(targetParent.transform, worldPositionStays: false);
+            target.transform.position = new Vector3(0f, 0f, 8f);
+            var targetDamageable = target.AddComponent(dummyTargetDamageableType);
+            SetPrivateField(dummyTargetDamageableType, targetDamageable, "_targetId", "target.implicit");
+            SetPrivateField(dummyTargetDamageableType, targetDamageable, "_displayName", "Implicit Lane");
+            SetPrivateField(dummyTargetDamageableType, targetDamageable, "_authoritativeDistanceMeters", 120f);
+
+            var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
+                "BindTabInventory",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(bindMethod, Is.Not.Null);
+
+            var root = BuildRoot();
+            var subscription = bindMethod.Invoke(bridge, new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, inputSource }) as IDisposable;
+            Assert.That(subscription, Is.Not.Null);
+
+            try
+            {
+                var tabController = go.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
+                Assert.That(tabController, Is.Not.Null);
+
+                inputSource.MenuTogglePressedThisFrame = true;
+                tabController.Tick();
+
+                var deviceController = ResolveBridgeDeviceController(tabController);
+                Assert.That(deviceController, Is.Not.Null);
+
+                FireImpact(deviceController, target, new Vector3(0.05f, 0.01f, 0f));
+                FireImpact(deviceController, target, new Vector3(-0.04f, -0.02f, 0f));
+
+                tabController.HandleIntent(new UiIntent("tab.menu.select", "device"));
+
+                var targetText = root.Q<Label>("inventory__device-selected-target-value");
+                var shotCountText = root.Q<Label>("inventory__device-shot-count-value");
+                var savedGroupsText = root.Q<Label>("inventory__device-saved-groups-value");
+
+                Assert.That(targetText, Is.Not.Null);
+                Assert.That(shotCountText, Is.Not.Null);
+                Assert.That(savedGroupsText, Is.Not.Null);
+                Assert.That(targetText.text, Does.StartWith("Implicit Lane ("));
+                Assert.That(shotCountText.text, Is.EqualTo("2 validation shots"));
+                Assert.That(savedGroupsText.text, Is.EqualTo("0"));
+
+                tabController.HandleIntent(new UiIntent("tab.inventory.device.save-group"));
+
+                var historyRow = root.Q<Label>("inventory__device-session-row-0");
+                Assert.That(savedGroupsText.text, Is.EqualTo("1"));
+                Assert.That(historyRow, Is.Not.Null);
+                Assert.That(historyRow.text, Does.StartWith("#1 - 2 validation shots"));
+            }
+            finally
+            {
+                subscription.Dispose();
+                UnityEngine.Object.DestroyImmediate(targetParent);
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void Acceptance_DeviceFullLoop_FireWithoutExplicitTargetSelection_PrefersDedicatedRangeMetricsOverDamageableFallback()
+        {
+            var dummyTargetDamageableType = Type.GetType("Reloader.Weapons.World.DummyTargetDamageable, Reloader.Weapons");
+            var dummyTargetRangeMetricsType = Type.GetType("Reloader.Weapons.World.DummyTargetRangeMetrics, Reloader.Weapons");
+            Assert.That(dummyTargetDamageableType, Is.Not.Null);
+            Assert.That(dummyTargetRangeMetricsType, Is.Not.Null);
+
+            var go = new GameObject("UiToolkitBridgeDeviceImplicitPreferredMetrics");
+            var bridge = go.AddComponent<UiToolkitScreenRuntimeBridge>();
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var inventoryRuntime = new PlayerInventoryRuntime();
+            inventoryRuntime.SetBackpackCapacity(0);
+            inventoryController.Configure(null, null, inventoryRuntime);
+            var inputSource = go.AddComponent<TestInputSource>();
+
+            var targetParent = new GameObject("LanePreferred");
+            var target = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            target.name = "PreferredTarget";
+            target.transform.SetParent(targetParent.transform, worldPositionStays: false);
+            target.transform.position = new Vector3(0f, 0f, 8f);
+
+            var targetDamageable = target.AddComponent(dummyTargetDamageableType);
+            SetPrivateField(dummyTargetDamageableType, targetDamageable, "_targetId", "target.damageable.wrong");
+            SetPrivateField(dummyTargetDamageableType, targetDamageable, "_displayName", "Wrong Damageable");
+            SetPrivateField(dummyTargetDamageableType, targetDamageable, "_authoritativeDistanceMeters", 90f);
+
+            var targetMetrics = target.AddComponent(dummyTargetRangeMetricsType);
+            InvokeMethod(dummyTargetRangeMetricsType, targetMetrics, "Configure", "target.preferred", "Preferred Lane", 177.7f);
+
+            var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
+                "BindTabInventory",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(bindMethod, Is.Not.Null);
+
+            var root = BuildRoot();
+            var subscription = bindMethod.Invoke(bridge, new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, inputSource }) as IDisposable;
+            Assert.That(subscription, Is.Not.Null);
+
+            try
+            {
+                var tabController = go.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
+                Assert.That(tabController, Is.Not.Null);
+
+                inputSource.MenuTogglePressedThisFrame = true;
+                tabController.Tick();
+
+                var deviceController = ResolveBridgeDeviceController(tabController);
+                Assert.That(deviceController, Is.Not.Null);
+
+                FireImpact(deviceController, target, new Vector3(0.01f, 0.02f, 0f));
+                tabController.HandleIntent(new UiIntent("tab.menu.select", "device"));
+
+                var targetText = root.Q<Label>("inventory__device-selected-target-value");
+                Assert.That(targetText, Is.Not.Null);
+                Assert.That(targetText.text, Does.StartWith("Preferred Lane ("));
+                Assert.That(targetText.text, Does.Not.Contain("Wrong Damageable"));
+            }
+            finally
+            {
+                subscription.Dispose();
+                UnityEngine.Object.DestroyImmediate(targetParent);
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void Render_DefaultState_ShowsDeviceSectionAndNotes()
         {
             var root = BuildRoot();
@@ -918,6 +1060,71 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(intents[3].Key, Is.EqualTo("tab.inventory.device.clear-group"));
             Assert.That(intents[4].Key, Is.EqualTo("tab.inventory.device.install-hooks"));
             Assert.That(intents[5].Key, Is.EqualTo("tab.inventory.device.uninstall-hooks"));
+        }
+
+        [Test]
+        public void RuntimeBridge_BindTabInventory_ChooseTargetMiss_CancelsSelectionMode()
+        {
+            var originalHub = RuntimeKernelBootstrapper.Events;
+            var runtimeHub = new DefaultRuntimeEvents();
+            RuntimeKernelBootstrapper.Events = runtimeHub;
+
+            var go = new GameObject("UiToolkitBridgeChooseTargetMissCancels");
+            var bridge = go.AddComponent<UiToolkitScreenRuntimeBridge>();
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(0);
+            inventoryController.Configure(null, null, runtime);
+            var inputSource = go.AddComponent<TestInputSource>();
+
+            var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
+                "BindTabInventory",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(bindMethod, Is.Not.Null);
+
+            var subscription = bindMethod.Invoke(bridge, new object[] { BuildRoot(), UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, inputSource }) as IDisposable;
+            Assert.That(subscription, Is.Not.Null);
+
+            try
+            {
+                var tabController = go.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
+                Assert.That(tabController, Is.Not.Null);
+
+                var adapterField = typeof(TabInventoryController).GetField("_deviceController", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(adapterField, Is.Not.Null);
+                var adapter = adapterField.GetValue(tabController);
+                Assert.That(adapter, Is.Not.Null);
+
+                var adapterSelectionField = adapter.GetType().GetField("_targetSelectionController", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(adapterSelectionField, Is.Not.Null);
+                var selectionController = adapterSelectionField.GetValue(adapter);
+                Assert.That(selectionController, Is.Not.Null);
+
+                var isSelectingField = selectionController.GetType().GetField("_isSelectingTarget", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(isSelectingField, Is.Not.Null);
+
+                tabController.HandleIntent(new UiIntent("tab.inventory.device.choose-target"));
+                Assert.That((bool)isSelectingField.GetValue(selectionController), Is.True);
+                Assert.That(runtimeHub.HasInteractionHint, Is.True);
+                Assert.That(runtimeHub.CurrentInteractionHint.ContextId, Is.EqualTo("player-device.target-selection.pending"));
+
+                inputSource.PickupPressedThisFrame = true;
+                InvokeMethod(selectionController.GetType(), selectionController, "Tick");
+
+                var deviceController = ResolveBridgeDeviceController(tabController);
+                var hasSelectedTargetBinding = deviceController.GetType().GetProperty("HasSelectedTargetBinding", BindingFlags.Instance | BindingFlags.Public);
+                Assert.That(hasSelectedTargetBinding, Is.Not.Null);
+                Assert.That((bool)isSelectingField.GetValue(selectionController), Is.False);
+                Assert.That((bool)hasSelectedTargetBinding.GetValue(deviceController), Is.False);
+                Assert.That(runtimeHub.HasInteractionHint, Is.False);
+                Assert.That(runtimeHub.CurrentInteractionHint.ContextId, Is.Empty);
+            }
+            finally
+            {
+                RuntimeKernelBootstrapper.Events = originalHub;
+                subscription.Dispose();
+                UnityEngine.Object.DestroyImmediate(go);
+            }
         }
 
         private static object ResolveBridgeDeviceController(TabInventoryController tabController)
