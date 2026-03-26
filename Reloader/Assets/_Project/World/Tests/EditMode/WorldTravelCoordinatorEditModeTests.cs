@@ -389,7 +389,7 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void RepositionPlayerToEntryPoint_RefreshesOriginBaselineBeforeNextRebaseCheck()
+        public void FinalizePlayerTravelHandoff_WhenEntryStartsFarFromOrigin_PreparesOneCanonicalRebaseBackIntoLocalOriginWindow()
         {
             var originalScene = SceneManager.GetActiveScene();
             var bootstrapScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
@@ -429,14 +429,20 @@ namespace Reloader.World.Tests.EditMode
                 Assert.That(resolvedPlayerRoot, Is.SameAs(playerRoot), "Expected canonical runtime player root to move into the destination scene before reposition.");
 
                 InvokePrivateStatic("RepositionPlayerToEntryPoint", resolvedPlayerRoot, entryPoint.transform);
+                InvokePrivateStatic("FinalizePlayerTravelHandoff", resolvedPlayerRoot, entryPoint.transform);
 
                 Assert.That(playerRoot.gameObject.scene, Is.EqualTo(destinationScene));
-                Assert.That(playerRoot.position, Is.EqualTo(entryPoint.transform.position));
 
-                var rebased = rebaseController!.TryRebaseIfNeeded(10f);
-
-                Assert.That(rebased, Is.False,
-                    "Expected travel reposition to refresh the floating-origin baseline so the next rebase evaluation does not pull the player back toward bootstrap-space.");
+                var firstRebase = rebaseController!.TryRebaseIfNeeded(10f);
+                Assert.That(firstRebase, Is.True,
+                    "Expected far MainTown travel handoff to prepare one canonical rebase back into the local-origin window when the controller next evaluates distance.");
+                Assert.That(
+                    new Vector2(playerRoot.position.x, playerRoot.position.z).magnitude,
+                    Is.LessThan(rebaseController.RebaseDistanceMeters),
+                    "Expected canonical rebase evaluation to normalize far MainTown entries back into the local-origin window for runtime precision.");
+                var secondRebase = rebaseController.TryRebaseIfNeeded(11f);
+                Assert.That(secondRebase, Is.False,
+                    "Expected a second immediate canonical rebase evaluation to stay idle once the player has been returned to the local-origin window.");
                 Assert.That(playerRoot.position, Is.EqualTo(entryPoint.transform.position));
             }
             finally

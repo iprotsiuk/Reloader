@@ -171,6 +171,43 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator MainTownContractSlice_AcceptedProceduralTarget_KeepsUnitPresentationScale()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTown contract runtime root.");
+            Assert.That(provider!.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+
+            var targetRoot = FindProceduralCivilianTarget(availableSnapshot.TargetId);
+            Assert.That(targetRoot, Is.Not.Null, "Expected the available contract target to resolve to a spawned procedural civilian.");
+
+            Assert.That(provider.AcceptAvailableContract(), Is.True, "Expected the live procedural contract to be acceptible.");
+            for (var frame = 0; frame < 10; frame++)
+            {
+                yield return null;
+            }
+
+            var visualRoot = targetRoot!.transform.Find("VisualRoot");
+            Assert.That(visualRoot, Is.Not.Null, "Expected VisualRoot on the active MainTown contract target.");
+            AssertUniformScale(targetRoot.transform.lossyScale, targetRoot.name, "contract target root");
+            AssertUniformScale(visualRoot!.lossyScale, targetRoot.name, "contract target VisualRoot");
+
+            var activeStyleRoot = visualRoot.Find("StyleMaleRoot");
+            if (activeStyleRoot == null || !activeStyleRoot.gameObject.activeInHierarchy)
+            {
+                activeStyleRoot = visualRoot.Find("StyleFemaleRoot");
+            }
+
+            Assert.That(activeStyleRoot, Is.Not.Null, "Expected an active style root on the live MainTown contract target.");
+            AssertUniformScale(activeStyleRoot!.lossyScale, targetRoot.name, activeStyleRoot.name);
+        }
+
+        [UnityTest]
         public IEnumerator MainTownContractSlice_ProceduralCivilianTarget_CanBeAcceptedAndCompleted()
         {
             yield return LoadScene(MainTownSceneName);
@@ -790,6 +827,13 @@ namespace Reloader.World.Tests.PlayMode
 
             Assert.That(stableFrameCount, Is.GreaterThanOrEqualTo(3),
                 $"Expected the canonical runtime player to settle before asserting travel state. Start={startPosition}, End={currentPosition}, Elapsed={elapsed:0.000}s.");
+        }
+
+        private static void AssertUniformScale(Vector3 lossyScale, string subjectName, string nodeName)
+        {
+            Assert.That(lossyScale.x, Is.EqualTo(lossyScale.y).Within(0.01f), $"Expected '{subjectName}' {nodeName} scale to stay uniform. Scale={lossyScale}.");
+            Assert.That(lossyScale.x, Is.EqualTo(lossyScale.z).Within(0.01f), $"Expected '{subjectName}' {nodeName} scale to stay uniform. Scale={lossyScale}.");
+            Assert.That(lossyScale.x, Is.EqualTo(1f).Within(0.01f), $"Expected '{subjectName}' {nodeName} scale to stay near unit scale. Scale={lossyScale}.");
         }
     }
 }

@@ -591,6 +591,7 @@ namespace Reloader.NPCs.Runtime
 
             civilian.name = $"Civilian_{civilianId}";
             civilian.transform.SetParent(transform, false);
+            civilian.transform.localScale = Vector3.one;
             civilian.SetActive(true);
             return civilian;
         }
@@ -662,7 +663,7 @@ namespace Reloader.NPCs.Runtime
             for (var i = 0; i < renderers.Length; i++)
             {
                 var renderer = renderers[i];
-                if (renderer == null)
+                if (renderer == null || !renderer.gameObject.activeInHierarchy)
                 {
                     continue;
                 }
@@ -681,7 +682,7 @@ namespace Reloader.NPCs.Runtime
             for (var i = 0; i < colliders.Length; i++)
             {
                 var collider = colliders[i];
-                if (collider == null || !collider.enabled || collider.isTrigger)
+                if (collider == null || !collider.enabled || collider.isTrigger || !collider.gameObject.activeInHierarchy)
                 {
                     continue;
                 }

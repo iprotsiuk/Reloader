@@ -236,6 +236,11 @@ namespace Reloader.NPCs.Runtime
             var maleRoot = visualRoot.Find("StyleMaleRoot");
             var femaleRoot = visualRoot.Find("StyleFemaleRoot");
 
+            NormalizePresentationScale(transform);
+            NormalizePresentationScale(visualRoot);
+            NormalizePresentationScale(maleRoot);
+            NormalizePresentationScale(femaleRoot);
+
             if (maleRoot != null)
             {
                 maleRoot.gameObject.SetActive(gender == MainTownAppearanceGender.Male);
@@ -295,6 +300,16 @@ namespace Reloader.NPCs.Runtime
             var bottomId = MainTownCuratedAppearanceRules.NormalizeBottomId(gender, record.OutfitBottomId);
             ActivateMappedChild(activeRoot, gender == MainTownAppearanceGender.Male ? MaleBottomObjectNames : FemaleBottomObjectNames, bottomId);
             ApplyMaterialVariants(activeRoot, record, gender);
+        }
+
+        private static void NormalizePresentationScale(Transform target)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            target.localScale = Vector3.one;
         }
 
         private Transform ResolveVisualRoot()

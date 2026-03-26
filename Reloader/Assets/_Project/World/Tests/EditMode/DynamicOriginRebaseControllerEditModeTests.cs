@@ -209,22 +209,19 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
-        public void TryRebaseIfNeeded_WhenBaselineStartsFarFromLocalOrigin_UsesDistanceFromCapturedBaseline()
+        public void TryRebaseIfNeeded_WhenResetStateStartsFarFromLocalOrigin_RebasesBackToLocalOriginWindow()
         {
             _playerRootObject.transform.position = new Vector3(1508.2319f, 51.44984f, -612.25f);
             _controller.ResetState();
 
-            _playerRootObject.transform.position = new Vector3(1516.2319f, 51.44984f, -620.25f);
             Assert.That(
                 _controller.TryRebaseIfNeeded(2f),
-                Is.False,
-                "Small movement around a far-from-origin entry baseline should not retrigger floating-origin rebasing.");
-
-            _playerRootObject.transform.position = new Vector3(2020.2319f, 51.44984f, -620.25f);
-            Assert.That(
-                _controller.TryRebaseIfNeeded(3f),
                 Is.True,
-                "Floating-origin rebasing should still trigger once the player moves beyond the configured distance from the captured baseline.");
+                "Resetting floating-origin state at a far-from-origin runtime position should still allow the canonical controller to pull the player back toward the local-origin window.");
+            Assert.That(
+                new Vector2(_playerRootObject.transform.position.x, _playerRootObject.transform.position.z).magnitude,
+                Is.LessThanOrEqualTo(Epsilon),
+                "Expected the canonical floating-origin controller to return the runtime player to the local-origin window after a far scene handoff.");
         }
 
         [Test]

@@ -102,14 +102,21 @@ namespace Reloader.World.Runtime.Origin
                 return;
             }
 
+            var horizontalDistanceFromLocalOrigin = _coordinateBridge != null
+                ? _coordinateBridge.ComputeHorizontalDistanceFromLocalOrigin(playerRoot.position)
+                : new Vector2(playerRoot.position.x, playerRoot.position.z).magnitude;
+            if (horizontalDistanceFromLocalOrigin >= _rebaseDistanceMeters)
+            {
+                _playerHorizontalBaseline = Vector3.zero;
+                return;
+            }
+
             _playerHorizontalBaseline = new Vector3(playerRoot.position.x, 0f, playerRoot.position.z);
         }
 
         private bool IsOutsideRebaseDistance(Vector3 localPosition)
         {
-            var currentHorizontal = new Vector2(localPosition.x, localPosition.z);
-            var baselineHorizontal = new Vector2(_playerHorizontalBaseline.x, _playerHorizontalBaseline.z);
-            return Vector2.Distance(currentHorizontal, baselineHorizontal) >= _rebaseDistanceMeters;
+            return _coordinateBridge.ComputeHorizontalDistanceFromLocalOrigin(localPosition) >= _rebaseDistanceMeters;
         }
 
         private bool IsPastCooldown(float currentTimeSeconds)

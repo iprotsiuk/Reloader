@@ -14,6 +14,7 @@ using Reloader.NPCs.Runtime.Capabilities;
 using Reloader.NPCs.World;
 using Reloader.Player;
 using Reloader.World.Runtime;
+using Reloader.World.Runtime.Origin;
 using Reloader.World.Travel;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -172,6 +173,30 @@ namespace Reloader.World.Tests.PlayMode
                 Assert.That(activeStyleRoot, Is.Not.Null, $"Expected an active presentation root on '{civilian.PublicDisplayName}'.");
                 AssertUniformScale(activeStyleRoot!.lossyScale, civilian.PublicDisplayName, activeStyleRoot.name);
             }
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownPopulationRuntime_LoadScene_RebasesCanonicalPlayerNearLocalOriginWindowForPrecision()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var persistentRoot = PersistentPlayerRoot.Instance;
+            Assert.That(persistentRoot, Is.Not.Null, "Expected canonical persistent player root after routing into MainTown.");
+
+            var rebaseController = persistentRoot!.GetComponent<DynamicOriginRebaseController>();
+            var rebaseState = persistentRoot.GetComponent<DynamicOriginRebaseState>();
+            Assert.That(rebaseController, Is.Not.Null, "Expected DynamicOriginRebaseController on the canonical runtime owner after MainTown travel.");
+            Assert.That(rebaseState, Is.Not.Null, "Expected DynamicOriginRebaseState on the canonical runtime owner after MainTown travel.");
+
+            var playerRoot = persistentRoot.PlayerRootTransform;
+            Assert.That(playerRoot, Is.Not.Null, "Expected canonical runtime player root after routing into MainTown.");
+
+            var horizontalDistanceFromLocalOrigin = new Vector2(playerRoot!.position.x, playerRoot.position.z).magnitude;
+            Assert.That(horizontalDistanceFromLocalOrigin, Is.LessThan(rebaseController!.RebaseDistanceMeters),
+                $"Expected MainTown travel to settle the canonical player inside the local-origin precision window. Distance={horizontalDistanceFromLocalOrigin:0.###}.");
+            Assert.That(new Vector2(rebaseState!.StableOriginOffset.x, rebaseState.StableOriginOffset.z).magnitude, Is.GreaterThan(100f),
+                "Expected MainTown travel to preserve a non-zero stable-world offset instead of leaving the player at far local coordinates.");
         }
 
         [UnityTest]

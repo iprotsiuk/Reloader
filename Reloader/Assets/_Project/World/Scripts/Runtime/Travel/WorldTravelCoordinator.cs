@@ -381,7 +381,13 @@ namespace Reloader.World.Travel
 
             activeScenePlayerRoot.position = entryPointTransform.position;
             activeScenePlayerRoot.rotation = entryPointTransform.rotation;
-            PersistentPlayerRoot.Instance?.GetComponent<DynamicOriginRebaseController>()?.ResetState();
+            var rebaseController = PersistentPlayerRoot.Instance?.GetComponent<DynamicOriginRebaseController>();
+            rebaseController?.ResetState();
+            if (Application.isPlaying)
+            {
+                rebaseController?.TryRebaseIfNeeded(Time.unscaledTime);
+            }
+
             Physics.SyncTransforms();
         }
 
