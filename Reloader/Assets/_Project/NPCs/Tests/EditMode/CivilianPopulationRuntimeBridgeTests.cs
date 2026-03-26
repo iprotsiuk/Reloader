@@ -560,6 +560,67 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void RebuildScenePopulation_WhenTrackedContractTargetExists_SpawnsDedicatedTargetBodyAtContractAnchor()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            var ambientAnchor = CreateAnchor(go.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+            var nonTargetAnchor = CreateAnchor(go.transform, "Anchor_B", new Vector3(3f, 0f, 0f));
+            var contractAnchor = CreateAnchor(go.transform, "ContractTargetAnchor_A", new Vector3(40f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+                SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_contractTargetAnchorIds", new[] { "ContractTargetAnchor_A" });
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0101",
+                    populationSlotId: "townsfolk.101",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.0102",
+                    populationSlotId: "townsfolk.102",
+                    spawnAnchorId: "Anchor_B",
+                    isAlive: true,
+                    retiredAtDay: -1));
+                bridge.Runtime.OfferRotationSeed = 2;
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True);
+                Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0101"));
+
+                Assert.That(bridge.TryResolveSpawnedCivilian(snapshot.TargetId, out var targetSpawn), Is.True);
+                Assert.That(targetSpawn, Is.Not.Null);
+                Assert.That(targetSpawn!.transform.position, Is.EqualTo(contractAnchor.position),
+                    "Expected the tracked contract target to spawn from the dedicated contract-target anchor instead of its ambient roster anchor.");
+                Assert.That(targetSpawn.transform.position, Is.Not.EqualTo(ambientAnchor.position));
+
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0102", out var nonTargetSpawn), Is.True);
+                Assert.That(nonTargetSpawn, Is.Not.Null);
+                Assert.That(nonTargetSpawn!.transform.position, Is.EqualTo(nonTargetAnchor.position));
+
+                var spawned = go.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(spawned.Count(component => component != null && component.CivilianId == snapshot.TargetId), Is.EqualTo(1),
+                    "Expected the tracked target civilian to exist exactly once after the dedicated target-body cutover.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void RebuildScenePopulation_WhenNoEligibleCiviliansRemain_ClearsAvailableProceduralContractOffer()
         {
             var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
@@ -840,7 +901,7 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
-        public void RebuildScenePopulation_WhenDuplicateTrackedCivilianIdsExist_OnlyOneSpawnGetsContractTargetDamageable()
+        public void RebuildScenePopulation_WhenDuplicateTrackedCivilianIdsExist_SpawnsOnlyOneTargetBody()
         {
             var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
             var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
@@ -883,11 +944,10 @@ namespace Reloader.NPCs.Tests.EditMode
                 var duplicateSpawns = bridgeGo.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true)
                     .Where(component => component.CivilianId == snapshot.TargetId)
                     .ToArray();
-                Assert.That(duplicateSpawns.Length, Is.EqualTo(2), "Expected duplicate tracked civilians to produce two live spawned actors for this regression.");
-
-                var damageableCount = duplicateSpawns.Count(component => component.GetComponent(damageableType!) != null);
-                Assert.That(damageableCount, Is.EqualTo(1),
-                    "Expected duplicate tracked civilian ids to leave at most one spawned actor on the contract-target damage seam.");
+                Assert.That(duplicateSpawns.Length, Is.EqualTo(1),
+                    "Expected the dedicated contract-target cutover to keep only one spawned body for the tracked target id.");
+                Assert.That(duplicateSpawns[0].GetComponent(damageableType!), Is.Not.Null,
+                    "Expected the single surviving target body to remain on the contract-target damage seam.");
             }
             finally
             {

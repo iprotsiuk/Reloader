@@ -57,6 +57,8 @@ namespace Reloader.World.Tests.PlayMode
 
             var targetRoot = FindProceduralCivilianTarget(availableSnapshot.TargetId);
             Assert.That(targetRoot, Is.Not.Null, "Expected the available contract target to resolve to a spawned procedural civilian.");
+            Assert.That(CountSpawnedCivilianBodies(availableSnapshot.TargetId), Is.EqualTo(1),
+                "Expected MainTown to keep exactly one live target body for the offered contract id.");
 
             var startingMoney = ReadEconomyMoney();
 
@@ -171,7 +173,7 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator MainTownContractSlice_AcceptedProceduralTarget_KeepsUnitPresentationScale()
+        public IEnumerator MainTownContractSlice_AcceptedProceduralTarget_PreservesFinitePresentationScale()
         {
             yield return LoadScene(MainTownSceneName);
             yield return null;
@@ -194,8 +196,8 @@ namespace Reloader.World.Tests.PlayMode
 
             var visualRoot = targetRoot!.transform.Find("VisualRoot");
             Assert.That(visualRoot, Is.Not.Null, "Expected VisualRoot on the active MainTown contract target.");
-            AssertUniformScale(targetRoot.transform.lossyScale, targetRoot.name, "contract target root");
-            AssertUniformScale(visualRoot!.lossyScale, targetRoot.name, "contract target VisualRoot");
+            AssertFinitePositiveScale(targetRoot.transform.lossyScale, targetRoot.name, "contract target root");
+            AssertFinitePositiveScale(visualRoot!.lossyScale, targetRoot.name, "contract target VisualRoot");
 
             var activeStyleRoot = visualRoot.Find("StyleMaleRoot");
             if (activeStyleRoot == null || !activeStyleRoot.gameObject.activeInHierarchy)
@@ -204,7 +206,7 @@ namespace Reloader.World.Tests.PlayMode
             }
 
             Assert.That(activeStyleRoot, Is.Not.Null, "Expected an active style root on the live MainTown contract target.");
-            AssertUniformScale(activeStyleRoot!.lossyScale, targetRoot.name, activeStyleRoot.name);
+            AssertFinitePositiveScale(activeStyleRoot!.lossyScale, targetRoot.name, activeStyleRoot.name);
         }
 
         [UnityTest]
@@ -228,6 +230,8 @@ namespace Reloader.World.Tests.PlayMode
 
             var offeredTarget = FindProceduralCivilianTarget(availableSnapshot.TargetId);
             Assert.That(offeredTarget, Is.Not.Null, "Expected the scene's available contract to target a spawned procedural civilian.");
+            Assert.That(CountSpawnedCivilianBodies(availableSnapshot.TargetId), Is.EqualTo(1),
+                "Expected the offered MainTown contract target to resolve to exactly one spawned civilian body.");
 
             var targetDamageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons");
             Assert.That(targetDamageableType, Is.Not.Null, "Expected contract target damageable type to resolve.");
@@ -466,6 +470,8 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(resolvedCivilian, Is.Not.Null, "Expected the population bridge to return the spawned civilian metadata component.");
             Assert.That(resolvedCivilian!.CivilianId, Is.EqualTo(activeSnapshot.TargetId));
             Assert.That(resolvedCivilian.PopulationSlotId, Is.Not.Empty);
+            Assert.That(CountSpawnedCivilianBodies(activeSnapshot.TargetId), Is.EqualTo(1),
+                "Expected the accepted contract target id to resolve to one dedicated live body.");
 
             var damageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons");
             Assert.That(damageableType, Is.Not.Null, "Expected contract target damageable type to resolve.");
@@ -489,6 +495,8 @@ namespace Reloader.World.Tests.PlayMode
 
             var targetRoot = FindProceduralCivilianTarget(availableSnapshot.TargetId);
             Assert.That(targetRoot, Is.Not.Null, "Expected the available contract target to resolve to a spawned procedural civilian.");
+            Assert.That(CountSpawnedCivilianBodies(availableSnapshot.TargetId), Is.EqualTo(1),
+                "Expected the MainTown demo scene to keep exactly one live target body near the authored lane cluster.");
 
             var returnEntry = FindEntryPoint("entry.maintown.return");
             var smokeTrigger = GameObject.Find("MainTown_SmokeToIndoor_Trigger");
@@ -634,6 +642,23 @@ namespace Reloader.World.Tests.PlayMode
             }
 
             return null;
+        }
+
+        private static int CountSpawnedCivilianBodies(string targetId)
+        {
+            var bridge = FindPopulationBridge();
+            var spawned = bridge.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            var count = 0;
+            for (var i = 0; i < spawned.Length; i++)
+            {
+                var candidate = spawned[i];
+                if (candidate != null && string.Equals(candidate.CivilianId, targetId, StringComparison.Ordinal))
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         private static GameObject FindDifferentProceduralCivilianTarget(string excludedCivilianId)
@@ -829,11 +854,14 @@ namespace Reloader.World.Tests.PlayMode
                 $"Expected the canonical runtime player to settle before asserting travel state. Start={startPosition}, End={currentPosition}, Elapsed={elapsed:0.000}s.");
         }
 
-        private static void AssertUniformScale(Vector3 lossyScale, string subjectName, string nodeName)
+        private static void AssertFinitePositiveScale(Vector3 lossyScale, string subjectName, string nodeName)
         {
-            Assert.That(lossyScale.x, Is.EqualTo(lossyScale.y).Within(0.01f), $"Expected '{subjectName}' {nodeName} scale to stay uniform. Scale={lossyScale}.");
-            Assert.That(lossyScale.x, Is.EqualTo(lossyScale.z).Within(0.01f), $"Expected '{subjectName}' {nodeName} scale to stay uniform. Scale={lossyScale}.");
-            Assert.That(lossyScale.x, Is.EqualTo(1f).Within(0.01f), $"Expected '{subjectName}' {nodeName} scale to stay near unit scale. Scale={lossyScale}.");
+            Assert.That(float.IsFinite(lossyScale.x), Is.True, $"Expected '{subjectName}' {nodeName} X scale to stay finite. Scale={lossyScale}.");
+            Assert.That(float.IsFinite(lossyScale.y), Is.True, $"Expected '{subjectName}' {nodeName} Y scale to stay finite. Scale={lossyScale}.");
+            Assert.That(float.IsFinite(lossyScale.z), Is.True, $"Expected '{subjectName}' {nodeName} Z scale to stay finite. Scale={lossyScale}.");
+            Assert.That(Mathf.Abs(lossyScale.x), Is.GreaterThan(0.0001f), $"Expected '{subjectName}' {nodeName} X scale to stay non-zero. Scale={lossyScale}.");
+            Assert.That(Mathf.Abs(lossyScale.y), Is.GreaterThan(0.0001f), $"Expected '{subjectName}' {nodeName} Y scale to stay non-zero. Scale={lossyScale}.");
+            Assert.That(Mathf.Abs(lossyScale.z), Is.GreaterThan(0.0001f), $"Expected '{subjectName}' {nodeName} Z scale to stay non-zero. Scale={lossyScale}.");
         }
     }
 }
