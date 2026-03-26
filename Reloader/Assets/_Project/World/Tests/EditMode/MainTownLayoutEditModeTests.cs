@@ -386,6 +386,46 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
+        [Test]
+        public void MainTownScene_HasAuthoredStartupSupportForSpawnAndReturnSeam()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                var supportRoot = FindRoot(scene, "MainTownEntry_StartupSupport");
+                Assert.That(supportRoot, Is.Not.Null, "Expected an authored collider pad to support MainTown startup seams.");
+
+                var supportCollider = supportRoot!.GetComponent<BoxCollider>();
+                Assert.That(supportCollider, Is.Not.Null, "Expected MainTown startup support to use a BoxCollider.");
+                Assert.That(supportCollider!.enabled, Is.True, "Expected MainTown startup support collider to stay enabled.");
+
+                var supportBounds = supportCollider.bounds;
+                var spawnEntry = FindRoot(scene, "MainTownEntry_Spawn");
+                var returnEntry = FindRoot(scene, "MainTownEntry_Return");
+                Assert.That(spawnEntry, Is.Not.Null, "Expected MainTownEntry_Spawn to remain authored.");
+                Assert.That(returnEntry, Is.Not.Null, "Expected MainTownEntry_Return to remain authored.");
+
+                Assert.That(
+                    supportBounds.Contains(spawnEntry!.transform.position),
+                    Is.True,
+                    $"Expected startup support bounds to contain MainTownEntry_Spawn. Bounds={supportBounds}, Entry={spawnEntry.transform.position}.");
+                Assert.That(
+                    supportBounds.Contains(returnEntry!.transform.position),
+                    Is.True,
+                    $"Expected startup support bounds to contain MainTownEntry_Return. Bounds={supportBounds}, Entry={returnEntry.transform.position}.");
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
         private static void AssertChildExists(Transform parent, string childName)
         {
             Assert.That(FindChild(parent, childName), Is.Not.Null, $"Expected child '{childName}' under '{parent.name}'.");

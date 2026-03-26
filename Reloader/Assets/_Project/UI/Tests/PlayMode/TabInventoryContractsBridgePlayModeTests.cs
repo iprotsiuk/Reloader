@@ -1,6 +1,7 @@
 using System;
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.Contracts.Runtime;
 using Reloader.Inventory;
 using Reloader.Player;
 using Reloader.UI.Toolkit.Contracts;
@@ -171,6 +172,110 @@ namespace Reloader.UI.Tests.PlayMode
                     UnityEngine.Object.DestroyImmediate(providerGo);
                 }
 
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void RuntimeBridge_BindTabInventory_WhenReplacementOfferIsPushedBeforeClaim_PreservesReadyToClaimUntilExplicitClaim()
+        {
+            var definitionType = Type.GetType("Reloader.Contracts.Runtime.AssassinationContractDefinition, Reloader.Contracts");
+            var providerType = Type.GetType("Reloader.Contracts.Runtime.StaticContractRuntimeProvider, Reloader.Core");
+            var runtimeType = Type.GetType("Reloader.Contracts.Runtime.ContractEscapeResolutionRuntime, Reloader.Core");
+            Assert.That(definitionType, Is.Not.Null);
+            Assert.That(providerType, Is.Not.Null);
+            Assert.That(runtimeType, Is.Not.Null);
+
+            var go = new GameObject("UiToolkitBridgeContractsClaim");
+            var bridge = go.AddComponent<UiToolkitScreenRuntimeBridge>();
+            var inventoryController = go.AddComponent<PlayerInventoryController>();
+            var runtime = new PlayerInventoryRuntime();
+            runtime.SetBackpackCapacity(0);
+            inventoryController.Configure(null, null, runtime);
+            var inputSource = go.AddComponent<TestInputSource>();
+
+            var providerGo = new GameObject("StaticContractRuntimeProviderClaim");
+            var provider = providerGo.AddComponent(providerType);
+            var payoutReceiver = providerGo.AddComponent<RecordingPayoutReceiver>();
+            var definition = ScriptableObject.CreateInstance(definitionType);
+            SetPrivateField(definitionType, definition, "_contractId", "contract.first");
+            SetPrivateField(definitionType, definition, "_targetId", "target.first");
+            SetPrivateField(definitionType, definition, "_title", "Cafe Exit");
+            SetPrivateField(definitionType, definition, "_targetDisplayName", "Maksim Volkov");
+            SetPrivateField(definitionType, definition, "_targetDescription", "Gray coat, smoker, exits the cafe at dusk.");
+            SetPrivateField(definitionType, definition, "_briefingText", "Observe from the ridge and confirm the target before taking the shot.");
+            SetPrivateField(definitionType, definition, "_distanceBand", 420f);
+            SetPrivateField(definitionType, definition, "_payout", 1500);
+
+            var replacement = ScriptableObject.CreateInstance(definitionType);
+            SetPrivateField(definitionType, replacement, "_contractId", "contract.second");
+            SetPrivateField(definitionType, replacement, "_targetId", "target.second");
+            SetPrivateField(definitionType, replacement, "_title", "Harbor Walk");
+            SetPrivateField(definitionType, replacement, "_targetDisplayName", "Ilona Sidorov");
+            SetPrivateField(definitionType, replacement, "_targetDescription", "Blue coat, circles the warehouse yard.");
+            SetPrivateField(definitionType, replacement, "_briefingText", "Wait for the yard opening and confirm the route.");
+            SetPrivateField(definitionType, replacement, "_distanceBand", 510f);
+            SetPrivateField(definitionType, replacement, "_payout", 1800);
+
+            var setAvailableContractMethod = providerType.GetMethod("SetAvailableContract", BindingFlags.Instance | BindingFlags.Public);
+            var setPayoutReceiverMethod = providerType.GetMethod("SetPayoutReceiver", BindingFlags.Instance | BindingFlags.Public);
+            var reportTargetEliminatedMethod = providerType.GetMethod("ReportContractTargetEliminated", BindingFlags.Instance | BindingFlags.Public);
+            var advanceRuntimeMethod = providerType.GetMethod("AdvanceRuntime", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(setAvailableContractMethod, Is.Not.Null);
+            Assert.That(setPayoutReceiverMethod, Is.Not.Null);
+            Assert.That(reportTargetEliminatedMethod, Is.Not.Null);
+            Assert.That(advanceRuntimeMethod, Is.Not.Null);
+            setPayoutReceiverMethod!.Invoke(provider, new object[] { payoutReceiver });
+            setAvailableContractMethod!.Invoke(provider, new object[] { definition });
+
+            var bindMethod = typeof(UiToolkitScreenRuntimeBridge).GetMethod(
+                "BindTabInventory",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(bindMethod, Is.Not.Null);
+
+            var root = BuildRoot();
+            var subscription = bindMethod.Invoke(bridge, new object[] { root, UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, inventoryController, inputSource }) as IDisposable;
+            Assert.That(subscription, Is.Not.Null);
+
+            try
+            {
+                var tabController = go.transform.Find(UiRuntimeCompositionIds.ControllerObjectNames.TabInventory)?.GetComponent<TabInventoryController>();
+                Assert.That(tabController, Is.Not.Null);
+
+                inputSource.MenuTogglePressedThisFrame = true;
+                tabController!.Tick();
+                tabController.HandleIntent(new UiIntent("tab.menu.select", "contracts"));
+                tabController.HandleIntent(new UiIntent("tab.inventory.contracts.accept"));
+
+                reportTargetEliminatedMethod!.Invoke(provider, new object[] { "target.first", false });
+                advanceRuntimeMethod!.Invoke(provider, new object[] { 0.1f });
+                setAvailableContractMethod.Invoke(provider, new object[] { replacement });
+
+                tabController.HandleIntent(new UiIntent("tab.menu.select", "contracts"));
+
+                var contractRuntime = GetPrivateField(providerType, provider, "_runtime");
+                Assert.That(contractRuntime, Is.Not.Null);
+                var activeContract = runtimeType.GetProperty("ActiveContract", BindingFlags.Instance | BindingFlags.Public)?.GetValue(contractRuntime);
+                Assert.That(activeContract, Is.Not.Null);
+
+                var contractsStatus = root.Q<Label>("inventory__contracts-status");
+                var rewardState = root.Q<Label>("inventory__detail-pane-reward-state");
+                Assert.That(contractsStatus, Is.Not.Null);
+                Assert.That(rewardState, Is.Not.Null);
+                Assert.That(contractsStatus!.text, Is.EqualTo("Ready to claim"));
+                Assert.That(rewardState!.text, Is.EqualTo("Reward ready to claim."));
+
+                tabController.HandleIntent(new UiIntent("tab.inventory.contracts.claim"));
+
+                Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(1500));
+                Assert.That(root.Q<Label>("inventory__contracts-status")!.text, Is.EqualTo("No contracts currently posted"));
+            }
+            finally
+            {
+                subscription.Dispose();
+                UnityEngine.Object.DestroyImmediate((UnityEngine.Object)replacement);
+                UnityEngine.Object.DestroyImmediate((UnityEngine.Object)definition);
+                UnityEngine.Object.DestroyImmediate(providerGo);
                 UnityEngine.Object.DestroyImmediate(go);
             }
         }
@@ -526,6 +631,22 @@ namespace Reloader.UI.Tests.PlayMode
             public bool ConsumeDevConsoleTogglePressed() => false;
             public bool ConsumeAutocompletePressed() => false;
             public int ConsumeSuggestionDelta() => 0;
+        }
+
+        private sealed class RecordingPayoutReceiver : MonoBehaviour, IContractPayoutReceiver
+        {
+            public int TotalAwarded { get; private set; }
+
+            public bool TryAwardContractPayout(int amount)
+            {
+                if (amount <= 0)
+                {
+                    return false;
+                }
+
+                TotalAwarded += amount;
+                return true;
+            }
         }
     }
 }

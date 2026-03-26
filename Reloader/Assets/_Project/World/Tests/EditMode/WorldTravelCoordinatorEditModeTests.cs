@@ -2,12 +2,14 @@ using System.Reflection;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Reloader.World.Runtime;
+using Reloader.World.Runtime.Origin;
 using Reloader.World.Travel;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
+using UnityEngine.TestTools;
 
 namespace Reloader.World.Tests.EditMode
 {
@@ -77,6 +79,54 @@ namespace Reloader.World.Tests.EditMode
             {
                 CloseSceneIfLoaded(destinationScene);
                 EditorSceneManager.CloseScene(bootstrapScene, true);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void OnSceneLoaded_WhenCanonicalTravelPlayerRootCannotBeResolved_FailsClosedWithoutPublishingResolvedEntry()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var bootstrapScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+            var destinationScene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SceneManager.SetActiveScene(bootstrapScene);
+
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                var runtimePlayerRoot = persistentRoot.PlayerRootTransform;
+                Assert.That(runtimePlayerRoot, Is.Not.Null, "Expected canonical runtime player before starting travel.");
+
+                runtimePlayerRoot.position = new Vector3(11f, 12f, 13f);
+                runtimePlayerRoot.rotation = Quaternion.Euler(0f, 70f, 0f);
+                AssignPlayerRootTransform(persistentRoot, null);
+
+                SetPrivateStaticField("_pendingSceneName", MainTownSceneName);
+                SetPrivateStaticField("_pendingEntryPointId", "entry.maintown.spawn");
+                LogAssert.Expect(LogType.Error,
+                    "Travel failed: canonical runtime player root could not be repositioned to entry 'entry.maintown.spawn' in scene 'MainTown'.");
+                InvokePrivateStatic("OnSceneLoaded", destinationScene, LoadSceneMode.Additive);
+
+                Assert.That(SceneManager.GetActiveScene(), Is.EqualTo(bootstrapScene),
+                    "Travel should fail closed when the canonical runtime player root cannot be resolved for destination handoff.");
+                Assert.That(destinationScene.isLoaded, Is.False,
+                    "Destination scene should be unloaded again when player-root handoff cannot complete.");
+                Assert.That(runtimePlayerRoot.gameObject.scene, Is.EqualTo(bootstrapScene),
+                    "Existing runtime player object should remain in the origin scene when destination handoff fails.");
+                Assert.That(runtimePlayerRoot.position, Is.EqualTo(new Vector3(11f, 12f, 13f)));
+                Assert.That(WorldTravelCoordinator.LastResolvedEntryPointId, Is.Null,
+                    "Travel should not publish a resolved entry point when the canonical runtime player was never repositioned.");
+                Assert.That(GetPrivateStaticField<string>("_pendingSceneName"), Is.Null);
+                Assert.That(GetPrivateStaticField<string>("_pendingEntryPointId"), Is.Null);
+            }
+            finally
+            {
+                CloseSceneIfLoaded(destinationScene);
+                CloseSceneIfLoaded(bootstrapScene);
                 if (originalScene.IsValid())
                 {
                     SceneManager.SetActiveScene(originalScene);
@@ -334,6 +384,68 @@ namespace Reloader.World.Tests.EditMode
                 if (destinationScene.IsValid())
                 {
                     EditorSceneManager.CloseScene(destinationScene, true);
+                }
+            }
+        }
+
+        [Test]
+        public void RepositionPlayerToEntryPoint_RefreshesOriginBaselineBeforeNextRebaseCheck()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var bootstrapScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+            var destinationScene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SceneManager.SetActiveScene(bootstrapScene);
+
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                var playerRoot = persistentRoot.PlayerRootTransform;
+                var rebaseController = persistentRoot.GetComponent<DynamicOriginRebaseController>();
+
+                Assert.That(playerRoot, Is.Not.Null, "Expected canonical runtime player before repositioning to a travel entry.");
+                Assert.That(rebaseController, Is.Not.Null, "Expected canonical DynamicOriginRebaseController on the persistent runtime owner.");
+
+                var entryPoint = Object.FindFirstObjectByType<SceneEntryPoint>(FindObjectsInactive.Include);
+                Assert.That(entryPoint, Is.Not.Null, "Expected at least one authored SceneEntryPoint in MainTown.");
+
+                if (entryPoint != null && entryPoint.EntryPointId != "entry.maintown.return")
+                {
+                    var entryPoints = Object.FindObjectsByType<SceneEntryPoint>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                    for (var i = 0; i < entryPoints.Length; i++)
+                    {
+                        if (entryPoints[i] != null && entryPoints[i].gameObject.scene == destinationScene && entryPoints[i].EntryPointId == "entry.maintown.return")
+                        {
+                            entryPoint = entryPoints[i];
+                            break;
+                        }
+                    }
+                }
+
+                Assert.That(entryPoint, Is.Not.Null, "Expected the authored MainTown return entry point.");
+                Assert.That(entryPoint!.gameObject.scene, Is.EqualTo(destinationScene));
+
+                var resolvedPlayerRoot = persistentRoot.MoveRuntimePlayerRootToScene(destinationScene);
+                Assert.That(resolvedPlayerRoot, Is.SameAs(playerRoot), "Expected canonical runtime player root to move into the destination scene before reposition.");
+
+                InvokePrivateStatic("RepositionPlayerToEntryPoint", resolvedPlayerRoot, entryPoint.transform);
+
+                Assert.That(playerRoot.gameObject.scene, Is.EqualTo(destinationScene));
+                Assert.That(playerRoot.position, Is.EqualTo(entryPoint.transform.position));
+
+                var rebased = rebaseController!.TryRebaseIfNeeded(10f);
+
+                Assert.That(rebased, Is.False,
+                    "Expected travel reposition to refresh the floating-origin baseline so the next rebase evaluation does not pull the player back toward bootstrap-space.");
+                Assert.That(playerRoot.position, Is.EqualTo(entryPoint.transform.position));
+            }
+            finally
+            {
+                CloseSceneIfLoaded(destinationScene);
+                CloseSceneIfLoaded(bootstrapScene);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
                 }
             }
         }

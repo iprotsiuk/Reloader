@@ -72,8 +72,8 @@ namespace Reloader.PlayerDevice.World
 
             if (!TryResolveTargetMetrics(out var metrics, out var selectionDistanceMeters))
             {
-                RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintShown(
-                    new InteractionHintPayload(PendingHintContextId, PendingHintActionText, "No target under cursor"));
+                _isSelectingTarget = false;
+                RuntimeKernelBootstrapper.InteractionHintEvents?.RaiseInteractionHintCleared(PendingHintContextId);
                 return;
             }
 
@@ -125,96 +125,13 @@ namespace Reloader.PlayerDevice.World
                 return false;
             }
 
-            if (!TryResolvePreferredMetrics(hit.collider, out metrics))
+            if (!PlayerDeviceTargetMetricsResolver.TryResolve(hit.collider, preferredTargetId: null, out metrics))
             {
                 return false;
             }
 
             selectionDistanceMeters = Mathf.Max(0f, hit.distance);
             return metrics != null;
-        }
-
-        private static bool TryResolvePreferredMetrics(Component hitComponent, out IRangeTargetMetrics metrics)
-        {
-            metrics = null;
-            if (hitComponent == null)
-            {
-                return false;
-            }
-
-            var candidates = new List<IRangeTargetMetrics>();
-            AppendCandidates(hitComponent.GetComponents<IRangeTargetMetrics>(), candidates);
-            AppendCandidates(hitComponent.GetComponentsInParent<IRangeTargetMetrics>(), candidates);
-            if (candidates.Count == 0)
-            {
-                return false;
-            }
-
-            metrics = SelectPreferredMetrics(candidates);
-            return metrics != null;
-        }
-
-        private static void AppendCandidates(IReadOnlyList<IRangeTargetMetrics> source, List<IRangeTargetMetrics> target)
-        {
-            if (source == null || target == null)
-            {
-                return;
-            }
-
-            for (var i = 0; i < source.Count; i++)
-            {
-                var candidate = source[i];
-                if (candidate == null || target.Contains(candidate))
-                {
-                    continue;
-                }
-
-                target.Add(candidate);
-            }
-        }
-
-        private static IRangeTargetMetrics SelectPreferredMetrics(IReadOnlyList<IRangeTargetMetrics> candidates)
-        {
-            IRangeTargetMetrics best = null;
-            var bestScore = int.MinValue;
-
-            for (var i = 0; i < candidates.Count; i++)
-            {
-                var candidate = candidates[i];
-                if (candidate == null)
-                {
-                    continue;
-                }
-
-                var score = 0;
-                if (!string.IsNullOrWhiteSpace(candidate.TargetId))
-                {
-                    score += 100;
-                }
-
-                if (candidate is Component component)
-                {
-                    var typeName = component.GetType().Name;
-                    // Prefer dedicated metrics components over dual-role damageable components.
-                    if (typeName.IndexOf("RangeMetrics", StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        score += 50;
-                    }
-
-                    if (typeName.IndexOf("Damageable", StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        score -= 10;
-                    }
-                }
-
-                if (best == null || score > bestScore)
-                {
-                    best = candidate;
-                    bestScore = score;
-                }
-            }
-
-            return best;
         }
 
         private bool ConsumeSelectionClickThisFrame()
@@ -253,6 +170,108 @@ namespace Reloader.PlayerDevice.World
         private static IUiStateEvents ResolveUiStateEvents()
         {
             return RuntimeKernelBootstrapper.UiStateEvents;
+        }
+    }
+
+    internal static class PlayerDeviceTargetMetricsResolver
+    {
+        public static bool TryResolve(Component hitComponent, string preferredTargetId, out IRangeTargetMetrics metrics)
+        {
+            metrics = null;
+            if (hitComponent == null)
+            {
+                return false;
+            }
+
+            var candidates = new List<IRangeTargetMetrics>();
+            AppendCandidates(hitComponent.GetComponents<IRangeTargetMetrics>(), candidates);
+            AppendCandidates(hitComponent.GetComponentsInParent<IRangeTargetMetrics>(), candidates);
+            return TryResolve(candidates, preferredTargetId, out metrics);
+        }
+
+        public static bool TryResolve(
+            IReadOnlyList<IRangeTargetMetrics> candidates,
+            string preferredTargetId,
+            out IRangeTargetMetrics metrics)
+        {
+            metrics = null;
+            if (candidates == null || candidates.Count == 0)
+            {
+                return false;
+            }
+
+            IRangeTargetMetrics best = null;
+            var bestScore = int.MinValue;
+            for (var i = 0; i < candidates.Count; i++)
+            {
+                var candidate = candidates[i];
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(preferredTargetId)
+                    && !string.Equals(candidate.TargetId, preferredTargetId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var score = Score(candidate);
+                if (best == null || score > bestScore)
+                {
+                    best = candidate;
+                    bestScore = score;
+                }
+            }
+
+            metrics = best;
+            return metrics != null;
+        }
+
+        private static void AppendCandidates(IReadOnlyList<IRangeTargetMetrics> source, List<IRangeTargetMetrics> target)
+        {
+            if (source == null || target == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < source.Count; i++)
+            {
+                var candidate = source[i];
+                if (candidate == null || target.Contains(candidate))
+                {
+                    continue;
+                }
+
+                target.Add(candidate);
+            }
+        }
+
+        private static int Score(IRangeTargetMetrics candidate)
+        {
+            var score = 0;
+            if (!string.IsNullOrWhiteSpace(candidate.TargetId))
+            {
+                score += 100;
+            }
+
+            if (candidate is not Component component)
+            {
+                return score;
+            }
+
+            var typeName = component.GetType().Name;
+            if (typeName.IndexOf("RangeMetrics", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                score += 50;
+            }
+
+            if (typeName.IndexOf("Damageable", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                score -= 10;
+            }
+
+            return score;
         }
     }
 }

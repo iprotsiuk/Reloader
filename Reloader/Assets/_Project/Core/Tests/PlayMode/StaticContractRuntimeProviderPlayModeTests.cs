@@ -161,6 +161,54 @@ namespace Reloader.Core.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator SetAvailableContract_AfterPreAcceptTargetDeathDuringSearch_IgnoresReplacementOffer()
+        {
+            var providerGo = new GameObject("ContractProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            var definition = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            var replacement = CreateDefinition("contract.bravo", "target.bravo", 610f, 2400);
+
+            try
+            {
+                yield return null;
+
+                SetAvailableContract(provider, definition);
+                provider.ReportContractTargetEliminated("target.alpha", wasExposed: true);
+
+                Assert.That(provider.TryGetContractSnapshot(out _), Is.False);
+                Assert.That(ReadRuntime(provider).CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+
+                SetAvailableContract(provider, replacement);
+
+                Assert.That(provider.TryGetContractSnapshot(out _), Is.False,
+                    "A replacement offer must not revive the demo path while search from a consumed pre-accept target kill is still active.");
+                Assert.That(ReadRuntime(provider).CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+
+                provider.AdvanceRuntime(44f);
+                yield return null;
+
+                Assert.That(ReadRuntime(provider).CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+                Assert.That(ReadRuntime(provider).CurrentHeatState.SearchTimeRemainingSeconds, Is.EqualTo(1f).Within(0.01f));
+                Assert.That(provider.TryGetContractSnapshot(out _), Is.False,
+                    "The ignored replacement must stay unavailable until the original 45-second search window actually clears.");
+
+                provider.AdvanceRuntime(2f);
+                yield return null;
+
+                Assert.That(ReadRuntime(provider).CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Clear));
+                Assert.That(provider.TryGetContractSnapshot(out _), Is.False,
+                    "Ignored replacement pushes should not silently resurrect a new contract after the original consumed offer clears search.");
+                Assert.That(provider.AcceptAvailableContract(), Is.False);
+            }
+            finally
+            {
+                UnityEngine.Object.Destroy(providerGo);
+                DestroyDefinition(definition);
+                DestroyDefinition(replacement);
+            }
+        }
+
         private static void SetAvailableContract(StaticContractRuntimeProvider provider, UnityEngine.Object definition)
         {
             var contractType = definition.GetType();

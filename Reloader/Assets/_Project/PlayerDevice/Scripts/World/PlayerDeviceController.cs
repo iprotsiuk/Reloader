@@ -77,12 +77,14 @@ namespace Reloader.PlayerDevice.World
 
         public void IngestImpact(Vector3 impactPoint, GameObject hitObject, Vector3? sourcePoint)
         {
-            if (_runtimeState == null || !_runtimeState.HasSelectedTargetBinding)
+            if (_runtimeState == null)
             {
                 return;
             }
 
-            var selectedTargetId = _runtimeState.SelectedTargetBinding.TargetId;
+            var selectedTargetId = _runtimeState.HasSelectedTargetBinding
+                ? _runtimeState.SelectedTargetBinding.TargetId
+                : null;
             if (!TryResolveRangeTargetMetrics(hitObject, selectedTargetId, out var targetMetrics))
             {
                 return;
@@ -95,6 +97,14 @@ namespace Reloader.PlayerDevice.World
 
             var localImpact = targetComponent.transform.InverseTransformPoint(impactPoint);
             var impactDistanceMeters = ResolveImpactDistanceMeters(impactPoint, sourcePoint, targetMetrics);
+            if (!_runtimeState.HasSelectedTargetBinding && !string.IsNullOrWhiteSpace(targetMetrics.TargetId))
+            {
+                _runtimeState.SetSelectedTargetBinding(new DeviceTargetBinding(
+                    targetMetrics.TargetId,
+                    targetMetrics.DisplayName,
+                    impactDistanceMeters));
+            }
+
             if (IsDuplicateImpactEvent(targetComponent, impactPoint, sourcePoint))
             {
                 return;
@@ -296,13 +306,7 @@ namespace Reloader.PlayerDevice.World
                 return false;
             }
 
-            if (TryResolveMatchingMetrics(hitObject.GetComponents<IRangeTargetMetrics>(), preferredTargetId, out targetMetrics))
-            {
-                return true;
-            }
-
-            var parentMetrics = hitObject.GetComponentsInParent<IRangeTargetMetrics>(includeInactive: false);
-            return TryResolveMatchingMetrics(parentMetrics, preferredTargetId, out targetMetrics);
+            return PlayerDeviceTargetMetricsResolver.TryResolve(hitObject.transform, preferredTargetId, out targetMetrics);
         }
 
         private static float ResolveImpactDistanceMeters(Vector3 impactPoint, Vector3? sourcePoint, IRangeTargetMetrics targetMetrics)
@@ -401,45 +405,7 @@ namespace Reloader.PlayerDevice.World
             string preferredTargetId,
             out IRangeTargetMetrics resolved)
         {
-            resolved = null;
-            if (metricsCandidates == null || metricsCandidates.Count == 0)
-            {
-                return false;
-            }
-
-            for (var i = 0; i < metricsCandidates.Count; i++)
-            {
-                var candidate = metricsCandidates[i];
-                if (candidate == null)
-                {
-                    continue;
-                }
-
-                if (!string.IsNullOrWhiteSpace(preferredTargetId)
-                    && string.Equals(candidate.TargetId, preferredTargetId, StringComparison.Ordinal))
-                {
-                    resolved = candidate;
-                    return true;
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(preferredTargetId))
-            {
-                return false;
-            }
-
-            for (var i = 0; i < metricsCandidates.Count; i++)
-            {
-                if (metricsCandidates[i] == null)
-                {
-                    continue;
-                }
-
-                resolved = metricsCandidates[i];
-                return true;
-            }
-
-            return false;
+            return PlayerDeviceTargetMetricsResolver.TryResolve(metricsCandidates, preferredTargetId, out resolved);
         }
     }
 }

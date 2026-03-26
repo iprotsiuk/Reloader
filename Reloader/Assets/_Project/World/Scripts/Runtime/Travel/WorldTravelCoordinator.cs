@@ -5,6 +5,7 @@ using System.Reflection;
 using Reloader.Player;
 using Reloader.Player.Viewmodel;
 using Reloader.World.Runtime;
+using Reloader.World.Runtime.Origin;
 using Debug = UnityEngine.Debug;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -160,10 +161,18 @@ namespace Reloader.World.Travel
                 CaptureCivilianPopulationStateForTravel();
                 CaptureInventorySnapshotForTravel();
                 CaptureWeaponRuntimeSnapshotForTravel();
-                LastResolvedEntryPointId = resolvedEntryPoint.EntryPointId;
-                SceneManager.SetActiveScene(scene);
                 RestoreCivilianPopulationStateAfterTravel(scene);
-                RepositionPlayerToEntryPoint(scene, resolvedEntryPoint.transform);
+                var activeScenePlayerRoot = ResolveTravelPlayerRoot(scene);
+                if (activeScenePlayerRoot == null)
+                {
+                    FailPendingTravelForUnresolvedPlayerRoot(scene, resolvedEntryPoint.EntryPointId);
+                    return;
+                }
+
+                RepositionPlayerToEntryPoint(activeScenePlayerRoot, resolvedEntryPoint.transform);
+                SceneManager.SetActiveScene(scene);
+                FinalizePlayerTravelHandoff(activeScenePlayerRoot, resolvedEntryPoint.transform);
+                LastResolvedEntryPointId = resolvedEntryPoint.EntryPointId;
                 BindPlayerStateTravelAnchor(scene, resolvedEntryPoint.EntryPointId);
                 UnloadLoadedScenesExcept(scene);
                 RearmActiveEventSystemsAfterTravel(scene);
@@ -329,26 +338,59 @@ namespace Reloader.World.Travel
             return string.Equals(loadedScenePath, normalizedPending, StringComparison.OrdinalIgnoreCase);
         }
 
-        private static void RepositionPlayerToEntryPoint(Scene scene, Transform entryPointTransform)
+        private static void FailPendingTravelForUnresolvedPlayerRoot(Scene scene, string entryPointId)
         {
+            Debug.LogError(
+                $"Travel failed: canonical runtime player root could not be repositioned to entry '{entryPointId}' in scene '{scene.name}'.");
+            LastResolvedEntryPointId = null;
+            ClearPendingTravelCaptureState();
+            RestoreTemporarilyDisabledEventSystems();
+            UnloadSceneForFailedTravel(scene);
+            ClearPendingTravelRequest(applySuppression: false);
+        }
+
+        private static void RepositionPlayerToEntryPoint(Transform activeScenePlayerRoot, Transform entryPointTransform)
+        {
+            if (entryPointTransform == null || activeScenePlayerRoot == null)
+            {
+                return;
+            }
+
+            activeScenePlayerRoot.position = entryPointTransform.position;
+            activeScenePlayerRoot.rotation = entryPointTransform.rotation;
+            PersistentPlayerRoot.Instance?.GetComponent<DynamicOriginRebaseController>()?.ResetState();
+        }
+
+        private static void FinalizePlayerTravelHandoff(Transform activeScenePlayerRoot, Transform entryPointTransform)
+        {
+            if (activeScenePlayerRoot == null)
+            {
+                return;
+            }
+
+            ResetRuntimeUiStateAfterTravel();
+            ApplyInventorySnapshotAfterTravel(activeScenePlayerRoot);
+            EnsureViewmodelRigAfterTravel(activeScenePlayerRoot);
+            RestorePlayerControlsAfterTravel(activeScenePlayerRoot);
+            ApplyWeaponRuntimeSnapshotAfterTravel(activeScenePlayerRoot);
+
             if (entryPointTransform == null)
             {
                 return;
             }
 
-            var activeScenePlayerRoot = ResolveTravelPlayerRoot(scene);
+            activeScenePlayerRoot.position = entryPointTransform.position;
+            activeScenePlayerRoot.rotation = entryPointTransform.rotation;
+            PersistentPlayerRoot.Instance?.GetComponent<DynamicOriginRebaseController>()?.ResetState();
+            Physics.SyncTransforms();
+        }
 
-            if (activeScenePlayerRoot != null)
-            {
-                ResetRuntimeUiStateAfterTravel();
-                ApplyInventorySnapshotAfterTravel(activeScenePlayerRoot);
-                activeScenePlayerRoot.position = entryPointTransform.position;
-                activeScenePlayerRoot.rotation = entryPointTransform.rotation;
-                EnsureViewmodelRigAfterTravel(activeScenePlayerRoot);
-                RestorePlayerControlsAfterTravel(activeScenePlayerRoot);
-                ApplyWeaponRuntimeSnapshotAfterTravel(activeScenePlayerRoot);
-            }
-
+        private static void ClearPendingTravelCaptureState()
+        {
+            _pendingInventoryQuantities.Clear();
+            _pendingSelectedBeltIndex = -1;
+            _pendingWeaponSnapshots.Clear();
+            _pendingTravelPopulationModule = null;
         }
 
         private static void BindPlayerStateTravelAnchor(Scene scene, string entryPointId)

@@ -945,6 +945,35 @@ namespace Reloader.Player.Tests.PlayMode
         }
 
         [Test]
+        public void PlayerInputReader_ProjectInputAsset_DefinesMenuToggleAction()
+        {
+#if UNITY_EDITOR
+            var asset = AssetDatabase.LoadAssetAtPath<InputActionAsset>("Assets/_Project/Player/InputSystem_Actions.inputactions");
+            Assert.That(asset, Is.Not.Null);
+
+            var playerMap = asset!.FindActionMap("Player", false);
+            Assert.That(playerMap, Is.Not.Null, "Expected the project input asset to define the Player action map.");
+
+            var menuToggle = playerMap!.FindAction("MenuToggle", false);
+            Assert.That(menuToggle, Is.Not.Null, "Expected the project input asset to define the MenuToggle action required by PlayerInputReader.");
+
+            var hasF1Binding = false;
+            for (var i = 0; i < menuToggle.bindings.Count; i++)
+            {
+                if (menuToggle.bindings[i].path == "<Keyboard>/f1")
+                {
+                    hasF1Binding = true;
+                    break;
+                }
+            }
+
+            Assert.That(hasF1Binding, Is.True, "Expected MenuToggle to be bound to F1 in the project player input asset.");
+#else
+            Assert.Ignore("Requires UnityEditor AssetDatabase.");
+#endif
+        }
+
+        [Test]
         public void PlayerInputReader_Update_DoesNotToggleAimFromAction_WhenAnyMenuIsOpen()
         {
             var previousEvents = RuntimeKernelBootstrapper.Events;

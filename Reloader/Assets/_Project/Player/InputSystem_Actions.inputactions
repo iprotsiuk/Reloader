@@ -115,6 +115,15 @@
                     "initialStateCheck": false
                 },
                 {
+                    "name": "MenuToggle",
+                    "type": "Button",
+                    "id": "b1d4d6b9-0f2a-4e33-97d9-4f5cb6b5a1d3",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
                     "name": "BeltSlot1",
                     "type": "Button",
                     "id": "f908b343-ad60-4c5d-8f05-575afd20c10e",
@@ -563,6 +572,17 @@
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
                     "action": "Pickup",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "8b0b48fb-4c8e-4a2d-8a67-7c5d4ad1d3c2",
+                    "path": "<Keyboard>/f1",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "MenuToggle",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
