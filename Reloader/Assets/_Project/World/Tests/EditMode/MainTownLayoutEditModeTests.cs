@@ -313,8 +313,11 @@ namespace Reloader.World.Tests.EditMode
                 var terrain = terrainRoot!.GetComponent<Terrain>();
                 Assert.That(terrain, Is.Not.Null, "Expected Terrain component on MainTownTerrain.");
 
-                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "ReloadingWorkbench")?.transform, "ReloadingWorkbench");
-                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "StorageChest")?.transform, "StorageChest");
+                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "ReloadingWorkbench")?.transform, "ReloadingWorkbench", maxFloatAboveTerrain: 1f);
+                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "StorageChest")?.transform, "StorageChest", maxFloatAboveTerrain: 1f);
+                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "WeaponVendor")?.transform, "WeaponVendor", maxFloatAboveTerrain: 1f);
+                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "AmmoVendor")?.transform, "AmmoVendor", maxFloatAboveTerrain: 1f);
+                AssertRootContentClearsTerrain(terrain, FindRoot(scene, "ReloadingVendor_House")?.transform, "ReloadingVendor_House", maxFloatAboveTerrain: 1f);
 
                 var entrySpawn = FindRoot(scene, "MainTownEntry_Spawn");
                 Assert.That(entrySpawn, Is.Not.Null, "Expected MainTownEntry_Spawn to remain authored.");
@@ -426,9 +429,11 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
-        private static void AssertChildExists(Transform parent, string childName)
+        private static Transform AssertChildExists(Transform parent, string childName)
         {
-            Assert.That(FindChild(parent, childName), Is.Not.Null, $"Expected child '{childName}' under '{parent.name}'.");
+            var child = FindChild(parent, childName);
+            Assert.That(child, Is.Not.Null, $"Expected child '{childName}' under '{parent.name}'.");
+            return child;
         }
 
         private static void AssertChildMissing(Transform parent, string childName)
@@ -538,7 +543,7 @@ namespace Reloader.World.Tests.EditMode
             };
         }
 
-        private static void AssertRootContentClearsTerrain(Terrain terrain, Transform root, string rootName)
+        private static void AssertRootContentClearsTerrain(Terrain terrain, Transform root, string rootName, float maxFloatAboveTerrain = float.PositiveInfinity)
         {
             Assert.That(root, Is.Not.Null, $"Expected '{rootName}' root to exist.");
 
@@ -549,8 +554,13 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(
                 bounds.min.y,
                 Is.GreaterThanOrEqualTo(terrainHeight - 2.5f),
-                $"Expected '{rootName}' content to sit on or above the island terrain.");
+                $"Expected '{rootName}' content to sit on or above the island terrain. BoundsMinY={bounds.min.y}, TerrainHeight={terrainHeight}, Center={bounds.center}.");
+            Assert.That(
+                bounds.min.y,
+                Is.LessThanOrEqualTo(terrainHeight + maxFloatAboveTerrain),
+                $"Expected '{rootName}' content to stay grounded instead of floating above the island terrain. BoundsMinY={bounds.min.y}, TerrainHeight={terrainHeight}, Center={bounds.center}, MaxFloatAboveTerrain={maxFloatAboveTerrain}.");
         }
+
 
         private static bool TryGetAuthoredContentBounds(Transform root, out Bounds combinedBounds)
         {

@@ -209,6 +209,25 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
+        public void TryRebaseIfNeeded_WhenBaselineStartsFarFromLocalOrigin_UsesDistanceFromCapturedBaseline()
+        {
+            _playerRootObject.transform.position = new Vector3(1508.2319f, 51.44984f, -612.25f);
+            _controller.ResetState();
+
+            _playerRootObject.transform.position = new Vector3(1516.2319f, 51.44984f, -620.25f);
+            Assert.That(
+                _controller.TryRebaseIfNeeded(2f),
+                Is.False,
+                "Small movement around a far-from-origin entry baseline should not retrigger floating-origin rebasing.");
+
+            _playerRootObject.transform.position = new Vector3(2020.2319f, 51.44984f, -620.25f);
+            Assert.That(
+                _controller.TryRebaseIfNeeded(3f),
+                Is.True,
+                "Floating-origin rebasing should still trigger once the player moves beyond the configured distance from the captured baseline.");
+        }
+
+        [Test]
         public void TryRebaseIfNeeded_WhenMultipleScenesAreLoaded_ShiftsLoadedScenesAndParticipantsCoherently()
         {
             var secondaryScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);

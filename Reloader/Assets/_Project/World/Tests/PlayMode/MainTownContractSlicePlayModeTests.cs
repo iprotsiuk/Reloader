@@ -145,6 +145,32 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator MainTownContractSlice_TargetElimination_KeepsDeathPresentationAliveForShortWindow()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+
+            var targetRoot = FindProceduralCivilianTarget(availableSnapshot.TargetId);
+            Assert.That(targetRoot, Is.Not.Null, "Expected the available contract target to resolve to a spawned procedural civilian.");
+
+            ApplyLethalDamage(targetRoot!);
+            for (var frame = 0; frame < 20; frame++)
+            {
+                yield return null;
+            }
+
+            Assert.That(targetRoot, Is.Not.Null, "Expected the target GameObject reference to survive long enough to present ragdoll death.");
+            Assert.That(targetRoot.activeSelf, Is.True, "Expected shared death presentation to keep the target GameObject active for a short post-kill window.");
+        }
+
+        [UnityTest]
         public IEnumerator MainTownContractSlice_ProceduralCivilianTarget_CanBeAcceptedAndCompleted()
         {
             yield return LoadScene(MainTownSceneName);

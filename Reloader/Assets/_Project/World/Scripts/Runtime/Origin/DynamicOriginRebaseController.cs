@@ -107,7 +107,9 @@ namespace Reloader.World.Runtime.Origin
 
         private bool IsOutsideRebaseDistance(Vector3 localPosition)
         {
-            return _coordinateBridge.ComputeHorizontalDistanceFromLocalOrigin(localPosition) >= _rebaseDistanceMeters;
+            var currentHorizontal = new Vector2(localPosition.x, localPosition.z);
+            var baselineHorizontal = new Vector2(_playerHorizontalBaseline.x, _playerHorizontalBaseline.z);
+            return Vector2.Distance(currentHorizontal, baselineHorizontal) >= _rebaseDistanceMeters;
         }
 
         private bool IsPastCooldown(float currentTimeSeconds)
