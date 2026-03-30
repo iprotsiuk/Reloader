@@ -24,6 +24,7 @@ namespace Reloader.NPCs.Runtime
         [SerializeField] private MainTownPopulationDefinition _populationDefinition;
         [SerializeField] private int _initialPopulationCount;
         [SerializeField] private string _civilianIdPrefix = "citizen.mainTown";
+        [SerializeField] private MainTownPopulationHabitat _spawnHabitat = MainTownPopulationHabitat.Any;
         [SerializeField] private string[] _spawnAnchorIds = Array.Empty<string>();
         [SerializeField] private string[] _contractTargetAnchorIds = Array.Empty<string>();
 
@@ -36,6 +37,7 @@ namespace Reloader.NPCs.Runtime
         private float _lastObservedWorldTimeOfDay = -1f;
 
         public CivilianPopulationRuntimeState Runtime => _runtime;
+        public MainTownPopulationDefinition PopulationDefinition => _populationDefinition;
 
         public void SetCoreWorldController(CoreWorldController controller)
         {
@@ -266,7 +268,7 @@ namespace Reloader.NPCs.Runtime
                     continue;
                 }
 
-                var civilianId = CreateNextCivilianId();
+                var civilianId = CreateNextCivilianId(vacated.PopulationSlotId);
                 var seed = ExtractCivilianNumericSuffix(civilianId);
                 _runtime.Civilians.Add(_generator.GenerateRecord(
                     _appearanceLibrary,
@@ -399,39 +401,34 @@ namespace Reloader.NPCs.Runtime
             _populationDefinition.Validate();
 
             var idPrefix = string.IsNullOrWhiteSpace(_civilianIdPrefix) ? "citizen.mainTown" : _civilianIdPrefix.Trim();
-            var index = 0;
-            var pools = _populationDefinition.Pools;
-            for (var poolIndex = 0; poolIndex < pools.Length; poolIndex++)
+            var slotOrdinal = 0;
+            var filterByHabitat = _spawnHabitat != MainTownPopulationHabitat.Any;
+            foreach (var slot in _populationDefinition.GetSlotsForHabitat(MainTownPopulationHabitat.Any))
             {
-                var pool = pools[poolIndex];
-                if (pool?.Slots == null)
+                if (slot == null)
                 {
                     continue;
                 }
 
-                for (var slotIndex = 0; slotIndex < pool.Slots.Length; slotIndex++)
+                slotOrdinal++;
+                if (filterByHabitat && slot.Habitat != _spawnHabitat)
                 {
-                    var slot = pool.Slots[slotIndex];
-                    if (slot == null)
-                    {
-                        continue;
-                    }
-
-                    index++;
-                    var civilianId = $"{idPrefix}.{index:0000}";
-                    _runtime.Civilians.Add(_generator.GenerateRecord(
-                        _appearanceLibrary,
-                        civilianId,
-                        createdAtDay: 0,
-                        slot.SpawnAnchorId,
-                        seed: index,
-                        isContractEligible: !slot.IsProtectedFromContracts,
-                        populationSlotId: slot.PopulationSlotId,
-                        poolId: slot.PoolId,
-                        areaTag: slot.AreaTag,
-                        isProtectedFromContracts: slot.IsProtectedFromContracts,
-                        reservedPublicDisplayNames: CollectReservedPublicDisplayNames()));
+                    continue;
                 }
+
+                var civilianId = $"{idPrefix}.{slotOrdinal:0000}";
+                _runtime.Civilians.Add(_generator.GenerateRecord(
+                    _appearanceLibrary,
+                    civilianId,
+                    createdAtDay: 0,
+                    slot.SpawnAnchorId,
+                    seed: slotOrdinal,
+                    isContractEligible: !slot.IsProtectedFromContracts,
+                    populationSlotId: slot.PopulationSlotId,
+                    poolId: slot.PoolId,
+                    areaTag: slot.AreaTag,
+                    isProtectedFromContracts: slot.IsProtectedFromContracts,
+                    reservedPublicDisplayNames: CollectReservedPublicDisplayNames()));
             }
         }
 
@@ -624,7 +621,9 @@ namespace Reloader.NPCs.Runtime
 
         private static void InitializeSpawnedCivilian(GameObject civilian, CivilianPopulationRecord record)
         {
-            EnsureCivilianActorComponents(civilian).Initialize(record);
+            var metadata = EnsureCivilianActorComponents(civilian);
+            metadata.Initialize(record);
+            ConfigurePoliceShooter(civilian, record, metadata);
         }
 
         private static MainTownPopulationSpawnedCivilian EnsureCivilianActorComponents(GameObject civilian)
@@ -676,6 +675,47 @@ namespace Reloader.NPCs.Runtime
             }
 
             return metadata;
+        }
+
+        private static void ConfigurePoliceShooter(
+            GameObject civilian,
+            CivilianPopulationRecord record,
+            MainTownPopulationSpawnedCivilian metadata)
+        {
+            if (civilian == null)
+            {
+                return;
+            }
+
+            var shooter = civilian.GetComponent<PoliceHostileShooter>();
+            var shouldArmPolice = record != null
+                                  && string.Equals(record.PoolId, "cops", StringComparison.Ordinal)
+                                  && record.IsAlive;
+            if (!shouldArmPolice)
+            {
+                if (shooter == null)
+                {
+                    return;
+                }
+
+                if (Application.isPlaying)
+                {
+                    Destroy(shooter);
+                }
+                else
+                {
+                    DestroyImmediate(shooter);
+                }
+
+                return;
+            }
+
+            if (shooter == null)
+            {
+                shooter = civilian.AddComponent<PoliceHostileShooter>();
+            }
+
+            shooter.ConfigureRuntimeOrigin(metadata != null ? metadata.ResolveDialogueFocusTarget() : civilian.transform);
         }
 
         private static void ConfigureContractTargetIfEligible(GameObject civilian, CivilianPopulationRecord record)
@@ -1666,7 +1706,76 @@ namespace Reloader.NPCs.Runtime
             return occupiedSlots;
         }
 
-        private string CreateNextCivilianId()
+        private string CreateNextCivilianId(string populationSlotId = null)
+        {
+            if (TryCreateNextPopulationSlotScopedCivilianId(populationSlotId, out var civilianId))
+            {
+                return civilianId;
+            }
+
+            return CreateSequentialCivilianId();
+        }
+
+        private bool TryCreateNextPopulationSlotScopedCivilianId(string populationSlotId, out string civilianId)
+        {
+            civilianId = string.Empty;
+            if (_populationDefinition == null || string.IsNullOrWhiteSpace(populationSlotId))
+            {
+                return false;
+            }
+
+            var slotOrdinal = 0;
+            var matchedSlotOrdinal = 0;
+            foreach (var slot in _populationDefinition.GetSlotsForHabitat(MainTownPopulationHabitat.Any))
+            {
+                if (slot == null)
+                {
+                    continue;
+                }
+
+                slotOrdinal++;
+                if (matchedSlotOrdinal == 0 &&
+                    string.Equals(slot.PopulationSlotId, populationSlotId, StringComparison.Ordinal))
+                {
+                    matchedSlotOrdinal = slotOrdinal;
+                }
+            }
+
+            if (slotOrdinal == 0 || matchedSlotOrdinal == 0)
+            {
+                return false;
+            }
+
+            var generationIndex = 0;
+            var maxNumericSuffix = 0;
+            for (var i = 0; i < _runtime.Civilians.Count; i++)
+            {
+                var record = _runtime.Civilians[i];
+                if (record == null)
+                {
+                    continue;
+                }
+
+                if (string.Equals(record.PopulationSlotId, populationSlotId, StringComparison.Ordinal))
+                {
+                    generationIndex++;
+                }
+
+                maxNumericSuffix = Math.Max(maxNumericSuffix, ExtractCivilianNumericSuffix(record.CivilianId));
+            }
+
+            var nextNumericSuffix = matchedSlotOrdinal + (generationIndex * slotOrdinal);
+            while (nextNumericSuffix <= maxNumericSuffix)
+            {
+                nextNumericSuffix += slotOrdinal;
+            }
+
+            var idPrefix = string.IsNullOrWhiteSpace(_civilianIdPrefix) ? "citizen.mainTown" : _civilianIdPrefix.Trim();
+            civilianId = $"{idPrefix}.{nextNumericSuffix:0000}";
+            return true;
+        }
+
+        private string CreateSequentialCivilianId()
         {
             var idPrefix = string.IsNullOrWhiteSpace(_civilianIdPrefix) ? "citizen.mainTown" : _civilianIdPrefix.Trim();
             var nextIndex = 1;

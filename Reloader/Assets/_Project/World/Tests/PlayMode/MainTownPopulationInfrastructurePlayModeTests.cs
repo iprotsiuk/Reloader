@@ -112,13 +112,13 @@ namespace Reloader.World.Tests.PlayMode
             var bridge = root!.GetComponent<CivilianPopulationRuntimeBridge>();
             Assert.That(bridge, Is.Not.Null, "Expected CivilianPopulationRuntimeBridge on MainTownPopulationRuntime.");
 
-            Assert.That(bridge!.Runtime.Civilians.Count, Is.EqualTo(4), "Expected automatic starter population seeding from the authored definition.");
+            Assert.That(bridge!.Runtime.Civilians.Count, Is.EqualTo(9), "Expected automatic starter population seeding from the authored definition.");
 
             var spawnedAgents = root.GetComponentsInChildren<NpcAgent>(includeInactive: true);
-            Assert.That(spawnedAgents.Length, Is.EqualTo(4), "Expected automatic runtime rebuild to spawn one placeholder civilian per starter slot.");
+            Assert.That(spawnedAgents.Length, Is.EqualTo(9), "Expected automatic runtime rebuild to spawn one placeholder civilian per starter slot.");
 
             var metadata = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
-            Assert.That(metadata.Length, Is.EqualTo(4), "Expected every auto-spawned civilian to carry slot metadata.");
+            Assert.That(metadata.Length, Is.EqualTo(9), "Expected every auto-spawned civilian to carry slot metadata.");
             Assert.That(metadata.All(component => component.GetComponent<MainTownNpcAppearanceApplicator>() != null),
                 Is.True,
                 "Expected starter civilians to instantiate the authored NPC actor prefab instead of ad-hoc shell objects.");
@@ -135,11 +135,22 @@ namespace Reloader.World.Tests.PlayMode
                     && entryNode != null
                     && !string.IsNullOrWhiteSpace(entryNode.SpeakerText);
             }), Is.True, "Expected every spawned civilian to receive a valid runtime-generated dialogue definition.");
-            Assert.That(metadata.Select(component => component.transform.position).Distinct().Count(), Is.EqualTo(4),
+            Assert.That(metadata.Select(component => component.transform.position).Distinct().Count(), Is.EqualTo(9),
                 "Expected authored population slot anchors to occupy distinct scene positions.");
 
             CollectionAssert.AreEquivalent(
-                new[] { "townsfolk.001", "quarry_workers.001", "hobos.001", "cops.001" },
+                new[]
+                {
+                    "townsfolk.001",
+                    "townsfolk.002",
+                    "townsfolk.003",
+                    "quarry_workers.001",
+                    "quarry_workers.002",
+                    "hobos.001",
+                    "hobos.002",
+                    "cops.001",
+                    "cops.002"
+                },
                 metadata.Select(component => component.PopulationSlotId).ToArray());
         }
 
@@ -533,22 +544,27 @@ namespace Reloader.World.Tests.PlayMode
             {
                 var envelope = coordinator.CaptureEnvelope("0.6.0-dev");
                 var module = new CivilianPopulationModule();
-                module.Civilians.Add(CreateRecord(
+                var loadedCop = CreateRecord(
                     civilianId: "citizen.mainTown.9001",
-                    populationSlotId: "cops.001",
-                    poolId: "cops",
-                    spawnAnchorId: "Anchor_Cop_01",
-                    areaTag: "maintown.watch",
+                    populationSlotId: "townsfolk.001",
+                    poolId: "townsfolk",
+                    spawnAnchorId: "Anchor_Townsfolk_01",
+                    areaTag: "maintown.square",
                     isAlive: true,
-                    retiredAtDay: -1));
-                module.Civilians.Add(CreateRecord(
+                    retiredAtDay: -1);
+                loadedCop.IsContractEligible = false;
+                module.Civilians.Add(loadedCop);
+
+                var retiredHobo = CreateRecord(
                     civilianId: "citizen.mainTown.9002",
                     populationSlotId: "hobos.001",
                     poolId: "hobos",
                     spawnAnchorId: "Anchor_Hobo_01",
                     areaTag: "maintown.alley",
                     isAlive: false,
-                    retiredAtDay: 4));
+                    retiredAtDay: 4);
+                retiredHobo.IsContractEligible = false;
+                module.Civilians.Add(retiredHobo);
 
                 envelope.Modules["CivilianPopulation"] = new ModuleSaveBlock
                 {
@@ -558,7 +574,7 @@ namespace Reloader.World.Tests.PlayMode
 
                 repository.WriteEnvelope(savePath, envelope);
 
-                Assert.That(root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true).Length, Is.EqualTo(4));
+                Assert.That(root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true).Length, Is.EqualTo(9));
 
                 coordinator.Load(savePath);
                 yield return null;
@@ -566,16 +582,16 @@ namespace Reloader.World.Tests.PlayMode
                 Assert.That(bridge!.Runtime.Civilians.Count, Is.EqualTo(2), "Expected runtime civilians to reflect the loaded save module.");
 
                 var loadedCivilian = bridge.Runtime.Civilians.Single(record => record.CivilianId == "citizen.mainTown.9001");
-                Assert.That(loadedCivilian.FirstName, Is.EqualTo("Orson"));
-                Assert.That(loadedCivilian.LastName, Is.EqualTo("Vale"));
+                Assert.That(loadedCivilian.FirstName, Is.EqualTo("Derek"));
+                Assert.That(loadedCivilian.LastName, Is.EqualTo("Mullen"));
 
                 var spawned = root.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
                 Assert.That(spawned.Length, Is.EqualTo(1), "Expected only living civilians from the loaded save to rebuild into the scene.");
                 Assert.That(spawned[0].CivilianId, Is.EqualTo("citizen.mainTown.9001"));
-                Assert.That(spawned[0].PopulationSlotId, Is.EqualTo("cops.001"));
-                Assert.That(spawned[0].PoolId, Is.EqualTo("cops"));
+                Assert.That(spawned[0].PopulationSlotId, Is.EqualTo("townsfolk.001"));
+                Assert.That(spawned[0].PoolId, Is.EqualTo("townsfolk"));
 
-                var anchor = root.transform.Find("Anchor_Cop_01");
+                var anchor = root.transform.Find("Anchor_Townsfolk_01");
                 Assert.That(anchor, Is.Not.Null, "Expected authored anchor for loaded civilian.");
                 AssertSpawnedCivilianTracksAnchorLane(FindMainTownTerrain(), spawned[0].transform, anchor!, "citizen.mainTown.9001");
                 Assert.That(root.transform.Find("Civilian_citizen.mainTown.0001"), Is.Null, "Expected starter civilians to be cleared when a save load rebuild runs.");

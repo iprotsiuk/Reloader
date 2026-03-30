@@ -650,7 +650,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0d1caadfab87a45ab89b1fc08c9087f5, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Reloader.Core::Reloader.Core.Runtime.CoreWorldController
   _startingDayCount: 0
   _startingTimeOfDay: 8
@@ -1312,7 +1312,7 @@ PhysicsMaterial:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: 
+  m_Name:
   serializedVersion: 2
   m_DynamicFriction: 0.6
   m_StaticFriction: 0.6
@@ -3523,7 +3523,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 52cd80be86124d7aa463a5be22eeebf3, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Reloader.World::Reloader.World.Travel.SceneEntryPoint
   _entryPointId: entry.maintown.return
   _playerSpawnAnchorKind: 1
@@ -3553,7 +3553,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ed037f91d63174ec892f7b4f5261cec5, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Reloader.World::Reloader.World.Travel.PlayerSpawnAnchor
   _anchorId: entry.maintown.return
   _anchorKind: 1
@@ -4032,7 +4032,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 910771039, guid: f56d46228aee4734f9114056c53bb57e, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: EasyRoads3Dv3.dll::EasyRoads3Dv3.ERTerrain
   surfacevecs: []
   tdataFloat: []
@@ -5402,7 +5402,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 263f164f9cb2148d894af8ded21fe62f, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::Reloader.Reloading.World.ReloadingBenchTarget
   _isWorkbenchOpen: 0
   _workbenchDefinition: {fileID: 0}
@@ -5510,7 +5510,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 40a6696122254bd29692cce0663fe53a, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::Reloader.Reloading.World.WorkbenchContainerLink
   _linkedContainerIds: []
 --- !u!1 &249183462
@@ -7184,7 +7184,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 52cd80be86124d7aa463a5be22eeebf3, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Reloader.World::Reloader.World.Travel.SceneEntryPoint
   _entryPointId: entry.maintown.spawn
   _playerSpawnAnchorKind: 0
@@ -7214,7 +7214,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ed037f91d63174ec892f7b4f5261cec5, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Reloader.World::Reloader.World.Travel.PlayerSpawnAnchor
   _anchorId: entry.maintown.spawn
   _anchorKind: 0
@@ -7775,7 +7775,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ed037f91d63174ec892f7b4f5261cec5, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Reloader.World::Reloader.World.Travel.PlayerSpawnAnchor
   _anchorId: entry.maintown.respawn.hospital
   _anchorKind: 2
@@ -9227,7 +9227,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: 
   m_UsePipelineSettings: 1
   m_AdditionalLightsShadowResolutionTier: 2
@@ -10812,7 +10812,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1511ccae7919cfc46b603b9b337fdc94, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.EventSystems.BaseInput
 --- !u!114 &481109655
 MonoBehaviour:
@@ -10824,7 +10824,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 01614664b831546d2ae94a42149d80ac, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.UI.InputSystemUIInputModule
   m_SendPointerHoverToParent: 1
   m_MoveRepeatDelay: 0.5
@@ -10855,7 +10855,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 76c392e42b5098c458856cdf6ecaaaa1, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.EventSystems.EventSystem
   m_FirstSelected: {fileID: 0}
   m_sendNavigationEvents: 1
@@ -12386,7 +12386,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3331390cdd63f426a9872b70f2353cce, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Runtime.WeaponRegistry
   _definitions:
   - {fileID: 11400000, guid: 5a94afc0f47e6415ca88ff356fe170a4, type: 2}
@@ -13016,7 +13016,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 792fb8981bcdc4cd78d14a4811da74a0, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Runtime.CivilianPopulationRuntimeBridge
   _appearanceLibrary:
     _baseBodyIds:
@@ -13076,6 +13076,11 @@ MonoBehaviour:
   - Anchor_QuarryWorker_01
   - Anchor_Hobo_01
   - Anchor_Cop_01
+  - Anchor_Playground_Square_01
+  - Anchor_Playground_Watch_01
+  - Anchor_Playground_Quarry_01
+  - Anchor_Playground_Forest_01
+  - Anchor_Playground_Alley_01
   _contractTargetAnchorIds:
   - Anchor_ContractTarget_01
 --- !u!4 &589599881
@@ -13096,6 +13101,16 @@ Transform:
   - {fileID: 2031493040}
   - {fileID: 646141370}
   - {fileID: 589599883}
+  - {fileID: 910000101}
+  - {fileID: 910000111}
+  - {fileID: 910000121}
+  - {fileID: 910000131}
+  - {fileID: 910000141}
+  - {fileID: 910000151}
+  - {fileID: 910000161}
+  - {fileID: 910000171}
+  - {fileID: 910000181}
+  - {fileID: 910000191}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &589599882
@@ -14632,6 +14647,411 @@ Transform:
   m_Children: []
   m_Father: {fileID: 589599881}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &910000100
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 910000101}
+  m_Layer: 0
+  m_Name: Anchor_Playground_Square_01
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &910000101
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000100}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 52, y: 0, z: 6}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 589599881}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &910000110
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 910000111}
+  m_Layer: 0
+  m_Name: Anchor_Playground_Watch_01
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &910000111
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000110}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 66, y: 0, z: 6}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 589599881}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &910000120
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 910000121}
+  m_Layer: 0
+  m_Name: Anchor_Playground_Quarry_01
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &910000121
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000120}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 52, y: 0, z: 18}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 589599881}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &910000130
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 910000131}
+  m_Layer: 0
+  m_Name: Anchor_Playground_Forest_01
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &910000131
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000130}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 66, y: 0, z: 18}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 589599881}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &910000140
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 910000141}
+  m_Layer: 0
+  m_Name: Anchor_Playground_Alley_01
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &910000141
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000140}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 80, y: 0, z: 12}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 589599881}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &910000150
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 910000151}
+  - component: {fileID: 910000152}
+  m_Layer: 0
+  m_Name: PlaygroundZoneMarker_Square
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &910000151
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000150}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 52, y: 0, z: 6}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 589599881}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &910000152
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000150}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1de4a5c7f7cf47a9853c88e941f7286b, type: 3}
+  m_Name: ""
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Generation.MainTownPlaygroundZoneMarker
+  _areaTag: maintown.playground.square
+  _primaryPoolId: townsfolk
+  _habitat: 1
+  _anchorId: Anchor_Playground_Square_01
+  _notes: Compact square-side playground pocket
+  _gizmoSize: {x: 8, y: 2.5, z: 8}
+--- !u!1 &910000160
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 910000161}
+  - component: {fileID: 910000162}
+  m_Layer: 0
+  m_Name: PlaygroundZoneMarker_Watch
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &910000161
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000160}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 66, y: 0, z: 6}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 589599881}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &910000162
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000160}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1de4a5c7f7cf47a9853c88e941f7286b, type: 3}
+  m_Name: ""
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Generation.MainTownPlaygroundZoneMarker
+  _areaTag: maintown.playground.watch
+  _primaryPoolId: cops
+  _habitat: 1
+  _anchorId: Anchor_Playground_Watch_01
+  _notes: Compact watch-side playground pocket
+  _gizmoSize: {x: 8, y: 2.5, z: 8}
+--- !u!1 &910000170
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 910000171}
+  - component: {fileID: 910000172}
+  m_Layer: 0
+  m_Name: PlaygroundZoneMarker_Quarry
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &910000171
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000170}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 52, y: 0, z: 18}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 589599881}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &910000172
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000170}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1de4a5c7f7cf47a9853c88e941f7286b, type: 3}
+  m_Name: ""
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Generation.MainTownPlaygroundZoneMarker
+  _areaTag: maintown.playground.quarry
+  _primaryPoolId: quarry_workers
+  _habitat: 2
+  _anchorId: Anchor_Playground_Quarry_01
+  _notes: Compact quarry-side playground pocket
+  _gizmoSize: {x: 8, y: 2.5, z: 8}
+--- !u!1 &910000180
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 910000181}
+  - component: {fileID: 910000182}
+  m_Layer: 0
+  m_Name: PlaygroundZoneMarker_Forest
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &910000181
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000180}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 66, y: 0, z: 18}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 589599881}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &910000182
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000180}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1de4a5c7f7cf47a9853c88e941f7286b, type: 3}
+  m_Name: ""
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Generation.MainTownPlaygroundZoneMarker
+  _areaTag: maintown.playground.forest
+  _primaryPoolId: hobos
+  _habitat: 3
+  _anchorId: Anchor_Playground_Forest_01
+  _notes: Compact forest-edge playground pocket
+  _gizmoSize: {x: 8, y: 2.5, z: 8}
+--- !u!1 &910000190
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 910000191}
+  - component: {fileID: 910000192}
+  m_Layer: 0
+  m_Name: PlaygroundZoneMarker_Alley
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &910000191
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000190}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 80, y: 0, z: 12}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 589599881}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &910000192
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 910000190}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1de4a5c7f7cf47a9853c88e941f7286b, type: 3}
+  m_Name: ""
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Generation.MainTownPlaygroundZoneMarker
+  _areaTag: maintown.playground.alley
+  _primaryPoolId: townsfolk
+  _habitat: 1
+  _anchorId: Anchor_Playground_Alley_01
+  _notes: Compact alley-side playground pocket
+  _gizmoSize: {x: 8, y: 2.5, z: 8}
 --- !u!1 &646229044
 GameObject:
   m_ObjectHideFlags: 0
@@ -17553,7 +17973,7 @@ PhysicsMaterial:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: 
+  m_Name: ""
   serializedVersion: 2
   m_DynamicFriction: 0.6
   m_StaticFriction: 0.6
@@ -18541,7 +18961,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 172515602e62fb746b5d573b38a5fe58, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: 
   m_IsGlobal: 1
   priority: 0
@@ -27499,7 +27919,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0b087f8ade6b8482ea42ce23f065ac05, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: Reloader.Core::Reloader.Contracts.Runtime.StaticContractRuntimeProvider
   _availableContract: {fileID: 11400000, guid: 727c35113dab44760a533e618a085920, type: 2}
   _payoutReceiverBehaviour: {fileID: 1418753600}
@@ -32509,7 +32929,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 70b7746d67f344a3089470ac3f1ce64e, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: Reloader.World::Reloader.World.Travel.TravelSceneTrigger
   _travelContext:
     _destinationSceneName: IndoorRangeInstance
@@ -33153,7 +33573,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f07bd7ec611094fb193ef19ee27173fc, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: Reloader.Economy::Reloader.Economy.EconomyController
 --- !u!1 &1418753599 stripped
 GameObject:
@@ -33170,7 +33590,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: efc1c2b39109045d0b56c5aff1b1a06a, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: Reloader.Economy::Reloader.Economy.EconomyContractPayoutReceiver
   _economyController: {fileID: 1418753598}
 --- !u!1 &1423969442
@@ -34120,7 +34540,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 19779a440ee7c425381975ea9a4229c6, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: Reloader.World::Reloader.World.MainTownTerrainGenerator
   seed: -280078657
   presetAsset: {fileID: 11400000, guid: bb3dddd96187b43cb9c0d3f2bab58ec8, type: 2}
@@ -46136,7 +46556,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e5de9f543205433ea48154557bd95a44, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: Reloader.Inventory::Reloader.Inventory.WorldStorageContainer
   _containerId: chest.mainTown.workbench.001
   _displayName: Workbench Chest
@@ -46152,7 +46572,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e3629a1c181b74485a29874339818612, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: Reloader.Inventory::Reloader.Inventory.WorldStorageContainerSeedLoadout
   _container: {fileID: 1971544101}
   _seedOnlyWhenEmpty: 1
@@ -46247,7 +46667,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 81d19715971b14823a8dc73ea85d6764, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: Reloader.Core::Reloader.Core.UI.ItemIconCatalogProvider
   _itemIconCatalog: {fileID: 11400000, guid: 2437dd75ade0a4b298e240987784b134, type: 2}
 --- !u!4 &1977339824
@@ -49768,7 +50188,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ed037f91d63174ec892f7b4f5261cec5, type: 3}
-  m_Name: 
+  m_Name: ""
   m_EditorClassIdentifier: Reloader.World::Reloader.World.Travel.PlayerSpawnAnchor
   _anchorId: entry.maintown.respawn.police
   _anchorKind: 3

@@ -416,6 +416,75 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void RebuildScenePopulation_CopsGainHostileShooter_WhileOtherPoolsDoNot()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop", new Vector3(1f, 0f, 0f));
+            CreateAnchor(bridgeGo.transform, "Anchor_Town", new Vector3(3f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: System.Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.cop.0001",
+                    FirstName = "Maksim",
+                    LastName = "Volkov",
+                    PopulationSlotId = "cops.001",
+                    PoolId = "cops",
+                    SpawnAnchorId = "Anchor_Cop",
+                    AreaTag = "maintown.watch",
+                    IsAlive = true,
+                    IsContractEligible = false,
+                    IsProtectedFromContracts = true,
+                    BaseBodyId = "body.male.a",
+                    PresentationType = "masculine",
+                    HairId = "hair.short.01",
+                    HairColorId = "hair.black",
+                    BeardId = "beard.none",
+                    OutfitTopId = "top.coat.01",
+                    OutfitBottomId = "bottom.jeans.01",
+                    OuterwearId = "outer.gray.coat",
+                    MaterialColorIds = new List<string> { "color.gray" },
+                    GeneratedDescriptionTags = new List<string> { "gray coat" },
+                    CreatedAtDay = 4,
+                    RetiredAtDay = -1
+                });
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.town.0002",
+                    populationSlotId: "townsfolk.001",
+                    spawnAnchorId: "Anchor_Town",
+                    isAlive: true,
+                    retiredAtDay: -1));
+
+                bridge.RebuildScenePopulation();
+
+                var shooterType = System.Type.GetType("Reloader.NPCs.Combat.PoliceHostileShooter, Reloader.NPCs", throwOnError: false);
+                Assert.That(shooterType, Is.Not.Null, "Expected a police hostile shooter component type for spawned cops.");
+
+                var spawned = bridgeGo.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                var police = spawned.Single(component => component.PoolId == "cops");
+                var townsfolk = spawned.Single(component => component.PoolId == "townsfolk");
+
+                Assert.That(police.GetComponent(shooterType!), Is.Not.Null,
+                    "Expected spawned police civilians to receive the hostile shooter runtime slice.");
+                Assert.That(townsfolk.GetComponent(shooterType!), Is.Null,
+                    "Expected non-police civilians to stay outside the hostile shooter slice.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
         public void RebuildScenePopulation_WhenTerrainExists_PreservesAuthoredSpawnAnchorPose()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");

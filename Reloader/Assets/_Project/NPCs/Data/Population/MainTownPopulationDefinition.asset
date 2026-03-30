@@ -19,6 +19,19 @@ MonoBehaviour:
       _poolId: townsfolk
       _areaTag: maintown.square
       _spawnAnchorId: Anchor_Townsfolk_01
+      _habitat: 1
+      _isProtectedFromContracts: 0
+    - _populationSlotId: townsfolk.002
+      _poolId: townsfolk
+      _areaTag: maintown.playground.square
+      _spawnAnchorId: Anchor_Playground_Square_01
+      _habitat: 1
+      _isProtectedFromContracts: 0
+    - _populationSlotId: townsfolk.003
+      _poolId: townsfolk
+      _areaTag: maintown.playground.alley
+      _spawnAnchorId: Anchor_Playground_Alley_01
+      _habitat: 1
       _isProtectedFromContracts: 0
   - _poolId: quarry_workers
     _slots:
@@ -26,6 +39,13 @@ MonoBehaviour:
       _poolId: quarry_workers
       _areaTag: maintown.quarry
       _spawnAnchorId: Anchor_QuarryWorker_01
+      _habitat: 2
+      _isProtectedFromContracts: 0
+    - _populationSlotId: quarry_workers.002
+      _poolId: quarry_workers
+      _areaTag: maintown.playground.quarry
+      _spawnAnchorId: Anchor_Playground_Quarry_01
+      _habitat: 2
       _isProtectedFromContracts: 0
   - _poolId: hobos
     _slots:
@@ -33,6 +53,13 @@ MonoBehaviour:
       _poolId: hobos
       _areaTag: maintown.outskirts
       _spawnAnchorId: Anchor_Hobo_01
+      _habitat: 1
+      _isProtectedFromContracts: 0
+    - _populationSlotId: hobos.002
+      _poolId: hobos
+      _areaTag: maintown.playground.forest
+      _spawnAnchorId: Anchor_Playground_Forest_01
+      _habitat: 3
       _isProtectedFromContracts: 0
   - _poolId: cops
     _slots:
@@ -40,4 +67,11 @@ MonoBehaviour:
       _poolId: cops
       _areaTag: maintown.watch
       _spawnAnchorId: Anchor_Cop_01
+      _habitat: 1
+      _isProtectedFromContracts: 0
+    - _populationSlotId: cops.002
+      _poolId: cops
+      _areaTag: maintown.playground.watch
+      _spawnAnchorId: Anchor_Playground_Watch_01
+      _habitat: 1
       _isProtectedFromContracts: 0

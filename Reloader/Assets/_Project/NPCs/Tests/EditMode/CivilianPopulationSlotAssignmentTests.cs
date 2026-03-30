@@ -15,6 +15,7 @@ namespace Reloader.NPCs.Tests.EditMode
         private const string DefinitionTypeName = "Reloader.NPCs.Generation.MainTownPopulationDefinition, Reloader.NPCs";
         private const string PoolTypeName = "Reloader.NPCs.Generation.MainTownPopulationPoolDefinition, Reloader.NPCs";
         private const string SlotTypeName = "Reloader.NPCs.Generation.MainTownPopulationSlotDefinition, Reloader.NPCs";
+        private const string HabitatTypeName = "Reloader.NPCs.Generation.MainTownPopulationHabitat, Reloader.NPCs";
 
         [Test]
         public void PrepareForSave_WhenPopulationDefinitionProvidesSlots_AssignsOneOccupantPerSlot()
@@ -22,6 +23,7 @@ namespace Reloader.NPCs.Tests.EditMode
             var definitionType = ResolveRequiredType(DefinitionTypeName);
             var poolType = ResolveRequiredType(PoolTypeName);
             var slotType = ResolveRequiredType(SlotTypeName);
+            var habitatType = ResolveRequiredType(HabitatTypeName);
 
             var go = new GameObject("CivilianPopulationRuntimeBridge");
             var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
@@ -30,8 +32,9 @@ namespace Reloader.NPCs.Tests.EditMode
             {
                 ConfigureBridge(
                     bridge,
-                    populationDefinition: CreateDefinition(definitionType, poolType, slotType),
+                    populationDefinition: CreateDefinition(definitionType, poolType, slotType, habitatType),
                     idPrefix: "citizen.mainTown",
+                    spawnHabitat: Enum.Parse(habitatType, "Any"),
                     library: CreateLibrary());
 
                 var module = new CivilianPopulationModule();
@@ -71,7 +74,145 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
-        private static object CreateDefinition(Type definitionType, Type poolType, Type slotType)
+        [Test]
+        public void PrepareForSave_WhenBridgeHabitatIsBounded_SeedsOnlyMatchingHabitatSlots()
+        {
+            var definitionType = ResolveRequiredType(DefinitionTypeName);
+            var poolType = ResolveRequiredType(PoolTypeName);
+            var slotType = ResolveRequiredType(SlotTypeName);
+            var habitatType = ResolveRequiredType(HabitatTypeName);
+
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    populationDefinition: CreateDefinition(definitionType, poolType, slotType, habitatType),
+                    idPrefix: "citizen.mainTown",
+                    spawnHabitat: Enum.Parse(habitatType, "Quarry"),
+                    library: CreateLibrary());
+
+                var module = new CivilianPopulationModule();
+                bridge.PrepareForSave(new[] { new SaveModuleRegistration(1, module) });
+
+                Assert.That(module.Civilians.Count, Is.EqualTo(1));
+                Assert.That(module.Civilians[0].CivilianId, Is.EqualTo("citizen.mainTown.0001"));
+                Assert.That(GetRecordProperty<string>(module.Civilians[0], "PopulationSlotId"), Is.EqualTo("quarry.worker.001"));
+                Assert.That(GetRecordProperty<string>(module.Civilians[0], "PoolId"), Is.EqualTo("quarry_workers"));
+                Assert.That(GetRecordProperty<string>(module.Civilians[0], "AreaTag"), Is.EqualTo("quarry"));
+                Assert.That(GetRecordProperty<string>(module.Civilians[0], "SpawnAnchorId"), Is.EqualTo("spawn.quarry.a"));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void PrepareForSave_WhenDifferentHabitatBridgesSharePopulationDefinition_AssignsStableUniqueCivilianIdsFromGlobalSlotOrder()
+        {
+            var definitionType = ResolveRequiredType(DefinitionTypeName);
+            var poolType = ResolveRequiredType(PoolTypeName);
+            var slotType = ResolveRequiredType(SlotTypeName);
+            var habitatType = ResolveRequiredType(HabitatTypeName);
+
+            var definition = CreateSplitDefinition(definitionType, poolType, slotType, habitatType);
+            var townGo = new GameObject("CivilianPopulationRuntimeBridge_Town");
+            var townBridge = townGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var quarryGo = new GameObject("CivilianPopulationRuntimeBridge_Quarry");
+            var quarryBridge = quarryGo.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                ConfigureBridge(
+                    townBridge,
+                    populationDefinition: definition,
+                    idPrefix: "citizen.mainTown",
+                    spawnHabitat: Enum.Parse(habitatType, "Town"),
+                    library: CreateLibrary());
+                ConfigureBridge(
+                    quarryBridge,
+                    populationDefinition: definition,
+                    idPrefix: "citizen.mainTown",
+                    spawnHabitat: Enum.Parse(habitatType, "Quarry"),
+                    library: CreateLibrary());
+
+                var townModule = new CivilianPopulationModule();
+                townBridge.PrepareForSave(new[] { new SaveModuleRegistration(1, townModule) });
+
+                var quarryModule = new CivilianPopulationModule();
+                quarryBridge.PrepareForSave(new[] { new SaveModuleRegistration(1, quarryModule) });
+
+                Assert.That(townModule.Civilians.Select(record => record.CivilianId), Is.EqualTo(new[]
+                {
+                    "citizen.mainTown.0001",
+                    "citizen.mainTown.0003"
+                }));
+                Assert.That(quarryModule.Civilians.Select(record => record.CivilianId), Is.EqualTo(new[]
+                {
+                    "citizen.mainTown.0002"
+                }));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(townGo);
+                UnityEngine.Object.DestroyImmediate(quarryGo);
+                UnityEngine.Object.DestroyImmediate((UnityEngine.Object)definition);
+            }
+        }
+
+        [Test]
+        public void ExecutePendingReplacements_WhenDifferentHabitatBridgesSharePopulationDefinition_AssignsUniqueReplacementIds()
+        {
+            var definitionType = ResolveRequiredType(DefinitionTypeName);
+            var poolType = ResolveRequiredType(PoolTypeName);
+            var slotType = ResolveRequiredType(SlotTypeName);
+            var habitatType = ResolveRequiredType(HabitatTypeName);
+
+            var definition = CreateTwoHabitatDefinition(definitionType, poolType, slotType, habitatType);
+            var townGo = new GameObject("CivilianPopulationRuntimeBridge_Town");
+            var townBridge = townGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var quarryGo = new GameObject("CivilianPopulationRuntimeBridge_Quarry");
+            var quarryBridge = quarryGo.AddComponent<CivilianPopulationRuntimeBridge>();
+
+            try
+            {
+                ConfigureBridge(
+                    townBridge,
+                    populationDefinition: definition,
+                    idPrefix: "citizen.mainTown",
+                    spawnHabitat: Enum.Parse(habitatType, "Town"),
+                    library: CreateLibrary());
+                ConfigureBridge(
+                    quarryBridge,
+                    populationDefinition: definition,
+                    idPrefix: "citizen.mainTown",
+                    spawnHabitat: Enum.Parse(habitatType, "Quarry"),
+                    library: CreateLibrary());
+
+                townBridge.PrepareForSave(new[] { new SaveModuleRegistration(1, new CivilianPopulationModule()) });
+                quarryBridge.PrepareForSave(new[] { new SaveModuleRegistration(1, new CivilianPopulationModule()) });
+
+                QueueReplacementForOnlyLiveCivilian(townBridge);
+                QueueReplacementForOnlyLiveCivilian(quarryBridge);
+
+                Assert.That(townBridge.ExecutePendingReplacements(7, 8f), Is.EqualTo(1));
+                Assert.That(quarryBridge.ExecutePendingReplacements(7, 8f), Is.EqualTo(1));
+
+                Assert.That(townBridge.Runtime.Civilians.Single(record => record.IsAlive).CivilianId, Is.EqualTo("citizen.mainTown.0003"));
+                Assert.That(quarryBridge.Runtime.Civilians.Single(record => record.IsAlive).CivilianId, Is.EqualTo("citizen.mainTown.0004"));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(townGo);
+                UnityEngine.Object.DestroyImmediate(quarryGo);
+                UnityEngine.Object.DestroyImmediate((UnityEngine.Object)definition);
+            }
+        }
+
+        private static object CreateDefinition(Type definitionType, Type poolType, Type slotType, Type habitatType)
         {
             var definition = ScriptableObject.CreateInstance(definitionType);
 
@@ -82,11 +223,11 @@ namespace Reloader.NPCs.Tests.EditMode
             SetProperty(townsfolkPool, "PoolId", "townsfolk");
 
             var quarrySlots = Array.CreateInstance(slotType, 1);
-            quarrySlots.SetValue(CreateSlot(slotType, "quarry.worker.001", "quarry_workers", "quarry", "spawn.quarry.a"), 0);
+            quarrySlots.SetValue(CreateSlot(slotType, habitatType, "quarry.worker.001", "quarry_workers", "quarry", "spawn.quarry.a", "Quarry"), 0);
             SetProperty(quarryPool, "Slots", quarrySlots);
 
             var townSlots = Array.CreateInstance(slotType, 1);
-            townSlots.SetValue(CreateSlot(slotType, "townsfolk.001", "townsfolk", "downtown", "spawn.mainstreet.a"), 0);
+            townSlots.SetValue(CreateSlot(slotType, habitatType, "townsfolk.001", "townsfolk", "downtown", "spawn.mainstreet.a", "Town"), 0);
             SetProperty(townsfolkPool, "Slots", townSlots);
 
             var pools = Array.CreateInstance(poolType, 2);
@@ -97,13 +238,80 @@ namespace Reloader.NPCs.Tests.EditMode
             return definition;
         }
 
-        private static object CreateSlot(Type slotType, string slotId, string poolId, string areaTag, string spawnAnchorId)
+        private static object CreateSplitDefinition(Type definitionType, Type poolType, Type slotType, Type habitatType)
+        {
+            var definition = ScriptableObject.CreateInstance(definitionType);
+
+            var townPool = Activator.CreateInstance(poolType);
+            var quarryPool = Activator.CreateInstance(poolType);
+            var forestPool = Activator.CreateInstance(poolType);
+
+            SetProperty(townPool, "PoolId", "townsfolk");
+            SetProperty(quarryPool, "PoolId", "quarry_workers");
+            SetProperty(forestPool, "PoolId", "forest_camp");
+
+            var townSlots = Array.CreateInstance(slotType, 1);
+            townSlots.SetValue(CreateSlot(slotType, habitatType, "townsfolk.001", "townsfolk", "downtown", "spawn.mainstreet.a", "Town"), 0);
+            SetProperty(townPool, "Slots", townSlots);
+
+            var quarrySlots = Array.CreateInstance(slotType, 1);
+            quarrySlots.SetValue(CreateSlot(slotType, habitatType, "quarry.worker.001", "quarry_workers", "quarry", "spawn.quarry.a", "Quarry"), 0);
+            SetProperty(quarryPool, "Slots", quarrySlots);
+
+            var forestSlots = Array.CreateInstance(slotType, 1);
+            forestSlots.SetValue(CreateSlot(slotType, habitatType, "forest.camp.001", "forest_camp", "forest", "spawn.forest.a", "Town"), 0);
+            SetProperty(forestPool, "Slots", forestSlots);
+
+            var pools = Array.CreateInstance(poolType, 3);
+            pools.SetValue(townPool, 0);
+            pools.SetValue(quarryPool, 1);
+            pools.SetValue(forestPool, 2);
+            SetProperty(definition, "Pools", pools);
+
+            return definition;
+        }
+
+        private static object CreateTwoHabitatDefinition(Type definitionType, Type poolType, Type slotType, Type habitatType)
+        {
+            var definition = ScriptableObject.CreateInstance(definitionType);
+
+            var townPool = Activator.CreateInstance(poolType);
+            var quarryPool = Activator.CreateInstance(poolType);
+
+            SetProperty(townPool, "PoolId", "townsfolk");
+            SetProperty(quarryPool, "PoolId", "quarry_workers");
+
+            var townSlots = Array.CreateInstance(slotType, 1);
+            townSlots.SetValue(CreateSlot(slotType, habitatType, "townsfolk.001", "townsfolk", "downtown", "spawn.mainstreet.a", "Town"), 0);
+            SetProperty(townPool, "Slots", townSlots);
+
+            var quarrySlots = Array.CreateInstance(slotType, 1);
+            quarrySlots.SetValue(CreateSlot(slotType, habitatType, "quarry.worker.001", "quarry_workers", "quarry", "spawn.quarry.a", "Quarry"), 0);
+            SetProperty(quarryPool, "Slots", quarrySlots);
+
+            var pools = Array.CreateInstance(poolType, 2);
+            pools.SetValue(townPool, 0);
+            pools.SetValue(quarryPool, 1);
+            SetProperty(definition, "Pools", pools);
+
+            return definition;
+        }
+
+        private static object CreateSlot(
+            Type slotType,
+            Type habitatType,
+            string slotId,
+            string poolId,
+            string areaTag,
+            string spawnAnchorId,
+            string habitatName)
         {
             var slot = Activator.CreateInstance(slotType);
             SetProperty(slot, "PopulationSlotId", slotId);
             SetProperty(slot, "PoolId", poolId);
             SetProperty(slot, "AreaTag", areaTag);
             SetProperty(slot, "SpawnAnchorId", spawnAnchorId);
+            SetProperty(slot, "Habitat", Enum.Parse(habitatType, habitatName));
             SetProperty(slot, "IsProtectedFromContracts", false);
             return slot;
         }
@@ -129,11 +337,13 @@ namespace Reloader.NPCs.Tests.EditMode
             CivilianPopulationRuntimeBridge bridge,
             object populationDefinition,
             string idPrefix,
+            object spawnHabitat,
             CivilianAppearanceLibrary library)
         {
             var type = typeof(CivilianPopulationRuntimeBridge);
             SetPrivateField(type, bridge, "_populationDefinition", populationDefinition);
             SetPrivateField(type, bridge, "_civilianIdPrefix", idPrefix);
+            SetPrivateField(type, bridge, "_spawnHabitat", spawnHabitat);
             SetPrivateField(type, bridge, "_appearanceLibrary", library);
         }
 
@@ -163,6 +373,20 @@ namespace Reloader.NPCs.Tests.EditMode
             var property = instance.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance);
             Assert.That(property, Is.Not.Null, $"Expected property '{propertyName}' on '{instance.GetType().FullName}'.");
             return (T)property.GetValue(instance);
+        }
+
+        private static void QueueReplacementForOnlyLiveCivilian(CivilianPopulationRuntimeBridge bridge)
+        {
+            var liveCivilian = bridge.Runtime.Civilians.Single(record => record.IsAlive);
+            liveCivilian.IsAlive = false;
+            liveCivilian.IsContractEligible = false;
+            liveCivilian.RetiredAtDay = 0;
+            bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+            {
+                VacatedCivilianId = liveCivilian.CivilianId,
+                QueuedAtDay = 0,
+                SpawnAnchorId = liveCivilian.SpawnAnchorId
+            });
         }
     }
 }

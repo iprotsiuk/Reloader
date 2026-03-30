@@ -3,6 +3,14 @@ using UnityEngine;
 
 namespace Reloader.NPCs.Generation
 {
+    public enum MainTownPopulationHabitat
+    {
+        Any = 0,
+        Town = 1,
+        Quarry = 2,
+        Forest = 3
+    }
+
     [Serializable]
     public sealed class MainTownPopulationSlotDefinition
     {
@@ -10,6 +18,7 @@ namespace Reloader.NPCs.Generation
         [SerializeField] private string _poolId = string.Empty;
         [SerializeField] private string _areaTag = string.Empty;
         [SerializeField] private string _spawnAnchorId = string.Empty;
+        [SerializeField] private MainTownPopulationHabitat _habitat = MainTownPopulationHabitat.Town;
         [SerializeField] private bool _isProtectedFromContracts;
 
         public string PopulationSlotId
@@ -34,6 +43,12 @@ namespace Reloader.NPCs.Generation
         {
             get => _spawnAnchorId;
             set => _spawnAnchorId = value ?? string.Empty;
+        }
+
+        public MainTownPopulationHabitat Habitat
+        {
+            get => _habitat;
+            set => _habitat = value;
         }
 
         public bool IsProtectedFromContracts

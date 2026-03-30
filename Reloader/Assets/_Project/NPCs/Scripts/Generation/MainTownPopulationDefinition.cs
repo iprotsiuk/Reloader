@@ -9,6 +9,8 @@ namespace Reloader.NPCs.Generation
         menuName = "Reloader/NPCs/MainTown Population Definition")]
     public sealed class MainTownPopulationDefinition : ScriptableObject
     {
+        private const string PlaygroundAreaTagPrefix = "maintown.playground.";
+
         [SerializeField] private MainTownPopulationPoolDefinition[] _pools = Array.Empty<MainTownPopulationPoolDefinition>();
 
         public MainTownPopulationPoolDefinition[] Pools
@@ -25,6 +27,7 @@ namespace Reloader.NPCs.Generation
             }
 
             var seenSlotIds = new HashSet<string>(StringComparer.Ordinal);
+            var seenPlaygroundAreaTags = new HashSet<string>(StringComparer.Ordinal);
 
             for (var poolIndex = 0; poolIndex < Pools.Length; poolIndex++)
             {
@@ -80,11 +83,56 @@ namespace Reloader.NPCs.Generation
                             $"Pools[{poolIndex}].slots[{slotIndex}].areaTag is required.");
                     }
 
+                    var trimmedAreaTag = slot.AreaTag.Trim();
+                    if (trimmedAreaTag.StartsWith(PlaygroundAreaTagPrefix, StringComparison.Ordinal) &&
+                        !seenPlaygroundAreaTags.Add(trimmedAreaTag))
+                    {
+                        throw new ArgumentException(
+                            $"Duplicate playground areaTag '{trimmedAreaTag}'. Playground markers require exactly one authored slot per playground areaTag.");
+                    }
+
                     if (string.IsNullOrWhiteSpace(slot.SpawnAnchorId))
                     {
                         throw new ArgumentException(
                             $"Pools[{poolIndex}].slots[{slotIndex}].spawnAnchorId is required.");
                     }
+
+                    if (!Enum.IsDefined(typeof(MainTownPopulationHabitat), slot.Habitat) ||
+                        slot.Habitat == MainTownPopulationHabitat.Any)
+                    {
+                        throw new ArgumentException(
+                            $"Pools[{poolIndex}].slots[{slotIndex}].habitat must use a concrete authored habitat.");
+                    }
+                }
+            }
+        }
+
+        public IEnumerable<MainTownPopulationSlotDefinition> GetSlotsForHabitat(MainTownPopulationHabitat habitat)
+        {
+            var filterByHabitat = habitat != MainTownPopulationHabitat.Any;
+            var pools = Pools ?? Array.Empty<MainTownPopulationPoolDefinition>();
+            for (var poolIndex = 0; poolIndex < pools.Length; poolIndex++)
+            {
+                var pool = pools[poolIndex];
+                if (pool?.Slots == null)
+                {
+                    continue;
+                }
+
+                for (var slotIndex = 0; slotIndex < pool.Slots.Length; slotIndex++)
+                {
+                    var slot = pool.Slots[slotIndex];
+                    if (slot == null)
+                    {
+                        continue;
+                    }
+
+                    if (filterByHabitat && slot.Habitat != habitat)
+                    {
+                        continue;
+                    }
+
+                    yield return slot;
                 }
             }
         }
