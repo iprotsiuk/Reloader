@@ -46,12 +46,18 @@ namespace Reloader.Core.Save.Modules
 
             [JsonProperty("recoveryAnchorId")]
             public string RecoveryAnchorId { get; set; } = string.Empty;
+
+            [JsonProperty("currentHealth")]
+            public float CurrentHealth { get; set; }
+
+            [JsonProperty("maxHealth")]
+            public float MaxHealth { get; set; }
         }
 
         public const int BeltSlotCount = 5;
 
         public string ModuleKey => "PlayerState";
-        public int ModuleVersion => 1;
+        public int ModuleVersion => 2;
 
         public string CurrentScenePath { get; set; } = string.Empty;
         public string CurrentAnchorId { get; set; } = string.Empty;
@@ -66,6 +72,8 @@ namespace Reloader.Core.Save.Modules
         public string RecoveryReasonId { get; set; } = string.Empty;
         public string RecoveryScenePath { get; set; } = string.Empty;
         public string RecoveryAnchorId { get; set; } = string.Empty;
+        public float CurrentHealth { get; set; }
+        public float MaxHealth { get; set; }
 
         public string CaptureModuleStateJson()
         {
@@ -83,7 +91,9 @@ namespace Reloader.Core.Save.Modules
                 SelectedBeltSlotIndex = SelectedBeltSlotIndex,
                 RecoveryReasonId = RecoveryReasonId ?? string.Empty,
                 RecoveryScenePath = RecoveryScenePath ?? string.Empty,
-                RecoveryAnchorId = RecoveryAnchorId ?? string.Empty
+                RecoveryAnchorId = RecoveryAnchorId ?? string.Empty,
+                CurrentHealth = CurrentHealth,
+                MaxHealth = MaxHealth
             });
         }
 
@@ -105,6 +115,8 @@ namespace Reloader.Core.Save.Modules
                 RecoveryReasonId = string.Empty;
                 RecoveryScenePath = string.Empty;
                 RecoveryAnchorId = string.Empty;
+                CurrentHealth = 0f;
+                MaxHealth = 0f;
                 return;
             }
 
@@ -121,6 +133,8 @@ namespace Reloader.Core.Save.Modules
             RecoveryReasonId = payload.RecoveryReasonId ?? string.Empty;
             RecoveryScenePath = payload.RecoveryScenePath ?? string.Empty;
             RecoveryAnchorId = payload.RecoveryAnchorId ?? string.Empty;
+            CurrentHealth = payload.CurrentHealth;
+            MaxHealth = payload.MaxHealth;
         }
 
         public void ValidateModuleState()
@@ -137,6 +151,13 @@ namespace Reloader.Core.Save.Modules
             {
                 SaveValidation.EnsureRequiredString(RecoveryScenePath, "PlayerState RecoveryScenePath is required when RecoveryReasonId is set.");
                 SaveValidation.EnsureRequiredString(RecoveryAnchorId, "PlayerState RecoveryAnchorId is required when RecoveryReasonId is set.");
+            }
+
+            SaveValidation.Ensure(CurrentHealth >= 0f, "PlayerState CurrentHealth must be non-negative.");
+            SaveValidation.Ensure(MaxHealth >= 0f, "PlayerState MaxHealth must be non-negative.");
+            if (MaxHealth > 0f)
+            {
+                SaveValidation.Ensure(CurrentHealth <= MaxHealth, "PlayerState CurrentHealth cannot exceed MaxHealth.");
             }
         }
     }

@@ -40,7 +40,7 @@ namespace Reloader.Core.Tests.EditMode
 
             Assert.That(envelope.SchemaVersion, Is.EqualTo(10));
             Assert.That(envelope.Modules.ContainsKey("PlayerState"), Is.True);
-            Assert.That(envelope.Modules["PlayerState"].ModuleVersion, Is.EqualTo(1));
+            Assert.That(envelope.Modules["PlayerState"].ModuleVersion, Is.EqualTo(2));
 
             var moduleKeys = GetRegisteredModuleKeys(coordinator);
             Assert.That(moduleKeys.IndexOf("PlayerState"), Is.GreaterThanOrEqualTo(0));
@@ -81,6 +81,8 @@ namespace Reloader.Core.Tests.EditMode
             SetProperty(source, "RecoveryReasonId", "death");
             SetProperty(source, "RecoveryScenePath", "Assets/_Project/World/Scenes/MainTown.unity");
             SetProperty(source, "RecoveryAnchorId", "entry.maintown.respawn.hospital");
+            SetProperty(source, "CurrentHealth", 7f);
+            SetProperty(source, "MaxHealth", 10f);
 
             var payloadJson = (string)moduleType.GetMethod("CaptureModuleStateJson", BindingFlags.Instance | BindingFlags.Public)!.Invoke(source, null);
 
@@ -101,6 +103,8 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(GetProperty<string>(restored, "RecoveryReasonId"), Is.EqualTo("death"));
             Assert.That(GetProperty<string>(restored, "RecoveryScenePath"), Is.EqualTo("Assets/_Project/World/Scenes/MainTown.unity"));
             Assert.That(GetProperty<string>(restored, "RecoveryAnchorId"), Is.EqualTo("entry.maintown.respawn.hospital"));
+            Assert.That(GetProperty<float>(restored, "CurrentHealth"), Is.EqualTo(7f));
+            Assert.That(GetProperty<float>(restored, "MaxHealth"), Is.EqualTo(10f));
         }
 
         [Test]

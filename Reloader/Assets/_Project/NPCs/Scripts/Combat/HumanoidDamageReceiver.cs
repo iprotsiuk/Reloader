@@ -12,12 +12,14 @@ namespace Reloader.NPCs.Combat
 
         [SerializeField] private HumanoidHitboxRig _hitboxRig;
         [SerializeField] private HumanoidBodyZone _defaultZone = HumanoidBodyZone.Torso;
+        [SerializeField] private float _maxHealth = 10f;
 
         private static bool s_playerDeviceLookupAttempted;
         private static PropertyInfo s_playerDeviceActiveInstanceProperty;
         private static MethodInfo s_playerDeviceIngestImpactMethod;
 
         private bool _isDead;
+        private float _currentHealth;
 
         public event Action ResultResolved;
         public event Action LethalResolved;
@@ -29,10 +31,13 @@ namespace Reloader.NPCs.Combat
         public bool HasLastResult { get; private set; }
         public bool IsDead => _isDead;
         public HumanoidHitboxRig HitboxRig => _hitboxRig;
+        public float CurrentHealth => _currentHealth;
+        public float MaxHealth => _maxHealth;
 
         private void Awake()
         {
             ResolveRig();
+            ResetRuntime();
         }
 
         private void OnValidate()
@@ -51,13 +56,20 @@ namespace Reloader.NPCs.Combat
             _defaultZone = defaultZone;
         }
 
+        public void SetHealthStateForRuntime(float currentHealth, float maxHealth)
+        {
+            _maxHealth = Mathf.Max(0.01f, maxHealth);
+            _currentHealth = Mathf.Clamp(currentHealth, 0f, _maxHealth);
+            _isDead = _currentHealth <= 0f;
+            ResetResolvedImpactState();
+        }
+
         public void ResetRuntime()
         {
             _isDead = false;
-            HasLastResult = false;
-            LastZone = _defaultZone;
-            LastResult = default;
-            LastPayload = default;
+            _maxHealth = Mathf.Max(0.01f, _maxHealth);
+            _currentHealth = _maxHealth;
+            ResetResolvedImpactState();
         }
 
         public void ApplyDamage(ProjectileImpactPayload payload)
@@ -75,7 +87,12 @@ namespace Reloader.NPCs.Combat
             HasLastResult = true;
 
             ResultResolved?.Invoke();
-            if (!result.IsLethal)
+            if (!_isDead && !result.IsLethal)
+            {
+                _currentHealth = Mathf.Max(0f, _currentHealth - result.RecommendedHealthDamage);
+            }
+
+            if (!ShouldEnterDeadState(result))
             {
                 return;
             }
@@ -87,7 +104,18 @@ namespace Reloader.NPCs.Combat
             }
 
             _isDead = true;
+            _currentHealth = 0f;
             Died?.Invoke();
+        }
+
+        private bool ShouldEnterDeadState(HumanoidImpactResolutionResult result)
+        {
+            if (result.IsLethal)
+            {
+                return true;
+            }
+
+            return !_isDead && _currentHealth <= 0f;
         }
 
         private HumanoidBodyZone ResolveHitZone(GameObject hitObject)
@@ -141,6 +169,14 @@ namespace Reloader.NPCs.Combat
             {
                 _hitboxRig = GetComponent<HumanoidHitboxRig>();
             }
+        }
+
+        private void ResetResolvedImpactState()
+        {
+            HasLastResult = false;
+            LastZone = _defaultZone;
+            LastResult = default;
+            LastPayload = default;
         }
 
         private static void TryIngestImpact(ProjectileImpactPayload payload)

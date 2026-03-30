@@ -122,6 +122,37 @@ namespace Reloader.World.Travel
             }
         }
 
+        public static bool TryMoveRuntimePlayerToLoadedEntryPoint(string scenePath, string entryPointId)
+        {
+            if (string.IsNullOrWhiteSpace(scenePath) || string.IsNullOrWhiteSpace(entryPointId))
+            {
+                return false;
+            }
+
+            var destinationScene = SceneManager.GetSceneByPath(scenePath.Trim());
+            if (!destinationScene.IsValid() || !destinationScene.isLoaded)
+            {
+                return false;
+            }
+
+            if (!TryResolveSpawnTransformInScene(destinationScene, entryPointId, out var spawnTransform, out var resolvedAnchorId))
+            {
+                return false;
+            }
+
+            var activeScenePlayerRoot = ResolveTravelPlayerRoot(destinationScene);
+            if (activeScenePlayerRoot == null)
+            {
+                return false;
+            }
+
+            SceneManager.SetActiveScene(destinationScene);
+            FinalizePlayerTravelHandoff(activeScenePlayerRoot, spawnTransform);
+            LastResolvedEntryPointId = resolvedAnchorId;
+            BindPlayerStateTravelAnchor(destinationScene, resolvedAnchorId);
+            return true;
+        }
+
         private static void EnsureSubscribed()
         {
             if (_isSubscribedToSceneLoaded)
@@ -145,18 +176,7 @@ namespace Reloader.World.Travel
                 return;
             }
 
-            var candidates = new List<SceneEntryPoint>();
-            var allEntryPoints = UnityEngine.Object.FindObjectsByType<SceneEntryPoint>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            for (var i = 0; i < allEntryPoints.Length; i++)
-            {
-                var entryPoint = allEntryPoints[i];
-                if (entryPoint != null && entryPoint.gameObject.scene == scene)
-                {
-                    candidates.Add(entryPoint);
-                }
-            }
-
-            if (SceneEntryPoint.TryFindById(candidates, _pendingEntryPointId, out var resolvedEntryPoint))
+            if (TryResolveSpawnTransformInScene(scene, _pendingEntryPointId, out var spawnTransform, out var resolvedAnchorId))
             {
                 CaptureCivilianPopulationStateForTravel();
                 CaptureInventorySnapshotForTravel();
@@ -165,15 +185,15 @@ namespace Reloader.World.Travel
                 var activeScenePlayerRoot = ResolveTravelPlayerRoot(scene);
                 if (activeScenePlayerRoot == null)
                 {
-                    FailPendingTravelForUnresolvedPlayerRoot(scene, resolvedEntryPoint.EntryPointId);
+                    FailPendingTravelForUnresolvedPlayerRoot(scene, resolvedAnchorId);
                     return;
                 }
 
-                RepositionPlayerToEntryPoint(activeScenePlayerRoot, resolvedEntryPoint.transform);
+                RepositionPlayerToEntryPoint(activeScenePlayerRoot, spawnTransform);
                 SceneManager.SetActiveScene(scene);
-                FinalizePlayerTravelHandoff(activeScenePlayerRoot, resolvedEntryPoint.transform);
-                LastResolvedEntryPointId = resolvedEntryPoint.EntryPointId;
-                BindPlayerStateTravelAnchor(scene, resolvedEntryPoint.EntryPointId);
+                FinalizePlayerTravelHandoff(activeScenePlayerRoot, spawnTransform);
+                LastResolvedEntryPointId = resolvedAnchorId;
+                BindPlayerStateTravelAnchor(scene, resolvedAnchorId);
                 UnloadLoadedScenesExcept(scene);
                 RearmActiveEventSystemsAfterTravel(scene);
                 _temporarilyDisabledEventSystemOwners.Clear();
@@ -587,6 +607,56 @@ namespace Reloader.World.Travel
         private static Transform ResolveTravelPlayerRoot(Scene destinationScene)
         {
             return PersistentPlayerRoot.Instance?.MoveRuntimePlayerRootToScene(destinationScene);
+        }
+
+        private static bool TryResolveSpawnTransformInScene(
+            Scene scene,
+            string anchorId,
+            out Transform spawnTransform,
+            out string resolvedAnchorId)
+        {
+            spawnTransform = null;
+            resolvedAnchorId = null;
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                return false;
+            }
+
+            var entryPoints = new List<SceneEntryPoint>();
+            var allEntryPoints = UnityEngine.Object.FindObjectsByType<SceneEntryPoint>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < allEntryPoints.Length; i++)
+            {
+                var entryPoint = allEntryPoints[i];
+                if (entryPoint != null && entryPoint.gameObject.scene == scene)
+                {
+                    entryPoints.Add(entryPoint);
+                }
+            }
+
+            if (SceneEntryPoint.TryFindById(entryPoints, anchorId, out var resolvedEntryPoint))
+            {
+                spawnTransform = resolvedEntryPoint.transform;
+                resolvedAnchorId = resolvedEntryPoint.EntryPointId;
+                return true;
+            }
+
+            var allAnchors = UnityEngine.Object.FindObjectsByType<PlayerSpawnAnchor>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < allAnchors.Length; i++)
+            {
+                var anchor = allAnchors[i];
+                if (anchor == null
+                    || anchor.gameObject.scene != scene
+                    || !string.Equals(anchor.AnchorId, anchorId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                spawnTransform = anchor.transform;
+                resolvedAnchorId = anchor.AnchorId;
+                return true;
+            }
+
+            return false;
         }
 
         private static void CaptureInventorySnapshotForTravel()

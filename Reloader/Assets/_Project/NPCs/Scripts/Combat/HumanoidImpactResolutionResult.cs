@@ -15,17 +15,20 @@ namespace Reloader.NPCs.Combat
             bool isLethal,
             HumanoidImpactSeverity severity,
             float recommendedRagdollImpulseScalar,
-            float effectiveEnergyJoules)
+            float effectiveEnergyJoules,
+            float recommendedHealthDamage)
         {
             IsLethal = isLethal;
             Severity = severity;
             RecommendedRagdollImpulseScalar = recommendedRagdollImpulseScalar;
             EffectiveEnergyJoules = effectiveEnergyJoules;
+            RecommendedHealthDamage = recommendedHealthDamage;
         }
 
         public bool IsLethal { get; }
         public HumanoidImpactSeverity Severity { get; }
         public float RecommendedRagdollImpulseScalar { get; }
         public float EffectiveEnergyJoules { get; }
+        public float RecommendedHealthDamage { get; }
     }
 }

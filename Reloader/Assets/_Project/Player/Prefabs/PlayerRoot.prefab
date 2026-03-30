@@ -945,6 +945,8 @@ GameObject:
   - component: {fileID: 7999831991638637008}
   - component: {fileID: 7999831991638637009}
   - component: {fileID: 7999831991638637010}
+  - component: {fileID: 7999831991638637011}
+  - component: {fileID: 7999831991638637012}
   m_Layer: 0
   m_Name: PlayerRoot
   m_TagString: Untagged
@@ -1718,6 +1720,33 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 971f61947824d4fc39da09c7132fc0a9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Reloader.Weapons::Reloader.Weapons.Cinematics.ShotCameraRuntime
+--- !u!114 &7999831991638637011
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8805273355277606564}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c5ccf34be6a450b956f40fd0015f8be, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Combat.HumanoidDamageReceiver
+  _hitboxRig: {fileID: 0}
+  _defaultZone: 2
+--- !u!114 &7999831991638637012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8805273355277606564}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f32cd7d7f0d4aef9c97d5d4c8a4431a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Combat.PlayerDeathContractBridge
+  _damageReceiver: {fileID: 7999831991638637011}
 --- !u!1001 &4151765724084627930
 PrefabInstance:
   m_ObjectHideFlags: 0

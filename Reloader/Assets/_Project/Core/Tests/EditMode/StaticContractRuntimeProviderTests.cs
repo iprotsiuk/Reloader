@@ -84,6 +84,36 @@ namespace Reloader.Core.Tests.EditMode
             }
         }
 
+        [Test]
+        public void TryHandleDialogueAction_PoliceStopComply_UsesResolvedPlayerRecoveryService()
+        {
+            var providerGo = new GameObject("ContractProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            var recoveryGo = new GameObject("RecoveryBridge");
+            var recovery = recoveryGo.AddComponent<RecordingPlayerRecoveryService>();
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+
+            try
+            {
+                provider.SetAvailableContract(contract);
+                Assert.That(provider.AcceptAvailableContract(), Is.True);
+                provider.ReportContractTargetEliminated("target.alpha", wasExposed: false);
+
+                var handled = provider.TryHandleDialogueAction("police.stop.comply", string.Empty);
+
+                Assert.That(handled, Is.True);
+                Assert.That(recovery.ArrestCallCount, Is.EqualTo(1));
+                Assert.That(recovery.DeathCallCount, Is.EqualTo(0));
+                Assert.That(provider.TryGetContractSnapshot(out _), Is.False);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+                UnityEngine.Object.DestroyImmediate(providerGo);
+                UnityEngine.Object.DestroyImmediate(recoveryGo);
+            }
+        }
+
         private static AssassinationContractDefinition CreateDefinition(
             string contractId,
             string targetId,
@@ -116,6 +146,24 @@ namespace Reloader.Core.Tests.EditMode
                 }
 
                 TotalAwarded += amount;
+                return true;
+            }
+        }
+
+        private sealed class RecordingPlayerRecoveryService : MonoBehaviour, IPlayerRecoveryService
+        {
+            public int ArrestCallCount { get; private set; }
+            public int DeathCallCount { get; private set; }
+
+            public bool TryApplyArrestRecovery()
+            {
+                ArrestCallCount++;
+                return true;
+            }
+
+            public bool TryApplyDeathRecovery()
+            {
+                DeathCallCount++;
                 return true;
             }
         }

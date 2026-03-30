@@ -75,6 +75,11 @@ namespace Reloader.Contracts.Runtime
             return EnsureRuntime().TryHandleDialogueAction(actionId, payload);
         }
 
+        public bool HandlePlayerDeath()
+        {
+            return EnsureRuntime().HandlePlayerDeath();
+        }
+
         public bool CanPublishAvailableContract()
         {
             return EnsureRuntime().CanPublishAvailableContract();
@@ -129,6 +134,8 @@ namespace Reloader.Contracts.Runtime
                 }
             }
 
+            _runtime.ConfigurePlayerRecoveryService(ResolvePlayerRecoveryService());
+
             return _runtime;
         }
 
@@ -141,7 +148,8 @@ namespace Reloader.Contracts.Runtime
                     _availableContract,
                     _searchDurationSeconds,
                     _payoutReceiver,
-                    RuntimeKernelBootstrapper.LawEnforcementEvents);
+                    RuntimeKernelBootstrapper.LawEnforcementEvents,
+                    ResolvePlayerRecoveryService());
                 return;
             }
 
@@ -150,7 +158,8 @@ namespace Reloader.Contracts.Runtime
                 state,
                 _searchDurationSeconds,
                 _payoutReceiver,
-                RuntimeKernelBootstrapper.LawEnforcementEvents);
+                RuntimeKernelBootstrapper.LawEnforcementEvents,
+                ResolvePlayerRecoveryService());
         }
 
         private IContractPayoutReceiver ResolvePayoutReceiver()
@@ -193,6 +202,12 @@ namespace Reloader.Contracts.Runtime
             }
 
             return true;
+        }
+
+        private static IPlayerRecoveryService ResolvePlayerRecoveryService()
+        {
+            var behaviours = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            return DependencyResolutionGuard.FindInterface<IPlayerRecoveryService>(behaviours);
         }
     }
 }

@@ -22,7 +22,7 @@ Current repository runtime requires these registered module blocks:
 - `PlayerDevice` (`selectedTarget`, `activeGroupShots[]`, `savedGroups[]`, `notesText`, `installedHooks[]`)
 - `WorkbenchLoadout` (`workbenches[]` with nested `slotNodes[]`)
 - `ContractState` (`contractId`, `targetId`, `distanceBand`, `payout`, `generatedContractIds[]`, `completedContractIds[]`)
-- `PoliceHeatState` (`level`, `lastCrimeType`, `searchTimeRemainingSeconds`, `hasLineOfSightToPlayer`)
+- `PoliceHeatState` (`level`, `lastCrimeType`, `searchTimeRemainingSeconds`, `hasLineOfSightToPlayer`, `wantedLevel`, `isPlayerIdentified`, `identificationProgressSeconds`)
 
 Weapons ammo snapshot fields are: `ammoSource`, `muzzleVelocityFps`, `velocityStdDevFps`, `projectileMassGrains`, `ballisticCoefficientG1`, `dispersionMoa`.
 In-flight projectiles are intentionally excluded from v0.1 save scope.
@@ -34,6 +34,7 @@ The broader `SaveData` tree in `save-and-progression.md` is the target schema co
 Current limitation:
 - `ContractState` and `PoliceHeatState` now exist as registered schema blocks and module contracts.
 - Live runtime capture/restore for those systems still needs dedicated save bridges; default save capture does not yet pull active gameplay state into those blocks automatically.
+- Legacy `PoliceHeatState` payloads without the newer identification/wanted fields still load by deriving the missing values from the legacy heat state.
 
 ### Feature Flag / Module Coherence [v0.1]
 

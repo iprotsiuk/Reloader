@@ -3,14 +3,22 @@ using System.Collections.Generic;
 using System.Reflection;
 using Reloader.Core.Save;
 using Reloader.Core.Save.Modules;
+using Reloader.Core.Runtime;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace Reloader.Player
 {
     [DisallowMultipleComponent]
-    public sealed class PlayerStateRuntimeBridge : MonoBehaviour, ISaveRuntimeBridge
+    public sealed class PlayerStateRuntimeBridge : MonoBehaviour, ISaveRuntimeBridge, IPlayerRecoveryService
     {
+        private const string MainTownScenePath = "Assets/_Project/World/Scenes/MainTown.unity";
+        private const string ArrestRecoveryReasonId = "arrest";
+        private const string DeathRecoveryReasonId = "death";
+        private const string PoliceRecoveryAnchorId = "entry.maintown.respawn.police";
+        private const string HospitalRecoveryAnchorId = "entry.maintown.respawn.hospital";
+        private const string HumanoidDamageReceiverTypeName = "Reloader.NPCs.Combat.HumanoidDamageReceiver, Reloader.NPCs";
+
         private static bool _sceneHookRegistered;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -33,6 +41,7 @@ namespace Reloader.Player
         private string _recoveryReasonId = string.Empty;
         private string _recoveryScenePath = string.Empty;
         private string _recoveryAnchorId = string.Empty;
+        private IPlayerRecoveryTravelCoordinator _recoveryTravelCoordinator = WorldPlayerRecoveryTravelCoordinator.Instance;
 
         public string CurrentScenePath => _currentScenePath;
         public string CurrentAnchorId => _currentAnchorId;
@@ -94,6 +103,21 @@ namespace Reloader.Player
             _recoveryAnchorId = Normalize(recoveryAnchorId);
         }
 
+        public void SetRecoveryTravelCoordinatorForRuntime(IPlayerRecoveryTravelCoordinator recoveryTravelCoordinator)
+        {
+            _recoveryTravelCoordinator = recoveryTravelCoordinator ?? WorldPlayerRecoveryTravelCoordinator.Instance;
+        }
+
+        public bool TryApplyArrestRecovery()
+        {
+            return TryApplyRecovery(ArrestRecoveryReasonId, PoliceRecoveryAnchorId);
+        }
+
+        public bool TryApplyDeathRecovery()
+        {
+            return TryApplyRecovery(DeathRecoveryReasonId, HospitalRecoveryAnchorId);
+        }
+
         public void PrepareForSave(IReadOnlyList<SaveModuleRegistration> moduleRegistrations)
         {
             SetPlayerStateModuleForRuntime(ResolvePlayerStateModule(moduleRegistrations));
@@ -146,6 +170,7 @@ namespace Reloader.Player
             _playerStateModule.RecoveryReasonId = Normalize(_recoveryReasonId);
             _playerStateModule.RecoveryScenePath = Normalize(_recoveryScenePath);
             _playerStateModule.RecoveryAnchorId = Normalize(_recoveryAnchorId);
+            CaptureSharedHumanoidHealth();
         }
 
         public void RestoreFromModule()
@@ -166,6 +191,7 @@ namespace Reloader.Player
             _recoveryAnchorId = Normalize(_playerStateModule.RecoveryAnchorId);
 
             ApplySelectedBeltSlot(_playerStateModule.SelectedBeltSlotIndex);
+            RestoreSharedHumanoidHealth();
         }
 
         private static void EnsureSceneHookRegistered()
@@ -355,6 +381,146 @@ namespace Reloader.Player
         private static string Normalize(string value)
         {
             return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+        }
+
+        private bool TryApplyRecovery(string recoveryReasonId, string recoveryAnchorId)
+        {
+            if (_playerRootTransform == null)
+            {
+                _playerRootTransform = transform;
+            }
+
+            if (_playerRootTransform == null)
+            {
+                _playerRootTransform = ResolveRuntimePlayerRootTransform();
+            }
+
+            if (_inventoryRuntime == null)
+            {
+                _inventoryRuntime = ResolveInventoryRuntimeFromPlayerRoot(_playerRootTransform);
+            }
+
+            ClearCarriedInventory();
+            SetRecoveryState(recoveryReasonId, MainTownScenePath, recoveryAnchorId);
+
+            var currentScenePath = ResolveLiveScenePath(_playerRootTransform);
+            if (string.IsNullOrWhiteSpace(currentScenePath))
+            {
+                currentScenePath = Normalize(_currentScenePath);
+            }
+
+            var recoveryApplied = false;
+            if (string.Equals(currentScenePath, MainTownScenePath, StringComparison.Ordinal))
+            {
+                recoveryApplied = _recoveryTravelCoordinator.TryMoveRuntimePlayerToLoadedEntryPoint(MainTownScenePath, recoveryAnchorId);
+            }
+
+            if (!recoveryApplied)
+            {
+                var sceneName = WorldPlayerRecoveryTravelCoordinator.GetSceneNameFromPath(MainTownScenePath);
+                recoveryApplied = _recoveryTravelCoordinator.TryTravelToSceneEntry(sceneName, recoveryAnchorId);
+            }
+
+            if (recoveryApplied)
+            {
+                ResetSharedHumanoidHealth();
+                SetCurrentAnchorState(MainTownScenePath, recoveryAnchorId);
+            }
+
+            return recoveryApplied;
+        }
+
+        private void ClearCarriedInventory()
+        {
+            var inventoryRuntime = _inventoryRuntime ?? ResolveInventoryRuntimeFromPlayerRoot(_playerRootTransform);
+            if (inventoryRuntime == null)
+            {
+                return;
+            }
+
+            var clearMethod = inventoryRuntime.GetType().GetMethod("ClearCarriedItems", BindingFlags.Instance | BindingFlags.Public);
+            clearMethod?.Invoke(inventoryRuntime, null);
+        }
+
+        private void CaptureSharedHumanoidHealth()
+        {
+            var sharedReceiver = ResolveSharedHumanoidReceiver(_playerRootTransform);
+            if (sharedReceiver == null)
+            {
+                _playerStateModule.CurrentHealth = 0f;
+                _playerStateModule.MaxHealth = 0f;
+                return;
+            }
+
+            _playerStateModule.CurrentHealth = ReadFloatProperty(sharedReceiver, "CurrentHealth");
+            _playerStateModule.MaxHealth = ReadFloatProperty(sharedReceiver, "MaxHealth");
+        }
+
+        private void RestoreSharedHumanoidHealth()
+        {
+            if (_playerStateModule.MaxHealth <= 0f)
+            {
+                return;
+            }
+
+            var sharedReceiver = ResolveSharedHumanoidReceiver(_playerRootTransform);
+            if (sharedReceiver == null)
+            {
+                return;
+            }
+
+            SetSharedHumanoidHealthState(sharedReceiver, _playerStateModule.CurrentHealth, _playerStateModule.MaxHealth);
+        }
+
+        private void ResetSharedHumanoidHealth()
+        {
+            var sharedReceiver = ResolveSharedHumanoidReceiver(_playerRootTransform);
+            if (sharedReceiver == null)
+            {
+                return;
+            }
+
+            var resetMethod = sharedReceiver.GetType().GetMethod("ResetRuntime", BindingFlags.Instance | BindingFlags.Public);
+            resetMethod?.Invoke(sharedReceiver, null);
+        }
+
+        private static object ResolveSharedHumanoidReceiver(Transform playerRootTransform)
+        {
+            if (playerRootTransform == null)
+            {
+                return null;
+            }
+
+            var sharedReceiverType = Type.GetType(HumanoidDamageReceiverTypeName, throwOnError: false);
+            if (sharedReceiverType == null)
+            {
+                return null;
+            }
+
+            return playerRootTransform.GetComponent(sharedReceiverType);
+        }
+
+        private static float ReadFloatProperty(object instance, string propertyName)
+        {
+            var property = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+            if (property == null || property.PropertyType != typeof(float))
+            {
+                return 0f;
+            }
+
+            var value = property.GetValue(instance);
+            return value is float floatValue ? floatValue : 0f;
+        }
+
+        private static void SetSharedHumanoidHealthState(object sharedReceiver, float currentHealth, float maxHealth)
+        {
+            var method = sharedReceiver.GetType().GetMethod(
+                "SetHealthStateForRuntime",
+                BindingFlags.Instance | BindingFlags.Public,
+                binder: null,
+                types: new[] { typeof(float), typeof(float) },
+                modifiers: null);
+            method?.Invoke(sharedReceiver, new object[] { currentHealth, maxHealth });
         }
     }
 }

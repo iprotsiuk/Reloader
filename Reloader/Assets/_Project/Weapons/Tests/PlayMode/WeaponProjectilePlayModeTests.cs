@@ -1,10 +1,12 @@
 using System.Collections;
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.Contracts.Runtime;
 using Reloader.Core.Runtime;
 using Reloader.Player;
 using Reloader.Weapons.Ballistics;
 using Reloader.Weapons.Cinematics;
+using Reloader.Weapons.Controllers;
 using Reloader.Weapons.Runtime;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -17,6 +19,8 @@ namespace Reloader.Weapons.Tests.PlayMode
 {
     public class WeaponProjectilePlayModeTests
     {
+        private const string PlayerRootPrefabPath = "Assets/_Project/Player/Prefabs/PlayerRoot.prefab";
+
         private IGameEventsRuntimeHub _runtimeEventsBeforeEachTest;
         private readonly System.Collections.Generic.HashSet<int> _baselineRootInstanceIds = new();
 
@@ -203,6 +207,83 @@ namespace Reloader.Weapons.Tests.PlayMode
 
             Object.Destroy(projectileGo);
             Object.Destroy(target);
+        }
+
+        [UnityTest]
+        public IEnumerator ProjectileHit_OnPlayerRootPrefab_TriggersDeathRecoveryBridge()
+        {
+#if UNITY_EDITOR
+            RuntimeKernelBootstrapper.Configure(System.Array.Empty<RuntimeModuleRegistration>(), new DefaultRuntimeEvents());
+
+            var playerRootPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerRootPrefabPath);
+            Assert.That(playerRootPrefab, Is.Not.Null, "Expected PlayerRoot prefab asset for the live player damage seam.");
+
+            GameObject providerGo = null;
+            GameObject recoveryGo = null;
+            GameObject projectileGo = null;
+            GameObject playerRoot = null;
+
+            try
+            {
+                providerGo = new GameObject("ContractProvider");
+                providerGo.AddComponent<StaticContractRuntimeProvider>();
+
+                recoveryGo = new GameObject("RecoveryService");
+                var recovery = recoveryGo.AddComponent<RecordingPlayerRecoveryService>();
+
+                playerRoot = Object.Instantiate(playerRootPrefab);
+                playerRoot.name = "RuntimePlayerRoot";
+                playerRoot.transform.position = new Vector3(0f, 0f, 6f);
+                playerRoot.transform.rotation = Quaternion.identity;
+                var weaponController = playerRoot.GetComponent<PlayerWeaponController>();
+                if (weaponController != null)
+                {
+                    weaponController.enabled = false;
+                }
+
+                var projectileGoPosition = new Vector3(0f, 1f, 0f);
+                projectileGo = new GameObject("Projectile");
+                projectileGo.transform.position = projectileGoPosition;
+                projectileGo.transform.forward = Vector3.forward;
+                var projectile = projectileGo.AddComponent<WeaponProjectile>();
+                projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 420f, gravityMultiplier: 0f, damage: 20f);
+
+                var elapsed = 0f;
+                while (recovery.DeathCallCount == 0 && elapsed < 1f)
+                {
+                    elapsed += Time.deltaTime;
+                    yield return null;
+                }
+
+                Assert.That(recovery.DeathCallCount, Is.EqualTo(1),
+                    "Expected a real projectile impact on PlayerRoot to flow through the shared humanoid death bridge exactly once.");
+            }
+            finally
+            {
+                if (playerRoot != null)
+                {
+                    Object.Destroy(playerRoot);
+                }
+
+                if (projectileGo != null)
+                {
+                    Object.Destroy(projectileGo);
+                }
+
+                if (recoveryGo != null)
+                {
+                    Object.Destroy(recoveryGo);
+                }
+
+                if (providerGo != null)
+                {
+                    Object.Destroy(providerGo);
+                }
+            }
+#else
+            Assert.Ignore("PlayerRoot prefab play mode coverage requires the Unity editor.");
+            yield break;
+#endif
         }
 
         [UnityTest]
@@ -1002,6 +1083,24 @@ namespace Reloader.Weapons.Tests.PlayMode
             {
                 TerminalPoint = terminalPoint;
                 TerminalDidHit = didHit;
+            }
+        }
+
+        private sealed class RecordingPlayerRecoveryService : MonoBehaviour, IPlayerRecoveryService
+        {
+            public int ArrestCallCount { get; private set; }
+            public int DeathCallCount { get; private set; }
+
+            public bool TryApplyArrestRecovery()
+            {
+                ArrestCallCount++;
+                return true;
+            }
+
+            public bool TryApplyDeathRecovery()
+            {
+                DeathCallCount++;
+                return true;
             }
         }
 

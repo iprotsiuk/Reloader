@@ -85,7 +85,7 @@ Current repository implementation requires these registered module payloads:
 - `PlayerDevice` module payload: `selectedTarget`, `activeGroupShots[]`, `savedGroups[]`, `notesText`, `installedHooks[]`
 - `WorkbenchLoadout` module payload: `workbenches[]` keyed by `workbenchId` with nested `slotNodes[]`
 - `ContractState` module payload: `contractId`, `targetId`, `distanceBand`, `payout`, `generatedContractIds[]`, `completedContractIds[]`
-- `PoliceHeatState` module payload: `level`, `lastCrimeType`, `searchTimeRemainingSeconds`, `hasLineOfSightToPlayer`
+- `PoliceHeatState` module payload: `level`, `lastCrimeType`, `searchTimeRemainingSeconds`, `hasLineOfSightToPlayer`, `wantedLevel`, `isPlayerIdentified`, `identificationProgressSeconds`
 
 `chamberRound` and `magazineRounds[]` serialize ammo ballistic snapshots for the active weapon state (`ammoSource`, `muzzleVelocityFps`, `velocityStdDevFps`, `projectileMassGrains`, `ballisticCoefficientG1`, `dispersionMoa`).
 
@@ -99,6 +99,7 @@ Schema note:
 Implementation note:
 - `ContractState` and `PoliceHeatState` are now registered schema/module blocks in the current runtime schema.
 - Live capture/restore of current contract execution and police pursuit state still requires dedicated runtime save bridges; until those land, these blocks serialize their module state correctly but default save capture does not yet mirror gameplay state automatically.
+- Legacy `PoliceHeatState` payloads that only contain the older four fields still restore by deriving the missing wanted/identification data and treating identification progress as `0`.
 
 The broader schema below is the v0.1 design target and forward schema contract. Treat it as planned module scope until those modules are registered in runtime.
 

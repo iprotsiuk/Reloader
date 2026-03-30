@@ -332,6 +332,44 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
+        public void OnSceneLoaded_WhenPendingAnchorTargetsStandaloneRespawnAnchor_RepositionsPlayerAndPublishesRespawnAnchorId()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var bootstrapScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+            var destinationScene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SceneManager.SetActiveScene(bootstrapScene);
+
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                var playerRoot = persistentRoot.PlayerRootTransform;
+                Assert.That(playerRoot, Is.Not.Null, "Expected canonical runtime player before resolving a standalone respawn anchor.");
+
+                SetPrivateStaticField("_pendingSceneName", MainTownSceneName);
+                SetPrivateStaticField("_pendingEntryPointId", "entry.maintown.respawn.police");
+                InvokePrivateStatic("OnSceneLoaded", destinationScene, LoadSceneMode.Additive);
+
+                var respawnAnchor = FindSpawnAnchor(destinationScene, "entry.maintown.respawn.police");
+                Assert.That(respawnAnchor, Is.Not.Null);
+                Assert.That(playerRoot!.gameObject.scene, Is.EqualTo(destinationScene));
+                Assert.That(SceneManager.GetActiveScene(), Is.EqualTo(destinationScene));
+                Assert.That(WorldTravelCoordinator.LastResolvedEntryPointId, Is.EqualTo("entry.maintown.respawn.police"));
+                Assert.That(playerRoot.position, Is.EqualTo(respawnAnchor!.transform.position));
+                Assert.That(playerRoot.rotation, Is.EqualTo(respawnAnchor.transform.rotation));
+            }
+            finally
+            {
+                CloseSceneIfLoaded(destinationScene);
+                CloseSceneIfLoaded(bootstrapScene);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
         public void DisableActiveEventSystemsForTravel_TemporarilyDisablesExistingEventSystems_AndRestoreReenablesThem()
         {
             var first = new GameObject("FirstEventSystem");
@@ -456,6 +494,49 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
+        [Test]
+        public void TryMoveRuntimePlayerToLoadedEntryPoint_WhenRespawnAnchorExists_RepositionsPlayerAndPublishesResolvedAnchor()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var bootstrapScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+            var destinationScene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SceneManager.SetActiveScene(bootstrapScene);
+
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                var playerRoot = persistentRoot.PlayerRootTransform;
+                Assert.That(playerRoot, Is.Not.Null, "Expected canonical runtime player before moving to a loaded respawn anchor.");
+
+                playerRoot.position = new Vector3(9f, 1f, -7f);
+                playerRoot.rotation = Quaternion.Euler(0f, 15f, 0f);
+
+                var moved = WorldTravelCoordinator.TryMoveRuntimePlayerToLoadedEntryPoint(
+                    MainTownScenePath,
+                    "entry.maintown.respawn.hospital");
+
+                Assert.That(moved, Is.True);
+                Assert.That(playerRoot.gameObject.scene, Is.EqualTo(destinationScene));
+                Assert.That(SceneManager.GetActiveScene(), Is.EqualTo(destinationScene));
+                Assert.That(WorldTravelCoordinator.LastResolvedEntryPointId, Is.EqualTo("entry.maintown.respawn.hospital"));
+
+                var respawnAnchor = FindSpawnAnchor(destinationScene, "entry.maintown.respawn.hospital");
+                Assert.That(respawnAnchor, Is.Not.Null);
+                Assert.That(playerRoot.position, Is.EqualTo(respawnAnchor!.transform.position));
+                Assert.That(playerRoot.rotation, Is.EqualTo(respawnAnchor.transform.rotation));
+            }
+            finally
+            {
+                CloseSceneIfLoaded(destinationScene);
+                CloseSceneIfLoaded(bootstrapScene);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
         private static void AssignPlayerRootTransform(PersistentPlayerRoot persistentRoot, Transform playerRootTransform)
         {
             var serialized = new UnityEditor.SerializedObject(persistentRoot);
@@ -512,6 +593,22 @@ namespace Reloader.World.Tests.EditMode
             {
                 EditorSceneManager.CloseScene(scene, true);
             }
+        }
+
+        private static PlayerSpawnAnchor FindSpawnAnchor(Scene scene, string anchorId)
+        {
+            var anchors = Object.FindObjectsByType<PlayerSpawnAnchor>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < anchors.Length; i++)
+            {
+                if (anchors[i] != null
+                    && anchors[i].gameObject.scene == scene
+                    && string.Equals(anchors[i].AnchorId, anchorId, System.StringComparison.Ordinal))
+                {
+                    return anchors[i];
+                }
+            }
+
+            return null;
         }
 
         private static System.Type GetOriginType(string typeName)

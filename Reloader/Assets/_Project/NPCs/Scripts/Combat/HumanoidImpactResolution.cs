@@ -15,12 +15,14 @@ namespace Reloader.NPCs.Combat
 
             var severity = ResolveSeverity(effectiveEnergyJoules, isLethal);
             var recommendedRagdollImpulseScalar = ResolveRagdollImpulseScalar(effectiveEnergyJoules, isLethal);
+            var recommendedHealthDamage = ResolveRecommendedHealthDamage(effectiveEnergyJoules, isLethal);
 
             return new HumanoidImpactResolutionResult(
                 isLethal,
                 severity,
                 recommendedRagdollImpulseScalar,
-                effectiveEnergyJoules);
+                effectiveEnergyJoules,
+                recommendedHealthDamage);
         }
 
         public static float ComputeDeliveredEnergyJoules(float impactSpeedMetersPerSecond, float projectileMassGrains)
@@ -58,6 +60,16 @@ namespace Reloader.NPCs.Combat
             var baselineScalar = effectiveEnergyJoules * 0.00125f;
             var lethalBonus = isLethal ? 0.35f : 0f;
             return Clamp(0.2f + baselineScalar + lethalBonus, 0.2f, 2.25f);
+        }
+
+        private static float ResolveRecommendedHealthDamage(float effectiveEnergyJoules, bool isLethal)
+        {
+            if (isLethal)
+            {
+                return float.MaxValue;
+            }
+
+            return Clamp(effectiveEnergyJoules * 0.01f, 0f, float.MaxValue);
         }
 
         private static float ResolveZoneMultiplier(HumanoidBodyZone bodyZone)

@@ -39,7 +39,6 @@ namespace Reloader.LawEnforcement
 
             _policeHeatRuntime.ReportCrime(CrimeType.Fleeing);
             _policeHeatRuntime.ReportLineOfSightAcquired();
-            _policeHeatRuntime.ReportLineOfSightLost();
             return true;
         }
     }

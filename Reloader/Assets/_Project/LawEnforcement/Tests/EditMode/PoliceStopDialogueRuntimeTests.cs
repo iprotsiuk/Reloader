@@ -28,16 +28,19 @@ namespace Reloader.LawEnforcement.Tests.EditMode
         }
 
         [Test]
-        public void TryHandleOutcome_Leave_EscalatesIntoSearchState()
+        public void TryHandleOutcome_Leave_EscalatesIntoActivePursuit()
         {
             var runtime = new PoliceStopDialogueRuntime(searchDurationSeconds: 30f);
 
             var handled = runtime.TryHandleOutcome("police.stop.leave");
 
             Assert.That(handled, Is.True);
-            Assert.That(runtime.CurrentState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+            Assert.That(runtime.CurrentState.Level, Is.EqualTo(PoliceHeatLevel.ActivePursuit));
             Assert.That(runtime.CurrentState.LastCrimeType, Is.EqualTo(CrimeType.Fleeing));
             Assert.That(runtime.CurrentState.SearchTimeRemainingSeconds, Is.EqualTo(30f));
+            Assert.That(runtime.CurrentState.WantedLevel, Is.EqualTo(2));
+            Assert.That(runtime.CurrentState.HasLineOfSightToPlayer, Is.True);
+            Assert.That(runtime.CurrentState.IsPlayerIdentified, Is.True);
         }
 
         [Test]

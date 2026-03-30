@@ -1,5 +1,6 @@
 using System;
 using Reloader.Contracts.Runtime;
+using Reloader.Core.Runtime;
 using Reloader.PlayerDevice.Runtime;
 using Reloader.PlayerDevice.World;
 using Reloader.Weapons.Ballistics;
@@ -14,6 +15,7 @@ namespace Reloader.Weapons.World
         private const string SharedReceiverDeathEventName = "Died";
         private const string SharedReceiverIsDeadPropertyName = "IsDead";
         private const string SharedReceiverResetRuntimeMethodName = "ResetRuntime";
+        private const string SharedReceiverSetHealthStateMethodName = "SetHealthStateForRuntime";
         private const string RagdollControllerTypeName = "Reloader.NPCs.Combat.HumanoidRagdollController, Reloader.NPCs";
         private const string RagdollControllerCanPresentDeathStatePropertyName = "CanPresentDeathState";
         private const string RagdollControllerResetRuntimeMethodName = "ResetRuntime";
@@ -46,6 +48,7 @@ namespace Reloader.Weapons.World
         {
             ResetRuntime();
             ResolveEliminationSink();
+            ApplySharedReceiverHealthState(_maxHealth, _maxHealth);
             BindSharedReceiver();
         }
 
@@ -58,6 +61,7 @@ namespace Reloader.Weapons.World
 
             ResolveEliminationSink();
             ResetSharedReceiverRuntime();
+            ApplySharedReceiverHealthState(_maxHealth, _maxHealth);
             ResetRagdollRuntime();
             ResetCorpseLootRuntime();
             BindSharedReceiver();
@@ -65,6 +69,7 @@ namespace Reloader.Weapons.World
 
         private void Start()
         {
+            ApplySharedReceiverHealthState(_maxHealth, _maxHealth);
             BindSharedReceiver();
         }
 
@@ -94,6 +99,7 @@ namespace Reloader.Weapons.World
             ResetRuntime();
             ResolveEliminationSink();
             ResetSharedReceiverRuntime();
+            ApplySharedReceiverHealthState(_maxHealth, _maxHealth);
             ResetRagdollRuntime();
             ResetCorpseLootRuntime();
             BindSharedReceiver();
@@ -319,13 +325,59 @@ namespace Reloader.Weapons.World
 
         private void ApplyFallbackHealthDamage(ProjectileImpactPayload payload)
         {
-            _currentHealth -= Mathf.Max(0f, payload.Damage);
+            _currentHealth -= ResolveFallbackHealthDamage(payload);
             if (_currentHealth > 0f)
             {
                 return;
             }
 
             EliminateTarget(preserveGameObjectForDeathPresentation: false);
+        }
+
+        private void ApplySharedReceiverHealthState(float currentHealth, float maxHealth)
+        {
+            var sharedReceiverType = System.Type.GetType(SharedReceiverTypeName, throwOnError: false);
+            if (sharedReceiverType == null)
+            {
+                return;
+            }
+
+            var receiver = GetComponent(sharedReceiverType);
+            if (receiver == null)
+            {
+                return;
+            }
+
+            var method = sharedReceiverType.GetMethod(
+                SharedReceiverSetHealthStateMethodName,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public,
+                binder: null,
+                types: new[] { typeof(float), typeof(float) },
+                modifiers: null);
+            if (method == null)
+            {
+                return;
+            }
+
+            method.Invoke(receiver, new object[] { currentHealth, maxHealth });
+        }
+
+        private static float ResolveFallbackHealthDamage(ProjectileImpactPayload payload)
+        {
+            if (payload.DeliveredEnergyJoules > 0f)
+            {
+                return payload.DeliveredEnergyJoules * 0.01f;
+            }
+
+            if (payload.ImpactSpeedMetersPerSecond > 0f &&
+                payload.ProjectileMassGrains > 0f)
+            {
+                return ImpactEnergyMath.ComputeDeliveredEnergyJoules(
+                    payload.ImpactSpeedMetersPerSecond,
+                    payload.ProjectileMassGrains) * 0.01f;
+            }
+
+            return Mathf.Max(0f, payload.Damage);
         }
 
         private bool ReadSharedReceiverDeadState()

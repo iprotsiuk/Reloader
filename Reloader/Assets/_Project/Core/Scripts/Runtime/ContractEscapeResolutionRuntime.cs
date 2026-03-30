@@ -49,6 +49,7 @@ namespace Reloader.Contracts.Runtime
         private AssassinationContractDefinition _availableContract;
         private AssassinationContractDefinition _failedDefinition;
         private IContractPayoutReceiver _payoutReceiver;
+        private IPlayerRecoveryService _playerRecoveryService;
         private bool _offerConsumed;
         private bool _awaitingSearchClear;
         private bool _completionPending;
@@ -58,10 +59,12 @@ namespace Reloader.Contracts.Runtime
             AssassinationContractDefinition availableContract,
             float searchDurationSeconds = 45f,
             IContractPayoutReceiver payoutReceiver = null,
-            ILawEnforcementEvents lawEnforcementEvents = null)
+            ILawEnforcementEvents lawEnforcementEvents = null,
+            IPlayerRecoveryService playerRecoveryService = null)
         {
             _availableContract = availableContract;
             _payoutReceiver = payoutReceiver;
+            _playerRecoveryService = playerRecoveryService;
             _policeHeatRuntime = new PoliceHeatRuntime(searchDurationSeconds, lawEnforcementEvents);
         }
 
@@ -104,6 +107,11 @@ namespace Reloader.Contracts.Runtime
         public void ConfigurePayoutReceiver(IContractPayoutReceiver payoutReceiver)
         {
             _payoutReceiver = payoutReceiver;
+        }
+
+        public void ConfigurePlayerRecoveryService(IPlayerRecoveryService playerRecoveryService)
+        {
+            _playerRecoveryService = playerRecoveryService;
         }
 
         public bool TryGetSnapshot(out ContractOfferSnapshot snapshot)
@@ -267,8 +275,12 @@ namespace Reloader.Contracts.Runtime
                 return false;
             }
 
-            if (string.Equals(actionId, PoliceStopComplyActionId, StringComparison.Ordinal)
-                || string.Equals(actionId, PoliceStopQuestionActionId, StringComparison.Ordinal))
+            if (string.Equals(actionId, PoliceStopComplyActionId, StringComparison.Ordinal))
+            {
+                return ApplyRecoveryConsequences(isDeath: false);
+            }
+
+            if (string.Equals(actionId, PoliceStopQuestionActionId, StringComparison.Ordinal))
             {
                 return true;
             }
@@ -280,8 +292,12 @@ namespace Reloader.Contracts.Runtime
 
             _policeHeatRuntime.ReportCrime(CrimeType.Fleeing);
             _policeHeatRuntime.ReportLineOfSightAcquired();
-            _policeHeatRuntime.ReportLineOfSightLost();
             return true;
+        }
+
+        public bool HandlePlayerDeath()
+        {
+            return ApplyRecoveryConsequences(isDeath: true);
         }
 
         public void Advance(float deltaTimeSeconds)
@@ -311,13 +327,15 @@ namespace Reloader.Contracts.Runtime
             RuntimeStateSnapshot state,
             float searchDurationSeconds,
             IContractPayoutReceiver payoutReceiver = null,
-            ILawEnforcementEvents lawEnforcementEvents = null)
+            ILawEnforcementEvents lawEnforcementEvents = null,
+            IPlayerRecoveryService playerRecoveryService = null)
         {
             var runtime = new ContractEscapeResolutionRuntime(
                 state.AvailableContract,
                 searchDurationSeconds,
                 payoutReceiver,
-                lawEnforcementEvents);
+                lawEnforcementEvents,
+                playerRecoveryService);
 
             runtime._offerConsumed = state.OfferConsumed;
             runtime._awaitingSearchClear = state.AwaitingSearchClear;
@@ -456,6 +474,21 @@ namespace Reloader.Contracts.Runtime
         private static bool ShouldFailOnWrongTarget(AssassinationContractDefinition definition)
         {
             return definition != null && definition.FailsOnWrongTargetKill;
+        }
+
+        private bool ApplyRecoveryConsequences(bool isDeath)
+        {
+            ResetPendingResolution();
+            ClearFailedContractState();
+            if (_contractController.ActiveContract != null)
+            {
+                _contractController.TryFailActiveContract();
+            }
+
+            _policeHeatRuntime.ForceClear();
+            return isDeath
+                ? _playerRecoveryService?.TryApplyDeathRecovery() ?? true
+                : _playerRecoveryService?.TryApplyArrestRecovery() ?? true;
         }
     }
 }

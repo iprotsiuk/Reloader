@@ -357,6 +357,101 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator SharedHumanoidReceiver_NonLethalTorsoHits_DepleteConfiguredHealthBudgetAcrossHits()
+        {
+            GameObject sinkGo = null;
+            GameObject targetGo = null;
+            GameObject torsoZoneGo = null;
+            try
+            {
+                sinkGo = new GameObject("ContractSink");
+                var sink = sinkGo.AddComponent<ContractTargetSinkProbe>();
+                targetGo = new GameObject("ContractTarget");
+                var target = targetGo.AddComponent<ContractTargetDamageable>();
+                targetGo.AddComponent<BoxCollider>();
+
+                var sharedReceiverType = ResolveType("Reloader.NPCs.Combat.HumanoidDamageReceiver", "Reloader.NPCs");
+                var bodyZoneHitboxType = ResolveType("Reloader.NPCs.Combat.BodyZoneHitbox", "Reloader.NPCs");
+                var bodyZoneType = ResolveType("Reloader.NPCs.Combat.HumanoidBodyZone", "Reloader.NPCs");
+
+                Assert.That(sharedReceiverType, Is.Not.Null, "Expected shared humanoid receiver to exist.");
+                Assert.That(bodyZoneHitboxType, Is.Not.Null, "Expected body-zone hitbox component to exist.");
+                Assert.That(bodyZoneType, Is.Not.Null, "Expected HumanoidBodyZone enum to exist.");
+
+                SetPrivateField(target, "_eliminationSinkBehaviour", sink);
+                SetPrivateField(target, "_targetId", "target.alpha");
+                SetPrivateField(target, "_displayName", "Victor Hale");
+                SetPrivateField(target, "_maxHealth", 6f);
+
+                var sharedReceiver = targetGo.AddComponent(sharedReceiverType!);
+
+                torsoZoneGo = new GameObject("TorsoZone");
+                torsoZoneGo.transform.SetParent(targetGo.transform, false);
+                torsoZoneGo.transform.localPosition = new Vector3(0f, 0f, -0.4f);
+                torsoZoneGo.AddComponent<CapsuleCollider>();
+                var hitbox = torsoZoneGo.AddComponent(bodyZoneHitboxType!);
+                ConfigureBodyZoneHitbox(hitbox, bodyZoneType!, "Torso");
+
+                yield return null;
+
+                target.ApplyDamage(new ProjectileImpactPayload(
+                    itemId: "weapon-kar98k",
+                    point: torsoZoneGo.transform.position,
+                    normal: Vector3.back,
+                    damage: 1f,
+                    hitObject: torsoZoneGo,
+                    sourcePoint: targetGo.transform.position + (Vector3.back * 25f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 140f,
+                    projectileMassGrains: 140f,
+                    deliveredEnergyJoules: 300f));
+
+                Assert.That(ReadLastResultIsLethal(sharedReceiver), Is.False,
+                    "Expected the first torso hit to remain non-lethal by impact semantics.");
+                Assert.That(ReadReceiverProperty(sharedReceiver, "IsDead"), Is.EqualTo(false));
+                Assert.That(Convert.ToSingle(ReadReceiverProperty(sharedReceiver, "CurrentHealth")), Is.EqualTo(3f).Within(0.001f));
+                Assert.That(sink.TargetId, Is.EqualTo(string.Empty));
+                Assert.That(targetGo.activeSelf, Is.True);
+
+                target.ApplyDamage(new ProjectileImpactPayload(
+                    itemId: "weapon-kar98k",
+                    point: torsoZoneGo.transform.position,
+                    normal: Vector3.back,
+                    damage: 1f,
+                    hitObject: torsoZoneGo,
+                    sourcePoint: targetGo.transform.position + (Vector3.back * 25f),
+                    direction: Vector3.forward,
+                    impactSpeedMetersPerSecond: 140f,
+                    projectileMassGrains: 140f,
+                    deliveredEnergyJoules: 300f));
+
+                Assert.That(ReadLastResultIsLethal(sharedReceiver), Is.False,
+                    "Expected cumulative depletion, not per-hit lethality, to kill on the second torso hit.");
+                Assert.That(ReadReceiverProperty(sharedReceiver, "IsDead"), Is.EqualTo(true));
+                Assert.That(Convert.ToSingle(ReadReceiverProperty(sharedReceiver, "CurrentHealth")), Is.EqualTo(0f).Within(0.001f));
+                Assert.That(sink.TargetId, Is.EqualTo("target.alpha"));
+                Assert.That(targetGo.activeSelf, Is.False);
+            }
+            finally
+            {
+                if (torsoZoneGo != null)
+                {
+                    UnityEngine.Object.Destroy(torsoZoneGo);
+                }
+
+                if (sinkGo != null)
+                {
+                    UnityEngine.Object.Destroy(sinkGo);
+                }
+
+                if (targetGo != null)
+                {
+                    UnityEngine.Object.Destroy(targetGo);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator SharedHumanoidReceiver_WhenTargetIsReactivated_ResetsSharedDeathState()
         {
             GameObject targetGo = null;
@@ -409,6 +504,8 @@ namespace Reloader.Weapons.Tests.PlayMode
                     "Expected reactivating a target to clear the shared receiver death state instead of immediately eliminating it again.");
                 var isDead = ReadReceiverProperty(sharedReceiver, "IsDead");
                 Assert.That(isDead, Is.EqualTo(false));
+                Assert.That(Convert.ToSingle(ReadReceiverProperty(sharedReceiver, "CurrentHealth")), Is.EqualTo(1000f).Within(0.001f));
+                Assert.That(Convert.ToSingle(ReadReceiverProperty(sharedReceiver, "MaxHealth")), Is.EqualTo(1000f).Within(0.001f));
             }
             finally
             {

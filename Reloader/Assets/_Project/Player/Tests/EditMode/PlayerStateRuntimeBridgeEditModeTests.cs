@@ -17,8 +17,10 @@ namespace Reloader.Player.Tests.EditMode
         {
             var bridgeType = ResolveBridgeType();
             var moduleType = ResolveModuleType();
+            var sharedReceiverType = ResolveSharedReceiverType();
             var root = new GameObject("PlayerRoot");
             var bridge = root.AddComponent(bridgeType);
+            var sharedReceiver = root.AddComponent(sharedReceiverType);
             var module = Activator.CreateInstance(moduleType);
             var inventoryRuntime = new InventoryRuntimeProbe { SelectedBeltIndex = 4 };
 
@@ -26,6 +28,7 @@ namespace Reloader.Player.Tests.EditMode
                 new Vector3(7.5f, 1.1f, -2.25f),
                 Quaternion.Euler(0f, 45f, 0f));
 
+            SetSharedReceiverHealthState(sharedReceiver, currentHealth: 7f, maxHealth: 10f);
             Invoke(bridge, "SetPlayerStateModuleForRuntime", module);
             Invoke(bridge, "SetInventoryRuntimeForRuntime", inventoryRuntime);
             Invoke(bridge, "SetCurrentAnchorState", "Assets/_Project/World/Scenes/IndoorRangeInstance.unity", "entry.indoor.arrival");
@@ -41,6 +44,8 @@ namespace Reloader.Player.Tests.EditMode
             Assert.That(GetProperty<string>(module, "RecoveryReasonId"), Is.EqualTo("arrest"));
             Assert.That(GetProperty<string>(module, "RecoveryScenePath"), Is.EqualTo("Assets/_Project/World/Scenes/MainTown.unity"));
             Assert.That(GetProperty<string>(module, "RecoveryAnchorId"), Is.EqualTo("entry.maintown.respawn.police"));
+            Assert.That(GetProperty<float>(module, "CurrentHealth"), Is.EqualTo(7f));
+            Assert.That(GetProperty<float>(module, "MaxHealth"), Is.EqualTo(10f));
 
             Object.DestroyImmediate(root);
         }
@@ -50,8 +55,10 @@ namespace Reloader.Player.Tests.EditMode
         {
             var bridgeType = ResolveBridgeType();
             var moduleType = ResolveModuleType();
+            var sharedReceiverType = ResolveSharedReceiverType();
             var root = new GameObject("PlayerRoot");
             var bridge = root.AddComponent(bridgeType);
+            var sharedReceiver = root.AddComponent(sharedReceiverType);
             var module = Activator.CreateInstance(moduleType);
             var inventoryRuntime = new InventoryRuntimeProbe { SelectedBeltIndex = -1 };
 
@@ -68,6 +75,8 @@ namespace Reloader.Player.Tests.EditMode
             SetProperty(module, "RecoveryReasonId", "death");
             SetProperty(module, "RecoveryScenePath", "Assets/_Project/World/Scenes/MainTown.unity");
             SetProperty(module, "RecoveryAnchorId", "entry.maintown.respawn.hospital");
+            SetProperty(module, "CurrentHealth", 4f);
+            SetProperty(module, "MaxHealth", 10f);
 
             Invoke(bridge, "SetPlayerStateModuleForRuntime", module);
             Invoke(bridge, "SetInventoryRuntimeForRuntime", inventoryRuntime);
@@ -86,6 +95,8 @@ namespace Reloader.Player.Tests.EditMode
             Assert.That(GetProperty<string>(bridge, "RecoveryReasonId"), Is.EqualTo("death"));
             Assert.That(GetProperty<string>(bridge, "RecoveryScenePath"), Is.EqualTo("Assets/_Project/World/Scenes/MainTown.unity"));
             Assert.That(GetProperty<string>(bridge, "RecoveryAnchorId"), Is.EqualTo("entry.maintown.respawn.hospital"));
+            Assert.That(ReadSharedReceiverHealth(sharedReceiver, "CurrentHealth"), Is.EqualTo(4f));
+            Assert.That(ReadSharedReceiverHealth(sharedReceiver, "MaxHealth"), Is.EqualTo(10f));
 
             Object.DestroyImmediate(root);
         }
@@ -112,6 +123,75 @@ namespace Reloader.Player.Tests.EditMode
             Assert.That(inventoryRuntime.SelectedBeltIndex, Is.EqualTo(-1));
             Assert.That(inventoryRuntime.ClearSelectedBeltSlotCallCount, Is.EqualTo(1));
             Assert.That(inventoryRuntime.SelectBeltSlotCallCount, Is.EqualTo(0));
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void TryApplyArrestRecovery_ClearsInventoryAndStartsPoliceRespawnTravel()
+        {
+            var bridgeType = ResolveBridgeType();
+            var root = new GameObject("PlayerRoot");
+            var bridge = root.AddComponent(bridgeType);
+            var inventoryRuntime = new InventoryRuntimeProbe();
+            var travelCoordinator = new RecoveryTravelCoordinatorProbe();
+
+            Invoke(bridge, "SetPlayerRootTransformForRuntime", root.transform);
+            Invoke(bridge, "SetInventoryRuntimeForRuntime", inventoryRuntime);
+            Invoke(bridge, "SetRecoveryTravelCoordinatorForRuntime", travelCoordinator);
+            Invoke(bridge, "SetCurrentAnchorState", IndoorRangeScenePath, "entry.indoor.arrival");
+
+            var applied = Invoke<bool>(bridge, "TryApplyArrestRecovery");
+
+            Assert.That(applied, Is.True);
+            Assert.That(inventoryRuntime.ClearCarriedItemsCallCount, Is.EqualTo(1));
+            Assert.That(GetProperty<string>(bridge, "CurrentScenePath"), Is.EqualTo("Assets/_Project/World/Scenes/MainTown.unity"));
+            Assert.That(GetProperty<string>(bridge, "CurrentAnchorId"), Is.EqualTo("entry.maintown.respawn.police"));
+            Assert.That(GetProperty<string>(bridge, "RecoveryReasonId"), Is.EqualTo("arrest"));
+            Assert.That(GetProperty<string>(bridge, "RecoveryScenePath"), Is.EqualTo("Assets/_Project/World/Scenes/MainTown.unity"));
+            Assert.That(GetProperty<string>(bridge, "RecoveryAnchorId"), Is.EqualTo("entry.maintown.respawn.police"));
+            Assert.That(travelCoordinator.TryTravelToSceneEntryCallCount, Is.EqualTo(1));
+            Assert.That(travelCoordinator.LastSceneName, Is.EqualTo("MainTown"));
+            Assert.That(travelCoordinator.LastEntryPointId, Is.EqualTo("entry.maintown.respawn.police"));
+            Assert.That(travelCoordinator.TryMoveRuntimePlayerToLoadedEntryPointCallCount, Is.EqualTo(0));
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void TryApplyDeathRecovery_WhileAlreadyInMainTown_UsesLoadedSceneRespawnMove()
+        {
+            var bridgeType = ResolveBridgeType();
+            var sharedReceiverType = ResolveSharedReceiverType();
+            var root = new GameObject("PlayerRoot");
+            var bridge = root.AddComponent(bridgeType);
+            var sharedReceiver = root.AddComponent(sharedReceiverType);
+            var inventoryRuntime = new InventoryRuntimeProbe();
+            var travelCoordinator = new RecoveryTravelCoordinatorProbe();
+
+            SetSharedReceiverHealthState(sharedReceiver, currentHealth: 2f, maxHealth: 10f);
+            Invoke(bridge, "SetPlayerRootTransformForRuntime", root.transform);
+            Invoke(bridge, "SetInventoryRuntimeForRuntime", inventoryRuntime);
+            Invoke(bridge, "SetRecoveryTravelCoordinatorForRuntime", travelCoordinator);
+            Invoke(bridge, "SetCurrentAnchorState", "Assets/_Project/World/Scenes/MainTown.unity", "entry.maintown.return");
+
+            var applied = Invoke<bool>(bridge, "TryApplyDeathRecovery");
+
+            Assert.That(applied, Is.True);
+            Assert.That(inventoryRuntime.ClearCarriedItemsCallCount, Is.EqualTo(1));
+            Assert.That(GetProperty<string>(bridge, "CurrentScenePath"), Is.EqualTo("Assets/_Project/World/Scenes/MainTown.unity"));
+            Assert.That(GetProperty<string>(bridge, "CurrentAnchorId"), Is.EqualTo("entry.maintown.respawn.hospital"));
+            Assert.That(GetProperty<string>(bridge, "RecoveryReasonId"), Is.EqualTo("death"));
+            Assert.That(GetProperty<string>(bridge, "RecoveryScenePath"), Is.EqualTo("Assets/_Project/World/Scenes/MainTown.unity"));
+            Assert.That(GetProperty<string>(bridge, "RecoveryAnchorId"), Is.EqualTo("entry.maintown.respawn.hospital"));
+            Assert.That(travelCoordinator.TryMoveRuntimePlayerToLoadedEntryPointCallCount, Is.EqualTo(1));
+            Assert.That(travelCoordinator.LastScenePath, Is.EqualTo("Assets/_Project/World/Scenes/MainTown.unity"));
+            Assert.That(travelCoordinator.LastEntryPointId, Is.EqualTo("entry.maintown.respawn.hospital"));
+            Assert.That(travelCoordinator.TryTravelToSceneEntryCallCount, Is.EqualTo(0));
+            Assert.That(ReadSharedReceiverHealth(sharedReceiver, "CurrentHealth"), Is.EqualTo(10f),
+                "Expected successful death recovery to restore the player's shared humanoid health budget.");
+            Assert.That(ReadSharedReceiverHealth(sharedReceiver, "MaxHealth"), Is.EqualTo(10f));
+            Assert.That(ReadSharedReceiverIsDead(sharedReceiver), Is.False);
 
             Object.DestroyImmediate(root);
         }
@@ -190,11 +270,25 @@ namespace Reloader.Player.Tests.EditMode
             return type;
         }
 
+        private static Type ResolveSharedReceiverType()
+        {
+            var type = Type.GetType("Reloader.NPCs.Combat.HumanoidDamageReceiver, Reloader.NPCs");
+            Assert.That(type, Is.Not.Null, "HumanoidDamageReceiver type should exist for player health bridging.");
+            return type;
+        }
+
         private static void Invoke(Component component, string methodName, params object[] args)
         {
             var method = component.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public);
             Assert.That(method, Is.Not.Null, $"Expected public method '{methodName}'.");
             method!.Invoke(component, args);
+        }
+
+        private static T Invoke<T>(Component component, string methodName, params object[] args)
+        {
+            var method = component.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(method, Is.Not.Null, $"Expected public method '{methodName}'.");
+            return (T)method!.Invoke(component, args);
         }
 
         private static T GetProperty<T>(object instance, string propertyName)
@@ -221,11 +315,33 @@ namespace Reloader.Player.Tests.EditMode
             field!.SetValue(null, string.IsNullOrWhiteSpace(entryPointId) ? null : entryPointId);
         }
 
+        private static void SetSharedReceiverHealthState(Component sharedReceiver, float currentHealth, float maxHealth)
+        {
+            var method = sharedReceiver.GetType().GetMethod("SetHealthStateForRuntime", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(method, Is.Not.Null, "Expected HumanoidDamageReceiver.SetHealthStateForRuntime(float, float).");
+            method!.Invoke(sharedReceiver, new object[] { currentHealth, maxHealth });
+        }
+
+        private static float ReadSharedReceiverHealth(Component sharedReceiver, string propertyName)
+        {
+            var property = sharedReceiver.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(property, Is.Not.Null, $"Expected HumanoidDamageReceiver.{propertyName}.");
+            return (float)property!.GetValue(sharedReceiver);
+        }
+
+        private static bool ReadSharedReceiverIsDead(Component sharedReceiver)
+        {
+            var property = sharedReceiver.GetType().GetProperty("IsDead", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(property, Is.Not.Null, "Expected HumanoidDamageReceiver.IsDead.");
+            return (bool)property!.GetValue(sharedReceiver);
+        }
+
         private sealed class InventoryRuntimeProbe
         {
             public int SelectedBeltIndex { get; set; }
             public int SelectBeltSlotCallCount { get; private set; }
             public int ClearSelectedBeltSlotCallCount { get; private set; }
+            public int ClearCarriedItemsCallCount { get; private set; }
 
             public void SelectBeltSlot(int beltSlotIndex)
             {
@@ -237,6 +353,37 @@ namespace Reloader.Player.Tests.EditMode
             {
                 ClearSelectedBeltSlotCallCount++;
                 SelectedBeltIndex = -1;
+            }
+
+            public void ClearCarriedItems()
+            {
+                ClearCarriedItemsCallCount++;
+                SelectedBeltIndex = -1;
+            }
+        }
+
+        private sealed class RecoveryTravelCoordinatorProbe : IPlayerRecoveryTravelCoordinator
+        {
+            public int TryTravelToSceneEntryCallCount { get; private set; }
+            public int TryMoveRuntimePlayerToLoadedEntryPointCallCount { get; private set; }
+            public string LastSceneName { get; private set; } = string.Empty;
+            public string LastScenePath { get; private set; } = string.Empty;
+            public string LastEntryPointId { get; private set; } = string.Empty;
+
+            public bool TryTravelToSceneEntry(string sceneName, string entryPointId)
+            {
+                TryTravelToSceneEntryCallCount++;
+                LastSceneName = sceneName;
+                LastEntryPointId = entryPointId;
+                return true;
+            }
+
+            public bool TryMoveRuntimePlayerToLoadedEntryPoint(string scenePath, string entryPointId)
+            {
+                TryMoveRuntimePlayerToLoadedEntryPointCallCount++;
+                LastScenePath = scenePath;
+                LastEntryPointId = entryPointId;
+                return true;
             }
         }
     }
