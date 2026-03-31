@@ -416,7 +416,7 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
-        public void RebuildScenePopulation_CopsGainHostileShooter_WhileOtherPoolsDoNot()
+        public void RebuildScenePopulation_WhenPoliceSpawned_BootstrapsGlobalDispatchCoordinator()
         {
             var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
             var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
@@ -468,17 +468,31 @@ namespace Reloader.NPCs.Tests.EditMode
 
                 var shooterType = System.Type.GetType("Reloader.NPCs.Combat.PoliceHostileShooter, Reloader.NPCs", throwOnError: false);
                 var responderMoverType = System.Type.GetType("Reloader.NPCs.Combat.PoliceResponderMover, Reloader.NPCs", throwOnError: false);
+                var coordinatorType = System.Type.GetType("Reloader.NPCs.Combat.PoliceDispatchCoordinator, Reloader.NPCs", throwOnError: false);
                 Assert.That(shooterType, Is.Not.Null, "Expected a police hostile shooter component type for spawned cops.");
                 Assert.That(responderMoverType, Is.Not.Null, "Expected a police responder mover component type for spawned cops.");
+                Assert.That(coordinatorType, Is.Not.Null, "Expected a police dispatch coordinator component type for spawned cops.");
 
                 var spawned = bridgeGo.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
                 var police = spawned.Single(component => component.PoolId == "cops");
                 var townsfolk = spawned.Single(component => component.PoolId == "townsfolk");
+                var policeShooter = police.GetComponent(shooterType!);
+                var policeResponderMover = police.GetComponent(responderMoverType!);
 
-                Assert.That(police.GetComponent(shooterType!), Is.Not.Null,
+                Assert.That(bridgeGo.GetComponents(coordinatorType!).Length, Is.EqualTo(1),
+                    "Expected the population bridge to bootstrap the global police dispatch coordinator at runtime.");
+                Assert.That(police.GetComponent(coordinatorType!), Is.Null,
+                    "Expected the coordinator to stay global rather than attaching to spawned police actors.");
+                Assert.That(townsfolk.GetComponent(coordinatorType!), Is.Null,
+                    "Expected non-police civilians to remain unaffected by the police bootstrap path.");
+                Assert.That(policeShooter, Is.Not.Null,
                     "Expected spawned police civilians to receive the hostile shooter runtime slice.");
-                Assert.That(police.GetComponent(responderMoverType!), Is.Not.Null,
+                Assert.That(policeResponderMover, Is.Not.Null,
                     "Expected spawned police civilians to receive the responder motor runtime slice.");
+                Assert.That(((Behaviour)policeShooter!).enabled, Is.False,
+                    "Expected spawned police shooters to start disabled until the dispatch coordinator stages them.");
+                Assert.That(((Behaviour)policeResponderMover!).enabled, Is.False,
+                    "Expected spawned police responders to start disabled until the dispatch coordinator stages them.");
                 Assert.That(townsfolk.GetComponent(shooterType!), Is.Null,
                     "Expected non-police civilians to stay outside the hostile shooter slice.");
                 Assert.That(townsfolk.GetComponent(responderMoverType!), Is.Null,

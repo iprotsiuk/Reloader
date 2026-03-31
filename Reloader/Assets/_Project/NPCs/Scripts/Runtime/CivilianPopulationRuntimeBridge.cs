@@ -619,12 +619,36 @@ namespace Reloader.NPCs.Runtime
             return civilian;
         }
 
-        private static void InitializeSpawnedCivilian(GameObject civilian, CivilianPopulationRecord record)
+        private void InitializeSpawnedCivilian(GameObject civilian, CivilianPopulationRecord record)
         {
             var metadata = EnsureCivilianActorComponents(civilian);
             metadata.Initialize(record);
             ConfigurePoliceShooter(civilian, record, metadata);
             ConfigurePoliceResponderMover(civilian, record);
+            EnsurePoliceDispatchCoordinator(record);
+        }
+
+        private void EnsurePoliceDispatchCoordinator(CivilianPopulationRecord record)
+        {
+            if (record == null
+                || !record.IsAlive
+                || !string.Equals(record.PoolId, "cops", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            var coordinator = GetComponent<PoliceDispatchCoordinator>();
+            if (coordinator == null)
+            {
+                coordinator = FindFirstObjectByType<PoliceDispatchCoordinator>(FindObjectsInactive.Include);
+            }
+
+            if (coordinator == null)
+            {
+                coordinator = gameObject.AddComponent<PoliceDispatchCoordinator>();
+            }
+
+            coordinator.enabled = true;
         }
 
         private static MainTownPopulationSpawnedCivilian EnsureCivilianActorComponents(GameObject civilian)
@@ -717,6 +741,7 @@ namespace Reloader.NPCs.Runtime
             }
 
             shooter.ConfigureRuntimeOrigin(metadata != null ? metadata.ResolveDialogueFocusTarget() : civilian.transform);
+            shooter.enabled = false;
         }
 
         private static void ConfigurePoliceResponderMover(GameObject civilian, CivilianPopulationRecord record)
@@ -751,8 +776,10 @@ namespace Reloader.NPCs.Runtime
 
             if (responderMover == null)
             {
-                civilian.AddComponent<PoliceResponderMover>();
+                responderMover = civilian.AddComponent<PoliceResponderMover>();
             }
+
+            responderMover.enabled = false;
         }
 
         private static void ConfigureContractTargetIfEligible(GameObject civilian, CivilianPopulationRecord record)
