@@ -467,7 +467,9 @@ namespace Reloader.NPCs.Tests.EditMode
                 bridge.RebuildScenePopulation();
 
                 var shooterType = System.Type.GetType("Reloader.NPCs.Combat.PoliceHostileShooter, Reloader.NPCs", throwOnError: false);
+                var responderMoverType = System.Type.GetType("Reloader.NPCs.Combat.PoliceResponderMover, Reloader.NPCs", throwOnError: false);
                 Assert.That(shooterType, Is.Not.Null, "Expected a police hostile shooter component type for spawned cops.");
+                Assert.That(responderMoverType, Is.Not.Null, "Expected a police responder mover component type for spawned cops.");
 
                 var spawned = bridgeGo.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
                 var police = spawned.Single(component => component.PoolId == "cops");
@@ -475,8 +477,12 @@ namespace Reloader.NPCs.Tests.EditMode
 
                 Assert.That(police.GetComponent(shooterType!), Is.Not.Null,
                     "Expected spawned police civilians to receive the hostile shooter runtime slice.");
+                Assert.That(police.GetComponent(responderMoverType!), Is.Not.Null,
+                    "Expected spawned police civilians to receive the responder motor runtime slice.");
                 Assert.That(townsfolk.GetComponent(shooterType!), Is.Null,
                     "Expected non-police civilians to stay outside the hostile shooter slice.");
+                Assert.That(townsfolk.GetComponent(responderMoverType!), Is.Null,
+                    "Expected non-police civilians to stay outside the responder motor runtime slice.");
             }
             finally
             {

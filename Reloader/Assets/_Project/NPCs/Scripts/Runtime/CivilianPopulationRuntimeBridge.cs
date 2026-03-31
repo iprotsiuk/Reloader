@@ -624,6 +624,7 @@ namespace Reloader.NPCs.Runtime
             var metadata = EnsureCivilianActorComponents(civilian);
             metadata.Initialize(record);
             ConfigurePoliceShooter(civilian, record, metadata);
+            ConfigurePoliceResponderMover(civilian, record);
         }
 
         private static MainTownPopulationSpawnedCivilian EnsureCivilianActorComponents(GameObject civilian)
@@ -716,6 +717,42 @@ namespace Reloader.NPCs.Runtime
             }
 
             shooter.ConfigureRuntimeOrigin(metadata != null ? metadata.ResolveDialogueFocusTarget() : civilian.transform);
+        }
+
+        private static void ConfigurePoliceResponderMover(GameObject civilian, CivilianPopulationRecord record)
+        {
+            if (civilian == null)
+            {
+                return;
+            }
+
+            var responderMover = civilian.GetComponent<PoliceResponderMover>();
+            var shouldArmPolice = record != null
+                                  && string.Equals(record.PoolId, "cops", StringComparison.Ordinal)
+                                  && record.IsAlive;
+            if (!shouldArmPolice)
+            {
+                if (responderMover == null)
+                {
+                    return;
+                }
+
+                if (Application.isPlaying)
+                {
+                    Destroy(responderMover);
+                }
+                else
+                {
+                    DestroyImmediate(responderMover);
+                }
+
+                return;
+            }
+
+            if (responderMover == null)
+            {
+                civilian.AddComponent<PoliceResponderMover>();
+            }
         }
 
         private static void ConfigureContractTargetIfEligible(GameObject civilian, CivilianPopulationRecord record)
