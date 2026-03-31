@@ -130,6 +130,49 @@ namespace Reloader.NPCs.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator DuringSearch_WithDistinctDispatchSlots_SpreadsRespondersAcrossDifferentOrbitSides()
+        {
+            var moverType = ResolveMoverType();
+
+            GameObject leftPoliceRoot = null;
+            GameObject rightPoliceRoot = null;
+
+            try
+            {
+                var searchCenter = new Vector3(0f, 1f, 3f);
+
+                leftPoliceRoot = new GameObject("PoliceResponderLeft");
+                leftPoliceRoot.transform.position = new Vector3(-2f, 1f, 0f);
+
+                rightPoliceRoot = new GameObject("PoliceResponderRight");
+                rightPoliceRoot.transform.position = new Vector3(2f, 1f, 0f);
+
+                var leftMover = leftPoliceRoot.AddComponent(moverType);
+                var rightMover = rightPoliceRoot.AddComponent(moverType);
+                ConfigureMoverForTests(leftMover, moveSpeedMetersPerSecond: 6f, searchRadiusMeters: 1.25f, searchOrbitDegreesPerSecond: 0f);
+                ConfigureMoverForTests(rightMover, moveSpeedMetersPerSecond: 6f, searchRadiusMeters: 1.25f, searchOrbitDegreesPerSecond: 0f);
+                InvokeVoid(leftMover, "ConfigureDispatchSearchSlot", 0, 2);
+                InvokeVoid(rightMover, "ConfigureDispatchSearchSlot", 1, 2);
+                ConfigureSearchStateForTests(leftMover, searchCenter);
+                ConfigureSearchStateForTests(rightMover, searchCenter);
+
+                yield return new WaitForSecondsRealtime(1.1f);
+
+                Assert.That(leftPoliceRoot.transform.position.x, Is.GreaterThan(0.35f),
+                    "Expected slot 0 to settle on the positive-x side of the shared search orbit.");
+                Assert.That(rightPoliceRoot.transform.position.x, Is.LessThan(-0.35f),
+                    "Expected slot 1 to settle on the negative-x side of the shared search orbit.");
+                Assert.That(Vector3.Distance(leftPoliceRoot.transform.position, searchCenter), Is.LessThan(2.5f));
+                Assert.That(Vector3.Distance(rightPoliceRoot.transform.position, searchCenter), Is.LessThan(2.5f));
+            }
+            finally
+            {
+                DestroyImmediateIfNeeded(rightPoliceRoot);
+                DestroyImmediateIfNeeded(leftPoliceRoot);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator OnEnable_AfterHeatRestore_SamplesCurrentStateWithoutWaitingForNewHeatEvent()
         {
             var moverType = ResolveMoverType();
@@ -191,6 +234,22 @@ namespace Reloader.NPCs.Tests.PlayMode
             SetField(mover, "_searchOrbitDegreesPerSecond", searchOrbitDegreesPerSecond);
         }
 
+        private static void ConfigureSearchStateForTests(object mover, Vector3 lastKnownPlayerPosition)
+        {
+            SetField(mover, "_currentHeatState", new PoliceHeatState(PoliceHeatLevel.Search, CrimeType.Murder, 8f, false, 1, true));
+            SetField(mover, "_lastKnownPlayerPosition", lastKnownPlayerPosition);
+            SetField(mover, "_hasLastKnownPlayerPosition", true);
+        }
+
+        private static void InvokeVoid(object instance, string methodName, params object[] arguments)
+        {
+            var method = instance.GetType().GetMethod(
+                methodName,
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, $"Expected {instance.GetType().Name}.{methodName} to exist.");
+            method!.Invoke(instance, arguments);
+        }
+
         private static void ForceSearchState(StaticContractRuntimeProvider provider)
         {
             var runtimeField = typeof(StaticContractRuntimeProvider).GetField("_runtime", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -233,7 +292,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                 return;
             }
 
-            UnityEngine.Object.Destroy(instance);
+            UnityEngine.Object.DestroyImmediate(instance);
         }
     }
 }

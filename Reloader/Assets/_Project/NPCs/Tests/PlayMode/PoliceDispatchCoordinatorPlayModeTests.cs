@@ -140,6 +140,12 @@ namespace Reloader.NPCs.Tests.PlayMode
                 AssertResponderEnabled(copNearRoot, expectedEnabled: false);
                 AssertResponderEnabled(copMidRoot, expectedEnabled: false);
                 AssertResponderEnabled(copFarRoot, expectedEnabled: false);
+                Assert.That(ReadDispatchSearchSlotIndex(copNearRoot.GetComponent<PoliceResponderMover>()), Is.EqualTo(-1));
+                Assert.That(ReadDispatchSearchSlotCount(copNearRoot.GetComponent<PoliceResponderMover>()), Is.EqualTo(0));
+                Assert.That(ReadDispatchSearchSlotIndex(copMidRoot.GetComponent<PoliceResponderMover>()), Is.EqualTo(-1));
+                Assert.That(ReadDispatchSearchSlotCount(copMidRoot.GetComponent<PoliceResponderMover>()), Is.EqualTo(0));
+                Assert.That(ReadDispatchSearchSlotIndex(copFarRoot.GetComponent<PoliceResponderMover>()), Is.EqualTo(-1));
+                Assert.That(ReadDispatchSearchSlotCount(copFarRoot.GetComponent<PoliceResponderMover>()), Is.EqualTo(0));
             }
             finally
             {
@@ -275,13 +281,77 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
         }
 
-        private static GameObject CreatePoliceResponder(Vector3 position)
+        [UnityTest]
+        public IEnumerator Search_AssignsDistinctStableSearchSlotsToSelectedResponders()
+        {
+            GameObject providerGo = null;
+            GameObject playerRoot = null;
+            GameObject coordinatorRoot = null;
+            GameObject copNearRoot = null;
+            GameObject copMidRoot = null;
+            GameObject copFarRoot = null;
+
+            try
+            {
+                providerGo = new GameObject("ContractProvider");
+                var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+                playerRoot = CreatePlayerRoot(new Vector3(0f, 1f, 10f));
+
+                yield return null;
+
+                Assert.That(provider.TryHandleDialogueAction("police.stop.leave", string.Empty), Is.True);
+
+                copNearRoot = CreatePoliceResponder(new Vector3(0f, 1f, 0f));
+                copMidRoot = CreatePoliceResponder(new Vector3(0f, 1f, 3f));
+                copFarRoot = CreatePoliceResponder(new Vector3(0f, 1f, 6f));
+
+                var coordinator = GetOrCreateCoordinator(out coordinatorRoot);
+                ConfigureCoordinator(
+                    coordinator,
+                    maxActiveDispatchCount: 2,
+                    dispatchReassignmentHoldSeconds: 0f,
+                    dispatchReplacementDistanceThresholdMeters: 0f);
+
+                yield return null;
+
+                ForceSearchState(provider);
+                playerRoot.transform.position = new Vector3(25f, 1f, 25f);
+                yield return null;
+
+                var midMover = copMidRoot.GetComponent<PoliceResponderMover>();
+                var farMover = copFarRoot.GetComponent<PoliceResponderMover>();
+                var nearMover = copNearRoot.GetComponent<PoliceResponderMover>();
+                var midSlotIndex = ReadDispatchSearchSlotIndex(midMover);
+                var farSlotIndex = ReadDispatchSearchSlotIndex(farMover);
+
+                Assert.That(ReadDispatchSearchSlotCount(midMover), Is.EqualTo(2));
+                Assert.That(ReadDispatchSearchSlotCount(farMover), Is.EqualTo(2));
+                Assert.That(midSlotIndex, Is.Not.EqualTo(farSlotIndex));
+                Assert.That(ReadDispatchSearchSlotIndex(nearMover), Is.EqualTo(-1));
+
+                yield return null;
+
+                Assert.That(ReadDispatchSearchSlotIndex(midMover), Is.EqualTo(midSlotIndex));
+                Assert.That(ReadDispatchSearchSlotIndex(farMover), Is.EqualTo(farSlotIndex));
+            }
+            finally
+            {
+                DestroyImmediateIfNeeded(coordinatorRoot);
+                DestroyImmediateIfNeeded(copFarRoot);
+                DestroyImmediateIfNeeded(copMidRoot);
+                DestroyImmediateIfNeeded(copNearRoot);
+                DestroyImmediateIfNeeded(playerRoot);
+                DestroyImmediateIfNeeded(providerGo);
+            }
+        }
+
+        private static GameObject CreatePoliceResponder(Vector3 position, float moveSpeedMetersPerSecond = 0f)
         {
             var responderRoot = new GameObject($"PoliceResponder_{position.z:0}");
             responderRoot.transform.position = position;
 
             var mover = responderRoot.AddComponent<PoliceResponderMover>();
-            ConfigureMoverForTests(mover, moveSpeedMetersPerSecond: 0f, searchRadiusMeters: 1.25f, searchOrbitDegreesPerSecond: 180f);
+            ConfigureMoverForTests(mover, moveSpeedMetersPerSecond: moveSpeedMetersPerSecond, searchRadiusMeters: 1.25f, searchOrbitDegreesPerSecond: 180f);
 
             var shooter = responderRoot.AddComponent<PoliceHostileShooter>();
             InvokeVoid(shooter, "SetHostileOverrideForTests", true);
@@ -396,6 +466,23 @@ namespace Reloader.NPCs.Tests.PlayMode
             var field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {instance.GetType().Name}.");
             field!.SetValue(instance, value);
+        }
+
+        private static int ReadDispatchSearchSlotIndex(PoliceResponderMover mover)
+        {
+            return (int)ReadField(mover, "_dispatchSearchSlotIndex");
+        }
+
+        private static int ReadDispatchSearchSlotCount(PoliceResponderMover mover)
+        {
+            return (int)ReadField(mover, "_dispatchSearchSlotCount");
+        }
+
+        private static object ReadField(object instance, string fieldName)
+        {
+            var field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {instance.GetType().Name}.");
+            return field!.GetValue(instance);
         }
 
         private static void DestroyImmediateIfNeeded(UnityEngine.Object instance)

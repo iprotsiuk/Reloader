@@ -17,6 +17,7 @@ namespace Reloader.NPCs.Combat
 
         private readonly Dictionary<Transform, DispatchEntry> _dispatchEntries = new Dictionary<Transform, DispatchEntry>();
         private readonly List<DispatchEntry> _sortedDispatchEntries = new List<DispatchEntry>();
+        private readonly List<DispatchEntry> _selectedDispatchEntries = new List<DispatchEntry>();
         private readonly List<Transform> _staleDispatchRoots = new List<Transform>();
         private ILawEnforcementEvents _subscribedLawEnforcementEvents;
         private PoliceHeatState _currentHeatState;
@@ -229,9 +230,34 @@ namespace Reloader.NPCs.Combat
             }
 
             var enabledCount = 0;
+            _selectedDispatchEntries.Clear();
             for (var i = 0; i < _sortedDispatchEntries.Count; i++)
             {
                 var entry = _sortedDispatchEntries[i];
+                if (entry.IsSelected && entry.Mover != null)
+                {
+                    _selectedDispatchEntries.Add(entry);
+                }
+            }
+
+            _selectedDispatchEntries.Sort(CompareSearchAssignmentEntries);
+            for (var i = 0; i < _selectedDispatchEntries.Count; i++)
+            {
+                var mover = _selectedDispatchEntries[i].Mover;
+                if (mover != null)
+                {
+                    mover.ConfigureDispatchSearchSlot(i, _selectedDispatchEntries.Count);
+                }
+            }
+
+            for (var i = 0; i < _sortedDispatchEntries.Count; i++)
+            {
+                var entry = _sortedDispatchEntries[i];
+                if (!entry.IsSelected && entry.Mover != null)
+                {
+                    entry.Mover.ClearDispatchSearchSlot();
+                }
+
                 SetDispatchEntryEnabled(entry, entry.IsSelected);
                 if (entry.IsSelected)
                 {
@@ -329,6 +355,10 @@ namespace Reloader.NPCs.Combat
                 if (!isEnabled)
                 {
                     entry.ResetSelection();
+                    if (entry.Mover != null)
+                    {
+                        entry.Mover.ClearDispatchSearchSlot();
+                    }
                 }
 
                 SetDispatchEntryEnabled(entry, isEnabled);
@@ -459,6 +489,11 @@ namespace Reloader.NPCs.Combat
                 return distanceComparison;
             }
 
+            return left.Root.GetInstanceID().CompareTo(right.Root.GetInstanceID());
+        }
+
+        private static int CompareSearchAssignmentEntries(DispatchEntry left, DispatchEntry right)
+        {
             return left.Root.GetInstanceID().CompareTo(right.Root.GetInstanceID());
         }
 

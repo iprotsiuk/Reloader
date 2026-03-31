@@ -19,8 +19,11 @@ namespace Reloader.NPCs.Combat
         private PoliceHeatState _currentHeatState;
         private Vector3 _lastKnownPlayerPosition;
         private bool _hasLastKnownPlayerPosition;
-        private float _searchAngleDegrees;
+        private float _searchOrbitPhaseDegrees;
+        private float _fallbackSearchAnchorAngleDegrees;
         private bool _searchAngleInitialized;
+        private int _dispatchSearchSlotIndex = -1;
+        private int _dispatchSearchSlotCount;
 
         private void OnEnable()
         {
@@ -144,23 +147,40 @@ namespace Reloader.NPCs.Combat
             }
 
             var searchCenter = new Vector3(_lastKnownPlayerPosition.x, transform.position.y, _lastKnownPlayerPosition.z);
-            var planarDistanceToCenter = PlanarDistance(transform.position, searchCenter);
             var radius = Mathf.Max(0f, _searchRadiusMeters);
             var threshold = Mathf.Max(0.01f, _arrivalThresholdMeters);
+            var searchDestination = ResolveSearchDestination(searchCenter, radius);
+            var planarDistanceToDestination = PlanarDistance(transform.position, searchDestination);
 
-            if (planarDistanceToCenter > Mathf.Max(radius, threshold))
+            if (planarDistanceToDestination > threshold)
             {
-                MoveTowardsPlanar(searchCenter);
+                MoveTowardsPlanar(searchDestination);
                 return;
             }
 
-            _searchAngleDegrees = Mathf.Repeat(
-                _searchAngleDegrees + Mathf.Max(0f, _searchOrbitDegreesPerSecond) * Time.deltaTime,
+            _searchOrbitPhaseDegrees = Mathf.Repeat(
+                _searchOrbitPhaseDegrees + Mathf.Max(0f, _searchOrbitDegreesPerSecond) * Time.deltaTime,
                 360f);
 
-            var radians = _searchAngleDegrees * Mathf.Deg2Rad;
-            var orbitOffset = new Vector3(Mathf.Cos(radians), 0f, Mathf.Sin(radians)) * radius;
-            MoveTowardsPlanar(searchCenter + orbitOffset);
+            MoveTowardsPlanar(ResolveSearchDestination(searchCenter, radius));
+        }
+
+        public void ConfigureDispatchSearchSlot(int slotIndex, int slotCount)
+        {
+            _dispatchSearchSlotCount = Mathf.Max(0, slotCount);
+            if (_dispatchSearchSlotCount <= 1)
+            {
+                _dispatchSearchSlotIndex = -1;
+                return;
+            }
+
+            _dispatchSearchSlotIndex = Mathf.Clamp(slotIndex, 0, _dispatchSearchSlotCount - 1);
+        }
+
+        public void ClearDispatchSearchSlot()
+        {
+            _dispatchSearchSlotIndex = -1;
+            _dispatchSearchSlotCount = 0;
         }
 
         private void MoveTowardsPlanar(Vector3 destination)
@@ -220,8 +240,27 @@ namespace Reloader.NPCs.Combat
                 return;
             }
 
-            _searchAngleDegrees = ComputeInitialSearchAngleDegrees(gameObject.name);
+            _fallbackSearchAnchorAngleDegrees = ComputeInitialSearchAngleDegrees(gameObject.name);
+            _searchOrbitPhaseDegrees = 0f;
             _searchAngleInitialized = true;
+        }
+
+        private float ResolveSearchAnchorAngleDegrees()
+        {
+            if (_dispatchSearchSlotIndex < 0 || _dispatchSearchSlotCount <= 1)
+            {
+                return _fallbackSearchAnchorAngleDegrees;
+            }
+
+            return (360f * _dispatchSearchSlotIndex) / _dispatchSearchSlotCount;
+        }
+
+        private Vector3 ResolveSearchDestination(Vector3 searchCenter, float radius)
+        {
+            var orbitAngleDegrees = ResolveSearchAnchorAngleDegrees() + _searchOrbitPhaseDegrees;
+            var radians = orbitAngleDegrees * Mathf.Deg2Rad;
+            var orbitOffset = new Vector3(Mathf.Cos(radians), 0f, Mathf.Sin(radians)) * radius;
+            return searchCenter + orbitOffset;
         }
 
         private static float ComputeInitialSearchAngleDegrees(string stableKey)
