@@ -400,9 +400,6 @@ namespace Reloader.Player
                 _inventoryRuntime = ResolveInventoryRuntimeFromPlayerRoot(_playerRootTransform);
             }
 
-            ClearCarriedInventory();
-            SetRecoveryState(recoveryReasonId, MainTownScenePath, recoveryAnchorId);
-
             var currentScenePath = ResolveLiveScenePath(_playerRootTransform);
             if (string.IsNullOrWhiteSpace(currentScenePath))
             {
@@ -423,6 +420,8 @@ namespace Reloader.Player
 
             if (recoveryApplied)
             {
+                ClearCarriedInventory();
+                SetRecoveryState(recoveryReasonId, MainTownScenePath, recoveryAnchorId);
                 ResetSharedHumanoidHealth();
                 SetCurrentAnchorState(MainTownScenePath, recoveryAnchorId);
             }

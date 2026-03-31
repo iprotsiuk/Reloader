@@ -193,6 +193,7 @@ namespace Reloader.Core.Runtime
                 state.WantedLevel,
                 state.IsPlayerIdentified,
                 _identificationProgressSeconds);
+            _lawEnforcementEvents?.RaiseHeatChanged(CurrentState);
         }
 
         private void SetState(

@@ -1,4 +1,5 @@
 using Reloader.Core;
+using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using UnityEngine;
 
@@ -84,6 +85,8 @@ namespace Reloader.Contracts.Runtime
         {
             return EnsureRuntime().CanPublishAvailableContract();
         }
+
+        public PoliceHeatState CurrentHeatState => EnsureRuntime().CurrentHeatState;
 
         public void SetAvailableContract(AssassinationContractDefinition availableContract)
         {

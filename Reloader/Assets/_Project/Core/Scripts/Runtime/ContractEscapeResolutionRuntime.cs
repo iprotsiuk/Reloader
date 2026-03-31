@@ -478,6 +478,14 @@ namespace Reloader.Contracts.Runtime
 
         private bool ApplyRecoveryConsequences(bool isDeath)
         {
+            var recoveryApplied = isDeath
+                ? _playerRecoveryService?.TryApplyDeathRecovery() ?? true
+                : _playerRecoveryService?.TryApplyArrestRecovery() ?? true;
+            if (!recoveryApplied)
+            {
+                return false;
+            }
+
             ResetPendingResolution();
             ClearFailedContractState();
             if (_contractController.ActiveContract != null)
@@ -486,9 +494,7 @@ namespace Reloader.Contracts.Runtime
             }
 
             _policeHeatRuntime.ForceClear();
-            return isDeath
-                ? _playerRecoveryService?.TryApplyDeathRecovery() ?? true
-                : _playerRecoveryService?.TryApplyArrestRecovery() ?? true;
+            return true;
         }
     }
 }

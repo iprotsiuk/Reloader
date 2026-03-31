@@ -523,6 +523,52 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void TryHandleDialogueAction_PoliceStopComply_WhenRecoveryFails_LeavesContractPayoutSnapshotAndHeatIntact()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            var payoutReceiver = new RecordingPayoutReceiver();
+            var recoveryService = new RecordingPlayerRecoveryService
+            {
+                ArrestResult = false
+            };
+            var runtime = new ContractEscapeResolutionRuntime(
+                availableContract: contract,
+                searchDurationSeconds: 10f,
+                payoutReceiver: payoutReceiver,
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents,
+                playerRecoveryService: recoveryService);
+
+            try
+            {
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+                Assert.That(runtime.ReportTargetEliminated("target.alpha", wasExposed: false), Is.True);
+                Assert.That(runtime.TryHandleDialogueAction("police.stop.leave", string.Empty), Is.True);
+                Assert.That(runtime.HasPendingPayout, Is.True);
+                Assert.That(runtime.ActiveContract, Is.Not.Null);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.ActivePursuit));
+                Assert.That(runtime.TryGetSnapshot(out var beforeSnapshot), Is.True);
+                Assert.That(beforeSnapshot.HasActiveContract, Is.True);
+
+                var handled = runtime.TryHandleDialogueAction("police.stop.comply", string.Empty);
+
+                Assert.That(handled, Is.False);
+                Assert.That(recoveryService.ArrestCallCount, Is.EqualTo(1));
+                Assert.That(recoveryService.DeathCallCount, Is.EqualTo(0));
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.ActivePursuit));
+                Assert.That(runtime.ActiveContract, Is.Not.Null);
+                Assert.That(runtime.HasPendingPayout, Is.True);
+                Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(0));
+                Assert.That(runtime.TryGetSnapshot(out var afterSnapshot), Is.True);
+                Assert.That(afterSnapshot.HasActiveContract, Is.True);
+                Assert.That(afterSnapshot.StatusText, Does.StartWith("Escape search:"));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+            }
+        }
+
+        [Test]
         public void HandlePlayerDeath_ClearsPendingPayoutAndRequestsHospitalRecovery()
         {
             var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
@@ -553,6 +599,52 @@ namespace Reloader.Core.Tests.EditMode
                 Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(0));
                 Assert.That(runtime.TryGetSnapshot(out _), Is.False,
                     "Death should clear the accepted contract state instead of leaving a stale claimable reward behind.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(contract);
+            }
+        }
+
+        [Test]
+        public void HandlePlayerDeath_WhenRecoveryFails_LeavesContractPayoutSnapshotAndHeatIntact()
+        {
+            var contract = CreateDefinition("contract.alpha", "target.alpha", 420f, 1500);
+            var payoutReceiver = new RecordingPayoutReceiver();
+            var recoveryService = new RecordingPlayerRecoveryService
+            {
+                DeathResult = false
+            };
+            var runtime = new ContractEscapeResolutionRuntime(
+                availableContract: contract,
+                searchDurationSeconds: 10f,
+                payoutReceiver: payoutReceiver,
+                lawEnforcementEvents: RuntimeKernelBootstrapper.LawEnforcementEvents,
+                playerRecoveryService: recoveryService);
+
+            try
+            {
+                Assert.That(runtime.AcceptAvailableContract(), Is.True);
+                Assert.That(runtime.ReportTargetEliminated("target.alpha", wasExposed: false), Is.True);
+                Assert.That(runtime.TryHandleDialogueAction("police.stop.leave", string.Empty), Is.True);
+                Assert.That(runtime.HasPendingPayout, Is.True);
+                Assert.That(runtime.ActiveContract, Is.Not.Null);
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.ActivePursuit));
+                Assert.That(runtime.TryGetSnapshot(out var beforeSnapshot), Is.True);
+                Assert.That(beforeSnapshot.HasActiveContract, Is.True);
+
+                var handled = runtime.HandlePlayerDeath();
+
+                Assert.That(handled, Is.False);
+                Assert.That(recoveryService.ArrestCallCount, Is.EqualTo(0));
+                Assert.That(recoveryService.DeathCallCount, Is.EqualTo(1));
+                Assert.That(runtime.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.ActivePursuit));
+                Assert.That(runtime.ActiveContract, Is.Not.Null);
+                Assert.That(runtime.HasPendingPayout, Is.True);
+                Assert.That(payoutReceiver.TotalAwarded, Is.EqualTo(0));
+                Assert.That(runtime.TryGetSnapshot(out var afterSnapshot), Is.True);
+                Assert.That(afterSnapshot.HasActiveContract, Is.True);
+                Assert.That(afterSnapshot.StatusText, Does.StartWith("Escape search:"));
             }
             finally
             {
@@ -648,19 +740,21 @@ namespace Reloader.Core.Tests.EditMode
 
         private sealed class RecordingPlayerRecoveryService : IPlayerRecoveryService
         {
+            public bool ArrestResult { get; set; } = true;
+            public bool DeathResult { get; set; } = true;
             public int ArrestCallCount { get; private set; }
             public int DeathCallCount { get; private set; }
 
             public bool TryApplyArrestRecovery()
             {
                 ArrestCallCount++;
-                return true;
+                return ArrestResult;
             }
 
             public bool TryApplyDeathRecovery()
             {
                 DeathCallCount++;
-                return true;
+                return DeathResult;
             }
         }
     }

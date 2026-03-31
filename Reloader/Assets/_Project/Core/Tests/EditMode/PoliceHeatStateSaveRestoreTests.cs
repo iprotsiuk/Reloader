@@ -55,6 +55,27 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(restoredRuntime.CurrentState.HasLineOfSightToPlayer, Is.True);
         }
 
+        [Test]
+        public void PoliceHeatRuntime_RestoreState_RaisesHeatChangedForRestoredState()
+        {
+            var events = new DefaultRuntimeEvents();
+            var runtime = new PoliceHeatRuntime(searchDurationSeconds: 45f, lawEnforcementEvents: events, identificationDurationSeconds: 3f);
+            var eventRaised = false;
+            var receivedState = default(PoliceHeatState);
+            events.OnHeatChanged += state =>
+            {
+                eventRaised = true;
+                receivedState = state;
+            };
+
+            InvokeRestoreState(runtime, new PoliceHeatState(PoliceHeatLevel.ActivePursuit, CrimeType.Fleeing, 20f, true, 2, true));
+
+            Assert.That(eventRaised, Is.True);
+            Assert.That(receivedState.Level, Is.EqualTo(PoliceHeatLevel.ActivePursuit));
+            Assert.That(receivedState.IsPlayerIdentified, Is.True);
+            Assert.That(receivedState.WantedLevel, Is.EqualTo(2));
+        }
+
         private static void InvokeRestoreState(PoliceHeatRuntime runtime, PoliceHeatState state)
         {
             var restoreMethod = typeof(PoliceHeatRuntime).GetMethod(

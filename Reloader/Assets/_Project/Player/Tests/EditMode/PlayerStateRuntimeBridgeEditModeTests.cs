@@ -197,6 +197,46 @@ namespace Reloader.Player.Tests.EditMode
         }
 
         [Test]
+        public void TryApplyArrestRecovery_WhenTravelFails_DoesNotMutateInventoryRecoveryMetadataOrAnchorState()
+        {
+            var bridgeType = ResolveBridgeType();
+            var sharedReceiverType = ResolveSharedReceiverType();
+            var root = new GameObject("PlayerRoot");
+            var bridge = root.AddComponent(bridgeType);
+            var sharedReceiver = root.AddComponent(sharedReceiverType);
+            var inventoryRuntime = new InventoryRuntimeProbe { SelectedBeltIndex = 5 };
+            var travelCoordinator = new RecoveryTravelCoordinatorProbe
+            {
+                TryTravelToSceneEntryResult = false
+            };
+
+            SetSharedReceiverHealthState(sharedReceiver, currentHealth: 3f, maxHealth: 10f);
+            Invoke(bridge, "SetPlayerRootTransformForRuntime", root.transform);
+            Invoke(bridge, "SetInventoryRuntimeForRuntime", inventoryRuntime);
+            Invoke(bridge, "SetRecoveryTravelCoordinatorForRuntime", travelCoordinator);
+            Invoke(bridge, "SetCurrentAnchorState", IndoorRangeScenePath, "entry.indoor.arrival");
+            Invoke(bridge, "SetRecoveryState", "existing", "Assets/_Project/World/Scenes/Other.unity", "entry.other.spawn");
+
+            var applied = Invoke<bool>(bridge, "TryApplyArrestRecovery");
+
+            Assert.That(applied, Is.False);
+            Assert.That(inventoryRuntime.ClearCarriedItemsCallCount, Is.EqualTo(0));
+            Assert.That(inventoryRuntime.SelectedBeltIndex, Is.EqualTo(5));
+            Assert.That(GetProperty<string>(bridge, "CurrentScenePath"), Is.EqualTo(IndoorRangeScenePath));
+            Assert.That(GetProperty<string>(bridge, "CurrentAnchorId"), Is.EqualTo("entry.indoor.arrival"));
+            Assert.That(GetProperty<string>(bridge, "RecoveryReasonId"), Is.EqualTo("existing"));
+            Assert.That(GetProperty<string>(bridge, "RecoveryScenePath"), Is.EqualTo("Assets/_Project/World/Scenes/Other.unity"));
+            Assert.That(GetProperty<string>(bridge, "RecoveryAnchorId"), Is.EqualTo("entry.other.spawn"));
+            Assert.That(travelCoordinator.TryTravelToSceneEntryCallCount, Is.EqualTo(1));
+            Assert.That(travelCoordinator.TryMoveRuntimePlayerToLoadedEntryPointCallCount, Is.EqualTo(0));
+            Assert.That(ReadSharedReceiverHealth(sharedReceiver, "CurrentHealth"), Is.EqualTo(3f));
+            Assert.That(ReadSharedReceiverHealth(sharedReceiver, "MaxHealth"), Is.EqualTo(10f));
+            Assert.That(ReadSharedReceiverIsDead(sharedReceiver), Is.False);
+
+            Object.DestroyImmediate(root);
+        }
+
+        [Test]
         public void CaptureToModule_WhenCurrentAndResolvedAnchorsAreEmpty_ThrowsInsteadOfPersistingInvalidAnchor()
         {
             var bridgeType = ResolveBridgeType();
@@ -364,6 +404,8 @@ namespace Reloader.Player.Tests.EditMode
 
         private sealed class RecoveryTravelCoordinatorProbe : IPlayerRecoveryTravelCoordinator
         {
+            public bool TryTravelToSceneEntryResult { get; set; } = true;
+            public bool TryMoveRuntimePlayerToLoadedEntryPointResult { get; set; } = true;
             public int TryTravelToSceneEntryCallCount { get; private set; }
             public int TryMoveRuntimePlayerToLoadedEntryPointCallCount { get; private set; }
             public string LastSceneName { get; private set; } = string.Empty;
@@ -375,7 +417,7 @@ namespace Reloader.Player.Tests.EditMode
                 TryTravelToSceneEntryCallCount++;
                 LastSceneName = sceneName;
                 LastEntryPointId = entryPointId;
-                return true;
+                return TryTravelToSceneEntryResult;
             }
 
             public bool TryMoveRuntimePlayerToLoadedEntryPoint(string scenePath, string entryPointId)
@@ -383,7 +425,7 @@ namespace Reloader.Player.Tests.EditMode
                 TryMoveRuntimePlayerToLoadedEntryPointCallCount++;
                 LastScenePath = scenePath;
                 LastEntryPointId = entryPointId;
-                return true;
+                return TryMoveRuntimePlayerToLoadedEntryPointResult;
             }
         }
     }

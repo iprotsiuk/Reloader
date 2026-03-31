@@ -48,7 +48,10 @@ namespace Reloader.NPCs.Combat
             }
 
             var provider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
-            provider?.HandlePlayerDeath();
+            if (provider != null && !provider.HandlePlayerDeath())
+            {
+                Debug.LogWarning("Player death recovery was requested, but the recovery pipeline could not complete.", this);
+            }
         }
 
         private void ResolveReferences()

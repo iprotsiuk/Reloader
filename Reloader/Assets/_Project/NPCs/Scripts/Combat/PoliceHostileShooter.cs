@@ -1,4 +1,5 @@
 using System;
+using Reloader.Contracts.Runtime;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.NPCs.Runtime;
@@ -133,6 +134,8 @@ namespace Reloader.NPCs.Combat
             {
                 _subscribedLawEnforcementEvents.OnHeatChanged += HandleHeatChanged;
             }
+
+            RefreshHeatHostilityFromCurrentRuntime();
         }
 
         private void UnsubscribeFromLawEnforcementEvents()
@@ -149,6 +152,24 @@ namespace Reloader.NPCs.Combat
         private bool IsHostile()
         {
             return _hostileOverride ?? (_startHostile || (_syncWithPoliceHeat && _isHeatHostile));
+        }
+
+        private void RefreshHeatHostilityFromCurrentRuntime()
+        {
+            if (!_syncWithPoliceHeat)
+            {
+                _isHeatHostile = false;
+                return;
+            }
+
+            var provider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
+            if (provider == null)
+            {
+                _isHeatHostile = false;
+                return;
+            }
+
+            HandleHeatChanged(provider.CurrentHeatState);
         }
 
         private bool TryResolvePlayerTarget(out Transform playerTarget)
