@@ -12,6 +12,7 @@ namespace Reloader.NPCs.Combat
     public sealed class PoliceDispatchCoordinator : MonoBehaviour
     {
         [SerializeField, Min(1)] private int _maxActiveDispatchCount = 4;
+        [SerializeField, Min(1)] private int _maxSearchDispatchCount = 2;
         [SerializeField, Min(0f)] private float _dispatchReassignmentHoldSeconds = 0.5f;
         [SerializeField, Min(0f)] private float _dispatchReplacementDistanceThresholdMeters = 1f;
         [SerializeField, Min(0f)] private float _dispatchActivationIntervalSeconds = 0.2f;
@@ -182,7 +183,7 @@ namespace Reloader.NPCs.Combat
                 return;
             }
 
-            var activeCount = Mathf.Min(Mathf.Max(1, _maxActiveDispatchCount), _sortedDispatchEntries.Count);
+            var activeCount = ResolveTargetDispatchCount(_sortedDispatchEntries.Count);
             for (var i = 0; i < _sortedDispatchEntries.Count; i++)
             {
                 var entry = _sortedDispatchEntries[i];
@@ -276,6 +277,17 @@ namespace Reloader.NPCs.Combat
             }
 
             _activeResponderCount = enabledCount;
+        }
+
+        private int ResolveTargetDispatchCount(int registeredResponderCount)
+        {
+            var configuredCap = Mathf.Max(1, _maxActiveDispatchCount);
+            if (_currentHeatState.Level == PoliceHeatLevel.Search)
+            {
+                configuredCap = Mathf.Min(configuredCap, Mathf.Max(1, _maxSearchDispatchCount));
+            }
+
+            return Mathf.Min(configuredCap, registeredResponderCount);
         }
 
         private void GatherDispatchEntries()

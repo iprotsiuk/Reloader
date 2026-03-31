@@ -355,6 +355,68 @@ namespace Reloader.NPCs.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Search_UsesReducedDispatchCapComparedToActivePursuit()
+        {
+            GameObject providerGo = null;
+            GameObject playerRoot = null;
+            GameObject coordinatorRoot = null;
+            GameObject copNearRoot = null;
+            GameObject copMidRoot = null;
+            GameObject copFarRoot = null;
+
+            try
+            {
+                providerGo = new GameObject("ContractProvider");
+                var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+                playerRoot = CreatePlayerRoot(new Vector3(0f, 1f, 10f));
+
+                yield return null;
+
+                Assert.That(provider.TryHandleDialogueAction("police.stop.leave", string.Empty), Is.True);
+                Assert.That(provider.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.ActivePursuit));
+
+                copNearRoot = CreatePoliceResponder(new Vector3(0f, 1f, 0f));
+                copMidRoot = CreatePoliceResponder(new Vector3(0f, 1f, 3f));
+                copFarRoot = CreatePoliceResponder(new Vector3(0f, 1f, 6f));
+
+                var coordinator = GetOrCreateCoordinator(out coordinatorRoot);
+                ConfigureCoordinator(
+                    coordinator,
+                    maxActiveDispatchCount: 3,
+                    dispatchReassignmentHoldSeconds: 0f,
+                    dispatchReplacementDistanceThresholdMeters: 0f,
+                    dispatchActivationIntervalSeconds: 0f,
+                    maxSearchDispatchCount: 2);
+
+                yield return null;
+
+                AssertResponderEnabled(copNearRoot, expectedEnabled: true);
+                AssertResponderEnabled(copMidRoot, expectedEnabled: true);
+                AssertResponderEnabled(copFarRoot, expectedEnabled: true);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(3));
+
+                ForceSearchState(provider);
+                playerRoot.transform.position = new Vector3(25f, 1f, 25f);
+                yield return null;
+
+                Assert.That(provider.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+                AssertResponderEnabled(copNearRoot, expectedEnabled: false);
+                AssertResponderEnabled(copMidRoot, expectedEnabled: true);
+                AssertResponderEnabled(copFarRoot, expectedEnabled: true);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(2));
+            }
+            finally
+            {
+                DestroyImmediateIfNeeded(coordinatorRoot);
+                DestroyImmediateIfNeeded(copFarRoot);
+                DestroyImmediateIfNeeded(copMidRoot);
+                DestroyImmediateIfNeeded(copNearRoot);
+                DestroyImmediateIfNeeded(playerRoot);
+                DestroyImmediateIfNeeded(providerGo);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ClearHeat_CancelsPendingDispatchWarmups()
         {
             GameObject providerGo = null;
@@ -568,12 +630,14 @@ namespace Reloader.NPCs.Tests.PlayMode
             int maxActiveDispatchCount,
             float dispatchReassignmentHoldSeconds,
             float dispatchReplacementDistanceThresholdMeters,
-            float dispatchActivationIntervalSeconds)
+            float dispatchActivationIntervalSeconds,
+            int maxSearchDispatchCount = 2)
         {
             SetField(coordinator, "_maxActiveDispatchCount", maxActiveDispatchCount);
             SetField(coordinator, "_dispatchReassignmentHoldSeconds", dispatchReassignmentHoldSeconds);
             SetField(coordinator, "_dispatchReplacementDistanceThresholdMeters", dispatchReplacementDistanceThresholdMeters);
             SetField(coordinator, "_dispatchActivationIntervalSeconds", dispatchActivationIntervalSeconds);
+            SetField(coordinator, "_maxSearchDispatchCount", maxSearchDispatchCount);
         }
 
         private static void ForceSearchState(StaticContractRuntimeProvider provider)
