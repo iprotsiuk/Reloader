@@ -32,22 +32,49 @@ namespace Reloader.UI.Toolkit.CompassHud
 
         private readonly EntryState[] _entries;
         private readonly float _visibleHalfAngleDegrees;
+        private readonly string _policeStatusText;
+        private readonly int _policeResponderCount;
+        private readonly bool _isPoliceStatusVisible;
 
-        private CompassHudUiState(IEnumerable<EntryState> entries, float visibleHalfAngleDegrees, bool isVisible)
+        private CompassHudUiState(
+            IEnumerable<EntryState> entries,
+            float visibleHalfAngleDegrees,
+            bool isVisible,
+            string policeStatusText,
+            int policeResponderCount,
+            bool isPoliceStatusVisible)
             : base(Runtime.UiRuntimeCompositionIds.ScreenIds.CompassHud)
         {
             _entries = entries == null ? Array.Empty<EntryState>() : new List<EntryState>(entries).ToArray();
             _visibleHalfAngleDegrees = Math.Max(1f, visibleHalfAngleDegrees);
+            _policeStatusText = string.IsNullOrWhiteSpace(policeStatusText) ? string.Empty : policeStatusText.Trim();
+            _policeResponderCount = Math.Max(0, policeResponderCount);
+            _isPoliceStatusVisible = isPoliceStatusVisible && !string.IsNullOrWhiteSpace(_policeStatusText);
             IsVisible = isVisible;
         }
 
         public IReadOnlyList<EntryState> Entries => _entries;
         public float VisibleHalfAngleDegrees => _visibleHalfAngleDegrees;
         public bool IsVisible { get; }
+        public string PoliceStatusText => _policeStatusText;
+        public int PoliceResponderCount => _policeResponderCount;
+        public bool IsPoliceStatusVisible => _isPoliceStatusVisible;
 
-        public static CompassHudUiState Create(IEnumerable<EntryState> entries, float visibleHalfAngleDegrees, bool isVisible)
+        public static CompassHudUiState Create(
+            IEnumerable<EntryState> entries,
+            float visibleHalfAngleDegrees,
+            bool isVisible,
+            string policeStatusText = "",
+            int policeResponderCount = 0,
+            bool isPoliceStatusVisible = false)
         {
-            return new CompassHudUiState(entries, visibleHalfAngleDegrees, isVisible);
+            return new CompassHudUiState(
+                entries,
+                visibleHalfAngleDegrees,
+                isVisible,
+                policeStatusText,
+                policeResponderCount,
+                isPoliceStatusVisible);
         }
     }
 }

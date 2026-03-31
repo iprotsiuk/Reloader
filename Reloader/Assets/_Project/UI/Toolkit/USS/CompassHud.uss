@@ -20,6 +20,8 @@
     border-top-right-radius: 10px;
     border-bottom-right-radius: 10px;
     border-bottom-left-radius: 10px;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .compass-hud__frame {
@@ -89,4 +91,53 @@
     width: 2px;
     translate: -50% 0;
     background-color: rgba(255, 255, 255, 0.58);
+}
+
+.compass-hud__police {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 3px;
+    padding-right: 8px;
+    padding-bottom: 3px;
+    padding-left: 8px;
+    background-color: rgba(38, 18, 18, 0.68);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+
+.compass-hud__police-label {
+    color: rgba(255, 217, 217, 0.96);
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    -unity-font-style: bold;
+}
+
+.compass-hud__police-count {
+    min-width: 18px;
+    padding-top: 1px;
+    padding-right: 4px;
+    padding-bottom: 1px;
+    padding-left: 4px;
+    background-color: rgba(255, 217, 217, 0.16);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(255, 217, 217, 0.54);
+    border-right-color: rgba(255, 217, 217, 0.54);
+    border-bottom-color: rgba(255, 217, 217, 0.54);
+    border-left-color: rgba(255, 217, 217, 0.54);
+    border-top-left-radius: 999px;
+    border-top-right-radius: 999px;
+    border-bottom-right-radius: 999px;
+    border-bottom-left-radius: 999px;
+    color: rgba(255, 235, 235, 0.98);
+    font-size: 11px;
+    unity-text-align: middle-center;
+    -unity-font-style: bold;
 }

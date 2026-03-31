@@ -1,3 +1,4 @@
+using System;
 using NUnit.Framework;
 using Reloader.UI.Toolkit.CompassHud;
 using UnityEngine.UIElements;
@@ -120,6 +121,48 @@ namespace Reloader.UI.Tests.EditMode
             Assert.That(root.style.display.value, Is.EqualTo(DisplayStyle.None));
         }
 
+        [Test]
+        public void Render_WhenPoliceStatusVisible_RendersWantedRowAndCount()
+        {
+            var root = BuildRoot();
+            var binder = new CompassHudViewBinder();
+            binder.Initialize(root);
+
+            binder.Render(CompassHudUiState.Create(
+                Array.Empty<CompassHudUiState.EntryState>(),
+                visibleHalfAngleDegrees: 90f,
+                isVisible: true,
+                policeStatusText: "WANTED",
+                policeResponderCount: 3,
+                isPoliceStatusVisible: true));
+
+            var policeRoot = root.Q<VisualElement>("compass-hud__police");
+            var policeLabel = root.Q<Label>("compass-hud__police-label");
+            var policeCount = root.Q<Label>("compass-hud__police-count");
+
+            Assert.That(policeRoot, Is.Not.Null);
+            Assert.That(policeRoot.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(policeLabel.text, Is.EqualTo("WANTED"));
+            Assert.That(policeCount.text, Is.EqualTo("3"));
+        }
+
+        [Test]
+        public void Render_WhenPoliceStatusHidden_CollapsesPoliceRow()
+        {
+            var root = BuildRoot();
+            var binder = new CompassHudViewBinder();
+            binder.Initialize(root);
+
+            binder.Render(CompassHudUiState.Create(
+                Array.Empty<CompassHudUiState.EntryState>(),
+                visibleHalfAngleDegrees: 90f,
+                isVisible: true));
+
+            var policeRoot = root.Q<VisualElement>("compass-hud__police");
+            Assert.That(policeRoot, Is.Not.Null);
+            Assert.That(policeRoot.style.display.value, Is.EqualTo(DisplayStyle.None));
+        }
+
         private static VisualElement BuildRoot()
         {
             var root = new VisualElement { name = "compass-hud__root" };
@@ -129,6 +172,12 @@ namespace Reloader.UI.Tests.EditMode
             lane.Add(entries);
             frame.Add(lane);
             root.Add(frame);
+            var police = new VisualElement { name = "compass-hud__police" };
+            var policeLabel = new Label { name = "compass-hud__police-label" };
+            var policeCount = new Label { name = "compass-hud__police-count" };
+            police.Add(policeLabel);
+            police.Add(policeCount);
+            root.Add(police);
             return root;
         }
     }

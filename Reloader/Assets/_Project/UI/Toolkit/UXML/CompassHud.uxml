@@ -8,6 +8,10 @@
                     <ui:VisualElement name="compass-hud__center-tick" class="compass-hud__center-tick" picking-mode="Ignore" />
                 </ui:VisualElement>
             </ui:VisualElement>
+            <ui:VisualElement name="compass-hud__police" class="compass-hud__police" picking-mode="Ignore">
+                <ui:Label name="compass-hud__police-label" class="compass-hud__police-label" text="WANTED" />
+                <ui:Label name="compass-hud__police-count" class="compass-hud__police-count" text="0" />
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

@@ -12,6 +12,9 @@ namespace Reloader.UI.Toolkit.CompassHud
 
         private VisualElement _root;
         private VisualElement _entriesRoot;
+        private VisualElement _policeRoot;
+        private Label _policeStatusLabel;
+        private Label _policeCountLabel;
         private CompassHudUiState _lastState;
         private EventCallback<AttachToPanelEvent> _attachToPanelCallback;
         private EventCallback<DetachFromPanelEvent> _detachFromPanelCallback;
@@ -29,6 +32,9 @@ namespace Reloader.UI.Toolkit.CompassHud
             }
             _root = root?.Q<VisualElement>("compass-hud__root") ?? root;
             _entriesRoot = root?.Q<VisualElement>("compass-hud__entries");
+            _policeRoot = root?.Q<VisualElement>("compass-hud__police");
+            _policeStatusLabel = root?.Q<Label>("compass-hud__police-label");
+            _policeCountLabel = root?.Q<Label>("compass-hud__police-count");
             RegisterRelayoutCallbacks();
         }
 
@@ -58,26 +64,29 @@ namespace Reloader.UI.Toolkit.CompassHud
             if (_entriesRoot == null || !_lastState.IsVisible)
             {
                 _entriesRoot?.Clear();
-                return;
             }
-
-            _entriesRoot.Clear();
-            var laneWidth = ResolveLaneWidth();
-            var halfWidth = laneWidth * 0.5f;
-
-            for (var i = 0; i < _lastState.Entries.Count; i++)
+            else
             {
-                var entry = _lastState.Entries[i];
-                if (!entry.IsVisible)
-                {
-                    continue;
-                }
+                _entriesRoot.Clear();
+                var laneWidth = ResolveLaneWidth();
+                var halfWidth = laneWidth * 0.5f;
 
-                var element = CreateEntryElement(entry, i);
-                var normalized = Mathf.Clamp(entry.SignedAngleDeltaDegrees / _lastState.VisibleHalfAngleDegrees, -1f, 1f);
-                element.style.left = halfWidth + (normalized * halfWidth);
-                _entriesRoot.Add(element);
+                for (var i = 0; i < _lastState.Entries.Count; i++)
+                {
+                    var entry = _lastState.Entries[i];
+                    if (!entry.IsVisible)
+                    {
+                        continue;
+                    }
+
+                    var element = CreateEntryElement(entry, i);
+                    var normalized = Mathf.Clamp(entry.SignedAngleDeltaDegrees / _lastState.VisibleHalfAngleDegrees, -1f, 1f);
+                    element.style.left = halfWidth + (normalized * halfWidth);
+                    _entriesRoot.Add(element);
+                }
             }
+
+            ApplyPoliceStatus();
         }
 
         private VisualElement CreateEntryElement(CompassHudUiState.EntryState entry, int index)
@@ -215,6 +224,32 @@ namespace Reloader.UI.Toolkit.CompassHud
 
             var layoutWidth = _entriesRoot.layout.width;
             return layoutWidth > 1f ? layoutWidth : DefaultLaneWidth;
+        }
+
+        private void ApplyPoliceStatus()
+        {
+            if (_policeRoot == null)
+            {
+                return;
+            }
+
+            if (_lastState == null || !_lastState.IsVisible || !_lastState.IsPoliceStatusVisible)
+            {
+                _policeRoot.style.display = DisplayStyle.None;
+                return;
+            }
+
+            if (_policeStatusLabel != null)
+            {
+                _policeStatusLabel.text = _lastState.PoliceStatusText;
+            }
+
+            if (_policeCountLabel != null)
+            {
+                _policeCountLabel.text = _lastState.PoliceResponderCount.ToString();
+            }
+
+            _policeRoot.style.display = DisplayStyle.Flex;
         }
     }
 }

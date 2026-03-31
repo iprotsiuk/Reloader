@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Contracts.Runtime;
+using Reloader.Core.Events;
 using Reloader.Inventory;
+using Reloader.NPCs.Combat;
 using Reloader.NPCs.Runtime;
 using Reloader.UI.Toolkit.CompassHud;
 using UnityEngine;
@@ -165,6 +168,82 @@ namespace Reloader.UI.Tests.EditMode
             }
         }
 
+        [Test]
+        public void Refresh_WhenPoliceAreInActivePursuit_ShowsWantedRowAndActiveResponderCount()
+        {
+            var fixture = new CompassHudFixture();
+
+            try
+            {
+                fixture.InventoryController.transform.position = Vector3.zero;
+                fixture.InventoryController.transform.forward = Vector3.forward;
+
+                SetPoliceStatus(fixture.Coordinator, new PoliceHeatState(
+                    PoliceHeatLevel.ActivePursuit,
+                    CrimeType.Fleeing,
+                    45f,
+                    true),
+                    activeResponderCount: 2);
+
+                fixture.Controller.Refresh();
+
+                Assert.That(FindPoliceRoot(fixture.Root).style.display.value, Is.EqualTo(DisplayStyle.Flex));
+                Assert.That(FindPoliceLabel(fixture.Root).text, Is.EqualTo("WANTED"));
+                Assert.That(FindPoliceCount(fixture.Root).text, Is.EqualTo("2"));
+            }
+            finally
+            {
+                fixture.Dispose();
+            }
+        }
+
+        [Test]
+        public void Refresh_WhenPoliceSearchStateActive_ShowsSearchRow()
+        {
+            var fixture = new CompassHudFixture();
+
+            try
+            {
+                fixture.InventoryController.transform.position = Vector3.zero;
+                fixture.InventoryController.transform.forward = Vector3.forward;
+
+                SetPoliceStatus(fixture.Coordinator, new PoliceHeatState(
+                    PoliceHeatLevel.Search,
+                    CrimeType.Fleeing,
+                    45f,
+                    true),
+                    activeResponderCount: 2);
+
+                fixture.Controller.Refresh();
+
+                Assert.That(fixture.Coordinator.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+                Assert.That(FindPoliceRoot(fixture.Root).style.display.value, Is.EqualTo(DisplayStyle.Flex));
+                Assert.That(FindPoliceLabel(fixture.Root).text, Is.EqualTo("SEARCH"));
+                Assert.That(FindPoliceCount(fixture.Root).text, Is.EqualTo("2"));
+            }
+            finally
+            {
+                fixture.Dispose();
+            }
+        }
+
+        [Test]
+        public void Refresh_WhenPoliceHeatIsClear_HidesPoliceRow()
+        {
+            var fixture = new CompassHudFixture();
+
+            try
+            {
+                fixture.Controller.Refresh();
+
+                Assert.That(FindPoliceRoot(fixture.Root).style.display.value, Is.EqualTo(DisplayStyle.None));
+            }
+            finally
+            {
+                fixture.Dispose();
+            }
+        }
+
         private static VisualElement FindEntry(VisualElement root, string entryKey)
         {
             for (var i = 0; i < root.childCount; i++)
@@ -179,6 +258,21 @@ namespace Reloader.UI.Tests.EditMode
             return null;
         }
 
+        private static VisualElement FindPoliceRoot(VisualElement root)
+        {
+            return root.Q<VisualElement>("compass-hud__police");
+        }
+
+        private static Label FindPoliceLabel(VisualElement root)
+        {
+            return root.Q<Label>("compass-hud__police-label");
+        }
+
+        private static Label FindPoliceCount(VisualElement root)
+        {
+            return root.Q<Label>("compass-hud__police-count");
+        }
+
         private static VisualElement BuildRoot()
         {
             var screen = new VisualElement { name = "compass-hud__screen" };
@@ -189,6 +283,12 @@ namespace Reloader.UI.Tests.EditMode
             lane.Add(entries);
             frame.Add(lane);
             root.Add(frame);
+            var police = new VisualElement { name = "compass-hud__police" };
+            var policeLabel = new Label { name = "compass-hud__police-label" };
+            var policeCount = new Label { name = "compass-hud__police-count" };
+            police.Add(policeLabel);
+            police.Add(policeCount);
+            root.Add(police);
             screen.Add(root);
             return screen;
         }
@@ -218,6 +318,7 @@ namespace Reloader.UI.Tests.EditMode
             private readonly GameObject _controllerGo;
             private readonly GameObject _populationGo;
             private readonly GameObject _targetGo;
+            private readonly GameObject _coordinatorGo;
             private readonly CompassHudViewBinder _viewBinder;
             private bool _disposed;
 
@@ -235,6 +336,10 @@ namespace Reloader.UI.Tests.EditMode
 
                 Provider = new TestContractRuntimeProvider(ActiveSnapshot);
 
+                _coordinatorGo = new GameObject("CompassPoliceCoordinator");
+                Coordinator = _coordinatorGo.AddComponent<PoliceDispatchCoordinator>();
+                SetPrivateField(Coordinator, "_maxActiveDispatchCount", 2);
+
                 _populationGo = new GameObject("CompassPopulationFixture");
                 PopulationBridge = _populationGo.AddComponent<CivilianPopulationRuntimeBridge>();
                 _targetGo = new GameObject("CompassTargetFixture");
@@ -251,6 +356,7 @@ namespace Reloader.UI.Tests.EditMode
             public CompassHudController Controller { get; }
             public PlayerInventoryController InventoryController { get; }
             public TestContractRuntimeProvider Provider { get; }
+            public PoliceDispatchCoordinator Coordinator { get; }
             public CivilianPopulationRuntimeBridge PopulationBridge { get; }
             public MainTownPopulationSpawnedCivilian SpawnedCivilian { get; }
             public VisualElement Root { get; }
@@ -270,6 +376,7 @@ namespace Reloader.UI.Tests.EditMode
 
                 _disposed = true;
                 _viewBinder.Dispose();
+                UnityEngine.Object.DestroyImmediate(_coordinatorGo);
                 UnityEngine.Object.DestroyImmediate(_populationGo);
                 UnityEngine.Object.DestroyImmediate(_controllerGo);
             }
@@ -280,6 +387,19 @@ namespace Reloader.UI.Tests.EditMode
                 Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {target.GetType().Name}.");
                 field!.SetValue(target, value);
             }
+        }
+
+        private static void SetPoliceStatus(PoliceDispatchCoordinator coordinator, PoliceHeatState state, int activeResponderCount)
+        {
+            SetPrivateField(coordinator, "_currentHeatState", state);
+            SetPrivateField(coordinator, "_activeResponderCount", activeResponderCount);
+        }
+
+        private static void SetPrivateField(object target, string fieldName, object value)
+        {
+            var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected field '{fieldName}' on {target.GetType().Name}.");
+            field!.SetValue(target, value);
         }
 
         private sealed class TestContractRuntimeProvider : IContractRuntimeProvider

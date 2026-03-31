@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using Reloader.Core;
+using Reloader.Core.Events;
 using Reloader.Contracts.Runtime;
 using Reloader.Inventory;
+using Reloader.NPCs.Combat;
 using Reloader.NPCs.Runtime;
 using Reloader.UI.Toolkit.Contracts;
 using UnityEngine;
@@ -18,6 +20,7 @@ namespace Reloader.UI.Toolkit.CompassHud
         private PlayerInventoryController _inventoryController;
         private IContractRuntimeProvider _contractRuntimeProvider;
         private CivilianPopulationRuntimeBridge _populationBridge;
+        private PoliceDispatchCoordinator _policeDispatchCoordinator;
         private string _resolvedTargetId = string.Empty;
         private Transform _resolvedTargetTransform;
 
@@ -60,6 +63,7 @@ namespace Reloader.UI.Toolkit.CompassHud
             _inventoryController = null;
             _contractRuntimeProvider = null;
             _populationBridge = null;
+            _policeDispatchCoordinator = null;
             ClearResolvedTarget();
         }
 
@@ -88,7 +92,14 @@ namespace Reloader.UI.Toolkit.CompassHud
                 entries.Add(markerEntry);
             }
 
-            _viewBinder.Render(CompassHudUiState.Create(entries, VisibleHalfAngleDegrees, isVisible: true));
+            var policeVisible = TryBuildPoliceStatus(out var policeStatusText, out var policeResponderCount);
+            _viewBinder.Render(CompassHudUiState.Create(
+                entries,
+                VisibleHalfAngleDegrees,
+                isVisible: true,
+                policeStatusText: policeStatusText,
+                policeResponderCount: policeResponderCount,
+                isPoliceStatusVisible: policeVisible));
         }
 
         private void ResolveReferences()
@@ -114,6 +125,16 @@ namespace Reloader.UI.Toolkit.CompassHud
             if (_populationBridge == null)
             {
                 _populationBridge = FindFirstObjectByType<CivilianPopulationRuntimeBridge>(FindObjectsInactive.Include);
+            }
+
+            if (!IsReferenceAlive(_policeDispatchCoordinator))
+            {
+                _policeDispatchCoordinator = null;
+            }
+
+            if (_policeDispatchCoordinator == null)
+            {
+                _policeDispatchCoordinator = FindFirstObjectByType<PoliceDispatchCoordinator>(FindObjectsInactive.Include);
             }
         }
 
@@ -187,6 +208,33 @@ namespace Reloader.UI.Toolkit.CompassHud
         {
             _resolvedTargetId = string.Empty;
             _resolvedTargetTransform = null;
+        }
+
+        private bool TryBuildPoliceStatus(out string policeStatusText, out int policeResponderCount)
+        {
+            policeStatusText = string.Empty;
+            policeResponderCount = 0;
+
+            if (_policeDispatchCoordinator == null)
+            {
+                return false;
+            }
+
+            var heatState = _policeDispatchCoordinator.CurrentHeatState;
+            if (!heatState.IsPlayerIdentified)
+            {
+                return false;
+            }
+
+            if (heatState.Level != PoliceHeatLevel.ActivePursuit
+                && heatState.Level != PoliceHeatLevel.Search)
+            {
+                return false;
+            }
+
+            policeStatusText = heatState.Level == PoliceHeatLevel.ActivePursuit ? "WANTED" : "SEARCH";
+            policeResponderCount = _policeDispatchCoordinator != null ? Mathf.Max(0, _policeDispatchCoordinator.ActiveResponderCount) : 0;
+            return true;
         }
 
         private static bool IsReferenceAlive(object instance)

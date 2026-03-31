@@ -19,6 +19,8 @@ namespace Reloader.NPCs.Combat
         private PoliceHeatState _currentHeatState;
         private Vector3 _cachedDispatchSearchPoint;
         private bool _hasCachedDispatchSearchPoint;
+        private int _activeResponderCount;
+        private int _registeredResponderCount;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void BootstrapRuntimeCoordinator()
@@ -46,7 +48,12 @@ namespace Reloader.NPCs.Combat
             UnsubscribeFromLawEnforcementEvents();
             SetAllDispatchComponentsEnabled(false);
             _hasCachedDispatchSearchPoint = false;
+            _activeResponderCount = 0;
         }
+
+        public PoliceHeatState CurrentHeatState => _currentHeatState;
+        public int ActiveResponderCount => _activeResponderCount;
+        public int RegisteredResponderCount => _registeredResponderCount;
 
         private void Update()
         {
@@ -163,8 +170,10 @@ namespace Reloader.NPCs.Combat
         private void StageDispatchAtPoint(Vector3 selectionPoint)
         {
             GatherDispatchEntries();
+            _registeredResponderCount = _sortedDispatchEntries.Count;
             if (_sortedDispatchEntries.Count == 0)
             {
+                _activeResponderCount = 0;
                 return;
             }
 
@@ -176,6 +185,7 @@ namespace Reloader.NPCs.Combat
             }
 
             _sortedDispatchEntries.Sort(CompareDispatchEntries);
+            _activeResponderCount = activeCount;
 
             for (var i = 0; i < _sortedDispatchEntries.Count; i++)
             {
@@ -244,6 +254,8 @@ namespace Reloader.NPCs.Combat
         private void SetAllDispatchComponentsEnabled(bool isEnabled)
         {
             GatherDispatchEntries();
+            _registeredResponderCount = _sortedDispatchEntries.Count;
+            _activeResponderCount = isEnabled ? _sortedDispatchEntries.Count : 0;
             for (var i = 0; i < _sortedDispatchEntries.Count; i++)
             {
                 SetDispatchEntryEnabled(_sortedDispatchEntries[i], isEnabled);
