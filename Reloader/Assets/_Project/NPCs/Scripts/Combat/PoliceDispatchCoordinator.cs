@@ -12,9 +12,12 @@ namespace Reloader.NPCs.Combat
     public sealed class PoliceDispatchCoordinator : MonoBehaviour
     {
         [SerializeField, Min(1)] private int _maxActiveDispatchCount = 4;
+        [SerializeField, Min(0f)] private float _dispatchReassignmentHoldSeconds = 0.5f;
+        [SerializeField, Min(0f)] private float _dispatchReplacementDistanceThresholdMeters = 1f;
 
         private readonly Dictionary<Transform, DispatchEntry> _dispatchEntries = new Dictionary<Transform, DispatchEntry>();
         private readonly List<DispatchEntry> _sortedDispatchEntries = new List<DispatchEntry>();
+        private readonly List<Transform> _staleDispatchRoots = new List<Transform>();
         private ILawEnforcementEvents _subscribedLawEnforcementEvents;
         private PoliceHeatState _currentHeatState;
         private Vector3 _cachedDispatchSearchPoint;
@@ -185,18 +188,69 @@ namespace Reloader.NPCs.Combat
             }
 
             _sortedDispatchEntries.Sort(CompareDispatchEntries);
-            _activeResponderCount = activeCount;
+            var currentTime = Time.unscaledTime;
 
+            var selectedCount = 0;
             for (var i = 0; i < _sortedDispatchEntries.Count; i++)
             {
-                SetDispatchEntryEnabled(_sortedDispatchEntries[i], i < activeCount);
+                if (_sortedDispatchEntries[i].IsSelected)
+                {
+                    selectedCount++;
+                }
             }
+
+            for (var i = 0; i < _sortedDispatchEntries.Count && selectedCount < activeCount; i++)
+            {
+                var entry = _sortedDispatchEntries[i];
+                if (entry.IsSelected)
+                {
+                    continue;
+                }
+
+                entry.MarkSelected(currentTime);
+                selectedCount++;
+            }
+
+            while (selectedCount > activeCount && TryFindFarthestSelectedEntry(out var excessSelectedEntry))
+            {
+                excessSelectedEntry.ResetSelection();
+                selectedCount--;
+            }
+
+            while (TryFindDispatchReplacementCandidate(
+                       currentTime,
+                       Mathf.Max(0f, _dispatchReassignmentHoldSeconds),
+                       Mathf.Max(0f, _dispatchReplacementDistanceThresholdMeters),
+                       out var replacementCandidate,
+                       out var replacedEntry))
+            {
+                replacedEntry.ResetSelection();
+                replacementCandidate.MarkSelected(currentTime);
+            }
+
+            var enabledCount = 0;
+            for (var i = 0; i < _sortedDispatchEntries.Count; i++)
+            {
+                var entry = _sortedDispatchEntries[i];
+                SetDispatchEntryEnabled(entry, entry.IsSelected);
+                if (entry.IsSelected)
+                {
+                    enabledCount++;
+                }
+            }
+
+            _activeResponderCount = enabledCount;
         }
 
         private void GatherDispatchEntries()
         {
-            _dispatchEntries.Clear();
             _sortedDispatchEntries.Clear();
+            _staleDispatchRoots.Clear();
+
+            foreach (var entry in _dispatchEntries.Values)
+            {
+                entry.ClearRuntimeBindings();
+            }
 
             var movers = FindObjectsByType<PoliceResponderMover>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             for (var i = 0; i < movers.Length; i++)
@@ -210,9 +264,22 @@ namespace Reloader.NPCs.Combat
                 RegisterShooter(shooters[i]);
             }
 
-            foreach (var entry in _dispatchEntries.Values)
+            foreach (var pair in _dispatchEntries)
             {
+                var root = pair.Key;
+                var entry = pair.Value;
+                if (root == null || !entry.HasRuntimeBindings)
+                {
+                    _staleDispatchRoots.Add(root);
+                    continue;
+                }
+
                 _sortedDispatchEntries.Add(entry);
+            }
+
+            for (var i = 0; i < _staleDispatchRoots.Count; i++)
+            {
+                _dispatchEntries.Remove(_staleDispatchRoots[i]);
             }
         }
 
@@ -258,8 +325,104 @@ namespace Reloader.NPCs.Combat
             _activeResponderCount = isEnabled ? _sortedDispatchEntries.Count : 0;
             for (var i = 0; i < _sortedDispatchEntries.Count; i++)
             {
-                SetDispatchEntryEnabled(_sortedDispatchEntries[i], isEnabled);
+                var entry = _sortedDispatchEntries[i];
+                if (!isEnabled)
+                {
+                    entry.ResetSelection();
+                }
+
+                SetDispatchEntryEnabled(entry, isEnabled);
             }
+        }
+
+        private bool TryFindDispatchReplacementCandidate(
+            float currentTime,
+            float reassignmentHoldSeconds,
+            float replacementDistanceThresholdMeters,
+            out DispatchEntry replacementCandidate,
+            out DispatchEntry replacedEntry)
+        {
+            replacementCandidate = null;
+            replacedEntry = null;
+
+            for (var i = 0; i < _sortedDispatchEntries.Count; i++)
+            {
+                var candidate = _sortedDispatchEntries[i];
+                if (candidate.IsSelected)
+                {
+                    continue;
+                }
+
+                var currentReplacedEntry = FindReplaceableSelectedEntry(
+                    candidate.DistanceMeters,
+                    currentTime,
+                    reassignmentHoldSeconds,
+                    replacementDistanceThresholdMeters);
+                if (currentReplacedEntry == null)
+                {
+                    continue;
+                }
+
+                replacementCandidate = candidate;
+                replacedEntry = currentReplacedEntry;
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryFindFarthestSelectedEntry(out DispatchEntry farthestSelectedEntry)
+        {
+            farthestSelectedEntry = null;
+            for (var i = 0; i < _sortedDispatchEntries.Count; i++)
+            {
+                var entry = _sortedDispatchEntries[i];
+                if (!entry.IsSelected)
+                {
+                    continue;
+                }
+
+                if (farthestSelectedEntry == null || entry.DistanceMeters > farthestSelectedEntry.DistanceMeters)
+                {
+                    farthestSelectedEntry = entry;
+                }
+            }
+
+            return farthestSelectedEntry != null;
+        }
+
+        private DispatchEntry FindReplaceableSelectedEntry(
+            float candidateDistanceMeters,
+            float currentTime,
+            float reassignmentHoldSeconds,
+            float replacementDistanceThresholdMeters)
+        {
+            DispatchEntry replaceableEntry = null;
+            for (var i = 0; i < _sortedDispatchEntries.Count; i++)
+            {
+                var entry = _sortedDispatchEntries[i];
+                if (!entry.IsSelected)
+                {
+                    continue;
+                }
+
+                if (currentTime - entry.SelectedAtUnscaledTime < reassignmentHoldSeconds)
+                {
+                    continue;
+                }
+
+                if (entry.DistanceMeters - candidateDistanceMeters <= replacementDistanceThresholdMeters)
+                {
+                    continue;
+                }
+
+                if (replaceableEntry == null || entry.DistanceMeters > replaceableEntry.DistanceMeters)
+                {
+                    replaceableEntry = entry;
+                }
+            }
+
+            return replaceableEntry;
         }
 
         private static void SetDispatchEntryEnabled(DispatchEntry entry, bool isEnabled)
@@ -327,6 +490,31 @@ namespace Reloader.NPCs.Combat
             public PoliceResponderMover Mover { get; set; }
             public PoliceHostileShooter Shooter { get; set; }
             public float DistanceMeters { get; set; }
+            public float SelectedAtUnscaledTime { get; private set; }
+            public bool IsSelected { get; private set; }
+            public bool HasRuntimeBindings => Mover != null || Shooter != null;
+
+            public void ClearRuntimeBindings()
+            {
+                Mover = null;
+                Shooter = null;
+            }
+
+            public void MarkSelected(float currentTime)
+            {
+                if (!IsSelected)
+                {
+                    SelectedAtUnscaledTime = currentTime;
+                }
+
+                IsSelected = true;
+            }
+
+            public void ResetSelection()
+            {
+                IsSelected = false;
+                SelectedAtUnscaledTime = 0f;
+            }
         }
     }
 }

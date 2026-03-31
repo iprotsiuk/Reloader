@@ -52,7 +52,11 @@ namespace Reloader.NPCs.Tests.PlayMode
                 copFarRoot = CreatePoliceResponder(new Vector3(0f, 1f, 6f));
 
                 var coordinator = GetOrCreateCoordinator(out coordinatorRoot);
-                SetField(coordinator, "_maxActiveDispatchCount", 2);
+                ConfigureCoordinator(
+                    coordinator,
+                    maxActiveDispatchCount: 2,
+                    dispatchReassignmentHoldSeconds: 0f,
+                    dispatchReplacementDistanceThresholdMeters: 0f);
 
                 yield return null;
 
@@ -117,7 +121,11 @@ namespace Reloader.NPCs.Tests.PlayMode
                 copFarRoot = CreatePoliceResponder(new Vector3(0f, 1f, 6f));
 
                 var coordinator = GetOrCreateCoordinator(out coordinatorRoot);
-                SetField(coordinator, "_maxActiveDispatchCount", 2);
+                ConfigureCoordinator(
+                    coordinator,
+                    maxActiveDispatchCount: 2,
+                    dispatchReassignmentHoldSeconds: 0f,
+                    dispatchReplacementDistanceThresholdMeters: 0f);
 
                 yield return null;
 
@@ -144,16 +152,140 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator ActivePursuit_ReassignmentHoldWindow_PreservesCurrentAssignedSubsetUntilItExpires()
+        {
+            GameObject providerGo = null;
+            GameObject playerRoot = null;
+            GameObject coordinatorRoot = null;
+            GameObject copNearRoot = null;
+            GameObject copMidRoot = null;
+            GameObject copFarRoot = null;
+
+            try
+            {
+                providerGo = new GameObject("ContractProvider");
+                var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+                playerRoot = CreatePlayerRoot(new Vector3(0f, 1f, 10f));
+
+                yield return null;
+
+                Assert.That(provider.TryHandleDialogueAction("police.stop.leave", string.Empty), Is.True);
+                Assert.That(provider.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.ActivePursuit));
+
+                copNearRoot = CreatePoliceResponder(new Vector3(0f, 1f, 0f));
+                copMidRoot = CreatePoliceResponder(new Vector3(0f, 1f, 5f));
+                copFarRoot = CreatePoliceResponder(new Vector3(0f, 1f, 7f));
+
+                var coordinator = GetOrCreateCoordinator(out coordinatorRoot);
+                ConfigureCoordinator(
+                    coordinator,
+                    maxActiveDispatchCount: 2,
+                    dispatchReassignmentHoldSeconds: 0.5f,
+                    dispatchReplacementDistanceThresholdMeters: 0f);
+
+                yield return null;
+
+                AssertResponderEnabled(copNearRoot, expectedEnabled: false);
+                AssertResponderEnabled(copMidRoot, expectedEnabled: true);
+                AssertResponderEnabled(copFarRoot, expectedEnabled: true);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(2));
+
+                playerRoot.transform.position = new Vector3(0f, 1f, 2.75f);
+                yield return null;
+
+                AssertResponderEnabled(copNearRoot, expectedEnabled: false);
+                AssertResponderEnabled(copMidRoot, expectedEnabled: true);
+                AssertResponderEnabled(copFarRoot, expectedEnabled: true);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(2));
+
+                yield return new WaitForSecondsRealtime(0.55f);
+                yield return null;
+
+                AssertResponderEnabled(copNearRoot, expectedEnabled: true);
+                AssertResponderEnabled(copMidRoot, expectedEnabled: true);
+                AssertResponderEnabled(copFarRoot, expectedEnabled: false);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(2));
+            }
+            finally
+            {
+                DestroyImmediateIfNeeded(coordinatorRoot);
+                DestroyImmediateIfNeeded(copFarRoot);
+                DestroyImmediateIfNeeded(copMidRoot);
+                DestroyImmediateIfNeeded(copNearRoot);
+                DestroyImmediateIfNeeded(playerRoot);
+                DestroyImmediateIfNeeded(providerGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ActivePursuit_ReplacementThreshold_BlocksMarginalSubsetSwap()
+        {
+            GameObject providerGo = null;
+            GameObject playerRoot = null;
+            GameObject coordinatorRoot = null;
+            GameObject copNearRoot = null;
+            GameObject copMidRoot = null;
+            GameObject copFarRoot = null;
+
+            try
+            {
+                providerGo = new GameObject("ContractProvider");
+                var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+                playerRoot = CreatePlayerRoot(new Vector3(0f, 1f, 10f));
+
+                yield return null;
+
+                Assert.That(provider.TryHandleDialogueAction("police.stop.leave", string.Empty), Is.True);
+                Assert.That(provider.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.ActivePursuit));
+
+                copNearRoot = CreatePoliceResponder(new Vector3(0f, 1f, 0f));
+                copMidRoot = CreatePoliceResponder(new Vector3(0f, 1f, 5f));
+                copFarRoot = CreatePoliceResponder(new Vector3(0f, 1f, 5.8f));
+
+                var coordinator = GetOrCreateCoordinator(out coordinatorRoot);
+                ConfigureCoordinator(
+                    coordinator,
+                    maxActiveDispatchCount: 2,
+                    dispatchReassignmentHoldSeconds: 0f,
+                    dispatchReplacementDistanceThresholdMeters: 0.5f);
+
+                yield return null;
+
+                AssertResponderEnabled(copNearRoot, expectedEnabled: false);
+                AssertResponderEnabled(copMidRoot, expectedEnabled: true);
+                AssertResponderEnabled(copFarRoot, expectedEnabled: true);
+
+                playerRoot.transform.position = new Vector3(0f, 1f, 2.75f);
+                yield return null;
+
+                AssertResponderEnabled(copNearRoot, expectedEnabled: false);
+                AssertResponderEnabled(copMidRoot, expectedEnabled: true);
+                AssertResponderEnabled(copFarRoot, expectedEnabled: true);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(2));
+            }
+            finally
+            {
+                DestroyImmediateIfNeeded(coordinatorRoot);
+                DestroyImmediateIfNeeded(copFarRoot);
+                DestroyImmediateIfNeeded(copMidRoot);
+                DestroyImmediateIfNeeded(copNearRoot);
+                DestroyImmediateIfNeeded(playerRoot);
+                DestroyImmediateIfNeeded(providerGo);
+            }
+        }
+
         private static GameObject CreatePoliceResponder(Vector3 position)
         {
             var responderRoot = new GameObject($"PoliceResponder_{position.z:0}");
             responderRoot.transform.position = position;
 
             var mover = responderRoot.AddComponent<PoliceResponderMover>();
-            ConfigureMoverForTests(mover, moveSpeedMetersPerSecond: 8f, searchRadiusMeters: 1.25f, searchOrbitDegreesPerSecond: 180f);
+            ConfigureMoverForTests(mover, moveSpeedMetersPerSecond: 0f, searchRadiusMeters: 1.25f, searchOrbitDegreesPerSecond: 180f);
 
             var shooter = responderRoot.AddComponent<PoliceHostileShooter>();
             InvokeVoid(shooter, "SetHostileOverrideForTests", true);
+            ConfigureShooterForTests(shooter, rangeMeters: 0.25f);
 
             return responderRoot;
         }
@@ -174,8 +306,7 @@ namespace Reloader.NPCs.Tests.PlayMode
             var existingCoordinator = UnityEngine.Object.FindFirstObjectByType<PoliceDispatchCoordinator>(FindObjectsInactive.Include);
             if (existingCoordinator != null)
             {
-                coordinatorRoot = existingCoordinator.gameObject;
-                return existingCoordinator;
+                UnityEngine.Object.DestroyImmediate(existingCoordinator.gameObject);
             }
 
             coordinatorRoot = new GameObject("PoliceDispatchCoordinator");
@@ -198,6 +329,22 @@ namespace Reloader.NPCs.Tests.PlayMode
             SetField(mover, "_moveSpeedMetersPerSecond", moveSpeedMetersPerSecond);
             SetField(mover, "_searchRadiusMeters", searchRadiusMeters);
             SetField(mover, "_searchOrbitDegreesPerSecond", searchOrbitDegreesPerSecond);
+        }
+
+        private static void ConfigureShooterForTests(PoliceHostileShooter shooter, float rangeMeters)
+        {
+            SetField(shooter, "_rangeMeters", rangeMeters);
+        }
+
+        private static void ConfigureCoordinator(
+            PoliceDispatchCoordinator coordinator,
+            int maxActiveDispatchCount,
+            float dispatchReassignmentHoldSeconds,
+            float dispatchReplacementDistanceThresholdMeters)
+        {
+            SetField(coordinator, "_maxActiveDispatchCount", maxActiveDispatchCount);
+            SetField(coordinator, "_dispatchReassignmentHoldSeconds", dispatchReassignmentHoldSeconds);
+            SetField(coordinator, "_dispatchReplacementDistanceThresholdMeters", dispatchReplacementDistanceThresholdMeters);
         }
 
         private static void ForceSearchState(StaticContractRuntimeProvider provider)
@@ -258,7 +405,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                 return;
             }
 
-            UnityEngine.Object.Destroy(instance);
+            UnityEngine.Object.DestroyImmediate(instance);
         }
     }
 }
