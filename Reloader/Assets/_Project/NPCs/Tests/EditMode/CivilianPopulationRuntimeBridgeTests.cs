@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,6 +13,7 @@ using Reloader.NPCs.Generation;
 using Reloader.NPCs.Runtime;
 using Reloader.NPCs.Runtime.Capabilities;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Reloader.NPCs.Tests.EditMode
 {
@@ -500,6 +502,169 @@ namespace Reloader.NPCs.Tests.EditMode
             }
             finally
             {
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenReservePoliceSlotIsDispatchOnly_SkipsAmbientSpawnUntilDispatchRequestsIt()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var definition = CreatePoliceReservePopulationDefinition();
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop_Ambient", new Vector3(8f, 0f, 0f));
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop_Reserve", new Vector3(2f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+                SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_populationDefinition", definition);
+
+                InvokeEnsureRuntimePopulationInitializedForScene(bridge);
+                bridge.RebuildScenePopulation();
+
+                var initialSpawned = bridgeGo.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(initialSpawned.Length, Is.EqualTo(1), "Expected only ambient police slots to materialize during scene rebuild.");
+                Assert.That(initialSpawned[0].PopulationSlotId, Is.EqualTo("cops.ambient"));
+
+                var spawnedCount = InvokeTrySpawnPoliceRespondersForDispatch(bridge, new Vector3(0f, 0f, 0f), 1);
+
+                Assert.That(spawnedCount, Is.EqualTo(1), "Expected dispatch to materialize one hidden reserve police slot.");
+
+                var spawned = bridgeGo.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(spawned.Length, Is.EqualTo(2));
+                Assert.That(spawned.Any(component => component.PopulationSlotId == "cops.reserve"), Is.True);
+                Assert.That(spawned.Single(component => component.PopulationSlotId == "cops.reserve").transform.position, Is.EqualTo(new Vector3(2f, 0f, 0f)));
+            }
+            finally
+            {
+                Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenExistingOfferTargetsDispatchOnlyReserve_ReplacesOfferAndKeepsReserveUnspawned()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            var definition = CreatePoliceReservePopulationDefinition(
+                reserveIsProtectedFromContracts: false,
+                ambientIsProtectedFromContracts: false);
+            var staleReserveContract = CreateRuntimeContractDefinition(
+                contractId: "contract.reserve",
+                targetId: "citizen.mainTown.0002",
+                title: "Reserve Contract",
+                targetDisplayName: "Reserve Officer",
+                targetDescription: "stale reserve target",
+                briefingText: "stale reserve target",
+                distanceBand: 50f,
+                payout: 1000);
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop_Ambient", new Vector3(8f, 0f, 0f));
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop_Reserve", new Vector3(2f, 0f, 0f));
+
+            try
+            {
+                InvokeSetAvailableContract(provider, staleReserveContract);
+
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+                SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_populationDefinition", definition);
+
+                InvokeEnsureRuntimePopulationInitializedForScene(bridge);
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True, "Expected rebuild to keep a live procedural offer.");
+                Assert.That(snapshot.HasAvailableContract, Is.True);
+                Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0001"),
+                    "Expected the dispatch-only reserve slot to be excluded from contract selection even when a stale available offer targets it.");
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0002", out _), Is.False,
+                    "Expected reserve police to stay out of the contract-tracking spawn path.");
+
+                var spawned = bridgeGo.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(spawned.Length, Is.EqualTo(1));
+                Assert.That(spawned.All(component => component.CivilianId != "citizen.mainTown.0002"), Is.True);
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(staleReserveContract);
+                Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenActiveContractTargetsDispatchOnlyReserve_PreservesReserveTargetSpawn()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            var definition = CreatePoliceReservePopulationDefinition();
+            var reserveContract = CreateRuntimeContractDefinition(
+                contractId: "contract.reserve.active",
+                targetId: "citizen.mainTown.0002",
+                title: "Reserve Contract",
+                targetDisplayName: "Reserve Officer",
+                targetDescription: "active reserve target",
+                briefingText: "active reserve target",
+                distanceBand: 50f,
+                payout: 1000);
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop_Ambient", new Vector3(8f, 0f, 0f));
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop_Reserve", new Vector3(2f, 0f, 0f));
+
+            try
+            {
+                InvokeSetAvailableContract(provider, reserveContract);
+                Assert.That(provider.AcceptAvailableContract(), Is.True, "Expected the reserve contract fixture to enter the active-contract state.");
+
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+                SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_populationDefinition", definition);
+
+                InvokeEnsureRuntimePopulationInitializedForScene(bridge);
+                bridge.RebuildScenePopulation();
+
+                Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True);
+                Assert.That(snapshot.HasActiveContract, Is.True);
+                Assert.That(snapshot.TargetId, Is.EqualTo("citizen.mainTown.0002"));
+
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0002", out var reserveSpawn), Is.True,
+                    "Expected rebuild to keep the already-active reserve target materialized even though reserve police are otherwise dispatch-only.");
+                Assert.That(reserveSpawn!.PopulationSlotId, Is.EqualTo("cops.reserve"));
+
+                var damageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons", throwOnError: false);
+                Assert.That(damageableType, Is.Not.Null, "Expected contract target damageable type to exist.");
+                Assert.That(reserveSpawn.GetComponent(damageableType!), Is.Not.Null,
+                    "Expected the restored active reserve target to stay on the contract-target damage seam.");
+
+                var spawned = bridgeGo.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(spawned.Length, Is.EqualTo(2));
+                Assert.That(spawned.Count(component => component.CivilianId == "citizen.mainTown.0002"), Is.EqualTo(1));
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(reserveContract);
+                Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(providerGo);
                 Object.DestroyImmediate(bridgeGo);
             }
         }
@@ -2274,6 +2439,44 @@ namespace Reloader.NPCs.Tests.EditMode
             };
         }
 
+        private static MainTownPopulationDefinition CreatePoliceReservePopulationDefinition(
+            bool reserveIsProtectedFromContracts = true,
+            bool ambientIsProtectedFromContracts = true)
+        {
+            var definition = ScriptableObject.CreateInstance<MainTownPopulationDefinition>();
+            definition.Pools = new[]
+            {
+                new MainTownPopulationPoolDefinition
+                {
+                    PoolId = "cops",
+                    Slots = new[]
+                    {
+                        new MainTownPopulationSlotDefinition
+                        {
+                            PopulationSlotId = "cops.ambient",
+                            PoolId = "cops",
+                            AreaTag = "maintown.watch",
+                            SpawnAnchorId = "Anchor_Cop_Ambient",
+                            Habitat = MainTownPopulationHabitat.Town,
+                            IsProtectedFromContracts = ambientIsProtectedFromContracts,
+                            SpawnOnSceneLoad = true
+                        },
+                        new MainTownPopulationSlotDefinition
+                        {
+                            PopulationSlotId = "cops.reserve",
+                            PoolId = "cops",
+                            AreaTag = "maintown.watch.reserve",
+                            SpawnAnchorId = "Anchor_Cop_Reserve",
+                            Habitat = MainTownPopulationHabitat.Town,
+                            IsProtectedFromContracts = reserveIsProtectedFromContracts,
+                            SpawnOnSceneLoad = false
+                        }
+                    }
+                }
+            };
+            return definition;
+        }
+
         private static CivilianPopulationRecord CreateCivilianRecord(
             string civilianId,
             string populationSlotId,
@@ -2357,6 +2560,65 @@ namespace Reloader.NPCs.Tests.EditMode
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
             Assert.That(method, Is.Not.Null, "Expected a public ExecutePendingReplacements(int currentDay, float currentTimeOfDay) method.");
             return (int)method.Invoke(bridge, new object[] { currentDay, currentTimeOfDay });
+        }
+
+        private static void InvokeEnsureRuntimePopulationInitializedForScene(CivilianPopulationRuntimeBridge bridge)
+        {
+            var method = typeof(CivilianPopulationRuntimeBridge).GetMethod(
+                "EnsureRuntimePopulationInitializedForScene",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, "Expected a private EnsureRuntimePopulationInitializedForScene() method.");
+            method!.Invoke(bridge, null);
+        }
+
+        private static int InvokeTrySpawnPoliceRespondersForDispatch(CivilianPopulationRuntimeBridge bridge, Vector3 selectionPoint, int desiredSpawnCount)
+        {
+            var method = typeof(CivilianPopulationRuntimeBridge).GetMethod(
+                "TrySpawnPoliceRespondersForDispatch",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+            Assert.That(method, Is.Not.Null, "Expected a public TrySpawnPoliceRespondersForDispatch(Vector3, int) method.");
+            return (int)method!.Invoke(bridge, new object[] { selectionPoint, desiredSpawnCount });
+        }
+
+        private static ScriptableObject CreateRuntimeContractDefinition(
+            string contractId,
+            string targetId,
+            string title,
+            string targetDisplayName,
+            string targetDescription,
+            string briefingText,
+            float distanceBand,
+            int payout)
+        {
+            var type = Type.GetType("Reloader.Contracts.Runtime.AssassinationContractDefinition, Reloader.Contracts");
+            Assert.That(type, Is.Not.Null, "Expected assassination contract definition runtime type.");
+
+            var definition = ScriptableObject.CreateInstance(type!);
+            var method = type!.GetMethod("ConfigureRuntimeOffer", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+            Assert.That(method, Is.Not.Null, "Expected ConfigureRuntimeOffer on assassination contract definition.");
+            method!.Invoke(definition, new object[]
+            {
+                contractId,
+                targetId,
+                title,
+                targetDisplayName,
+                targetDescription,
+                briefingText,
+                distanceBand,
+                payout,
+                0,
+                null,
+                null
+            });
+
+            return definition;
+        }
+
+        private static void InvokeSetAvailableContract(StaticContractRuntimeProvider provider, ScriptableObject definition)
+        {
+            var method = typeof(StaticContractRuntimeProvider).GetMethod("SetAvailableContract", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+            Assert.That(method, Is.Not.Null, "Expected StaticContractRuntimeProvider.SetAvailableContract.");
+            method!.Invoke(provider, new object[] { definition });
         }
 
         private static Transform CreateAnchor(Transform parent, string name, Vector3 position)

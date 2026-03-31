@@ -1,11 +1,14 @@
 using System;
 using System.Collections;
+using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using Reloader.Contracts.Runtime;
 using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.NPCs.Combat;
+using Reloader.NPCs.Generation;
+using Reloader.NPCs.Runtime;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -282,6 +285,208 @@ namespace Reloader.NPCs.Tests.PlayMode
                 DestroyImmediateIfNeeded(copFarRoot);
                 DestroyImmediateIfNeeded(copMidRoot);
                 DestroyImmediateIfNeeded(copNearRoot);
+                DestroyImmediateIfNeeded(playerRoot);
+                DestroyImmediateIfNeeded(providerGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ActivePursuit_WhenReservePoliceSlotsExist_DispatchSpawnsMissingResponders()
+        {
+            GameObject providerGo = null;
+            GameObject playerRoot = null;
+            GameObject bridgeRoot = null;
+            MainTownPopulationDefinition definition = null;
+
+            try
+            {
+                providerGo = new GameObject("ContractProvider");
+                var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+                playerRoot = CreatePlayerRoot(new Vector3(0f, 1f, 10f));
+                bridgeRoot = new GameObject("CivilianPopulationRuntimeBridge");
+                var bridge = bridgeRoot.AddComponent<CivilianPopulationRuntimeBridge>();
+                CreateAnchor(bridgeRoot.transform, "Anchor_Cop_Ambient", new Vector3(0f, 1f, 6f));
+                CreateAnchor(bridgeRoot.transform, "Anchor_Cop_Reserve", new Vector3(0f, 1f, 3f));
+                definition = CreatePoliceReservePopulationDefinition();
+
+                ConfigureBridgeForPoliceReserveDispatch(bridge, definition);
+
+                yield return null;
+
+                var initialSpawned = bridgeRoot.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(initialSpawned.Length, Is.EqualTo(1));
+                Assert.That(initialSpawned[0].PopulationSlotId, Is.EqualTo("cops.ambient"));
+
+                var coordinator = UnityEngine.Object.FindFirstObjectByType<PoliceDispatchCoordinator>(FindObjectsInactive.Include);
+                Assert.That(coordinator, Is.Not.Null, "Expected ambient police spawn to bootstrap a dispatch coordinator.");
+                ConfigureCoordinator(
+                    coordinator!,
+                    maxActiveDispatchCount: 2,
+                    dispatchReassignmentHoldSeconds: 0f,
+                    dispatchReplacementDistanceThresholdMeters: 0f,
+                    dispatchActivationIntervalSeconds: 0f);
+
+                Assert.That(provider.TryHandleDialogueAction("police.stop.leave", string.Empty), Is.True);
+                Assert.That(provider.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.ActivePursuit));
+
+                yield return null;
+                yield return null;
+
+                var spawned = bridgeRoot.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(spawned.Length, Is.EqualTo(2), "Expected dispatch to materialize the hidden reserve police slot when active pressure exceeds current registered police.");
+                Assert.That(spawned.Any(component => component.PopulationSlotId == "cops.reserve"), Is.True);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(2));
+                Assert.That(coordinator.RegisteredResponderCount, Is.EqualTo(2));
+            }
+            finally
+            {
+                DestroyImmediateIfNeeded(definition);
+                DestroyImmediateIfNeeded(bridgeRoot);
+                DestroyExistingCoordinator();
+                DestroyImmediateIfNeeded(playerRoot);
+                DestroyImmediateIfNeeded(providerGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ActivePursuit_WhenFirstCandidateBridgeIsInactive_SkipsInactiveReserveSpawns()
+        {
+            GameObject providerGo = null;
+            GameObject playerRoot = null;
+            GameObject coordinatorRoot = null;
+            GameObject bridgeRootA = null;
+            GameObject bridgeRootB = null;
+            MainTownPopulationDefinition definitionA = null;
+            MainTownPopulationDefinition definitionB = null;
+
+            try
+            {
+                providerGo = new GameObject("ContractProvider");
+                var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+                playerRoot = CreatePlayerRoot(new Vector3(0f, 1f, 10f));
+
+                bridgeRootA = new GameObject("CivilianPopulationRuntimeBridge_A");
+                var bridgeA = bridgeRootA.AddComponent<CivilianPopulationRuntimeBridge>();
+                CreateAnchor(bridgeRootA.transform, "Anchor_Cop_Reserve", new Vector3(0f, 1f, 2f));
+                definitionA = CreatePoliceReservePopulationDefinition(includeAmbientPolice: false);
+                ConfigureBridgeForPoliceReserveDispatch(bridgeA, definitionA);
+
+                bridgeRootB = new GameObject("CivilianPopulationRuntimeBridge_B");
+                var bridgeB = bridgeRootB.AddComponent<CivilianPopulationRuntimeBridge>();
+                CreateAnchor(bridgeRootB.transform, "Anchor_Cop_Reserve", new Vector3(0f, 1f, 3f));
+                definitionB = CreatePoliceReservePopulationDefinition(includeAmbientPolice: false);
+                ConfigureBridgeForPoliceReserveDispatch(bridgeB, definitionB);
+
+                var bridgeOrder = UnityEngine.Object.FindObjectsByType<CivilianPopulationRuntimeBridge>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                Assert.That(bridgeOrder.Length, Is.EqualTo(2));
+
+                var inactiveBridge = bridgeOrder[0];
+                var activeBridge = bridgeOrder[1];
+                inactiveBridge.gameObject.SetActive(false);
+
+                var coordinator = GetOrCreateCoordinator(out coordinatorRoot);
+                ConfigureCoordinator(
+                    coordinator,
+                    maxActiveDispatchCount: 1,
+                    dispatchReassignmentHoldSeconds: 0f,
+                    dispatchReplacementDistanceThresholdMeters: 0f,
+                    dispatchActivationIntervalSeconds: 0f);
+
+                yield return null;
+
+                Assert.That(provider.TryHandleDialogueAction("police.stop.leave", string.Empty), Is.True);
+                Assert.That(provider.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.ActivePursuit));
+
+                yield return null;
+                yield return null;
+
+                var inactiveSpawned = inactiveBridge.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                var activeSpawned = activeBridge.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(inactiveSpawned.Length, Is.EqualTo(0), "Expected the coordinator to ignore inactive population bridges when spawning dispatch reserves.");
+                Assert.That(activeSpawned.Length, Is.EqualTo(1));
+                Assert.That(activeSpawned[0].PopulationSlotId, Is.EqualTo("cops.reserve"));
+                Assert.That(coordinator.RegisteredResponderCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                DestroyImmediateIfNeeded(definitionB);
+                DestroyImmediateIfNeeded(definitionA);
+                DestroyImmediateIfNeeded(bridgeRootB);
+                DestroyImmediateIfNeeded(bridgeRootA);
+                DestroyImmediateIfNeeded(coordinatorRoot);
+                DestroyExistingCoordinator();
+                DestroyImmediateIfNeeded(playerRoot);
+                DestroyImmediateIfNeeded(providerGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ActivePursuit_WhenReserveCandidatesSpanMultipleBridges_SpawnsNearestReserveGlobally()
+        {
+            GameObject providerGo = null;
+            GameObject playerRoot = null;
+            GameObject coordinatorRoot = null;
+            GameObject bridgeRootA = null;
+            GameObject bridgeRootB = null;
+            MainTownPopulationDefinition definitionA = null;
+            MainTownPopulationDefinition definitionB = null;
+
+            try
+            {
+                providerGo = new GameObject("ContractProvider");
+                var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+                playerRoot = CreatePlayerRoot(new Vector3(0f, 1f, 10f));
+
+                bridgeRootA = new GameObject("CivilianPopulationRuntimeBridge_A");
+                var bridgeA = bridgeRootA.AddComponent<CivilianPopulationRuntimeBridge>();
+                CreateAnchor(bridgeRootA.transform, "Anchor_Cop_Reserve", Vector3.zero);
+                definitionA = CreatePoliceReservePopulationDefinition(includeAmbientPolice: false);
+                ConfigureBridgeForPoliceReserveDispatch(bridgeA, definitionA);
+
+                bridgeRootB = new GameObject("CivilianPopulationRuntimeBridge_B");
+                var bridgeB = bridgeRootB.AddComponent<CivilianPopulationRuntimeBridge>();
+                CreateAnchor(bridgeRootB.transform, "Anchor_Cop_Reserve", Vector3.zero);
+                definitionB = CreatePoliceReservePopulationDefinition(includeAmbientPolice: false);
+                ConfigureBridgeForPoliceReserveDispatch(bridgeB, definitionB);
+
+                var bridgeOrder = UnityEngine.Object.FindObjectsByType<CivilianPopulationRuntimeBridge>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+                Assert.That(bridgeOrder.Length, Is.EqualTo(2));
+
+                SetReserveAnchorPosition(bridgeOrder[0], new Vector3(0f, 1f, 20f));
+                SetReserveAnchorPosition(bridgeOrder[1], new Vector3(0f, 1f, 3f));
+
+                var coordinator = GetOrCreateCoordinator(out coordinatorRoot);
+                ConfigureCoordinator(
+                    coordinator,
+                    maxActiveDispatchCount: 1,
+                    dispatchReassignmentHoldSeconds: 0f,
+                    dispatchReplacementDistanceThresholdMeters: 0f,
+                    dispatchActivationIntervalSeconds: 0f);
+
+                yield return null;
+
+                Assert.That(provider.TryHandleDialogueAction("police.stop.leave", string.Empty), Is.True);
+                Assert.That(provider.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.ActivePursuit));
+
+                yield return null;
+                yield return null;
+
+                var farSpawned = bridgeOrder[0].GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                var nearSpawned = bridgeOrder[1].GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+                Assert.That(farSpawned.Length, Is.EqualTo(0), "Expected dispatch to rank reserve candidates globally instead of taking the first bridge that can spawn one.");
+                Assert.That(nearSpawned.Length, Is.EqualTo(1));
+                Assert.That(nearSpawned[0].PopulationSlotId, Is.EqualTo("cops.reserve"));
+                Assert.That(Vector3.Distance(nearSpawned[0].transform.position, new Vector3(0f, 1f, 3f)), Is.LessThan(0.1f));
+                Assert.That(coordinator.RegisteredResponderCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                DestroyImmediateIfNeeded(definitionB);
+                DestroyImmediateIfNeeded(definitionA);
+                DestroyImmediateIfNeeded(bridgeRootB);
+                DestroyImmediateIfNeeded(bridgeRootA);
+                DestroyImmediateIfNeeded(coordinatorRoot);
+                DestroyExistingCoordinator();
                 DestroyImmediateIfNeeded(playerRoot);
                 DestroyImmediateIfNeeded(providerGo);
             }
@@ -659,6 +864,87 @@ namespace Reloader.NPCs.Tests.PlayMode
             playerRoot.AddComponent<HumanoidDamageReceiver>();
             playerRoot.AddComponent<PlayerDeathContractBridge>();
             return playerRoot;
+        }
+
+        private static void ConfigureBridgeForPoliceReserveDispatch(CivilianPopulationRuntimeBridge bridge, MainTownPopulationDefinition definition)
+        {
+            SetField(bridge, "_appearanceLibrary", CreateLibrary());
+            SetField(bridge, "_civilianIdPrefix", "citizen.mainTown");
+            SetField(bridge, "_initialPopulationCount", 0);
+            SetField(bridge, "_spawnAnchorIds", Array.Empty<string>());
+            SetField(bridge, "_populationDefinition", definition);
+        }
+
+        private static CivilianAppearanceLibrary CreateLibrary()
+        {
+            return new CivilianAppearanceLibrary
+            {
+                BaseBodyIds = new[] { "body.male.a" },
+                PresentationTypes = new[] { "masculine" },
+                HairIds = new[] { "hair.short.01" },
+                HairColorIds = new[] { "hair.black" },
+                BeardIds = new[] { "beard.none" },
+                OutfitTopIds = new[] { "top.coat.01" },
+                OutfitBottomIds = new[] { "bottom.jeans.01" },
+                OuterwearIds = new[] { "outer.gray.coat" },
+                MaterialColorIds = new[] { "color.gray" },
+                DescriptionTags = new[] { "gray coat" }
+            };
+        }
+
+        private static MainTownPopulationDefinition CreatePoliceReservePopulationDefinition(bool includeAmbientPolice = true)
+        {
+            var definition = ScriptableObject.CreateInstance<MainTownPopulationDefinition>();
+            var slots = new System.Collections.Generic.List<MainTownPopulationSlotDefinition>();
+            if (includeAmbientPolice)
+            {
+                slots.Add(new MainTownPopulationSlotDefinition
+                        {
+                            PopulationSlotId = "cops.ambient",
+                            PoolId = "cops",
+                            AreaTag = "maintown.watch",
+                            SpawnAnchorId = "Anchor_Cop_Ambient",
+                            Habitat = MainTownPopulationHabitat.Town,
+                            IsProtectedFromContracts = true,
+                            SpawnOnSceneLoad = true
+                        });
+            }
+
+            slots.Add(new MainTownPopulationSlotDefinition
+                        {
+                            PopulationSlotId = "cops.reserve",
+                            PoolId = "cops",
+                            AreaTag = "maintown.watch.reserve",
+                            SpawnAnchorId = "Anchor_Cop_Reserve",
+                            Habitat = MainTownPopulationHabitat.Town,
+                            IsProtectedFromContracts = true,
+                            SpawnOnSceneLoad = false
+                        });
+
+            definition.Pools = new[]
+            {
+                new MainTownPopulationPoolDefinition
+                {
+                    PoolId = "cops",
+                    Slots = slots.ToArray()
+                }
+            };
+            return definition;
+        }
+
+        private static Transform CreateAnchor(Transform parent, string name, Vector3 position)
+        {
+            var anchor = new GameObject(name).transform;
+            anchor.SetParent(parent, false);
+            anchor.localPosition = position;
+            return anchor;
+        }
+
+        private static void SetReserveAnchorPosition(CivilianPopulationRuntimeBridge bridge, Vector3 position)
+        {
+            var reserveAnchor = bridge.transform.Find("Anchor_Cop_Reserve");
+            Assert.That(reserveAnchor, Is.Not.Null, "Expected a reserve anchor on the police dispatch bridge.");
+            reserveAnchor!.localPosition = position;
         }
 
         private static PoliceDispatchCoordinator GetOrCreateCoordinator(out GameObject coordinatorRoot)

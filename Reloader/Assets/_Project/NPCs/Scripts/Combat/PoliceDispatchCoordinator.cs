@@ -22,6 +22,7 @@ namespace Reloader.NPCs.Combat
         private readonly Dictionary<Transform, DispatchEntry> _dispatchEntries = new Dictionary<Transform, DispatchEntry>();
         private readonly List<DispatchEntry> _sortedDispatchEntries = new List<DispatchEntry>();
         private readonly List<DispatchEntry> _selectedDispatchEntries = new List<DispatchEntry>();
+        private readonly List<CivilianPopulationRuntimeBridge.PoliceResponderDispatchCandidate> _dispatchSpawnCandidates = new List<CivilianPopulationRuntimeBridge.PoliceResponderDispatchCandidate>();
         private readonly List<Transform> _staleDispatchRoots = new List<Transform>();
         private ILawEnforcementEvents _subscribedLawEnforcementEvents;
         private PoliceHeatState _currentHeatState;
@@ -196,6 +197,20 @@ namespace Reloader.NPCs.Combat
         private void StageDispatchAtPoint(Vector3 selectionPoint)
         {
             GatherDispatchEntries();
+            var desiredDispatchCount = ResolveDesiredDispatchCount();
+            if (_sortedDispatchEntries.Count < desiredDispatchCount)
+            {
+                var missingResponders = desiredDispatchCount - _sortedDispatchEntries.Count;
+                if (missingResponders > 0)
+                {
+                    var spawnedResponders = TrySpawnMissingDispatchResponders(selectionPoint, missingResponders);
+                    if (spawnedResponders > 0)
+                    {
+                        GatherDispatchEntries();
+                    }
+                }
+            }
+
             _registeredResponderCount = _sortedDispatchEntries.Count;
             if (_sortedDispatchEntries.Count == 0)
             {
@@ -203,7 +218,7 @@ namespace Reloader.NPCs.Combat
                 return;
             }
 
-            var activeCount = ResolveTargetDispatchCount(_sortedDispatchEntries.Count);
+            var activeCount = Mathf.Min(desiredDispatchCount, _sortedDispatchEntries.Count);
             for (var i = 0; i < _sortedDispatchEntries.Count; i++)
             {
                 var entry = _sortedDispatchEntries[i];
@@ -299,7 +314,7 @@ namespace Reloader.NPCs.Combat
             _activeResponderCount = enabledCount;
         }
 
-        private int ResolveTargetDispatchCount(int registeredResponderCount)
+        private int ResolveDesiredDispatchCount()
         {
             var configuredCap = Mathf.Max(1, _maxActiveDispatchCount);
             if (_currentHeatState.Level == PoliceHeatLevel.Search)
@@ -315,7 +330,72 @@ namespace Reloader.NPCs.Combat
                 }
             }
 
-            return Mathf.Min(configuredCap, registeredResponderCount);
+            return configuredCap;
+        }
+
+        private int TrySpawnMissingDispatchResponders(Vector3 selectionPoint, int missingResponderCount)
+        {
+            if (missingResponderCount <= 0)
+            {
+                return 0;
+            }
+
+            _dispatchSpawnCandidates.Clear();
+            var bridges = FindObjectsByType<CivilianPopulationRuntimeBridge>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (var i = 0; i < bridges.Length; i++)
+            {
+                var bridge = bridges[i];
+                if (bridge == null || !bridge.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                bridge.CollectPoliceResponderDispatchCandidates(selectionPoint, _dispatchSpawnCandidates);
+            }
+
+            if (_dispatchSpawnCandidates.Count == 0)
+            {
+                return 0;
+            }
+
+            _dispatchSpawnCandidates.Sort(CompareDispatchSpawnCandidates);
+
+            var spawnedResponders = 0;
+            for (var i = 0; i < _dispatchSpawnCandidates.Count && spawnedResponders < missingResponderCount; i++)
+            {
+                var candidate = _dispatchSpawnCandidates[i];
+                if (candidate.Bridge == null || !candidate.Bridge.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                if (candidate.Bridge.TrySpawnPoliceResponderForDispatch(candidate.CivilianId))
+                {
+                    spawnedResponders++;
+                }
+            }
+
+            _dispatchSpawnCandidates.Clear();
+            return spawnedResponders;
+        }
+
+        private static int CompareDispatchSpawnCandidates(
+            CivilianPopulationRuntimeBridge.PoliceResponderDispatchCandidate left,
+            CivilianPopulationRuntimeBridge.PoliceResponderDispatchCandidate right)
+        {
+            var distanceComparison = left.DistanceMeters.CompareTo(right.DistanceMeters);
+            if (distanceComparison != 0)
+            {
+                return distanceComparison;
+            }
+
+            var slotComparison = string.CompareOrdinal(left.PopulationSlotId, right.PopulationSlotId);
+            if (slotComparison != 0)
+            {
+                return slotComparison;
+            }
+
+            return string.CompareOrdinal(left.CivilianId, right.CivilianId);
         }
 
         private void GatherDispatchEntries()

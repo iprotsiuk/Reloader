@@ -19,6 +19,7 @@ namespace Reloader.NPCs.Generation
         [SerializeField] private string _areaTag = string.Empty;
         [SerializeField] private string _spawnAnchorId = string.Empty;
         [SerializeField] private MainTownPopulationHabitat _habitat = MainTownPopulationHabitat.Town;
+        [SerializeField] private bool _spawnOnSceneLoad = true;
         [SerializeField] private bool _isProtectedFromContracts;
 
         public string PopulationSlotId
@@ -49,6 +50,12 @@ namespace Reloader.NPCs.Generation
         {
             get => _habitat;
             set => _habitat = value;
+        }
+
+        public bool SpawnOnSceneLoad
+        {
+            get => _spawnOnSceneLoad;
+            set => _spawnOnSceneLoad = value;
         }
 
         public bool IsProtectedFromContracts

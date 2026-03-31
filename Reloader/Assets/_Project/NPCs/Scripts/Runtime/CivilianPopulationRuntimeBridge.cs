@@ -36,6 +36,26 @@ namespace Reloader.NPCs.Runtime
         private int _lastObservedWorldDayCount = -1;
         private float _lastObservedWorldTimeOfDay = -1f;
 
+        internal readonly struct PoliceResponderDispatchCandidate
+        {
+            public PoliceResponderDispatchCandidate(
+                CivilianPopulationRuntimeBridge bridge,
+                string civilianId,
+                string populationSlotId,
+                float distanceMeters)
+            {
+                Bridge = bridge;
+                CivilianId = civilianId ?? string.Empty;
+                PopulationSlotId = populationSlotId ?? string.Empty;
+                DistanceMeters = distanceMeters;
+            }
+
+            public CivilianPopulationRuntimeBridge Bridge { get; }
+            public string CivilianId { get; }
+            public string PopulationSlotId { get; }
+            public float DistanceMeters { get; }
+        }
+
         public CivilianPopulationRuntimeState Runtime => _runtime;
         public MainTownPopulationDefinition PopulationDefinition => _populationDefinition;
 
@@ -209,6 +229,93 @@ namespace Reloader.NPCs.Runtime
             return true;
         }
 
+        public int TrySpawnPoliceRespondersForDispatch(Vector3 selectionPoint, int desiredSpawnCount)
+        {
+            if (desiredSpawnCount <= 0)
+            {
+                return 0;
+            }
+
+            var candidates = new List<PoliceResponderDispatchCandidate>();
+            CollectPoliceResponderDispatchCandidates(selectionPoint, candidates);
+
+            if (candidates.Count == 0)
+            {
+                return 0;
+            }
+
+            candidates.Sort(CompareDispatchCandidates);
+
+            var spawnedCount = 0;
+            var targetCount = Mathf.Min(desiredSpawnCount, candidates.Count);
+            for (var i = 0; i < targetCount; i++)
+            {
+                var candidate = candidates[i];
+                if (TrySpawnPoliceResponderForDispatch(candidate.CivilianId))
+                {
+                    spawnedCount++;
+                }
+            }
+
+            return spawnedCount;
+        }
+
+        internal void CollectPoliceResponderDispatchCandidates(Vector3 selectionPoint, List<PoliceResponderDispatchCandidate> candidates)
+        {
+            if (candidates == null || !isActiveAndEnabled)
+            {
+                return;
+            }
+
+            EnsureRuntimePopulationInitializedForScene();
+
+            for (var i = 0; i < _runtime.Civilians.Count; i++)
+            {
+                var record = _runtime.Civilians[i];
+                if (!IsDispatchReservePoliceRecord(record) || TryResolveSpawnedCivilian(record.CivilianId, out _))
+                {
+                    continue;
+                }
+
+                var anchor = ResolveSpawnAnchor(record.SpawnAnchorId);
+                if (anchor == null)
+                {
+                    continue;
+                }
+
+                candidates.Add(new PoliceResponderDispatchCandidate(
+                    this,
+                    record.CivilianId,
+                    record.PopulationSlotId,
+                    PlanarDistance(anchor.position, selectionPoint)));
+            }
+        }
+
+        internal bool TrySpawnPoliceResponderForDispatch(string civilianId)
+        {
+            if (!isActiveAndEnabled || string.IsNullOrWhiteSpace(civilianId))
+            {
+                return false;
+            }
+
+            EnsureRuntimePopulationInitializedForScene();
+
+            var record = FindCivilianById(civilianId);
+            if (!IsDispatchReservePoliceRecord(record) || TryResolveSpawnedCivilian(civilianId, out _))
+            {
+                return false;
+            }
+
+            var anchor = ResolveSpawnAnchor(record.SpawnAnchorId);
+            if (anchor == null)
+            {
+                return false;
+            }
+
+            SpawnPlaceholderCivilian(record, anchor);
+            return true;
+        }
+
         public void ReportContractTargetEliminated(string targetId, bool wasExposed)
         {
             var snapshot = ResolveCoreWorldController()?.CaptureSnapshot();
@@ -270,17 +377,19 @@ namespace Reloader.NPCs.Runtime
 
                 var civilianId = CreateNextCivilianId(vacated.PopulationSlotId);
                 var seed = ExtractCivilianNumericSuffix(civilianId);
+                var isDispatchOnlyReserve = IsDispatchReservePoliceSlotId(vacated.PopulationSlotId);
+                var isProtectedFromContracts = vacated.IsProtectedFromContracts || isDispatchOnlyReserve;
                 _runtime.Civilians.Add(_generator.GenerateRecord(
                     _appearanceLibrary,
                     civilianId,
                     createdAtDay: normalizedDay,
                     vacated.SpawnAnchorId,
                     seed,
-                    isContractEligible: !vacated.IsProtectedFromContracts,
+                    isContractEligible: !isProtectedFromContracts,
                     populationSlotId: vacated.PopulationSlotId,
                     poolId: vacated.PoolId,
                     areaTag: vacated.AreaTag,
-                    isProtectedFromContracts: vacated.IsProtectedFromContracts,
+                    isProtectedFromContracts: isProtectedFromContracts,
                     reservedPublicDisplayNames: CollectReservedPublicDisplayNames()));
                 occupiedLivePopulationSlotIds.Add(vacated.PopulationSlotId);
 
@@ -417,17 +526,19 @@ namespace Reloader.NPCs.Runtime
                 }
 
                 var civilianId = $"{idPrefix}.{slotOrdinal:0000}";
+                var isDispatchOnlyReserve = IsDispatchOnlyPoliceSlot(slot);
+                var isProtectedFromContracts = slot.IsProtectedFromContracts || isDispatchOnlyReserve;
                 _runtime.Civilians.Add(_generator.GenerateRecord(
                     _appearanceLibrary,
                     civilianId,
                     createdAtDay: 0,
                     slot.SpawnAnchorId,
                     seed: slotOrdinal,
-                    isContractEligible: !slot.IsProtectedFromContracts,
+                    isContractEligible: !isProtectedFromContracts,
                     populationSlotId: slot.PopulationSlotId,
                     poolId: slot.PoolId,
                     areaTag: slot.AreaTag,
-                    isProtectedFromContracts: slot.IsProtectedFromContracts,
+                    isProtectedFromContracts: isProtectedFromContracts,
                     reservedPublicDisplayNames: CollectReservedPublicDisplayNames()));
             }
         }
@@ -539,7 +650,10 @@ namespace Reloader.NPCs.Runtime
 
         private void SpawnDedicatedContractTarget(CivilianPopulationRecord record)
         {
-            if (record == null || !record.IsAlive)
+            var allowActiveReserveTarget = IsActiveContractTarget(record);
+            if (record == null
+                || !record.IsAlive
+                || (IsDispatchReservePoliceRecord(record) && !allowActiveReserveTarget))
             {
                 return;
             }
@@ -782,9 +896,14 @@ namespace Reloader.NPCs.Runtime
             responderMover.enabled = false;
         }
 
-        private static void ConfigureContractTargetIfEligible(GameObject civilian, CivilianPopulationRecord record)
+        private void ConfigureContractTargetIfEligible(GameObject civilian, CivilianPopulationRecord record)
         {
-            if (civilian == null || record == null || !record.IsContractEligible || record.IsProtectedFromContracts)
+            var allowActiveReserveTarget = IsActiveContractTarget(record);
+            if (civilian == null
+                || record == null
+                || (!allowActiveReserveTarget && !record.IsContractEligible)
+                || (!allowActiveReserveTarget && record.IsProtectedFromContracts)
+                || (IsDispatchReservePoliceRecord(record) && !allowActiveReserveTarget))
             {
                 return;
             }
@@ -952,7 +1071,11 @@ namespace Reloader.NPCs.Runtime
             for (var i = 0; i < _runtime.Civilians.Count; i++)
             {
                 var record = _runtime.Civilians[i];
-                if (record == null || !record.IsAlive || !record.IsContractEligible || record.IsProtectedFromContracts)
+                if (record == null
+                    || !record.IsAlive
+                    || !record.IsContractEligible
+                    || record.IsProtectedFromContracts
+                    || IsDispatchReservePoliceRecord(record))
                 {
                     continue;
                 }
@@ -991,9 +1114,14 @@ namespace Reloader.NPCs.Runtime
             return eligible[GetNonNegativeModulo(EnsureOfferRotationSeed(), eligible.Count)];
         }
 
-        private static bool ShouldSpawnAmbientCivilian(CivilianPopulationRecord record, string trackedTargetId)
+        private bool ShouldSpawnAmbientCivilian(CivilianPopulationRecord record, string trackedTargetId)
         {
             if (record == null || !record.IsAlive)
+            {
+                return false;
+            }
+
+            if (IsDispatchReservePoliceRecord(record))
             {
                 return false;
             }
@@ -1778,6 +1906,98 @@ namespace Reloader.NPCs.Runtime
             }
 
             return CreateSequentialCivilianId();
+        }
+
+        private bool IsDispatchReservePoliceRecord(CivilianPopulationRecord record)
+        {
+            if (record == null
+                || !record.IsAlive
+                || string.IsNullOrWhiteSpace(record.PopulationSlotId))
+            {
+                return false;
+            }
+
+            return IsDispatchReservePoliceSlotId(record.PopulationSlotId);
+        }
+
+        private static bool IsActiveContractTarget(CivilianPopulationRecord record)
+        {
+            if (record == null || string.IsNullOrWhiteSpace(record.CivilianId))
+            {
+                return false;
+            }
+
+            return TryGetTrackedContractSnapshot(out var snapshot)
+                   && snapshot.HasActiveContract
+                   && string.Equals(snapshot.TargetId, record.CivilianId, StringComparison.Ordinal);
+        }
+
+        private static bool TryGetTrackedContractSnapshot(out ContractOfferSnapshot snapshot)
+        {
+            var provider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
+            if (provider != null && provider.TryGetContractSnapshot(out snapshot))
+            {
+                return snapshot.HasActiveContract || snapshot.HasAvailableContract;
+            }
+
+            snapshot = default;
+            return false;
+        }
+
+        private bool IsDispatchReservePoliceSlotId(string populationSlotId)
+        {
+            return TryResolvePopulationSlot(populationSlotId, out var slot) && IsDispatchOnlyPoliceSlot(slot);
+        }
+
+        private static bool IsDispatchOnlyPoliceSlot(MainTownPopulationSlotDefinition slot)
+        {
+            return slot != null
+                   && !slot.SpawnOnSceneLoad
+                   && string.Equals(slot.PoolId, "cops", StringComparison.Ordinal);
+        }
+
+        private bool TryResolvePopulationSlot(string populationSlotId, out MainTownPopulationSlotDefinition slot)
+        {
+            slot = null;
+            if (_populationDefinition == null || string.IsNullOrWhiteSpace(populationSlotId))
+            {
+                return false;
+            }
+
+            foreach (var candidate in _populationDefinition.GetSlotsForHabitat(MainTownPopulationHabitat.Any))
+            {
+                if (candidate != null &&
+                    string.Equals(candidate.PopulationSlotId, populationSlotId, StringComparison.Ordinal))
+                {
+                    slot = candidate;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static float PlanarDistance(Vector3 a, Vector3 b)
+        {
+            var delta = new Vector3(a.x - b.x, 0f, a.z - b.z);
+            return delta.magnitude;
+        }
+
+        private static int CompareDispatchCandidates(PoliceResponderDispatchCandidate left, PoliceResponderDispatchCandidate right)
+        {
+            var distanceComparison = left.DistanceMeters.CompareTo(right.DistanceMeters);
+            if (distanceComparison != 0)
+            {
+                return distanceComparison;
+            }
+
+            var slotComparison = string.CompareOrdinal(left.PopulationSlotId, right.PopulationSlotId);
+            if (slotComparison != 0)
+            {
+                return slotComparison;
+            }
+
+            return string.CompareOrdinal(left.CivilianId, right.CivilianId);
         }
 
         private bool TryCreateNextPopulationSlotScopedCivilianId(string populationSlotId, out string civilianId)
