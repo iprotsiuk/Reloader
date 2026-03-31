@@ -13,9 +13,11 @@ namespace Reloader.NPCs.Combat
     {
         [SerializeField, Min(1)] private int _maxActiveDispatchCount = 4;
         [SerializeField, Min(1)] private int _maxSearchDispatchCount = 2;
+        [SerializeField, Min(1)] private int _minSearchDispatchCount = 1;
         [SerializeField, Min(0f)] private float _dispatchReassignmentHoldSeconds = 0.5f;
         [SerializeField, Min(0f)] private float _dispatchReplacementDistanceThresholdMeters = 1f;
         [SerializeField, Min(0f)] private float _dispatchActivationIntervalSeconds = 0.2f;
+        [SerializeField, Min(0f)] private float _searchResponderDecayIntervalSeconds = 8f;
 
         private readonly Dictionary<Transform, DispatchEntry> _dispatchEntries = new Dictionary<Transform, DispatchEntry>();
         private readonly List<DispatchEntry> _sortedDispatchEntries = new List<DispatchEntry>();
@@ -25,6 +27,8 @@ namespace Reloader.NPCs.Combat
         private PoliceHeatState _currentHeatState;
         private Vector3 _cachedDispatchSearchPoint;
         private bool _hasCachedDispatchSearchPoint;
+        private float _searchStateEnteredAtUnscaledTime;
+        private bool _hasSearchStateEnteredAtUnscaledTime;
         private int _activeResponderCount;
         private int _registeredResponderCount;
 
@@ -83,7 +87,23 @@ namespace Reloader.NPCs.Combat
 
         private void HandleHeatChanged(PoliceHeatState state)
         {
+            var previousLevel = _currentHeatState.Level;
+            var previousIdentified = _currentHeatState.IsPlayerIdentified;
             _currentHeatState = state;
+            if (state.Level == PoliceHeatLevel.Search && state.IsPlayerIdentified)
+            {
+                if (previousLevel != PoliceHeatLevel.Search || !previousIdentified)
+                {
+                    _searchStateEnteredAtUnscaledTime = Time.unscaledTime;
+                    _hasSearchStateEnteredAtUnscaledTime = true;
+                }
+            }
+            else
+            {
+                _searchStateEnteredAtUnscaledTime = 0f;
+                _hasSearchStateEnteredAtUnscaledTime = false;
+            }
+
             if (!ShouldStageDispatch())
             {
                 SetAllDispatchComponentsEnabled(false);
@@ -285,6 +305,14 @@ namespace Reloader.NPCs.Combat
             if (_currentHeatState.Level == PoliceHeatLevel.Search)
             {
                 configuredCap = Mathf.Min(configuredCap, Mathf.Max(1, _maxSearchDispatchCount));
+                var minimumSearchCap = Mathf.Clamp(_minSearchDispatchCount, 1, configuredCap);
+                var decayIntervalSeconds = Mathf.Max(0f, _searchResponderDecayIntervalSeconds);
+                if (decayIntervalSeconds > 0f && _hasSearchStateEnteredAtUnscaledTime)
+                {
+                    var elapsedSearchSeconds = Mathf.Max(0f, Time.unscaledTime - _searchStateEnteredAtUnscaledTime);
+                    var decaySteps = Mathf.FloorToInt(elapsedSearchSeconds / decayIntervalSeconds);
+                    configuredCap = Mathf.Max(minimumSearchCap, configuredCap - decaySteps);
+                }
             }
 
             return Mathf.Min(configuredCap, registeredResponderCount);
