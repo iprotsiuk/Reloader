@@ -16,6 +16,7 @@ namespace Reloader.NPCs.Tests.PlayMode
         [SetUp]
         public void SetUp()
         {
+            DestroyExistingCoordinator();
             RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), new DefaultRuntimeEvents());
         }
 
@@ -23,6 +24,7 @@ namespace Reloader.NPCs.Tests.PlayMode
         public void TearDown()
         {
             RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), new DefaultRuntimeEvents());
+            DestroyExistingCoordinator();
         }
 
         [UnityTest]
@@ -56,7 +58,8 @@ namespace Reloader.NPCs.Tests.PlayMode
                     coordinator,
                     maxActiveDispatchCount: 2,
                     dispatchReassignmentHoldSeconds: 0f,
-                    dispatchReplacementDistanceThresholdMeters: 0f);
+                    dispatchReplacementDistanceThresholdMeters: 0f,
+                    dispatchActivationIntervalSeconds: 0f);
 
                 yield return null;
 
@@ -125,7 +128,8 @@ namespace Reloader.NPCs.Tests.PlayMode
                     coordinator,
                     maxActiveDispatchCount: 2,
                     dispatchReassignmentHoldSeconds: 0f,
-                    dispatchReplacementDistanceThresholdMeters: 0f);
+                    dispatchReplacementDistanceThresholdMeters: 0f,
+                    dispatchActivationIntervalSeconds: 0f);
 
                 yield return null;
 
@@ -188,7 +192,8 @@ namespace Reloader.NPCs.Tests.PlayMode
                     coordinator,
                     maxActiveDispatchCount: 2,
                     dispatchReassignmentHoldSeconds: 0.5f,
-                    dispatchReplacementDistanceThresholdMeters: 0f);
+                    dispatchReplacementDistanceThresholdMeters: 0f,
+                    dispatchActivationIntervalSeconds: 0f);
 
                 yield return null;
 
@@ -254,7 +259,8 @@ namespace Reloader.NPCs.Tests.PlayMode
                     coordinator,
                     maxActiveDispatchCount: 2,
                     dispatchReassignmentHoldSeconds: 0f,
-                    dispatchReplacementDistanceThresholdMeters: 0.5f);
+                    dispatchReplacementDistanceThresholdMeters: 0.5f,
+                    dispatchActivationIntervalSeconds: 0f);
 
                 yield return null;
 
@@ -269,6 +275,140 @@ namespace Reloader.NPCs.Tests.PlayMode
                 AssertResponderEnabled(copMidRoot, expectedEnabled: true);
                 AssertResponderEnabled(copFarRoot, expectedEnabled: true);
                 Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(2));
+            }
+            finally
+            {
+                DestroyImmediateIfNeeded(coordinatorRoot);
+                DestroyImmediateIfNeeded(copFarRoot);
+                DestroyImmediateIfNeeded(copMidRoot);
+                DestroyImmediateIfNeeded(copNearRoot);
+                DestroyImmediateIfNeeded(playerRoot);
+                DestroyImmediateIfNeeded(providerGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ActivePursuit_SelectedResponders_EnableInRankedDispatchWaves()
+        {
+            GameObject providerGo = null;
+            GameObject playerRoot = null;
+            GameObject coordinatorRoot = null;
+            GameObject copNearRoot = null;
+            GameObject copMidRoot = null;
+            GameObject copFarRoot = null;
+
+            try
+            {
+                providerGo = new GameObject("ContractProvider");
+                var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+                playerRoot = CreatePlayerRoot(new Vector3(0f, 1f, 10f));
+
+                yield return null;
+
+                Assert.That(provider.TryHandleDialogueAction("police.stop.leave", string.Empty), Is.True);
+                Assert.That(provider.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.ActivePursuit));
+
+                copNearRoot = CreatePoliceResponder(new Vector3(0f, 1f, 0f));
+                copMidRoot = CreatePoliceResponder(new Vector3(0f, 1f, 3f));
+                copFarRoot = CreatePoliceResponder(new Vector3(0f, 1f, 6f));
+
+                var coordinator = GetOrCreateCoordinator(out coordinatorRoot);
+                ConfigureCoordinator(
+                    coordinator,
+                    maxActiveDispatchCount: 3,
+                    dispatchReassignmentHoldSeconds: 0f,
+                    dispatchReplacementDistanceThresholdMeters: 0f,
+                    dispatchActivationIntervalSeconds: 0.2f);
+
+                yield return null;
+
+                AssertResponderEnabled(copNearRoot, expectedEnabled: false);
+                AssertResponderEnabled(copMidRoot, expectedEnabled: false);
+                AssertResponderEnabled(copFarRoot, expectedEnabled: true);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(1));
+
+                yield return new WaitForSecondsRealtime(0.22f);
+                yield return null;
+
+                AssertResponderEnabled(copNearRoot, expectedEnabled: false);
+                AssertResponderEnabled(copMidRoot, expectedEnabled: true);
+                AssertResponderEnabled(copFarRoot, expectedEnabled: true);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(2));
+
+                yield return new WaitForSecondsRealtime(0.22f);
+                yield return null;
+
+                AssertResponderEnabled(copNearRoot, expectedEnabled: true);
+                AssertResponderEnabled(copMidRoot, expectedEnabled: true);
+                AssertResponderEnabled(copFarRoot, expectedEnabled: true);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(3));
+            }
+            finally
+            {
+                DestroyImmediateIfNeeded(coordinatorRoot);
+                DestroyImmediateIfNeeded(copFarRoot);
+                DestroyImmediateIfNeeded(copMidRoot);
+                DestroyImmediateIfNeeded(copNearRoot);
+                DestroyImmediateIfNeeded(playerRoot);
+                DestroyImmediateIfNeeded(providerGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ClearHeat_CancelsPendingDispatchWarmups()
+        {
+            GameObject providerGo = null;
+            GameObject playerRoot = null;
+            GameObject coordinatorRoot = null;
+            GameObject copNearRoot = null;
+            GameObject copMidRoot = null;
+            GameObject copFarRoot = null;
+
+            try
+            {
+                providerGo = new GameObject("ContractProvider");
+                var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+                playerRoot = CreatePlayerRoot(new Vector3(0f, 1f, 10f));
+
+                yield return null;
+
+                Assert.That(provider.TryHandleDialogueAction("police.stop.leave", string.Empty), Is.True);
+                Assert.That(provider.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.ActivePursuit));
+
+                copNearRoot = CreatePoliceResponder(new Vector3(0f, 1f, 0f));
+                copMidRoot = CreatePoliceResponder(new Vector3(0f, 1f, 3f));
+                copFarRoot = CreatePoliceResponder(new Vector3(0f, 1f, 6f));
+
+                var coordinator = GetOrCreateCoordinator(out coordinatorRoot);
+                ConfigureCoordinator(
+                    coordinator,
+                    maxActiveDispatchCount: 3,
+                    dispatchReassignmentHoldSeconds: 0f,
+                    dispatchReplacementDistanceThresholdMeters: 0f,
+                    dispatchActivationIntervalSeconds: 0.3f);
+
+                yield return null;
+
+                AssertResponderEnabled(copNearRoot, expectedEnabled: false);
+                AssertResponderEnabled(copMidRoot, expectedEnabled: false);
+                AssertResponderEnabled(copFarRoot, expectedEnabled: true);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(1));
+
+                ForceClearHeat(provider);
+                yield return new WaitForSecondsRealtime(0.7f);
+                yield return null;
+
+                Assert.That(provider.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Clear));
+                AssertResponderEnabled(copNearRoot, expectedEnabled: false);
+                AssertResponderEnabled(copMidRoot, expectedEnabled: false);
+                AssertResponderEnabled(copFarRoot, expectedEnabled: false);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(0));
+                Assert.That(ReadDispatchSearchSlotIndex(copNearRoot.GetComponent<PoliceResponderMover>()), Is.EqualTo(-1));
+                Assert.That(ReadDispatchSearchSlotCount(copNearRoot.GetComponent<PoliceResponderMover>()), Is.EqualTo(0));
+                Assert.That(ReadDispatchSearchSlotIndex(copMidRoot.GetComponent<PoliceResponderMover>()), Is.EqualTo(-1));
+                Assert.That(ReadDispatchSearchSlotCount(copMidRoot.GetComponent<PoliceResponderMover>()), Is.EqualTo(0));
+                Assert.That(ReadDispatchSearchSlotIndex(copFarRoot.GetComponent<PoliceResponderMover>()), Is.EqualTo(-1));
+                Assert.That(ReadDispatchSearchSlotCount(copFarRoot.GetComponent<PoliceResponderMover>()), Is.EqualTo(0));
             }
             finally
             {
@@ -310,7 +450,8 @@ namespace Reloader.NPCs.Tests.PlayMode
                     coordinator,
                     maxActiveDispatchCount: 2,
                     dispatchReassignmentHoldSeconds: 0f,
-                    dispatchReplacementDistanceThresholdMeters: 0f);
+                    dispatchReplacementDistanceThresholdMeters: 0f,
+                    dispatchActivationIntervalSeconds: 0.3f);
 
                 yield return null;
 
@@ -328,11 +469,18 @@ namespace Reloader.NPCs.Tests.PlayMode
                 Assert.That(ReadDispatchSearchSlotCount(farMover), Is.EqualTo(2));
                 Assert.That(midSlotIndex, Is.Not.EqualTo(farSlotIndex));
                 Assert.That(ReadDispatchSearchSlotIndex(nearMover), Is.EqualTo(-1));
+                AssertResponderEnabled(copNearRoot, expectedEnabled: false);
+                AssertResponderEnabled(copMidRoot, expectedEnabled: false);
+                AssertResponderEnabled(copFarRoot, expectedEnabled: true);
 
+                yield return new WaitForSecondsRealtime(0.35f);
                 yield return null;
 
                 Assert.That(ReadDispatchSearchSlotIndex(midMover), Is.EqualTo(midSlotIndex));
                 Assert.That(ReadDispatchSearchSlotIndex(farMover), Is.EqualTo(farSlotIndex));
+                AssertResponderEnabled(copNearRoot, expectedEnabled: false);
+                AssertResponderEnabled(copMidRoot, expectedEnabled: true);
+                AssertResponderEnabled(copFarRoot, expectedEnabled: true);
             }
             finally
             {
@@ -383,6 +531,15 @@ namespace Reloader.NPCs.Tests.PlayMode
             return coordinatorRoot.AddComponent<PoliceDispatchCoordinator>();
         }
 
+        private static void DestroyExistingCoordinator()
+        {
+            var existingCoordinator = UnityEngine.Object.FindFirstObjectByType<PoliceDispatchCoordinator>(FindObjectsInactive.Include);
+            if (existingCoordinator != null)
+            {
+                UnityEngine.Object.DestroyImmediate(existingCoordinator.gameObject);
+            }
+        }
+
         private static void AssertResponderEnabled(GameObject responderRoot, bool expectedEnabled)
         {
             var mover = responderRoot.GetComponent<PoliceResponderMover>();
@@ -410,11 +567,13 @@ namespace Reloader.NPCs.Tests.PlayMode
             PoliceDispatchCoordinator coordinator,
             int maxActiveDispatchCount,
             float dispatchReassignmentHoldSeconds,
-            float dispatchReplacementDistanceThresholdMeters)
+            float dispatchReplacementDistanceThresholdMeters,
+            float dispatchActivationIntervalSeconds)
         {
             SetField(coordinator, "_maxActiveDispatchCount", maxActiveDispatchCount);
             SetField(coordinator, "_dispatchReassignmentHoldSeconds", dispatchReassignmentHoldSeconds);
             SetField(coordinator, "_dispatchReplacementDistanceThresholdMeters", dispatchReplacementDistanceThresholdMeters);
+            SetField(coordinator, "_dispatchActivationIntervalSeconds", dispatchActivationIntervalSeconds);
         }
 
         private static void ForceSearchState(StaticContractRuntimeProvider provider)

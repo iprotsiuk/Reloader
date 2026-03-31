@@ -14,6 +14,7 @@ namespace Reloader.NPCs.Combat
         [SerializeField, Min(1)] private int _maxActiveDispatchCount = 4;
         [SerializeField, Min(0f)] private float _dispatchReassignmentHoldSeconds = 0.5f;
         [SerializeField, Min(0f)] private float _dispatchReplacementDistanceThresholdMeters = 1f;
+        [SerializeField, Min(0f)] private float _dispatchActivationIntervalSeconds = 0.2f;
 
         private readonly Dictionary<Transform, DispatchEntry> _dispatchEntries = new Dictionary<Transform, DispatchEntry>();
         private readonly List<DispatchEntry> _sortedDispatchEntries = new List<DispatchEntry>();
@@ -230,7 +231,9 @@ namespace Reloader.NPCs.Combat
             }
 
             var enabledCount = 0;
+            var activationIntervalSeconds = Mathf.Max(0f, _dispatchActivationIntervalSeconds);
             _selectedDispatchEntries.Clear();
+            var selectedActivationRank = 0;
             for (var i = 0; i < _sortedDispatchEntries.Count; i++)
             {
                 var entry = _sortedDispatchEntries[i];
@@ -258,8 +261,15 @@ namespace Reloader.NPCs.Combat
                     entry.Mover.ClearDispatchSearchSlot();
                 }
 
-                SetDispatchEntryEnabled(entry, entry.IsSelected);
+                var shouldEnableEntry = false;
                 if (entry.IsSelected)
+                {
+                    shouldEnableEntry = currentTime >= entry.SelectedAtUnscaledTime + (activationIntervalSeconds * selectedActivationRank);
+                    selectedActivationRank++;
+                }
+
+                SetDispatchEntryEnabled(entry, shouldEnableEntry);
+                if (shouldEnableEntry)
                 {
                     enabledCount++;
                 }
