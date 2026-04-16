@@ -342,6 +342,16 @@ namespace Reloader.NPCs.Combat
                 }
             }
 
+            return Mathf.Min(configuredCap, ResolveWantedLevelDispatchCap(configuredCap));
+        }
+
+        private int ResolveWantedLevelDispatchCap(int configuredCap)
+        {
+            if (_currentHeatState.WantedLevel <= 1)
+            {
+                return 1;
+            }
+
             return configuredCap;
         }
 

@@ -291,6 +291,59 @@ namespace Reloader.NPCs.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ActivePursuit_WhenWantedLevelIsLow_DispatchesOnlyOneResponder()
+        {
+            GameObject playerRoot = null;
+            GameObject coordinatorRoot = null;
+            GameObject copNearRoot = null;
+            GameObject copMidRoot = null;
+            GameObject copFarRoot = null;
+
+            try
+            {
+                var events = new DefaultRuntimeEvents();
+                RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), events);
+                playerRoot = CreatePlayerRoot(new Vector3(0f, 1f, 10f));
+                copNearRoot = CreatePoliceResponder(new Vector3(0f, 1f, 0f));
+                copMidRoot = CreatePoliceResponder(new Vector3(0f, 1f, 3f));
+                copFarRoot = CreatePoliceResponder(new Vector3(0f, 1f, 6f));
+
+                var coordinator = GetOrCreateCoordinator(out coordinatorRoot);
+                ConfigureCoordinator(
+                    coordinator,
+                    maxActiveDispatchCount: 3,
+                    dispatchReassignmentHoldSeconds: 0f,
+                    dispatchReplacementDistanceThresholdMeters: 0f,
+                    dispatchActivationIntervalSeconds: 0f);
+
+                yield return null;
+
+                events.RaiseHeatChanged(new PoliceHeatState(
+                    PoliceHeatLevel.ActivePursuit,
+                    CrimeType.Brandishing,
+                    20f,
+                    true,
+                    wantedLevel: 1,
+                    isPlayerIdentified: true));
+                yield return null;
+
+                Assert.That(coordinator.CurrentHeatState.WantedLevel, Is.EqualTo(1));
+                AssertResponderEnabled(copNearRoot, expectedEnabled: false);
+                AssertResponderEnabled(copMidRoot, expectedEnabled: false);
+                AssertResponderEnabled(copFarRoot, expectedEnabled: true);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                DestroyImmediateIfNeeded(coordinatorRoot);
+                DestroyImmediateIfNeeded(copFarRoot);
+                DestroyImmediateIfNeeded(copMidRoot);
+                DestroyImmediateIfNeeded(copNearRoot);
+                DestroyImmediateIfNeeded(playerRoot);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ActivePursuit_WhenReservePoliceSlotsExist_DispatchSpawnsMissingResponders()
         {
             GameObject providerGo = null;
@@ -345,6 +398,64 @@ namespace Reloader.NPCs.Tests.PlayMode
                 DestroyExistingCoordinator();
                 DestroyImmediateIfNeeded(playerRoot);
                 DestroyImmediateIfNeeded(providerGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ActivePursuit_WhenWantedLevelIsLow_DoesNotSpawnReserveResponder()
+        {
+            GameObject playerRoot = null;
+            GameObject bridgeRoot = null;
+            MainTownPopulationDefinition definition = null;
+
+            try
+            {
+                var events = new DefaultRuntimeEvents();
+                RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), events);
+                playerRoot = CreatePlayerRoot(new Vector3(0f, 1f, 10f));
+                bridgeRoot = new GameObject("CivilianPopulationRuntimeBridge");
+                var bridge = bridgeRoot.AddComponent<CivilianPopulationRuntimeBridge>();
+                CreateAnchor(bridgeRoot.transform, "Anchor_Cop_Ambient", new Vector3(0f, 1f, 6f));
+                CreateAnchor(bridgeRoot.transform, "Anchor_Cop_Reserve", new Vector3(0f, 1f, 3f));
+                definition = CreatePoliceReservePopulationDefinition();
+
+                ConfigureBridgeForPoliceReserveDispatch(bridge, definition);
+
+                yield return null;
+
+                var coordinator = UnityEngine.Object.FindFirstObjectByType<PoliceDispatchCoordinator>(FindObjectsInactive.Include);
+                Assert.That(coordinator, Is.Not.Null, "Expected ambient police spawn to bootstrap a dispatch coordinator.");
+                ConfigureCoordinator(
+                    coordinator!,
+                    maxActiveDispatchCount: 2,
+                    dispatchReassignmentHoldSeconds: 0f,
+                    dispatchReplacementDistanceThresholdMeters: 0f,
+                    dispatchActivationIntervalSeconds: 0f);
+
+                events.RaiseHeatChanged(new PoliceHeatState(
+                    PoliceHeatLevel.ActivePursuit,
+                    CrimeType.Brandishing,
+                    20f,
+                    true,
+                    wantedLevel: 1,
+                    isPlayerIdentified: true));
+
+                yield return null;
+                yield return null;
+
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0001", out var ambientSpawn), Is.True);
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0002", out _), Is.False,
+                    "Expected low wanted pressure to use the ambient cop without materializing a hidden reserve responder.");
+                Assert.That(ambientSpawn!.GetComponent<PoliceResponderMover>().enabled, Is.True);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(1));
+                Assert.That(coordinator.RegisteredResponderCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                DestroyImmediateIfNeeded(definition);
+                DestroyImmediateIfNeeded(bridgeRoot);
+                DestroyExistingCoordinator();
+                DestroyImmediateIfNeeded(playerRoot);
             }
         }
 
