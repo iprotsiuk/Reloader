@@ -50,6 +50,7 @@ For `runtime-local` and `test-local` work:
 - `.agent/skills/*/SKILL.md` files are the project skill sources.
 - Use the skill that matches the active task domain before making changes.
 - Use each skill's referenced `resources/` and `scripts/` files as supporting material.
+- For autonomous coding, manager/subagent coordination, or quality review, use `.agent/skills/agent-quality-guardrails/SKILL.md` as a supplemental guardrail; it does not override domain local skills or mandatory global superpowers.
 - For explicit refactor, simplify, cleanup, or tech-debt requests, use `superpowers:refactoring` first, then the matching local skill.
 - For local runtime refactor/test cleanup inside one hotspot cluster, use `.agent/skills/refactoring-and-test-hygiene/SKILL.md` first.
 - For architecture resets, subsystem replacements, or refactors that should remove old paths before MVP, use `.agent/skills/clean-cutover-refactors/SKILL.md` first.
