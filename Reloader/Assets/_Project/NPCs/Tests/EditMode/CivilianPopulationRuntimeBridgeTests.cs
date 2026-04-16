@@ -1712,6 +1712,8 @@ namespace Reloader.NPCs.Tests.EditMode
                     "Expected non-offered civilians to stay outside the contract-target seam while idle.");
                 Assert.That(spawned.All(component => component.GetComponent(sharedReceiverType!) != null), Is.True,
                     "Expected every spawned civilian to expose the shared humanoid combat receiver while the contract seam stays narrow.");
+                Assert.That(spawned.Select(component => (HumanoidDamageReceiver)component.GetComponent(sharedReceiverType!)).All(receiver => receiver.MaxHealth == 100f), Is.True,
+                    "Expected procedural civilians and contract targets to keep the shared 100 health default instead of being reset to 10 or 15.");
             }
             finally
             {

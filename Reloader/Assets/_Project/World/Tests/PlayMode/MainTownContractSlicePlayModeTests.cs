@@ -354,6 +354,65 @@ namespace Reloader.World.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator MainTownContractSlice_AcceptedProceduralTarget_UsesSharedOneHundredHealthAndSurvivesFullPowerLimbHits()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var availableSnapshot), Is.True);
+            Assert.That(provider.AcceptAvailableContract(), Is.True, "Expected the scene contract provider to accept the live procedural offer.");
+            Assert.That(provider.TryGetContractSnapshot(out var activeSnapshot), Is.True);
+
+            var targetRoot = FindProceduralCivilianTarget(activeSnapshot.TargetId);
+            Assert.That(targetRoot, Is.Not.Null, "Expected the active contract target to resolve to a spawned procedural civilian.");
+
+            var receiver = targetRoot!.GetComponent<HumanoidDamageReceiver>();
+            Assert.That(receiver, Is.Not.Null, "Expected active contract target to use the shared humanoid damage receiver.");
+            Assert.That(receiver!.MaxHealth, Is.EqualTo(100f));
+            Assert.That(receiver.CurrentHealth, Is.EqualTo(100f));
+
+            var damageableType = Type.GetType("Reloader.Weapons.World.ContractTargetDamageable, Reloader.Weapons");
+            Assert.That(damageableType, Is.Not.Null, "Expected contract target damageable type to resolve.");
+            var damageable = targetRoot.GetComponent(damageableType!);
+            Assert.That(damageable, Is.Not.Null, "Expected active contract target to expose the contract damage bridge.");
+
+            var armZone = CreateRuntimeBodyZone(targetRoot.transform, HumanoidBodyZone.ArmL);
+            var legZone = CreateRuntimeBodyZone(targetRoot.transform, HumanoidBodyZone.LegR);
+
+            try
+            {
+                InvokeApplyDamage(damageable!, CreateFullPowerPayload(armZone));
+                yield return null;
+
+                Assert.That(receiver.IsDead, Is.False);
+                Assert.That(receiver.CurrentHealth, Is.EqualTo(65f).Within(0.001f));
+                Assert.That(provider.TryGetContractSnapshot(out var afterArmSnapshot), Is.True);
+                Assert.That(afterArmSnapshot.HasActiveContract, Is.True,
+                    "A single full-power arm hit must not eliminate the active contract target.");
+
+                receiver.SetHealthStateForRuntime(100f, 100f);
+                InvokeApplyDamage(damageable!, CreateFullPowerPayload(legZone));
+                yield return null;
+
+                Assert.That(receiver.IsDead, Is.False);
+                Assert.That(receiver.CurrentHealth, Is.EqualTo(55f).Within(0.001f));
+                Assert.That(provider.TryGetContractSnapshot(out var afterLegSnapshot), Is.True);
+                Assert.That(afterLegSnapshot.HasActiveContract, Is.True,
+                    "A single full-power leg hit must not eliminate the active contract target.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(armZone);
+                Object.DestroyImmediate(legZone);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator MainTownContractSlice_WhenWrongTargetIsEliminated_ProceduralContractRemainsActive()
         {
             yield return LoadScene(MainTownSceneName);
@@ -647,6 +706,43 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(payload, Is.Not.Null);
 
             var applyDamageMethod = damageableType!.GetMethod("ApplyDamage", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(applyDamageMethod, Is.Not.Null);
+            applyDamageMethod!.Invoke(damageable, new[] { payload });
+        }
+
+        private static GameObject CreateRuntimeBodyZone(Transform targetRoot, HumanoidBodyZone zone)
+        {
+            var zoneGo = new GameObject($"Test{zone}Zone");
+            zoneGo.transform.SetParent(targetRoot, false);
+            zoneGo.AddComponent<BoxCollider>();
+            zoneGo.AddComponent<BodyZoneHitbox>().Configure(zone);
+            return zoneGo;
+        }
+
+        private static object CreateFullPowerPayload(GameObject hitObject)
+        {
+            var impactPayloadType = Type.GetType("Reloader.Weapons.Ballistics.ProjectileImpactPayload, Reloader.Weapons", throwOnError: false);
+            Assert.That(impactPayloadType, Is.Not.Null, "Expected ProjectileImpactPayload type.");
+
+            return Activator.CreateInstance(
+                impactPayloadType!,
+                "weapon-kar98k",
+                hitObject.transform.position,
+                Vector3.back,
+                1f,
+                hitObject,
+                (Vector3?)(hitObject.transform.position + (Vector3.back * 250f)),
+                (Vector3?)Vector3.forward,
+                847.344f,
+                147f,
+                3500f);
+        }
+
+        private static void InvokeApplyDamage(Component damageable, object payload)
+        {
+            var applyDamageMethod = damageable.GetType().GetMethod(
+                "ApplyDamage",
+                BindingFlags.Instance | BindingFlags.Public);
             Assert.That(applyDamageMethod, Is.Not.Null);
             applyDamageMethod!.Invoke(damageable, new[] { payload });
         }

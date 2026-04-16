@@ -11,11 +11,11 @@ namespace Reloader.Weapons.World
     public sealed class ContractTargetDamageable : MonoBehaviour, IDamageable, IRangeTargetMetrics
     {
         private const string SharedReceiverTypeName = "Reloader.NPCs.Combat.HumanoidDamageReceiver, Reloader.NPCs";
-        private const string SharedReceiverLethalEventName = "LethalResolved";
         private const string SharedReceiverDeathEventName = "Died";
         private const string SharedReceiverIsDeadPropertyName = "IsDead";
         private const string SharedReceiverResetRuntimeMethodName = "ResetRuntime";
         private const string SharedReceiverSetHealthStateMethodName = "SetHealthStateForRuntime";
+        private const float SharedHumanoidHealth = 100f;
         private const string RagdollControllerTypeName = "Reloader.NPCs.Combat.HumanoidRagdollController, Reloader.NPCs";
         private const string RagdollControllerCanPresentDeathStatePropertyName = "CanPresentDeathState";
         private const string RagdollControllerResetRuntimeMethodName = "ResetRuntime";
@@ -27,8 +27,6 @@ namespace Reloader.Weapons.World
         [SerializeField] private string _targetId = string.Empty;
         [SerializeField] private string _displayName = string.Empty;
         [SerializeField] private float _authoritativeDistanceMeters = 100f;
-        // Legacy field kept for serialized scene compatibility while shared-receiver routing owns lethality.
-        [SerializeField] private float _maxHealth = 1f;
         [SerializeField] private bool _reportAsExposed = true;
         [SerializeField] private bool _disableGameObjectOnElimination = true;
 
@@ -48,7 +46,7 @@ namespace Reloader.Weapons.World
         {
             ResetRuntime();
             ResolveEliminationSink();
-            ApplySharedReceiverHealthState(_maxHealth, _maxHealth);
+            ApplySharedReceiverHealthState(SharedHumanoidHealth, SharedHumanoidHealth);
             BindSharedReceiver();
         }
 
@@ -61,7 +59,7 @@ namespace Reloader.Weapons.World
 
             ResolveEliminationSink();
             ResetSharedReceiverRuntime();
-            ApplySharedReceiverHealthState(_maxHealth, _maxHealth);
+            ApplySharedReceiverHealthState(SharedHumanoidHealth, SharedHumanoidHealth);
             ResetRagdollRuntime();
             ResetCorpseLootRuntime();
             BindSharedReceiver();
@@ -69,7 +67,7 @@ namespace Reloader.Weapons.World
 
         private void Start()
         {
-            ApplySharedReceiverHealthState(_maxHealth, _maxHealth);
+            ApplySharedReceiverHealthState(SharedHumanoidHealth, SharedHumanoidHealth);
             BindSharedReceiver();
         }
 
@@ -92,14 +90,13 @@ namespace Reloader.Weapons.World
             _targetId = targetId ?? string.Empty;
             _displayName = displayName ?? string.Empty;
             _authoritativeDistanceMeters = Mathf.Max(0f, authoritativeDistanceMeters);
-            // Preserve serialized inspector contracts while shared-receiver routing controls lethality.
-            _maxHealth = Mathf.Max(0.01f, maxHealth);
+            _ = maxHealth;
             _reportAsExposed = reportAsExposed;
             _disableGameObjectOnElimination = disableGameObjectOnElimination;
             ResetRuntime();
             ResolveEliminationSink();
             ResetSharedReceiverRuntime();
-            ApplySharedReceiverHealthState(_maxHealth, _maxHealth);
+            ApplySharedReceiverHealthState(SharedHumanoidHealth, SharedHumanoidHealth);
             ResetRagdollRuntime();
             ResetCorpseLootRuntime();
             BindSharedReceiver();
@@ -114,11 +111,6 @@ namespace Reloader.Weapons.World
 
             if (ForwardDamageToSharedReceiver(payload))
             {
-                if (ReadSharedReceiverDeadState())
-                {
-                    EliminateTarget(CanUseSharedReceiverDeathPresentation());
-                }
-
                 return;
             }
 
@@ -128,7 +120,7 @@ namespace Reloader.Weapons.World
 
         public void ResetRuntime()
         {
-            _currentHealth = Mathf.Max(0.01f, _maxHealth);
+            _currentHealth = SharedHumanoidHealth;
             _isEliminated = false;
         }
 
@@ -196,8 +188,7 @@ namespace Reloader.Weapons.World
                     binder: null,
                     types: new[] { typeof(ProjectileImpactPayload) },
                     modifiers: null);
-                _sharedReceiverLethalEvent = sharedReceiverType.GetEvent(SharedReceiverLethalEventName)
-                    ?? sharedReceiverType.GetEvent(SharedReceiverDeathEventName);
+                _sharedReceiverLethalEvent = sharedReceiverType.GetEvent(SharedReceiverDeathEventName);
 
                 if (_sharedReceiverLethalEvent != null && _sharedReceiverLethalEvent.EventHandlerType == typeof(Action))
                 {

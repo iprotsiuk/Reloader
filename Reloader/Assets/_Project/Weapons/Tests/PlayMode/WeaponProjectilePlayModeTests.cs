@@ -246,7 +246,7 @@ namespace Reloader.Weapons.Tests.PlayMode
                 projectileGo.transform.position = projectileGoPosition;
                 projectileGo.transform.forward = Vector3.forward;
                 var projectile = projectileGo.AddComponent<WeaponProjectile>();
-                projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 420f, gravityMultiplier: 0f, damage: 20f);
+                projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 850f, gravityMultiplier: 0f, damage: 20f);
 
                 var elapsed = 0f;
                 while (recovery.DeathCallCount == 0 && elapsed < 1f)
@@ -529,9 +529,12 @@ namespace Reloader.Weapons.Tests.PlayMode
             projectileGo.transform.position = Vector3.zero;
             projectileGo.transform.forward = Vector3.forward;
             var projectile = projectileGo.AddComponent<WeaponProjectile>();
+            var previousTimeScale = Time.timeScale;
 
             try
             {
+                Time.timeScale = 1f;
+
                 var method = typeof(WeaponProjectile).GetMethod(
                     "ConfigureInFlightVisual",
                     BindingFlags.Instance | BindingFlags.Public);
@@ -548,19 +551,26 @@ namespace Reloader.Weapons.Tests.PlayMode
                 var visual = projectileGo.transform.Find("SM_Bullet_7_62_54_FMG_ONE");
                 Assert.That(visual, Is.Not.Null);
 
-                projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 0.254f, gravityMultiplier: 0f, damage: 1f);
+                projectile.Initialize("weapon-kar98k", Vector3.forward, speed: 0.381f, gravityMultiplier: 0f, damage: 1f);
                 var initialRotation = visual!.localRotation;
+                var spinAngle = 0f;
+                var elapsed = 0f;
 
-                yield return null;
-                yield return null;
+                while (spinAngle <= 0.1f && elapsed < 0.25f)
+                {
+                    yield return null;
+                    elapsed += Time.unscaledDeltaTime;
+                    spinAngle = Quaternion.Angle(initialRotation, visual.localRotation);
+                }
 
-                Assert.That(Quaternion.Angle(initialRotation, visual.localRotation), Is.GreaterThan(0.1f),
+                Assert.That(spinAngle, Is.GreaterThan(0.1f),
                     "Expected the authored bullet visual to accumulate visible spin while the projectile is in flight.");
                 Assert.That(Vector3.Dot(visual.up, projectileGo.transform.forward), Is.GreaterThan(0.99f),
                     "Expected rifling spin to preserve the bullet's forward alignment by rotating around the projectile's longitudinal axis, not a side axis.");
             }
             finally
             {
+                Time.timeScale = previousTimeScale;
                 Object.Destroy(projectileGo);
             }
 #else

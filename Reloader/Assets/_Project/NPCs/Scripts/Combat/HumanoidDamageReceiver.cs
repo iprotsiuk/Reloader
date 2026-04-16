@@ -9,10 +9,11 @@ namespace Reloader.NPCs.Combat
     public sealed class HumanoidDamageReceiver : MonoBehaviour, IDamageable
     {
         private const string PlayerDeviceControllerTypeName = "Reloader.PlayerDevice.World.PlayerDeviceController, Reloader.PlayerDevice";
+        public const float DefaultMaxHealth = 100f;
 
         [SerializeField] private HumanoidHitboxRig _hitboxRig;
         [SerializeField] private HumanoidBodyZone _defaultZone = HumanoidBodyZone.Torso;
-        [SerializeField] private float _maxHealth = 10f;
+        [SerializeField] private float _maxHealth = DefaultMaxHealth;
 
         private static bool s_playerDeviceLookupAttempted;
         private static PropertyInfo s_playerDeviceActiveInstanceProperty;

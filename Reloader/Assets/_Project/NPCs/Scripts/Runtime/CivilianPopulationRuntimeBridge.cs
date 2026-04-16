@@ -16,7 +16,7 @@ namespace Reloader.NPCs.Runtime
     {
         private const float MondayRefreshTimeOfDay = 8f;
         private const float ProceduralContractTargetDistanceMeters = 85f;
-        private const float ProceduralContractTargetHealth = 15f;
+        private const float ProceduralContractTargetHealth = HumanoidDamageReceiver.DefaultMaxHealth;
         private const int ProceduralContractPayout = 1500;
 
         [SerializeField] private CivilianAppearanceLibrary _appearanceLibrary;

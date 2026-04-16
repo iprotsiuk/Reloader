@@ -29,6 +29,7 @@ namespace Reloader.NPCs.Combat
         public HumanoidImpactSeverity Severity { get; }
         public float RecommendedRagdollImpulseScalar { get; }
         public float EffectiveEnergyJoules { get; }
+        public float ImpactEnergyJoules => EffectiveEnergyJoules;
         public float RecommendedHealthDamage { get; }
     }
 }

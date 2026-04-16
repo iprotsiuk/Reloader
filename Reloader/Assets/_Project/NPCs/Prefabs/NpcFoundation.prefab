@@ -157,7 +157,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Reloader.NPCs::Reloader.NPCs.Combat.HumanoidDamageReceiver
   _hitboxRig: {fileID: 442480546834747721}
   _defaultZone: 2
-  _maxHealth: 10
+  _maxHealth: 100
 --- !u!114 &6278442191277675292
 MonoBehaviour:
   m_ObjectHideFlags: 0

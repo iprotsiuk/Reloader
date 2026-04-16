@@ -165,7 +165,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                     direction: Vector3.forward,
                     impactSpeedMetersPerSecond: 240f,
                     projectileMassGrains: 175f,
-                    deliveredEnergyJoules: 900f));
+                    deliveredEnergyJoules: 1800f));
 
                 yield return new WaitForFixedUpdate();
 
@@ -236,7 +236,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                     direction: Vector3.forward,
                     impactSpeedMetersPerSecond: 240f,
                     projectileMassGrains: 175f,
-                    deliveredEnergyJoules: 900f));
+                    deliveredEnergyJoules: 1800f));
 
                 yield return new WaitForFixedUpdate();
 
@@ -306,7 +306,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                     direction: Vector3.forward,
                     impactSpeedMetersPerSecond: 240f,
                     projectileMassGrains: 175f,
-                    deliveredEnergyJoules: 900f));
+                    deliveredEnergyJoules: 1800f));
 
                 yield return new WaitForFixedUpdate();
 
@@ -375,7 +375,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                     direction: Vector3.forward,
                     impactSpeedMetersPerSecond: 240f,
                     projectileMassGrains: 175f,
-                    deliveredEnergyJoules: 900f));
+                    deliveredEnergyJoules: 1800f));
 
                 yield return new WaitForFixedUpdate();
 
@@ -438,7 +438,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                     direction: Vector3.forward,
                     impactSpeedMetersPerSecond: 240f,
                     projectileMassGrains: 175f,
-                    deliveredEnergyJoules: 900f));
+                    deliveredEnergyJoules: 1800f));
 
                 yield return new WaitForFixedUpdate();
 
@@ -459,7 +459,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                     direction: Vector3.right,
                     impactSpeedMetersPerSecond: 240f,
                     projectileMassGrains: 175f,
-                    deliveredEnergyJoules: 900f));
+                    deliveredEnergyJoules: 1800f));
 
                 yield return new WaitForFixedUpdate();
 
@@ -516,7 +516,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                     direction: Vector3.forward,
                     impactSpeedMetersPerSecond: 240f,
                     projectileMassGrains: 175f,
-                    deliveredEnergyJoules: 900f));
+                    deliveredEnergyJoules: 1800f));
 
                 yield return new WaitForFixedUpdate();
 
@@ -587,7 +587,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                     direction: Vector3.forward,
                     impactSpeedMetersPerSecond: 240f,
                     projectileMassGrains: 175f,
-                    deliveredEnergyJoules: 900f));
+                    deliveredEnergyJoules: 1800f));
 
                 yield return new WaitForFixedUpdate();
 

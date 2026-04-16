@@ -38,6 +38,27 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void NpcFoundationPrefab_HumanoidDamageReceiverSerializesOneHundredMaxHealth()
+        {
+            var prefabRoot = PrefabUtility.LoadPrefabContents(NpcFoundationPrefabPath);
+
+            try
+            {
+                var receiver = prefabRoot.GetComponent<HumanoidDamageReceiver>();
+                Assert.That(receiver, Is.Not.Null, "Expected NpcFoundation to author the shared humanoid damage receiver.");
+
+                var serializedReceiver = new SerializedObject(receiver);
+                var maxHealth = serializedReceiver.FindProperty("_maxHealth");
+                Assert.That(maxHealth, Is.Not.Null, "Expected HumanoidDamageReceiver to serialize _maxHealth.");
+                Assert.That(maxHealth.floatValue, Is.EqualTo(100f));
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(prefabRoot);
+            }
+        }
+
+        [Test]
         public void NpcFoundationPrefab_HumanoidRagdollController_ReferencesAuthoredRagdollSet()
         {
             var prefabRoot = PrefabUtility.LoadPrefabContents(NpcFoundationPrefabPath);

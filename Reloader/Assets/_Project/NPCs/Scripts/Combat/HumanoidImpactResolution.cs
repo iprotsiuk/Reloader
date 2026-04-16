@@ -4,24 +4,29 @@ namespace Reloader.NPCs.Combat
 {
     public static class HumanoidImpactResolution
     {
-        private const float CriticalEnergyThresholdJoules = 450f;
-        private const float LethalEnergyThresholdJoules = 650f;
+        private static readonly HumanoidZoneDamageRule HeadAndNeckDamageRule = new(0.50f, 100f, 200f);
+        private static readonly HumanoidZoneDamageRule TorsoDamageRule = new(0.045f, 100f, 1800f);
+        private static readonly HumanoidZoneDamageRule PelvisDamageRule = new(0.030f, 80f);
+        private static readonly HumanoidZoneDamageRule LegDamageRule = new(0.015f, 45f);
+        private static readonly HumanoidZoneDamageRule ArmDamageRule = new(0.010f, 35f);
 
         public static HumanoidImpactResolutionResult Resolve(HumanoidBodyZone bodyZone, float deliveredEnergyJoules)
         {
-            var zoneMultiplier = ResolveZoneMultiplier(bodyZone);
-            var effectiveEnergyJoules = Clamp(deliveredEnergyJoules, 0f, float.MaxValue) * zoneMultiplier;
-            var isLethal = effectiveEnergyJoules >= LethalEnergyThresholdJoules;
+            var impactEnergyJoules = Clamp(deliveredEnergyJoules, 0f, float.MaxValue);
+            var rule = ResolveZoneDamageRule(bodyZone);
+            var isLethal = rule.HasInstantLethal && impactEnergyJoules >= rule.LethalEnergyJoules;
+            var recommendedHealthDamage = isLethal
+                ? rule.MaxDamage
+                : Clamp(impactEnergyJoules * rule.DamagePerJoule, 0f, rule.MaxDamage);
 
-            var severity = ResolveSeverity(effectiveEnergyJoules, isLethal);
-            var recommendedRagdollImpulseScalar = ResolveRagdollImpulseScalar(effectiveEnergyJoules, isLethal);
-            var recommendedHealthDamage = ResolveRecommendedHealthDamage(effectiveEnergyJoules, isLethal);
+            var severity = ResolveSeverity(recommendedHealthDamage, isLethal);
+            var recommendedRagdollImpulseScalar = ResolveRagdollImpulseScalar(impactEnergyJoules, isLethal);
 
             return new HumanoidImpactResolutionResult(
                 isLethal,
                 severity,
                 recommendedRagdollImpulseScalar,
-                effectiveEnergyJoules,
+                impactEnergyJoules,
                 recommendedHealthDamage);
         }
 
@@ -30,24 +35,24 @@ namespace Reloader.NPCs.Combat
             return ImpactEnergyMath.ComputeDeliveredEnergyJoules(impactSpeedMetersPerSecond, projectileMassGrains);
         }
 
-        private static HumanoidImpactSeverity ResolveSeverity(float effectiveEnergyJoules, bool isLethal)
+        private static HumanoidImpactSeverity ResolveSeverity(float recommendedHealthDamage, bool isLethal)
         {
             if (isLethal)
             {
                 return HumanoidImpactSeverity.Lethal;
             }
 
-            if (effectiveEnergyJoules >= CriticalEnergyThresholdJoules)
+            if (recommendedHealthDamage >= 80f)
             {
                 return HumanoidImpactSeverity.Critical;
             }
 
-            if (effectiveEnergyJoules >= 220f)
+            if (recommendedHealthDamage >= 35f)
             {
                 return HumanoidImpactSeverity.Serious;
             }
 
-            if (effectiveEnergyJoules >= 60f)
+            if (recommendedHealthDamage > 0f)
             {
                 return HumanoidImpactSeverity.Light;
             }
@@ -62,36 +67,25 @@ namespace Reloader.NPCs.Combat
             return Clamp(0.2f + baselineScalar + lethalBonus, 0.2f, 2.25f);
         }
 
-        private static float ResolveRecommendedHealthDamage(float effectiveEnergyJoules, bool isLethal)
-        {
-            if (isLethal)
-            {
-                return float.MaxValue;
-            }
-
-            return Clamp(effectiveEnergyJoules * 0.01f, 0f, float.MaxValue);
-        }
-
-        private static float ResolveZoneMultiplier(HumanoidBodyZone bodyZone)
+        private static HumanoidZoneDamageRule ResolveZoneDamageRule(HumanoidBodyZone bodyZone)
         {
             switch (bodyZone)
             {
                 case HumanoidBodyZone.Head:
-                    return 2.2f;
                 case HumanoidBodyZone.Neck:
-                    return 2f;
+                    return HeadAndNeckDamageRule;
                 case HumanoidBodyZone.Torso:
-                    return 1f;
+                    return TorsoDamageRule;
                 case HumanoidBodyZone.Pelvis:
-                    return 0.8f;
+                    return PelvisDamageRule;
                 case HumanoidBodyZone.LegL:
                 case HumanoidBodyZone.LegR:
-                    return 0.55f;
+                    return LegDamageRule;
                 case HumanoidBodyZone.ArmL:
                 case HumanoidBodyZone.ArmR:
-                    return 0.35f;
+                    return ArmDamageRule;
                 default:
-                    return 1f;
+                    return TorsoDamageRule;
             }
         }
 
@@ -108,6 +102,22 @@ namespace Reloader.NPCs.Combat
             }
 
             return value;
+        }
+
+        private readonly struct HumanoidZoneDamageRule
+        {
+            public HumanoidZoneDamageRule(float damagePerJoule, float maxDamage, float? lethalEnergyJoules = null)
+            {
+                DamagePerJoule = damagePerJoule;
+                MaxDamage = maxDamage;
+                LethalEnergyJoules = lethalEnergyJoules.GetValueOrDefault();
+                HasInstantLethal = lethalEnergyJoules.HasValue;
+            }
+
+            public float DamagePerJoule { get; }
+            public float MaxDamage { get; }
+            public float LethalEnergyJoules { get; }
+            public bool HasInstantLethal { get; }
         }
     }
 }
