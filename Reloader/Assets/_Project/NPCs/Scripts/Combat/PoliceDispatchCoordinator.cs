@@ -289,6 +289,7 @@ namespace Reloader.NPCs.Combat
                 }
             }
 
+            var retiredReserveCount = 0;
             for (var i = 0; i < _sortedDispatchEntries.Count; i++)
             {
                 var entry = _sortedDispatchEntries[i];
@@ -297,8 +298,9 @@ namespace Reloader.NPCs.Combat
                     entry.Mover.ClearDispatchSearchSlot();
                 }
 
-                if (!entry.IsSelected && TryReturnDispatchReserveToHiddenState(entry))
+                if (!entry.IsSelected && TryRetireDispatchReserveEntry(entry))
                 {
+                    retiredReserveCount++;
                     continue;
                 }
 
@@ -317,6 +319,11 @@ namespace Reloader.NPCs.Combat
             }
 
             _activeResponderCount = enabledCount;
+            if (retiredReserveCount > 0)
+            {
+                RemoveRetiredDispatchEntriesFromSortedList();
+                _registeredResponderCount = _sortedDispatchEntries.Count;
+            }
         }
 
         private int ResolveDesiredDispatchCount()
@@ -482,8 +489,6 @@ namespace Reloader.NPCs.Combat
         private void SetAllDispatchComponentsEnabled(bool isEnabled)
         {
             GatherDispatchEntries();
-            _registeredResponderCount = _sortedDispatchEntries.Count;
-            _activeResponderCount = isEnabled ? _sortedDispatchEntries.Count : 0;
             for (var i = 0; i < _sortedDispatchEntries.Count; i++)
             {
                 var entry = _sortedDispatchEntries[i];
@@ -499,9 +504,17 @@ namespace Reloader.NPCs.Combat
                 SetDispatchEntryEnabled(entry, isEnabled);
                 if (!isEnabled)
                 {
-                    TryReturnDispatchReserveToHiddenState(entry);
+                    TryRetireDispatchReserveEntry(entry);
                 }
             }
+
+            if (!isEnabled)
+            {
+                RemoveRetiredDispatchEntriesFromSortedList();
+            }
+
+            _registeredResponderCount = _sortedDispatchEntries.Count;
+            _activeResponderCount = isEnabled ? _sortedDispatchEntries.Count : 0;
         }
 
         private bool TryFindDispatchReplacementCandidate(
@@ -622,6 +635,34 @@ namespace Reloader.NPCs.Combat
 
             var bridge = spawnedCivilian.GetComponentInParent<CivilianPopulationRuntimeBridge>(true);
             return bridge != null && bridge.TryDespawnDispatchReservePolice(spawnedCivilian.CivilianId);
+        }
+
+        private bool TryRetireDispatchReserveEntry(DispatchEntry entry)
+        {
+            var root = entry?.Root;
+            if (!TryReturnDispatchReserveToHiddenState(entry))
+            {
+                return false;
+            }
+
+            if (root != null)
+            {
+                _dispatchEntries.Remove(root);
+            }
+
+            return true;
+        }
+
+        private void RemoveRetiredDispatchEntriesFromSortedList()
+        {
+            for (var i = _sortedDispatchEntries.Count - 1; i >= 0; i--)
+            {
+                var entry = _sortedDispatchEntries[i];
+                if (entry == null || entry.Root == null || !_dispatchEntries.ContainsKey(entry.Root))
+                {
+                    _sortedDispatchEntries.RemoveAt(i);
+                }
+            }
         }
 
         private bool TryResolvePlayerTarget(out Transform playerTarget)

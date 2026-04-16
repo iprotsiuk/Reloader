@@ -399,6 +399,8 @@ namespace Reloader.NPCs.Tests.PlayMode
                     "Expected dispatch-spawned reserve police to be returned to hidden reserve state after heat clears.");
                 Assert.That(ambientSpawn!.GetComponent<PoliceResponderMover>().enabled, Is.False);
                 Assert.That(ambientSpawn.GetComponent<PoliceHostileShooter>().enabled, Is.False);
+                Assert.That(coordinator.RegisteredResponderCount, Is.EqualTo(1));
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(0));
                 Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(2));
                 Assert.That(bridge.Runtime.Civilians.Single(record => record.CivilianId == "citizen.mainTown.0002").IsAlive, Is.True);
                 Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0));
@@ -475,6 +477,7 @@ namespace Reloader.NPCs.Tests.PlayMode
                     "Expected the deselected dispatch-spawned reserve police responder to return to hidden reserve state.");
                 Assert.That(ambientSpawn!.GetComponent<PoliceResponderMover>().enabled, Is.True);
                 Assert.That(ambientSpawn.GetComponent<PoliceHostileShooter>().enabled, Is.True);
+                Assert.That(coordinator.RegisteredResponderCount, Is.EqualTo(1));
                 Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(1));
                 Assert.That(bridge.Runtime.Civilians.Single(record => record.CivilianId == "citizen.mainTown.0002").IsAlive, Is.True);
                 Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0));
