@@ -27,6 +27,7 @@ namespace Reloader.UI
                 _runtimeInstaller = FindFirstObjectByType<UiToolkitRuntimeInstaller>(FindObjectsInactive.Include);
                 if (_runtimeInstaller == null)
                 {
+                    // Editor/test convenience only; production scenes should serialize the prefab-backed installer.
                     var go = new GameObject("UiToolkitRuntimeInstaller");
                     _runtimeInstaller = go.AddComponent<UiToolkitRuntimeInstaller>();
                 }

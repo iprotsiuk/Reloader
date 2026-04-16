@@ -55,7 +55,10 @@ namespace Reloader.UI.Toolkit.Runtime
 
         private void ResolveDefaultReferencesIfNeeded()
         {
+            // Editor/test fallback only. Production scenes should serialize the prefab-backed installer
+            // so all runtime references, including panel settings, are present in player builds.
 #if UNITY_EDITOR
+            _panelSettings ??= LoadPanelSettingsAtPath("Assets/_Project/UI/Data/RuntimePanelSettings.asset");
             _beltHudTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/BeltHud.uxml");
             _compassHudTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/CompassHud.uxml");
             _ammoHudTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/AmmoHud.uxml");
@@ -72,6 +75,11 @@ namespace Reloader.UI.Toolkit.Runtime
         }
 
 #if UNITY_EDITOR
+        private static PanelSettings LoadPanelSettingsAtPath(string path)
+        {
+            return UnityEditor.AssetDatabase.LoadAssetAtPath<PanelSettings>(path);
+        }
+
         private static VisualTreeAsset LoadVisualTreeAssetAtPath(string path)
         {
             return UnityEditor.AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(path);

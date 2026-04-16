@@ -1,13 +1,16 @@
+using System.Reflection;
 using NUnit.Framework;
 using Reloader.UI.Toolkit.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Reloader.UI.Tests.EditMode
 {
     public class UiToolkitRuntimeInstallerPrefabEditModeTests
     {
         private const string BeltHudPrefabPath = "Assets/_Project/UI/Prefabs/BeltHud.prefab";
+        private const string RuntimePanelSettingsPath = "Assets/_Project/UI/Data/RuntimePanelSettings.asset";
 
         [Test]
         public void BeltHudPrefab_RuntimeInstaller_AssignsAllRuntimeTreeReferences()
@@ -31,6 +34,36 @@ namespace Reloader.UI.Tests.EditMode
             AssertTreeAssigned(serialized, "_dialogueOverlayTree");
             AssertTreeAssigned(serialized, "_devConsoleTree");
             AssertTreeAssigned(serialized, "_healthHudTree");
+        }
+
+        [Test]
+        public void BareInstallerEditorFallback_WhenDefaultsAreResolved_LoadsCanonicalRuntimePanelSettingsAsset()
+        {
+            var installerGo = new GameObject("UiToolkitRuntimeInstaller");
+            try
+            {
+                var installer = installerGo.AddComponent<UiToolkitRuntimeInstaller>();
+                var resolveDefaults = typeof(UiToolkitRuntimeInstaller).GetMethod(
+                    "ResolveDefaultReferencesIfNeeded",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                Assert.That(resolveDefaults, Is.Not.Null, "Expected installer default resolution method.");
+
+                resolveDefaults!.Invoke(installer, null);
+
+                var panelSettingsField = typeof(UiToolkitRuntimeInstaller).GetField(
+                    "_panelSettings",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(panelSettingsField, Is.Not.Null, "Expected private panel settings field.");
+
+                var expectedPanelSettings = AssetDatabase.LoadAssetAtPath<PanelSettings>(RuntimePanelSettingsPath);
+                Assert.That(expectedPanelSettings, Is.Not.Null, $"Expected panel settings asset at '{RuntimePanelSettingsPath}'.");
+                Assert.That(panelSettingsField!.GetValue(installer), Is.SameAs(expectedPanelSettings));
+            }
+            finally
+            {
+                Object.DestroyImmediate(installerGo);
+            }
         }
 
         private static void AssertTreeAssigned(SerializedObject serialized, string propertyName)

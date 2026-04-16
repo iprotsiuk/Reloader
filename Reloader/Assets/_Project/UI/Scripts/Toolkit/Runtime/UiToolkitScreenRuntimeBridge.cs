@@ -167,23 +167,12 @@ namespace Reloader.UI.Toolkit.Runtime
                 return;
             }
 
-            var requiredPanelBridgeNames = CollectRuntimePanelBridgeNames();
             var eventSystem = ResolveTargetEventSystem();
             if (eventSystem == null || !eventSystem.isActiveAndEnabled)
             {
                 return;
             }
 
-            if (HasActivePanelBridgeForEventSystem(eventSystem, requiredPanelBridgeNames))
-            {
-                RearmEventSystem(eventSystem);
-                return;
-            }
-
-#pragma warning disable 618
-            EventSystem.SetUITookitEventSystemOverride(eventSystem, false, false);
-            EventSystem.SetUITookitEventSystemOverride(eventSystem, true, true);
-#pragma warning restore 618
             RearmEventSystem(eventSystem);
         }
 
@@ -209,75 +198,6 @@ namespace Reloader.UI.Toolkit.Runtime
             }
 
             uiModule.actionsAsset?.Enable();
-        }
-
-        private HashSet<string> CollectRuntimePanelBridgeNames()
-        {
-            var requiredNames = new HashSet<string>(StringComparer.Ordinal);
-            if (_runtimeRoot == null)
-            {
-                return requiredNames;
-            }
-
-            var documents = _runtimeRoot.GetComponentsInChildren<UIDocument>(true);
-            for (var i = 0; i < documents.Length; i++)
-            {
-                var panelSettings = documents[i]?.panelSettings;
-                if (panelSettings == null || string.IsNullOrWhiteSpace(panelSettings.name))
-                {
-                    continue;
-                }
-
-                requiredNames.Add(panelSettings.name);
-            }
-
-            return requiredNames;
-        }
-
-        private static bool HasActivePanelBridgeForEventSystem(
-            EventSystem eventSystem,
-            HashSet<string> requiredPanelBridgeNames)
-        {
-            if (eventSystem == null)
-            {
-                return false;
-            }
-
-            var matchedBridgeNames = requiredPanelBridgeNames != null && requiredPanelBridgeNames.Count > 0
-                ? new HashSet<string>(StringComparer.Ordinal)
-                : null;
-            var panelRaycasters = FindObjectsByType<PanelRaycaster>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            for (var i = 0; i < panelRaycasters.Length; i++)
-            {
-                var raycaster = panelRaycasters[i];
-                if (raycaster == null)
-                {
-                    continue;
-                }
-
-                var owner = raycaster.GetComponentInParent<EventSystem>();
-                if (owner == null || !owner.isActiveAndEnabled || !raycaster.isActiveAndEnabled)
-                {
-                    continue;
-                }
-
-                if (owner == eventSystem)
-                {
-                    if (matchedBridgeNames == null)
-                    {
-                        return true;
-                    }
-
-                    var bridgeName = raycaster.gameObject.name;
-                    if (!string.IsNullOrWhiteSpace(bridgeName)
-                        && requiredPanelBridgeNames.Contains(bridgeName))
-                    {
-                        matchedBridgeNames.Add(bridgeName);
-                    }
-                }
-            }
-
-            return matchedBridgeNames != null && matchedBridgeNames.Count >= requiredPanelBridgeNames.Count;
         }
 
         private static EventSystem ResolveTargetEventSystem()

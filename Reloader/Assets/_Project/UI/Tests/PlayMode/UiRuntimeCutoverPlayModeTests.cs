@@ -166,6 +166,10 @@ namespace Reloader.UI.Tests.PlayMode
             var uiModule = eventSystemGo.GetComponent(inputSystemUiModuleType!);
             Assert.That(currentInputModuleProperty!.GetValue(eventSystem), Is.SameAs(uiModule),
                 "Expected the gameplay EventSystem to be armed before the disable/enable cycle.");
+            Assert.That(
+                FindPanelRaycasterForEventSystem(eventSystem),
+                Is.Not.Null,
+                "Expected the runtime UI bridge to have already created a PanelRaycaster before the disable/enable cycle.");
 
             eventSystemGo.SetActive(false);
             yield return null;
@@ -180,6 +184,10 @@ namespace Reloader.UI.Tests.PlayMode
                 FindPanelRaycasterForEventSystem(eventSystem),
                 Is.Not.Null,
                 "Expected the rearmed gameplay EventSystem to keep the runtime PanelRaycaster bound after travel-style reactivation.");
+            Assert.That(
+                CountPanelRaycastersForEventSystem(eventSystem),
+                Is.EqualTo(1),
+                "Expected the existing runtime PanelRaycaster bridge to stay intact across the disable/enable cycle.");
         }
 
         [UnityTest]
@@ -544,6 +552,7 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(field, Is.Not.Null, $"Expected private field '{fieldName}' on {target.GetType().Name}.");
             field!.SetValue(target, value);
         }
+
     }
 }
 
