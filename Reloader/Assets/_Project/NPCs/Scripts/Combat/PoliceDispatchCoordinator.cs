@@ -297,6 +297,11 @@ namespace Reloader.NPCs.Combat
                     entry.Mover.ClearDispatchSearchSlot();
                 }
 
+                if (!entry.IsSelected && TryReturnDispatchReserveToHiddenState(entry))
+                {
+                    continue;
+                }
+
                 var shouldEnableEntry = false;
                 if (entry.IsSelected)
                 {
@@ -492,6 +497,10 @@ namespace Reloader.NPCs.Combat
                 }
 
                 SetDispatchEntryEnabled(entry, isEnabled);
+                if (!isEnabled)
+                {
+                    TryReturnDispatchReserveToHiddenState(entry);
+                }
             }
         }
 
@@ -596,6 +605,23 @@ namespace Reloader.NPCs.Combat
             {
                 entry.Shooter.enabled = isEnabled;
             }
+        }
+
+        private static bool TryReturnDispatchReserveToHiddenState(DispatchEntry entry)
+        {
+            if (entry == null || entry.Root == null)
+            {
+                return false;
+            }
+
+            var spawnedCivilian = entry.Root.GetComponent<MainTownPopulationSpawnedCivilian>();
+            if (spawnedCivilian == null)
+            {
+                return false;
+            }
+
+            var bridge = spawnedCivilian.GetComponentInParent<CivilianPopulationRuntimeBridge>(true);
+            return bridge != null && bridge.TryDespawnDispatchReservePolice(spawnedCivilian.CivilianId);
         }
 
         private bool TryResolvePlayerTarget(out Transform playerTarget)

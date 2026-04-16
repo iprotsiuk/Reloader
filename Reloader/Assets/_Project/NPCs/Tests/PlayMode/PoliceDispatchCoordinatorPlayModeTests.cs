@@ -349,6 +349,147 @@ namespace Reloader.NPCs.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ClearHeat_WhenReservePoliceWasSpawnedByDispatch_ReturnsReserveToHiddenState()
+        {
+            GameObject providerGo = null;
+            GameObject playerRoot = null;
+            GameObject bridgeRoot = null;
+            MainTownPopulationDefinition definition = null;
+
+            try
+            {
+                providerGo = new GameObject("ContractProvider");
+                var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+                playerRoot = CreatePlayerRoot(new Vector3(0f, 1f, 10f));
+                bridgeRoot = new GameObject("CivilianPopulationRuntimeBridge");
+                var bridge = bridgeRoot.AddComponent<CivilianPopulationRuntimeBridge>();
+                CreateAnchor(bridgeRoot.transform, "Anchor_Cop_Ambient", new Vector3(0f, 1f, 6f));
+                CreateAnchor(bridgeRoot.transform, "Anchor_Cop_Reserve", new Vector3(0f, 1f, 3f));
+                definition = CreatePoliceReservePopulationDefinition();
+
+                ConfigureBridgeForPoliceReserveDispatch(bridge, definition);
+
+                yield return null;
+
+                var coordinator = UnityEngine.Object.FindFirstObjectByType<PoliceDispatchCoordinator>(FindObjectsInactive.Include);
+                Assert.That(coordinator, Is.Not.Null, "Expected ambient police spawn to bootstrap a dispatch coordinator.");
+                ConfigureCoordinator(
+                    coordinator!,
+                    maxActiveDispatchCount: 2,
+                    dispatchReassignmentHoldSeconds: 0f,
+                    dispatchReplacementDistanceThresholdMeters: 0f,
+                    dispatchActivationIntervalSeconds: 0f);
+
+                Assert.That(provider.TryHandleDialogueAction("police.stop.leave", string.Empty), Is.True);
+
+                yield return null;
+                yield return null;
+
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0002", out _), Is.True,
+                    "Expected dispatch pressure to materialize the hidden reserve police slot first.");
+
+                ForceClearHeat(provider);
+                yield return null;
+                yield return null;
+
+                Assert.That(provider.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Clear));
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0001", out var ambientSpawn), Is.True,
+                    "Expected ambient police to remain scene-spawned after heat clears.");
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0002", out _), Is.False,
+                    "Expected dispatch-spawned reserve police to be returned to hidden reserve state after heat clears.");
+                Assert.That(ambientSpawn!.GetComponent<PoliceResponderMover>().enabled, Is.False);
+                Assert.That(ambientSpawn.GetComponent<PoliceHostileShooter>().enabled, Is.False);
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(2));
+                Assert.That(bridge.Runtime.Civilians.Single(record => record.CivilianId == "citizen.mainTown.0002").IsAlive, Is.True);
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0));
+            }
+            finally
+            {
+                DestroyImmediateIfNeeded(definition);
+                DestroyImmediateIfNeeded(bridgeRoot);
+                DestroyExistingCoordinator();
+                DestroyImmediateIfNeeded(playerRoot);
+                DestroyImmediateIfNeeded(providerGo);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator SearchDecay_WhenReservePoliceWasSpawnedByDispatch_ReturnsDeselectedReserveToHiddenState()
+        {
+            GameObject providerGo = null;
+            GameObject playerRoot = null;
+            GameObject bridgeRoot = null;
+            MainTownPopulationDefinition definition = null;
+
+            try
+            {
+                providerGo = new GameObject("ContractProvider");
+                var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+                playerRoot = CreatePlayerRoot(new Vector3(0f, 1f, 10f));
+                bridgeRoot = new GameObject("CivilianPopulationRuntimeBridge");
+                var bridge = bridgeRoot.AddComponent<CivilianPopulationRuntimeBridge>();
+                CreateAnchor(bridgeRoot.transform, "Anchor_Cop_Ambient", new Vector3(0f, 1f, 6f));
+                CreateAnchor(bridgeRoot.transform, "Anchor_Cop_Reserve", new Vector3(0f, 1f, 3f));
+                definition = CreatePoliceReservePopulationDefinition();
+
+                ConfigureBridgeForPoliceReserveDispatch(bridge, definition);
+
+                yield return null;
+
+                var coordinator = UnityEngine.Object.FindFirstObjectByType<PoliceDispatchCoordinator>(FindObjectsInactive.Include);
+                Assert.That(coordinator, Is.Not.Null, "Expected ambient police spawn to bootstrap a dispatch coordinator.");
+                ConfigureCoordinator(
+                    coordinator!,
+                    maxActiveDispatchCount: 2,
+                    dispatchReassignmentHoldSeconds: 0f,
+                    dispatchReplacementDistanceThresholdMeters: 0f,
+                    dispatchActivationIntervalSeconds: 0f,
+                    maxSearchDispatchCount: 2,
+                    minSearchDispatchCount: 1,
+                    searchResponderDecayIntervalSeconds: 0.2f);
+
+                Assert.That(provider.TryHandleDialogueAction("police.stop.leave", string.Empty), Is.True);
+
+                yield return null;
+                yield return null;
+
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0002", out _), Is.True,
+                    "Expected dispatch pressure to materialize the hidden reserve police slot before search decay.");
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(2));
+
+                ForceSearchState(provider);
+                playerRoot.transform.position = new Vector3(25f, 1f, 25f);
+                yield return null;
+
+                Assert.That(provider.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0002", out _), Is.True);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(2));
+
+                yield return new WaitForSecondsRealtime(0.22f);
+                yield return null;
+                yield return null;
+
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0001", out var ambientSpawn), Is.True,
+                    "Expected ambient police to remain scene-spawned as search pressure decays.");
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0002", out _), Is.False,
+                    "Expected the deselected dispatch-spawned reserve police responder to return to hidden reserve state.");
+                Assert.That(ambientSpawn!.GetComponent<PoliceResponderMover>().enabled, Is.True);
+                Assert.That(ambientSpawn.GetComponent<PoliceHostileShooter>().enabled, Is.True);
+                Assert.That(coordinator.ActiveResponderCount, Is.EqualTo(1));
+                Assert.That(bridge.Runtime.Civilians.Single(record => record.CivilianId == "citizen.mainTown.0002").IsAlive, Is.True);
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(0));
+            }
+            finally
+            {
+                DestroyImmediateIfNeeded(definition);
+                DestroyImmediateIfNeeded(bridgeRoot);
+                DestroyExistingCoordinator();
+                DestroyImmediateIfNeeded(playerRoot);
+                DestroyImmediateIfNeeded(providerGo);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ActivePursuit_WhenFirstCandidateBridgeIsInactive_SkipsInactiveReserveSpawns()
         {
             GameObject providerGo = null;

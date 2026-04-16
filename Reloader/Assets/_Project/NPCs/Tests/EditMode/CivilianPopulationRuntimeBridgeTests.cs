@@ -670,6 +670,149 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void TryDespawnDispatchReservePolice_WhenReservePoliceIsSpawned_DestroysSceneObjectWithoutRetiringPopulationRecord()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var definition = CreatePoliceReservePopulationDefinition();
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop_Ambient", new Vector3(8f, 0f, 0f));
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop_Reserve", new Vector3(2f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+                SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_populationDefinition", definition);
+
+                InvokeEnsureRuntimePopulationInitializedForScene(bridge);
+                bridge.RebuildScenePopulation();
+                Assert.That(InvokeTrySpawnPoliceRespondersForDispatch(bridge, new Vector3(0f, 0f, 0f), 1), Is.EqualTo(1));
+                bridge.Runtime.PendingReplacements.Add(new CivilianPopulationReplacementRecord
+                {
+                    VacatedCivilianId = "citizen.mainTown.unrelated",
+                    QueuedAtDay = 3,
+                    SpawnAnchorId = "Anchor_Unrelated"
+                });
+
+                var civilianCountBefore = bridge.Runtime.Civilians.Count;
+                var pendingDebtCountBefore = bridge.Runtime.PendingReplacements.Count;
+
+                var despawned = InvokeTryDespawnDispatchReservePolice(bridge, "citizen.mainTown.0002");
+
+                Assert.That(despawned, Is.True);
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0002", out _), Is.False,
+                    "Expected only the dispatch-spawned reserve actor to be removed from the scene.");
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0001", out _), Is.True,
+                    "Expected ambient police to remain spawned.");
+                Assert.That(bridge.Runtime.Civilians.Count, Is.EqualTo(civilianCountBefore),
+                    "Expected scene despawn to leave the population roster intact.");
+                Assert.That(bridge.Runtime.PendingReplacements.Count, Is.EqualTo(pendingDebtCountBefore),
+                    "Expected scene despawn to leave replacement debt untouched.");
+
+                var reserveRecord = bridge.Runtime.Civilians.Single(record => record.CivilianId == "citizen.mainTown.0002");
+                Assert.That(reserveRecord.IsAlive, Is.True);
+                Assert.That(reserveRecord.RetiredAtDay, Is.EqualTo(-1));
+            }
+            finally
+            {
+                Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void TryDespawnDispatchReservePolice_WhenAmbientPoliceIsRequested_RefusesAndKeepsSpawnedObject()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var definition = CreatePoliceReservePopulationDefinition();
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop_Ambient", new Vector3(8f, 0f, 0f));
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop_Reserve", new Vector3(2f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+                SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_populationDefinition", definition);
+
+                InvokeEnsureRuntimePopulationInitializedForScene(bridge);
+                bridge.RebuildScenePopulation();
+
+                var despawned = InvokeTryDespawnDispatchReservePolice(bridge, "citizen.mainTown.0001");
+
+                Assert.That(despawned, Is.False);
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0001", out _), Is.True,
+                    "Expected ambient police to stay scene-spawned because they are not dispatch-only reserves.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void TryDespawnDispatchReservePolice_WhenReservePoliceIsActiveContractTarget_RefusesAndKeepsSpawnedObject()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            var definition = CreatePoliceReservePopulationDefinition();
+            var reserveContract = CreateRuntimeContractDefinition(
+                contractId: "contract.reserve.active",
+                targetId: "citizen.mainTown.0002",
+                title: "Reserve Contract",
+                targetDisplayName: "Reserve Officer",
+                targetDescription: "active reserve target",
+                briefingText: "active reserve target",
+                distanceBand: 50f,
+                payout: 1000);
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop_Ambient", new Vector3(8f, 0f, 0f));
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop_Reserve", new Vector3(2f, 0f, 0f));
+
+            try
+            {
+                InvokeSetAvailableContract(provider, reserveContract);
+                Assert.That(provider.AcceptAvailableContract(), Is.True, "Expected the reserve contract fixture to enter the active-contract state.");
+
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+                SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_populationDefinition", definition);
+
+                InvokeEnsureRuntimePopulationInitializedForScene(bridge);
+                bridge.RebuildScenePopulation();
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0002", out _), Is.True);
+
+                var despawned = InvokeTryDespawnDispatchReservePolice(bridge, "citizen.mainTown.0002");
+
+                Assert.That(despawned, Is.False);
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0002", out _), Is.True,
+                    "Expected active contract targets to stay materialized even when they occupy a dispatch-only reserve slot.");
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(reserveContract);
+                Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
         public void RebuildScenePopulation_WhenTerrainExists_PreservesAuthoredSpawnAnchorPose()
         {
             var go = new GameObject("CivilianPopulationRuntimeBridge");
@@ -2578,6 +2721,15 @@ namespace Reloader.NPCs.Tests.EditMode
                 System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
             Assert.That(method, Is.Not.Null, "Expected a public TrySpawnPoliceRespondersForDispatch(Vector3, int) method.");
             return (int)method!.Invoke(bridge, new object[] { selectionPoint, desiredSpawnCount });
+        }
+
+        private static bool InvokeTryDespawnDispatchReservePolice(CivilianPopulationRuntimeBridge bridge, string civilianId)
+        {
+            var method = typeof(CivilianPopulationRuntimeBridge).GetMethod(
+                "TryDespawnDispatchReservePolice",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+            Assert.That(method, Is.Not.Null, "Expected a public TryDespawnDispatchReservePolice(string civilianId) method.");
+            return (bool)method!.Invoke(bridge, new object[] { civilianId });
         }
 
         private static ScriptableObject CreateRuntimeContractDefinition(

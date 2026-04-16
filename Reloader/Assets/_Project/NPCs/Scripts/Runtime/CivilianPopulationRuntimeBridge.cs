@@ -316,6 +316,40 @@ namespace Reloader.NPCs.Runtime
             return true;
         }
 
+        public bool TryDespawnDispatchReservePolice(string civilianId)
+        {
+            if (!isActiveAndEnabled || string.IsNullOrWhiteSpace(civilianId))
+            {
+                return false;
+            }
+
+            EnsureRuntimePopulationInitializedForScene();
+
+            var record = FindCivilianById(civilianId);
+            if (!IsDispatchReservePoliceRecord(record) || IsActiveContractTarget(record))
+            {
+                return false;
+            }
+
+            if (!TryResolveSpawnedCivilian(civilianId, out var spawnedCivilian) || spawnedCivilian == null)
+            {
+                return false;
+            }
+
+            if (Application.isPlaying)
+            {
+                spawnedCivilian.transform.SetParent(null, false);
+                spawnedCivilian.gameObject.SetActive(false);
+                Destroy(spawnedCivilian.gameObject);
+            }
+            else
+            {
+                DestroyImmediate(spawnedCivilian.gameObject);
+            }
+
+            return true;
+        }
+
         public void ReportContractTargetEliminated(string targetId, bool wasExposed)
         {
             var snapshot = ResolveCoreWorldController()?.CaptureSnapshot();
