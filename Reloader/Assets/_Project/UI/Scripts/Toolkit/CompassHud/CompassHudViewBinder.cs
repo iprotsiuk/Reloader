@@ -246,7 +246,9 @@ namespace Reloader.UI.Toolkit.CompassHud
 
             if (_policeCountLabel != null)
             {
-                _policeCountLabel.text = _lastState.PoliceResponderCount.ToString();
+                _policeCountLabel.text = _lastState.PoliceWantedLevel > 0
+                    ? $"WL{_lastState.PoliceWantedLevel} / {_lastState.PoliceResponderCount}"
+                    : _lastState.PoliceResponderCount.ToString();
             }
 
             _policeRoot.style.display = DisplayStyle.Flex;

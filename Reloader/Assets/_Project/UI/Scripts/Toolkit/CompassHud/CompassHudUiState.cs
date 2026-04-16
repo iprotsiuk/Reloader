@@ -34,6 +34,7 @@ namespace Reloader.UI.Toolkit.CompassHud
         private readonly float _visibleHalfAngleDegrees;
         private readonly string _policeStatusText;
         private readonly int _policeResponderCount;
+        private readonly int _policeWantedLevel;
         private readonly bool _isPoliceStatusVisible;
 
         private CompassHudUiState(
@@ -42,6 +43,7 @@ namespace Reloader.UI.Toolkit.CompassHud
             bool isVisible,
             string policeStatusText,
             int policeResponderCount,
+            int policeWantedLevel,
             bool isPoliceStatusVisible)
             : base(Runtime.UiRuntimeCompositionIds.ScreenIds.CompassHud)
         {
@@ -49,6 +51,7 @@ namespace Reloader.UI.Toolkit.CompassHud
             _visibleHalfAngleDegrees = Math.Max(1f, visibleHalfAngleDegrees);
             _policeStatusText = string.IsNullOrWhiteSpace(policeStatusText) ? string.Empty : policeStatusText.Trim();
             _policeResponderCount = Math.Max(0, policeResponderCount);
+            _policeWantedLevel = Math.Max(0, policeWantedLevel);
             _isPoliceStatusVisible = isPoliceStatusVisible && !string.IsNullOrWhiteSpace(_policeStatusText);
             IsVisible = isVisible;
         }
@@ -58,6 +61,7 @@ namespace Reloader.UI.Toolkit.CompassHud
         public bool IsVisible { get; }
         public string PoliceStatusText => _policeStatusText;
         public int PoliceResponderCount => _policeResponderCount;
+        public int PoliceWantedLevel => _policeWantedLevel;
         public bool IsPoliceStatusVisible => _isPoliceStatusVisible;
 
         public static CompassHudUiState Create(
@@ -66,6 +70,7 @@ namespace Reloader.UI.Toolkit.CompassHud
             bool isVisible,
             string policeStatusText = "",
             int policeResponderCount = 0,
+            int policeWantedLevel = 0,
             bool isPoliceStatusVisible = false)
         {
             return new CompassHudUiState(
@@ -74,6 +79,7 @@ namespace Reloader.UI.Toolkit.CompassHud
                 isVisible,
                 policeStatusText,
                 policeResponderCount,
+                policeWantedLevel,
                 isPoliceStatusVisible);
         }
     }

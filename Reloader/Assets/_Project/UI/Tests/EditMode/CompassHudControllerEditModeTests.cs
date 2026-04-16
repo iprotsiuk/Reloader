@@ -189,7 +189,7 @@ namespace Reloader.UI.Tests.EditMode
 
                 Assert.That(FindPoliceRoot(fixture.Root).style.display.value, Is.EqualTo(DisplayStyle.Flex));
                 Assert.That(FindPoliceLabel(fixture.Root).text, Is.EqualTo("WANTED"));
-                Assert.That(FindPoliceCount(fixture.Root).text, Is.EqualTo("2"));
+                Assert.That(FindPoliceCount(fixture.Root).text, Is.EqualTo("WL2 / 2"));
             }
             finally
             {
@@ -219,7 +219,7 @@ namespace Reloader.UI.Tests.EditMode
                 Assert.That(fixture.Coordinator.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Search));
                 Assert.That(FindPoliceRoot(fixture.Root).style.display.value, Is.EqualTo(DisplayStyle.Flex));
                 Assert.That(FindPoliceLabel(fixture.Root).text, Is.EqualTo("SEARCH"));
-                Assert.That(FindPoliceCount(fixture.Root).text, Is.EqualTo("2"));
+                Assert.That(FindPoliceCount(fixture.Root).text, Is.EqualTo("WL2 / 2"));
             }
             finally
             {

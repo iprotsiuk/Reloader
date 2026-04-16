@@ -134,6 +134,7 @@ namespace Reloader.UI.Tests.EditMode
                 isVisible: true,
                 policeStatusText: "WANTED",
                 policeResponderCount: 3,
+                policeWantedLevel: 2,
                 isPoliceStatusVisible: true));
 
             var policeRoot = root.Q<VisualElement>("compass-hud__police");
@@ -143,7 +144,7 @@ namespace Reloader.UI.Tests.EditMode
             Assert.That(policeRoot, Is.Not.Null);
             Assert.That(policeRoot.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(policeLabel.text, Is.EqualTo("WANTED"));
-            Assert.That(policeCount.text, Is.EqualTo("3"));
+            Assert.That(policeCount.text, Is.EqualTo("WL2 / 3"));
         }
 
         [Test]

@@ -92,13 +92,14 @@ namespace Reloader.UI.Toolkit.CompassHud
                 entries.Add(markerEntry);
             }
 
-            var policeVisible = TryBuildPoliceStatus(out var policeStatusText, out var policeResponderCount);
+            var policeVisible = TryBuildPoliceStatus(out var policeStatusText, out var policeResponderCount, out var policeWantedLevel);
             _viewBinder.Render(CompassHudUiState.Create(
                 entries,
                 VisibleHalfAngleDegrees,
                 isVisible: true,
                 policeStatusText: policeStatusText,
                 policeResponderCount: policeResponderCount,
+                policeWantedLevel: policeWantedLevel,
                 isPoliceStatusVisible: policeVisible));
         }
 
@@ -210,10 +211,11 @@ namespace Reloader.UI.Toolkit.CompassHud
             _resolvedTargetTransform = null;
         }
 
-        private bool TryBuildPoliceStatus(out string policeStatusText, out int policeResponderCount)
+        private bool TryBuildPoliceStatus(out string policeStatusText, out int policeResponderCount, out int policeWantedLevel)
         {
             policeStatusText = string.Empty;
             policeResponderCount = 0;
+            policeWantedLevel = 0;
 
             if (_policeDispatchCoordinator == null)
             {
@@ -234,6 +236,7 @@ namespace Reloader.UI.Toolkit.CompassHud
 
             policeStatusText = heatState.Level == PoliceHeatLevel.ActivePursuit ? "WANTED" : "SEARCH";
             policeResponderCount = _policeDispatchCoordinator != null ? Mathf.Max(0, _policeDispatchCoordinator.ActiveResponderCount) : 0;
+            policeWantedLevel = Mathf.Max(0, heatState.WantedLevel);
             return true;
         }
 
