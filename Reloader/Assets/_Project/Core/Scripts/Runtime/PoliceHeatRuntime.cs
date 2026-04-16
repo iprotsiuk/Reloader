@@ -3,7 +3,7 @@ using Reloader.Core.Events;
 
 namespace Reloader.Core.Runtime
 {
-    public sealed class PoliceHeatRuntime
+    public sealed class PoliceHeatRuntime : ILawEnforcementCrimeReporter
     {
         private const int ImmediateIdentificationWantedLevel = 2;
 

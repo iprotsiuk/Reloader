@@ -13083,6 +13083,8 @@ MonoBehaviour:
   - Anchor_Playground_Alley_01
   _contractTargetAnchorIds:
   - Anchor_ContractTarget_01
+  _contractRuntimeProviderBehaviour: {fileID: 1191721340}
+  _crimeReporterBehaviour: {fileID: 1191721340}
 --- !u!4 &589599881
 Transform:
   m_ObjectHideFlags: 0

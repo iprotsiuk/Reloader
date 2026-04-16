@@ -167,6 +167,18 @@ namespace Reloader.Core.Tests.EditMode
         }
 
         [Test]
+        public void LawEnforcementEvents_Surface_DoesNotAcceptInboundCrimeReports()
+        {
+            Assert.That(typeof(ILawEnforcementCrimeReporter).IsAssignableFrom(typeof(ILawEnforcementEvents)), Is.False);
+        }
+
+        [Test]
+        public void GameEventsRuntimeHub_Surface_DoesNotAcceptInboundCrimeReports()
+        {
+            Assert.That(typeof(ILawEnforcementCrimeReporter).IsAssignableFrom(typeof(IGameEventsRuntimeHub)), Is.False);
+        }
+
+        [Test]
         public void RuntimeKernelBootstrapper_Surface_ExposesTypedDomainChannels()
         {
             AssertTypedChannel("ContractEvents", typeof(IContractEvents));

@@ -12,8 +12,12 @@ Implemented core loop:
 `Clear -> Alerted -> Active Pursuit -> Search -> Clear`
 
 Implemented now:
-- `PoliceHeatRuntime.ReportCrime(...)` is the canonical crime ingress and owns heat/wanted transitions.
+- `ILawEnforcementCrimeReporter.ReportCrime(CrimeType)` is the dedicated inbound crime-reporting seam.
+- `PoliceHeatRuntime.ReportCrime(...)` is the canonical heat runtime ingress and owns heat/wanted transitions.
 - `PoliceHeatController` is a thin law-enforcement wrapper that forwards crime and line-of-sight calls to `PoliceHeatRuntime`.
+- `StaticContractRuntimeProvider` exposes the crime reporter seam for scene/runtime wiring and delegates to its internal contract/heat runtime.
+- `CivilianPopulationRuntimeBridge` uses explicit serialized/configured contract runtime provider and crime reporter dependencies for contract-target exclusion and witness reporting.
+- `MainTown` wires `MainTownPopulationRuntime` to `MainTownContractRuntime` for both active-target exclusion and witness crime reporting.
 - `PoliceHeatState` carries heat level, last crime type, search timer, line-of-sight state, wanted level, player identification state, and identification progress.
 - `PoliceHeatStateModule` persists current heat state through the save pipeline.
 - `ILawEnforcementEvents` is output-only heat broadcasting (`OnHeatChanged` / `RaiseHeatChanged`) and must not be used as a witness-input API.
@@ -36,14 +40,17 @@ Resolution rule:
 
 ## Witness Reporting Contract [v0.1]
 
-Planned next slice:
-- Add a dedicated inbound surface: `ILawEnforcementCrimeReporter.ReportCrime(CrimeType crimeType)`.
-- Implement the surface by delegating to `PoliceHeatRuntime.ReportCrime(...)`.
+Implemented slice:
+- Dedicated inbound surface: `ILawEnforcementCrimeReporter.ReportCrime(CrimeType crimeType)`.
+- Implementations delegate into the existing `PoliceHeatRuntime.ReportCrime(...)` path; witness sources do not own heat state.
 - Keep the reporter source-agnostic for v0.1; witnesses, dialogue, future corpse discovery, and scripted tutorial/debug paths can all call the same ingress without becoming heat owners.
 - Do not add witness input methods to `ILawEnforcementEvents` or `IGameEventsRuntimeHub`.
-- Wire normal civilian actors with a passive witness/death reporter in `CivilianPopulationRuntimeBridge`.
-- Reuse `HumanoidDamageReceiver.Died` for the MVP death hook and report `CrimeType.Murder` once.
+- `CivilianPopulationRuntimeBridge` injects `CivilianWitnessReporter` into eligible spawned civilians and configures it with the bridge's explicit reporter dependency.
+- Active contract-target exclusion must resolve through the bridge's explicit contract runtime provider dependency, not a scene-global `StaticContractRuntimeProvider` lookup.
+- `CivilianWitnessReporter` uses `HumanoidDamageReceiver.Died` for the MVP death hook and reports `CrimeType.Murder` once.
 - Exclude cops, dispatch-only reserve police, and active contract targets from witness reporter injection by default.
+- Do not use scene-wide fallback lookup for witness reporter wiring; reporter configuration must be explicit.
+- Late `CivilianPopulationRuntimeBridge.ConfigureCrimeReporter(...)` calls refresh existing spawned eligible witnesses so they do not keep stale/null reporter wiring.
 - Keep perception local/simple if needed; no shared civilian panic/fleeing or investigation system belongs in this slice.
 
 ---

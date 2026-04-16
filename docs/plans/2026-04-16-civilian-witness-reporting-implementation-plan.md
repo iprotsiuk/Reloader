@@ -10,6 +10,27 @@
 
 ---
 
+## Implementation Status [v0.1]
+
+Status: Complete.
+
+Implemented contract:
+- `ILawEnforcementCrimeReporter.ReportCrime(CrimeType)` is the inbound crime-reporting seam and delegates into `PoliceHeatRuntime.ReportCrime(...)`.
+- `CivilianPopulationRuntimeBridge` injects `CivilianWitnessReporter` into eligible spawned civilians and uses explicit serialized/configured contract runtime provider and crime reporter dependencies.
+- `MainTown` authors `MainTownPopulationRuntime` with `MainTownContractRuntime` as both the contract runtime provider and crime reporter.
+- Active-target witness exclusion resolves through the bridge's explicit contract runtime provider dependency and no longer relies on scene-global `StaticContractRuntimeProvider` lookup.
+- Eligible civilian deaths report `CrimeType.Murder` once through `HumanoidDamageReceiver.Died`.
+- Cops, dispatch-only reserve police, and active contract targets are excluded from witness reporter injection by default.
+- Witness reporter wiring does not use a scene-wide fallback lookup; late `ConfigureCrimeReporter(...)` calls refresh existing spawned eligible witnesses to avoid stale/null reporter wiring.
+
+Completion evidence:
+- Contract/EditMode coverage verifies the reporter seam stays separate from `ILawEnforcementEvents` and `IGameEventsRuntimeHub`, and that `PoliceHeatRuntime`, `PoliceHeatController`, and `StaticContractRuntimeProvider` route murder reports into heat.
+- Bridge/EditMode coverage verifies eligible spawned civilians receive `CivilianWitnessReporter`, excluded records do not, and late reporter configuration refreshes existing witnesses.
+- PlayMode integration coverage verifies an eligible spawned civilian death with `StaticContractRuntimeProvider` raises murder heat and wanted level 3.
+- Production `MainTown` witness-kill coverage verifies an eligible spawned civilian death reports murder heat through the authored `MainTownPopulationRuntime -> MainTownContractRuntime` scene wiring.
+
+---
+
 ## Scope Guardrails
 
 - Do not add a full perception, panic, fleeing, or investigation system.

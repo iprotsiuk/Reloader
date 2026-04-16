@@ -300,6 +300,11 @@ namespace Reloader.Contracts.Runtime
             return ApplyRecoveryConsequences(isDeath: true);
         }
 
+        public void ReportCrime(CrimeType crimeType)
+        {
+            _policeHeatRuntime.ReportCrime(crimeType);
+        }
+
         public void Advance(float deltaTimeSeconds)
         {
             _policeHeatRuntime.Advance(deltaTimeSeconds);

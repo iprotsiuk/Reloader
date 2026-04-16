@@ -27,11 +27,16 @@ namespace Reloader.NPCs.Runtime
         [SerializeField] private MainTownPopulationHabitat _spawnHabitat = MainTownPopulationHabitat.Any;
         [SerializeField] private string[] _spawnAnchorIds = Array.Empty<string>();
         [SerializeField] private string[] _contractTargetAnchorIds = Array.Empty<string>();
+        [SerializeField] private MonoBehaviour _contractRuntimeProviderBehaviour;
+        [SerializeField] private MonoBehaviour _crimeReporterBehaviour;
 
         private readonly CivilianPopulationRuntimeState _runtime = new CivilianPopulationRuntimeState();
         private readonly CivilianAppearanceGenerator _generator = new CivilianAppearanceGenerator();
         private CoreWorldController _coreWorldController;
         private CoreWorldController _subscribedCoreWorldController;
+        private IContractRuntimeProvider _contractRuntimeProvider;
+        private IContractTargetEliminationSink _contractTargetEliminationSink;
+        private ILawEnforcementCrimeReporter _crimeReporter;
         private AssassinationContractDefinition _proceduralAvailableContract;
         private int _lastObservedWorldDayCount = -1;
         private float _lastObservedWorldTimeOfDay = -1f;
@@ -63,6 +68,29 @@ namespace Reloader.NPCs.Runtime
         {
             _coreWorldController = controller;
             SubscribeToCoreWorldController(_coreWorldController);
+        }
+
+        public void ConfigureContractRuntimeProvider(IContractRuntimeProvider contractRuntimeProvider)
+        {
+            _contractRuntimeProvider = contractRuntimeProvider;
+            _contractRuntimeProviderBehaviour = contractRuntimeProvider as MonoBehaviour;
+            _contractTargetEliminationSink = contractRuntimeProvider as IContractTargetEliminationSink;
+
+            if (contractRuntimeProvider is ILawEnforcementCrimeReporter crimeReporter)
+            {
+                _crimeReporter = crimeReporter;
+                _crimeReporterBehaviour = crimeReporter as MonoBehaviour;
+            }
+
+            RefreshSpawnedCivilianWitnessReporters();
+            RefreshContractTargetDamageables();
+        }
+
+        public void ConfigureCrimeReporter(ILawEnforcementCrimeReporter crimeReporter)
+        {
+            _crimeReporter = crimeReporter;
+            _crimeReporterBehaviour = crimeReporter as MonoBehaviour;
+            RefreshSpawnedCivilianWitnessReporters();
         }
 
         private void Start()
@@ -356,10 +384,10 @@ namespace Reloader.NPCs.Runtime
             var retiredAtDay = snapshot?.DayCount ?? 0;
             TryRetireCivilian(targetId, retiredAtDay);
 
-            var provider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
-            if (provider != null)
+            var targetEliminationSink = ResolveContractTargetEliminationSink();
+            if (targetEliminationSink != null && !ReferenceEquals(targetEliminationSink, this))
             {
-                provider.ReportContractTargetEliminated(targetId, wasExposed);
+                targetEliminationSink.ReportContractTargetEliminated(targetId, wasExposed);
             }
         }
 
@@ -771,9 +799,91 @@ namespace Reloader.NPCs.Runtime
         {
             var metadata = EnsureCivilianActorComponents(civilian);
             metadata.Initialize(record);
+            ConfigureCivilianWitnessReporter(civilian, record);
             ConfigurePoliceShooter(civilian, record, metadata);
             ConfigurePoliceResponderMover(civilian, record);
             EnsurePoliceDispatchCoordinator(record);
+        }
+
+        private void ConfigureCivilianWitnessReporter(GameObject civilian, CivilianPopulationRecord record)
+        {
+            if (civilian == null)
+            {
+                return;
+            }
+
+            var witnessReporter = civilian.GetComponent<CivilianWitnessReporter>();
+            if (!ShouldConfigureCivilianWitnessReporter(record))
+            {
+                if (witnessReporter == null)
+                {
+                    return;
+                }
+
+                if (Application.isPlaying)
+                {
+                    Destroy(witnessReporter);
+                }
+                else
+                {
+                    DestroyImmediate(witnessReporter);
+                }
+
+                return;
+            }
+
+            if (witnessReporter == null)
+            {
+                witnessReporter = civilian.AddComponent<CivilianWitnessReporter>();
+            }
+
+            witnessReporter.Configure(ResolveCrimeReporter());
+        }
+
+        private void RefreshSpawnedCivilianWitnessReporters()
+        {
+            var spawned = GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            for (var i = 0; i < spawned.Length; i++)
+            {
+                var civilian = spawned[i];
+                if (civilian == null)
+                {
+                    continue;
+                }
+
+                ConfigureCivilianWitnessReporter(civilian.gameObject, FindCivilianById(civilian.CivilianId));
+            }
+        }
+
+        private bool ShouldConfigureCivilianWitnessReporter(CivilianPopulationRecord record)
+        {
+            return record != null
+                   && record.IsAlive
+                   && !string.Equals(record.PoolId, "cops", StringComparison.Ordinal)
+                   && !IsDispatchReservePoliceRecord(record)
+                   && !IsActiveContractTarget(record);
+        }
+
+        private ILawEnforcementCrimeReporter ResolveCrimeReporter()
+        {
+            if (!IsReferenceAlive(_crimeReporter))
+            {
+                _crimeReporter = null;
+            }
+
+            if (_crimeReporter != null)
+            {
+                return _crimeReporter;
+            }
+
+            _crimeReporter = _crimeReporterBehaviour as ILawEnforcementCrimeReporter;
+            if (_crimeReporter != null)
+            {
+                return _crimeReporter;
+            }
+
+            _crimeReporter = _contractRuntimeProviderBehaviour as ILawEnforcementCrimeReporter;
+            return _crimeReporter;
         }
 
         private void EnsurePoliceDispatchCoordinator(CivilianPopulationRecord record)
@@ -978,15 +1088,6 @@ namespace Reloader.NPCs.Runtime
                 return bridge;
             }
 
-            var sceneBehaviours = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            for (var i = 0; i < sceneBehaviours.Length; i++)
-            {
-                if (sceneBehaviours[i] is IContractTargetEliminationSink sceneSink)
-                {
-                    return sceneSink;
-                }
-            }
-
             return null;
         }
 
@@ -1035,7 +1136,7 @@ namespace Reloader.NPCs.Runtime
 
         private void RefreshProceduralContractOffer()
         {
-            var provider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
+            var provider = ResolveStaticContractRuntimeProvider();
             if (provider == null)
             {
                 return;
@@ -1083,10 +1184,9 @@ namespace Reloader.NPCs.Runtime
             provider.SetAvailableContract(_proceduralAvailableContract);
         }
 
-        private static string ResolveTrackedContractTargetId()
+        private string ResolveTrackedContractTargetId()
         {
-            var provider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
-            if (provider == null || !provider.TryGetContractSnapshot(out var snapshot))
+            if (!TryGetTrackedContractSnapshot(out var snapshot))
             {
                 return string.Empty;
             }
@@ -1954,7 +2054,7 @@ namespace Reloader.NPCs.Runtime
             return IsDispatchReservePoliceSlotId(record.PopulationSlotId);
         }
 
-        private static bool IsActiveContractTarget(CivilianPopulationRecord record)
+        private bool IsActiveContractTarget(CivilianPopulationRecord record)
         {
             if (record == null || string.IsNullOrWhiteSpace(record.CivilianId))
             {
@@ -1966,9 +2066,9 @@ namespace Reloader.NPCs.Runtime
                    && string.Equals(snapshot.TargetId, record.CivilianId, StringComparison.Ordinal);
         }
 
-        private static bool TryGetTrackedContractSnapshot(out ContractOfferSnapshot snapshot)
+        private bool TryGetTrackedContractSnapshot(out ContractOfferSnapshot snapshot)
         {
-            var provider = FindFirstObjectByType<StaticContractRuntimeProvider>(FindObjectsInactive.Include);
+            var provider = ResolveContractRuntimeProvider();
             if (provider != null && provider.TryGetContractSnapshot(out snapshot))
             {
                 return snapshot.HasActiveContract || snapshot.HasAvailableContract;
@@ -1976,6 +2076,58 @@ namespace Reloader.NPCs.Runtime
 
             snapshot = default;
             return false;
+        }
+
+        private IContractRuntimeProvider ResolveContractRuntimeProvider()
+        {
+            if (!IsReferenceAlive(_contractRuntimeProvider))
+            {
+                _contractRuntimeProvider = null;
+            }
+
+            if (_contractRuntimeProvider != null)
+            {
+                return _contractRuntimeProvider;
+            }
+
+            _contractRuntimeProvider = _contractRuntimeProviderBehaviour as IContractRuntimeProvider;
+            return _contractRuntimeProvider;
+        }
+
+        private IContractTargetEliminationSink ResolveContractTargetEliminationSink()
+        {
+            if (!IsReferenceAlive(_contractTargetEliminationSink))
+            {
+                _contractTargetEliminationSink = null;
+            }
+
+            if (_contractTargetEliminationSink != null)
+            {
+                return _contractTargetEliminationSink;
+            }
+
+            _contractTargetEliminationSink = _contractRuntimeProviderBehaviour as IContractTargetEliminationSink;
+            return _contractTargetEliminationSink;
+        }
+
+        private StaticContractRuntimeProvider ResolveStaticContractRuntimeProvider()
+        {
+            return _contractRuntimeProviderBehaviour as StaticContractRuntimeProvider;
+        }
+
+        private static bool IsReferenceAlive(object instance)
+        {
+            if (instance == null)
+            {
+                return false;
+            }
+
+            if (instance is UnityEngine.Object unityObject && unityObject == null)
+            {
+                return false;
+            }
+
+            return true;
         }
 
         private bool IsDispatchReservePoliceSlotId(string populationSlotId)

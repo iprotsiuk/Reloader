@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Reloader.Contracts.Runtime
 {
-    public sealed class StaticContractRuntimeProvider : MonoBehaviour, IContractRuntimeProvider, IContractTargetEliminationSink
+    public sealed class StaticContractRuntimeProvider : MonoBehaviour, IContractRuntimeProvider, IContractTargetEliminationSink, ILawEnforcementCrimeReporter
     {
         [SerializeField] private AssassinationContractDefinition _availableContract;
         [SerializeField] private MonoBehaviour _payoutReceiverBehaviour;
@@ -79,6 +79,11 @@ namespace Reloader.Contracts.Runtime
         public bool HandlePlayerDeath()
         {
             return EnsureRuntime().HandlePlayerDeath();
+        }
+
+        public void ReportCrime(CrimeType crimeType)
+        {
+            EnsureRuntime().ReportCrime(crimeType);
         }
 
         public bool CanPublishAvailableContract()

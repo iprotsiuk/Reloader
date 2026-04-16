@@ -1,6 +1,7 @@
 using System;
 using NUnit.Framework;
 using Reloader.Contracts.Runtime;
+using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using UnityEditor;
 using UnityEngine;
@@ -19,6 +20,28 @@ namespace Reloader.Core.Tests.EditMode
         public void TearDown()
         {
             RuntimeKernelBootstrapper.Configure(Array.Empty<RuntimeModuleRegistration>(), new DefaultRuntimeEvents());
+        }
+
+        [Test]
+        public void ReportCrime_Murder_UpdatesCurrentHeatStateThroughInternalRuntime()
+        {
+            var providerGo = new GameObject("ContractProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+
+            try
+            {
+                Assert.That(provider, Is.AssignableTo<ILawEnforcementCrimeReporter>());
+
+                provider.ReportCrime(CrimeType.Murder);
+
+                Assert.That(provider.CurrentHeatState.Level, Is.EqualTo(PoliceHeatLevel.Alerted));
+                Assert.That(provider.CurrentHeatState.LastCrimeType, Is.EqualTo(CrimeType.Murder));
+                Assert.That(provider.CurrentHeatState.WantedLevel, Is.EqualTo(3));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(providerGo);
+            }
         }
 
         [Test]

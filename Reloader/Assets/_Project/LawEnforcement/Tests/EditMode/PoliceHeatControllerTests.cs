@@ -7,6 +7,29 @@ namespace Reloader.LawEnforcement.Tests.EditMode
     public class PoliceHeatControllerTests
     {
         [Test]
+        public void PoliceHeatRuntime_ReportCrimeThroughCrimeReporter_RaisesWantedHeat()
+        {
+            var runtime = new PoliceHeatRuntime(searchDurationSeconds: 45f);
+
+            Assert.That(runtime, Is.AssignableTo<ILawEnforcementCrimeReporter>());
+
+            var reporter = (ILawEnforcementCrimeReporter)runtime;
+            reporter.ReportCrime(CrimeType.Murder);
+
+            Assert.That(runtime.CurrentState.Level, Is.EqualTo(PoliceHeatLevel.Alerted));
+            Assert.That(runtime.CurrentState.LastCrimeType, Is.EqualTo(CrimeType.Murder));
+            Assert.That(runtime.CurrentState.WantedLevel, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void PoliceHeatController_ImplementsLawEnforcementCrimeReporter()
+        {
+            var controller = new PoliceHeatController(searchDurationSeconds: 45f);
+
+            Assert.That(controller, Is.AssignableTo<ILawEnforcementCrimeReporter>());
+        }
+
+        [Test]
         public void PoliceHeatController_TransitionsAcrossCoreHeatStates()
         {
             var controller = new PoliceHeatController(searchDurationSeconds: 45f);

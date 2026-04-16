@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using Reloader.Contracts.Runtime;
+using Reloader.Core.Events;
 using Reloader.Core.Runtime;
 using Reloader.Core.Save;
 using Reloader.Core.Save.IO;
@@ -418,6 +419,368 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void RebuildScenePopulation_WhenNormalTownsfolkSpawns_AddsCivilianWitnessReporter()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.witness",
+                    populationSlotId: "townsfolk.witness",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.witness", out var spawned), Is.True);
+                Assert.That(spawned!.GetComponent<CivilianWitnessReporter>(), Is.Not.Null,
+                    "Expected normal live townsfolk to receive the passive witness death hook.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void ConfigureCrimeReporter_WhenTownsfolkAlreadySpawned_ConfiguresExistingWitnessReporter()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            var reporter = new RecordingCrimeReporter();
+            CreateAnchor(go.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.late-witness",
+                    populationSlotId: "townsfolk.late-witness",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+
+                bridge.RebuildScenePopulation();
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.late-witness", out var spawned), Is.True);
+                Assert.That(spawned!.GetComponents<CivilianWitnessReporter>().Length, Is.EqualTo(1));
+
+                bridge.ConfigureCrimeReporter(reporter);
+                bridge.ConfigureCrimeReporter(reporter);
+
+                Assert.That(spawned.GetComponents<CivilianWitnessReporter>().Length, Is.EqualTo(1),
+                    "Expected repeated runtime reporter wiring to stay idempotent.");
+
+                InvokeWitnessDeath(spawned.GetComponent<CivilianWitnessReporter>());
+
+                Assert.That(reporter.ReportCount, Is.EqualTo(1));
+                Assert.That(reporter.LastCrimeType, Is.EqualTo(CrimeType.Murder));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void ConfigureCrimeReporter_WhenReporterChanges_ExistingWitnessReporterUsesReplacement()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            var staleReporter = new RecordingCrimeReporter();
+            var replacementReporter = new RecordingCrimeReporter();
+            CreateAnchor(go.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+                bridge.ConfigureCrimeReporter(staleReporter);
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.reconfigured-witness",
+                    populationSlotId: "townsfolk.reconfigured-witness",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+
+                bridge.RebuildScenePopulation();
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.reconfigured-witness", out var spawned), Is.True);
+
+                bridge.ConfigureCrimeReporter(replacementReporter);
+
+                InvokeWitnessDeath(spawned!.GetComponent<CivilianWitnessReporter>());
+
+                Assert.That(staleReporter.ReportCount, Is.EqualTo(0));
+                Assert.That(replacementReporter.ReportCount, Is.EqualTo(1));
+                Assert.That(replacementReporter.LastCrimeType, Is.EqualTo(CrimeType.Murder));
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenPoliceSpawned_RemovesCivilianWitnessReporter()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var actorPrefab = CreateWitnessReporterPrefab();
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+                SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_npcActorPrefab", actorPrefab);
+
+                bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
+                {
+                    CivilianId = "citizen.mainTown.cop",
+                    FirstName = "Officer",
+                    LastName = "Kovalenko",
+                    PopulationSlotId = "cops.onscene",
+                    PoolId = "cops",
+                    SpawnAnchorId = "Anchor_Cop",
+                    AreaTag = "maintown.watch",
+                    IsAlive = true,
+                    IsContractEligible = false,
+                    IsProtectedFromContracts = true
+                });
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.cop", out var spawned), Is.True);
+                Assert.That(spawned!.GetComponent<CivilianWitnessReporter>(), Is.Null,
+                    "Expected police records to remove any prefab-authored civilian witness hook.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(actorPrefab);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void TrySpawnPoliceRespondersForDispatch_WhenReservePoliceSpawns_RemovesCivilianWitnessReporter()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var actorPrefab = CreateWitnessReporterPrefab();
+            var definition = CreatePoliceReservePopulationDefinition();
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop_Ambient", new Vector3(8f, 0f, 0f));
+            CreateAnchor(bridgeGo.transform, "Anchor_Cop_Reserve", new Vector3(2f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+                SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_npcActorPrefab", actorPrefab);
+                SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_populationDefinition", definition);
+
+                InvokeEnsureRuntimePopulationInitializedForScene(bridge);
+                bridge.RebuildScenePopulation();
+
+                Assert.That(InvokeTrySpawnPoliceRespondersForDispatch(bridge, Vector3.zero, 1), Is.EqualTo(1));
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.0002", out var reserveSpawn), Is.True);
+                Assert.That(reserveSpawn!.PopulationSlotId, Is.EqualTo("cops.reserve"));
+                Assert.That(reserveSpawn.GetComponent<CivilianWitnessReporter>(), Is.Null,
+                    "Expected dispatch-only reserve police to stay outside civilian witness reporting when materialized for dispatch.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(definition);
+                Object.DestroyImmediate(actorPrefab);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenActiveContractTargetSpawns_RemovesCivilianWitnessReporter()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var providerGo = new GameObject("StaticContractRuntimeProvider");
+            var provider = providerGo.AddComponent<StaticContractRuntimeProvider>();
+            var actorPrefab = CreateWitnessReporterPrefab();
+            var activeContract = CreateRuntimeContractDefinition(
+                contractId: "contract.active.target",
+                targetId: "citizen.mainTown.target",
+                title: "Active Contract",
+                targetDisplayName: "Derek Mullen",
+                targetDescription: "active target",
+                briefingText: "active target",
+                distanceBand: 85f,
+                payout: 1500);
+            CreateAnchor(bridgeGo.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+            CreateAnchor(bridgeGo.transform, "ContractTargetAnchor_A", new Vector3(40f, 0f, 0f));
+
+            try
+            {
+                InvokeSetAvailableContract(provider, activeContract);
+                Assert.That(provider.AcceptAvailableContract(), Is.True);
+
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
+                SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_npcActorPrefab", actorPrefab);
+                SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_contractTargetAnchorIds", new[] { "ContractTargetAnchor_A" });
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.target",
+                    populationSlotId: "townsfolk.target",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.target", out var targetSpawn), Is.True);
+                Assert.That(targetSpawn!.GetComponent<CivilianWitnessReporter>(), Is.Null,
+                    "Expected active contract targets to stay outside default civilian witness reporting.");
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(activeContract);
+                Object.DestroyImmediate(actorPrefab);
+                Object.DestroyImmediate(providerGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenExplicitProviderHasNoActiveTarget_IgnoresUnwiredSceneProviderForWitnessEligibility()
+        {
+            var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = bridgeGo.AddComponent<CivilianPopulationRuntimeBridge>();
+            var globalProviderGo = new GameObject("UnwiredStaticContractRuntimeProvider");
+            var globalProvider = globalProviderGo.AddComponent<StaticContractRuntimeProvider>();
+            var explicitProviderGo = new GameObject("ExplicitContractRuntimeProvider");
+            var explicitProvider = explicitProviderGo.AddComponent<RecordingContractRuntimeProvider>();
+            var actorPrefab = CreateWitnessReporterPrefab();
+            var globalActiveContract = CreateRuntimeContractDefinition(
+                contractId: "contract.global.active.target",
+                targetId: "citizen.mainTown.target",
+                title: "Global Active Contract",
+                targetDisplayName: "Derek Mullen",
+                targetDescription: "global active target",
+                briefingText: "global active target",
+                distanceBand: 85f,
+                payout: 1500);
+            CreateAnchor(bridgeGo.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                InvokeSetAvailableContract(globalProvider, globalActiveContract);
+                Assert.That(globalProvider.AcceptAvailableContract(), Is.True);
+                explicitProvider.SetSnapshot(default, hasSnapshot: false);
+
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(explicitProvider);
+                SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_npcActorPrefab", actorPrefab);
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.target",
+                    populationSlotId: "townsfolk.target",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.target", out var targetSpawn), Is.True);
+                Assert.That(targetSpawn!.GetComponent<CivilianWitnessReporter>(), Is.Not.Null,
+                    "Expected witness eligibility to use only the explicitly configured contract provider and ignore unrelated scene-global providers.");
+            }
+            finally
+            {
+                DestroyProceduralContractDefinition(bridge);
+                Object.DestroyImmediate(globalActiveContract);
+                Object.DestroyImmediate(actorPrefab);
+                Object.DestroyImmediate(explicitProviderGo);
+                Object.DestroyImmediate(globalProviderGo);
+                Object.DestroyImmediate(bridgeGo);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenNormalTownsfolkSpawns_RetainsActorRuntimeComponents()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.components",
+                    populationSlotId: "townsfolk.components",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.components", out var spawned), Is.True);
+                Assert.That(spawned!.GetComponent<HumanoidDamageReceiver>(), Is.Not.Null);
+                Assert.That(spawned.GetComponent<HumanoidRagdollController>(), Is.Not.Null);
+                Assert.That(spawned.GetComponent<HumanoidCorpseLootController>(), Is.Not.Null);
+                Assert.That(spawned.GetComponent<MainTownPopulationSpawnedCivilian>(), Is.Not.Null);
+                Assert.That(spawned.GetComponent<AmbientCitizenCapability>(), Is.Not.Null);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void RebuildScenePopulation_WhenPoliceSpawned_BootstrapsGlobalDispatchCoordinator()
         {
             var bridgeGo = new GameObject("CivilianPopulationRuntimeBridge");
@@ -580,6 +943,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     idPrefix: "citizen.mainTown",
                     spawnAnchorIds: Array.Empty<string>(),
                     library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
                 SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_populationDefinition", definition);
 
                 InvokeEnsureRuntimePopulationInitializedForScene(bridge);
@@ -637,6 +1001,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     idPrefix: "citizen.mainTown",
                     spawnAnchorIds: Array.Empty<string>(),
                     library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
                 SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_populationDefinition", definition);
 
                 InvokeEnsureRuntimePopulationInitializedForScene(bridge);
@@ -790,6 +1155,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     idPrefix: "citizen.mainTown",
                     spawnAnchorIds: Array.Empty<string>(),
                     library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
                 SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_populationDefinition", definition);
 
                 InvokeEnsureRuntimePopulationInitializedForScene(bridge);
@@ -937,6 +1303,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     idPrefix: "citizen.mainTown",
                     spawnAnchorIds: System.Array.Empty<string>(),
                     library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
 
                 bridge.Runtime.Civilians.Add(CreateCivilianRecord(
                     civilianId: "citizen.mainTown.0101",
@@ -1026,6 +1393,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     idPrefix: "citizen.mainTown",
                     spawnAnchorIds: System.Array.Empty<string>(),
                     library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
                 SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_contractTargetAnchorIds", new[] { "ContractTargetAnchor_A" });
 
                 bridge.Runtime.Civilians.Add(CreateCivilianRecord(
@@ -1085,6 +1453,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     idPrefix: "citizen.mainTown",
                     spawnAnchorIds: System.Array.Empty<string>(),
                     library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
 
                 bridge.Runtime.Civilians.Add(CreateCivilianRecord(
                     civilianId: "citizen.mainTown.0201",
@@ -1130,6 +1499,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     idPrefix: "citizen.mainTown",
                     spawnAnchorIds: System.Array.Empty<string>(),
                     library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
 
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
@@ -1188,6 +1558,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     idPrefix: "citizen.mainTown",
                     spawnAnchorIds: System.Array.Empty<string>(),
                     library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
 
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
@@ -1246,6 +1617,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     idPrefix: "citizen.mainTown",
                     spawnAnchorIds: System.Array.Empty<string>(),
                     library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
 
                 bridge.Runtime.Civilians.Add(new CivilianPopulationRecord
                 {
@@ -1305,6 +1677,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     idPrefix: "citizen.mainTown",
                     spawnAnchorIds: System.Array.Empty<string>(),
                     library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
 
                 bridge.Runtime.Civilians.Add(CreateCivilianRecord(
                     civilianId: "citizen.mainTown.0401",
@@ -1366,6 +1739,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     idPrefix: "citizen.mainTown",
                     spawnAnchorIds: System.Array.Empty<string>(),
                     library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
 
                 bridge.Runtime.Civilians.Add(CreateCivilianRecord(
                     civilianId: "citizen.mainTown.0444",
@@ -1424,6 +1798,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     idPrefix: "citizen.mainTown",
                     spawnAnchorIds: System.Array.Empty<string>(),
                     library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
 
                 bridge.Runtime.Civilians.Add(CreateCivilianRecord(
                     civilianId: "citizen.mainTown.0501",
@@ -1485,6 +1860,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     idPrefix: "citizen.mainTown",
                     spawnAnchorIds: System.Array.Empty<string>(),
                     library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
 
                 bridge.Runtime.Civilians.Add(CreateCivilianRecord(
                     civilianId: "citizen.mainTown.0601",
@@ -1537,6 +1913,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     idPrefix: "citizen.mainTown",
                     spawnAnchorIds: System.Array.Empty<string>(),
                     library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
 
                 bridge.Runtime.Civilians.Add(CreateCivilianRecord(
                     civilianId: "citizen.mainTown.0451",
@@ -1587,6 +1964,7 @@ namespace Reloader.NPCs.Tests.EditMode
                     idPrefix: "citizen.mainTown",
                     spawnAnchorIds: System.Array.Empty<string>(),
                     library: CreateLibrary());
+                bridge.ConfigureContractRuntimeProvider(provider);
 
                 bridge.Runtime.Civilians.Add(CreateCivilianRecord(
                     civilianId: "citizen.mainTown.0301",
@@ -2580,6 +2958,73 @@ namespace Reloader.NPCs.Tests.EditMode
                 MaterialColorIds = new[] { "color.gray" },
                 DescriptionTags = new[] { "gray coat" }
             };
+        }
+
+        private static GameObject CreateWitnessReporterPrefab()
+        {
+            var prefab = new GameObject("WitnessReporterActorPrefab");
+            prefab.AddComponent<HumanoidDamageReceiver>();
+            prefab.AddComponent<CivilianWitnessReporter>();
+            return prefab;
+        }
+
+        private static void InvokeWitnessDeath(CivilianWitnessReporter witnessReporter)
+        {
+            Assert.That(witnessReporter, Is.Not.Null, "Expected spawned civilian to have a witness reporter.");
+
+            typeof(CivilianWitnessReporter).GetMethod(
+                "HandleDied",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(witnessReporter, Array.Empty<object>());
+        }
+
+        private sealed class RecordingCrimeReporter : ILawEnforcementCrimeReporter
+        {
+            public int ReportCount { get; private set; }
+            public CrimeType LastCrimeType { get; private set; }
+
+            public void ReportCrime(CrimeType crimeType)
+            {
+                ReportCount++;
+                LastCrimeType = crimeType;
+            }
+        }
+
+        private sealed class RecordingContractRuntimeProvider : MonoBehaviour, IContractRuntimeProvider
+        {
+            private ContractOfferSnapshot _snapshot;
+            private bool _hasSnapshot;
+
+            public void SetSnapshot(ContractOfferSnapshot snapshot, bool hasSnapshot)
+            {
+                _snapshot = snapshot;
+                _hasSnapshot = hasSnapshot;
+            }
+
+            public bool TryGetContractSnapshot(out ContractOfferSnapshot snapshot)
+            {
+                snapshot = _snapshot;
+                return _hasSnapshot;
+            }
+
+            public bool AcceptAvailableContract()
+            {
+                return false;
+            }
+
+            public bool CancelActiveContract()
+            {
+                return false;
+            }
+
+            public bool ClearFailedContract()
+            {
+                return false;
+            }
+
+            public bool ClaimCompletedContractReward()
+            {
+                return false;
+            }
         }
 
         private static MainTownPopulationDefinition CreatePoliceReservePopulationDefinition(

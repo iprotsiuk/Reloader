@@ -3,7 +3,7 @@ using Reloader.Core.Runtime;
 
 namespace Reloader.LawEnforcement
 {
-    public sealed class PoliceHeatController
+    public sealed class PoliceHeatController : ILawEnforcementCrimeReporter
     {
         private readonly PoliceHeatRuntime _runtime;
 

@@ -8,6 +8,7 @@ using Reloader.Core.Events;
 using Reloader.Core.Save;
 using Reloader.Core.Save.IO;
 using Reloader.Core.Save.Modules;
+using Reloader.NPCs.Combat;
 using Reloader.NPCs.Runtime;
 using Reloader.World.Runtime;
 using Reloader.World.Travel;
@@ -239,6 +240,44 @@ namespace Reloader.World.Tests.PlayMode
             Assert.That(targetDamageable, Is.Not.Null, "Expected procedural offer target to expose the existing contract-target damageable seam.");
             Assert.That(GetProperty<string>(targetDamageable!, "TargetId"), Is.EqualTo(availableSnapshot.TargetId));
             Assert.That(GetProperty<string>(targetDamageable!, "DisplayName"), Is.EqualTo(availableSnapshot.TargetDisplayName));
+        }
+
+        [UnityTest]
+        public IEnumerator MainTownContractSlice_LoadScene_WiresPopulationWitnessReporterToSceneCrimeReporter()
+        {
+            yield return LoadScene(MainTownSceneName);
+            yield return null;
+
+            var providerRoot = GameObject.Find("MainTownContractRuntime");
+            Assert.That(providerRoot, Is.Not.Null, "Expected authored MainTown contract runtime root.");
+
+            var provider = providerRoot!.GetComponent<StaticContractRuntimeProvider>();
+            Assert.That(provider, Is.Not.Null, "Expected StaticContractRuntimeProvider on MainTownContractRuntime.");
+            Assert.That(provider.TryGetContractSnapshot(out var snapshot), Is.True, "Expected authored MainTown contract offer.");
+
+            var bridge = FindPopulationBridge();
+            var bridgeType = typeof(CivilianPopulationRuntimeBridge);
+            var contractProviderField = bridgeType.GetField("_contractRuntimeProviderBehaviour", BindingFlags.Instance | BindingFlags.NonPublic);
+            var crimeReporterField = bridgeType.GetField("_crimeReporterBehaviour", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(contractProviderField, Is.Not.Null, "Expected the population bridge to expose an explicit contract provider field.");
+            Assert.That(crimeReporterField, Is.Not.Null, "Expected the population bridge to expose an explicit crime reporter field.");
+            Assert.That(contractProviderField!.GetValue(bridge), Is.SameAs(provider),
+                "Expected MainTown to explicitly wire the population bridge to its scene contract runtime provider.");
+            Assert.That(crimeReporterField!.GetValue(bridge), Is.SameAs(provider),
+                "Expected MainTown to explicitly wire witness crime reports to its scene contract runtime provider.");
+
+            var witness = FindNonTargetWitnessCivilian(bridge, snapshot.TargetId);
+            Assert.That(witness, Is.Not.Null, "Expected MainTown to spawn at least one non-target civilian witness.");
+            Assert.That(witness!.GetComponent<CivilianWitnessReporter>(), Is.Not.Null,
+                "Expected eligible MainTown civilians to carry a configured witness reporter.");
+
+            ApplyLethalWitnessDamage(witness);
+            yield return null;
+
+            Assert.That(provider.CurrentHeatState.Level, Is.Not.EqualTo(PoliceHeatLevel.Clear),
+                "Expected killing an explicitly wired civilian witness to enter police heat.");
+            Assert.That(provider.CurrentHeatState.LastCrimeType, Is.EqualTo(CrimeType.Murder));
+            Assert.That(provider.CurrentHeatState.WantedLevel, Is.EqualTo(3));
         }
 
         [UnityTest]
@@ -612,6 +651,42 @@ namespace Reloader.World.Tests.PlayMode
             applyDamageMethod!.Invoke(damageable, new[] { payload });
         }
 
+        private static void ApplyLethalWitnessDamage(MainTownPopulationSpawnedCivilian witness)
+        {
+            var receiver = witness.GetComponent<HumanoidDamageReceiver>();
+            Assert.That(receiver, Is.Not.Null, "Expected spawned witness civilian to expose the humanoid damage receiver.");
+
+            var payload = CreateImpactPayload(witness.gameObject);
+            var applyDamageMethod = typeof(HumanoidDamageReceiver).GetMethod(nameof(HumanoidDamageReceiver.ApplyDamage), BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(applyDamageMethod, Is.Not.Null);
+            applyDamageMethod!.Invoke(receiver, new[] { payload });
+        }
+
+        private static object CreateImpactPayload(GameObject hitObject)
+        {
+            var impactPayloadType = Type.GetType("Reloader.Weapons.Ballistics.ProjectileImpactPayload, Reloader.Weapons", throwOnError: false);
+            Assert.That(impactPayloadType, Is.Not.Null, "Expected ProjectileImpactPayload type.");
+
+            var constructor = impactPayloadType!.GetConstructor(new[]
+            {
+                typeof(string),
+                typeof(Vector3),
+                typeof(Vector3),
+                typeof(float),
+                typeof(GameObject)
+            });
+            Assert.That(constructor, Is.Not.Null, "Expected ProjectileImpactPayload(string, Vector3, Vector3, float, GameObject).");
+
+            return constructor!.Invoke(new object[]
+            {
+                "weapon-kar98k",
+                hitObject.transform.position,
+                Vector3.up,
+                999f,
+                hitObject
+            });
+        }
+
         private static T GetProperty<T>(object instance, string propertyName)
         {
             var property = instance.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
@@ -638,6 +713,35 @@ namespace Reloader.World.Tests.PlayMode
                 if (string.Equals(spawned[i].CivilianId, targetId, StringComparison.Ordinal))
                 {
                     return spawned[i].gameObject;
+                }
+            }
+
+            return null;
+        }
+
+        private static MainTownPopulationSpawnedCivilian FindNonTargetWitnessCivilian(
+            CivilianPopulationRuntimeBridge bridge,
+            string excludedTargetId)
+        {
+            var spawned = bridge.GetComponentsInChildren<MainTownPopulationSpawnedCivilian>(includeInactive: true);
+            for (var i = 0; i < spawned.Length; i++)
+            {
+                var candidate = spawned[i];
+                if (candidate == null
+                    || !candidate.gameObject.activeInHierarchy
+                    || string.Equals(candidate.CivilianId, excludedTargetId, StringComparison.Ordinal)
+                    || candidate.GetComponent<CivilianWitnessReporter>() == null)
+                {
+                    continue;
+                }
+
+                var record = bridge.Runtime.Civilians.Find(civilian => civilian != null
+                    && civilian.IsAlive
+                    && !string.Equals(civilian.PoolId, "cops", StringComparison.Ordinal)
+                    && string.Equals(civilian.CivilianId, candidate.CivilianId, StringComparison.Ordinal));
+                if (record != null)
+                {
+                    return candidate;
                 }
             }
 
