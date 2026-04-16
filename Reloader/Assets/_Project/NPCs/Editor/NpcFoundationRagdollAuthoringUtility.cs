@@ -13,7 +13,8 @@ namespace Reloader.NPCs.Editor
         {
             new BoneRecipe("root/pelvis", HumanoidBodyZone.Pelvis, ColliderRecipe.Box(new Vector3(0f, 0f, 0f), new Vector3(0.22f, 0.18f, 0.18f)), 12f, null),
             new BoneRecipe("root/pelvis/spine_01/spine_02/spine_03", HumanoidBodyZone.Torso, ColliderRecipe.Box(new Vector3(0f, 0.02f, 0f), new Vector3(0.28f, 0.28f, 0.20f)), 14f, "root/pelvis"),
-            new BoneRecipe("root/pelvis/spine_01/spine_02/spine_03/neck_01/head", HumanoidBodyZone.Head, ColliderRecipe.Sphere(0.12f), 5f, "root/pelvis/spine_01/spine_02/spine_03"),
+            new BoneRecipe("root/pelvis/spine_01/spine_02/spine_03/neck_01", HumanoidBodyZone.Neck, ColliderRecipe.Capsule("head"), 3f, "root/pelvis/spine_01/spine_02/spine_03"),
+            new BoneRecipe("root/pelvis/spine_01/spine_02/spine_03/neck_01/head", HumanoidBodyZone.Head, ColliderRecipe.Sphere(0.12f), 5f, "root/pelvis/spine_01/spine_02/spine_03/neck_01"),
             new BoneRecipe("root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l", HumanoidBodyZone.ArmL, ColliderRecipe.Capsule("lowerarm_l"), 2f, "root/pelvis/spine_01/spine_02/spine_03"),
             new BoneRecipe("root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l/lowerarm_l", HumanoidBodyZone.ArmL, ColliderRecipe.Capsule("hand_l"), 1.5f, "root/pelvis/spine_01/spine_02/spine_03/clavicle_l/upperarm_l"),
             new BoneRecipe("root/pelvis/spine_01/spine_02/spine_03/clavicle_r/upperarm_r", HumanoidBodyZone.ArmR, ColliderRecipe.Capsule("lowerarm_r"), 2f, "root/pelvis/spine_01/spine_02/spine_03"),
@@ -93,7 +94,8 @@ namespace Reloader.NPCs.Editor
                 ragdollBodies.Add(body);
 
                 var collider = EnsureCollider(bone, recipe.Collider);
-                collider.enabled = false;
+                collider.enabled = true;
+                collider.isTrigger = false;
                 ragdollColliders.Add(collider);
 
                 var hitbox = bone.GetComponent<BodyZoneHitbox>();

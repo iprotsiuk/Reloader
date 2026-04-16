@@ -2,6 +2,7 @@ using NUnit.Framework;
 using Reloader.NPCs.Combat;
 using UnityEditor;
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace Reloader.NPCs.Tests.EditMode
 {
@@ -59,6 +60,50 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void NpcFoundationPrefab_HasLiveEnabledNonTriggerBodyZoneHitboxCollidersForEveryStandardZone()
+        {
+            var prefabRoot = PrefabUtility.LoadPrefabContents(NpcFoundationPrefabPath);
+
+            try
+            {
+                Assert.That(prefabRoot, Is.Not.Null, "Expected NpcFoundation prefab to load.");
+
+                var liveColliderCountByZone = new Dictionary<HumanoidBodyZone, int>();
+                var hitboxes = prefabRoot.GetComponentsInChildren<BodyZoneHitbox>(includeInactive: true);
+                for (var i = 0; i < hitboxes.Length; i++)
+                {
+                    var hitbox = hitboxes[i];
+                    if (hitbox == null)
+                    {
+                        continue;
+                    }
+
+                    var collider = hitbox.GetComponent<Collider>();
+                    if (collider == null || !collider.enabled || collider.isTrigger)
+                    {
+                        continue;
+                    }
+
+                    liveColliderCountByZone.TryGetValue(hitbox.BodyZone, out var count);
+                    liveColliderCountByZone[hitbox.BodyZone] = count + 1;
+                }
+
+                AssertLiveZoneCollider(liveColliderCountByZone, HumanoidBodyZone.Head);
+                AssertLiveZoneCollider(liveColliderCountByZone, HumanoidBodyZone.Neck);
+                AssertLiveZoneCollider(liveColliderCountByZone, HumanoidBodyZone.Torso);
+                AssertLiveZoneCollider(liveColliderCountByZone, HumanoidBodyZone.Pelvis);
+                AssertLiveZoneCollider(liveColliderCountByZone, HumanoidBodyZone.ArmL);
+                AssertLiveZoneCollider(liveColliderCountByZone, HumanoidBodyZone.ArmR);
+                AssertLiveZoneCollider(liveColliderCountByZone, HumanoidBodyZone.LegL);
+                AssertLiveZoneCollider(liveColliderCountByZone, HumanoidBodyZone.LegR);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(prefabRoot);
+            }
+        }
+
+        [Test]
         public void NpcFoundationPrefab_HumanoidRagdollController_ReferencesAuthoredRagdollSet()
         {
             var prefabRoot = PrefabUtility.LoadPrefabContents(NpcFoundationPrefabPath);
@@ -90,6 +135,16 @@ namespace Reloader.NPCs.Tests.EditMode
             {
                 PrefabUtility.UnloadPrefabContents(prefabRoot);
             }
+        }
+
+        private static void AssertLiveZoneCollider(
+            IReadOnlyDictionary<HumanoidBodyZone, int> liveColliderCountByZone,
+            HumanoidBodyZone zone)
+        {
+            Assert.That(liveColliderCountByZone.TryGetValue(zone, out var count), Is.True,
+                $"Expected NpcFoundation to author at least one live, enabled, non-trigger BodyZoneHitbox collider for {zone}.");
+            Assert.That(count, Is.GreaterThanOrEqualTo(1),
+                $"Expected NpcFoundation to author at least one live, enabled, non-trigger BodyZoneHitbox collider for {zone}.");
         }
     }
 }

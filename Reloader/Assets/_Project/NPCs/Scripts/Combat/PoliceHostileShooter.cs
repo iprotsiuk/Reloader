@@ -17,7 +17,7 @@ namespace Reloader.NPCs.Combat
         [SerializeField] private Transform _muzzleOrigin;
         [SerializeField, Min(0.5f)] private float _rangeMeters = 35f;
         [SerializeField, Min(0f)] private float _fireCooldownSeconds = 0.75f;
-        [SerializeField, Min(1f)] private float _projectileSpeedMetersPerSecond = 420f;
+        [SerializeField, Min(1f)] private float _projectileSpeedMetersPerSecond = 650f;
         [SerializeField, Min(0f)] private float _projectileGravityMultiplier;
         [SerializeField, Min(0f)] private float _projectileDamage = 20f;
         [SerializeField, Min(0.01f)] private float _projectileBallisticCoefficientG1 = 0.45f;

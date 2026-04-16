@@ -27,6 +27,9 @@ namespace Reloader.Weapons.Ballistics
         public event Action<WeaponProjectile, ProjectileLifecycleEndInfo> LifecycleEnded;
 
         private const string NpcAgentTypeName = "Reloader.NPCs.Runtime.NpcAgent, Reloader.NPCs";
+        private const string BodyZoneHitboxTypeName = "Reloader.NPCs.Combat.BodyZoneHitbox";
+        private const string HumanoidHitboxRigTypeName = "Reloader.NPCs.Combat.HumanoidHitboxRig";
+        private const float BodyZoneSearchPaddingMeters = 0.02f;
 
         public interface IPathObserver
         {
@@ -291,11 +294,165 @@ namespace Reloader.Weapons.Ballistics
                     continue;
                 }
 
+                if (TryResolveBodyZoneHitForSameRig(hits, i, candidate, start, direction, distance, out hit))
+                {
+                    return true;
+                }
+
                 hit = candidate;
                 return true;
             }
 
             return false;
+        }
+
+        private bool TryResolveBodyZoneHitForSameRig(
+            RaycastHit[] sortedHits,
+            int firstCandidateIndex,
+            RaycastHit firstCandidate,
+            Vector3 start,
+            Vector3 direction,
+            float distance,
+            out RaycastHit zoneHit)
+        {
+            zoneHit = default;
+            if (IsBodyZoneHit(firstCandidate.collider))
+            {
+                zoneHit = firstCandidate;
+                return true;
+            }
+
+            var candidateRig = FindHumanoidHitboxRig(firstCandidate.collider);
+            if (candidateRig == null)
+            {
+                return false;
+            }
+
+            for (var i = firstCandidateIndex + 1; i < sortedHits.Length; i++)
+            {
+                var candidate = sortedHits[i];
+                if (candidate.collider == null
+                    || candidate.collider.isTrigger
+                    || IsIgnoredCollider(candidate.collider))
+                {
+                    continue;
+                }
+
+                if (!IsBodyZoneHit(candidate.collider))
+                {
+                    continue;
+                }
+
+                if (!ReferenceEquals(candidateRig, FindHumanoidHitboxRig(candidate.collider)))
+                {
+                    continue;
+                }
+
+                zoneHit = candidate;
+                return true;
+            }
+
+            var searchDistance = ResolveBodyZoneSearchDistance(firstCandidate, direction, distance);
+            return TryResolveBodyZoneHitByColliderRaycast(candidateRig, start, direction, searchDistance, out zoneHit);
+        }
+
+        private static float ResolveBodyZoneSearchDistance(RaycastHit firstCandidate, Vector3 direction, float fallbackDistance)
+        {
+            var collider = firstCandidate.collider;
+            if (collider == null || direction.sqrMagnitude <= 0.0001f)
+            {
+                return fallbackDistance;
+            }
+
+            var normalizedDirection = direction.normalized;
+            var extents = collider.bounds.extents;
+            var projectedHalfSpan =
+                (Mathf.Abs(normalizedDirection.x) * extents.x) +
+                (Mathf.Abs(normalizedDirection.y) * extents.y) +
+                (Mathf.Abs(normalizedDirection.z) * extents.z);
+
+            var colliderExitDistance = firstCandidate.distance + (projectedHalfSpan * 2f) + BodyZoneSearchPaddingMeters;
+            return Mathf.Max(fallbackDistance, colliderExitDistance);
+        }
+
+        private bool TryResolveBodyZoneHitByColliderRaycast(
+            MonoBehaviour candidateRig,
+            Vector3 start,
+            Vector3 direction,
+            float distance,
+            out RaycastHit zoneHit)
+        {
+            zoneHit = default;
+            if (candidateRig == null || distance <= 0.0001f || direction.sqrMagnitude <= 0.0001f)
+            {
+                return false;
+            }
+
+            var ray = new Ray(start, direction.normalized);
+            var colliders = candidateRig.GetComponentsInChildren<Collider>(includeInactive: true);
+            var bestDistance = float.PositiveInfinity;
+            for (var i = 0; i < colliders.Length; i++)
+            {
+                var collider = colliders[i];
+                if (collider == null
+                    || !collider.enabled
+                    || collider.isTrigger
+                    || IsIgnoredCollider(collider)
+                    || !IsBodyZoneHit(collider))
+                {
+                    continue;
+                }
+
+                if (!collider.Raycast(ray, out var candidateHit, distance))
+                {
+                    continue;
+                }
+
+                if (candidateHit.distance >= bestDistance)
+                {
+                    continue;
+                }
+
+                bestDistance = candidateHit.distance;
+                zoneHit = candidateHit;
+            }
+
+            return bestDistance < float.PositiveInfinity;
+        }
+
+        private static bool IsBodyZoneHit(Collider collider)
+        {
+            return FindComponentInParentsByTypeName(collider, BodyZoneHitboxTypeName) != null;
+        }
+
+        private static MonoBehaviour FindHumanoidHitboxRig(Collider collider)
+        {
+            return FindComponentInParentsByTypeName(collider, HumanoidHitboxRigTypeName);
+        }
+
+        private static MonoBehaviour FindComponentInParentsByTypeName(Collider collider, string typeName)
+        {
+            if (collider == null || string.IsNullOrWhiteSpace(typeName))
+            {
+                return null;
+            }
+
+            var behaviours = collider.GetComponentsInParent<MonoBehaviour>(includeInactive: true);
+            for (var i = 0; i < behaviours.Length; i++)
+            {
+                var behaviour = behaviours[i];
+                if (behaviour == null)
+                {
+                    continue;
+                }
+
+                if (string.Equals(behaviour.GetType().FullName, typeName, StringComparison.Ordinal))
+                {
+                    return behaviour;
+                }
+            }
+
+            return null;
         }
 
         private bool IsIgnoredCollider(Collider collider)

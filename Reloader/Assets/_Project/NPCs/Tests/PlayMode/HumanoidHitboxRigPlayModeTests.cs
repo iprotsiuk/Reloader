@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Reflection;
 using NUnit.Framework;
+using Reloader.NPCs.Combat;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -9,6 +10,178 @@ namespace Reloader.NPCs.Tests.PlayMode
 {
     public sealed class HumanoidHitboxRigPlayModeTests
     {
+        [UnityTest]
+        public IEnumerator ProjectileHit_WhenRootCapsuleIsCloserThanHeadZone_RecordsHeadZone()
+        {
+            var weaponProjectileType = ResolveType("Reloader.Weapons.Ballistics.WeaponProjectile", "Reloader.Weapons");
+            Assert.That(weaponProjectileType, Is.Not.Null, "Expected WeaponProjectile type for hit-selection coverage.");
+
+            GameObject npcRoot = null;
+            GameObject projectileGo = null;
+
+            try
+            {
+                npcRoot = new GameObject("NpcRoot");
+                npcRoot.transform.position = new Vector3(0f, 1000f, 6f);
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                var sharedReceiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
+
+                var rootCapsule = npcRoot.AddComponent<CapsuleCollider>();
+                rootCapsule.radius = 0.45f;
+                rootCapsule.height = 2f;
+                rootCapsule.direction = 1;
+                rootCapsule.center = new Vector3(0f, 0f, 0f);
+
+                var headZone = new GameObject("HeadZone");
+                headZone.transform.SetParent(npcRoot.transform, false);
+                headZone.transform.localPosition = new Vector3(0f, 0f, -0.15f);
+                var headCollider = headZone.AddComponent<SphereCollider>();
+                headCollider.radius = 0.18f;
+                headZone.AddComponent<BodyZoneHitbox>().Configure(HumanoidBodyZone.Head);
+
+                projectileGo = new GameObject("Projectile");
+                projectileGo.transform.position = new Vector3(0f, 1000f, 4.75f);
+                projectileGo.transform.forward = Vector3.forward;
+                var projectile = projectileGo.AddComponent(weaponProjectileType!);
+                InitializeProjectile(projectile, "weapon-kar98k", Vector3.forward, speed: 850f, gravityMultiplier: 0f, damage: 20f);
+
+                yield return WaitForHumanoidResult(sharedReceiver);
+
+                Assert.That(sharedReceiver.HasLastResult, Is.True, "Expected projectile to hit the NPC test rig.");
+                Assert.That(sharedReceiver.LastZone, Is.EqualTo(HumanoidBodyZone.Head),
+                    "Expected the root/alive capsule not to consume a head shot before the live head zone collider.");
+                Assert.That(sharedReceiver.LastResult.IsLethal, Is.True);
+            }
+            finally
+            {
+                if (projectileGo != null)
+                {
+                    UnityEngine.Object.Destroy(projectileGo);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.Destroy(npcRoot);
+                }
+            }
+        }
+
+        [Test]
+        public void ProjectileHitSelection_WhenSegmentStopsInsideRootCapsule_SelectsNestedHeadZone()
+        {
+            var weaponProjectileType = ResolveType("Reloader.Weapons.Ballistics.WeaponProjectile", "Reloader.Weapons");
+            Assert.That(weaponProjectileType, Is.Not.Null, "Expected WeaponProjectile type for hit-selection coverage.");
+
+            GameObject npcRoot = null;
+            GameObject projectileGo = null;
+
+            try
+            {
+                const float testY = 1100f;
+
+                npcRoot = new GameObject("NpcRoot");
+                npcRoot.transform.position = new Vector3(0f, testY, 6f);
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                npcRoot.AddComponent<HumanoidDamageReceiver>();
+
+                var rootCapsule = npcRoot.AddComponent<CapsuleCollider>();
+                rootCapsule.radius = 0.45f;
+                rootCapsule.height = 2f;
+                rootCapsule.direction = 1;
+                rootCapsule.center = Vector3.zero;
+
+                var headZone = new GameObject("HeadZone");
+                headZone.transform.SetParent(npcRoot.transform, false);
+                headZone.transform.localPosition = new Vector3(0f, 0f, -0.15f);
+                var headCollider = headZone.AddComponent<SphereCollider>();
+                headCollider.radius = 0.18f;
+                headZone.AddComponent<BodyZoneHitbox>().Configure(HumanoidBodyZone.Head);
+
+                projectileGo = new GameObject("Projectile");
+                projectileGo.transform.position = new Vector3(0f, testY, 4.75f);
+                projectileGo.transform.forward = Vector3.forward;
+                var projectile = projectileGo.AddComponent(weaponProjectileType!);
+
+                Physics.SyncTransforms();
+
+                var tryResolveHit = weaponProjectileType!.GetMethod("TryResolveHit", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(tryResolveHit, Is.Not.Null, "Expected WeaponProjectile.TryResolveHit for deterministic hit-selection coverage.");
+
+                var args = new object[] { projectileGo.transform.position, Vector3.forward * 0.85f, default(RaycastHit) };
+                var resolved = (bool)tryResolveHit!.Invoke(projectile, args);
+                var hit = (RaycastHit)args[2];
+
+                Assert.That(resolved, Is.True, "Expected the short segment to reach the humanoid root capsule.");
+                Assert.That(hit.collider, Is.SameAs(headCollider),
+                    "Expected the coarse root capsule not to consume a shot whose ray path resolves to a nested body-zone collider.");
+            }
+            finally
+            {
+                if (projectileGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(projectileGo);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(npcRoot);
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ProjectileHit_OnLegZoneCollider_RecordsLegZoneAndDoesNotKillFromFullHealth()
+        {
+            var weaponProjectileType = ResolveType("Reloader.Weapons.Ballistics.WeaponProjectile", "Reloader.Weapons");
+            Assert.That(weaponProjectileType, Is.Not.Null, "Expected WeaponProjectile type for hit-selection coverage.");
+
+            GameObject npcRoot = null;
+            GameObject projectileGo = null;
+
+            try
+            {
+                npcRoot = new GameObject("NpcRoot");
+                npcRoot.transform.position = new Vector3(0f, 1000f, 5f);
+                npcRoot.AddComponent<HumanoidHitboxRig>();
+                var sharedReceiver = npcRoot.AddComponent<HumanoidDamageReceiver>();
+
+                var legZone = new GameObject("LegZone");
+                legZone.transform.SetParent(npcRoot.transform, false);
+                legZone.transform.localPosition = Vector3.zero;
+                var legCollider = legZone.AddComponent<CapsuleCollider>();
+                legCollider.radius = 0.16f;
+                legCollider.height = 0.7f;
+                legCollider.direction = 1;
+                legZone.AddComponent<BodyZoneHitbox>().Configure(HumanoidBodyZone.LegL);
+
+                projectileGo = new GameObject("Projectile");
+                projectileGo.transform.position = new Vector3(0f, 1000f, 3f);
+                projectileGo.transform.forward = Vector3.forward;
+                var projectile = projectileGo.AddComponent(weaponProjectileType!);
+                InitializeProjectile(projectile, "weapon-kar98k", Vector3.forward, speed: 850f, gravityMultiplier: 0f, damage: 20f);
+
+                yield return WaitForHumanoidResult(sharedReceiver);
+
+                Assert.That(sharedReceiver.HasLastResult, Is.True, "Expected projectile to hit the NPC test rig.");
+                Assert.That(sharedReceiver.LastZone, Is.EqualTo(HumanoidBodyZone.LegL));
+                Assert.That(sharedReceiver.IsDead, Is.False,
+                    "Expected one full-power leg hit to damage but not kill a full-health humanoid.");
+                Assert.That(sharedReceiver.CurrentHealth, Is.GreaterThan(0f));
+            }
+            finally
+            {
+                if (projectileGo != null)
+                {
+                    UnityEngine.Object.Destroy(projectileGo);
+                }
+
+                if (npcRoot != null)
+                {
+                    UnityEngine.Object.Destroy(npcRoot);
+                }
+            }
+        }
+
         [UnityTest]
         public IEnumerator ProjectileHit_OnHeadZoneCollider_RoutesThroughSharedHumanoidReceiverInsteadOfGenericRootDamageable()
         {
@@ -549,6 +722,16 @@ namespace Reloader.NPCs.Tests.PlayMode
             }
 
             return count;
+        }
+
+        private static IEnumerator WaitForHumanoidResult(HumanoidDamageReceiver receiver, float timeoutSeconds = 1f)
+        {
+            var elapsed = 0f;
+            while (receiver != null && !receiver.HasLastResult && elapsed < timeoutSeconds)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
         }
     }
 }
