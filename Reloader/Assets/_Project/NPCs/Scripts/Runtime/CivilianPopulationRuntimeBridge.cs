@@ -29,6 +29,7 @@ namespace Reloader.NPCs.Runtime
         [SerializeField] private string[] _contractTargetAnchorIds = Array.Empty<string>();
         [SerializeField] private MonoBehaviour _contractRuntimeProviderBehaviour;
         [SerializeField] private MonoBehaviour _crimeReporterBehaviour;
+        [SerializeField] private BloodVfxCatalog _bloodVfxCatalog;
 
         private readonly CivilianPopulationRuntimeState _runtime = new CivilianPopulationRuntimeState();
         private readonly CivilianAppearanceGenerator _generator = new CivilianAppearanceGenerator();
@@ -909,7 +910,7 @@ namespace Reloader.NPCs.Runtime
             coordinator.enabled = true;
         }
 
-        private static MainTownPopulationSpawnedCivilian EnsureCivilianActorComponents(GameObject civilian)
+        private MainTownPopulationSpawnedCivilian EnsureCivilianActorComponents(GameObject civilian)
         {
             if (civilian.GetComponent<CapsuleCollider>() == null && civilian.GetComponentInChildren<CapsuleCollider>(includeInactive: true) == null)
             {
@@ -951,6 +952,8 @@ namespace Reloader.NPCs.Runtime
                 civilian.AddComponent<HumanoidCorpseLootController>();
             }
 
+            EnsureBloodController(civilian);
+
             var metadata = civilian.GetComponent<MainTownPopulationSpawnedCivilian>();
             if (metadata == null)
             {
@@ -958,6 +961,28 @@ namespace Reloader.NPCs.Runtime
             }
 
             return metadata;
+        }
+
+        private void EnsureBloodController(GameObject civilian)
+        {
+            var controller = civilian.GetComponent<HumanoidBloodController>();
+            if (controller == null)
+            {
+                controller = civilian.AddComponent<HumanoidBloodController>();
+            }
+
+            controller.enabled = true;
+
+            var catalog = ResolveBloodVfxCatalog();
+            if (catalog != null)
+            {
+                controller.ConfigureCatalog(catalog);
+            }
+        }
+
+        private BloodVfxCatalog ResolveBloodVfxCatalog()
+        {
+            return _bloodVfxCatalog;
         }
 
         private static void ConfigurePoliceShooter(

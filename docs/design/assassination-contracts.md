@@ -77,7 +77,9 @@ Target contracts should expose:
 
 Target elimination damage rule:
 - Contract target death must be observed through the shared humanoid death path (`HumanoidDamageReceiver.Died` and the existing contract target bridge), not through a separate flat one-shot target damage component.
-- Energy/zone tuning should allow precise head/neck shots to kill, close/mid torso .308 hits to be decisive, and arm/leg hits to wound without instantly completing a contract from full health.
+- Contract targets use the same default `100` health receiver path as other humanoids; legacy one-shot target health is not a contract completion authority.
+- Energy/zone tuning allows precise head/neck shots to kill, close/mid torso `.308` hits to be decisive, and arm/leg hits to wound without instantly completing a contract from full health.
+- Pelvis/arm/leg contract-target hits can still eliminate through accumulated shared health damage after enough hits; non-lethal shared damage must not complete, fail, retire, or claim a contract target.
 
 The contract should also surface player-facing restrictions clearly in the Contracts tab so the player can read the job shape before committing to prep.
 

@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eac4a56d19f4948dc87082f5934d4e61, type: 3}
+  m_Name: BloodVfxCatalog
+  m_EditorClassIdentifier: 
+  _lightImpactDefaultPrefab: {fileID: 100000, guid: 5bf3cc556a8b45f4b815a8365b518cd4, type: 3}
+  _heavyImpactDefaultPrefab: {fileID: 100000, guid: 203ac4f9ffd841c289c04fe45cf867e8, type: 3}
+  _neckImpactDefaultPrefab: {fileID: 100000, guid: 787da91533914adaa5442e3b288ba94c, type: 3}
+  _deathPuddleDefaultPrefab: {fileID: 100000, guid: 90a5175e8c5541e3a4a9283e456d69a0, type: 3}
+  _lightImpactOverridePrefab: {fileID: 0}
+  _heavyImpactOverridePrefab: {fileID: 0}
+  _neckImpactOverridePrefab: {fileID: 0}
+  _deathPuddleOverridePrefab: {fileID: 0}

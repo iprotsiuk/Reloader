@@ -116,13 +116,15 @@ Each round in the magazine is a specific `AmmoInstance`. Match-grade loads carry
 - v0.1 projectile sim includes gravity + BC-informed drag + velocity spread.
 - v0.1 non-goals: wind drift, Coriolis, spin drift, temperature/humidity effects, reloading-bench interactions.
 
-### Bullet Energy Damage Contract [v0.1 Planned]
+### Bullet Energy Damage Contract [v0.1 Implemented]
 
 - Projectile energy is owned by `ImpactEnergyMath` and carried by `ProjectileImpactPayload`; humanoid damage consumes impact joules and must not duplicate the energy formula.
 - The default starter `.308` factory round is `ammo-factory-308-147-fmj`: 147 gr, 2780 fps, G1 BC 0.398, and about 3.4 kJ muzzle energy before downrange drag loss.
 - Humanoid health/hit-zone tuning belongs in `HumanoidImpactResolution`, not in `WeaponProjectile`.
-- Damage tuning must use zone-specific instant-lethal rules and health-damage caps so one arm/leg hit from full health is not instantly lethal.
-- Current implementation/restoration plan: [2026-04-16 bullet energy health hit zones blood VFX](../plans/2026-04-16-bullet-energy-health-hit-zones-blood-vfx-design.md).
+- Humanoid default max health is `100` for NPCs, the player, and contract targets.
+- Damage tuning uses explicit zone rules: head/neck kill at `>= 200 J`, torso kills at `>= 1800 J`, pelvis/arms/legs have no v0.1 instant-lethal threshold and instead use capped accumulated damage.
+- Pelvis caps at `80` damage per hit, arms at `35`, and legs at `45`; one full-power `.308` arm or leg hit from full health must not kill.
+- Current implementation/restoration plan and exact constants: [2026-04-16 bullet energy health hit zones blood VFX](../plans/2026-04-16-bullet-energy-health-hit-zones-blood-vfx-design.md).
 
 ### Runtime Weapon Event Port [v0.1]
 

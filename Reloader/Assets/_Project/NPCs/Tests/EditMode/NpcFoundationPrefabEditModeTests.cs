@@ -60,6 +60,32 @@ namespace Reloader.NPCs.Tests.EditMode
         }
 
         [Test]
+        public void NpcFoundationPrefab_HasEnabledHumanoidBloodControllerConfiguredWithDefaultCatalog()
+        {
+            var prefabRoot = PrefabUtility.LoadPrefabContents(NpcFoundationPrefabPath);
+            var expectedCatalog = AssetDatabase.LoadAssetAtPath<BloodVfxCatalog>(BloodVfxCatalog.DefaultCatalogAssetPath);
+
+            try
+            {
+                Assert.That(expectedCatalog, Is.Not.Null, $"Expected default blood catalog at {BloodVfxCatalog.DefaultCatalogAssetPath}.");
+
+                var controller = prefabRoot.GetComponent<HumanoidBloodController>();
+                Assert.That(controller, Is.Not.Null, "Expected NpcFoundation to author HumanoidBloodController on the canonical NPC root.");
+                Assert.That(controller.enabled, Is.True, "Expected NpcFoundation blood controller to be enabled for gameplay NPCs.");
+
+                var serializedController = new SerializedObject(controller);
+                var catalog = serializedController.FindProperty("_catalog");
+                Assert.That(catalog, Is.Not.Null, "Expected HumanoidBloodController to serialize _catalog.");
+                Assert.That(catalog.objectReferenceValue, Is.SameAs(expectedCatalog),
+                    "Expected NpcFoundation blood controller to use the project-owned default BloodVfxCatalog asset.");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(prefabRoot);
+            }
+        }
+
+        [Test]
         public void NpcFoundationPrefab_HasLiveEnabledNonTriggerBodyZoneHitboxCollidersForEveryStandardZone()
         {
             var prefabRoot = PrefabUtility.LoadPrefabContents(NpcFoundationPrefabPath);

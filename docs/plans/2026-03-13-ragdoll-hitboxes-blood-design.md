@@ -1,6 +1,6 @@
 # Ragdoll Hitboxes And Blood Design
 
-> **Partial/superseded note (2026-04-16):** Ragdoll, corpse-loot, shared receiver, and body-zone foundations from this plan remain relevant. Damage tuning and blood restoration are superseded by [2026-04-16-bullet-energy-health-hit-zones-blood-vfx-design.md](2026-04-16-bullet-energy-health-hit-zones-blood-vfx-design.md), which requires 100 health, zone-specific damage caps/thresholds, live NPC zone hit selection, player shared-death verification, and project-owned red blood VFX wrappers.
+> **Partial/superseded note (2026-04-16):** Ragdoll, corpse-loot, shared receiver, and body-zone foundations from this plan remain relevant. Damage tuning and blood restoration are superseded by [2026-04-16-bullet-energy-health-hit-zones-blood-vfx-design.md](2026-04-16-bullet-energy-health-hit-zones-blood-vfx-design.md), which is the current source for 100 health, exact zone-specific damage caps/thresholds, live NPC zone hit selection, player shared-receiver/default-torso behavior, contract target shared-death routing, and project-owned red blood VFX wrappers.
 
 ## Goal
 

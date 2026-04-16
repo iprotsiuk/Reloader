@@ -13085,6 +13085,7 @@ MonoBehaviour:
   - Anchor_ContractTarget_01
   _contractRuntimeProviderBehaviour: {fileID: 1191721340}
   _crimeReporterBehaviour: {fileID: 1191721340}
+  _bloodVfxCatalog: {fileID: 11400000, guid: cd8a67a84fd34e1cb7a1afd44b466b55, type: 2}
 --- !u!4 &589599881
 Transform:
   m_ObjectHideFlags: 0

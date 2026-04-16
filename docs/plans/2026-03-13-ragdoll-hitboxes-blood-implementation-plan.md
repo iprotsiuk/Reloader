@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-> **Partial/superseded note (2026-04-16):** Use this plan only as historical context for the shipped ragdoll/body-zone/corpse foundation. For the current damage-health-hit-zone-blood cutover, use [2026-04-16-bullet-energy-health-hit-zones-blood-vfx-implementation-plan.md](2026-04-16-bullet-energy-health-hit-zones-blood-vfx-implementation-plan.md).
+> **Partial/superseded note (2026-04-16):** Use this plan only as historical context for the shipped ragdoll/body-zone/corpse foundation. Damage-health-hit-zone-blood status now lives in [2026-04-16-bullet-energy-health-hit-zones-blood-vfx-implementation-plan.md](2026-04-16-bullet-energy-health-hit-zones-blood-vfx-implementation-plan.md): 100 health, exact zone damage, live NPC collider selection, player shared-receiver/default-torso behavior, contract target shared-death routing, and project-owned blood wrappers/catalogs are the current contracts.
 
 **Goal:** Add an NPC-wide humanoid combat stack with zone hitboxes, energy-aware lethality, immediate directional ragdoll takeover on lethal hits, impact blood bursts, and death puddles.
 

@@ -13,13 +13,18 @@ using Reloader.NPCs.Combat;
 using Reloader.NPCs.Generation;
 using Reloader.NPCs.Runtime;
 using Reloader.NPCs.Runtime.Capabilities;
+using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
 
 namespace Reloader.NPCs.Tests.EditMode
 {
     public class CivilianPopulationRuntimeBridgeTests
     {
+        private const string MainTownScenePath = "Assets/_Project/World/Scenes/MainTown.unity";
+
         [Test]
         public void PrepareForSave_WhenRuntimeAndModuleAreEmpty_SeedsInitialRoster()
         {
@@ -450,6 +455,123 @@ namespace Reloader.NPCs.Tests.EditMode
             finally
             {
                 Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenActorPrefabIsMissingAndCatalogIsConfigured_AddsEnabledBloodControllerWithConfiguredCatalog()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+            var expectedCatalog = CreateBloodVfxCatalogForTests();
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+                SetPrivateField(typeof(CivilianPopulationRuntimeBridge), bridge, "_bloodVfxCatalog", expectedCatalog);
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.generated-blood",
+                    populationSlotId: "townsfolk.generated-blood",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.generated-blood", out var spawned), Is.True);
+                Assert.That(spawned!.GetComponent<HumanoidDamageReceiver>(), Is.Not.Null);
+                Assert.That(spawned.GetComponent<HumanoidRagdollController>(), Is.Not.Null);
+                Assert.That(spawned.GetComponent<HumanoidCorpseLootController>(), Is.Not.Null);
+
+                var bloodController = spawned.GetComponent<HumanoidBloodController>();
+                Assert.That(bloodController, Is.Not.Null,
+                    "Expected generated fallback civilians to receive blood wiring alongside damage, ragdoll, and corpse loot.");
+                Assert.That(bloodController.enabled, Is.True);
+
+                var serializedController = new SerializedObject(bloodController);
+                var catalog = serializedController.FindProperty("_catalog");
+                Assert.That(catalog, Is.Not.Null, "Expected HumanoidBloodController to serialize _catalog.");
+                Assert.That(catalog.objectReferenceValue, Is.SameAs(expectedCatalog),
+                    "Expected generated fallback civilians to use the configured serialized BloodVfxCatalog asset.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(expectedCatalog);
+            }
+        }
+
+        [Test]
+        public void RebuildScenePopulation_WhenActorPrefabIsMissingAndCatalogIsMissing_DoesNotUseEditorAssetDatabaseFallback()
+        {
+            var go = new GameObject("CivilianPopulationRuntimeBridge");
+            var bridge = go.AddComponent<CivilianPopulationRuntimeBridge>();
+            CreateAnchor(go.transform, "Anchor_A", new Vector3(1f, 0f, 0f));
+
+            try
+            {
+                ConfigureBridge(
+                    bridge,
+                    initialPopulationCount: 0,
+                    idPrefix: "citizen.mainTown",
+                    spawnAnchorIds: Array.Empty<string>(),
+                    library: CreateLibrary());
+
+                bridge.Runtime.Civilians.Add(CreateCivilianRecord(
+                    civilianId: "citizen.mainTown.generated-blood-missing-catalog",
+                    populationSlotId: "townsfolk.generated-blood-missing-catalog",
+                    spawnAnchorId: "Anchor_A",
+                    isAlive: true,
+                    retiredAtDay: -1));
+
+                bridge.RebuildScenePopulation();
+
+                Assert.That(bridge.TryResolveSpawnedCivilian("citizen.mainTown.generated-blood-missing-catalog", out var spawned), Is.True);
+                var bloodController = spawned!.GetComponent<HumanoidBloodController>();
+                Assert.That(bloodController, Is.Not.Null,
+                    "Expected generated fallback civilians to still receive an inert blood controller when catalog wiring is missing.");
+                Assert.That(bloodController.enabled, Is.True);
+
+                var serializedController = new SerializedObject(bloodController);
+                var catalog = serializedController.FindProperty("_catalog");
+                Assert.That(catalog, Is.Not.Null, "Expected HumanoidBloodController to serialize _catalog.");
+                Assert.That(catalog.objectReferenceValue, Is.Null,
+                    "Missing bridge catalog must not silently succeed by loading the editor-only default catalog.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void MainTownCivilianPopulationRuntimeBridge_HasSerializedBloodVfxCatalog()
+        {
+            var expectedCatalog = AssetDatabase.LoadAssetAtPath<BloodVfxCatalog>(BloodVfxCatalog.DefaultCatalogAssetPath);
+            Assert.That(expectedCatalog, Is.Not.Null, $"Expected default blood catalog at {BloodVfxCatalog.DefaultCatalogAssetPath}.");
+
+            var scene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+            try
+            {
+                var bridge = FindMainTownPopulationRuntimeBridge(scene);
+                Assert.That(bridge, Is.Not.Null, "Expected MainTown scene to contain a CivilianPopulationRuntimeBridge.");
+
+                var serializedBridge = new SerializedObject(bridge);
+                var catalog = serializedBridge.FindProperty("_bloodVfxCatalog");
+                Assert.That(catalog, Is.Not.Null, "Expected CivilianPopulationRuntimeBridge to serialize _bloodVfxCatalog.");
+                Assert.That(catalog.objectReferenceValue, Is.SameAs(expectedCatalog),
+                    "MainTown must serialize the project-owned BloodVfxCatalog so generated civilians are configured in player builds.");
+            }
+            finally
+            {
+                EditorSceneManager.CloseScene(scene, true);
             }
         }
 
@@ -3065,6 +3187,25 @@ namespace Reloader.NPCs.Tests.EditMode
                 }
             };
             return definition;
+        }
+
+        private static BloodVfxCatalog CreateBloodVfxCatalogForTests()
+        {
+            return ScriptableObject.CreateInstance<BloodVfxCatalog>();
+        }
+
+        private static CivilianPopulationRuntimeBridge FindMainTownPopulationRuntimeBridge(Scene scene)
+        {
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                var bridge = root.GetComponentInChildren<CivilianPopulationRuntimeBridge>(true);
+                if (bridge != null)
+                {
+                    return bridge;
+                }
+            }
+
+            return null;
         }
 
         private static CivilianPopulationRecord CreateCivilianRecord(

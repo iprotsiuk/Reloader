@@ -99,14 +99,16 @@ Each NPC tracks relationship level with the player. Higher relationship unlocks 
 | Multi-step dialogue, reply gating, and quest/police/vendor outcomes | Deferred | The node/outcome model and shared orchestration seam are in place, but only one-node conversations and generic structured outcomes ship in v0.1. |
 | Full capability runtime-state save integration | Deferred | Current slice does not persist all capability internals. |
 
-## Humanoid Damage, Hit Zones, And Blood [v0.1 Planned]
+## Humanoid Damage, Hit Zones, And Blood [v0.1 Implemented]
 
-- `HumanoidDamageReceiver` is the shared health/death authority for NPCs and the player; death listeners must subscribe to `HumanoidDamageReceiver.Died` instead of adding separate target/player death paths.
-- Baseline humanoid health should cut over to 100 across runtime defaults, NPC foundation prefab state, player prefab state, and procedural target setup.
-- `HumanoidBodyZone` uses `Head`, `Neck`, `Torso`, `Pelvis`, `ArmL`, `ArmR`, `LegL`, and `LegR`; NPC live zone colliders must receive projectile hits instead of falling back to a root torso/default hit.
-- v0.1 player damage remains on the shared receiver with torso/default-zone behavior unless a lightweight player proxy rig is proven safe; do not block NPC hit-zone correctness on player limb/head authoring.
-- Blood feedback should be restored through project-owned red wrapper prefabs/catalogs, with third-party `RealisticBloodVFX` assets referenced only after per-prefab/material validation.
-- Current implementation/restoration plan: [2026-04-16 bullet energy health hit zones blood VFX](../plans/2026-04-16-bullet-energy-health-hit-zones-blood-vfx-design.md).
+- `HumanoidDamageReceiver` is the shared health/death authority for NPCs and the player; death listeners subscribe to `HumanoidDamageReceiver.Died` instead of adding separate target/player death paths.
+- Baseline humanoid max health is `100` across runtime defaults, `NpcFoundation`, player state, and procedural/contract target setup.
+- `HumanoidBodyZone` uses `Head`, `Neck`, `Torso`, `Pelvis`, `ArmL`, `ArmR`, `LegL`, and `LegR`.
+- NPC live body-zone colliders are enabled on `NpcFoundation`; projectile hit selection prefers same-rig `BodyZoneHitbox` colliders over broad root/default torso fallback.
+- Zone damage is exact and capped: head/neck/torso can instant kill by configured energy thresholds; pelvis/arms/legs have no v0.1 instant-lethal threshold and can kill only through accumulated health damage.
+- v0.1 player damage remains on the shared receiver with torso/default-zone behavior; there is no separate player-only health authority.
+- Blood feedback uses project-owned `HumanoidBloodController`, `BloodVfxCatalog`, and red placeholder prefabs/materials under `_Project`; `MainTown`/`NpcFoundation` are wired. Third-party `RealisticBloodVFX` assets remain optional after per-prefab/material validation.
+- Current implementation/restoration plan and exact constants: [2026-04-16 bullet energy health hit zones blood VFX](../plans/2026-04-16-bullet-energy-health-hit-zones-blood-vfx-design.md).
 
 ## Procedural Civilian Appearance Source [v0.1]
 

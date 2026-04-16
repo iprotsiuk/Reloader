@@ -1,5 +1,7 @@
 # Bullet Energy Health, Hit Zones, And Blood VFX Design
 
+> **Status (2026-04-16):** Stages A/B/C are implemented. This remains the current contract for energy ownership, 100 health, exact zone damage, NPC live hit-zone selection, player shared-receiver/default-torso behavior, contract target shared-death routing, and project-owned blood VFX. Third-party `RealisticBloodVFX` mappings are optional only after validation.
+
 ## Goal
 
 Make humanoid bullet damage depend on projectile energy at impact, preserve the existing shared humanoid death event path, restore readable red blood feedback, and avoid a global one-shot rule that makes limb hits instantly lethal.
@@ -17,15 +19,16 @@ Implemented seams already present:
 - `HumanoidDamageReceiver` is the shared damage/death authority for NPCs and the player.
 - `HumanoidDamageReceiver.Died` drives existing ragdoll, corpse loot, witness reporting, player death recovery, and contract elimination seams.
 - `HumanoidBodyZone` already includes `Head`, `Neck`, `Torso`, `Pelvis`, `ArmL`, `ArmR`, `LegL`, and `LegR`.
-- `BodyZoneHitbox` and `HumanoidHitboxRig` exist, but live hits can still resolve through root/default colliders instead of authored zones.
+- `BodyZoneHitbox` and `HumanoidHitboxRig` provide live NPC body-zone hit selection, with same-rig zone colliders preferred over root/default fallback.
 
-Known gaps:
+Implemented cutover:
 
-- `HumanoidDamageReceiver` defaults to 10 max health; `NpcFoundation.prefab` serializes 10, the player prefab inherits 10, and procedural targets may use 15.
-- `ContractTargetDamageable` has legacy private-health behavior around `_maxHealth = 1f` / reset semantics; that must not survive as a contract-target limb one-shot path.
-- `HumanoidImpactResolution` currently uses global effective-energy thresholds and zone multipliers. That is too coarse: high-energy .308 limb hits can become lethal through the same global threshold used for head and torso.
-- The player does not have a real limb/head hitbox rig. v0.1 should keep player hits torso/default-zone unless a simple proxy proves safe.
-- Blood VFX is not integrated into projectile/humanoid damage. Generic projectile impacts are yellow/orange/gray. The imported `RealisticBloodVFX` package has risky references/material opacity/darkness issues, so gameplay should not call it directly.
+- `HumanoidDamageReceiver` defaults to 100 max health for NPCs, the player, and procedural/contract targets.
+- `ContractTargetDamageable` is a contract-elimination bridge over `HumanoidDamageReceiver.Died`, not a legacy private one-shot health authority.
+- `HumanoidImpactResolution` uses the exact zone-specific lethal thresholds and capped damage table below.
+- NPC live body-zone colliders are enabled on `NpcFoundation`; projectile selection prefers same-rig `BodyZoneHitbox` colliders over broad root/default torso fallback.
+- The player remains on shared receiver/default torso behavior in v0.1.
+- Blood VFX is integrated through project-owned `HumanoidBloodController`, `BloodVfxCatalog`, and red placeholder prefabs/materials; `RealisticBloodVFX` remains optional after validation.
 
 ## Energy Contract
 

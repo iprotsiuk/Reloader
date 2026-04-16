@@ -1,6 +1,7 @@
 # Bullet Energy Health, Hit Zones, And Blood VFX Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **Status (2026-04-16):** Stages A/B/C are implemented. Keep this plan as historical execution record plus regression guidance; the final docs sync is complete when the domain docs and status board reflect the shipped contracts.
 
 **Goal:** Cut humanoid bullet damage over to impact-energy health damage with zone-specific lethality, 100 baseline health, live NPC hit-zone selection, shared player/NPC death handling, and project-owned red blood VFX.
 

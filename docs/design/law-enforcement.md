@@ -48,6 +48,7 @@ Implemented slice:
 - `CivilianPopulationRuntimeBridge` injects `CivilianWitnessReporter` into eligible spawned civilians and configures it with the bridge's explicit reporter dependency.
 - Active contract-target exclusion must resolve through the bridge's explicit contract runtime provider dependency, not a scene-global `StaticContractRuntimeProvider` lookup.
 - `CivilianWitnessReporter` uses `HumanoidDamageReceiver.Died` for the MVP death hook and reports `CrimeType.Murder` once.
+- Bullet-energy hit-zone damage, contract-target elimination, ragdoll/corpse-loot, blood feedback, witness reporting, and player death recovery all observe the shared humanoid death path; do not add a separate police/witness health authority.
 - Exclude cops, dispatch-only reserve police, and active contract targets from witness reporter injection by default.
 - Do not use scene-wide fallback lookup for witness reporter wiring; reporter configuration must be explicit.
 - Late `CivilianPopulationRuntimeBridge.ConfigureCrimeReporter(...)` calls refresh existing spawned eligible witnesses so they do not keep stale/null reporter wiring.
@@ -65,6 +66,7 @@ Rules:
 - The player respawns at either hospital or police station depending on failure type.
 - Home/workshop storage remains intact unless a later system explicitly introduces stash raids.
 - Player death recovery must continue to flow through the player's `HumanoidDamageReceiver.Died` event and `PlayerDeathContractBridge`; do not add a separate player-only health or death authority for bullet damage.
+- v0.1 player bullet hits use the shared receiver/default torso behavior rather than a player-only limb/head rig.
 
 ---
 
