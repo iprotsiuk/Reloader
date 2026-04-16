@@ -9,6 +9,7 @@ namespace Reloader.UI.Toolkit.Runtime
         [SerializeField] private VisualTreeAsset _beltHudTree;
         [SerializeField] private VisualTreeAsset _compassHudTree;
         [SerializeField] private VisualTreeAsset _ammoHudTree;
+        [SerializeField] private VisualTreeAsset _healthHudTree;
         [SerializeField] private VisualTreeAsset _tabInventoryTree;
         [SerializeField] private VisualTreeAsset _escMenuTree;
         [SerializeField] private VisualTreeAsset _chestInventoryTree;
@@ -27,6 +28,7 @@ namespace Reloader.UI.Toolkit.Runtime
             EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.BeltHud, _beltHudTree);
             EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.CompassHud, _compassHudTree);
             EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.AmmoHud, _ammoHudTree);
+            EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.HealthHud, _healthHudTree);
             EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.TabInventory, _tabInventoryTree);
             EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.EscMenu, _escMenuTree);
             EnsureScreenDocument(UiRuntimeCompositionIds.ScreenIds.ChestInventory, _chestInventoryTree);
@@ -57,6 +59,7 @@ namespace Reloader.UI.Toolkit.Runtime
             _beltHudTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/BeltHud.uxml");
             _compassHudTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/CompassHud.uxml");
             _ammoHudTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/AmmoHud.uxml");
+            _healthHudTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/HealthHud.uxml");
             _tabInventoryTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/TabInventory.uxml");
             _escMenuTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/EscMenu.uxml");
             _chestInventoryTree ??= LoadVisualTreeAssetAtPath("Assets/_Project/UI/Toolkit/UXML/ChestInventory.uxml");

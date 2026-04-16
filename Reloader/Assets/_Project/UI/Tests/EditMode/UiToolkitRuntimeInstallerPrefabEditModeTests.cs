@@ -30,6 +30,7 @@ namespace Reloader.UI.Tests.EditMode
             AssertTreeAssigned(serialized, "_interactionHintTree");
             AssertTreeAssigned(serialized, "_dialogueOverlayTree");
             AssertTreeAssigned(serialized, "_devConsoleTree");
+            AssertTreeAssigned(serialized, "_healthHudTree");
         }
 
         private static void AssertTreeAssigned(SerializedObject serialized, string propertyName)

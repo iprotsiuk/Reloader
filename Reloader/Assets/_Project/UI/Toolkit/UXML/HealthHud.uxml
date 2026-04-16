@@ -1,0 +1,18 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="../USS/HealthHud.uss" />
+    <ui:VisualElement name="health-hud__screen" class="health-hud__screen" picking-mode="Ignore">
+        <ui:VisualElement name="health-hud__root" class="health-hud" picking-mode="Ignore">
+            <ui:VisualElement name="health-hud__frame" class="health-hud__frame" picking-mode="Ignore">
+                <ui:VisualElement name="health-hud__top-row" class="health-hud__top-row" picking-mode="Ignore">
+                    <ui:Label name="health-hud__title" class="health-hud__title" text="HEALTH" />
+                    <ui:Label name="health-hud__value-label" class="health-hud__value-label" text="-- / --" />
+                </ui:VisualElement>
+                <ui:VisualElement name="health-hud__track" class="health-hud__track" picking-mode="Ignore">
+                    <ui:VisualElement name="health-hud__fill" class="health-hud__fill" picking-mode="Ignore" />
+                    <ui:VisualElement name="health-hud__flash" class="health-hud__flash" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:Label name="health-hud__status-label" class="health-hud__status-label" text="" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

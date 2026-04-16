@@ -1,0 +1,111 @@
+@import url("UiKit.uss");
+
+.health-hud__screen {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+
+.health-hud {
+    position: absolute;
+    left: 24px;
+    top: 24px;
+    width: 240px;
+    padding-top: 10px;
+    padding-right: 12px;
+    padding-bottom: 10px;
+    padding-left: 12px;
+    background-color: rgba(14, 16, 20, 0.82);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    border-bottom-right-radius: 12px;
+    border-bottom-left-radius: 12px;
+}
+
+.health-hud__frame {
+    flex-direction: column;
+    gap: 8px;
+}
+
+.health-hud__top-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.health-hud__title {
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: rgba(215, 223, 232, 0.68);
+    unity-font-style: bold;
+}
+
+.health-hud__value-label {
+    font-size: 18px;
+    color: rgba(244, 247, 250, 0.98);
+    unity-font-style: bold;
+}
+
+.health-hud__track {
+    position: relative;
+    height: 14px;
+    overflow: hidden;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-top-left-radius: 999px;
+    border-top-right-radius: 999px;
+    border-bottom-right-radius: 999px;
+    border-bottom-left-radius: 999px;
+}
+
+.health-hud__fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    background-color: rgba(83, 196, 126, 0.94);
+    border-top-left-radius: 999px;
+    border-top-right-radius: 999px;
+    border-bottom-right-radius: 999px;
+    border-bottom-left-radius: 999px;
+}
+
+.health-hud__flash {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: none;
+    background-color: rgba(255, 236, 140, 0.46);
+}
+
+.health-hud__status-label {
+    min-height: 12px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: rgba(215, 223, 232, 0.72);
+    unity-font-style: bold;
+}
+
+.health-hud.is-low-health .health-hud__fill,
+.health-hud__fill.is-low-health {
+    background-color: rgba(255, 187, 77, 0.98);
+}
+
+.health-hud.is-critical .health-hud__fill,
+.health-hud__fill.is-critical {
+    background-color: rgba(255, 96, 96, 0.98);
+}
+
+.health-hud.is-dead .health-hud__fill,
+.health-hud__fill.is-dead {
+    background-color: rgba(136, 146, 160, 0.96);
+}
+
+.health-hud.is-damage-flash .health-hud__flash {
+    display: flex;
+}

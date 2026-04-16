@@ -33,6 +33,7 @@ namespace Reloader.Weapons.Cinematics
             "belt-hud",
             "compass-hud",
             "ammo-hud",
+            "health-hud",
             "interaction-hint"
         };
 

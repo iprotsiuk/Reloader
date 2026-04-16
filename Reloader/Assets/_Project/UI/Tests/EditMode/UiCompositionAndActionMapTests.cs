@@ -8,6 +8,7 @@ namespace Reloader.UI.Tests.EditMode
         [TestCase(UiRuntimeCompositionIds.ScreenIds.BeltHud)]
         [TestCase(UiRuntimeCompositionIds.ScreenIds.CompassHud)]
         [TestCase(UiRuntimeCompositionIds.ScreenIds.AmmoHud)]
+        [TestCase(UiRuntimeCompositionIds.ScreenIds.HealthHud)]
         [TestCase(UiRuntimeCompositionIds.ScreenIds.TabInventory)]
         [TestCase(UiRuntimeCompositionIds.ScreenIds.EscMenu)]
         [TestCase(UiRuntimeCompositionIds.ScreenIds.Trade)]

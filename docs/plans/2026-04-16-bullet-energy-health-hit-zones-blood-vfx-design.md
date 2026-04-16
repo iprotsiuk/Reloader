@@ -28,6 +28,7 @@ Implemented cutover:
 - `HumanoidImpactResolution` uses the exact zone-specific lethal thresholds and capped damage table below.
 - NPC live body-zone colliders are enabled on `NpcFoundation`; projectile selection prefers same-rig `BodyZoneHitbox` colliders over broad root/default torso fallback.
 - The player remains on shared receiver/default torso behavior in v0.1.
+- `HealthHud` is the read-only runtime UI Toolkit presentation of the shared `HumanoidDamageReceiver` on `PlayerRoot`; it shows current/max health, fill state, low/critical/dead styling, and a short damage flash through the existing UI screen mapping and installer prefab.
 - Blood VFX is integrated through project-owned `HumanoidBloodController`, `BloodVfxCatalog`, and red placeholder prefabs/materials; `RealisticBloodVFX` remains optional after validation.
 
 ## Energy Contract
@@ -132,6 +133,7 @@ Use the shared receiver already on `PlayerRoot.prefab`:
 - Keep `PlayerDeathContractBridge` subscribed to `HumanoidDamageReceiver.Died`.
 - Verify death recovery runs once per alive-to-dead edge.
 - Verify player health save/restore still uses the shared receiver state.
+- Keep `HealthHud` bound to the same shared receiver so UI reflects the player health contract rather than owning a parallel authority.
 
 Player zone scope for v0.1:
 
@@ -200,6 +202,7 @@ Existing death listeners must keep working:
 - One arm hit never kills; several arm hits can kill through accumulated health if enough land.
 - NPC body-zone colliders receive live projectile hits instead of being bypassed by a root capsule/default torso fallback.
 - Player damage uses `HumanoidDamageReceiver` and `PlayerDeathContractBridge`; no parallel player health authority exists.
+- `HealthHud` displays the shared player health contract and does not create a second authority.
 - Humanoid bullet hits spawn red project-owned blood effects, with no black-only or generic spark-only result.
 - Missing third-party blood package mappings do not block gameplay, but missing project-owned red defaults fail validation.
 - Contract, witness, ragdoll, corpse loot, and player recovery death listeners still go through `HumanoidDamageReceiver.Died`.

@@ -25,6 +25,7 @@ namespace Reloader.NPCs.Combat
         public event Action ResultResolved;
         public event Action LethalResolved;
         public event Action Died;
+        public event Action HealthStateChanged;
 
         public HumanoidBodyZone LastZone { get; private set; } = HumanoidBodyZone.Torso;
         public HumanoidImpactResolutionResult LastResult { get; private set; }
@@ -63,6 +64,7 @@ namespace Reloader.NPCs.Combat
             _currentHealth = Mathf.Clamp(currentHealth, 0f, _maxHealth);
             _isDead = _currentHealth <= 0f;
             ResetResolvedImpactState();
+            HealthStateChanged?.Invoke();
         }
 
         public void ResetRuntime()
@@ -71,6 +73,7 @@ namespace Reloader.NPCs.Combat
             _maxHealth = Mathf.Max(0.01f, _maxHealth);
             _currentHealth = _maxHealth;
             ResetResolvedImpactState();
+            HealthStateChanged?.Invoke();
         }
 
         public void ApplyDamage(ProjectileImpactPayload payload)
@@ -88,25 +91,39 @@ namespace Reloader.NPCs.Combat
             HasLastResult = true;
 
             ResultResolved?.Invoke();
+            var healthStateChanged = false;
             if (!_isDead && !result.IsLethal)
             {
-                _currentHealth = Mathf.Max(0f, _currentHealth - result.RecommendedHealthDamage);
+                var nextHealth = Mathf.Max(0f, _currentHealth - result.RecommendedHealthDamage);
+                healthStateChanged = !Mathf.Approximately(nextHealth, _currentHealth);
+                _currentHealth = nextHealth;
             }
 
             if (!ShouldEnterDeadState(result))
             {
+                if (healthStateChanged)
+                {
+                    HealthStateChanged?.Invoke();
+                }
+
                 return;
             }
 
             LethalResolved?.Invoke();
             if (_isDead)
             {
+                if (healthStateChanged)
+                {
+                    HealthStateChanged?.Invoke();
+                }
+
                 return;
             }
 
             _isDead = true;
             _currentHealth = 0f;
             Died?.Invoke();
+            HealthStateChanged?.Invoke();
         }
 
         private bool ShouldEnterDeadState(HumanoidImpactResolutionResult result)

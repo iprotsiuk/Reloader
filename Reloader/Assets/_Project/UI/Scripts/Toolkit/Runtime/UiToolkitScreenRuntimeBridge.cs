@@ -17,6 +17,7 @@ using Reloader.UI.Toolkit.AmmoHud;
 using Reloader.UI.Toolkit.BeltHud;
 using Reloader.UI.Toolkit.ChestInventory;
 using Reloader.UI.Toolkit.CompassHud;
+using Reloader.UI.Toolkit.HealthHud;
 using Reloader.UI.Toolkit.Contracts;
 using Reloader.UI.Toolkit.DevConsole;
 using Reloader.UI.Toolkit.Dialogue;
@@ -44,6 +45,7 @@ namespace Reloader.UI.Toolkit.Runtime
             new(UiRuntimeCompositionIds.ScreenIds.BeltHud, UiRuntimeCompositionIds.ControllerObjectNames.BeltHud, ScreenBindingKind.BeltHud, DependencyRequirement.Inventory),
             new(UiRuntimeCompositionIds.ScreenIds.CompassHud, UiRuntimeCompositionIds.ControllerObjectNames.CompassHud, ScreenBindingKind.CompassHud, DependencyRequirement.Inventory),
             new(UiRuntimeCompositionIds.ScreenIds.AmmoHud, UiRuntimeCompositionIds.ControllerObjectNames.AmmoHud, ScreenBindingKind.AmmoHud, DependencyRequirement.Weapon),
+            new(UiRuntimeCompositionIds.ScreenIds.HealthHud, UiRuntimeCompositionIds.ControllerObjectNames.HealthHud, ScreenBindingKind.HealthHud, DependencyRequirement.None),
             new(UiRuntimeCompositionIds.ScreenIds.TabInventory, UiRuntimeCompositionIds.ControllerObjectNames.TabInventory, ScreenBindingKind.TabInventory, DependencyRequirement.Inventory | DependencyRequirement.Input),
             new(UiRuntimeCompositionIds.ScreenIds.EscMenu, UiRuntimeCompositionIds.ControllerObjectNames.EscMenu, ScreenBindingKind.EscMenu, DependencyRequirement.None),
             new(UiRuntimeCompositionIds.ScreenIds.DevConsole, UiRuntimeCompositionIds.ControllerObjectNames.DevConsole, ScreenBindingKind.DevConsole, DependencyRequirement.Input),
@@ -345,6 +347,7 @@ namespace Reloader.UI.Toolkit.Runtime
                 ScreenBindingKind.BeltHud => BindBeltHud(root, definition.ControllerObjectName, dependencies.InventoryController),
                 ScreenBindingKind.CompassHud => BindCompassHud(root, definition.ControllerObjectName, dependencies.InventoryController),
                 ScreenBindingKind.AmmoHud => BindAmmoHud(root, definition.ControllerObjectName, dependencies.WeaponController),
+                ScreenBindingKind.HealthHud => BindHealthHud(root, definition.ControllerObjectName),
                 ScreenBindingKind.TabInventory => BindTabInventory(root, definition.ControllerObjectName, dependencies.InventoryController, dependencies.InputSource),
                 ScreenBindingKind.EscMenu => BindEscMenu(root, definition.ControllerObjectName),
                 ScreenBindingKind.DevConsole => BindDevConsole(root, definition.ControllerObjectName, dependencies.InputSource),
@@ -398,6 +401,17 @@ namespace Reloader.UI.Toolkit.Runtime
 
             var controller = GetOrAddController<AmmoHudController>(controllerName);
             controller.SetWeaponController(weaponController);
+            controller.SetViewBinder(viewBinder);
+            return UiContractGuard.Bind(controller, viewBinder);
+        }
+
+        private IDisposable BindHealthHud(VisualElement root, string controllerName)
+        {
+            var viewBinder = new HealthHudViewBinder();
+            viewBinder.Initialize(root);
+
+            var controller = GetOrAddController<HealthHudController>(controllerName);
+            controller.SetDamageReceiver(HealthHudPlayerRootResolver.ResolvePlayerDamageReceiver());
             controller.SetViewBinder(viewBinder);
             return UiContractGuard.Bind(controller, viewBinder);
         }
@@ -1127,7 +1141,8 @@ namespace Reloader.UI.Toolkit.Runtime
             Trade,
             ReloadingWorkbench,
             InteractionHint,
-            DialogueOverlay
+            DialogueOverlay,
+            HealthHud
         }
 
         private readonly struct ScreenBindingDefinition

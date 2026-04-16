@@ -29,6 +29,35 @@ namespace Reloader.NPCs.Tests.EditMode
             }
         }
 
+        [Test]
+        public void SetHealthStateForRuntime_FiresHealthStateChanged()
+        {
+            var root = new GameObject("Humanoid");
+
+            try
+            {
+                var receiver = root.AddComponent<HumanoidDamageReceiver>();
+                receiver.ResetRuntime();
+
+                var eventInfo = typeof(HumanoidDamageReceiver).GetEvent("HealthStateChanged");
+                Assert.That(eventInfo, Is.Not.Null, "Expected HumanoidDamageReceiver.HealthStateChanged to exist.");
+
+                var healthStateChangedCount = 0;
+                Action handler = () => healthStateChangedCount++;
+                eventInfo!.AddEventHandler(receiver, handler);
+
+                receiver.SetHealthStateForRuntime(24f, 100f);
+                Assert.That(healthStateChangedCount, Is.EqualTo(1));
+
+                receiver.ResetRuntime();
+                Assert.That(healthStateChangedCount, Is.EqualTo(2));
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
         [TestCase(HumanoidBodyZone.Head, 199f, false, 99.5f)]
         [TestCase(HumanoidBodyZone.Head, 200f, true, 100f)]
         [TestCase(HumanoidBodyZone.Neck, 199f, false, 99.5f)]
