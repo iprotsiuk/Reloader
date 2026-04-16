@@ -75,6 +75,10 @@ Target contracts should expose:
 - bodyguard / witness risk
 - contract-completion confirmation rules
 
+Target elimination damage rule:
+- Contract target death must be observed through the shared humanoid death path (`HumanoidDamageReceiver.Died` and the existing contract target bridge), not through a separate flat one-shot target damage component.
+- Energy/zone tuning should allow precise head/neck shots to kill, close/mid torso .308 hits to be decisive, and arm/leg hits to wound without instantly completing a contract from full health.
+
 The contract should also surface player-facing restrictions clearly in the Contracts tab so the player can read the job shape before committing to prep.
 
 Baseline player-facing restriction categories:

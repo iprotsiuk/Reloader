@@ -116,6 +116,14 @@ Each round in the magazine is a specific `AmmoInstance`. Match-grade loads carry
 - v0.1 projectile sim includes gravity + BC-informed drag + velocity spread.
 - v0.1 non-goals: wind drift, Coriolis, spin drift, temperature/humidity effects, reloading-bench interactions.
 
+### Bullet Energy Damage Contract [v0.1 Planned]
+
+- Projectile energy is owned by `ImpactEnergyMath` and carried by `ProjectileImpactPayload`; humanoid damage consumes impact joules and must not duplicate the energy formula.
+- The default starter `.308` factory round is `ammo-factory-308-147-fmj`: 147 gr, 2780 fps, G1 BC 0.398, and about 3.4 kJ muzzle energy before downrange drag loss.
+- Humanoid health/hit-zone tuning belongs in `HumanoidImpactResolution`, not in `WeaponProjectile`.
+- Damage tuning must use zone-specific instant-lethal rules and health-damage caps so one arm/leg hit from full health is not instantly lethal.
+- Current implementation/restoration plan: [2026-04-16 bullet energy health hit zones blood VFX](../plans/2026-04-16-bullet-energy-health-hit-zones-blood-vfx-design.md).
+
 ### Runtime Weapon Event Port [v0.1]
 
 `IWeaponEvents` on the runtime hub (`IGameEventsRuntimeHub`) publishes baseline weapon-loop events for decoupled UI/audio/VFX listeners:

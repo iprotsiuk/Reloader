@@ -99,6 +99,15 @@ Each NPC tracks relationship level with the player. Higher relationship unlocks 
 | Multi-step dialogue, reply gating, and quest/police/vendor outcomes | Deferred | The node/outcome model and shared orchestration seam are in place, but only one-node conversations and generic structured outcomes ship in v0.1. |
 | Full capability runtime-state save integration | Deferred | Current slice does not persist all capability internals. |
 
+## Humanoid Damage, Hit Zones, And Blood [v0.1 Planned]
+
+- `HumanoidDamageReceiver` is the shared health/death authority for NPCs and the player; death listeners must subscribe to `HumanoidDamageReceiver.Died` instead of adding separate target/player death paths.
+- Baseline humanoid health should cut over to 100 across runtime defaults, NPC foundation prefab state, player prefab state, and procedural target setup.
+- `HumanoidBodyZone` uses `Head`, `Neck`, `Torso`, `Pelvis`, `ArmL`, `ArmR`, `LegL`, and `LegR`; NPC live zone colliders must receive projectile hits instead of falling back to a root torso/default hit.
+- v0.1 player damage remains on the shared receiver with torso/default-zone behavior unless a lightweight player proxy rig is proven safe; do not block NPC hit-zone correctness on player limb/head authoring.
+- Blood feedback should be restored through project-owned red wrapper prefabs/catalogs, with third-party `RealisticBloodVFX` assets referenced only after per-prefab/material validation.
+- Current implementation/restoration plan: [2026-04-16 bullet energy health hit zones blood VFX](../plans/2026-04-16-bullet-energy-health-hit-zones-blood-vfx-design.md).
+
 ## Procedural Civilian Appearance Source [v0.1]
 
 - `MainTown` procedural civilians should source visible appearance from the approved STYLE module pool, not from one-off demo-scene characters.

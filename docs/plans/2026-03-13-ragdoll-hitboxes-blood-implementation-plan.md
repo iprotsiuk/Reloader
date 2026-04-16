@@ -2,6 +2,8 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
+> **Partial/superseded note (2026-04-16):** Use this plan only as historical context for the shipped ragdoll/body-zone/corpse foundation. For the current damage-health-hit-zone-blood cutover, use [2026-04-16-bullet-energy-health-hit-zones-blood-vfx-implementation-plan.md](2026-04-16-bullet-energy-health-hit-zones-blood-vfx-implementation-plan.md).
+
 **Goal:** Add an NPC-wide humanoid combat stack with zone hitboxes, energy-aware lethality, immediate directional ragdoll takeover on lethal hits, impact blood bursts, and death puddles.
 
 **Architecture:** Extend the ballistic impact contract first so projectiles report direction and energy-driving metadata, then route hits through a shared NPC combat pipeline (`BodyZoneHitbox` -> `HumanoidDamageReceiver` -> ragdoll/blood controllers). Keep contract-target elimination as a thin bridge on top of the shared death event instead of a separate health system. Use prefab-builder tooling to make the NPC foundation and role prefabs auto-bind against a humanoid rig contract rather than hand-wiring every NPC.

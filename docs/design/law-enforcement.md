@@ -64,6 +64,7 @@ Rules:
 - If police kill the player, carried inventory is also lost.
 - The player respawns at either hospital or police station depending on failure type.
 - Home/workshop storage remains intact unless a later system explicitly introduces stash raids.
+- Player death recovery must continue to flow through the player's `HumanoidDamageReceiver.Died` event and `PlayerDeathContractBridge`; do not add a separate player-only health or death authority for bullet damage.
 
 ---
 

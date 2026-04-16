@@ -1,5 +1,7 @@
 # Ragdoll Hitboxes And Blood Design
 
+> **Partial/superseded note (2026-04-16):** Ragdoll, corpse-loot, shared receiver, and body-zone foundations from this plan remain relevant. Damage tuning and blood restoration are superseded by [2026-04-16-bullet-energy-health-hit-zones-blood-vfx-design.md](2026-04-16-bullet-energy-health-hit-zones-blood-vfx-design.md), which requires 100 health, zone-specific damage caps/thresholds, live NPC zone hit selection, player shared-death verification, and project-owned red blood VFX wrappers.
+
 ## Goal
 
 Add a shared humanoid combat feedback stack for all NPCs that supports body-zone hitboxes, energy-aware lethality, immediate ragdoll takeover on lethal hits, directional hit impulse, impact blood bursts, and blood puddles on death.
