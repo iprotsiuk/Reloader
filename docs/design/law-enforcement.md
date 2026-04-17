@@ -67,6 +67,10 @@ Rules:
 - Home/workshop storage remains intact unless a later system explicitly introduces stash raids.
 - Player death recovery must continue to flow through the player's `HumanoidDamageReceiver.Died` event and `PlayerDeathContractBridge`; do not add a separate player-only health or death authority for bullet damage.
 - v0.1 player bullet hits use the shared receiver/default torso behavior rather than a player-only limb/head rig.
+- Current hardening target is confiscation correctness, not a new heat enum or a new heat event.
+- The future arrest trigger belongs in police responder/contact logic and should call the existing `IPlayerRecoveryService` instead of owning recovery itself.
+- Recovery must clear carried belt/backpack items only; storage containers remain intact.
+- The implementation slice should suppress or bypass the normal travel inventory snapshot replay path during arrest/death recovery so confiscated items cannot be rehydrated after the scene load completes.
 
 ---
 
