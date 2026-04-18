@@ -19,7 +19,7 @@ MonoBehaviour:
   _targetDisplayName: Maksim Volkov
   _targetDescription: Gray coat, smoker, paces across the concrete pad east of your
     house.
-  _briefingText: Mark the target from cover, wait for a clean window, then break
-    contact until the police search expires.
+  _briefingText: Target may stay behind office glass. Standard ball can lose the
+    shot; AP .308 is the clean solution.
   _distanceBand: 85
   _payout: 1500

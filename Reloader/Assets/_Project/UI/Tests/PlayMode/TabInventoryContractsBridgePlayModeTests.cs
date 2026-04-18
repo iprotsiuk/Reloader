@@ -40,7 +40,7 @@ namespace Reloader.UI.Tests.PlayMode
             SetPrivateField(definitionType, definition, "_title", "Cafe Exit");
             SetPrivateField(definitionType, definition, "_targetDisplayName", "Maksim Volkov");
             SetPrivateField(definitionType, definition, "_targetDescription", "Gray coat, smoker, exits the cafe at dusk.");
-            SetPrivateField(definitionType, definition, "_briefingText", "Observe from the ridge and confirm the target before taking the shot.");
+            SetPrivateField(definitionType, definition, "_briefingText", "Target may stay behind office glass. Standard ball can lose the shot; AP .308 is the clean solution.");
             SetPrivateField(definitionType, definition, "_distanceBand", 420f);
             SetPrivateField(definitionType, definition, "_payout", 1500);
             var setAvailableContractMethod = providerType.GetMethod("SetAvailableContract", BindingFlags.Instance | BindingFlags.Public);
@@ -78,7 +78,10 @@ namespace Reloader.UI.Tests.PlayMode
                 Assert.That(contractId, Is.EqualTo("contract.first"));
 
                 var contractsStatus = root.Q<Label>("inventory__contracts-status");
+                var contractsBriefing = root.Q<Label>("inventory__contracts-briefing");
                 Assert.That(contractsStatus.text, Is.EqualTo("Active contract"));
+                Assert.That(contractsBriefing.text, Does.Contain("office glass"));
+                Assert.That(contractsBriefing.text, Does.Contain("AP .308"));
             }
             finally
             {

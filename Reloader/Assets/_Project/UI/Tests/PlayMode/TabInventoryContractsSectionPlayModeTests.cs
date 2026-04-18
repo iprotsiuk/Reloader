@@ -107,7 +107,7 @@ namespace Reloader.UI.Tests.PlayMode
                 contractTitle: "Bridge Glass",
                 targetDisplayName: "Yuri Antonov",
                 targetDescription: "Black cap, waits near the river checkpoint.",
-                briefingText: "Target becomes exposed for roughly thirty seconds each loop.",
+                briefingText: "Target may stay behind office glass. Standard ball can lose the shot; AP .308 is the clean solution.",
                 distanceBandMeters: 610f,
                 payout: 2400,
                 canAccept: true,
@@ -163,7 +163,8 @@ namespace Reloader.UI.Tests.PlayMode
             Assert.That(contractsSummary, Is.Not.Null);
             Assert.That(contractsSummary.text, Is.EqualTo("Black cap, waits near the river checkpoint."));
             Assert.That(briefingCard, Is.Not.Null);
-            Assert.That(contractsBriefing.text, Does.Contain("Target becomes exposed"));
+            Assert.That(contractsBriefing.text, Does.Contain("office glass"));
+            Assert.That(contractsBriefing.text, Does.Contain("AP .308"));
             Assert.That(intelCard, Is.Not.Null);
             Assert.That(acceptButton.style.display.value, Is.EqualTo(DisplayStyle.None));
             Assert.That(activeActionButton.style.display.value, Is.EqualTo(DisplayStyle.Flex));
