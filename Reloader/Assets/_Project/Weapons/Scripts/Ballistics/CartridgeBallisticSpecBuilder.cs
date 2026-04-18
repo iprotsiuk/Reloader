@@ -12,8 +12,9 @@ namespace Reloader.Weapons.Ballistics
             var projectileMassGrains = Mathf.Max(1f, snapshot.ProjectileMassGrains);
             var ballisticCoefficient = Mathf.Max(0.01f, snapshot.BallisticCoefficientG1);
             var dispersionMoa = Mathf.Max(0f, snapshot.DispersionMoa);
+            var coverPenetrationPower = Mathf.Max(0f, snapshot.CoverPenetrationPower);
 
-            return new CartridgeBallisticSpec(sampledVelocity, projectileMassGrains, ballisticCoefficient, dispersionMoa);
+            return new CartridgeBallisticSpec(sampledVelocity, projectileMassGrains, ballisticCoefficient, dispersionMoa, coverPenetrationPower);
         }
     }
 }

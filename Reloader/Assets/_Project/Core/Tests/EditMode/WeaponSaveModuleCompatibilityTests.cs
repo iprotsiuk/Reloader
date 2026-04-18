@@ -24,7 +24,8 @@ namespace Reloader.Core.Tests.EditMode
                     VelocityStdDevFps = 9f,
                     ProjectileMassGrains = 175f,
                     BallisticCoefficientG1 = 0.5f,
-                    DispersionMoa = 0.8f
+                    DispersionMoa = 0.8f,
+                    CoverPenetrationPower = 1.25f
                 },
                 MagazineRounds = new System.Collections.Generic.List<WeaponsModule.AmmoBallisticRecord>
                 {
@@ -35,7 +36,8 @@ namespace Reloader.Core.Tests.EditMode
                         VelocityStdDevFps = 15f,
                         ProjectileMassGrains = 168f,
                         BallisticCoefficientG1 = 0.45f,
-                        DispersionMoa = 1.2f
+                        DispersionMoa = 1.2f,
+                        CoverPenetrationPower = 0.4f
                     }
                 },
                 Attachments = new System.Collections.Generic.List<WeaponsModule.AttachmentStateRecord>
@@ -61,12 +63,27 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(restored.WeaponStates[0].ReserveCount, Is.EqualTo(19));
             Assert.That(restored.WeaponStates[0].ChamberRound, Is.Not.Null);
             Assert.That(restored.WeaponStates[0].ChamberRound.MuzzleVelocityFps, Is.EqualTo(2715f));
+            Assert.That(restored.WeaponStates[0].ChamberRound.CoverPenetrationPower, Is.EqualTo(1.25f));
             Assert.That(restored.WeaponStates[0].MagazineRounds, Is.Not.Null);
             Assert.That(restored.WeaponStates[0].MagazineRounds.Count, Is.EqualTo(1));
             Assert.That(restored.WeaponStates[0].MagazineRounds[0].AmmoSource, Is.EqualTo((int)AmmoSourceType.Factory));
+            Assert.That(restored.WeaponStates[0].MagazineRounds[0].CoverPenetrationPower, Is.EqualTo(0.4f));
             Assert.That(restored.WeaponStates[0].Attachments, Is.Not.Null);
             Assert.That(restored.WeaponStates[0].Attachments.Count, Is.EqualTo(1));
             Assert.That(restored.WeaponStates[0].Attachments[0].AttachmentItemId, Is.EqualTo("att-kar98k-scope-remote-a"));
+        }
+
+        [Test]
+        public void WeaponsModule_Restore_MissingCoverPenetrationPower_DefaultsToZero()
+        {
+            var module = new WeaponsModule();
+            module.RestoreModuleStateFromJson(
+                "{\"weaponStates\":[{\"itemId\":\"weapon-kar98k\",\"chamberLoaded\":true,\"magCount\":1,\"magCapacity\":5,\"reserveCount\":12,\"chamberRound\":{\"ammoSource\":1,\"muzzleVelocityFps\":2715,\"velocityStdDevFps\":9,\"projectileMassGrains\":175,\"ballisticCoefficientG1\":0.5,\"dispersionMoa\":0.8},\"magazineRounds\":[],\"attachments\":[]}]}");
+
+            Assert.That(module.WeaponStates.Count, Is.EqualTo(1));
+            Assert.That(module.WeaponStates[0].ChamberRound, Is.Not.Null);
+            Assert.That(module.WeaponStates[0].ChamberRound.CoverPenetrationPower, Is.EqualTo(0f));
+            Assert.DoesNotThrow(() => module.ValidateModuleState());
         }
 
         [Test]

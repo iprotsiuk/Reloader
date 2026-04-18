@@ -12,6 +12,7 @@ namespace Reloader.Weapons.Runtime
         public const float DefaultProjectileMassGrains = 147f;
         public const float DefaultBallisticCoefficientG1 = 0.398f;
         public const float DefaultDispersionMoa = 4.5f;
+        public const float DefaultCoverPenetrationPower = 0f;
 
         public static string NormalizeAmmoItemId(string ammoItemId)
         {
@@ -34,7 +35,8 @@ namespace Reloader.Weapons.Runtime
                 DefaultDispersionMoa,
                 DefaultAmmoDisplayName,
                 Guid.NewGuid().ToString("N"),
-                DefaultAmmoItemId);
+                DefaultAmmoItemId,
+                DefaultCoverPenetrationPower);
         }
 
         public static AmmoBallisticSnapshot BuildRoundFromTemplate(AmmoBallisticSnapshot template)
@@ -48,7 +50,8 @@ namespace Reloader.Weapons.Runtime
                 template.DispersionMoa,
                 NormalizeDisplayName(template.DisplayName),
                 Guid.NewGuid().ToString("N"),
-                NormalizeAmmoItemId(template.AmmoItemId));
+                NormalizeAmmoItemId(template.AmmoItemId),
+                template.CoverPenetrationPower);
         }
 
         public static AmmoBallisticSnapshot BuildFactoryRound(string ammoItemId)
@@ -62,7 +65,8 @@ namespace Reloader.Weapons.Runtime
                 DefaultDispersionMoa,
                 DefaultAmmoDisplayName,
                 Guid.NewGuid().ToString("N"),
-                NormalizeAmmoItemId(ammoItemId));
+                NormalizeAmmoItemId(ammoItemId),
+                DefaultCoverPenetrationPower);
         }
     }
 }

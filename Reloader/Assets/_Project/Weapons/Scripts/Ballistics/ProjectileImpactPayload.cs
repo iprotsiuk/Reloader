@@ -10,7 +10,7 @@ namespace Reloader.Weapons.Ballistics
             Vector3 normal,
             float damage,
             GameObject hitObject)
-            : this(itemId, point, normal, damage, hitObject, null, null, 0f, 0f, 0f)
+            : this(itemId, point, normal, damage, hitObject, null, null, 0f, 0f, 0f, 0f)
         {
         }
 
@@ -21,7 +21,7 @@ namespace Reloader.Weapons.Ballistics
             float damage,
             GameObject hitObject,
             Vector3? sourcePoint)
-            : this(itemId, point, normal, damage, hitObject, sourcePoint, null, 0f, 0f, 0f)
+            : this(itemId, point, normal, damage, hitObject, sourcePoint, null, 0f, 0f, 0f, 0f)
         {
         }
 
@@ -35,7 +35,8 @@ namespace Reloader.Weapons.Ballistics
             Vector3? direction = null,
             float impactSpeedMetersPerSecond = 0f,
             float projectileMassGrains = 0f,
-            float deliveredEnergyJoules = 0f)
+            float deliveredEnergyJoules = 0f,
+            float coverPenetrationPower = 0f)
         {
             ItemId = itemId;
             Point = point;
@@ -47,6 +48,7 @@ namespace Reloader.Weapons.Ballistics
             ImpactSpeedMetersPerSecond = impactSpeedMetersPerSecond;
             ProjectileMassGrains = projectileMassGrains;
             DeliveredEnergyJoules = deliveredEnergyJoules;
+            CoverPenetrationPower = coverPenetrationPower < 0f ? 0f : coverPenetrationPower;
         }
 
         public string ItemId { get; }
@@ -59,6 +61,7 @@ namespace Reloader.Weapons.Ballistics
         public float ImpactSpeedMetersPerSecond { get; }
         public float ProjectileMassGrains { get; }
         public float DeliveredEnergyJoules { get; }
+        public float CoverPenetrationPower { get; }
 
         private static Vector3 ResolveDirection(Vector3? direction)
         {

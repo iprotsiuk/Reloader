@@ -253,7 +253,8 @@ namespace Reloader.NPCs.Combat
                 _projectileDamage,
                 _projectileBallisticCoefficientG1,
                 _projectileMassGrains,
-                transform);
+                coverPenetrationPower: 0f,
+                shooterRoot: transform);
         }
 
         private WeaponProjectile CreateProjectileInstance(Vector3 origin, Vector3 direction)

@@ -43,6 +43,7 @@ namespace Reloader.Weapons.Ballistics
         [SerializeField] private float _despawnBelowWorldY = -500f;
         [SerializeField] private float _ballisticCoefficientG1 = 0.45f;
         [SerializeField] private float _projectileMassGrains = WeaponAmmoDefaults.DefaultProjectileMassGrains;
+        [SerializeField] private float _coverPenetrationPower;
         [SerializeField] private float _dragCoefficient = 0.00012f;
         [SerializeField] private LayerMask _hitMask = ~0;
         [SerializeField] private bool _spawnImpactVfx = true;
@@ -77,6 +78,7 @@ namespace Reloader.Weapons.Ballistics
         public float CurrentSpeedMetersPerSecond => _velocity.magnitude;
         public Vector3 CurrentDirection => _velocity.sqrMagnitude > 0.0001f ? _velocity.normalized : transform.forward;
         public float ProjectileMassGrains => _projectileMassGrains;
+        public float CoverPenetrationPower => _coverPenetrationPower;
         public bool IsShotCameraPresentationActive => _isShotCameraPresentationActive;
 
         private void Awake()
@@ -134,7 +136,8 @@ namespace Reloader.Weapons.Ballistics
                     impactDirection,
                     impactSpeedMetersPerSecond,
                     _projectileMassGrains,
-                    deliveredEnergyJoules);
+                    deliveredEnergyJoules,
+                    _coverPenetrationPower);
                 var damageable = hit.collider.GetComponentInParent<IDamageable>();
                 damageable?.ApplyDamage(payload);
                 SpawnImpactVfx(hit.point, hit.normal);
@@ -172,6 +175,7 @@ namespace Reloader.Weapons.Ballistics
             float damage,
             float ballisticCoefficientG1 = 0.45f,
             float projectileMassGrains = WeaponAmmoDefaults.DefaultProjectileMassGrains,
+            float coverPenetrationPower = 0f,
             Transform shooterRoot = null)
         {
             _itemId = itemId;
@@ -180,6 +184,7 @@ namespace Reloader.Weapons.Ballistics
             _damage = damage;
             _ballisticCoefficientG1 = ballisticCoefficientG1;
             _projectileMassGrains = Mathf.Max(1f, projectileMassGrains);
+            _coverPenetrationPower = coverPenetrationPower;
             _velocity = direction.normalized * speed;
             _sourcePoint = transform.position;
             InitialSpeedMetersPerSecond = speed;

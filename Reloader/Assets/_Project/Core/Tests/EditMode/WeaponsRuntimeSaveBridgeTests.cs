@@ -27,11 +27,11 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(controller.TryGetRuntimeState("weapon-kar98k", out var state), Is.True);
             state.SetAmmoCounts(magazineCount: 2, reserveCount: 9, chamberLoaded: true);
             state.SetAmmoLoadoutForTests(
-                new AmmoBallisticSnapshot(AmmoSourceType.Handload, 2725f, 8f, 175f, 0.51f, 0.7f),
+                new AmmoBallisticSnapshot(AmmoSourceType.Handload, 2725f, 8f, 175f, 0.51f, 0.7f, coverPenetrationPower: 0.85f),
                 new[]
                 {
-                    new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2640f, 16f, 168f, 0.45f, 1.2f),
-                    new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2635f, 15f, 168f, 0.45f, 1.2f)
+                    new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2640f, 16f, 168f, 0.45f, 1.2f, coverPenetrationPower: 0.4f),
+                    new AmmoBallisticSnapshot(AmmoSourceType.Factory, 2635f, 15f, 168f, 0.45f, 1.2f, coverPenetrationPower: 0.45f)
                 });
             state.SetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope, "att-kar98k-scope-remote-a");
 
@@ -51,8 +51,11 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(module.WeaponStates[0].ChamberLoaded, Is.True);
             Assert.That(module.WeaponStates[0].ChamberRound, Is.Not.Null);
             Assert.That(module.WeaponStates[0].ChamberRound.MuzzleVelocityFps, Is.EqualTo(2725f));
+            Assert.That(module.WeaponStates[0].ChamberRound.CoverPenetrationPower, Is.EqualTo(0.85f));
             Assert.That(module.WeaponStates[0].MagazineRounds, Is.Not.Null);
             Assert.That(module.WeaponStates[0].MagazineRounds.Count, Is.EqualTo(2));
+            Assert.That(module.WeaponStates[0].MagazineRounds[0].CoverPenetrationPower, Is.EqualTo(0.4f));
+            Assert.That(module.WeaponStates[0].MagazineRounds[1].CoverPenetrationPower, Is.EqualTo(0.45f));
             Assert.That(module.WeaponStates[0].Attachments, Is.Not.Null);
             Assert.That(module.WeaponStates[0].Attachments.Count, Is.EqualTo(1));
             Assert.That(module.WeaponStates[0].Attachments[0].SlotType, Is.EqualTo((int)WeaponAttachmentSlotType.Scope));
@@ -115,6 +118,8 @@ namespace Reloader.Core.Tests.EditMode
                     }
                 }
             });
+            module.WeaponStates[0].ChamberRound.CoverPenetrationPower = 1.1f;
+            module.WeaponStates[0].MagazineRounds[0].CoverPenetrationPower = 0.6f;
 
             var bridgeGo = new GameObject("Bridge");
             var bridge = bridgeGo.AddComponent(bridgeType);
@@ -128,6 +133,8 @@ namespace Reloader.Core.Tests.EditMode
             Assert.That(restored.ReserveCount, Is.EqualTo(3));
             Assert.That(restored.ChamberLoaded, Is.True);
             Assert.That(restored.GetEquippedAttachmentItemId(WeaponAttachmentSlotType.Scope), Is.EqualTo("att-kar98k-scope-remote-a"));
+            Assert.That(restored.ChamberRound.Value.CoverPenetrationPower, Is.EqualTo(1.1f));
+            Assert.That(restored.GetMagazineRoundsSnapshot()[0].CoverPenetrationPower, Is.EqualTo(0.6f));
 
             var fired = restored.TryFire(5f, out var fireData);
             Assert.That(fired, Is.True);
@@ -177,6 +184,34 @@ namespace Reloader.Core.Tests.EditMode
             Object.DestroyImmediate(definition);
             Object.DestroyImmediate(registryGo);
             Object.DestroyImmediate(player);
+        }
+
+        [Test]
+        public void ValidateModuleState_RejectsNegativeCoverPenetrationPower()
+        {
+            var module = new WeaponsModule();
+            module.WeaponStates.Add(new WeaponsModule.WeaponStateRecord
+            {
+                ItemId = "weapon-kar98k",
+                MagCount = 1,
+                ReserveCount = 3,
+                ChamberLoaded = true,
+                ChamberRound = new WeaponsModule.AmmoBallisticRecord
+                {
+                    AmmoSource = (int)AmmoSourceType.Handload,
+                    MuzzleVelocityFps = 2750f,
+                    VelocityStdDevFps = 7f,
+                    ProjectileMassGrains = 175f,
+                    BallisticCoefficientG1 = 0.52f,
+                    DispersionMoa = 0.6f,
+                    CoverPenetrationPower = 0.3f
+                }
+            });
+
+            Assert.That(module.WeaponStates[0].ChamberRound.CoverPenetrationPower, Is.EqualTo(0.3f));
+            module.WeaponStates[0].ChamberRound.CoverPenetrationPower = -1f;
+
+            Assert.That(() => module.ValidateModuleState(), Throws.InvalidOperationException);
         }
 
         private static (GameObject root, PlayerWeaponController controller, WeaponDefinition definition, GameObject registryRoot) CreateWeaponController(

@@ -1003,6 +1003,7 @@ namespace Reloader.Weapons.Controllers
                 _equippedDefinition.BaseDamage,
                 ballisticCoefficientG1: ballisticSpec.BallisticCoefficientG1,
                 projectileMassGrains: ballisticSpec.ProjectileMassGrains,
+                coverPenetrationPower: ballisticSpec.CoverPenetrationPower,
                 shooterRoot: transform);
             if (hasQualifiedShotCameraPrediction)
             {

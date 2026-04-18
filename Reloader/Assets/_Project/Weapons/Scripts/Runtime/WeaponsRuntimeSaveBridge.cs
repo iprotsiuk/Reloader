@@ -67,19 +67,20 @@ namespace Reloader.Weapons.Runtime
 
         private static WeaponsModule.AmmoBallisticRecord ToRecord(AmmoBallisticSnapshot snapshot)
         {
-            return new WeaponsModule.AmmoBallisticRecord
-            {
-                CartridgeId = snapshot.CartridgeId,
-                DisplayName = snapshot.DisplayName,
-                AmmoItemId = snapshot.AmmoItemId,
-                AmmoSource = (int)snapshot.AmmoSource,
-                MuzzleVelocityFps = snapshot.MuzzleVelocityFps,
-                VelocityStdDevFps = snapshot.VelocityStdDevFps,
-                ProjectileMassGrains = snapshot.ProjectileMassGrains,
-                BallisticCoefficientG1 = snapshot.BallisticCoefficientG1,
-                DispersionMoa = snapshot.DispersionMoa
-            };
-        }
+                return new WeaponsModule.AmmoBallisticRecord
+                {
+                    CartridgeId = snapshot.CartridgeId,
+                    DisplayName = snapshot.DisplayName,
+                    AmmoItemId = snapshot.AmmoItemId,
+                    AmmoSource = (int)snapshot.AmmoSource,
+                    MuzzleVelocityFps = snapshot.MuzzleVelocityFps,
+                    VelocityStdDevFps = snapshot.VelocityStdDevFps,
+                    ProjectileMassGrains = snapshot.ProjectileMassGrains,
+                    BallisticCoefficientG1 = snapshot.BallisticCoefficientG1,
+                    DispersionMoa = snapshot.DispersionMoa,
+                    CoverPenetrationPower = snapshot.CoverPenetrationPower
+                };
+            }
 
         private static System.Collections.Generic.List<WeaponsModule.AmmoBallisticRecord> ToRecords(System.Collections.Generic.IReadOnlyList<AmmoBallisticSnapshot> snapshots)
         {
@@ -113,7 +114,8 @@ namespace Reloader.Weapons.Runtime
                 record.DispersionMoa,
                 record.DisplayName,
                 record.CartridgeId,
-                record.AmmoItemId);
+                record.AmmoItemId,
+                record.CoverPenetrationPower);
         }
 
         private static System.Collections.Generic.List<AmmoBallisticSnapshot> ToSnapshots(System.Collections.Generic.IReadOnlyList<WeaponsModule.AmmoBallisticRecord> records)

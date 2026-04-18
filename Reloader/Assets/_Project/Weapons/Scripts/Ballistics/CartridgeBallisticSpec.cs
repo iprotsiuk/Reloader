@@ -6,17 +6,20 @@ namespace Reloader.Weapons.Ballistics
             float muzzleVelocityFps,
             float projectileMassGrains,
             float ballisticCoefficientG1,
-            float dispersionMoa)
+            float dispersionMoa,
+            float coverPenetrationPower = 0f)
         {
             MuzzleVelocityFps = muzzleVelocityFps;
             ProjectileMassGrains = projectileMassGrains;
             BallisticCoefficientG1 = ballisticCoefficientG1;
             DispersionMoa = dispersionMoa;
+            CoverPenetrationPower = coverPenetrationPower;
         }
 
         public float MuzzleVelocityFps { get; }
         public float ProjectileMassGrains { get; }
         public float BallisticCoefficientG1 { get; }
         public float DispersionMoa { get; }
+        public float CoverPenetrationPower { get; }
     }
 }

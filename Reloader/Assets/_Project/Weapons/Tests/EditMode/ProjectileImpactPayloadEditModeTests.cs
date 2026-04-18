@@ -28,6 +28,7 @@ namespace Reloader.Weapons.Tests.EditMode
                 Assert.That(payload.ImpactSpeedMetersPerSecond, Is.EqualTo(0f));
                 Assert.That(payload.ProjectileMassGrains, Is.EqualTo(0f));
                 Assert.That(payload.DeliveredEnergyJoules, Is.EqualTo(0f));
+                Assert.That(payload.CoverPenetrationPower, Is.EqualTo(0f));
             }
             finally
             {
@@ -36,7 +37,7 @@ namespace Reloader.Weapons.Tests.EditMode
         }
 
         [Test]
-        public void Constructor_WithExplicitImpactEnergy_PreservesDeliveredEnergyMetadata()
+        public void Constructor_WithExplicitImpactEnergy_PreservesDeliveredEnergyAndCoverPenetrationMetadata()
         {
             var hitObject = new GameObject("ImpactTarget");
 
@@ -48,20 +49,62 @@ namespace Reloader.Weapons.Tests.EditMode
                     Vector3.up,
                     20f,
                     hitObject,
-                    sourcePoint: Vector3.zero,
-                    direction: Vector3.forward,
-                    impactSpeedMetersPerSecond: 847.344f,
-                    projectileMassGrains: 147f,
-                    deliveredEnergyJoules: 3419.6f);
+                    Vector3.zero,
+                    Vector3.forward,
+                    847.344f,
+                    147f,
+                    3419.6f,
+                    1.75f);
 
                 Assert.That(payload.ImpactSpeedMetersPerSecond, Is.EqualTo(847.344f));
                 Assert.That(payload.ProjectileMassGrains, Is.EqualTo(147f));
                 Assert.That(payload.DeliveredEnergyJoules, Is.EqualTo(3419.6f));
+                Assert.That(payload.CoverPenetrationPower, Is.EqualTo(1.75f));
             }
             finally
             {
                 Object.DestroyImmediate(hitObject);
             }
+        }
+
+        [Test]
+        public void CartridgeBallisticSpecBuilder_Build_PreservesCoverPenetrationPower()
+        {
+            var snapshot = new AmmoBallisticSnapshot(
+                AmmoSourceType.Handload,
+                2725f,
+                8f,
+                175f,
+                0.51f,
+                0.7f,
+                "Handload .308",
+                "cartridge-a",
+                "ammo-handload-308",
+                2.25f);
+
+            var spec = CartridgeBallisticSpecBuilder.Build(snapshot, rngSample01: 0.5f);
+
+            Assert.That(spec.CoverPenetrationPower, Is.EqualTo(2.25f));
+        }
+
+        [Test]
+        public void CartridgeBallisticSpecBuilder_Build_ClampsNegativeCoverPenetrationPowerToZero()
+        {
+            var snapshot = new AmmoBallisticSnapshot(
+                AmmoSourceType.Handload,
+                2725f,
+                8f,
+                175f,
+                0.51f,
+                0.7f,
+                "Handload .308",
+                "cartridge-b",
+                "ammo-handload-308",
+                -2f);
+
+            var spec = CartridgeBallisticSpecBuilder.Build(snapshot, rngSample01: 0.5f);
+
+            Assert.That(spec.CoverPenetrationPower, Is.EqualTo(0f));
         }
 
         [Test]
@@ -74,6 +117,32 @@ namespace Reloader.Weapons.Tests.EditMode
             Assert.That(round.VelocityStdDevFps, Is.EqualTo(55f));
             Assert.That(round.ProjectileMassGrains, Is.EqualTo(147f));
             Assert.That(round.BallisticCoefficientG1, Is.EqualTo(0.398f));
+            Assert.That(round.CoverPenetrationPower, Is.EqualTo(0f));
         }
+
+        [Test]
+        public void WeaponProjectile_Initialize_StoresCoverPenetrationPower()
+        {
+            var projectileGo = new GameObject("Projectile");
+
+            try
+            {
+                var projectile = projectileGo.AddComponent<WeaponProjectile>();
+                projectile.Initialize(
+                    "weapon-kar98k",
+                    Vector3.forward,
+                    speed: 120f,
+                    gravityMultiplier: 0f,
+                    damage: 33f,
+                    coverPenetrationPower: 1.5f);
+
+                Assert.That(projectile.CoverPenetrationPower, Is.EqualTo(1.5f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(projectileGo);
+            }
+        }
+
     }
 }

@@ -35,6 +35,9 @@ namespace Reloader.Core.Save.Modules
 
             [JsonProperty("dispersionMoa")]
             public float DispersionMoa { get; set; }
+
+            [JsonProperty("coverPenetrationPower")]
+            public float CoverPenetrationPower { get; set; }
         }
 
         [Serializable]
@@ -83,6 +86,7 @@ namespace Reloader.Core.Save.Modules
         }
 
         public string ModuleKey => "Weapons";
+        // Additive ammo fields stay on v1 because JSON restore supplies defaults for missing properties.
         public int ModuleVersion => 1;
         public List<WeaponStateRecord> WeaponStates { get; } = new List<WeaponStateRecord>();
 
@@ -188,6 +192,11 @@ namespace Reloader.Core.Save.Modules
             if (record.MuzzleVelocityFps <= 0f)
             {
                 throw new InvalidOperationException($"Weapon '{itemId}' ammo {context} has invalid muzzleVelocityFps.");
+            }
+
+            if (record.CoverPenetrationPower < 0f)
+            {
+                throw new InvalidOperationException($"Weapon '{itemId}' ammo {context} has negative coverPenetrationPower.");
             }
         }
     }
