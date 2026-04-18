@@ -72,6 +72,7 @@ namespace Reloader.Weapons.Ballistics
         private bool _pathCompleted;
         private bool _isShotCameraPresentationActive;
         private bool _lifecycleEndedNotified;
+        private bool _hasPenetratedLightCover;
         private static Type s_npcAgentType;
         private static bool s_attemptedNpcAgentTypeResolution;
         public float InitialSpeedMetersPerSecond { get; private set; }
@@ -125,6 +126,14 @@ namespace Reloader.Weapons.Ballistics
                 var impactVelocity = ResolveImpactVelocity(stepStartVelocity, stepDt, delta, hit.distance);
                 var impactSpeedMetersPerSecond = impactVelocity.magnitude;
                 var impactDirection = impactSpeedMetersPerSecond > 0.0001f ? impactVelocity / impactSpeedMetersPerSecond : transform.forward;
+
+                if (TryPenetrateLightCover(hit, impactVelocity, out var exitPoint))
+                {
+                    RecordObservedSegment(hit.point, exitPoint);
+                    transform.position = exitPoint;
+                    return;
+                }
+
                 var deliveredEnergyJoules = ImpactEnergyMath.ComputeDeliveredEnergyJoules(impactSpeedMetersPerSecond, _projectileMassGrains);
                 var payload = new ProjectileImpactPayload(
                     _itemId,
@@ -185,6 +194,7 @@ namespace Reloader.Weapons.Ballistics
             _ballisticCoefficientG1 = ballisticCoefficientG1;
             _projectileMassGrains = Mathf.Max(1f, projectileMassGrains);
             _coverPenetrationPower = coverPenetrationPower;
+            _hasPenetratedLightCover = false;
             _velocity = direction.normalized * speed;
             _sourcePoint = transform.position;
             InitialSpeedMetersPerSecond = speed;
@@ -471,6 +481,67 @@ namespace Reloader.Weapons.Ballistics
             }
 
             return false;
+        }
+
+        private bool TryPenetrateLightCover(RaycastHit hit, Vector3 impactVelocity, out Vector3 exitPoint)
+        {
+            exitPoint = default;
+            if (_hasPenetratedLightCover || hit.collider == null)
+            {
+                return false;
+            }
+
+            var penetrable = hit.collider.GetComponentInParent<LightCoverPenetrable>();
+            if (penetrable == null || _coverPenetrationPower < penetrable.RequiredPenetrationPower)
+            {
+                return false;
+            }
+
+            var impactSpeed = impactVelocity.magnitude;
+            if (impactSpeed <= 0.0001f)
+            {
+                return false;
+            }
+
+            var impactDirection = impactVelocity / impactSpeed;
+            var retainedSpeed = impactSpeed * Mathf.Sqrt(penetrable.EnergyRetentionMultiplier);
+            _velocity = retainedSpeed > 0.0001f ? impactDirection * retainedSpeed : Vector3.zero;
+            _hasPenetratedLightCover = true;
+            AddIgnoredColliders(penetrable.GetComponentsInChildren<Collider>(true));
+
+            exitPoint = hit.point + (impactDirection * penetrable.ExitOffsetMeters);
+            if (_velocity.sqrMagnitude > 0.0001f)
+            {
+                transform.forward = _velocity.normalized;
+            }
+
+            return true;
+        }
+
+        private void AddIgnoredColliders(Collider[] colliders)
+        {
+            if (colliders == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < colliders.Length; i++)
+            {
+                AddIgnoredCollider(colliders[i]);
+            }
+        }
+
+        private void AddIgnoredCollider(Collider collider)
+        {
+            if (collider == null || IsIgnoredCollider(collider))
+            {
+                return;
+            }
+
+            var colliders = new Collider[_ignoredColliders.Length + 1];
+            Array.Copy(_ignoredColliders, colliders, _ignoredColliders.Length);
+            colliders[^1] = collider;
+            _ignoredColliders = colliders;
         }
 
         private Collider[] CollectIgnoredColliders(Transform shooterRoot)

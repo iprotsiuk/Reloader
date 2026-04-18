@@ -210,6 +210,169 @@ namespace Reloader.Weapons.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Projectile_FmjRounds_StopOnMarkedLightCover_BeforeTarget()
+        {
+            var projectileGo = new GameObject("Projectile");
+            projectileGo.transform.position = Vector3.zero;
+            projectileGo.transform.forward = Vector3.forward;
+            var projectile = projectileGo.AddComponent<WeaponProjectile>();
+
+            var cover = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cover.transform.position = new Vector3(0f, 0f, 4f);
+            cover.transform.localScale = new Vector3(2f, 2f, 0.15f);
+            AddLightCoverPenetrable(cover);
+
+            var target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            target.transform.position = new Vector3(0f, 0f, 6f);
+            target.transform.localScale = new Vector3(1f, 1f, 1f);
+            var receiver = target.AddComponent<TestDamageable>();
+
+            projectile.Initialize(
+                "weapon-kar98k",
+                Vector3.forward,
+                speed: 120f,
+                gravityMultiplier: 0f,
+                damage: 33f,
+                coverPenetrationPower: 0f);
+
+            var elapsed = 0f;
+            while (projectile != null && receiver.HitCount == 0 && elapsed < 0.5f)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            Assert.That(receiver.HitCount, Is.EqualTo(0));
+            Assert.That(projectile == null || projectile.Equals(null), Is.True,
+                "Expected FMJ to stop at marked light cover instead of reaching the target behind it.");
+
+            Object.Destroy(projectileGo);
+            Object.Destroy(cover);
+            Object.Destroy(target);
+        }
+
+        [UnityTest]
+        public IEnumerator Projectile_ApRounds_PenetrateOneMarkedLightCover_AndDeliverLessEnergyThanOpenHit()
+        {
+            var projectileThroughCoverGo = new GameObject("ProjectileThroughCover");
+            projectileThroughCoverGo.transform.position = Vector3.zero;
+            projectileThroughCoverGo.transform.forward = Vector3.forward;
+            var projectileThroughCover = projectileThroughCoverGo.AddComponent<WeaponProjectile>();
+
+            var cover = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cover.transform.position = new Vector3(0f, 0f, 4f);
+            cover.transform.localScale = new Vector3(2f, 2f, 0.15f);
+            AddLightCoverPenetrable(cover);
+
+            var coveredTarget = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            coveredTarget.transform.position = new Vector3(0f, 0f, 8f);
+            coveredTarget.transform.localScale = new Vector3(1f, 1f, 1f);
+            var coveredReceiver = coveredTarget.AddComponent<TestDamageable>();
+
+            projectileThroughCover.Initialize(
+                "weapon-kar98k",
+                Vector3.forward,
+                speed: 120f,
+                gravityMultiplier: 0f,
+                damage: 33f,
+                coverPenetrationPower: 1.5f);
+
+            var elapsed = 0f;
+            while (projectileThroughCover != null && coveredReceiver.HitCount == 0 && elapsed < 0.75f)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            Assert.That(coveredReceiver.HitCount, Is.EqualTo(1),
+                "Expected AP rounds to pass through one marked light cover and reach the target behind it.");
+            Assert.That(coveredReceiver.LastPayload.HasValue, Is.True);
+            var coveredEnergy = coveredReceiver.LastPayload!.Value.DeliveredEnergyJoules;
+
+            Object.Destroy(projectileThroughCoverGo);
+            Object.Destroy(cover);
+            Object.Destroy(coveredTarget);
+            yield return null;
+
+            var openProjectileGo = new GameObject("OpenProjectile");
+            openProjectileGo.transform.position = Vector3.zero;
+            openProjectileGo.transform.forward = Vector3.forward;
+            var openProjectile = openProjectileGo.AddComponent<WeaponProjectile>();
+
+            var openTarget = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            openTarget.transform.position = new Vector3(0f, 0f, 8f);
+            openTarget.transform.localScale = new Vector3(1f, 1f, 1f);
+            var openReceiver = openTarget.AddComponent<TestDamageable>();
+
+            openProjectile.Initialize(
+                "weapon-kar98k",
+                Vector3.forward,
+                speed: 120f,
+                gravityMultiplier: 0f,
+                damage: 33f,
+                coverPenetrationPower: 1.5f);
+
+            elapsed = 0f;
+            while (openProjectile != null && openReceiver.HitCount == 0 && elapsed < 0.75f)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            Assert.That(openReceiver.HitCount, Is.EqualTo(1));
+            Assert.That(openReceiver.LastPayload.HasValue, Is.True);
+            var openEnergy = openReceiver.LastPayload!.Value.DeliveredEnergyJoules;
+
+            Assert.That(coveredEnergy, Is.LessThan(openEnergy),
+                "Expected penetrated impacts to retain less energy than an unobstructed hit at the same range.");
+
+            Object.Destroy(openProjectileGo);
+            Object.Destroy(openTarget);
+        }
+
+        [UnityTest]
+        public IEnumerator Projectile_ApRounds_IgnoreSiblingColliders_WhenPenetratingMarkedLightCover()
+        {
+            var projectileGo = new GameObject("Projectile");
+            projectileGo.transform.position = Vector3.zero;
+            projectileGo.transform.forward = Vector3.forward;
+            var projectile = projectileGo.AddComponent<WeaponProjectile>();
+
+            var coverRoot = new GameObject("MarkedCover");
+            coverRoot.transform.position = new Vector3(0f, 0f, 4f);
+            coverRoot.AddComponent<LightCoverPenetrable>();
+            CreateCoverCollider(coverRoot.transform, "MarkedCover_Front", new Vector3(0f, 0f, 0f));
+            CreateCoverCollider(coverRoot.transform, "MarkedCover_Rear", new Vector3(0f, 0f, 0.5f));
+
+            var target = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            target.transform.position = new Vector3(0f, 0f, 8f);
+            target.transform.localScale = new Vector3(1f, 1f, 1f);
+            var receiver = target.AddComponent<TestDamageable>();
+
+            projectile.Initialize(
+                "weapon-kar98k",
+                Vector3.forward,
+                speed: 120f,
+                gravityMultiplier: 0f,
+                damage: 33f,
+                coverPenetrationPower: 1.5f);
+
+            var elapsed = 0f;
+            while (projectile != null && receiver.HitCount == 0 && elapsed < 0.75f)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            Assert.That(receiver.HitCount, Is.EqualTo(1),
+                "Expected AP rounds to continue past all colliders in the marked cover hierarchy after one penetration.");
+
+            Object.Destroy(projectileGo);
+            Object.Destroy(coverRoot);
+            Object.Destroy(target);
+        }
+
+        [UnityTest]
         public IEnumerator ProjectileHit_OnPlayerRootPrefab_TriggersDeathRecoveryBridge()
         {
 #if UNITY_EDITOR
@@ -1112,6 +1275,20 @@ namespace Reloader.Weapons.Tests.PlayMode
                 DeathCallCount++;
                 return true;
             }
+        }
+
+        private static Component AddLightCoverPenetrable(GameObject coverGo)
+        {
+            return coverGo.AddComponent<LightCoverPenetrable>();
+        }
+
+        private static void CreateCoverCollider(Transform parent, string name, Vector3 localPosition)
+        {
+            var coverPart = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            coverPart.name = name;
+            coverPart.transform.SetParent(parent, worldPositionStays: false);
+            coverPart.transform.localPosition = localPosition;
+            coverPart.transform.localScale = new Vector3(2f, 2f, 0.15f);
         }
 
         private static Camera FindShotRenderCamera()
