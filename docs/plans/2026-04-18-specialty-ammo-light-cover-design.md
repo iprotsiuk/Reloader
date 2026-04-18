@@ -1,11 +1,11 @@
 # Specialty Ammo Light Cover Design
 
-> **Status:** Approved-by-assumption for autonomous execution while the user is AFK.
+> **Status:** Shipped slice. Runtime, save, and UI evidence now exists in repository for the AP/light-cover proof point.
 > **Prerequisites:** Read `docs/design/v0.1-demo-status-and-milestones.md`, `docs/plans/2026-03-08-breakout-slice-priority.md`, and `docs/design/weapons-and-ballistics.md`.
 
 ## Goal
 
-Add the first specialty-ammo proof point for v0.1: a .308 AP/light-cover round that can solve one visible contract problem better than the default `.308` factory FMJ round.
+Record the first specialty-ammo proof point for v0.1: a .308 AP/light-cover round that solves one visible contract problem better than the default `.308` factory FMJ round.
 
 This slice must make load choice matter without opening a broad material simulation, armor model, ricochet model, or contract-authoring overhaul.
 
@@ -111,6 +111,12 @@ Use targeted tests before scene work:
 - No new contract UI widgets.
 - No MainTown map expansion in this slice.
 
-## Acceptance
+## As-Built Evidence
 
-This slice is complete when one AP ammo stat path, one marked-cover penetration behavior, one briefing/intel note, and targeted tests are committed and pushed on `main`.
+- Ammo defaults: `WeaponAmmoDefaults` ships `ammo-factory-308-147-fmj` at `0` and `ammo-specialty-308-150-ap` at `1`.
+- Light cover: `LightCoverPenetrable` and `WeaponProjectile` handle the explicit cover pass-through.
+- Save/state: `WeaponsRuntimeSaveBridge` and `WeaponsModule` preserve the scalar.
+- Contract intel: `MainTown_FirstContract.asset` and the existing Contracts tab `BriefingText` path carry the office-glass/light-cover hint through to the player.
+- UI coverage: `TabInventoryContractsSectionPlayModeTests` and `TabInventoryContractsBridgePlayModeTests`.
+
+This record now reflects the shipped proof point. No generic material system, ricochet model, or new contract UI was added for this slice.

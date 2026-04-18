@@ -126,6 +126,14 @@ Each round in the magazine is a specific `AmmoInstance`. Match-grade loads carry
 - Pelvis caps at `80` damage per hit, arms at `35`, and legs at `45`; one full-power `.308` arm or leg hit from full health must not kill.
 - Current implementation/restoration plan and exact constants: [2026-04-16 bullet energy health hit zones blood VFX](../plans/2026-04-16-bullet-energy-health-hit-zones-blood-vfx-design.md).
 
+### Specialty Ammo + Light Cover Contract [v0.1 Implemented]
+
+- Shipped first specialty round: `ammo-specialty-308-150-ap` (`.308 150gr AP`) with `CoverPenetrationPower = 1`.
+- Default factory FMJ stays at `CoverPenetrationPower = 0` and stops on marked light cover.
+- `LightCoverPenetrable` is the explicit cover marker. `WeaponProjectile` checks it directly, allows one pass-through when the ammo scalar meets the requirement, and attenuates the round on exit.
+- Save/runtime bridge paths preserve the scalar through `AmmoBallisticSnapshot`, `CartridgeBallisticSpec`, `ProjectileImpactPayload`, `WeaponsRuntimeSaveBridge`, and `WeaponsModule`.
+- Non-goals remain explicit: no generic material/thickness database, no ricochet/spall model, and no armor system yet.
+
 ### Runtime Weapon Event Port [v0.1]
 
 `IWeaponEvents` on the runtime hub (`IGameEventsRuntimeHub`) publishes baseline weapon-loop events for decoupled UI/audio/VFX listeners:

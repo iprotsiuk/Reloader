@@ -90,6 +90,8 @@ Baseline player-facing restriction categories:
 - escape / stealth requirement
 - specialty-ammo or equipment hint
 
+The shipped light-cover proof point uses that last category only: the existing Contracts tab and `BriefingText` field can hint that the target may be behind explicitly marked office glass or light cover, and that AP .308 is the clean solution. This does not imply arbitrary glass/material penetration; no new contract widget, generic material simulation, or modifier system is required for this slice.
+
 ---
 
 ## Premium Long-Range Jobs [v0.1]
