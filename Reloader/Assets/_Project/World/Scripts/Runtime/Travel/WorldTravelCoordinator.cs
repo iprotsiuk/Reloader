@@ -29,6 +29,7 @@ namespace Reloader.World.Travel
         private static int _pendingSelectedBeltIndex = -1;
         private static readonly List<WeaponRuntimeSnapshotCapture> _pendingWeaponSnapshots = new();
         private static readonly List<GameObject> _temporarilyDisabledEventSystemOwners = new();
+        private static readonly Dictionary<string, object> _travelPopulationModulesByScene = new(StringComparer.OrdinalIgnoreCase);
         private const string FpsArmsPrefabResourcePath = "Viewmodels/Characters/FPS_Arms";
         private const string FpsArmsControllerResourcePath = "Viewmodels/Characters/ViewmodelArms";
         private const string ViewmodelPresentationRootName = "ViewmodelPresentationRoot";
@@ -59,6 +60,7 @@ namespace Reloader.World.Travel
             _pendingSelectedBeltIndex = -1;
             _pendingWeaponSnapshots.Clear();
             _temporarilyDisabledEventSystemOwners.Clear();
+            _travelPopulationModulesByScene.Clear();
             _pendingTravelPopulationModule = null;
 #if UNITY_EDITOR
             _finalizePlayerTravelHandoffHookForTests = null;
@@ -94,6 +96,13 @@ namespace Reloader.World.Travel
         public static bool TryLoadSceneAtEntry(string sceneName, string entryPointId)
         {
             return TryLoadSceneAtEntry(sceneName, entryPointId, suppressCarriedInventoryReplay: false);
+        }
+
+        public static void ClearTransientTravelSessionState()
+        {
+            _travelPopulationModulesByScene.Clear();
+            _pendingTravelPopulationModule = null;
+            LastResolvedEntryPointId = null;
         }
 
         public static bool TryLoadSceneAtEntry(string sceneName, string entryPointId, bool suppressCarriedInventoryReplay)
@@ -292,22 +301,36 @@ namespace Reloader.World.Travel
 
             prepareForSave.Invoke(bridge, new object[] { registrations });
             _pendingTravelPopulationModule = module;
+
+            var sceneKey = GetTravelPopulationSceneKey(bridge.gameObject.scene);
+            if (!string.IsNullOrWhiteSpace(sceneKey))
+            {
+                _travelPopulationModulesByScene[sceneKey] = module;
+            }
         }
 
         private static void RestoreCivilianPopulationStateAfterTravel(Scene scene)
         {
-            if (_pendingTravelPopulationModule == null)
-            {
-                return;
-            }
-
             var bridge = FindPopulationBridgeInScene(scene);
             if (bridge == null)
             {
                 return;
             }
 
-            if (!TryCreateSaveRegistrationArray(_pendingTravelPopulationModule, out var registrations))
+            var sceneKey = GetTravelPopulationSceneKey(scene);
+            object travelPopulationModule = null;
+            if (!string.IsNullOrWhiteSpace(sceneKey))
+            {
+                _travelPopulationModulesByScene.TryGetValue(sceneKey, out travelPopulationModule);
+            }
+
+            travelPopulationModule ??= _pendingTravelPopulationModule;
+            if (travelPopulationModule == null)
+            {
+                return;
+            }
+
+            if (!TryCreateSaveRegistrationArray(travelPopulationModule, out var registrations))
             {
                 return;
             }
@@ -319,6 +342,11 @@ namespace Reloader.World.Travel
             }
 
             finalizeAfterLoad.Invoke(bridge, new object[] { registrations });
+            if (!string.IsNullOrWhiteSpace(sceneKey))
+            {
+                _travelPopulationModulesByScene[sceneKey] = travelPopulationModule;
+            }
+
             _pendingTravelPopulationModule = null;
         }
 
@@ -487,6 +515,31 @@ namespace Reloader.World.Travel
             _pendingSelectedBeltIndex = -1;
             _pendingWeaponSnapshots.Clear();
             _pendingTravelPopulationModule = null;
+        }
+
+        private static string GetTravelPopulationSceneKey(Scene scene)
+        {
+            if (!scene.IsValid())
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(scene.path))
+            {
+                return NormalizeTravelPopulationSceneIdentifier(scene.path);
+            }
+
+            return null;
+        }
+
+        private static string NormalizeTravelPopulationSceneIdentifier(string sceneIdentifier)
+        {
+            if (string.IsNullOrWhiteSpace(sceneIdentifier))
+            {
+                return null;
+            }
+
+            return sceneIdentifier.Trim().Replace('\\', '/');
         }
 
 #if UNITY_EDITOR

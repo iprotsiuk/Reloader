@@ -18,6 +18,7 @@ namespace Reloader.Startup.Runtime
 
     public interface IStartupMenuSceneTravel
     {
+        void ClearTransientTravelSessionState();
         bool TryLoadSceneAtEntry(string sceneName, string entryPointId);
     }
 
@@ -98,6 +99,7 @@ namespace Reloader.Startup.Runtime
         public bool TryStartNewGame()
         {
             _runtimeBootstrapper.EnsureCanonicalRuntimePlayerRoot();
+            _sceneTravel.ClearTransientTravelSessionState();
             return _sceneTravel.TryLoadSceneAtEntry(NewGameSceneName, NewGameEntryPointId);
         }
 
@@ -110,6 +112,7 @@ namespace Reloader.Startup.Runtime
             }
 
             _runtimeBootstrapper.EnsureCanonicalRuntimePlayerRoot();
+            _sceneTravel.ClearTransientTravelSessionState();
             _deferredContinueLoad.Schedule(state.CurrentSceneName, state.CurrentAnchorId, () =>
             {
                 try
@@ -182,6 +185,11 @@ namespace Reloader.Startup.Runtime
 
     internal sealed class UnityStartupMenuSceneTravel : IStartupMenuSceneTravel
     {
+        public void ClearTransientTravelSessionState()
+        {
+            WorldTravelCoordinator.ClearTransientTravelSessionState();
+        }
+
         public bool TryLoadSceneAtEntry(string sceneName, string entryPointId)
         {
             return WorldTravelCoordinator.TryLoadSceneAtEntry(sceneName, entryPointId);

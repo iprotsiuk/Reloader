@@ -114,6 +114,8 @@ namespace Reloader.Startup.Tests.EditMode
 
             Assert.That(started, Is.True);
             Assert.That(bootstrapper.CallCount, Is.EqualTo(1));
+            Assert.That(travel.WasClearedAfterBootstrapper, Is.True);
+            Assert.That(travel.WasCalledAfterClear, Is.True);
             Assert.That(travel.WasCalledAfterBootstrapper, Is.True);
             Assert.That(travel.SceneName, Is.EqualTo("MainTown"));
             Assert.That(travel.EntryPointId, Is.EqualTo("entry.maintown.spawn"));
@@ -136,6 +138,8 @@ namespace Reloader.Startup.Tests.EditMode
 
             Assert.That(continued, Is.True);
             Assert.That(bootstrapper.CallCount, Is.EqualTo(1));
+            Assert.That(travel.WasClearedAfterBootstrapper, Is.True);
+            Assert.That(travel.WasCalledAfterClear, Is.True);
             Assert.That(travel.WasCalledAfterBootstrapper, Is.True);
             Assert.That(travel.SceneName, Is.EqualTo("MainTown"));
             Assert.That(travel.EntryPointId, Is.EqualTo("entry.maintown.spawn"));
@@ -167,6 +171,7 @@ namespace Reloader.Startup.Tests.EditMode
             var continued = flow.TryContinueLatest();
 
             Assert.That(continued, Is.True);
+            Assert.That(travel.WasCalledAfterClear, Is.True);
             Assert.That(travel.WasCalledAfterBootstrapper, Is.True);
             Assert.That(travel.WasCalledAfterDeferredSchedule, Is.True,
                 "Deferred continue restore should already be registered before travel starts so an immediate sceneLoaded callback cannot drop the restore.");
@@ -399,11 +404,21 @@ namespace Reloader.Startup.Tests.EditMode
 
             public string SceneName { get; private set; }
             public string EntryPointId { get; private set; }
+            public bool WasClearedAfterBootstrapper { get; private set; }
+            public bool WasCalledAfterClear { get; private set; }
             public bool WasCalledAfterBootstrapper { get; private set; }
             public bool WasCalledAfterDeferredSchedule { get; private set; }
+            public int ClearTransientTravelSessionStateCallCount { get; private set; }
+
+            public void ClearTransientTravelSessionState()
+            {
+                WasClearedAfterBootstrapper = _bootstrapper == null || _bootstrapper.CallCount > 0;
+                ClearTransientTravelSessionStateCallCount++;
+            }
 
             public bool TryLoadSceneAtEntry(string sceneName, string entryPointId)
             {
+                WasCalledAfterClear = ClearTransientTravelSessionStateCallCount > 0;
                 WasCalledAfterBootstrapper = _bootstrapper == null || _bootstrapper.CallCount > 0;
                 WasCalledAfterDeferredSchedule = _deferredLoad == null || _deferredLoad.HasPendingRestore;
                 SceneName = sceneName;

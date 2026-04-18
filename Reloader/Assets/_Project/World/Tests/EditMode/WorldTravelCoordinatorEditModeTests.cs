@@ -41,6 +41,46 @@ namespace Reloader.World.Tests.EditMode
         }
 
         [Test]
+        public void ClearTransientTravelSessionState_ClearsCachedPopulationSnapshotsPendingSnapshotAndResolvedEntry()
+        {
+            var cache = GetPrivateStaticField<Dictionary<string, object>>("_travelPopulationModulesByScene");
+            cache["Assets/_Project/World/Scenes/MainTown.unity"] = new object();
+            SetPrivateStaticField("_pendingTravelPopulationModule", new object());
+            SetPrivateStaticField("<LastResolvedEntryPointId>k__BackingField", "entry.maintown.spawn");
+
+            WorldTravelCoordinator.ClearTransientTravelSessionState();
+
+            Assert.That(cache, Is.Empty);
+            Assert.That(GetPrivateStaticField<object>("_pendingTravelPopulationModule"), Is.Null);
+            Assert.That(WorldTravelCoordinator.LastResolvedEntryPointId, Is.Null);
+        }
+
+        [Test]
+        public void GetTravelPopulationSceneKey_WhenSceneHasNoAssetPath_ReturnsNull()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var transientScene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+
+            try
+            {
+                Assert.That(transientScene.IsValid(), Is.True);
+                Assert.That(transientScene.path, Is.Empty);
+
+                var sceneKey = InvokePrivateStatic<string>("GetTravelPopulationSceneKey", transientScene);
+
+                Assert.That(sceneKey, Is.Null);
+            }
+            finally
+            {
+                CloseSceneIfLoaded(transientScene);
+                if (originalScene.IsValid() && originalScene.isLoaded)
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
         public void OnSceneLoaded_WhenDestinationEntryPointIsMissing_FailsClosedWithoutLeavingHalfTravelState()
         {
             var originalScene = SceneManager.GetActiveScene();
