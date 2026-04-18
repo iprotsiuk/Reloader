@@ -8,6 +8,8 @@
 
 **Tech Stack:** Unity 6 C#, EditMode tests, PlayMode tests, `PlayerStateRuntimeBridge`, `WorldTravelCoordinator`, `IPlayerRecoveryTravelCoordinator`, `PlayerInventoryRuntime`, `ContainerStorage`, docs guardrails.
 
+**Status:** Implemented on 2026-04-18. Recovery travel now suppresses carried-inventory replay, normal travel replay remains covered, and failure paths clear pending travel state.
+
 ---
 
 ### Task 1: Add A Failing Regression For Recovery Travel Replay

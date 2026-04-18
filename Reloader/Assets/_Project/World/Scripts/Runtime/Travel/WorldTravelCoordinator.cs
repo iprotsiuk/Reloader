@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System;
 using System.Collections;
+using System.IO;
 using System.Reflection;
 using Reloader.Player;
 using Reloader.Player.Viewmodel;
@@ -11,6 +12,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 #if UNITY_EDITOR
+using UnityEditor;
 using UnityEditor.SceneManagement;
 #endif
 
@@ -22,6 +24,7 @@ namespace Reloader.World.Travel
         private static string _pendingEntryPointId;
         private static bool _isSubscribedToSceneLoaded;
         private static float _travelSuppressedUntilRealtime;
+        private static bool _pendingTravelSuppressesCarriedInventoryReplay;
         private static Dictionary<string, int> _pendingInventoryQuantities = new();
         private static int _pendingSelectedBeltIndex = -1;
         private static readonly List<WeaponRuntimeSnapshotCapture> _pendingWeaponSnapshots = new();
@@ -35,6 +38,10 @@ namespace Reloader.World.Travel
         private static readonly Vector3 FpsArmsLocalScale = new Vector3(0.42f, 0.42f, 0.42f);
         private const string MainTownSceneName = "MainTown";
         private static object _pendingTravelPopulationModule;
+#if UNITY_EDITOR
+        private static Action _finalizePlayerTravelHandoffHookForTests;
+        private static Action _afterResolvedEntryPointPublishedHookForTests;
+#endif
 
         public static string LastResolvedEntryPointId { get; private set; }
 
@@ -47,11 +54,16 @@ namespace Reloader.World.Travel
             LastResolvedEntryPointId = null;
             _isSubscribedToSceneLoaded = false;
             _travelSuppressedUntilRealtime = 0f;
+            _pendingTravelSuppressesCarriedInventoryReplay = false;
             _pendingInventoryQuantities = new Dictionary<string, int>();
             _pendingSelectedBeltIndex = -1;
             _pendingWeaponSnapshots.Clear();
             _temporarilyDisabledEventSystemOwners.Clear();
             _pendingTravelPopulationModule = null;
+#if UNITY_EDITOR
+            _finalizePlayerTravelHandoffHookForTests = null;
+            _afterResolvedEntryPointPublishedHookForTests = null;
+#endif
         }
 
         public static bool TryTravel(TravelContext context)
@@ -81,6 +93,11 @@ namespace Reloader.World.Travel
 
         public static bool TryLoadSceneAtEntry(string sceneName, string entryPointId)
         {
+            return TryLoadSceneAtEntry(sceneName, entryPointId, suppressCarriedInventoryReplay: false);
+        }
+
+        public static bool TryLoadSceneAtEntry(string sceneName, string entryPointId, bool suppressCarriedInventoryReplay)
+        {
             if (string.IsNullOrWhiteSpace(sceneName) || string.IsNullOrWhiteSpace(entryPointId))
             {
                 return false;
@@ -91,7 +108,7 @@ namespace Reloader.World.Travel
                 return false;
             }
 
-            if (!Application.CanStreamedLevelBeLoaded(sceneName))
+            if (!CanLoadTravelScene(sceneName))
             {
                 Debug.LogWarning($"Travel scene '{sceneName}' is not available in build settings.");
                 return false;
@@ -107,9 +124,24 @@ namespace Reloader.World.Travel
             DisableActiveEventSystemsForTravel();
             _pendingSceneName = sceneName.Trim();
             _pendingEntryPointId = entryPointId.Trim();
+            _pendingTravelSuppressesCarriedInventoryReplay = suppressCarriedInventoryReplay;
             LastResolvedEntryPointId = null;
             try
             {
+#if UNITY_EDITOR
+                if (!Application.isPlaying)
+                {
+                    var pendingScenePath = ResolveTravelScenePathForEditor(_pendingSceneName);
+                    if (string.IsNullOrWhiteSpace(pendingScenePath))
+                    {
+                        throw new InvalidOperationException($"Unable to resolve travel scene '{_pendingSceneName}' to a scene asset path.");
+                    }
+
+                    var loadedScene = EditorSceneManager.OpenScene(pendingScenePath, OpenSceneMode.Additive);
+                    OnSceneLoaded(loadedScene, LoadSceneMode.Additive);
+                    return !string.IsNullOrWhiteSpace(LastResolvedEntryPointId);
+                }
+#endif
                 SceneManager.LoadScene(_pendingSceneName, LoadSceneMode.Additive);
                 return true;
             }
@@ -123,6 +155,11 @@ namespace Reloader.World.Travel
         }
 
         public static bool TryMoveRuntimePlayerToLoadedEntryPoint(string scenePath, string entryPointId)
+        {
+            return TryMoveRuntimePlayerToLoadedEntryPoint(scenePath, entryPointId, suppressCarriedInventoryReplay: false);
+        }
+
+        public static bool TryMoveRuntimePlayerToLoadedEntryPoint(string scenePath, string entryPointId, bool suppressCarriedInventoryReplay)
         {
             if (string.IsNullOrWhiteSpace(scenePath) || string.IsNullOrWhiteSpace(entryPointId))
             {
@@ -147,9 +184,9 @@ namespace Reloader.World.Travel
             }
 
             SceneManager.SetActiveScene(destinationScene);
-            FinalizePlayerTravelHandoff(activeScenePlayerRoot, spawnTransform);
-            LastResolvedEntryPointId = resolvedAnchorId;
+            FinalizePlayerTravelHandoff(activeScenePlayerRoot, spawnTransform, suppressCarriedInventoryReplay);
             BindPlayerStateTravelAnchor(destinationScene, resolvedAnchorId);
+            LastResolvedEntryPointId = resolvedAnchorId;
             return true;
         }
 
@@ -176,35 +213,61 @@ namespace Reloader.World.Travel
                 return;
             }
 
-            if (TryResolveSpawnTransformInScene(scene, _pendingEntryPointId, out var spawnTransform, out var resolvedAnchorId))
+            var travelCompleted = false;
+            try
             {
-                CaptureCivilianPopulationStateForTravel();
-                CaptureInventorySnapshotForTravel();
-                CaptureWeaponRuntimeSnapshotForTravel();
-                RestoreCivilianPopulationStateAfterTravel(scene);
-                var activeScenePlayerRoot = ResolveTravelPlayerRoot(scene);
-                if (activeScenePlayerRoot == null)
+                if (TryResolveSpawnTransformInScene(scene, _pendingEntryPointId, out var spawnTransform, out var resolvedAnchorId))
                 {
-                    FailPendingTravelForUnresolvedPlayerRoot(scene, resolvedAnchorId);
-                    return;
-                }
+                    CaptureCivilianPopulationStateForTravel();
+                    CaptureInventorySnapshotForTravel();
+                    CaptureWeaponRuntimeSnapshotForTravel();
+                    RestoreCivilianPopulationStateAfterTravel(scene);
+                    var activeScenePlayerRoot = ResolveTravelPlayerRoot(scene);
+                    if (activeScenePlayerRoot == null)
+                    {
+                        FailPendingTravelForUnresolvedPlayerRoot(scene, resolvedAnchorId);
+                        return;
+                    }
 
-                RepositionPlayerToEntryPoint(activeScenePlayerRoot, spawnTransform);
-                SceneManager.SetActiveScene(scene);
-                FinalizePlayerTravelHandoff(activeScenePlayerRoot, spawnTransform);
-                LastResolvedEntryPointId = resolvedAnchorId;
-                BindPlayerStateTravelAnchor(scene, resolvedAnchorId);
-                UnloadLoadedScenesExcept(scene);
-                RearmActiveEventSystemsAfterTravel(scene);
-                _temporarilyDisabledEventSystemOwners.Clear();
-                ClearPendingTravelRequest(applySuppression: true);
+                    RepositionPlayerToEntryPoint(activeScenePlayerRoot, spawnTransform);
+                    SceneManager.SetActiveScene(scene);
+                    FinalizePlayerTravelHandoff(activeScenePlayerRoot, spawnTransform, _pendingTravelSuppressesCarriedInventoryReplay);
+#if UNITY_EDITOR
+                    _finalizePlayerTravelHandoffHookForTests?.Invoke();
+#endif
+                    LastResolvedEntryPointId = resolvedAnchorId;
+                    BindPlayerStateTravelAnchor(scene, resolvedAnchorId);
+#if UNITY_EDITOR
+                    _afterResolvedEntryPointPublishedHookForTests?.Invoke();
+#endif
+                    UnloadLoadedScenesExcept(scene);
+                    RearmActiveEventSystemsAfterTravel(scene);
+                    _temporarilyDisabledEventSystemOwners.Clear();
+                    ClearPendingTravelRequest(applySuppression: true);
+                    travelCompleted = true;
+                }
+                else
+                {
+                    Debug.LogWarning($"Travel entry point '{_pendingEntryPointId}' was not found in scene '{scene.name}'.");
+                    RestoreTemporarilyDisabledEventSystems();
+                    UnloadSceneForFailedTravel(scene);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Debug.LogWarning($"Travel entry point '{_pendingEntryPointId}' was not found in scene '{scene.name}'.");
+                Debug.LogWarning($"Travel failed: {ex.Message}");
+                LastResolvedEntryPointId = null;
                 RestoreTemporarilyDisabledEventSystems();
                 UnloadSceneForFailedTravel(scene);
-                ClearPendingTravelRequest(applySuppression: false);
+            }
+            finally
+            {
+                if (!travelCompleted)
+                {
+                    ClearPendingTravelCaptureState();
+                    ClearPendingTravelRequest(applySuppression: false);
+                    _temporarilyDisabledEventSystemOwners.Clear();
+                }
             }
         }
 
@@ -381,7 +444,10 @@ namespace Reloader.World.Travel
             PersistentPlayerRoot.Instance?.GetComponent<DynamicOriginRebaseController>()?.ResetState();
         }
 
-        private static void FinalizePlayerTravelHandoff(Transform activeScenePlayerRoot, Transform entryPointTransform)
+        private static void FinalizePlayerTravelHandoff(
+            Transform activeScenePlayerRoot,
+            Transform entryPointTransform,
+            bool suppressCarriedInventoryReplay = false)
         {
             if (activeScenePlayerRoot == null)
             {
@@ -389,7 +455,10 @@ namespace Reloader.World.Travel
             }
 
             ResetRuntimeUiStateAfterTravel();
-            ApplyInventorySnapshotAfterTravel(activeScenePlayerRoot);
+            if (!suppressCarriedInventoryReplay)
+            {
+                ApplyInventorySnapshotAfterTravel(activeScenePlayerRoot);
+            }
             EnsureViewmodelRigAfterTravel(activeScenePlayerRoot);
             RestorePlayerControlsAfterTravel(activeScenePlayerRoot);
             ApplyWeaponRuntimeSnapshotAfterTravel(activeScenePlayerRoot);
@@ -409,6 +478,7 @@ namespace Reloader.World.Travel
             }
 
             Physics.SyncTransforms();
+            ClearPendingTravelCaptureState();
         }
 
         private static void ClearPendingTravelCaptureState()
@@ -418,6 +488,56 @@ namespace Reloader.World.Travel
             _pendingWeaponSnapshots.Clear();
             _pendingTravelPopulationModule = null;
         }
+
+#if UNITY_EDITOR
+        private static bool CanLoadTravelScene(string sceneName)
+        {
+            if (Application.isPlaying)
+            {
+                return Application.CanStreamedLevelBeLoaded(sceneName);
+            }
+
+            if (Application.CanStreamedLevelBeLoaded(sceneName))
+            {
+                return true;
+            }
+
+            return !string.IsNullOrWhiteSpace(ResolveTravelScenePathForEditor(sceneName));
+        }
+
+        private static string ResolveTravelScenePathForEditor(string sceneName)
+        {
+            if (string.IsNullOrWhiteSpace(sceneName))
+            {
+                return null;
+            }
+
+            var normalizedSceneName = sceneName.Trim().Replace('\\', '/');
+            if (normalizedSceneName.EndsWith(".unity", StringComparison.OrdinalIgnoreCase))
+            {
+                return AssetDatabase.LoadAssetAtPath<SceneAsset>(normalizedSceneName) != null
+                    ? normalizedSceneName
+                    : null;
+            }
+
+            var sceneGuids = AssetDatabase.FindAssets($"{normalizedSceneName} t:SceneAsset");
+            for (var i = 0; i < sceneGuids.Length; i++)
+            {
+                var candidatePath = AssetDatabase.GUIDToAssetPath(sceneGuids[i]);
+                if (string.Equals(Path.GetFileNameWithoutExtension(candidatePath), normalizedSceneName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return candidatePath;
+                }
+            }
+
+            return null;
+        }
+#else
+        private static bool CanLoadTravelScene(string sceneName)
+        {
+            return Application.CanStreamedLevelBeLoaded(sceneName);
+        }
+#endif
 
         private static void BindPlayerStateTravelAnchor(Scene scene, string entryPointId)
         {
@@ -463,6 +583,7 @@ namespace Reloader.World.Travel
         {
             _pendingSceneName = null;
             _pendingEntryPointId = null;
+            _pendingTravelSuppressesCarriedInventoryReplay = false;
             if (applySuppression)
             {
                 _travelSuppressedUntilRealtime = Time.realtimeSinceStartup + 1f;
@@ -670,7 +791,7 @@ namespace Reloader.World.Travel
                 return;
             }
 
-            var inventoryController = playerRoot.GetComponent("PlayerInventoryController");
+            var inventoryController = FindInventoryControllerInPlayerRoot(playerRoot);
             if (inventoryController == null)
             {
                 return;
@@ -721,7 +842,7 @@ namespace Reloader.World.Travel
                 return;
             }
 
-            var inventoryController = playerRootTransform.GetComponent("PlayerInventoryController");
+            var inventoryController = FindInventoryControllerInPlayerRoot(playerRootTransform);
             if (inventoryController == null)
             {
                 _pendingInventoryQuantities.Clear();
@@ -985,6 +1106,28 @@ namespace Reloader.World.Travel
 
             var runtimeProperty = inventoryController.GetType().GetProperty("Runtime", BindingFlags.Instance | BindingFlags.Public);
             return runtimeProperty?.GetValue(inventoryController);
+        }
+
+        private static Component FindInventoryControllerInPlayerRoot(Transform playerRootTransform)
+        {
+            if (playerRootTransform == null)
+            {
+                return null;
+            }
+
+            var components = playerRootTransform.GetComponents<MonoBehaviour>();
+            for (var i = 0; i < components.Length; i++)
+            {
+                var component = components[i];
+                if (component == null || component.GetType().Name != "PlayerInventoryController")
+                {
+                    continue;
+                }
+
+                return component;
+            }
+
+            return null;
         }
 
         private static void CollectItemIdsFromRuntimeCollection(object runtime, string propertyName, ISet<string> sink)

@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using System.Collections.Generic;
 using NUnit.Framework;
@@ -10,6 +11,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using Object = UnityEngine.Object;
 
 namespace Reloader.World.Tests.EditMode
 {
@@ -71,6 +73,7 @@ namespace Reloader.World.Tests.EditMode
                 Assert.That(WorldTravelCoordinator.LastResolvedEntryPointId, Is.Null);
                 Assert.That(GetPrivateStaticField<string>("_pendingSceneName"), Is.Null);
                 Assert.That(GetPrivateStaticField<string>("_pendingEntryPointId"), Is.Null);
+                Assert.That(GetPrivateStaticField<bool>("_pendingTravelSuppressesCarriedInventoryReplay"), Is.False);
                 Assert.That(GetPendingInventorySnapshotCount(), Is.EqualTo(0));
                 Assert.That(GetPendingWeaponSnapshotCount(), Is.EqualTo(0));
                 Assert.That(GetPrivateStaticField<object>("_pendingTravelPopulationModule"), Is.Null);
@@ -122,6 +125,7 @@ namespace Reloader.World.Tests.EditMode
                     "Travel should not publish a resolved entry point when the canonical runtime player was never repositioned.");
                 Assert.That(GetPrivateStaticField<string>("_pendingSceneName"), Is.Null);
                 Assert.That(GetPrivateStaticField<string>("_pendingEntryPointId"), Is.Null);
+                Assert.That(GetPrivateStaticField<bool>("_pendingTravelSuppressesCarriedInventoryReplay"), Is.False);
             }
             finally
             {
@@ -467,7 +471,7 @@ namespace Reloader.World.Tests.EditMode
                 Assert.That(resolvedPlayerRoot, Is.SameAs(playerRoot), "Expected canonical runtime player root to move into the destination scene before reposition.");
 
                 InvokePrivateStatic("RepositionPlayerToEntryPoint", resolvedPlayerRoot, entryPoint.transform);
-                InvokePrivateStatic("FinalizePlayerTravelHandoff", resolvedPlayerRoot, entryPoint.transform);
+                InvokePrivateStatic("FinalizePlayerTravelHandoff", resolvedPlayerRoot, entryPoint.transform, false);
 
                 Assert.That(playerRoot.gameObject.scene, Is.EqualTo(destinationScene));
 
@@ -537,6 +541,282 @@ namespace Reloader.World.Tests.EditMode
             }
         }
 
+        [Test]
+        public void TryMoveRuntimePlayerToLoadedEntryPoint_WhenInventoryReplayIsSuppressed_DoesNotRestorePendingCarriedItems()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var bootstrapScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+            var destinationScene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SceneManager.SetActiveScene(bootstrapScene);
+
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                var playerRoot = persistentRoot.PlayerRootTransform;
+                Assert.That(playerRoot, Is.Not.Null, "Expected canonical runtime player before moving to a loaded respawn anchor.");
+
+                var inventoryControllerType = System.Type.GetType("Reloader.Inventory.PlayerInventoryController, Reloader.Inventory");
+                Assert.That(inventoryControllerType, Is.Not.Null, "Expected PlayerInventoryController type to resolve.");
+                var inventoryController = playerRoot.gameObject.AddComponent(inventoryControllerType);
+                Invoke(inventoryController, "Configure", null, null, null, null);
+                var inventoryRuntime = GetInventoryRuntime(inventoryController);
+                Assert.That(inventoryRuntime, Is.Not.Null, "Expected inventory runtime probe on the canonical runtime player.");
+
+                Invoke(inventoryRuntime, "ClearCarriedItems");
+                Invoke(inventoryRuntime, "SelectBeltSlot", 1);
+
+                SeedPendingInventoryReplay("qa.travel.confiscated.item", quantity: 1, selectedBeltIndex: 4);
+
+                var moved = WorldTravelCoordinator.TryMoveRuntimePlayerToLoadedEntryPoint(
+                    MainTownScenePath,
+                    "entry.maintown.respawn.hospital",
+                    suppressCarriedInventoryReplay: true);
+
+                Assert.That(moved, Is.True);
+                var postTravelRuntime = GetInventoryRuntime(inventoryController);
+                Assert.That(GetItemQuantity(postTravelRuntime, "qa.travel.confiscated.item"), Is.EqualTo(0));
+                Assert.That(GetSelectedBeltIndex(postTravelRuntime), Is.EqualTo(1));
+                Assert.That(GetPendingInventorySnapshotCount(), Is.EqualTo(0));
+                Assert.That(GetPrivateStaticField<int>("_pendingSelectedBeltIndex"), Is.EqualTo(-1));
+                Assert.That(WorldTravelCoordinator.LastResolvedEntryPointId, Is.EqualTo("entry.maintown.respawn.hospital"));
+            }
+            finally
+            {
+                CloseSceneIfLoaded(destinationScene);
+                CloseSceneIfLoaded(bootstrapScene);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void TryLoadSceneAtEntry_WhenRecoverySuppressesCarriedInventoryReplay_DoesNotReapplyCarriedSnapshotBeforeRecoveryClear()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var bootstrapScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SceneManager.SetActiveScene(bootstrapScene);
+
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                var playerRoot = persistentRoot.PlayerRootTransform;
+                Assert.That(playerRoot, Is.Not.Null, "Expected canonical runtime player before starting recovery travel.");
+
+                var runtime = InstallInventoryReplayProbe(playerRoot!, "qa.travel.recovery.item");
+
+                var applied = WorldTravelCoordinator.TryLoadSceneAtEntry(
+                    MainTownScenePath,
+                    "entry.maintown.respawn.police",
+                    suppressCarriedInventoryReplay: true);
+
+                Assert.That(applied, Is.True);
+                Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(MainTownSceneName));
+                Assert.That(runtime.GetItemQuantityCallCount, Is.EqualTo(1),
+                    "Recovery scene load should capture the carried snapshot once and skip replay reads.");
+                Assert.That(runtime.TryAddStackItemCallCount, Is.EqualTo(0),
+                    "Recovery scene load should skip carried inventory replay.");
+                Assert.That(runtime.TryStoreItemCallCount, Is.EqualTo(0),
+                    "Recovery scene load should skip carried inventory replay.");
+                Assert.That(runtime.SelectBeltSlotCallCount, Is.EqualTo(0),
+                    "Recovery scene load should not reapply the carried belt selection.");
+                runtime.ClearCarriedItems();
+                Assert.That(runtime.ClearCarriedItemsCallCount, Is.EqualTo(1),
+                    "Recovery flow should still clear carried items after travel completes.");
+                Assert.That(runtime.SelectedBeltIndex, Is.EqualTo(-1));
+                Assert.That(runtime.GetItemQuantity("qa.travel.recovery.item"), Is.EqualTo(0));
+                Assert.That(WorldTravelCoordinator.LastResolvedEntryPointId, Is.EqualTo("entry.maintown.respawn.police"));
+            }
+            finally
+            {
+                if (originalScene.IsValid() && originalScene.isLoaded)
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+
+                EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+                CloseSceneIfLoaded(SceneManager.GetSceneByName(MainTownSceneName));
+
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void TryLoadSceneAtEntry_WhenInventoryReplayIsEnabled_RestoresCapturedCarriedInventoryOnSceneLoad()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var bootstrapScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SceneManager.SetActiveScene(bootstrapScene);
+
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                var playerRoot = persistentRoot.PlayerRootTransform;
+                Assert.That(playerRoot, Is.Not.Null, "Expected canonical runtime player before starting travel.");
+
+                var runtime = InstallInventoryReplayProbe(playerRoot!, "qa.travel.normal.item");
+
+                var started = WorldTravelCoordinator.TryLoadSceneAtEntry(
+                    MainTownSceneName,
+                    "entry.maintown.spawn",
+                    suppressCarriedInventoryReplay: false);
+
+                Assert.That(started, Is.True);
+                Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo(MainTownSceneName));
+                Assert.That(runtime.GetItemQuantityCallCount, Is.EqualTo(2),
+                    "Normal scene travel should read carried inventory during capture and replay.");
+                Assert.That(runtime.TryAddStackItemCallCount, Is.EqualTo(1),
+                    "Normal scene travel should restore the carried stack snapshot.");
+                Assert.That(runtime.TryStoreItemCallCount, Is.EqualTo(0));
+                Assert.That(runtime.SelectBeltSlotCallCount, Is.EqualTo(1),
+                    "Normal scene travel should restore the carried belt selection.");
+                Assert.That(runtime.ClearCarriedItemsCallCount, Is.EqualTo(0));
+                Assert.That(runtime.SelectedBeltIndex, Is.EqualTo(0));
+                Assert.That(runtime.GetItemQuantity("qa.travel.normal.item"), Is.EqualTo(1));
+                Assert.That(WorldTravelCoordinator.LastResolvedEntryPointId, Is.EqualTo("entry.maintown.spawn"));
+            }
+            finally
+            {
+                if (originalScene.IsValid() && originalScene.isLoaded)
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+
+                EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+                CloseSceneIfLoaded(SceneManager.GetSceneByName(MainTownSceneName));
+
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void TryLoadSceneAtEntry_WhenFinalizeThrows_ClearsPendingStateAndReplaySuppression()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var bootstrapScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SceneManager.SetActiveScene(bootstrapScene);
+
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                var playerRoot = persistentRoot.PlayerRootTransform;
+                Assert.That(playerRoot, Is.Not.Null, "Expected canonical runtime player before starting travel.");
+
+                var runtime = InstallInventoryReplayProbe(playerRoot!, "qa.travel.failure.item");
+                var previousFinalizeHook = GetPrivateStaticField<Action>("_finalizePlayerTravelHandoffHookForTests");
+                SetPrivateStaticField(
+                    "_finalizePlayerTravelHandoffHookForTests",
+                    (Action)(() => throw new InvalidOperationException("Intentional finalize failure for travel cleanup regression coverage.")));
+
+                try
+                {
+                    var started = WorldTravelCoordinator.TryLoadSceneAtEntry(
+                        MainTownScenePath,
+                        "entry.maintown.spawn",
+                        suppressCarriedInventoryReplay: true);
+
+                    Assert.That(started, Is.False, "Travel should fail when finalization throws.");
+                    Assert.That(SceneManager.GetSceneByPath(MainTownScenePath).isLoaded, Is.False,
+                        "Failed travel should unload the destination scene again.");
+                    Assert.That(runtime.GetItemQuantityCallCount, Is.EqualTo(1),
+                        "Travel should capture carried inventory before the failing handoff path.");
+                    Assert.That(runtime.TryAddStackItemCallCount, Is.EqualTo(0),
+                        "Suppressed replay should not restore carried inventory before the handoff failure.");
+                    Assert.That(GetPendingInventorySnapshotCount(), Is.EqualTo(0));
+                    Assert.That(GetPendingWeaponSnapshotCount(), Is.EqualTo(0));
+                    Assert.That(GetPrivateStaticField<object>("_pendingTravelPopulationModule"), Is.Null);
+                    Assert.That(GetPrivateStaticField<string>("_pendingSceneName"), Is.Null);
+                    Assert.That(GetPrivateStaticField<string>("_pendingEntryPointId"), Is.Null);
+                    Assert.That(GetPrivateStaticField<bool>("_pendingTravelSuppressesCarriedInventoryReplay"), Is.False);
+                    Assert.That(WorldTravelCoordinator.LastResolvedEntryPointId, Is.Null);
+                }
+                finally
+                {
+                    SetPrivateStaticField("_finalizePlayerTravelHandoffHookForTests", previousFinalizeHook);
+                }
+            }
+            finally
+            {
+                if (originalScene.IsValid() && originalScene.isLoaded)
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+
+                EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+                CloseSceneIfLoaded(SceneManager.GetSceneByName(MainTownSceneName));
+
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
+        [Test]
+        public void OnSceneLoaded_WhenPublishedAnchorHookThrows_ClearsResolvedEntryPointAndPendingState()
+        {
+            var originalScene = SceneManager.GetActiveScene();
+            var bootstrapScene = EditorSceneManager.OpenScene(BootstrapScenePath, OpenSceneMode.Additive);
+            var destinationScene = EditorSceneManager.OpenScene(MainTownScenePath, OpenSceneMode.Additive);
+
+            try
+            {
+                SceneManager.SetActiveScene(bootstrapScene);
+
+                var persistentRoot = BootstrapWorldRoot.Initialize();
+                Assert.That(persistentRoot.PlayerRootTransform, Is.Not.Null,
+                    "Expected canonical runtime player before starting travel.");
+
+                var previousHook = GetPrivateStaticField<Action>("_afterResolvedEntryPointPublishedHookForTests");
+                SetPrivateStaticField(
+                    "_afterResolvedEntryPointPublishedHookForTests",
+                    (Action)(() => throw new InvalidOperationException("Intentional post-publish failure for travel cleanup regression coverage.")));
+
+                try
+                {
+                    SetPrivateStaticField("_pendingSceneName", MainTownSceneName);
+                    SetPrivateStaticField("_pendingEntryPointId", "entry.maintown.spawn");
+                    LogAssert.Expect(LogType.Warning,
+                        "Travel failed: Intentional post-publish failure for travel cleanup regression coverage.");
+                    InvokePrivateStatic("OnSceneLoaded", destinationScene, LoadSceneMode.Additive);
+
+                    Assert.That(SceneManager.GetActiveScene(), Is.EqualTo(bootstrapScene),
+                        "Travel should fail closed when a post-publish handoff step throws.");
+                    Assert.That(destinationScene.isLoaded, Is.False,
+                        "Destination scene should be unloaded again when a post-publish handoff step fails.");
+                    Assert.That(WorldTravelCoordinator.LastResolvedEntryPointId, Is.Null,
+                        "Travel should clear the resolved anchor when a post-publish handoff step throws after publication.");
+                    Assert.That(GetPrivateStaticField<string>("_pendingSceneName"), Is.Null);
+                    Assert.That(GetPrivateStaticField<string>("_pendingEntryPointId"), Is.Null);
+                    Assert.That(GetPrivateStaticField<bool>("_pendingTravelSuppressesCarriedInventoryReplay"), Is.False);
+                }
+                finally
+                {
+                    SetPrivateStaticField("_afterResolvedEntryPointPublishedHookForTests", previousHook);
+                }
+            }
+            finally
+            {
+                CloseSceneIfLoaded(destinationScene);
+                CloseSceneIfLoaded(bootstrapScene);
+                if (originalScene.IsValid())
+                {
+                    SceneManager.SetActiveScene(originalScene);
+                }
+            }
+        }
+
         private static void AssignPlayerRootTransform(PersistentPlayerRoot persistentRoot, Transform playerRootTransform)
         {
             var serialized = new UnityEditor.SerializedObject(persistentRoot);
@@ -546,16 +826,36 @@ namespace Reloader.World.Tests.EditMode
 
         private static void InvokePrivateStatic(string methodName, params object[] parameters)
         {
-            var method = typeof(WorldTravelCoordinator).GetMethod(methodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            var method = ResolvePrivateStaticMethod(methodName, parameters.Length);
             Assert.That(method, Is.Not.Null, $"Expected WorldTravelCoordinator.{methodName} to exist.");
             method.Invoke(null, parameters);
         }
 
         private static T InvokePrivateStatic<T>(string methodName, params object[] parameters)
         {
-            var method = typeof(WorldTravelCoordinator).GetMethod(methodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            var method = ResolvePrivateStaticMethod(methodName, parameters.Length);
             Assert.That(method, Is.Not.Null, $"Expected WorldTravelCoordinator.{methodName} to exist.");
             return (T)method.Invoke(null, parameters);
+        }
+
+        private static System.Reflection.MethodInfo ResolvePrivateStaticMethod(string methodName, int parameterCount)
+        {
+            var methods = typeof(WorldTravelCoordinator).GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            for (var i = 0; i < methods.Length; i++)
+            {
+                var method = methods[i];
+                if (!string.Equals(method.Name, methodName, System.StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (method.GetParameters().Length == parameterCount)
+                {
+                    return method;
+                }
+            }
+
+            return null;
         }
 
         private static T GetPrivateStaticField<T>(string fieldName)
@@ -611,6 +911,62 @@ namespace Reloader.World.Tests.EditMode
             return null;
         }
 
+        private static InventoryReplayProbeRuntime InstallInventoryReplayProbe(Transform playerRoot, string carriedItemId)
+        {
+            Assert.That(playerRoot, Is.Not.Null);
+
+            var existingControllers = playerRoot.GetComponents<MonoBehaviour>();
+            for (var i = 0; i < existingControllers.Length; i++)
+            {
+                var controller = existingControllers[i];
+                if (controller == null || controller.GetType().Name != "PlayerInventoryController")
+                {
+                    continue;
+                }
+
+                Object.DestroyImmediate(controller);
+            }
+
+            var probeControllerType = System.Type.GetType("Reloader.Inventory.PlayerInventoryController, Reloader.World.Tests.EditMode");
+            Assert.That(probeControllerType, Is.Not.Null, "Expected the probe PlayerInventoryController type to resolve from the test assembly.");
+            var probeController = playerRoot.gameObject.AddComponent(probeControllerType);
+            var runtime = new InventoryReplayProbeRuntime();
+            runtime.SeedCarriedItem(carriedItemId);
+            var runtimeProperty = probeControllerType.GetProperty("Runtime", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(runtimeProperty, Is.Not.Null, "Expected the probe PlayerInventoryController.Runtime property.");
+            runtimeProperty.SetValue(probeController, runtime);
+            return runtime;
+        }
+
+        private static object GetInventoryRuntime(Component inventoryController)
+        {
+            var runtimeProperty = inventoryController.GetType().GetProperty("Runtime", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(runtimeProperty, Is.Not.Null, "Expected Runtime property on PlayerInventoryController.");
+            return runtimeProperty!.GetValue(inventoryController);
+        }
+
+        private static int GetItemQuantity(object inventoryRuntime, string itemId)
+        {
+            var method = inventoryRuntime.GetType().GetMethod("GetItemQuantity", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(method, Is.Not.Null, "Expected GetItemQuantity on inventory runtime probe.");
+            return (int)method!.Invoke(inventoryRuntime, new object[] { itemId });
+        }
+
+        private static int GetSelectedBeltIndex(object inventoryRuntime)
+        {
+            var property = inventoryRuntime.GetType().GetProperty("SelectedBeltIndex", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(property, Is.Not.Null, "Expected SelectedBeltIndex on inventory runtime probe.");
+            return (int)property!.GetValue(inventoryRuntime);
+        }
+
+        private static void SeedPendingInventoryReplay(string itemId, int quantity, int selectedBeltIndex)
+        {
+            var pendingInventory = GetPrivateStaticField<Dictionary<string, int>>("_pendingInventoryQuantities");
+            pendingInventory.Clear();
+            pendingInventory[itemId] = quantity;
+            SetPrivateStaticField("_pendingSelectedBeltIndex", selectedBeltIndex);
+        }
+
         private static System.Type GetOriginType(string typeName)
         {
             var resolvedType = System.Type.GetType($"Reloader.World.Runtime.Origin.{typeName}, Reloader.World");
@@ -631,5 +987,129 @@ namespace Reloader.World.Tests.EditMode
             Assert.That(property, Is.Not.Null, $"Expected {target.GetType().Name}.{propertyName} property to exist.");
             return (Vector3)property.GetValue(target);
         }
+
+        private sealed class InventoryReplayProbeRuntime
+        {
+            private readonly Dictionary<string, int> _quantities = new(StringComparer.Ordinal);
+            private readonly HashSet<string> _capturedItemIds = new(StringComparer.Ordinal);
+            private bool _restored;
+
+            public InventoryReplayProbeRuntime()
+            {
+                BeltSlotItemIds = new string[5];
+                BackpackItemIds = new List<string>();
+                SelectedBeltIndex = -1;
+            }
+
+            public string[] BeltSlotItemIds { get; }
+            public List<string> BackpackItemIds { get; }
+            public int SelectedBeltIndex { get; private set; }
+            public int GetItemQuantityCallCount { get; private set; }
+            public int TryAddStackItemCallCount { get; private set; }
+            public int TryStoreItemCallCount { get; private set; }
+            public int SelectBeltSlotCallCount { get; private set; }
+            public int ClearCarriedItemsCallCount { get; private set; }
+
+            public void SeedCarriedItem(string itemId)
+            {
+                _quantities[itemId] = 1;
+                BeltSlotItemIds[0] = itemId;
+                BackpackItemIds.Clear();
+                SelectedBeltIndex = 0;
+            }
+
+            public int GetItemQuantity(string itemId)
+            {
+                GetItemQuantityCallCount++;
+                if (string.IsNullOrWhiteSpace(itemId))
+                {
+                    return 0;
+                }
+
+                if (!_capturedItemIds.Contains(itemId))
+                {
+                    _capturedItemIds.Add(itemId);
+                    return _quantities.TryGetValue(itemId, out var quantity) ? quantity : 0;
+                }
+
+                if (!_restored)
+                {
+                    return 0;
+                }
+
+                return _quantities.TryGetValue(itemId, out var quantityAfterReplay) ? quantityAfterReplay : 0;
+            }
+
+            public bool TryAddStackItem(string itemId, int quantity, out object storedArea, out int storedIndex, out object rejectReason)
+            {
+                TryAddStackItemCallCount++;
+                storedArea = null;
+                storedIndex = -1;
+                rejectReason = null;
+
+                if (string.IsNullOrWhiteSpace(itemId) || quantity <= 0)
+                {
+                    return false;
+                }
+
+                _quantities[itemId] = quantity;
+                _restored = true;
+                if (string.IsNullOrWhiteSpace(BeltSlotItemIds[0]))
+                {
+                    BeltSlotItemIds[0] = itemId;
+                }
+
+                return true;
+            }
+
+            public bool TryStoreItem(string itemId, out object storedArea, out int storedIndex, out object rejectReason)
+            {
+                TryStoreItemCallCount++;
+                storedArea = null;
+                storedIndex = -1;
+                rejectReason = null;
+                return TryAddStackItem(itemId, 1, out _, out _, out _);
+            }
+
+            public void SelectBeltSlot(int beltSlotIndex)
+            {
+                SelectBeltSlotCallCount++;
+                if (beltSlotIndex < 0 || beltSlotIndex >= BeltSlotItemIds.Length)
+                {
+                    return;
+                }
+
+                SelectedBeltIndex = beltSlotIndex;
+            }
+
+            public void ClearSelectedBeltSlot()
+            {
+                SelectedBeltIndex = -1;
+            }
+
+            public void ClearCarriedItems()
+            {
+                ClearCarriedItemsCallCount++;
+                for (var i = 0; i < BeltSlotItemIds.Length; i++)
+                {
+                    BeltSlotItemIds[i] = null;
+                }
+
+                BackpackItemIds.Clear();
+                _quantities.Clear();
+                SelectedBeltIndex = -1;
+                _restored = false;
+                _capturedItemIds.Clear();
+            }
+        }
+
+    }
+}
+
+namespace Reloader.Inventory
+{
+    public sealed class PlayerInventoryController : MonoBehaviour
+    {
+        public object Runtime { get; set; }
     }
 }

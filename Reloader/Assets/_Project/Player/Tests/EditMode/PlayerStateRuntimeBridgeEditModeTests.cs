@@ -153,6 +153,7 @@ namespace Reloader.Player.Tests.EditMode
             Assert.That(travelCoordinator.TryTravelToSceneEntryCallCount, Is.EqualTo(1));
             Assert.That(travelCoordinator.LastSceneName, Is.EqualTo("MainTown"));
             Assert.That(travelCoordinator.LastEntryPointId, Is.EqualTo("entry.maintown.respawn.police"));
+            Assert.That(travelCoordinator.LastSuppressCarriedInventoryReplay, Is.True);
             Assert.That(travelCoordinator.TryMoveRuntimePlayerToLoadedEntryPointCallCount, Is.EqualTo(0));
 
             Object.DestroyImmediate(root);
@@ -187,6 +188,7 @@ namespace Reloader.Player.Tests.EditMode
             Assert.That(travelCoordinator.TryMoveRuntimePlayerToLoadedEntryPointCallCount, Is.EqualTo(1));
             Assert.That(travelCoordinator.LastScenePath, Is.EqualTo("Assets/_Project/World/Scenes/MainTown.unity"));
             Assert.That(travelCoordinator.LastEntryPointId, Is.EqualTo("entry.maintown.respawn.hospital"));
+            Assert.That(travelCoordinator.LastSuppressCarriedInventoryReplay, Is.True);
             Assert.That(travelCoordinator.TryTravelToSceneEntryCallCount, Is.EqualTo(0));
             Assert.That(ReadSharedReceiverHealth(sharedReceiver, "CurrentHealth"), Is.EqualTo(10f),
                 "Expected successful death recovery to restore the player's shared humanoid health budget.");
@@ -412,19 +414,23 @@ namespace Reloader.Player.Tests.EditMode
             public string LastScenePath { get; private set; } = string.Empty;
             public string LastEntryPointId { get; private set; } = string.Empty;
 
-            public bool TryTravelToSceneEntry(string sceneName, string entryPointId)
+            public bool LastSuppressCarriedInventoryReplay { get; private set; }
+
+            public bool TryTravelToSceneEntry(string sceneName, string entryPointId, bool suppressCarriedInventoryReplay = false)
             {
                 TryTravelToSceneEntryCallCount++;
                 LastSceneName = sceneName;
                 LastEntryPointId = entryPointId;
+                LastSuppressCarriedInventoryReplay = suppressCarriedInventoryReplay;
                 return TryTravelToSceneEntryResult;
             }
 
-            public bool TryMoveRuntimePlayerToLoadedEntryPoint(string scenePath, string entryPointId)
+            public bool TryMoveRuntimePlayerToLoadedEntryPoint(string scenePath, string entryPointId, bool suppressCarriedInventoryReplay = false)
             {
                 TryMoveRuntimePlayerToLoadedEntryPointCallCount++;
                 LastScenePath = scenePath;
                 LastEntryPointId = entryPointId;
+                LastSuppressCarriedInventoryReplay = suppressCarriedInventoryReplay;
                 return TryMoveRuntimePlayerToLoadedEntryPointResult;
             }
         }

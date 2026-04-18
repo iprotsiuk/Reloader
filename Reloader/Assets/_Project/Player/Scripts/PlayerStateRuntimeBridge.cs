@@ -409,13 +409,19 @@ namespace Reloader.Player
             var recoveryApplied = false;
             if (string.Equals(currentScenePath, MainTownScenePath, StringComparison.Ordinal))
             {
-                recoveryApplied = _recoveryTravelCoordinator.TryMoveRuntimePlayerToLoadedEntryPoint(MainTownScenePath, recoveryAnchorId);
+                recoveryApplied = _recoveryTravelCoordinator.TryMoveRuntimePlayerToLoadedEntryPoint(
+                    MainTownScenePath,
+                    recoveryAnchorId,
+                    suppressCarriedInventoryReplay: true);
             }
 
             if (!recoveryApplied)
             {
                 var sceneName = WorldPlayerRecoveryTravelCoordinator.GetSceneNameFromPath(MainTownScenePath);
-                recoveryApplied = _recoveryTravelCoordinator.TryTravelToSceneEntry(sceneName, recoveryAnchorId);
+                recoveryApplied = _recoveryTravelCoordinator.TryTravelToSceneEntry(
+                    sceneName,
+                    recoveryAnchorId,
+                    suppressCarriedInventoryReplay: true);
             }
 
             if (recoveryApplied)
