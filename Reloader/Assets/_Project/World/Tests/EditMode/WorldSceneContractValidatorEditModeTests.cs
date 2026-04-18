@@ -160,6 +160,7 @@ namespace Reloader.World.Tests.EditMode
                 new[]
                 {
                     "ammo-factory-308-147-fmj",
+                    "ammo-specialty-308-150-ap",
                     "ammo-factory-9x19-124-fmj"
                 },
                 ExtractCatalogItemIds(ammoCatalog!));

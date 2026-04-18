@@ -19,6 +19,12 @@ MonoBehaviour:
     _unitPrice: 2
     _startingStock: 10000
     _iconSourcePrefab: {fileID: 0}
+  - _itemId: ammo-specialty-308-150-ap
+    _displayName: .308 150gr AP
+    _category: ammo
+    _unitPrice: 3
+    _startingStock: 10000
+    _iconSourcePrefab: {fileID: 0}
   - _itemId: ammo-factory-9x19-124-fmj
     _displayName: Factory 9mm 124gr FMJ
     _category: ammo

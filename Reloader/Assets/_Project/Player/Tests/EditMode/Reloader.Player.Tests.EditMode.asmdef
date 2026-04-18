@@ -3,6 +3,8 @@
   "rootNamespace": "Reloader.Player.Tests.EditMode",
   "references": [
     "Reloader.Player",
+    "Reloader.Core",
+    "Reloader.Inventory",
     "Unity.RenderPipelines.Universal.Runtime"
   ],
   "includePlatforms": [

@@ -113,11 +113,28 @@ namespace Reloader.Weapons.Tests.EditMode
             var round = WeaponAmmoDefaults.BuildFactoryRound("ammo-factory-308-147-fmj");
 
             Assert.That(round.AmmoItemId, Is.EqualTo("ammo-factory-308-147-fmj"));
+            Assert.That(round.DisplayName, Is.EqualTo("Factory .308 147gr FMJ"));
             Assert.That(round.MuzzleVelocityFps, Is.EqualTo(2780f));
             Assert.That(round.VelocityStdDevFps, Is.EqualTo(55f));
             Assert.That(round.ProjectileMassGrains, Is.EqualTo(147f));
             Assert.That(round.BallisticCoefficientG1, Is.EqualTo(0.398f));
             Assert.That(round.CoverPenetrationPower, Is.EqualTo(0f));
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("   ")]
+        public void WeaponAmmoDefaults_Specialty308ApDefaultsBlankOrNullAmmoItemIdToSpecialtyId(string ammoItemId)
+        {
+            var round = WeaponAmmoDefaults.BuildSpecialtyRound(ammoItemId);
+
+            Assert.That(round.AmmoItemId, Is.EqualTo(WeaponAmmoDefaults.SpecialtyAmmoItemId));
+            Assert.That(round.DisplayName, Is.EqualTo(WeaponAmmoDefaults.SpecialtyAmmoDisplayName));
+            Assert.That(round.MuzzleVelocityFps, Is.EqualTo(2780f));
+            Assert.That(round.VelocityStdDevFps, Is.EqualTo(55f));
+            Assert.That(round.ProjectileMassGrains, Is.EqualTo(150f));
+            Assert.That(round.BallisticCoefficientG1, Is.EqualTo(0.398f));
+            Assert.That(round.CoverPenetrationPower, Is.EqualTo(1f));
         }
 
         [Test]

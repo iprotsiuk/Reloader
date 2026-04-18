@@ -13,10 +13,19 @@ namespace Reloader.Weapons.Runtime
         public const float DefaultBallisticCoefficientG1 = 0.398f;
         public const float DefaultDispersionMoa = 4.5f;
         public const float DefaultCoverPenetrationPower = 0f;
+        public const string SpecialtyAmmoDisplayName = ".308 150gr AP";
+        public const string SpecialtyAmmoItemId = "ammo-specialty-308-150-ap";
+        public const float SpecialtyProjectileMassGrains = 150f;
+        public const float SpecialtyCoverPenetrationPower = 1f;
 
         public static string NormalizeAmmoItemId(string ammoItemId)
         {
             return string.IsNullOrWhiteSpace(ammoItemId) ? DefaultAmmoItemId : ammoItemId;
+        }
+
+        public static string NormalizeSpecialtyAmmoItemId(string ammoItemId)
+        {
+            return string.IsNullOrWhiteSpace(ammoItemId) ? SpecialtyAmmoItemId : ammoItemId;
         }
 
         public static string NormalizeDisplayName(string displayName)
@@ -67,6 +76,21 @@ namespace Reloader.Weapons.Runtime
                 Guid.NewGuid().ToString("N"),
                 NormalizeAmmoItemId(ammoItemId),
                 DefaultCoverPenetrationPower);
+        }
+
+        public static AmmoBallisticSnapshot BuildSpecialtyRound(string ammoItemId = SpecialtyAmmoItemId)
+        {
+            return new AmmoBallisticSnapshot(
+                AmmoSourceType.Factory,
+                DefaultMuzzleVelocityFps,
+                DefaultVelocityStdDevFps,
+                SpecialtyProjectileMassGrains,
+                DefaultBallisticCoefficientG1,
+                DefaultDispersionMoa,
+                SpecialtyAmmoDisplayName,
+                Guid.NewGuid().ToString("N"),
+                NormalizeSpecialtyAmmoItemId(ammoItemId),
+                SpecialtyCoverPenetrationPower);
         }
     }
 }
